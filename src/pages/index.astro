@@ -3,14 +3,9 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
-  <div class="container" id="container">
+  <div class="container">
     <!-- Gradient background with logo mask -->
-    <div class="logo-mask" id="bgLayer"></div>
-
-    <!-- Tap instruction for mobile (hidden after first tap) -->
-    <div class="tap-instruction" id="tapInstruction">
-      <p>Tap to enable tilt</p>
-    </div>
+    <div class="logo-mask"></div>
   </div>
 </Layout>
 
@@ -31,10 +26,10 @@ import Layout from "../layouts/Layout.astro";
   }
 
   .logo-mask {
-    width: 70vw;
-    height: 70vw;
-    max-width: 70vh;
-    max-height: 70vh;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
     background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
       radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
       radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
@@ -59,8 +54,8 @@ import Layout from "../layouts/Layout.astro";
     background-position: 50% 50%;
     animation: lavaLamp 20s ease-in-out infinite;
     will-change: background-position;
-    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z' fill='white'/%3E%3Cpath d='M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z' fill='white'/%3E%3C/svg%3E");
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z' fill='white'/%3E%3Cpath d='M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z' fill='white'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M291.8,362.4h-44.9l-2.4-5.7c-16.9-39.9-44.9-106.7-63.6-151.5-12.9,30.8-35.6,85.1-39.7,94.9l-26.3,62.3h-44.9l90.8-214h40.1l90.8,214Z' fill='white'/%3E%3Cpath d='M364.1,361h-38l-86.6-214h44.5l61.2,154.1,61.1-154.1h44.5l-86.6,214Z' fill='white'/%3E%3Cpath d='M470.9,356v-203.9h150v22.2h-126.9v68.4h87.7v22.5h-87.7v68.7h117.5l-9.4,22.2h-131.2Z' fill='white'/%3E%3Cpath d='M605.4,360.9h-139.5v-213.9h160v32.2h-126.9v58.4h87.7v32.5h-87.7v58.7h120l-13.6,32.2Z' fill='white'/%3E%3Cpath d='M-86.2,356v-203.9H63.7v22.2H-63.2v68.4H24.5v22.5H-63.2v68.7H54.3l-9.4,22.2H-86.2Z' fill='white'/%3E%3Cpath d='M48.9,362H-92.2v-215.9H69.7v34.2H-57.2v56.4H30.5v34.5H-57.2v56.7H63.4l-14.5,34.2Z' fill='white'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M291.8,362.4h-44.9l-2.4-5.7c-16.9-39.9-44.9-106.7-63.6-151.5-12.9,30.8-35.6,85.1-39.7,94.9l-26.3,62.3h-44.9l90.8-214h40.1l90.8,214Z' fill='white'/%3E%3Cpath d='M364.1,361h-38l-86.6-214h44.5l61.2,154.1,61.1-154.1h44.5l-86.6,214Z' fill='white'/%3E%3Cpath d='M470.9,356v-203.9h150v22.2h-126.9v68.4h87.7v22.5h-87.7v68.7h117.5l-9.4,22.2h-131.2Z' fill='white'/%3E%3Cpath d='M605.4,360.9h-139.5v-213.9h160v32.2h-126.9v58.4h87.7v32.5h-87.7v58.7h120l-13.6,32.2Z' fill='white'/%3E%3Cpath d='M-86.2,356v-203.9H63.7v22.2H-63.2v68.4H24.5v22.5H-63.2v68.7H54.3l-9.4,22.2H-86.2Z' fill='white'/%3E%3Cpath d='M48.9,362H-92.2v-215.9H69.7v34.2H-57.2v56.4H30.5v34.5H-57.2v56.7H63.4l-14.5,34.2Z' fill='white'/%3E%3C/svg%3E");
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-position: center;
@@ -71,33 +66,6 @@ import Layout from "../layouts/Layout.astro";
       drop-shadow(0 0 60px rgba(255, 100, 200, 0.4))
       drop-shadow(0 0 100px rgba(100, 200, 255, 0.3))
       drop-shadow(0 0 150px rgba(255, 200, 100, 0.2));
-  }
-
-  .tap-instruction {
-    position: fixed;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 14px;
-    font-weight: 400;
-    text-align: center;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
-    z-index: 100;
-  }
-
-  .tap-instruction p {
-    margin: 0;
-    padding: 12px 24px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    backdrop-filter: blur(10px);
-  }
-
-  .tap-instruction.hidden {
-    opacity: 0;
-    pointer-events: none;
   }
 
   /* Lava lamp animation */
@@ -119,129 +87,3 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 </style>
-
-<script>
-  // Gyroscope and mouse parallax effect
-  const logoMask = document.getElementById("bgLayer");
-  let isGyroAvailable = false;
-  let mouseX = 0;
-  let mouseY = 0;
-
-  // Smooth animation values
-  let currentX = 0;
-  let currentY = 0;
-  let targetX = 0;
-  let targetY = 0;
-
-  // Request permission for iOS 13+ devices
-  async function requestGyroPermission() {
-    const tapInstruction = document.getElementById("tapInstruction");
-
-    if (
-      typeof DeviceOrientationEvent !== "undefined" &&
-      typeof (DeviceOrientationEvent as any).requestPermission === "function"
-    ) {
-      try {
-        console.log("Requesting gyroscope permission...");
-        const permission = await (
-          DeviceOrientationEvent as any
-        ).requestPermission();
-        console.log("Permission result:", permission);
-        if (permission === "granted") {
-          isGyroAvailable = true;
-          window.addEventListener("deviceorientation", handleOrientation);
-          console.log("Gyroscope enabled!");
-          if (tapInstruction) {
-            tapInstruction.classList.add("hidden");
-          }
-        }
-      } catch (error) {
-        console.log("Gyroscope permission denied:", error);
-      }
-    } else if ("DeviceOrientationEvent" in window) {
-      // Android and older iOS devices
-      console.log("Gyroscope available without permission");
-      isGyroAvailable = true;
-      window.addEventListener("deviceorientation", handleOrientation);
-      if (tapInstruction) {
-        tapInstruction.classList.add("hidden");
-      }
-    }
-  }
-
-  // Handle device orientation (gyroscope)
-  function handleOrientation(event: DeviceOrientationEvent) {
-    if (!event.beta || !event.gamma) return;
-
-    // Beta: front-to-back tilt (-180 to 180)
-    // Gamma: left-to-right tilt (-90 to 90)
-    const beta = event.beta || 0;
-    const gamma = event.gamma || 0;
-
-    // Normalize and limit movement
-    targetX = Math.max(-30, Math.min(30, gamma * 0.8));
-    targetY = Math.max(-30, Math.min(30, (beta - 45) * 0.5)); // Offset by 45 for natural holding position
-  }
-
-  // Handle mouse movement (desktop fallback)
-  function handleMouseMove(event: MouseEvent) {
-    if (isGyroAvailable) return; // Don't use mouse if gyro is active
-
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-
-    mouseX = ((event.clientX - centerX) / centerX) * 30;
-    mouseY = ((event.clientY - centerY) / centerY) * 30;
-
-    targetX = mouseX;
-    targetY = mouseY;
-  }
-
-  // Smooth animation loop
-  function animate() {
-    // Lerp (linear interpolation) for smooth movement
-    currentX += (targetX - currentX) * 0.1;
-    currentY += (targetY - currentY) * 0.1;
-
-    if (logoMask) {
-      // Move the background position to create parallax effect
-      const xPercent = 50 + currentX * 0.5;
-      const yPercent = 50 + currentY * 0.5;
-      logoMask.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
-    }
-
-    requestAnimationFrame(animate);
-  }
-
-  // Initialize
-  window.addEventListener("mousemove", handleMouseMove);
-
-  // Try to enable gyroscope on user interaction (required for iOS)
-  const container = document.getElementById("container");
-  let permissionRequested = false;
-
-  async function handleUserInteraction() {
-    if (!permissionRequested) {
-      permissionRequested = true;
-      console.log("User interaction detected!");
-      await requestGyroPermission();
-    }
-  }
-
-  // Multiple event listeners to catch any user interaction
-  container?.addEventListener("click", handleUserInteraction);
-  container?.addEventListener("touchstart", handleUserInteraction);
-  document.addEventListener("click", handleUserInteraction);
-  document.addEventListener("touchstart", handleUserInteraction);
-
-  // Start animation loop
-  animate();
-
-  // Hide tap instruction after 5 seconds if no interaction
-  setTimeout(() => {
-    const tapInstruction = document.getElementById("tapInstruction");
-    if (tapInstruction && !permissionRequested) {
-      tapInstruction.style.opacity = "0.3";
-    }
-  }, 5000);
-</script>
