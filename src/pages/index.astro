@@ -121,7 +121,6 @@ import Layout from "../layouts/Layout.astro";
       );
     background-size: 25vw 25vh;
     background-repeat: repeat;
-    animation: drift 10s ease-in-out infinite;
     will-change: transform;
     cursor: grab;
   }
@@ -181,8 +180,36 @@ import Layout from "../layouts/Layout.astro";
   let isDragging = false;
   let startX = 0;
   let startY = 0;
-  let currentX = 0;
-  let currentY = 0;
+  let baseX = 0; // User's drag offset
+  let baseY = 0;
+  let driftX = 0; // Drift animation offset
+  let driftY = 0;
+  let animationId: number;
+  let startTime: number;
+
+  // Drift animation using JS (so we can continue from current position)
+  function animateDrift(timestamp: number) {
+    if (isDragging) {
+      animationId = requestAnimationFrame(animateDrift);
+      return;
+    }
+
+    if (!startTime) startTime = timestamp;
+    const elapsed = (timestamp - startTime) / 1000; // seconds
+    const duration = 10; // 10 second cycle
+    const progress = (elapsed % duration) / duration;
+
+    // Create a smooth looping drift pattern
+    const angle = progress * Math.PI * 2;
+    driftX = Math.sin(angle) * 30 + Math.cos(angle * 0.5) * 20;
+    driftY = Math.cos(angle) * 25 + Math.sin(angle * 0.7) * 15;
+
+    if (gradientLayer) {
+      gradientLayer.style.transform = `translate(${baseX + driftX}px, ${baseY + driftY}px)`;
+    }
+
+    animationId = requestAnimationFrame(animateDrift);
+  }
 
   function handleStart(e: MouseEvent | TouchEvent) {
     isDragging = true;
@@ -190,19 +217,13 @@ import Layout from "../layouts/Layout.astro";
     startX = point.clientX;
     startY = point.clientY;
 
-    // Pause drift animation and add dragging class
     if (gradientLayer) {
-      gradientLayer.style.animationPlayState = "paused";
       gradientLayer.classList.add("dragging");
-
-      // Get current animated position
-      const style = window.getComputedStyle(gradientLayer);
-      const matrix = new DOMMatrix(style.transform);
-      currentX = matrix.m41;
-      currentY = matrix.m42;
-
-      // Clear the animation transform
-      gradientLayer.style.animation = "none";
+      // Capture current position as new base
+      baseX = baseX + driftX;
+      baseY = baseY + driftY;
+      driftX = 0;
+      driftY = 0;
     }
   }
 
@@ -215,11 +236,11 @@ import Layout from "../layouts/Layout.astro";
     const deltaX = point.clientX - startX;
     const deltaY = point.clientY - startY;
 
-    currentX += deltaX;
-    currentY += deltaY;
+    baseX += deltaX;
+    baseY += deltaY;
 
     if (gradientLayer) {
-      gradientLayer.style.transform = `translate(${currentX}px, ${currentY}px)`;
+      gradientLayer.style.transform = `translate(${baseX}px, ${baseY}px)`;
     }
 
     startX = point.clientX;
@@ -229,10 +250,10 @@ import Layout from "../layouts/Layout.astro";
   function handleEnd() {
     isDragging = false;
 
-    // Remove dragging class but keep the position (don't resume animation)
     if (gradientLayer) {
       gradientLayer.classList.remove("dragging");
-      // Keep the transform where user left it - don't restart animation
+      // Reset drift start time so animation continues smoothly from here
+      startTime = 0;
     }
   }
 
@@ -245,4 +266,7 @@ import Layout from "../layouts/Layout.astro";
   document.addEventListener("touchstart", handleStart, { passive: false });
   document.addEventListener("touchmove", handleMove, { passive: false });
   document.addEventListener("touchend", handleEnd);
+
+  // Start the drift animation
+  animationId = requestAnimationFrame(animateDrift);
 </script>
