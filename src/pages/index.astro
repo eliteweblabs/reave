@@ -74,7 +74,9 @@ import Layout from "../layouts/Layout.astro";
       );
     background-size: 50vw 50vh;
     background-repeat: repeat;
-    animation: lavaLamp 20s ease-in-out infinite;
+    animation:
+      lavaLamp 20s ease-in-out infinite,
+      drift 8s ease-in-out infinite;
     will-change: transform;
   }
 
@@ -96,6 +98,25 @@ import Layout from "../layouts/Layout.astro";
       background-position: 0% 0%;
     }
   }
+
+  /* Subtle drift animation to show it's interactive */
+  @keyframes drift {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(30px, -20px);
+    }
+    50% {
+      transform: translate(-20px, 30px);
+    }
+    75% {
+      transform: translate(20px, 20px);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
 </style>
 
 <script>
@@ -111,6 +132,11 @@ import Layout from "../layouts/Layout.astro";
     const point = "touches" in e ? e.touches[0] : e;
     startX = point.clientX;
     startY = point.clientY;
+
+    // Pause drift animation when user starts dragging
+    if (gradientLayer) {
+      gradientLayer.style.animationPlayState = "paused";
+    }
   }
 
   function handleMove(e: MouseEvent | TouchEvent) {
@@ -135,6 +161,11 @@ import Layout from "../layouts/Layout.astro";
 
   function handleEnd() {
     isDragging = false;
+
+    // Resume drift animation when user stops dragging
+    if (gradientLayer) {
+      gradientLayer.style.animationPlayState = "running";
+    }
   }
 
   // Mouse events
