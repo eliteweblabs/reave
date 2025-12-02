@@ -3,7 +3,7 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
-  <div class="container">
+  <div class="container" id="container">
     <!-- Hidden SVG for mask definition -->
     <svg width="0" height="0" style="position: absolute;">
       <defs>
@@ -22,30 +22,42 @@ import Layout from "../layouts/Layout.astro";
     <div class="logo-wrapper">
       <div class="background-layer" id="bgLayer"></div>
     </div>
+
+    <!-- Tap instruction for mobile (hidden after first tap) -->
+    <div class="tap-instruction" id="tapInstruction">
+      <p>Tap to enable tilt</p>
+    </div>
   </div>
 </Layout>
 
 <style>
   .container {
-    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #000000;
     overflow: hidden;
+    padding: 5vh 5vw;
+    margin: 0;
+    box-sizing: border-box;
   }
 
   .logo-wrapper {
     width: 90vw;
     height: 90vw;
-    max-width: 600px;
-    max-height: 600px;
+    max-width: 90vh;
+    max-height: 90vh;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     mask: url(#logoMask);
     -webkit-mask: url(#logoMask);
-    mask-size: contain;
-    -webkit-mask-size: contain;
+    mask-size: 100% 100%;
+    -webkit-mask-size: 100% 100%;
     mask-position: center;
     -webkit-mask-position: center;
     mask-repeat: no-repeat;
@@ -66,6 +78,33 @@ import Layout from "../layouts/Layout.astro";
     transition: transform 0.1s ease-out;
     will-change: transform;
   }
+
+  .tap-instruction {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    font-weight: 400;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    z-index: 10;
+  }
+
+  .tap-instruction p {
+    margin: 0;
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+  }
+
+  .tap-instruction.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 </style>
 
 <script>
@@ -83,25 +122,37 @@ import Layout from "../layouts/Layout.astro";
 
   // Request permission for iOS 13+ devices
   async function requestGyroPermission() {
+    const tapInstruction = document.getElementById("tapInstruction");
+
     if (
       typeof DeviceOrientationEvent !== "undefined" &&
       typeof (DeviceOrientationEvent as any).requestPermission === "function"
     ) {
       try {
+        console.log("Requesting gyroscope permission...");
         const permission = await (
           DeviceOrientationEvent as any
         ).requestPermission();
+        console.log("Permission result:", permission);
         if (permission === "granted") {
           isGyroAvailable = true;
           window.addEventListener("deviceorientation", handleOrientation);
+          console.log("Gyroscope enabled!");
+          if (tapInstruction) {
+            tapInstruction.classList.add("hidden");
+          }
         }
       } catch (error) {
-        console.log("Gyroscope permission denied");
+        console.log("Gyroscope permission denied:", error);
       }
     } else if ("DeviceOrientationEvent" in window) {
       // Android and older iOS devices
+      console.log("Gyroscope available without permission");
       isGyroAvailable = true;
       window.addEventListener("deviceorientation", handleOrientation);
+      if (tapInstruction) {
+        tapInstruction.classList.add("hidden");
+      }
     }
   }
 
@@ -150,11 +201,31 @@ import Layout from "../layouts/Layout.astro";
   window.addEventListener("mousemove", handleMouseMove);
 
   // Try to enable gyroscope on user interaction (required for iOS)
-  document.addEventListener("click", requestGyroPermission, { once: true });
-  document.addEventListener("touchstart", requestGyroPermission, {
-    once: true,
-  });
+  const container = document.getElementById("container");
+  let permissionRequested = false;
+
+  async function handleUserInteraction() {
+    if (!permissionRequested) {
+      permissionRequested = true;
+      console.log("User interaction detected!");
+      await requestGyroPermission();
+    }
+  }
+
+  // Multiple event listeners to catch any user interaction
+  container?.addEventListener("click", handleUserInteraction);
+  container?.addEventListener("touchstart", handleUserInteraction);
+  document.addEventListener("click", handleUserInteraction);
+  document.addEventListener("touchstart", handleUserInteraction);
 
   // Start animation loop
   animate();
+
+  // Hide tap instruction after 5 seconds if no interaction
+  setTimeout(() => {
+    const tapInstruction = document.getElementById("tapInstruction");
+    if (tapInstruction && !permissionRequested) {
+      tapInstruction.style.opacity = "0.3";
+    }
+  }, 5000);
 </script>
