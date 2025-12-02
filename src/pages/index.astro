@@ -4,27 +4,8 @@ import Layout from "../layouts/Layout.astro";
 
 <Layout>
   <div class="container" id="container">
-    <!-- Gradient glow around viewport edges -->
-    <div class="gradient-glow" id="gradientGlow"></div>
-
-    <!-- Hidden SVG for mask definition -->
-    <svg width="100vw" height="100vh" style="position: absolute;">
-      <defs>
-        <mask id="logoMask">
-          <path
-            d="M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z"
-            fill="white"></path>
-          <path
-            d="M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z"
-            fill="white"></path>
-        </mask>
-      </defs>
-    </svg>
-
-    <!-- Gradient layer with logo mask applied -->
-    <div class="logo-wrapper">
-      <div class="background-layer" id="bgLayer"></div>
-    </div>
+    <!-- Gradient background with logo mask -->
+    <div class="logo-mask" id="bgLayer"></div>
 
     <!-- Tap instruction for mobile (hidden after first tap) -->
     <div class="tap-instruction" id="tapInstruction">
@@ -49,13 +30,11 @@ import Layout from "../layouts/Layout.astro";
     padding: 0;
   }
 
-  .gradient-glow {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
+  .logo-mask {
+    width: 70vw;
+    height: 70vw;
+    max-width: 70vh;
+    max-height: 70vh;
     background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
       radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
       radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
@@ -77,62 +56,17 @@ import Layout from "../layouts/Layout.astro";
         #ff0000 100%
       );
     background-size: 200% 200%;
-    background-position: 0% 0%;
+    background-position: 50% 50%;
     animation: lavaLamp 20s ease-in-out infinite;
-    transition: transform 0.1s ease-out;
-    will-change: transform, background-position;
-    z-index: 1;
-  }
-
-  .logo-wrapper {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100vw;
-    max-height: 100vh;
-    position: relative;
-    overflow: visible;
-    mask: url(#logoMask);
-    -webkit-mask: url(#logoMask);
-    mask-size: 100% 100%;
-    -webkit-mask-size: 100% 100%;
+    will-change: background-position;
+    mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z' fill='white'/%3E%3Cpath d='M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z' fill='white'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z' fill='white'/%3E%3Cpath d='M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z' fill='white'/%3E%3C/svg%3E");
+    mask-size: contain;
+    -webkit-mask-size: contain;
     mask-position: center;
     -webkit-mask-position: center;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
-    z-index: 2;
-  }
-
-  .background-layer {
-    position: absolute;
-    top: -30%;
-    left: -30%;
-    width: 160%;
-    height: 160%;
-    background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
-      radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
-      radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
-      radial-gradient(circle at 20% 50%, #00ff00 0%, transparent 35%),
-      radial-gradient(circle at 80% 50%, #ffff00 0%, transparent 35%),
-      radial-gradient(circle at 35% 70%, #ff6600 0%, transparent 35%),
-      radial-gradient(circle at 65% 70%, #0000ff 0%, transparent 35%),
-      radial-gradient(circle at 50% 85%, #ff0088 0%, transparent 35%),
-      radial-gradient(
-        ellipse at center,
-        #ff0000 0%,
-        #ff6600 12%,
-        #ffff00 25%,
-        #00ff00 37%,
-        #00ffff 50%,
-        #0000ff 62%,
-        #ff00ff 75%,
-        #ff0088 87%,
-        #ff0000 100%
-      );
-    background-size: 200% 200%;
-    background-position: 0% 0%;
-    animation: lavaLamp 20s ease-in-out infinite;
-    transition: transform 0.1s ease-out;
-    will-change: transform, background-position;
   }
 
   .tap-instruction {
@@ -184,8 +118,7 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   // Gyroscope and mouse parallax effect
-  const bgLayer = document.getElementById("bgLayer");
-  const gradientGlow = document.getElementById("gradientGlow");
+  const logoMask = document.getElementById("bgLayer");
   let isGyroAvailable = false;
   let mouseX = 0;
   let mouseY = 0;
@@ -266,13 +199,11 @@ import Layout from "../layouts/Layout.astro";
     currentX += (targetX - currentX) * 0.1;
     currentY += (targetY - currentY) * 0.1;
 
-    if (bgLayer) {
-      bgLayer.style.transform = `translate(${currentX}px, ${currentY}px) scale(1.2)`;
-    }
-
-    if (gradientGlow) {
-      // Glow moves slightly less for depth effect
-      gradientGlow.style.transform = `translate(${currentX * 0.5}px, ${currentY * 0.5}px)`;
+    if (logoMask) {
+      // Move the background position to create parallax effect
+      const xPercent = 50 + currentX * 0.5;
+      const yPercent = 50 + currentY * 0.5;
+      logoMask.style.backgroundPosition = `${xPercent}% ${yPercent}%`;
     }
 
     requestAnimationFrame(animate);
