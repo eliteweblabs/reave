@@ -4,47 +4,23 @@ import Layout from "../layouts/Layout.astro";
 
 <Layout>
   <div class="container">
-    <div class="content">
-      <!-- Logo mask that reveals moving content underneath -->
-      <div class="logo-mask-wrapper">
-        <div class="background-layer" id="bgLayer"></div>
-        <svg
-          class="logo-mask"
-          viewBox="0 0 500 180"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <defs>
-            <mask id="logoMask">
-              <rect width="100%" height="100%" fill="black"></rect>
-              <!-- /\V shape - bold angular strokes matching actual logo -->
-              <g fill="white">
-                <!-- Left stroke / - thick parallelogram -->
-                <polygon points="20,160 80,160 180,30 120,30"></polygon>
-                <!-- Middle left stroke \ - thick parallelogram -->
-                <polygon points="140,30 200,30 240,120 180,120"></polygon>
-                <!-- Middle right stroke / - thick parallelogram -->
-                <polygon points="220,120 280,120 380,30 320,30"></polygon>
-                <!-- Right stroke \ - thick parallelogram -->
-                <polygon points="360,30 420,30 480,160 420,160"></polygon>
-              </g>
-            </mask>
-          </defs>
-          <rect width="100%" height="100%" mask="url(#logoMask)" fill="white"
-          ></rect>
-        </svg>
-      </div>
+    <!-- Hidden SVG for mask definition -->
+    <svg width="0" height="0" style="position: absolute;">
+      <defs>
+        <mask id="logoMask">
+          <path
+            d="M292.2,387.2h-53.9l-2.9-6.9c-20.4-48-54-128.4-76.5-182.2-15.5,37-42.8,102.4-47.8,114.1l-31.6,74.9H25.5l109.2-257.3h48.3l109.2,257.3Z"
+            fill="white"></path>
+          <path
+            d="M383.2,382.6h-45.7L233.3,125.2h53.5l73.5,185.3,73.5-185.3h53.5l-104.2,257.3Z"
+            fill="white"></path>
+        </mask>
+      </defs>
+    </svg>
 
-      <h1 class="title">Coming Soon</h1>
-      <p class="subtitle">Something exciting is on the way</p>
-
-      <div class="cta">
-        <input
-          type="email"
-          placeholder="Enter your email"
-          class="email-input"
-        />
-        <button class="notify-btn">Notify Me</button>
-      </div>
+    <!-- Gradient layer with logo mask applied -->
+    <div class="logo-wrapper">
+      <div class="background-layer" id="bgLayer"></div>
     </div>
   </div>
 </Layout>
@@ -55,26 +31,25 @@ import Layout from "../layouts/Layout.astro";
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
-    color: white;
-    padding: 2rem;
+    background: #000000;
     overflow: hidden;
   }
 
-  .content {
-    text-align: center;
+  .logo-wrapper {
+    width: 90vw;
+    height: 90vw;
     max-width: 600px;
-    width: 100%;
-  }
-
-  .logo-mask-wrapper {
+    max-height: 600px;
     position: relative;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto 3rem;
-    aspect-ratio: 2.5 / 1;
     overflow: hidden;
-    border-radius: 20px;
+    mask: url(#logoMask);
+    -webkit-mask: url(#logoMask);
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    -webkit-mask-position: center;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
   }
 
   .background-layer {
@@ -90,95 +65,6 @@ import Layout from "../layouts/Layout.astro";
     background-size: 200% 200%;
     transition: transform 0.1s ease-out;
     will-change: transform;
-  }
-
-  .logo-mask {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    filter: drop-shadow(0 10px 40px rgba(255, 255, 255, 0.3));
-  }
-
-  .title {
-    font-size: clamp(2.5rem, 8vw, 4rem);
-    font-weight: 700;
-    margin: 0 0 1rem;
-    background: linear-gradient(135deg, #ffffff 0%, #a8a8a8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    letter-spacing: -0.02em;
-  }
-
-  .subtitle {
-    font-size: clamp(1rem, 3vw, 1.25rem);
-    color: rgba(255, 255, 255, 0.7);
-    margin: 0 0 3rem;
-    font-weight: 300;
-  }
-
-  .cta {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .email-input {
-    flex: 1;
-    min-width: 200px;
-    max-width: 300px;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.05);
-    color: white;
-    font-size: 1rem;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
-  }
-
-  .email-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  .email-input:focus {
-    outline: none;
-    border-color: rgba(255, 255, 255, 0.4);
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  .notify-btn {
-    padding: 1rem 2rem;
-    border-radius: 12px;
-    border: none;
-    background: linear-gradient(135deg, #ff006e 0%, #8338ec 100%);
-    color: white;
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(255, 0, 110, 0.3);
-  }
-
-  .notify-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255, 0, 110, 0.4);
-  }
-
-  .notify-btn:active {
-    transform: translateY(0);
-  }
-
-  @media (max-width: 600px) {
-    .cta {
-      flex-direction: column;
-    }
-
-    .email-input {
-      max-width: 100%;
-    }
   }
 </style>
 
@@ -271,33 +157,4 @@ import Layout from "../layouts/Layout.astro";
 
   // Start animation loop
   animate();
-
-  // Handle email form submission
-  const emailInput = document.querySelector(".email-input") as HTMLInputElement;
-  const notifyBtn = document.querySelector(".notify-btn") as HTMLButtonElement;
-
-  notifyBtn?.addEventListener("click", () => {
-    const email = emailInput?.value;
-    if (email && email.includes("@")) {
-      // Add your email collection logic here
-      notifyBtn.textContent = "Thanks!";
-      notifyBtn.style.background =
-        "linear-gradient(135deg, #10b981 0%, #059669 100%)";
-      setTimeout(() => {
-        notifyBtn.textContent = "Notify Me";
-        notifyBtn.style.background =
-          "linear-gradient(135deg, #ff006e 0%, #8338ec 100%)";
-        emailInput.value = "";
-      }, 2000);
-    } else {
-      emailInput?.focus();
-    }
-  });
-
-  // Allow Enter key to submit
-  emailInput?.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") {
-      notifyBtn?.click();
-    }
-  });
 </script>
