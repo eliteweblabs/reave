@@ -87,3 +87,57 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 </style>
+
+<script>
+  const logoMask = document.querySelector(".logo-mask") as HTMLElement;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 50;
+  let currentY = 50;
+
+  function handleStart(e: MouseEvent | TouchEvent) {
+    isDragging = true;
+    const point = "touches" in e ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+  }
+
+  function handleMove(e: MouseEvent | TouchEvent) {
+    if (!isDragging) return;
+
+    e.preventDefault();
+    const point = "touches" in e ? e.touches[0] : e;
+
+    const deltaX = ((point.clientX - startX) / window.innerWidth) * 100;
+    const deltaY = ((point.clientY - startY) / window.innerHeight) * 100;
+
+    currentX += deltaX * 0.5;
+    currentY += deltaY * 0.5;
+
+    // Clamp values
+    currentX = Math.max(0, Math.min(100, currentX));
+    currentY = Math.max(0, Math.min(100, currentY));
+
+    if (logoMask) {
+      logoMask.style.backgroundPosition = `${currentX}% ${currentY}%`;
+    }
+
+    startX = point.clientX;
+    startY = point.clientY;
+  }
+
+  function handleEnd() {
+    isDragging = false;
+  }
+
+  // Mouse events
+  document.addEventListener("mousedown", handleStart);
+  document.addEventListener("mousemove", handleMove);
+  document.addEventListener("mouseup", handleEnd);
+
+  // Touch events
+  document.addEventListener("touchstart", handleStart, { passive: false });
+  document.addEventListener("touchmove", handleMove, { passive: false });
+  document.addEventListener("touchend", handleEnd);
+</script>
