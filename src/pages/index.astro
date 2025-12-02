@@ -8,7 +8,7 @@ import Layout from "../layouts/Layout.astro";
     <div class="gradient-glow" id="gradientGlow"></div>
 
     <!-- Hidden SVG for mask definition -->
-    <svg width="0" height="0" style="position: absolute;">
+    <svg width="100vw" height="100vh" style="position: absolute;">
       <defs>
         <mask id="logoMask">
           <path
@@ -56,32 +56,39 @@ import Layout from "../layouts/Layout.astro";
     width: 100vw;
     height: 100vh;
     pointer-events: none;
-    background: radial-gradient(circle at 25% 30%, #ff006e 0%, transparent 40%),
-      radial-gradient(circle at 75% 30%, #8338ec 0%, transparent 40%),
-      radial-gradient(circle at 50% 70%, #3a86ff 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, #ffd60a 0%, transparent 35%),
+    background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
+      radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
+      radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
+      radial-gradient(circle at 20% 50%, #00ff00 0%, transparent 35%),
+      radial-gradient(circle at 80% 50%, #ffff00 0%, transparent 35%),
+      radial-gradient(circle at 35% 70%, #ff6600 0%, transparent 35%),
+      radial-gradient(circle at 65% 70%, #0000ff 0%, transparent 35%),
+      radial-gradient(circle at 50% 85%, #ff0088 0%, transparent 35%),
       radial-gradient(
         ellipse at center,
-        #ff006e 0%,
-        #8338ec 25%,
-        #3a86ff 50%,
-        #ffd60a 75%,
-        #ff006e 100%
+        #ff0000 0%,
+        #ff6600 12%,
+        #ffff00 25%,
+        #00ff00 37%,
+        #00ffff 50%,
+        #0000ff 62%,
+        #ff00ff 75%,
+        #ff0088 87%,
+        #ff0000 100%
       );
-    background-size: 120% 120%;
-    background-position: center;
-    mask: radial-gradient(circle at center, transparent 45%, black 97%);
-    -webkit-mask: radial-gradient(circle at center, transparent 45%, black 97%);
+    background-size: 200% 200%;
+    background-position: 0% 0%;
+    animation: lavaLamp 20s ease-in-out infinite;
     transition: transform 0.1s ease-out;
-    will-change: transform;
+    will-change: transform, background-position;
     z-index: 1;
   }
 
   .logo-wrapper {
-    width: 70vw;
-    height: 70vw;
-    max-width: 70vh;
-    max-height: 70vh;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
     position: relative;
     overflow: visible;
     mask: url(#logoMask);
@@ -101,22 +108,31 @@ import Layout from "../layouts/Layout.astro";
     left: -30%;
     width: 160%;
     height: 160%;
-    background: radial-gradient(circle at 25% 30%, #ff006e 0%, transparent 40%),
-      radial-gradient(circle at 75% 30%, #8338ec 0%, transparent 40%),
-      radial-gradient(circle at 50% 70%, #3a86ff 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, #ffd60a 0%, transparent 35%),
+    background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
+      radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
+      radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
+      radial-gradient(circle at 20% 50%, #00ff00 0%, transparent 35%),
+      radial-gradient(circle at 80% 50%, #ffff00 0%, transparent 35%),
+      radial-gradient(circle at 35% 70%, #ff6600 0%, transparent 35%),
+      radial-gradient(circle at 65% 70%, #0000ff 0%, transparent 35%),
+      radial-gradient(circle at 50% 85%, #ff0088 0%, transparent 35%),
       radial-gradient(
         ellipse at center,
-        #ff006e 0%,
-        #8338ec 25%,
-        #3a86ff 50%,
-        #ffd60a 75%,
-        #ff006e 100%
+        #ff0000 0%,
+        #ff6600 12%,
+        #ffff00 25%,
+        #00ff00 37%,
+        #00ffff 50%,
+        #0000ff 62%,
+        #ff00ff 75%,
+        #ff0088 87%,
+        #ff0000 100%
       );
-    background-size: 150% 150%;
-    background-position: center;
+    background-size: 200% 200%;
+    background-position: 0% 0%;
+    animation: lavaLamp 20s ease-in-out infinite;
     transition: transform 0.1s ease-out;
-    will-change: transform;
+    will-change: transform, background-position;
   }
 
   .tap-instruction {
@@ -144,6 +160,25 @@ import Layout from "../layouts/Layout.astro";
   .tap-instruction.hidden {
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Lava lamp animation */
+  @keyframes lavaLamp {
+    0% {
+      background-position: 0% 0%;
+    }
+    25% {
+      background-position: 100% 50%;
+    }
+    50% {
+      background-position: 50% 100%;
+    }
+    75% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 0% 0%;
+    }
   }
 </style>
 
