@@ -108,7 +108,7 @@ import Layout from "../layouts/Layout.astro";
         #ff0088 87%,
         #ff0000 100%
       );
-    background-size: 125vw 125vh;
+    background-size: 50vw 50vh;
     background-repeat: repeat;
     will-change: transform;
     cursor: grab;
@@ -176,10 +176,10 @@ import Layout from "../layouts/Layout.astro";
   let animationId: number;
   let startTime: number;
 
-  // Pattern size matches background-size (125vw x 125vh)
+  // Pattern size matches background-size (50vw x 50vh)
   const getPatternSize = () => ({
-    width: window.innerWidth * 1.25,
-    height: window.innerHeight * 1.25,
+    width: window.innerWidth * 0.5,
+    height: window.innerHeight * 0.5,
   });
 
   // Wrap position to keep it within pattern bounds (infinite scrolling)
