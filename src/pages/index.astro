@@ -204,15 +204,24 @@ import Layout from "../layouts/Layout.astro";
 
     if (!startTime) startTime = timestamp;
     const elapsed = (timestamp - startTime) / 1000; // seconds
-    const duration = 10; // 10 second cycle
+    const duration = 30; // 30 second cycle for longer travel
     const progress = (elapsed % duration) / duration;
 
     // Create a smooth looping drift pattern with both horizontal and vertical movement
+    // Use larger drift distances to show more of the gradient before looping
+    const { width, height } = getPatternSize();
+    const maxDriftX = width * 0.8; // Travel 80% of pattern width
+    const maxDriftY = height * 0.8; // Travel 80% of pattern height
+
     const angle = progress * Math.PI * 2;
     // Horizontal drift with multiple frequencies for smooth movement
-    driftX = Math.sin(angle) * 30 + Math.cos(angle * 0.5) * 20;
+    driftX =
+      Math.sin(angle) * maxDriftX * 0.5 +
+      Math.cos(angle * 0.5) * maxDriftX * 0.3;
     // Vertical drift with independent pattern for more pronounced vertical movement
-    driftY = Math.cos(angle * 1.2) * 30 + Math.sin(angle * 0.8) * 25;
+    driftY =
+      Math.cos(angle * 1.2) * maxDriftY * 0.5 +
+      Math.sin(angle * 0.8) * maxDriftY * 0.3;
 
     const totalX = baseX + driftX;
     const totalY = baseY + driftY;
