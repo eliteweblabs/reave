@@ -212,44 +212,46 @@ import Layout from "../layouts/Layout.astro";
     // Wait for intro animation to complete (1 second) before starting drift
     const introDuration = 1000; // 1 second to match CSS animation
     const timeSinceInit = timestamp - initTimestamp;
+    const introComplete = timeSinceInit >= introDuration;
 
-    if (timeSinceInit < introDuration) {
-      // During intro, don't apply transform - let CSS animation handle it
-      animationId = requestAnimationFrame(animateDrift);
-      return;
+    // Initialize startTime when intro completes to start drift smoothly
+    if (introComplete && !startTime) {
+      startTime = timestamp;
     }
 
-    // Continue calculating drift even during drag (so it's ready when drag ends)
-    // But don't apply it during drag - handleMove will handle transforms during drag
+    // Calculate drift values (even during intro, so they're ready)
+    if (startTime) {
+      const elapsed = (timestamp - startTime) / 1000; // seconds
+      const duration = 30; // 30 second cycle for longer travel
+      const progress = (elapsed % duration) / duration;
 
-    if (!startTime) startTime = timestamp;
-    const elapsed = (timestamp - startTime) / 1000; // seconds
-    const duration = 30; // 30 second cycle for longer travel
-    const progress = (elapsed % duration) / duration;
+      // Create a smooth looping drift pattern with both horizontal and vertical movement
+      // Use larger drift distances to show more of the gradient before looping
+      const { width, height } = getPatternSize();
+      const maxDriftX = width * 0.8; // Travel 80% of pattern width
+      const maxDriftY = height * 0.8; // Travel 80% of pattern height
 
-    // Create a smooth looping drift pattern with both horizontal and vertical movement
-    // Use larger drift distances to show more of the gradient before looping
-    const { width, height } = getPatternSize();
-    const maxDriftX = width * 0.8; // Travel 80% of pattern width
-    const maxDriftY = height * 0.8; // Travel 80% of pattern height
+      const angle = progress * Math.PI * 2;
+      // Horizontal drift with multiple frequencies for smooth movement
+      driftX =
+        Math.sin(angle) * maxDriftX * 0.5 +
+        Math.cos(angle * 0.5) * maxDriftX * 0.3;
+      // Vertical drift with independent pattern for more pronounced vertical movement
+      driftY =
+        Math.cos(angle * 1.2) * maxDriftY * 0.5 +
+        Math.sin(angle * 0.8) * maxDriftY * 0.3;
+    }
 
-    const angle = progress * Math.PI * 2;
-    // Horizontal drift with multiple frequencies for smooth movement
-    driftX =
-      Math.sin(angle) * maxDriftX * 0.5 +
-      Math.cos(angle * 0.5) * maxDriftX * 0.3;
-    // Vertical drift with independent pattern for more pronounced vertical movement
-    driftY =
-      Math.cos(angle * 1.2) * maxDriftY * 0.5 +
-      Math.sin(angle * 0.8) * maxDriftY * 0.3;
+    // Only apply transform after intro completes
+    if (introComplete) {
+      // Don't wrap during drift - let it move continuously
+      // The background-repeat will handle seamless looping
+      // During drag, only apply baseX/baseY (driftX/driftY continue animating but aren't applied)
+      const totalX = baseX + (isDragging ? 0 : driftX);
+      const totalY = baseY + (isDragging ? 0 : driftY);
 
-    // Don't wrap during drift - let it move continuously
-    // The background-repeat will handle seamless looping
-    // During drag, only apply baseX/baseY (driftX/driftY continue animating but aren't applied)
-    const totalX = baseX + (isDragging ? 0 : driftX);
-    const totalY = baseY + (isDragging ? 0 : driftY);
-
-    gradientLayer.style.transform = `translate(${totalX}px, ${totalY}px)`;
+      gradientLayer.style.transform = `translate(${totalX}px, ${totalY}px)`;
+    }
 
     animationId = requestAnimationFrame(animateDrift);
   }
