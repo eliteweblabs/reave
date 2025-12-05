@@ -207,10 +207,12 @@ import Layout from "../layouts/Layout.astro";
     const duration = 10; // 10 second cycle
     const progress = (elapsed % duration) / duration;
 
-    // Create a smooth looping drift pattern
+    // Create a smooth looping drift pattern with both horizontal and vertical movement
     const angle = progress * Math.PI * 2;
+    // Horizontal drift with multiple frequencies for smooth movement
     driftX = Math.sin(angle) * 30 + Math.cos(angle * 0.5) * 20;
-    driftY = Math.cos(angle) * 25 + Math.sin(angle * 0.7) * 15;
+    // Vertical drift with independent pattern for more pronounced vertical movement
+    driftY = Math.cos(angle * 1.2) * 30 + Math.sin(angle * 0.8) * 25;
 
     const totalX = baseX + driftX;
     const totalY = baseY + driftY;
