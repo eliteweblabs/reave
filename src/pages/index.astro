@@ -180,6 +180,7 @@ import Layout from "../layouts/Layout.astro";
   let driftY = 0;
   let animationId;
   let startTime: number | undefined;
+  let initTimestamp: number | undefined;
 
   // Pattern size matches background-size (50vw x 50vh)
   const getPatternSize = () => ({
@@ -203,10 +204,23 @@ import Layout from "../layouts/Layout.astro";
       return;
     }
 
-    if (isDragging) {
+    // Record first timestamp as init time if not set
+    if (initTimestamp === undefined) {
+      initTimestamp = timestamp;
+    }
+
+    // Wait for intro animation to complete (1 second) before starting drift
+    const introDuration = 1000; // 1 second to match CSS animation
+    const timeSinceInit = timestamp - initTimestamp;
+
+    if (timeSinceInit < introDuration) {
+      // During intro, don't apply transform - let CSS animation handle it
       animationId = requestAnimationFrame(animateDrift);
       return;
     }
+
+    // Continue calculating drift even during drag (so it's ready when drag ends)
+    // But don't apply it during drag - handleMove will handle transforms during drag
 
     if (!startTime) startTime = timestamp;
     const elapsed = (timestamp - startTime) / 1000; // seconds
@@ -231,8 +245,9 @@ import Layout from "../layouts/Layout.astro";
 
     // Don't wrap during drift - let it move continuously
     // The background-repeat will handle seamless looping
-    const totalX = baseX + driftX;
-    const totalY = baseY + driftY;
+    // During drag, only apply baseX/baseY (driftX/driftY continue animating but aren't applied)
+    const totalX = baseX + (isDragging ? 0 : driftX);
+    const totalY = baseY + (isDragging ? 0 : driftY);
 
     gradientLayer.style.transform = `translate(${totalX}px, ${totalY}px)`;
 
@@ -247,16 +262,20 @@ import Layout from "../layouts/Layout.astro";
 
     if (gradientLayer) {
       gradientLayer.classList.add("dragging");
-      // Capture current position as new base
+      // Capture current visual position (base + drift) into base
+      // This preserves the position when we reset drift to 0
       baseX = baseX + driftX;
       baseY = baseY + driftY;
+      // Reset drift so it restarts smoothly when drag ends
       driftX = 0;
       driftY = 0;
+      // Reset startTime so drift restarts from beginning of cycle when drag ends
+      startTime = undefined;
     }
   }
 
   function handleMove(e: MouseEvent | TouchEvent) {
-    if (!isDragging) return;
+    if (!isDragging || !gradientLayer) return;
 
     e.preventDefault();
     const point = "touches" in e ? e.touches[0] : e;
@@ -264,14 +283,14 @@ import Layout from "../layouts/Layout.astro";
     const deltaX = point.clientX - startX;
     const deltaY = point.clientY - startY;
 
+    // Update base position with the drag delta
     baseX += deltaX;
     baseY += deltaY;
 
-    // Don't wrap - let it move continuously, background-repeat handles seamless looping
-    if (gradientLayer) {
-      gradientLayer.style.transform = `translate(${baseX}px, ${baseY}px)`;
-    }
+    // Apply the transform immediately (driftX/driftY not applied during drag)
+    gradientLayer.style.transform = `translate(${baseX}px, ${baseY}px)`;
 
+    // Update start position for next delta calculation
     startX = point.clientX;
     startY = point.clientY;
   }
@@ -281,9 +300,8 @@ import Layout from "../layouts/Layout.astro";
 
     if (gradientLayer) {
       gradientLayer.classList.remove("dragging");
-      // Reset drift start time so animation continues smoothly from here
-      // The next animateDrift call will set startTime to its timestamp
-      startTime = undefined;
+      // Don't reset startTime - let drift continue from its current phase
+      // baseX/baseY already preserve the drag position, so drift will add on top smoothly
     }
   }
 
@@ -296,6 +314,8 @@ import Layout from "../layouts/Layout.astro";
       return;
     }
 
+    // initTimestamp will be set on first requestAnimationFrame call
+
     // Mouse events
     document.addEventListener("mousedown", handleStart);
     document.addEventListener("mousemove", handleMove);
@@ -306,7 +326,7 @@ import Layout from "../layouts/Layout.astro";
     document.addEventListener("touchmove", handleMove, { passive: false });
     document.addEventListener("touchend", handleEnd);
 
-    // Start the drift animation
+    // Start the drift animation (will wait for intro to complete)
     animationId = requestAnimationFrame(animateDrift);
   }
 
