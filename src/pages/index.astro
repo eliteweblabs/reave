@@ -170,7 +170,7 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   // Wait for DOM to be ready
-  let gradientLayer;
+  let gradientLayer: HTMLElement | null = null;
   let isDragging = false;
   let startX = 0;
   let startY = 0;
@@ -179,7 +179,7 @@ import Layout from "../layouts/Layout.astro";
   let driftX = 0; // Drift animation offset
   let driftY = 0;
   let animationId;
-  let startTime;
+  let startTime: number | undefined;
 
   // Pattern size matches background-size (50vw x 50vh)
   const getPatternSize = () => ({
@@ -188,7 +188,7 @@ import Layout from "../layouts/Layout.astro";
   });
 
   // Wrap position to keep it within pattern bounds (infinite scrolling)
-  function wrapPosition(x, y) {
+  function wrapPosition(x: number, y: number) {
     const { width, height } = getPatternSize();
     // Use modulo to wrap - keeps position within one pattern tile
     let wrappedX = ((x % width) + width) % width;
@@ -197,7 +197,7 @@ import Layout from "../layouts/Layout.astro";
   }
 
   // Drift animation using JS (so we can continue from current position)
-  function animateDrift(timestamp) {
+  function animateDrift(timestamp: number) {
     if (!gradientLayer) {
       animationId = requestAnimationFrame(animateDrift);
       return;
@@ -239,7 +239,7 @@ import Layout from "../layouts/Layout.astro";
     animationId = requestAnimationFrame(animateDrift);
   }
 
-  function handleStart(e) {
+  function handleStart(e: MouseEvent | TouchEvent) {
     isDragging = true;
     const point = "touches" in e ? e.touches[0] : e;
     startX = point.clientX;
@@ -255,7 +255,7 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
-  function handleMove(e) {
+  function handleMove(e: MouseEvent | TouchEvent) {
     if (!isDragging) return;
 
     e.preventDefault();
