@@ -214,13 +214,16 @@ import Layout from "../layouts/Layout.astro";
     const timeSinceInit = timestamp - initTimestamp;
     const introComplete = timeSinceInit >= introDuration;
 
-    // Initialize startTime when intro completes to start drift smoothly
+    // Initialize startTime when intro completes to start drift smoothly from 0
     if (introComplete && !startTime) {
       startTime = timestamp;
+      // Ensure drift starts from 0 to prevent jump
+      driftX = 0;
+      driftY = 0;
     }
 
-    // Calculate drift values (even during intro, so they're ready)
-    if (startTime) {
+    // Calculate drift values only after intro completes
+    if (introComplete && startTime) {
       const elapsed = (timestamp - startTime) / 1000; // seconds
       const duration = 30; // 30 second cycle for longer travel
       const progress = (elapsed % duration) / duration;
