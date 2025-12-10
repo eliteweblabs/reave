@@ -90,6 +90,13 @@ const positionClasses = {
 
 <script define:vars={{ publicKey, assistantId }}>
   // Vapi SDK will be attached to window.Vapi
+  console.log("Vapi credentials check:", {
+    publicKey: publicKey ? "***" + publicKey.slice(-4) : "MISSING",
+    assistantId: assistantId ? assistantId : "MISSING",
+    publicKeyLength: publicKey?.length || 0,
+    assistantIdLength: assistantId?.length || 0,
+  });
+
   if (!publicKey || !assistantId) {
     console.warn(
       "Vapi credentials not found. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID environment variables."
@@ -234,8 +241,23 @@ const positionClasses = {
 
           // Validate credentials before initializing
           if (!publicKey || !assistantId) {
+            console.error("Missing credentials:", {
+              publicKey: !!publicKey,
+              assistantId: !!assistantId,
+            });
             throw new Error(
               "Vapi credentials are missing. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID."
+            );
+          }
+
+          // Additional validation - ensure assistantId is not just whitespace
+          if (
+            typeof assistantId !== "string" ||
+            assistantId.trim().length === 0
+          ) {
+            console.error("Invalid assistantId:", assistantId);
+            throw new Error(
+              "Assistant ID is invalid or empty. Please check your PUBLIC_VAPI_ASSISTANT_ID environment variable."
             );
           }
 
@@ -343,12 +365,39 @@ const positionClasses = {
               if (micIconEl) micIconEl.style.display = "block";
 
               if (typeof vapiInstance.start === "function") {
-                console.log("Starting Vapi call with assistant:", assistantId);
+                // Ensure assistantId is a valid string before calling start
+                const validAssistantId =
+                  assistantId && typeof assistantId === "string"
+                    ? assistantId.trim()
+                    : assistantId;
+
+                console.log(
+                  "Starting Vapi call with assistant:",
+                  validAssistantId
+                );
+                console.log("AssistantId validation:", {
+                  original: assistantId,
+                  trimmed: validAssistantId,
+                  type: typeof validAssistantId,
+                  length: validAssistantId?.length || 0,
+                  isEmpty: !validAssistantId || validAssistantId === "",
+                });
+
+                if (!validAssistantId || validAssistantId === "") {
+                  throw new Error(
+                    "Assistant ID is empty or invalid. Value: " +
+                      String(assistantId)
+                  );
+                }
+
                 // Pass assistantId as the first parameter to start()
-                vapiInstance.start(assistantId);
+                vapiInstance.start(validAssistantId);
               } else if (typeof vapiInstance.call === "function") {
                 console.log("Calling Vapi...");
-                vapiInstance.call(assistantId);
+                if (!assistantId || assistantId.trim() === "") {
+                  throw new Error("Assistant ID is empty or invalid");
+                }
+                vapiInstance.call(assistantId.trim());
               } else {
                 throw new Error(
                   "Vapi instance does not have start() or call() method"
