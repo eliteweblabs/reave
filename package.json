@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8"
   }
 }

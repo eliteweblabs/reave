@@ -15,10 +15,10 @@ const {
 } = Astro.props;
 
 const positionClasses = {
-  "bottom-right": "bottom-6 right-6",
-  "bottom-left": "bottom-6 left-6",
-  "top-right": "top-6 right-6",
-  "top-left": "top-6 left-6",
+  "bottom-right": "bottom-right",
+  "bottom-left": "bottom-left",
+  "top-right": "top-right",
+  "top-left": "top-left",
 };
 ---
 
@@ -75,33 +75,85 @@ const positionClasses = {
     );
   }
 
-  // Load Vapi SDK
-  (function () {
+  // Lazy load Vapi SDK only when button is clicked (resource optimization)
+  let vapiSDKLoaded = false;
+  let vapiSDKLoading = false;
+
+  async function loadVapiSDK() {
     const win = window;
 
-    // Check if SDK is already loaded
-    if (typeof win.Vapi !== "undefined") {
-      if (publicKey && assistantId) {
-        initializeVapi();
-      }
-      return;
+    // Return if already loaded
+    if (win.Vapi && typeof win.Vapi === "function") {
+      return win.Vapi;
     }
 
-    const script = document.createElement("script");
-    script.src = "https://cdn.vapi.ai/web-sdk/v1.js";
-    script.async = true;
-    script.onload = function () {
-      if (typeof win.Vapi !== "undefined" && publicKey && assistantId) {
-        initializeVapi();
+    // Return if already loading
+    if (vapiSDKLoading) {
+      // Wait for loading to complete
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (win.Vapi && typeof win.Vapi === "function") {
+            clearInterval(checkInterval);
+            resolve(win.Vapi);
+          } else if (vapiSDKLoaded && !win.Vapi) {
+            clearInterval(checkInterval);
+            resolve(null);
+          }
+        }, 100);
+      });
+    }
+
+    vapiSDKLoading = true;
+
+    try {
+      // Try importing from npm package (Vite will bundle it)
+      // Use the package name - Vite handles the resolution
+      let VapiModule;
+      try {
+        VapiModule = await import("@vapi-ai/web");
+      } catch (localError) {
+        // If local import fails, use CDN
+        console.warn("Local import failed, using CDN:", localError);
+        VapiModule = await import(
+          "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
+        );
       }
-    };
-    script.onerror = function () {
-      console.error(
-        "Failed to load Vapi SDK. Please check your internet connection."
-      );
-    };
-    document.head.appendChild(script);
-  })();
+
+      // Handle CommonJS default export
+      let Vapi = VapiModule.default;
+
+      // If default is not a constructor, try other exports
+      if (!Vapi || typeof Vapi !== "function") {
+        Vapi = VapiModule.Vapi || VapiModule.VapiClient || VapiModule;
+      }
+
+      // Final check - if still not a function, it might be wrapped
+      if (!Vapi || typeof Vapi !== "function") {
+        // Try accessing the constructor property if it exists
+        if (VapiModule.default && VapiModule.default.default) {
+          Vapi = VapiModule.default.default;
+        }
+      }
+
+      // Check if it's actually a constructor
+      if (Vapi && typeof Vapi === "function") {
+        win.Vapi = Vapi;
+        vapiSDKLoaded = true;
+        vapiSDKLoading = false;
+        return Vapi;
+      } else {
+        console.error("Vapi module structure:", VapiModule);
+        throw new Error(
+          "Vapi is not a constructor. Module type: " + typeof Vapi
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load Vapi SDK:", error);
+      vapiSDKLoaded = true;
+      vapiSDKLoading = false;
+      return null;
+    }
+  }
 
   function initializeVapi() {
     const button = document.getElementById("vapi-voice-button");
@@ -110,6 +162,7 @@ const positionClasses = {
     let vapiInstance = null;
     let isActive = false;
 
+    // Only add event listener once
     button.addEventListener("click", async function () {
       if (isActive) {
         // Stop the call
@@ -119,6 +172,8 @@ const positionClasses = {
               vapiInstance.stop();
             } else if (typeof vapiInstance.end === "function") {
               vapiInstance.end();
+            } else if (typeof vapiInstance.hangup === "function") {
+              vapiInstance.hangup();
             }
           } catch (error) {
             console.error("Error stopping call:", error);
@@ -129,56 +184,84 @@ const positionClasses = {
         button.classList.remove("active");
         button.setAttribute("aria-label", "Start voice chat");
       } else {
-        // Start the call
+        // Start the call - lazy load SDK here
         try {
+          // Show loading state
+          button.disabled = true;
+          button.style.opacity = "0.7";
+
+          // Load SDK only when needed (resource optimization)
+          const Vapi = await loadVapiSDK();
+
+          if (!Vapi || typeof Vapi !== "function") {
+            throw new Error("Vapi SDK failed to load or is not a constructor");
+          }
+
           // Request microphone permission
           await navigator.mediaDevices.getUserMedia({ audio: true });
 
-          const win = window;
-          const Vapi = win.Vapi;
-          if (Vapi) {
-            // Try different initialization patterns based on Vapi SDK version
-            try {
-              // Pattern 1: Direct initialization
-              vapiInstance = new Vapi({
-                publicKey: publicKey,
-                assistantId: assistantId,
-                onCallStart: function () {
-                  isActive = true;
-                  button.classList.add("active");
-                  button.setAttribute("aria-label", "End voice chat");
-                },
-                onCallEnd: function () {
-                  isActive = false;
-                  button.classList.remove("active");
-                  button.setAttribute("aria-label", "Start voice chat");
+          // Initialize Vapi
+          try {
+            vapiInstance = new Vapi({
+              publicKey: publicKey,
+              assistantId: assistantId,
+              onCallStart: function () {
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+              },
+              onCallEnd: function () {
+                isActive = false;
+                button.classList.remove("active");
+                button.setAttribute("aria-label", "Start voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                if (vapiInstance) {
                   vapiInstance = null;
-                },
-                onError: function (error) {
-                  console.error("Vapi error:", error);
-                  isActive = false;
-                  button.classList.remove("active");
-                  vapiInstance = null;
-                },
-              });
+                }
+              },
+              onError: function (error) {
+                console.error("Vapi error:", error);
+                isActive = false;
+                button.classList.remove("active");
+                button.setAttribute("aria-label", "Start voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                vapiInstance = null;
+              },
+            });
 
-              if (typeof vapiInstance.start === "function") {
-                vapiInstance.start();
-              } else if (typeof vapiInstance.call === "function") {
-                vapiInstance.call();
-              }
-            } catch (initError) {
-              // Pattern 2: Alternative initialization
-              console.error("Vapi initialization error:", initError);
-              alert(
-                "Failed to initialize voice chat. Please check your Vapi configuration."
+            // Start the call
+            if (typeof vapiInstance.start === "function") {
+              vapiInstance.start();
+            } else if (typeof vapiInstance.call === "function") {
+              vapiInstance.call();
+            } else {
+              throw new Error(
+                "Vapi instance does not have start() or call() method"
               );
             }
+          } catch (initError) {
+            console.error("Vapi initialization error:", initError);
+            button.disabled = false;
+            button.style.opacity = "1";
+            alert(
+              "Failed to initialize voice chat. Please check your Vapi configuration."
+            );
           }
         } catch (error) {
-          console.error("Error accessing microphone:", error);
+          console.error("Error:", error);
+          button.disabled = false;
+          button.style.opacity = "1";
+
           if (error.name === "NotAllowedError") {
             alert("Please allow microphone access to use voice chat.");
+          } else if (error.message && error.message.includes("constructor")) {
+            alert(
+              "Voice chat is temporarily unavailable. Please refresh the page."
+            );
           } else {
             alert(
               "Error accessing microphone. Please check your browser settings."
@@ -188,12 +271,50 @@ const positionClasses = {
       }
     });
   }
+
+  // Initialize button handler (SDK will be loaded lazily on first click)
+  if (publicKey && assistantId) {
+    initializeVapi();
+  } else {
+    // Disable button if credentials are missing
+    const button = document.getElementById("vapi-voice-button");
+    if (button) {
+      button.style.opacity = "0.5";
+      button.style.cursor = "not-allowed";
+      button.disabled = true;
+      button.setAttribute(
+        "title",
+        "Voice chat unavailable - credentials missing"
+      );
+    }
+  }
 </script>
 
 <style>
   .vapi-widget-container {
     position: fixed;
-    z-index: 1000;
+    z-index: 9999;
+  }
+
+  /* Position classes - using explicit CSS since Tailwind is not configured */
+  .vapi-widget-container.bottom-right {
+    bottom: 24px;
+    right: 24px;
+  }
+
+  .vapi-widget-container.bottom-left {
+    bottom: 24px;
+    left: 24px;
+  }
+
+  .vapi-widget-container.top-right {
+    top: 24px;
+    right: 24px;
+  }
+
+  .vapi-widget-container.top-left {
+    top: 24px;
+    left: 24px;
   }
 
   .vapi-voice-button {
