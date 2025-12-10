@@ -112,8 +112,8 @@ const positionClasses = {
       try {
         VapiModule = await import("@vapi-ai/web");
       } catch (localError) {
-        // If local import fails, use CDN
-        console.warn("Local import failed, using CDN:", localError);
+        // If local import fails (expected in browser), use CDN
+        // This is normal - browser scripts can't resolve npm packages directly
         VapiModule = await import(
           "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
         );
@@ -200,12 +200,61 @@ const positionClasses = {
           // Request microphone permission
           await navigator.mediaDevices.getUserMedia({ audio: true });
 
+          // Validate credentials before initializing
+          if (!publicKey || !assistantId) {
+            throw new Error(
+              "Vapi credentials are missing. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID."
+            );
+          }
+
           // Initialize Vapi
           try {
+            // Create error handler that properly logs the error
+            const handleError = function (error) {
+              console.error("Vapi error event:", error);
+              // Try to extract error details
+              let errorMessage = "Unknown error";
+              if (error && typeof error === "object") {
+                errorMessage =
+                  error.message || error.error || JSON.stringify(error);
+              } else if (error) {
+                errorMessage = String(error);
+              }
+
+              console.error("Vapi error details:", {
+                message: errorMessage,
+                error: error,
+                type: typeof error,
+                keys:
+                  error && typeof error === "object"
+                    ? Object.keys(error)
+                    : null,
+              });
+
+              isActive = false;
+              button.classList.remove("active");
+              button.setAttribute("aria-label", "Start voice chat");
+              button.disabled = false;
+              button.style.opacity = "1";
+
+              // Show user-friendly error
+              alert("Voice chat error: " + errorMessage);
+
+              if (vapiInstance) {
+                try {
+                  vapiInstance.stop?.();
+                } catch (e) {
+                  // Ignore cleanup errors
+                }
+                vapiInstance = null;
+              }
+            };
+
             vapiInstance = new Vapi({
               publicKey: publicKey,
               assistantId: assistantId,
               onCallStart: function () {
+                console.log("Vapi call started successfully");
                 isActive = true;
                 button.classList.add("active");
                 button.setAttribute("aria-label", "End voice chat");
@@ -213,6 +262,7 @@ const positionClasses = {
                 button.style.opacity = "1";
               },
               onCallEnd: function () {
+                console.log("Vapi call ended");
                 isActive = false;
                 button.classList.remove("active");
                 button.setAttribute("aria-label", "Start voice chat");
@@ -222,33 +272,39 @@ const positionClasses = {
                   vapiInstance = null;
                 }
               },
-              onError: function (error) {
-                console.error("Vapi error:", error);
-                isActive = false;
-                button.classList.remove("active");
-                button.setAttribute("aria-label", "Start voice chat");
-                button.disabled = false;
-                button.style.opacity = "1";
-                vapiInstance = null;
-              },
+              onError: handleError,
             });
 
-            // Start the call
-            if (typeof vapiInstance.start === "function") {
-              vapiInstance.start();
-            } else if (typeof vapiInstance.call === "function") {
-              vapiInstance.call();
-            } else {
-              throw new Error(
-                "Vapi instance does not have start() or call() method"
-              );
+            // Add event listeners for error events (in case they're emitted differently)
+            if (vapiInstance && typeof vapiInstance.on === "function") {
+              vapiInstance.on("error", handleError);
+            }
+
+            // Start the call with proper error handling
+            try {
+              if (typeof vapiInstance.start === "function") {
+                console.log("Starting Vapi call...");
+                vapiInstance.start();
+              } else if (typeof vapiInstance.call === "function") {
+                console.log("Calling Vapi...");
+                vapiInstance.call();
+              } else {
+                throw new Error(
+                  "Vapi instance does not have start() or call() method"
+                );
+              }
+            } catch (startError) {
+              console.error("Error starting Vapi call:", startError);
+              handleError(startError);
+              throw startError;
             }
           } catch (initError) {
             console.error("Vapi initialization error:", initError);
             button.disabled = false;
             button.style.opacity = "1";
             alert(
-              "Failed to initialize voice chat. Please check your Vapi configuration."
+              "Failed to initialize voice chat: " +
+                (initError.message || "Unknown error")
             );
           }
         } catch (error) {
