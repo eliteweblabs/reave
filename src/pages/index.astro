@@ -73,47 +73,48 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z' fill='white'/%3E%3Cpath d='M410.2,275.9' fill='white'/%3E%3Cg%3E%3Cpath d='M241.2,313.4l42.1-99.3,42.6,99.3' fill='white'/%3E%3Cpath d='M298.5,214.1h79.7l-40.3,99.3' fill='white'/%3E%3C/g%3E%3Cpolygon points='251 258 175.9 258 175.9 224.7 264.7 224.7 251 258' fill='white'/%3E%3Cpolygon points='232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8' fill='white'/%3E%3Cpolygon points='368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5' fill='white'/%3E%3Cpolygon points='386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7' fill='white'/%3E%3C/svg%3E");
     mask-size: contain;
     -webkit-mask-size: contain;
-    mask-position: center center;
-    -webkit-mask-position: center center;
+    mask-position: 35% center;
+    -webkit-mask-position: 35% center;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
-    filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6))
-      drop-shadow(0 0 60px rgba(255, 100, 200, 0.4))
-      drop-shadow(0 0 100px rgba(100, 200, 255, 0.3));
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 0 40px rgba(255, 100, 200, 0.3));
+    /* Reduced drop-shadows for better performance */
     pointer-events: none;
-    animation: zoomIn 1s;
+    animation: zoomIn 1s ease-out forwards;
+    transform: scale(50);
   }
 
   .gradient-layer {
     position: absolute;
-    width: 300vw;
-    height: 300vh;
-    left: -100vw;
-    top: -100vh;
-    background: radial-gradient(circle at 20% 20%, #ff0000 0%, transparent 35%),
-      radial-gradient(circle at 80% 20%, #ff00ff 0%, transparent 35%),
-      radial-gradient(circle at 50% 30%, #00ffff 0%, transparent 35%),
-      radial-gradient(circle at 20% 50%, #00ff00 0%, transparent 35%),
-      radial-gradient(circle at 80% 50%, #ffff00 0%, transparent 35%),
-      radial-gradient(circle at 35% 70%, #ff6600 0%, transparent 35%),
-      radial-gradient(circle at 65% 70%, #0000ff 0%, transparent 35%),
-      radial-gradient(circle at 50% 85%, #ff0088 0%, transparent 35%),
+    width: 150vw;
+    height: 150vh;
+    left: -25vw;
+    top: -25vh;
+    /* Static position - centered for visibility without animation */
+    transform: translate3d(0, 0, 0);
+    /* Reduced gradient layers for better performance */
+    background: radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
+      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
+      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
+      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
       radial-gradient(
         ellipse at center,
         #ff0000 0%,
-        #ff6600 12%,
         #ffff00 25%,
-        #00ff00 37%,
         #00ffff 50%,
-        #0000ff 62%,
         #ff00ff 75%,
-        #ff0088 87%,
         #ff0000 100%
       );
-    background-size: 50vw 50vh;
+    background-size: 60vw 60vh;
     background-repeat: repeat;
-    will-change: transform;
     cursor: grab;
+    /* Performance optimizations */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* Reduce repaints */
+    contain: layout style paint;
   }
 
   .gradient-layer.dragging {
@@ -174,8 +175,7 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     .logo-mask {
       mask-size: 600px 600px;
       -webkit-mask-size: 600px 600px;
-      mask-position: center center;
-      -webkit-mask-position: center center;
+      /* Don't override mask-position - let animation handle it */
     }
   }
 
@@ -230,68 +230,82 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     return { x: wrappedX, y: wrappedY };
   }
 
-  // Drift animation using JS (so we can continue from current position)
-  function animateDrift(timestamp: number) {
-    if (!gradientLayer) {
-      animationId = requestAnimationFrame(animateDrift);
-      return;
-    }
+  // DRIFT ANIMATION DISABLED FOR PERFORMANCE
+  // let lastFrameTime = 0;
+  // let lastX = 0;
+  // let lastY = 0;
+  // const targetFPS = 15; // Reduced to 15fps for much better performance
+  // const frameInterval = 1000 / targetFPS;
+  // let isPageVisible = true;
 
-    // Record first timestamp as init time if not set
-    if (initTimestamp === undefined) {
-      initTimestamp = timestamp;
-    }
+  // // Pause animation when tab is hidden
+  // document.addEventListener("visibilitychange", () => {
+  //   isPageVisible = !document.hidden;
+  // });
 
-    // Wait for intro animation to complete (1 second) before starting drift
-    const introDuration = 1000; // 1 second to match CSS animation
-    const timeSinceInit = timestamp - initTimestamp;
-    const introComplete = timeSinceInit >= introDuration;
+  // function animateDrift(timestamp: number) {
+  //   if (!gradientLayer || !isPageVisible) {
+  //     animationId = requestAnimationFrame(animateDrift);
+  //     return;
+  //   }
 
-    // Initialize startTime when intro completes to start drift smoothly from 0
-    if (introComplete && !startTime) {
-      startTime = timestamp;
-      // Ensure drift starts from 0 to prevent jump
-      driftX = 0;
-      driftY = 0;
-    }
+  //   // Throttle to target FPS
+  //   const elapsed = timestamp - lastFrameTime;
+  //   if (elapsed < frameInterval) {
+  //     animationId = requestAnimationFrame(animateDrift);
+  //     return;
+  //   }
+  //   lastFrameTime = timestamp - (elapsed % frameInterval);
 
-    // Calculate drift values only after intro completes
-    if (introComplete && startTime) {
-      const elapsed = (timestamp - startTime) / 1000; // seconds
-      const duration = 30; // 30 second cycle for longer travel
-      const progress = (elapsed % duration) / duration;
+  //   // Record first timestamp as init time if not set
+  //   if (initTimestamp === undefined) {
+  //     initTimestamp = timestamp;
+  //   }
 
-      // Create a smooth looping drift pattern with both horizontal and vertical movement
-      // Use larger drift distances to show more of the gradient before looping
-      const { width, height } = getPatternSize();
-      const maxDriftX = width * 0.8; // Travel 80% of pattern width
-      const maxDriftY = height * 0.8; // Travel 80% of pattern height
+  //   // Wait for intro animation to complete (1 second) before starting drift
+  //   const introDuration = 1000;
+  //   const timeSinceInit = timestamp - initTimestamp;
+  //   const introComplete = timeSinceInit >= introDuration;
 
-      const angle = progress * Math.PI * 2;
-      // Horizontal drift with multiple frequencies for smooth movement
-      driftX =
-        Math.sin(angle) * maxDriftX * 0.5 +
-        Math.cos(angle * 0.5) * maxDriftX * 0.3;
-      // Vertical drift with independent pattern for more pronounced vertical movement
-      driftY =
-        Math.cos(angle * 1.2) * maxDriftY * 0.5 +
-        Math.sin(angle * 0.8) * maxDriftY * 0.3;
-    }
+  //   // Initialize startTime when intro completes
+  //   if (introComplete && !startTime) {
+  //     startTime = timestamp;
+  //     driftX = 0;
+  //     driftY = 0;
+  //   }
 
-    // Only apply transform after intro completes
-    if (introComplete) {
-      // During drag, only apply baseX/baseY (driftX/driftY continue animating but aren't applied)
-      const totalX = baseX + (isDragging ? 0 : driftX);
-      const totalY = baseY + (isDragging ? 0 : driftY);
+  //   // Simplified calculations - only update if needed
+  //   if (introComplete && startTime && !isDragging) {
+  //     const elapsed = (timestamp - startTime) / 1000;
+  //     const duration = 40; // Slower movement
+  //     const progress = (elapsed % duration) / duration;
 
-      // Wrap position to keep it within pattern bounds for infinite scrolling effect
-      const wrapped = wrapPosition(totalX, totalY);
+  //     // Simplified single-frequency movement (much faster calculation)
+  //     const { width, height } = getPatternSize();
+  //     const angle = progress * Math.PI * 2;
+  //     driftX = Math.sin(angle) * width * 0.4;
+  //     driftY = Math.cos(angle) * height * 0.4;
+  //   }
 
-      gradientLayer.style.transform = `translate(${wrapped.x}px, ${wrapped.y}px)`;
-    }
+  //   // Only apply transform after intro completes and only if changed
+  //   if (introComplete) {
+  //     const totalX = baseX + (isDragging ? 0 : driftX);
+  //     const totalY = baseY + (isDragging ? 0 : driftY);
+  //     const wrapped = wrapPosition(totalX, totalY);
 
-    animationId = requestAnimationFrame(animateDrift);
-  }
+  //     // Only update DOM if position actually changed (performance optimization)
+  //     if (
+  //       Math.abs(wrapped.x - lastX) > 0.5 ||
+  //       Math.abs(wrapped.y - lastY) > 0.5
+  //     ) {
+  //       gradientLayer.style.transform = `translate3d(${Math.round(wrapped.x)}px, ${Math.round(wrapped.y)}px, 0)`;
+  //       lastX = wrapped.x;
+  //       lastY = wrapped.y;
+  //     }
+  //   }
+
+  //   animationId = requestAnimationFrame(animateDrift);
+  // }
 
   function handleStart(e: MouseEvent | TouchEvent) {
     isDragging = true;
@@ -336,7 +350,8 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     const wrapped = wrapPosition(baseX, baseY);
 
     // Apply the transform immediately (driftX/driftY not applied during drag)
-    gradientLayer.style.transform = `translate(${wrapped.x}px, ${wrapped.y}px)`;
+    // Use transform3d for hardware acceleration
+    gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0)`;
 
     // Update start position for next delta calculation
     startX = point.clientX;
@@ -375,8 +390,9 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     document.addEventListener("touchmove", handleMove, { passive: false });
     document.addEventListener("touchend", handleEnd);
 
+    // DRIFT ANIMATION DISABLED
     // Start the drift animation (will wait for intro to complete)
-    animationId = requestAnimationFrame(animateDrift);
+    // animationId = requestAnimationFrame(animateDrift);
   }
 
   // Run when DOM is ready

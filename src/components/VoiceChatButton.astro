@@ -38,30 +38,51 @@ const positionClasses = {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path
-        d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"></path>
-      <path
-        d="M19 10V12C19 16.42 15.42 20 11 20H10C5.58 20 2 16.42 2 12V10"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"></path>
-      <path
-        d="M12 19V23"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"></path>
-      <path
-        d="M8 23H16"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"></path>
+      <!-- Question mark icon (default state) -->
+      <g id="question-icon" class="icon-default">
+        <text
+          x="12"
+          y="16"
+          font-family="Arial, sans-serif"
+          font-size="16"
+          font-weight="bold"
+          fill="currentColor"
+          text-anchor="middle"
+          dominant-baseline="middle">?</text
+        >
+      </g>
+
+      <!-- Microphone icon (active/listening state) -->
+      <g id="mic-icon" class="icon-active" style="display: none;">
+        <path
+          d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z"
+          stroke="currentColor"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+        <path
+          d="M19 10V12C19 16.42 15.42 20 11 20H10C5.58 20 2 16.42 2 12V10"
+          stroke="currentColor"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+        <path
+          d="M12 19V23"
+          stroke="currentColor"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+        <path
+          d="M8 23H16"
+          stroke="currentColor"
+          stroke-width="2"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+      </g>
     </svg>
     <span class="vapi-pulse"></span>
   </button>
@@ -183,6 +204,11 @@ const positionClasses = {
         isActive = false;
         button.classList.remove("active");
         button.setAttribute("aria-label", "Start voice chat");
+        // Switch back to question mark icon
+        const questionIcon = document.getElementById("question-icon");
+        const micIcon = document.getElementById("mic-icon");
+        if (questionIcon) questionIcon.style.display = "block";
+        if (micIcon) micIcon.style.display = "none";
       } else {
         // Start the call - lazy load SDK here
         try {
@@ -199,6 +225,12 @@ const positionClasses = {
 
           // Request microphone permission
           await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          // Switch to microphone icon immediately after permission granted
+          const questionIcon = document.getElementById("question-icon");
+          const micIcon = document.getElementById("mic-icon");
+          if (questionIcon) questionIcon.style.display = "none";
+          if (micIcon) micIcon.style.display = "block";
 
           // Validate credentials before initializing
           if (!publicKey || !assistantId) {
@@ -237,6 +269,12 @@ const positionClasses = {
               button.disabled = false;
               button.style.opacity = "1";
 
+              // Switch back to question mark icon
+              const questionIcon = document.getElementById("question-icon");
+              const micIcon = document.getElementById("mic-icon");
+              if (questionIcon) questionIcon.style.display = "block";
+              if (micIcon) micIcon.style.display = "none";
+
               // Show user-friendly error
               alert("Voice chat error: " + errorMessage);
 
@@ -250,30 +288,45 @@ const positionClasses = {
               }
             };
 
-            vapiInstance = new Vapi({
-              publicKey: publicKey,
-              assistantId: assistantId,
-              onCallStart: function () {
-                console.log("Vapi call started successfully");
-                isActive = true;
-                button.classList.add("active");
-                button.setAttribute("aria-label", "End voice chat");
-                button.disabled = false;
-                button.style.opacity = "1";
-              },
-              onCallEnd: function () {
-                console.log("Vapi call ended");
-                isActive = false;
-                button.classList.remove("active");
-                button.setAttribute("aria-label", "Start voice chat");
-                button.disabled = false;
-                button.style.opacity = "1";
-                if (vapiInstance) {
-                  vapiInstance = null;
-                }
-              },
-              onError: handleError,
-            });
+            // Vapi constructor takes: apiToken, apiBaseUrl, dailyCallConfig, dailyCallObject
+            // The callbacks are passed in dailyCallConfig
+            vapiInstance = new Vapi(
+              publicKey, // apiToken
+              undefined, // apiBaseUrl (use default)
+              {
+                // dailyCallConfig with callbacks
+                onCallStart: function () {
+                  console.log("Vapi call started successfully");
+                  isActive = true;
+                  button.classList.add("active");
+                  button.setAttribute("aria-label", "End voice chat");
+                  button.disabled = false;
+                  button.style.opacity = "1";
+                  // Switch to microphone icon
+                  const questionIcon = document.getElementById("question-icon");
+                  const micIcon = document.getElementById("mic-icon");
+                  if (questionIcon) questionIcon.style.display = "none";
+                  if (micIcon) micIcon.style.display = "block";
+                },
+                onCallEnd: function () {
+                  console.log("Vapi call ended");
+                  isActive = false;
+                  button.classList.remove("active");
+                  button.setAttribute("aria-label", "Start voice chat");
+                  button.disabled = false;
+                  button.style.opacity = "1";
+                  // Switch back to question mark icon
+                  const questionIcon = document.getElementById("question-icon");
+                  const micIcon = document.getElementById("mic-icon");
+                  if (questionIcon) questionIcon.style.display = "block";
+                  if (micIcon) micIcon.style.display = "none";
+                  if (vapiInstance) {
+                    vapiInstance = null;
+                  }
+                },
+                onError: handleError,
+              }
+            );
 
             // Add event listeners for error events (in case they're emitted differently)
             if (vapiInstance && typeof vapiInstance.on === "function") {
@@ -281,13 +334,21 @@ const positionClasses = {
             }
 
             // Start the call with proper error handling
+            // start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
             try {
+              // Switch to microphone icon before starting call
+              const questionIconEl = document.getElementById("question-icon");
+              const micIconEl = document.getElementById("mic-icon");
+              if (questionIconEl) questionIconEl.style.display = "none";
+              if (micIconEl) micIconEl.style.display = "block";
+
               if (typeof vapiInstance.start === "function") {
-                console.log("Starting Vapi call...");
-                vapiInstance.start();
+                console.log("Starting Vapi call with assistant:", assistantId);
+                // Pass assistantId as the first parameter to start()
+                vapiInstance.start(assistantId);
               } else if (typeof vapiInstance.call === "function") {
                 console.log("Calling Vapi...");
-                vapiInstance.call();
+                vapiInstance.call(assistantId);
               } else {
                 throw new Error(
                   "Vapi instance does not have start() or call() method"
@@ -295,6 +356,11 @@ const positionClasses = {
               }
             } catch (startError) {
               console.error("Error starting Vapi call:", startError);
+              // Switch back to question mark on error
+              const questionIconEl = document.getElementById("question-icon");
+              const micIconEl = document.getElementById("mic-icon");
+              if (questionIconEl) questionIconEl.style.display = "block";
+              if (micIconEl) micIconEl.style.display = "none";
               handleError(startError);
               throw startError;
             }
@@ -378,8 +444,8 @@ const positionClasses = {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.8);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -393,6 +459,7 @@ const positionClasses = {
 
   .vapi-voice-button:hover {
     transform: scale(1.1);
+    border-color: rgba(255, 255, 255, 1);
     box-shadow:
       0 6px 30px rgba(102, 126, 234, 0.6),
       0 0 0 0 rgba(102, 126, 234, 0.7);
@@ -403,7 +470,8 @@ const positionClasses = {
   }
 
   .vapi-voice-button.active {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: transparent;
+    border-color: rgba(245, 87, 108, 0.8);
     box-shadow:
       0 4px 20px rgba(245, 87, 108, 0.4),
       0 0 0 0 rgba(245, 87, 108, 0.5);
@@ -416,6 +484,47 @@ const positionClasses = {
     color: white;
     z-index: 1;
     position: relative;
+  }
+
+  /* Question mark uses fill */
+  #question-icon {
+    fill: currentColor;
+  }
+
+  /* Microphone uses stroke */
+  #mic-icon {
+    stroke: currentColor;
+    fill: none;
+  }
+
+  /* Icon state management */
+  .icon-default {
+    display: block;
+  }
+
+  .icon-active {
+    display: none;
+  }
+
+  .vapi-voice-button.active .icon-default {
+    display: none;
+  }
+
+  .vapi-voice-button.active .icon-active {
+    display: block;
+    animation: mic-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes mic-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
   }
 
   .vapi-pulse {
