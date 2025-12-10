@@ -71,15 +71,15 @@ import Layout from "../layouts/Layout.astro";
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z' fill='white'/%3E%3Cpath d='M410.2,275.9' fill='white'/%3E%3Cg%3E%3Cpath d='M241.2,313.4l42.1-99.3,42.6,99.3' fill='white'/%3E%3Cpath d='M298.5,214.1h79.7l-40.3,99.3' fill='white'/%3E%3C/g%3E%3Cpolygon points='251 258 175.9 258 175.9 224.7 264.7 224.7 251 258' fill='white'/%3E%3Cpolygon points='232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8' fill='white'/%3E%3Cpolygon points='368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5' fill='white'/%3E%3Cpolygon points='386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7' fill='white'/%3E%3C/svg%3E");
     mask-size: contain;
     -webkit-mask-size: contain;
-    mask-position: center;
-    -webkit-mask-position: center;
+    mask-position: 45% center;
+    -webkit-mask-position: 45% center;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.6))
       drop-shadow(0 0 60px rgba(255, 100, 200, 0.4))
       drop-shadow(0 0 100px rgba(100, 200, 255, 0.3));
     pointer-events: none;
-    animation: zoomIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: zoomIn 1s;
   }
 
   .gradient-layer {
@@ -137,14 +137,14 @@ import Layout from "../layouts/Layout.astro";
   /* Zoom in animation on page load - starts focused on VA, ends centered */
   @keyframes zoomIn {
     0% {
-      transform: scale(100);
-      mask-position: 65% center;
-      -webkit-mask-position: 65% center;
+      transform: scale(50);
+      mask-position: 35% center;
+      -webkit-mask-position: 35% center;
     }
     100% {
       transform: scale(1);
-      mask-position: center;
-      -webkit-mask-position: center;
+      mask-position: 45% center;
+      -webkit-mask-position: 45% center;
     }
   }
 
@@ -247,13 +247,14 @@ import Layout from "../layouts/Layout.astro";
 
     // Only apply transform after intro completes
     if (introComplete) {
-      // Don't wrap during drift - let it move continuously
-      // The background-repeat will handle seamless looping
       // During drag, only apply baseX/baseY (driftX/driftY continue animating but aren't applied)
       const totalX = baseX + (isDragging ? 0 : driftX);
       const totalY = baseY + (isDragging ? 0 : driftY);
 
-      gradientLayer.style.transform = `translate(${totalX}px, ${totalY}px)`;
+      // Wrap position to keep it within pattern bounds for infinite scrolling effect
+      const wrapped = wrapPosition(totalX, totalY);
+
+      gradientLayer.style.transform = `translate(${wrapped.x}px, ${wrapped.y}px)`;
     }
 
     animationId = requestAnimationFrame(animateDrift);
@@ -268,14 +269,20 @@ import Layout from "../layouts/Layout.astro";
     if (gradientLayer) {
       gradientLayer.classList.add("dragging");
       // Capture current visual position (base + drift) into base
-      // This preserves the position when we reset drift to 0
-      baseX = baseX + driftX;
-      baseY = baseY + driftY;
+      // Wrap it to keep within pattern bounds
+      const currentX = baseX + driftX;
+      const currentY = baseY + driftY;
+      const wrapped = wrapPosition(currentX, currentY);
+
+      // Set base to wrapped position to preserve it
+      baseX = wrapped.x;
+      baseY = wrapped.y;
+
       // Reset drift so it restarts smoothly when drag ends
       driftX = 0;
       driftY = 0;
-      // Reset startTime so drift restarts from beginning of cycle when drag ends
-      startTime = undefined;
+      // Don't reset startTime - let drift continue from its current phase
+      // This ensures smooth continuation after drag
     }
   }
 
@@ -292,8 +299,11 @@ import Layout from "../layouts/Layout.astro";
     baseX += deltaX;
     baseY += deltaY;
 
+    // Wrap position to keep it within pattern bounds for infinite scrolling
+    const wrapped = wrapPosition(baseX, baseY);
+
     // Apply the transform immediately (driftX/driftY not applied during drag)
-    gradientLayer.style.transform = `translate(${baseX}px, ${baseY}px)`;
+    gradientLayer.style.transform = `translate(${wrapped.x}px, ${wrapped.y}px)`;
 
     // Update start position for next delta calculation
     startX = point.clientX;
@@ -305,8 +315,9 @@ import Layout from "../layouts/Layout.astro";
 
     if (gradientLayer) {
       gradientLayer.classList.remove("dragging");
-      // Don't reset startTime - let drift continue from its current phase
-      // baseX/baseY already preserve the drag position, so drift will add on top smoothly
+      // baseX/baseY already preserve the drag position (wrapped within pattern bounds)
+      // driftX/driftY will continue from 0 and add smoothly on top
+      // No need to reset startTime - drift continues from where it was
     }
   }
 

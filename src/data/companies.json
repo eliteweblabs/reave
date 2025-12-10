@@ -1,0 +1,1222 @@
+{
+  "locations": {
+    "ABINGTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ACTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ARLINGTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ASHBY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ASHLAND": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ATTLEBORO": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "AVON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "AYER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BEDFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BELLINGHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BELMONT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BERLIN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BILLERICA": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BLACKSTONE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BOLTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BOSTON": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management",
+          "service_areas": [
+            "Back Bay",
+            "South End",
+            "Beacon Hill",
+            "Fenway",
+            "Charlestown",
+            "Brookline",
+            "Brighton",
+            "Allston",
+            "Dorchester",
+            "Roxbury",
+            "Cambridge",
+            "Chelsea",
+            "Everett",
+            "Jamaica Plain",
+            "Quincy",
+            "Weymouth",
+            "Abington",
+            "Plymouth",
+            "West Springfield",
+            "Newburyport"
+          ]
+        }
+      ],
+      "general_contractors": [
+        {
+          "name": "G. Greene Construction Co., Inc.",
+          "address": "240 Lincoln St., Allston, MA 02134",
+          "phone": "617-560-1896",
+          "email": "jkifer@ggreene.com",
+          "website": "https://www.ggreene.com/"
+        }
+      ]
+    },
+    "BOXBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BOYLSTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BRAINTREE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BRIDGEWATER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BROCKTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BROOKLINE": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "BURLINGTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CAMBRIDGE": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "CANTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CARLISLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CHELMSFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CHELSEA": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "CLINTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "COHASSET": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CONCORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DEDHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DOVER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DRACUT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DUNSTABLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DUXBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "EAST BRIDGEWATER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "EASTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "EVERETT": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "FOXBORO": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FRAMINGHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FRANKLIN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FREETOWN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GRAFTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GROTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HALIFAX": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HANOVER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HANSON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HARVARD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HINGHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HOLBROOK": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HOLLISTON": {
+      "property_management": [],
+      "general_contractors": [
+        {
+          "name": "Colantonio Inc.",
+          "address": "Holliston, MA",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "http://www.colantonioinc.com/"
+        }
+      ]
+    },
+    "HOPEDALE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HOPKINTON": {
+      "property_management": [],
+      "general_contractors": [
+        {
+          "name": "Seaman DiCarlo General Contractors, Inc.",
+          "address": "65 South Street, Suite 102, Hopkinton, MA 01748",
+          "phone": "508-435-4099",
+          "email": "dave@seamandicarlo.com",
+          "website": "https://www.seamandicarlo.com/"
+        }
+      ]
+    },
+    "HUDSON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HULL": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "KINGSTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LAKEVILLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LANCASTER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LEXINGTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LINCOLN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LITTLETON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LOWELL": {
+      "property_management": [
+        {
+          "name": "Pine Properties",
+          "address": "183 Pine St, Lowell, MA 01851",
+          "phone": "(978) 458-4445",
+          "email": "office@pineproperties.com",
+          "website": "https://www.pineproperties.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "LYNN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "LYNNFIELD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MALDEN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MANSFIELD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MARLBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MARSHFIELD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MAYNARD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MEDFIELD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MEDFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MEDWAY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MELROSE": {
+      "property_management": [
+        {
+          "name": "Harvest Properties, LLC",
+          "address": "441 Main St, Ste 206, Melrose, MA 02176",
+          "phone": "781-318-8647",
+          "email": "slewis@harvestprops.com",
+          "website": "https://www.harvestprops.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "MENDON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MIDDLEBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MILFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MILLIS": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MILLVILLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MILTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NAHANT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NATICK": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NEEDHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NEWTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORFOLK": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORTH ATTLEBORO": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORTH READING": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORTHBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORTHBRIDGE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORWELL": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NORWOOD": {
+      "property_management": [
+        {
+          "name": "Great North Property Management",
+          "address": "57 Boston Providence Hwy Ste 203, Norwood, MA 02062",
+          "phone": "(508) 594-6100",
+          "email": "Contact via website",
+          "website": "https://greatnorth.net/contact-us/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "PEMBROKE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "PEPPERELL": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "PLAINVILLE": {
+      "property_management": [
+        {
+          "name": "Franklin Square Management",
+          "address": "P.O. Box 2283, Plainville, MA 02762",
+          "phone": "508-695-9006",
+          "email": "larry@frsqm.com",
+          "website": "https://www.franklinsquaremanagement.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "PLYMOUTH": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "PLYMPTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "QUINCY": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "RANDOLPH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "RAYNHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "READING": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "REVERE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ROCKLAND": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SAUGUS": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SCITUATE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SHARON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SHERBORN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SHIRLEY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SHREWSBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SOMERVILLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SOUTHBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "STONEHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "STOUGHTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "STOW": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SUDBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SWAMPSCOTT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TAUNTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TEWKSBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TOWNSEND": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TYNGSBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "UPTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "UXBRIDGE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WAKEFIELD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WALPOLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WALTHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WAREHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WATERTOWN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WAYLAND": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WELLESLEY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WEST BRIDGEWATER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WESTBOROUGH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WESTFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WESTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WESTWOOD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WEYMOUTH": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "WHITMAN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WILMINGTON": {
+      "property_management": [],
+      "general_contractors": [
+        {
+          "name": "Limbach Company",
+          "address": "46 Jonspin Road, Wilmington, MA 01887",
+          "phone": "(774) 317-0605",
+          "email": "james.mccarthy@limbachinc.com",
+          "website": "Contact via website"
+        }
+      ]
+    },
+    "WINCHESTER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WINTHROP": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WOBURN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WRENTHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ACUSHNET": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "AMESBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ANDOVER": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/",
+          "service_areas": [
+            "Massachusetts North Shore",
+            "Andover",
+            "Beverly",
+            "Danvers",
+            "Ipswich",
+            "Marblehead",
+            "Peabody",
+            "Salem",
+            "Topsfield",
+            "Melrose",
+            "Methuen",
+            "Southern New Hampshire",
+            "Manchester",
+            "Portsmouth"
+          ]
+        }
+      ],
+      "general_contractors": [
+        {
+          "name": "Levis Companies, Inc.",
+          "address": "158 Pleasant Street, North Andover, MA 01845",
+          "phone": "978-687-2783",
+          "email": "info@leviscompaniesinc.com",
+          "website": "https://leviscompaniesinc.com/generalcontracting.html"
+        }
+      ]
+    },
+    "BARNSTABLE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BERKLEY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BEVERLY": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "BOURNE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BOXFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "BREWSTER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CARVER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CHATHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "CHILMARK": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DANVERS": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "DARTMOUTH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DENNIS": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "DIGHTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "EASTHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "EDGARTOWN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ESSEX": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FAIRHAVEN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FALL RIVER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "FALMOUTH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GAY HEAD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GEORGETOWN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GLOUCESTER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GOSNOLD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "GROVELAND": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HAMILTON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HARWICH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "HAVERHILL": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "IPSWICH": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "LAWRENCE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MANCHESTER BY THE SEA": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "MARBLEHEAD": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "MARION": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MASHPEE": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MATTAPOISETT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "MERRIMAC": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "METHUEN": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "MIDDLETON": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NANTUCKET": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NEWBEDFORD": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NEWBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "NEWBURYPORT": {
+      "property_management": [
+        {
+          "name": "Premier Property Solutions",
+          "address": "Greater Boston area",
+          "phone": "Contact via website",
+          "email": "Contact via website",
+          "website": "https://www.premierpropertyma.com/property-management"
+        }
+      ],
+      "general_contractors": []
+    },
+    "NORTH ANDOVER": {
+      "property_management": [],
+      "general_contractors": [
+        {
+          "name": "Levis Companies, Inc.",
+          "address": "158 Pleasant Street, North Andover, MA 01845",
+          "phone": "978-687-2783",
+          "email": "info@leviscompaniesinc.com",
+          "website": "https://leviscompaniesinc.com/generalcontracting.html"
+        }
+      ]
+    },
+    "OAK BLUFFS": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ORLEANS": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "PEABODY": {
+      "property_management": [
+        {
+          "name": "Great North Property Management",
+          "address": "9 Centennial Drive, 2nd Floor, Peabody, MA 01960",
+          "phone": "(978) 278-4000",
+          "email": "Contact via website",
+          "website": "https://greatnorth.net/contact-us/"
+        },
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "PROVINCETOWN": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "REHOBOTH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ROCHESTER": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ROCKPORT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "ROWLEY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SALEM": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "SALISBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SANDWICH": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SEEKONK": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SOMERSET": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "SWANSEA": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TISBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "TOPSFIELD": {
+      "property_management": [
+        {
+          "name": "MRS Property Management",
+          "address": "1 Apple Road, Beverly, MA 01915",
+          "phone": "978-927-3690",
+          "email": "Contact via website",
+          "website": "https://www.mrsapts.com/"
+        }
+      ],
+      "general_contractors": []
+    },
+    "TRURO": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WAREHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WELLFLEET": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WENHAM": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WEST NEWBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WEST TISBURY": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "WESTPORT": {
+      "property_management": [],
+      "general_contractors": []
+    },
+    "YARMOUTH": {
+      "property_management": [],
+      "general_contractors": []
+    }
+  },
+  "regional_companies": {
+    "property_management": [
+      {
+        "name": "Next Door Property Management",
+        "phone": "(978) 813-4242",
+        "email": "Contact via website",
+        "website": "https://www.nxdmanagement.com/",
+        "service_areas": ["Massachusetts", "New Hampshire"]
+      },
+      {
+        "name": "Great North Property Management",
+        "address": "3 Holland Way, Exeter, NH 03833",
+        "phone": "(603) 436-4100",
+        "toll_free": "(800) 639-7309",
+        "email": "Contact via website",
+        "website": "https://greatnorth.net/contact-us/",
+        "service_areas": ["New England", "Various towns in NH and MA"]
+      },
+      {
+        "name": "CP Management",
+        "address": "11 Court St, Exeter, NH 03833-2745",
+        "phone": "603-778-6300",
+        "email": "Contact via website",
+        "website": "https://www.cpmanagement.com/",
+        "service_areas": [
+          "Northern New England",
+          "Hillsborough County",
+          "Merrimack County",
+          "Rockingham County",
+          "Strafford County",
+          "Exeter",
+          "Manchester",
+          "Portsmouth in NH"
+        ]
+      }
+    ],
+    "general_contractors": [
+      {
+        "name": "McCarthy Construction",
+        "phone": "(978) 444-8987",
+        "email": "Contact via website",
+        "website": "https://www.mccarthyconstructionnh.com/",
+        "service_areas": [
+          "Northeastern Massachusetts",
+          "Southern New Hampshire"
+        ]
+      },
+      {
+        "name": "J B R Associates, LLC",
+        "address": "10 Northern Blvd. Unit #16, Amherst, NH 03031",
+        "phone": "603-579-9890",
+        "email": "Contact via website",
+        "website": "https://www.jbrassociates.com/",
+        "service_areas": [
+          "New Hampshire",
+          "Vermont",
+          "Maine",
+          "Northern and Central Massachusetts"
+        ]
+      },
+      {
+        "name": "Diligent Hand LLC",
+        "address": "Wilton, NH 03086",
+        "phone": "603-265-2639",
+        "email": "Contact via website",
+        "website": "https://www.diligenthand.com/",
+        "service_areas": ["Massachusetts", "New Hampshire"]
+      },
+      {
+        "name": "Taylor Made Carpentry and Construction LLC",
+        "address": "52 Nashua St, Milford, NH 03055-3717",
+        "phone": "774-293-0481",
+        "email": "Contact via website",
+        "website": "https://www.taylormadecarpentry.com/",
+        "service_areas": ["Keene, NH", "Fitchburg and Worcester, MA"]
+      },
+      {
+        "name": "PC Construction Company",
+        "address": "670 North Commercial Street, Manchester, NH 03101",
+        "phone": "603-329-2064",
+        "email": "thoward@pcconstruction.com",
+        "website": "https://www.pcconstruction.com/"
+      },
+      {
+        "name": "Water-Tite Construction",
+        "address": "7 Casey Dr, Hooksett, NH 03106-2203",
+        "phone": "603-216-4929",
+        "email": "Contact via website",
+        "website": "https://www.water-tite.com/",
+        "service_areas": ["Hooksett, NH"]
+      },
+      {
+        "name": "Morin Contracting Services Inc.",
+        "address": "711 Riverwood Drive, Pembroke, NH 03275-3701",
+        "phone": "603-223-4127",
+        "email": "Contact via website",
+        "website": "https://www.morincontracting.com/",
+        "service_areas": ["Various towns in NH"]
+      }
+    ]
+  }
+}
