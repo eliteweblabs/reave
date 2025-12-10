@@ -1,10 +1,50 @@
-# Astro Starter Kit: Basics
+# Reave - Voice Chat Website
 
-```sh
-npm create astro@latest -- --template basics
+A modern website with integrated Vapi voice chat functionality, allowing visitors to interact with an AI assistant through voice commands.
+
+## 🎤 Voice Chat Feature
+
+This website includes a voice chat button powered by [Vapi](https://vapi.ai) that allows visitors to speak their needs directly. The button appears as a floating action button in the bottom-right corner of the page.
+
+### Setup Instructions
+
+1. **Create a Vapi Account**
+   - Sign up at [https://vapi.ai](https://vapi.ai)
+   - Create a new assistant in your dashboard
+   - Configure your assistant's voice, personality, and capabilities
+
+2. **Get Your API Credentials**
+   - Navigate to your profile in the Vapi dashboard
+   - Copy your **Public Key** from the API keys section
+   - Copy your **Assistant ID** from your assistant settings
+
+3. **Configure Environment Variables**
+   - Create a `.env` file in the root directory
+   - Add the following variables:
+     ```
+     PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key_here
+     PUBLIC_VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
+     ```
+   - Replace the placeholder values with your actual credentials
+
+4. **Start the Development Server**
+   ```sh
+   npm run dev
+   ```
+   - The voice chat button will appear on your website
+   - Click it to start a voice conversation with your AI assistant
+
+### Customization
+
+You can customize the voice chat button by modifying `src/components/VoiceChatButton.astro`:
+- Change the button position (bottom-right, bottom-left, top-right, top-left)
+- Adjust colors and styling
+- Modify the button size and animations
+
+Example:
+```astro
+<VoiceChatButton position="bottom-left" />
 ```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
 
 ## 🚀 Project Structure
 

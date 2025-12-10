@@ -1,0 +1,289 @@
+---
+// VoiceChatButton component for Vapi integration
+// Users need to set their VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID
+// These can be set as environment variables or passed as props
+interface Props {
+  publicKey?: string;
+  assistantId?: string;
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+}
+
+const {
+  publicKey = import.meta.env.PUBLIC_VAPI_PUBLIC_KEY || '',
+  assistantId = import.meta.env.PUBLIC_VAPI_ASSISTANT_ID || '',
+  position = 'bottom-right',
+} = Astro.props;
+
+const positionClasses = {
+  'bottom-right': 'bottom-6 right-6',
+  'bottom-left': 'bottom-6 left-6',
+  'top-right': 'top-6 right-6',
+  'top-left': 'top-6 left-6',
+};
+---
+
+<div id="vapi-widget-container" class={`vapi-widget-container ${positionClasses[position]}`}>
+  <button
+    id="vapi-voice-button"
+    class="vapi-voice-button"
+    aria-label="Start voice chat"
+    title="Click to speak with our AI assistant"
+  >
+    <svg
+      class="vapi-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M19 10V12C19 16.42 15.42 20 11 20H10C5.58 20 2 16.42 2 12V10"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M12 19V23"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M8 23H16"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+    <span class="vapi-pulse"></span>
+  </button>
+</div>
+
+<script define:vars={{ publicKey, assistantId }}>
+  // Extend Window interface for Vapi
+  interface WindowWithVapi extends Window {
+    Vapi?: any;
+  }
+
+  if (!publicKey || !assistantId) {
+    console.warn(
+      'Vapi credentials not found. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID environment variables.'
+    );
+  }
+
+  // Load Vapi SDK
+  (function () {
+    const win = window as WindowWithVapi;
+    
+    // Check if SDK is already loaded
+    if (typeof win.Vapi !== 'undefined') {
+      if (publicKey && assistantId) {
+        initializeVapi();
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdn.vapi.ai/web-sdk/v1.js';
+    script.async = true;
+    script.onload = function () {
+      if (typeof win.Vapi !== 'undefined' && publicKey && assistantId) {
+        initializeVapi();
+      }
+    };
+    script.onerror = function () {
+      console.error('Failed to load Vapi SDK. Please check your internet connection.');
+    };
+    document.head.appendChild(script);
+  })();
+
+  function initializeVapi() {
+    const button = document.getElementById('vapi-voice-button');
+    if (!button) return;
+
+    let vapiInstance: any = null;
+    let isActive = false;
+
+    button.addEventListener('click', async function () {
+      if (isActive) {
+        // Stop the call
+        if (vapiInstance) {
+          try {
+            if (typeof vapiInstance.stop === 'function') {
+              vapiInstance.stop();
+            } else if (typeof vapiInstance.end === 'function') {
+              vapiInstance.end();
+            }
+          } catch (error) {
+            console.error('Error stopping call:', error);
+          }
+          vapiInstance = null;
+        }
+        isActive = false;
+        button.classList.remove('active');
+        button.setAttribute('aria-label', 'Start voice chat');
+      } else {
+        // Start the call
+        try {
+          // Request microphone permission
+          await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          const win = window as WindowWithVapi;
+          const Vapi = win.Vapi;
+          if (Vapi) {
+            // Try different initialization patterns based on Vapi SDK version
+            try {
+              // Pattern 1: Direct initialization
+              vapiInstance = new Vapi({
+                publicKey: publicKey,
+                assistantId: assistantId,
+                onCallStart: function () {
+                  isActive = true;
+                  button.classList.add('active');
+                  button.setAttribute('aria-label', 'End voice chat');
+                },
+                onCallEnd: function () {
+                  isActive = false;
+                  button.classList.remove('active');
+                  button.setAttribute('aria-label', 'Start voice chat');
+                  vapiInstance = null;
+                },
+                onError: function (error: any) {
+                  console.error('Vapi error:', error);
+                  isActive = false;
+                  button.classList.remove('active');
+                  vapiInstance = null;
+                },
+              });
+
+              if (typeof vapiInstance.start === 'function') {
+                vapiInstance.start();
+              } else if (typeof vapiInstance.call === 'function') {
+                vapiInstance.call();
+              }
+            } catch (initError) {
+              // Pattern 2: Alternative initialization
+              console.error('Vapi initialization error:', initError);
+              alert('Failed to initialize voice chat. Please check your Vapi configuration.');
+            }
+          }
+        } catch (error: any) {
+          console.error('Error accessing microphone:', error);
+          if (error.name === 'NotAllowedError') {
+            alert('Please allow microphone access to use voice chat.');
+          } else {
+            alert('Error accessing microphone. Please check your browser settings.');
+          }
+        }
+      }
+    });
+  }
+</script>
+
+<style>
+  .vapi-widget-container {
+    position: fixed;
+    z-index: 1000;
+  }
+
+  .vapi-voice-button {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4),
+      0 0 0 0 rgba(102, 126, 234, 0.5);
+    transition: all 0.3s ease;
+    padding: 0;
+  }
+
+  .vapi-voice-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.6),
+      0 0 0 0 rgba(102, 126, 234, 0.7);
+  }
+
+  .vapi-voice-button:active {
+    transform: scale(0.95);
+  }
+
+  .vapi-voice-button.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4),
+      0 0 0 0 rgba(245, 87, 108, 0.5);
+    animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .vapi-icon {
+    width: 28px;
+    height: 28px;
+    color: white;
+    z-index: 1;
+    position: relative;
+  }
+
+  .vapi-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1.1);
+    }
+  }
+
+  @keyframes pulse-ring {
+    0% {
+      box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4),
+        0 0 0 0 rgba(245, 87, 108, 0.7);
+    }
+    50% {
+      box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4),
+        0 0 0 10px rgba(245, 87, 108, 0);
+    }
+    100% {
+      box-shadow: 0 4px 20px rgba(245, 87, 108, 0.4),
+        0 0 0 0 rgba(245, 87, 108, 0);
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .vapi-voice-button {
+      width: 56px;
+      height: 56px;
+    }
+
+    .vapi-icon {
+      width: 24px;
+      height: 24px;
+    }
+  }
+</style>
+
