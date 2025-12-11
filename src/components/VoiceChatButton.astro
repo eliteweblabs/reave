@@ -732,27 +732,10 @@ const positionClasses = {
                 console.log("Vapi instance before start:", vapiInstance);
 
                 // Pass assistantId as the first parameter to start()
-                // Also pass options to make it start speaking immediately
                 try {
-                  const startOptions = {
-                    // Make the assistant start speaking immediately
-                    startSpeaking: true,
-                    // Enable automatic speech detection
-                    enableAutoSpeech: true,
-                  };
-
-                  // Try calling start with options as second parameter
-                  let startResult;
-                  if (vapiInstance.start.length > 1) {
-                    // start(assistantId, options)
-                    startResult = vapiInstance.start(
-                      validAssistantId,
-                      startOptions
-                    );
-                  } else {
-                    // start(assistantId) - fallback
-                    startResult = vapiInstance.start(validAssistantId);
-                  }
+                  // Vapi start() method signature: start(assistantId)
+                  // The assistant will start speaking automatically based on its configuration
+                  const startResult = vapiInstance.start(validAssistantId);
 
                   console.log(
                     "Step 7: vapiInstance.start() called successfully"
