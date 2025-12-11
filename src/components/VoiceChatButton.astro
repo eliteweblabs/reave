@@ -50,6 +50,12 @@ const positionClasses = {
       stroke-width={2.5}
       style="display: none;"
     />
+
+    <!-- Loading spinner (connecting state) -->
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+      <div class="spinner-ring"></div>
+    </div>
+
     <span class="vapi-pulse"></span>
   </button>
 
@@ -334,9 +340,15 @@ const positionClasses = {
       } else {
         // Start the call - lazy load SDK here
         try {
-          // Show loading state
+          // Show immediate visual feedback
           button.disabled = true;
-          button.style.opacity = "0.7";
+          button.classList.add("connecting");
+
+          // Hide question icon, show loading spinner
+          const questionIconEl = document.getElementById("question-icon");
+          const loadingSpinnerEl = document.getElementById("loading-spinner");
+          if (questionIconEl) questionIconEl.style.display = "none";
+          if (loadingSpinnerEl) loadingSpinnerEl.style.display = "block";
 
           // Load SDK (should be instant if preloaded)
           console.log("Getting Vapi SDK (may already be preloaded)...");
@@ -362,11 +374,11 @@ const positionClasses = {
           // Start audio level analyzer with the stream
           startAudioAnalyzer(stream);
 
-          // Switch to microphone icon immediately after permission granted
-          const questionIcon = document.getElementById("question-icon");
-          const micIcon = document.getElementById("mic-icon");
-          if (questionIcon) questionIcon.style.display = "none";
-          if (micIcon) micIcon.style.display = "block";
+          // Hide loading spinner, show microphone icon after permission granted
+          const loadingSpinnerEl2 = document.getElementById("loading-spinner");
+          const micIconEl = document.getElementById("mic-icon");
+          if (loadingSpinnerEl2) loadingSpinnerEl2.style.display = "none";
+          if (micIconEl) micIconEl.style.display = "block";
 
           // Validate credentials before initializing
           console.log("=== Vapi Initialization Debug ===");
@@ -743,12 +755,9 @@ const positionClasses = {
                   console.log("Start result:", startResult);
                   console.log("Start result type:", typeof startResult);
 
-                  // Mark as active immediately since call is starting
-                  isActive = true;
-                  button.classList.add("active");
-                  button.setAttribute("aria-label", "End voice chat");
-                  button.disabled = false;
-                  button.style.opacity = "1";
+                  // Keep connecting state until call actually starts
+                  // Don't mark as active yet - wait for call-start-success event
+                  button.setAttribute("aria-label", "Connecting...");
 
                   if (startResult && typeof startResult.then === "function") {
                     console.log("Start returned a Promise");
@@ -797,7 +806,14 @@ const positionClasses = {
           } catch (initError) {
             console.error("Vapi initialization error:", initError);
             button.disabled = false;
+            button.classList.remove("connecting");
             button.style.opacity = "1";
+            // Reset to question icon
+            const loadingSpinnerErr =
+              document.getElementById("loading-spinner");
+            const questionIconErr = document.getElementById("question-icon");
+            if (loadingSpinnerErr) loadingSpinnerErr.style.display = "none";
+            if (questionIconErr) questionIconErr.style.display = "block";
             alert(
               "Failed to initialize voice chat: " +
                 (initError.message || "Unknown error")
@@ -806,7 +822,13 @@ const positionClasses = {
         } catch (error) {
           console.error("Error:", error);
           button.disabled = false;
+          button.classList.remove("connecting");
           button.style.opacity = "1";
+          // Reset to question icon
+          const loadingSpinner = document.getElementById("loading-spinner");
+          const questionIcon = document.getElementById("question-icon");
+          if (loadingSpinner) loadingSpinner.style.display = "none";
+          if (questionIcon) questionIcon.style.display = "block";
           // Stop audio analyzer on error
           stopAudioAnalyzer();
 
@@ -909,6 +931,11 @@ const positionClasses = {
     transform: scale(0.95);
   }
 
+  .vapi-voice-button.connecting {
+    border-color: rgba(102, 126, 234, 0.8);
+    animation: connecting-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
   .vapi-voice-button.active {
     background: transparent;
     border-color: rgba(245, 87, 108, 0.8);
@@ -916,6 +943,46 @@ const positionClasses = {
       0 4px 20px rgba(245, 87, 108, 0.4),
       0 0 0 0 rgba(245, 87, 108, 0.5);
     animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Loading spinner */
+  .loading-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    z-index: 2;
+  }
+
+  .spinner-ring {
+    width: 100%;
+    height: 100%;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: rgba(255, 255, 255, 1);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes connecting-pulse {
+    0%,
+    100% {
+      box-shadow:
+        0 4px 20px rgba(102, 126, 234, 0.4),
+        0 0 0 0 rgba(102, 126, 234, 0.5);
+    }
+    50% {
+      box-shadow:
+        0 4px 20px rgba(102, 126, 234, 0.6),
+        0 0 0 8px rgba(102, 126, 234, 0);
+    }
   }
 
   .vapi-icon {
