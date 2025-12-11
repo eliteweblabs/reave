@@ -267,6 +267,12 @@ const positionClasses = {
         const average = sum / dataArray.length;
         const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
 
+        // Dispatch custom event with audio level for gradient animation
+        const audioLevelEvent = new CustomEvent("audioLevel", {
+          detail: { level: normalizedLevel, raw: average }
+        });
+        window.dispatchEvent(audioLevelEvent);
+
         // Update level bars
         const bars = document.querySelectorAll(".level-bar");
         bars.forEach((bar, index) => {
@@ -643,6 +649,56 @@ const positionClasses = {
               vapiInstance.on("call-start", function () {
                 console.log("Vapi call starting...");
                 // Icon already switched before start() was called
+                // Mark as active immediately
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+              });
+
+              // Listen for when the call is fully connected and ready
+              vapiInstance.on("call-update", function (data) {
+                console.log("Vapi call update:", data);
+                if (data && data.status) {
+                  console.log("Call status:", data.status);
+                  if (data.status === "connected" || data.status === "joined") {
+                    isActive = true;
+                    button.classList.add("active");
+                    button.setAttribute("aria-label", "End voice chat");
+                    button.disabled = false;
+                    button.style.opacity = "1";
+                  }
+                }
+              });
+
+              // Listen for speech events to ensure it's actively listening/speaking
+              vapiInstance.on("speech-start", function (data) {
+                console.log("Vapi speech started:", data);
+                isActive = true;
+                button.classList.add("active");
+              });
+
+              vapiInstance.on("speech-end", function (data) {
+                console.log("Vapi speech ended:", data);
+              });
+
+              vapiInstance.on("message", function (data) {
+                console.log("Vapi message:", data);
+              });
+
+              // Listen for when the assistant starts speaking
+              vapiInstance.on("assistant-speech-start", function (data) {
+                console.log("Assistant started speaking:", data);
+                isActive = true;
+                button.classList.add("active");
+              });
+
+              // Listen for when user speech is detected
+              vapiInstance.on("user-speech-start", function (data) {
+                console.log("User speech detected:", data);
+                isActive = true;
+                button.classList.add("active");
               });
 
               // Call end event
@@ -710,18 +766,46 @@ const positionClasses = {
                 console.log("Vapi instance before start:", vapiInstance);
 
                 // Pass assistantId as the first parameter to start()
+                // Also pass options to make it start speaking immediately
                 try {
-                  const startResult = vapiInstance.start(validAssistantId);
+                  const startOptions = {
+                    // Make the assistant start speaking immediately
+                    startSpeaking: true,
+                    // Enable automatic speech detection
+                    enableAutoSpeech: true,
+                  };
+                  
+                  // Try calling start with options as second parameter
+                  let startResult;
+                  if (vapiInstance.start.length > 1) {
+                    // start(assistantId, options)
+                    startResult = vapiInstance.start(validAssistantId, startOptions);
+                  } else {
+                    // start(assistantId) - fallback
+                    startResult = vapiInstance.start(validAssistantId);
+                  }
+                  
                   console.log(
                     "Step 7: vapiInstance.start() called successfully"
                   );
                   console.log("Start result:", startResult);
                   console.log("Start result type:", typeof startResult);
+                  
+                  // Mark as active immediately since call is starting
+                  isActive = true;
+                  button.classList.add("active");
+                  button.setAttribute("aria-label", "End voice chat");
+                  button.disabled = false;
+                  button.style.opacity = "1";
+                  
                   if (startResult && typeof startResult.then === "function") {
                     console.log("Start returned a Promise");
                     startResult
                       .then((result) => {
                         console.log("Start Promise resolved:", result);
+                        // Ensure active state is set
+                        isActive = true;
+                        button.classList.add("active");
                       })
                       .catch((err) => {
                         console.error("Start Promise rejected:", err);

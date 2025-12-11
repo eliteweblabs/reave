@@ -350,8 +350,8 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     const wrapped = wrapPosition(baseX, baseY);
 
     // Apply the transform immediately (driftX/driftY not applied during drag)
-    // Use transform3d for hardware acceleration
-    gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0)`;
+    // Use transform3d for hardware acceleration, include current scale
+    gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0) scale(${currentScale})`;
 
     // Update start position for next delta calculation
     startX = point.clientX;
@@ -369,6 +369,45 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     }
   }
 
+  // Audio level tracking for gradient scaling
+  let currentAudioLevel = 0;
+  let targetScale = 1;
+  let currentScale = 1;
+  let scaleAnimationFrame: number | null = null;
+
+  // Listen for audio level events from VoiceChatButton
+  window.addEventListener("audioLevel", ((event: CustomEvent) => {
+    if (event.detail && typeof event.detail.level === "number") {
+      currentAudioLevel = event.detail.level;
+      // Map audio level (0-1) to scale (1.0 - 1.4)
+      // Higher audio = larger scale, with smooth response
+      targetScale = 1 + (currentAudioLevel * 0.4);
+    }
+  }) as EventListener);
+
+  function animateGradientScale() {
+    if (!gradientLayer) {
+      scaleAnimationFrame = null;
+      return;
+    }
+
+    // Smooth interpolation for scale (easing)
+    const smoothing = 0.1;
+    currentScale += (targetScale - currentScale) * smoothing;
+
+    // Apply scale to gradient layer (combine with existing transform if dragging)
+    if (isDragging) {
+      // During drag, preserve position but add scale
+      const wrapped = wrapPosition(baseX, baseY);
+      gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0) scale(${currentScale})`;
+    } else {
+      // When not dragging, just apply scale
+      gradientLayer.style.transform = `translate3d(0, 0, 0) scale(${currentScale})`;
+    }
+
+    scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
+  }
+
   // Initialize after DOM is ready
   function init() {
     gradientLayer = document.getElementById("gradientLayer");
@@ -378,7 +417,11 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
       return;
     }
 
-    // initTimestamp will be set on first requestAnimationFrame call
+    // Set initial scale
+    gradientLayer.style.transform = 'translate3d(0, 0, 0) scale(1)';
+
+    // Start gradient scale animation
+    animateGradientScale();
 
     // Mouse events
     document.addEventListener("mousedown", handleStart);
