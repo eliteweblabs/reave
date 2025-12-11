@@ -24,6 +24,10 @@ This website includes a voice chat button powered by [Vapi](https://vapi.ai) tha
      ```
      PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key_here
      PUBLIC_VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
+     
+     # Twilio SMS Configuration
+     TWILIO_ACCOUNT_SID=your_twilio_account_sid
+     TWILIO_AUTH_TOKEN=your_twilio_auth_token
      ```
    - Replace the placeholder values with your actual credentials
 
@@ -45,6 +49,38 @@ Example:
 ```astro
 <VoiceChatButton position="bottom-left" />
 ```
+
+## 📱 SMS Integration (Twilio)
+
+This project includes inbound SMS handling via Twilio.
+
+### Setup Instructions
+
+1. **Get Your Twilio Credentials**
+   - Sign up at [https://www.twilio.com](https://www.twilio.com)
+   - Get your **Account SID** and **Auth Token** from the Twilio Console
+   - Add them to your `.env` file:
+     ```
+     TWILIO_ACCOUNT_SID=your_account_sid
+     TWILIO_AUTH_TOKEN=your_auth_token
+     ```
+
+2. **Configure Your Twilio Number**
+   - In the Twilio Console, go to Phone Numbers → Manage → Active Numbers
+   - Select your number: `+18889498224`
+   - Under "Messaging", set the webhook URL to:
+     ```
+     https://your-domain.com/api/sms
+     ```
+   - For local development, use a tool like [ngrok](https://ngrok.com) to expose your local server:
+     ```
+     ngrok http 4323
+     ```
+     Then use: `https://your-ngrok-url.ngrok.io/api/sms`
+
+3. **Customize SMS Handling**
+   - Edit `src/pages/api/sms.ts` to add your custom logic
+   - Examples: forward to AI, store in database, send auto-replies, etc.
 
 ## 🚀 Project Structure
 
