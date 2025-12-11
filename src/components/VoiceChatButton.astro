@@ -338,8 +338,8 @@ const positionClasses = {
           button.disabled = true;
           button.style.opacity = "0.7";
 
-          // Load SDK only when needed (resource optimization)
-          console.log("Loading Vapi SDK...");
+          // Load SDK (should be instant if preloaded)
+          console.log("Getting Vapi SDK (may already be preloaded)...");
           const Vapi = await loadVapiSDK();
           console.log("Vapi SDK loaded:", !!Vapi);
           console.log("Vapi type:", typeof Vapi);
@@ -826,8 +826,16 @@ const positionClasses = {
     });
   }
 
-  // Initialize button handler (SDK will be loaded lazily on first click)
+  // Preload SDK immediately if credentials are available
+  // This reduces the delay when user clicks the button
   if (publicKey && assistantId) {
+    // Preload SDK in the background
+    loadVapiSDK().catch((error) => {
+      console.warn("Failed to preload Vapi SDK:", error);
+      // Don't show error to user - it will retry on click
+    });
+
+    // Initialize button handler
     initializeVapi();
   } else {
     // Disable button if credentials are missing

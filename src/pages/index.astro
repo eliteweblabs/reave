@@ -381,7 +381,7 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
       currentAudioLevel = event.detail.level;
       // Map audio level (0-1) to scale (1.0 - 1.4)
       // Higher audio = larger scale, with smooth response
-      targetScale = 1 + (currentAudioLevel * 0.4);
+      targetScale = 1 + currentAudioLevel * 0.4;
     }
   }) as EventListener);
 
@@ -418,7 +418,7 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     }
 
     // Set initial scale
-    gradientLayer.style.transform = 'translate3d(0, 0, 0) scale(1)';
+    gradientLayer.style.transform = "translate3d(0, 0, 0) scale(1)";
 
     // Start gradient scale animation
     animateGradientScale();
