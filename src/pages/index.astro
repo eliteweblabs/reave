@@ -73,15 +73,16 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z' fill='white'/%3E%3Cpath d='M410.2,275.9' fill='white'/%3E%3Cg%3E%3Cpath d='M241.2,313.4l42.1-99.3,42.6,99.3' fill='white'/%3E%3Cpath d='M298.5,214.1h79.7l-40.3,99.3' fill='white'/%3E%3C/g%3E%3Cpolygon points='251 258 175.9 258 175.9 224.7 264.7 224.7 251 258' fill='white'/%3E%3Cpolygon points='232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8' fill='white'/%3E%3Cpolygon points='368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5' fill='white'/%3E%3Cpolygon points='386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7' fill='white'/%3E%3C/svg%3E");
     mask-size: contain;
     -webkit-mask-size: contain;
-    mask-position: 35% center;
-    -webkit-mask-position: 35% center;
+    /* Initial position - will be overridden by animation */
+    mask-position: 42% center;
+    -webkit-mask-position: 42% center;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))
       drop-shadow(0 0 40px rgba(255, 100, 200, 0.3));
     /* Reduced drop-shadows for better performance */
     pointer-events: none;
-    animation: zoomIn 1s ease-out forwards;
+    animation: zoomIn 1s linear forwards;
     transform: scale(50);
   }
 
@@ -137,19 +138,31 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     height: 100%;
   }
 
-  /* Zoom in animation on page load - starts focused on VA, ends centered */
+  /* Zoom in animation on page load - completely linear, smooth transition */
   @keyframes zoomIn {
     0% {
       transform: scale(50);
-      mask-position: 35% center;
-      -webkit-mask-position: 35% center;
+      /* Start focused on AV (3rd & 4th letters) */
+      mask-position: 42% center;
+      -webkit-mask-position: 42% center;
     }
     100% {
       transform: scale(1);
+      /* Smoothly transition to center throughout entire animation */
       mask-position: center center;
       -webkit-mask-position: center center;
     }
   }
+
+  /* Debug mode - uncomment to see mask boundaries */
+  /* .logo-mask::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid red;
+    pointer-events: none;
+    z-index: 1000;
+  } */
 
   /* Subtle drift animation to show it's interactive */
   @keyframes drift {
@@ -408,6 +421,23 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
     scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
   }
 
+  // Debug helper: Log animation progress
+  function debugAnimation() {
+    const logoMask = document.querySelector(".logo-mask");
+    if (!logoMask) return;
+
+    // Get computed styles to see current mask position
+    const style = window.getComputedStyle(logoMask);
+    const maskPosition = style.maskPosition || style.webkitMaskPosition;
+    const transform = style.transform;
+
+    console.log("Animation Debug:", {
+      maskPosition,
+      transform,
+      maskSize: style.maskSize || style.webkitMaskSize,
+    });
+  }
+
   // Initialize after DOM is ready
   function init() {
     gradientLayer = document.getElementById("gradientLayer");
@@ -422,6 +452,30 @@ import VoiceChatButton from "../components/VoiceChatButton.astro";
 
     // Start gradient scale animation
     animateGradientScale();
+
+    // Debug: Log animation state periodically (add ?debug=animation to URL)
+    if (window.location.search.includes("debug=animation")) {
+      const logoMask = document.querySelector(".logo-mask");
+      if (logoMask) {
+        const observer = new MutationObserver(() => {
+          debugAnimation();
+        });
+        observer.observe(logoMask, {
+          attributes: true,
+          attributeFilter: ["style", "class"],
+        });
+
+        // Also log during animation
+        let frameCount = 0;
+        const logInterval = setInterval(() => {
+          debugAnimation();
+          frameCount++;
+          if (frameCount > 100) {
+            clearInterval(logInterval);
+          }
+        }, 100);
+      }
+    }
 
     // Mouse events
     document.addEventListener("mousedown", handleStart);

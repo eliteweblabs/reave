@@ -207,6 +207,14 @@ const positionClasses = {
       analyzerActive = true;
       audioStream = stream;
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Mobile Chrome requires AudioContext to be resumed after user interaction
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch((err) => {
+          console.warn("Failed to resume audio context:", err);
+        });
+      }
+
       analyser = audioContext.createAnalyser();
       microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);
@@ -309,8 +317,12 @@ const positionClasses = {
     let vapiInstance = null;
     let isActive = false;
 
-    // Only add event listener once
-    button.addEventListener("click", async function () {
+    // Handle both click and touch events for mobile compatibility
+    const handleStart = async function (e) {
+      // Prevent double-firing on mobile
+      if (e && e.type === "touchstart") {
+        e.preventDefault();
+      }
       if (isActive) {
         // Stop the call
         if (vapiInstance) {
@@ -366,13 +378,29 @@ const positionClasses = {
             throw new Error("Vapi SDK failed to load or is not a constructor");
           }
 
-          // Request microphone permission and get stream for audio analysis
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-          });
+          // Validate credentials before requesting microphone (do this in parallel)
+          if (!publicKey || !assistantId) {
+            console.error("Missing credentials:", {
+              publicKey: !!publicKey,
+              assistantId: !!assistantId,
+            });
+            throw new Error(
+              "Vapi credentials are missing. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID."
+            );
+          }
 
-          // Start audio level analyzer with the stream
-          startAudioAnalyzer(stream);
+          // Request microphone permission and initialize Vapi in parallel for speed
+          const [stream] = await Promise.all([
+            navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+            }),
+            // Small delay to ensure SDK is ready
+            Promise.resolve(),
+          ]);
 
           // Hide loading spinner, show microphone icon after permission granted
           const loadingSpinnerEl2 = document.getElementById("loading-spinner");
@@ -380,7 +408,18 @@ const positionClasses = {
           if (loadingSpinnerEl2) loadingSpinnerEl2.style.display = "none";
           if (micIconEl) micIconEl.style.display = "block";
 
-          // Validate credentials before initializing
+          // Start audio level analyzer (non-blocking)
+          try {
+            startAudioAnalyzer(stream);
+          } catch (analyzerError) {
+            console.warn(
+              "Audio analyzer failed (non-critical):",
+              analyzerError
+            );
+            // Continue even if analyzer fails
+          }
+
+          // Validate credentials (already done above, but keeping for clarity)
           console.log("=== Vapi Initialization Debug ===");
           console.log("Step 1: Validating credentials");
           console.log("PublicKey present:", !!publicKey);
@@ -411,17 +450,16 @@ const positionClasses = {
           }
 
           // Additional validation - ensure assistantId is not just whitespace
+          const trimmedAssistantId = assistantId.trim();
           if (
             typeof assistantId !== "string" ||
-            assistantId.trim().length === 0
+            trimmedAssistantId.length === 0
           ) {
             console.error("Invalid assistantId:", assistantId);
             throw new Error(
               "Assistant ID is invalid or empty. Please check your PUBLIC_VAPI_ASSISTANT_ID environment variable."
             );
           }
-
-          const trimmedAssistantId = assistantId.trim();
           console.log("Step 2: Credentials validated");
           console.log("Trimmed AssistantId:", trimmedAssistantId);
           console.log("Trimmed AssistantId length:", trimmedAssistantId.length);
@@ -845,7 +883,11 @@ const positionClasses = {
           }
         }
       }
-    });
+    };
+
+    // Add both click and touchstart listeners for mobile compatibility
+    button.addEventListener("click", handleStart);
+    button.addEventListener("touchstart", handleStart, { passive: false });
   }
 
   // Preload SDK immediately if credentials are available
