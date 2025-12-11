@@ -204,6 +204,13 @@ const positionClasses = {
   let audioStream = null;
   let analyzerActive = false;
 
+  // Cached greeting audio
+  let cachedGreetingAudio = null;
+  let isRecordingGreeting = false;
+  let greetingRecorder = null;
+  let greetingAudioChunks = [];
+  let greetingPlayed = false;
+
   function startAudioAnalyzer(stream) {
     try {
       analyzerActive = true;
@@ -312,6 +319,134 @@ const positionClasses = {
     audioStream = null;
   }
 
+  // Load cached greeting from localStorage
+  function loadCachedGreeting() {
+    try {
+      const cached = localStorage.getItem("vapi_greeting_audio");
+      if (cached) {
+        const audioBlob = new Blob([Uint8Array.from(JSON.parse(cached))], {
+          type: "audio/webm",
+        });
+        cachedGreetingAudio = URL.createObjectURL(audioBlob);
+        console.log("Loaded cached greeting from localStorage");
+        return true;
+      }
+    } catch (error) {
+      console.warn("Failed to load cached greeting:", error);
+    }
+    return false;
+  }
+
+  // Play cached greeting immediately
+  function playCachedGreeting() {
+    if (greetingPlayed) return; // Don't play twice in same session
+
+    // Try to load from localStorage if not already loaded
+    if (!cachedGreetingAudio) {
+      loadCachedGreeting();
+    }
+
+    if (cachedGreetingAudio) {
+      try {
+        const audio = new Audio(cachedGreetingAudio);
+        audio.volume = 0.8;
+        audio.play().catch((error) => {
+          console.warn("Failed to play cached greeting:", error);
+        });
+        greetingPlayed = true;
+        console.log("Playing cached greeting immediately");
+      } catch (error) {
+        console.warn("Error playing cached greeting:", error);
+      }
+    }
+  }
+
+  // Start recording the greeting from Vapi
+  function startRecordingGreeting(vapiInstance) {
+    if (isRecordingGreeting || cachedGreetingAudio) return;
+
+    try {
+      isRecordingGreeting = true;
+      greetingAudioChunks = [];
+
+      // Try to get the audio stream from Vapi
+      // Check if Vapi exposes the remote audio stream
+      let remoteStream = null;
+
+      // Try different methods to access Vapi's audio stream
+      if (
+        vapiInstance &&
+        typeof vapiInstance.getRemoteAudioStream === "function"
+      ) {
+        remoteStream = vapiInstance.getRemoteAudioStream();
+      } else if (vapiInstance && vapiInstance.remoteAudioStream) {
+        remoteStream = vapiInstance.remoteAudioStream;
+      } else if (
+        vapiInstance &&
+        vapiInstance.call &&
+        vapiInstance.call.remoteAudioStream
+      ) {
+        remoteStream = vapiInstance.call.remoteAudioStream;
+      }
+
+      if (remoteStream) {
+        greetingRecorder = new MediaRecorder(remoteStream, {
+          mimeType: "audio/webm;codecs=opus",
+        });
+
+        greetingRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            greetingAudioChunks.push(event.data);
+          }
+        };
+
+        greetingRecorder.onstop = () => {
+          if (greetingAudioChunks.length > 0) {
+            const audioBlob = new Blob(greetingAudioChunks, {
+              type: "audio/webm",
+            });
+            cachedGreetingAudio = URL.createObjectURL(audioBlob);
+
+            // Save to localStorage
+            try {
+              audioBlob.arrayBuffer().then((buffer) => {
+                const uint8Array = new Uint8Array(buffer);
+                localStorage.setItem(
+                  "vapi_greeting_audio",
+                  JSON.stringify(Array.from(uint8Array))
+                );
+                console.log("Cached greeting saved to localStorage");
+              });
+            } catch (error) {
+              console.warn("Failed to save greeting to localStorage:", error);
+            }
+          }
+          isRecordingGreeting = false;
+        };
+
+        // Record for up to 10 seconds (should be enough for greeting)
+        greetingRecorder.start();
+        console.log("Started recording greeting from Vapi");
+
+        setTimeout(() => {
+          if (greetingRecorder && greetingRecorder.state === "recording") {
+            greetingRecorder.stop();
+            console.log("Stopped recording greeting");
+          }
+        }, 10000);
+      } else {
+        console.log(
+          "Vapi doesn't expose remote stream - cannot record greeting automatically"
+        );
+        console.log("Vapi instance methods:", Object.keys(vapiInstance || {}));
+        isRecordingGreeting = false;
+      }
+    } catch (error) {
+      console.warn("Failed to start recording greeting:", error);
+      isRecordingGreeting = false;
+    }
+  }
+
   function initializeVapi() {
     const button = document.getElementById("vapi-voice-button");
     if (!button) return;
@@ -409,6 +544,9 @@ const positionClasses = {
           // Activate toggle immediately after microphone permission granted
           button.classList.add("active");
           isActive = true;
+
+          // Play cached greeting immediately if available
+          playCachedGreeting();
 
           // Start audio level analyzer (non-blocking)
           try {
@@ -706,6 +844,15 @@ const positionClasses = {
                 console.log("Assistant started speaking:", data);
                 isActive = true;
                 button.classList.add("active");
+
+                // Record the first greeting if not already cached
+                if (
+                  !greetingPlayed &&
+                  !cachedGreetingAudio &&
+                  !isRecordingGreeting
+                ) {
+                  startRecordingGreeting(vapiInstance);
+                }
               });
 
               // Listen for when user speech is detected
@@ -728,6 +875,15 @@ const positionClasses = {
                 if (micIcon) micIcon.style.display = "none";
                 // Stop audio analyzer
                 stopAudioAnalyzer();
+                // Stop recording greeting if still recording
+                if (
+                  greetingRecorder &&
+                  greetingRecorder.state === "recording"
+                ) {
+                  greetingRecorder.stop();
+                }
+                // Reset greeting played flag for next session
+                greetingPlayed = false;
                 if (vapiInstance) {
                   vapiInstance = null;
                 }
@@ -896,6 +1052,9 @@ const positionClasses = {
       console.warn("Failed to preload Vapi SDK:", error);
       // Don't show error to user - it will retry on click
     });
+
+    // Load cached greeting if available
+    loadCachedGreeting();
 
     // Initialize button handler
     initializeVapi();
