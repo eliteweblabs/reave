@@ -145,25 +145,43 @@ const positionClasses = {
     vapiSDKLoading = true;
 
     try {
+      console.log("=== Loading Vapi SDK ===");
       // Try importing from npm package (Vite will bundle it)
       // Use the package name - Vite handles the resolution
       let VapiModule;
       try {
+        console.log("Attempting to import @vapi-ai/web from npm...");
         VapiModule = await import("@vapi-ai/web");
+        console.log("Local import successful");
       } catch (localError) {
         // If local import fails (expected in browser), use CDN
         // This is normal - browser scripts can't resolve npm packages directly
+        console.log("Local import failed, using CDN:", localError.message);
+        console.log(
+          "Importing from CDN: https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
+        );
         VapiModule = await import(
           "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
         );
+        console.log("CDN import successful");
       }
+
+      console.log("VapiModule:", VapiModule);
+      console.log("VapiModule keys:", Object.keys(VapiModule));
+      console.log("VapiModule.default:", VapiModule.default);
+      console.log("VapiModule.default type:", typeof VapiModule.default);
 
       // Handle CommonJS default export
       let Vapi = VapiModule.default;
+      console.log("Initial Vapi (from default):", Vapi);
+      console.log("Initial Vapi type:", typeof Vapi);
 
       // If default is not a constructor, try other exports
       if (!Vapi || typeof Vapi !== "function") {
+        console.log("Default is not a function, trying other exports...");
         Vapi = VapiModule.Vapi || VapiModule.VapiClient || VapiModule;
+        console.log("Vapi after fallback:", Vapi);
+        console.log("Vapi type after fallback:", typeof Vapi);
       }
 
       // Final check - if still not a function, it might be wrapped
@@ -176,12 +194,21 @@ const positionClasses = {
 
       // Check if it's actually a constructor
       if (Vapi && typeof Vapi === "function") {
+        console.log("Vapi constructor validated successfully");
+        console.log("Vapi prototype:", Vapi.prototype);
+        console.log(
+          "Vapi prototype methods:",
+          Object.getOwnPropertyNames(Vapi.prototype)
+        );
         win.Vapi = Vapi;
         vapiSDKLoaded = true;
         vapiSDKLoading = false;
+        console.log("Vapi SDK loaded and ready");
         return Vapi;
       } else {
         console.error("Vapi module structure:", VapiModule);
+        console.error("Final Vapi value:", Vapi);
+        console.error("Final Vapi type:", typeof Vapi);
         throw new Error(
           "Vapi is not a constructor. Module type: " + typeof Vapi
         );
@@ -345,7 +372,10 @@ const positionClasses = {
           console.log("Vapi SDK loaded:", !!Vapi);
           console.log("Vapi type:", typeof Vapi);
           console.log("Vapi is function:", typeof Vapi === "function");
-          console.log("Vapi is constructor:", typeof Vapi === "function" && Vapi.prototype);
+          console.log(
+            "Vapi is constructor:",
+            typeof Vapi === "function" && Vapi.prototype
+          );
 
           if (!Vapi || typeof Vapi !== "function") {
             console.error("Vapi SDK validation failed");
@@ -372,11 +402,19 @@ const positionClasses = {
           console.log("PublicKey present:", !!publicKey);
           console.log("PublicKey type:", typeof publicKey);
           console.log("PublicKey length:", publicKey ? publicKey.length : 0);
-          console.log("PublicKey preview:", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+          console.log(
+            "PublicKey preview:",
+            publicKey
+              ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+              : "N/A"
+          );
           console.log("AssistantId present:", !!assistantId);
           console.log("AssistantId type:", typeof assistantId);
           console.log("AssistantId value:", assistantId);
-          console.log("AssistantId length:", assistantId ? assistantId.length : 0);
+          console.log(
+            "AssistantId length:",
+            assistantId ? assistantId.length : 0
+          );
 
           if (!publicKey || !assistantId) {
             console.error("Missing credentials:", {
@@ -412,17 +450,26 @@ const positionClasses = {
               console.error("Vapi error event:", error);
               console.error("Error type:", typeof error);
               console.error("Error constructor:", error?.constructor?.name);
-              
+
               // Try to extract error details
               let errorMessage = "Unknown error";
               if (error && typeof error === "object") {
-                errorMessage =
-                  error.message || error.error || JSON.stringify(error);
-                
+                // Try to get message from nested error structure
+                const nestedMessage = error.error?.message;
+                if (nestedMessage && typeof nestedMessage === "object") {
+                  errorMessage =
+                    nestedMessage.message || JSON.stringify(nestedMessage);
+                } else if (nestedMessage && typeof nestedMessage === "string") {
+                  errorMessage = nestedMessage;
+                } else {
+                  errorMessage =
+                    error.message || error.error || JSON.stringify(error);
+                }
+
                 // Log all error properties
                 console.error("Error object properties:", Object.keys(error));
                 console.error("Error object values:", error);
-                
+
                 // Check for specific error types
                 if (error.type) {
                   console.error("Error type:", error.type);
@@ -435,16 +482,25 @@ const positionClasses = {
                 }
                 if (error.error) {
                   console.error("Nested error:", error.error);
-                  if (typeof error.error === 'object') {
-                    console.error("Nested error keys:", Object.keys(error.error));
+                  if (typeof error.error === "object") {
+                    console.error(
+                      "Nested error keys:",
+                      Object.keys(error.error)
+                    );
                     if (error.error.message) {
-                      console.error("Nested error message:", error.error.message);
+                      console.error(
+                        "Nested error message:",
+                        error.error.message
+                      );
                     }
                     if (error.error.status) {
                       console.error("Nested error status:", error.error.status);
                     }
                     if (error.error.statusText) {
-                      console.error("Nested error statusText:", error.error.statusText);
+                      console.error(
+                        "Nested error statusText:",
+                        error.error.statusText
+                      );
                     }
                   }
                 }
@@ -464,16 +520,34 @@ const positionClasses = {
                     ? Object.keys(error)
                     : null,
               });
-              
+
               // Check for 403/authentication errors
-              if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+              const errorMessageStr = String(errorMessage);
+              if (
+                errorMessageStr.includes("403") ||
+                errorMessageStr.includes("Forbidden") ||
+                errorMessageStr.includes("doesn't allow origin")
+              ) {
                 console.error("=== 403 Forbidden Error Detected ===");
                 console.error("This usually means:");
-                console.error("1. The API key (publicKey) is invalid or expired");
-                console.error("2. The API key doesn't have permission to use this assistant");
-                console.error("3. The assistant ID doesn't belong to the account associated with the API key");
-                console.error("4. The API key might be a public key that needs different permissions");
-                console.error("PublicKey used:", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+                console.error(
+                  "1. The API key (publicKey) is invalid or expired"
+                );
+                console.error(
+                  "2. The API key doesn't have permission to use this assistant"
+                );
+                console.error(
+                  "3. The assistant ID doesn't belong to the account associated with the API key"
+                );
+                console.error(
+                  "4. The API key might be a public key that needs different permissions"
+                );
+                console.error(
+                  "PublicKey used:",
+                  publicKey
+                    ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+                    : "N/A"
+                );
                 console.error("AssistantId used:", assistantId);
               }
 
@@ -507,24 +581,45 @@ const positionClasses = {
             console.log("Step 3: Creating Vapi instance");
             console.log("Vapi constructor:", typeof Vapi);
             console.log("Calling new Vapi() with:");
-            console.log("  - apiToken (publicKey):", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+            console.log(
+              "  - apiToken (publicKey):",
+              publicKey
+                ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+                : "N/A"
+            );
             console.log("  - apiBaseUrl: undefined (using default)");
             console.log("  - dailyCallConfig: {}");
-            
+
             vapiInstance = new Vapi(
               publicKey, // apiToken
               undefined, // apiBaseUrl (use default)
               {}, // Empty dailyCallConfig - functions can't be cloned by Daily.co
               undefined // dailyCallObject
             );
-            
+
             console.log("Step 4: Vapi instance created");
             console.log("Vapi instance:", vapiInstance);
             console.log("Vapi instance type:", typeof vapiInstance);
-            console.log("Vapi instance methods:", vapiInstance ? Object.keys(vapiInstance).filter(key => typeof vapiInstance[key] === 'function') : []);
-            console.log("Has start method:", vapiInstance && typeof vapiInstance.start === 'function');
-            console.log("Has call method:", vapiInstance && typeof vapiInstance.call === 'function');
-            console.log("Has on method:", vapiInstance && typeof vapiInstance.on === 'function');
+            console.log(
+              "Vapi instance methods:",
+              vapiInstance
+                ? Object.keys(vapiInstance).filter(
+                    (key) => typeof vapiInstance[key] === "function"
+                  )
+                : []
+            );
+            console.log(
+              "Has start method:",
+              vapiInstance && typeof vapiInstance.start === "function"
+            );
+            console.log(
+              "Has call method:",
+              vapiInstance && typeof vapiInstance.call === "function"
+            );
+            console.log(
+              "Has on method:",
+              vapiInstance && typeof vapiInstance.on === "function"
+            );
 
             // Use event listeners instead of callbacks to avoid cloning issues
             // Daily.co tries to clone functions in callbacks, causing DataCloneError
@@ -613,14 +708,16 @@ const positionClasses = {
                 console.log("Parameter type:", typeof validAssistantId);
                 console.log("Parameter length:", validAssistantId.length);
                 console.log("Vapi instance before start:", vapiInstance);
-                
+
                 // Pass assistantId as the first parameter to start()
                 try {
                   const startResult = vapiInstance.start(validAssistantId);
-                  console.log("Step 7: vapiInstance.start() called successfully");
+                  console.log(
+                    "Step 7: vapiInstance.start() called successfully"
+                  );
                   console.log("Start result:", startResult);
                   console.log("Start result type:", typeof startResult);
-                  if (startResult && typeof startResult.then === 'function') {
+                  if (startResult && typeof startResult.then === "function") {
                     console.log("Start returned a Promise");
                     startResult
                       .then((result) => {
@@ -631,7 +728,10 @@ const positionClasses = {
                       });
                   }
                 } catch (startCallError) {
-                  console.error("Error thrown by vapiInstance.start():", startCallError);
+                  console.error(
+                    "Error thrown by vapiInstance.start():",
+                    startCallError
+                  );
                   console.error("Error name:", startCallError?.name);
                   console.error("Error message:", startCallError?.message);
                   console.error("Error stack:", startCallError?.stack);
