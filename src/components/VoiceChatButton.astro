@@ -918,6 +918,17 @@ const positionClasses = {
   .vapi-widget-container {
     position: fixed;
     z-index: 9999;
+    opacity: 0;
+    animation: fadeIn 0.5s ease-in-out 1.5s forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   /* Position classes - using explicit CSS since Tailwind is not configured */
