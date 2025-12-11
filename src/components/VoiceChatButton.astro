@@ -86,6 +86,17 @@ const positionClasses = {
     </svg>
     <span class="vapi-pulse"></span>
   </button>
+
+  <!-- Audio level meter -->
+  <div id="audio-level-meter" class="audio-level-meter" style="display: none;">
+    <div class="level-bars">
+      <div class="level-bar" style="--delay: 0ms"></div>
+      <div class="level-bar" style="--delay: 50ms"></div>
+      <div class="level-bar" style="--delay: 100ms"></div>
+      <div class="level-bar" style="--delay: 150ms"></div>
+      <div class="level-bar" style="--delay: 200ms"></div>
+    </div>
+  </div>
 </div>
 
 <script define:vars={{ publicKey, assistantId }}>
@@ -183,6 +194,109 @@ const positionClasses = {
     }
   }
 
+  // Audio level analyzer
+  let audioContext = null;
+  let analyser = null;
+  let microphone = null;
+  let dataArray = null;
+  let animationFrameId = null;
+  let audioStream = null;
+  let analyzerActive = false;
+
+  function startAudioAnalyzer(stream) {
+    try {
+      analyzerActive = true;
+      audioStream = stream;
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+
+      const levelMeter = document.getElementById("audio-level-meter");
+      if (levelMeter) {
+        levelMeter.style.display = "block";
+      }
+
+      function updateLevelMeter() {
+        if (!analyser || !analyzerActive) {
+          const levelMeter = document.getElementById("audio-level-meter");
+          if (levelMeter) {
+            levelMeter.style.display = "none";
+          }
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+
+        // Calculate average volume level
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
+
+        // Update level bars
+        const bars = document.querySelectorAll(".level-bar");
+        bars.forEach((bar, index) => {
+          // Create a wave effect with different thresholds for each bar
+          const threshold = (index + 1) / bars.length;
+          const barLevel = Math.max(0, normalizedLevel - (1 - threshold));
+          const height = Math.min(barLevel * 100, 100);
+          bar.style.height = height + "%";
+          bar.style.opacity = height > 5 ? 1 : 0.3;
+        });
+
+        animationFrameId = requestAnimationFrame(updateLevelMeter);
+      }
+
+      updateLevelMeter();
+    } catch (error) {
+      console.error("Error starting audio analyzer:", error);
+    }
+  }
+
+  function stopAudioAnalyzer() {
+    analyzerActive = false;
+
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+
+    if (microphone) {
+      try {
+        microphone.disconnect();
+      } catch (e) {
+        // Ignore
+      }
+      microphone = null;
+    }
+
+    if (audioContext && audioContext.state !== "closed") {
+      audioContext.close().catch(() => {
+        // Ignore errors
+      });
+      audioContext = null;
+    }
+
+    analyser = null;
+    dataArray = null;
+
+    const levelMeter = document.getElementById("audio-level-meter");
+    if (levelMeter) {
+      levelMeter.style.display = "none";
+    }
+
+    // Note: Don't stop the stream tracks here - Vapi needs them
+    // The stream will be managed by Vapi
+    audioStream = null;
+  }
+
   function initializeVapi() {
     const button = document.getElementById("vapi-voice-button");
     if (!button) return;
@@ -216,6 +330,8 @@ const positionClasses = {
         const micIcon = document.getElementById("mic-icon");
         if (questionIcon) questionIcon.style.display = "block";
         if (micIcon) micIcon.style.display = "none";
+        // Stop audio analyzer
+        stopAudioAnalyzer();
       } else {
         // Start the call - lazy load SDK here
         try {
@@ -224,14 +340,25 @@ const positionClasses = {
           button.style.opacity = "0.7";
 
           // Load SDK only when needed (resource optimization)
+          console.log("Loading Vapi SDK...");
           const Vapi = await loadVapiSDK();
+          console.log("Vapi SDK loaded:", !!Vapi);
+          console.log("Vapi type:", typeof Vapi);
+          console.log("Vapi is function:", typeof Vapi === "function");
+          console.log("Vapi is constructor:", typeof Vapi === "function" && Vapi.prototype);
 
           if (!Vapi || typeof Vapi !== "function") {
+            console.error("Vapi SDK validation failed");
             throw new Error("Vapi SDK failed to load or is not a constructor");
           }
 
-          // Request microphone permission
-          await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Request microphone permission and get stream for audio analysis
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+
+          // Start audio level analyzer with the stream
+          startAudioAnalyzer(stream);
 
           // Switch to microphone icon immediately after permission granted
           const questionIcon = document.getElementById("question-icon");
@@ -240,6 +367,17 @@ const positionClasses = {
           if (micIcon) micIcon.style.display = "block";
 
           // Validate credentials before initializing
+          console.log("=== Vapi Initialization Debug ===");
+          console.log("Step 1: Validating credentials");
+          console.log("PublicKey present:", !!publicKey);
+          console.log("PublicKey type:", typeof publicKey);
+          console.log("PublicKey length:", publicKey ? publicKey.length : 0);
+          console.log("PublicKey preview:", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+          console.log("AssistantId present:", !!assistantId);
+          console.log("AssistantId type:", typeof assistantId);
+          console.log("AssistantId value:", assistantId);
+          console.log("AssistantId length:", assistantId ? assistantId.length : 0);
+
           if (!publicKey || !assistantId) {
             console.error("Missing credentials:", {
               publicKey: !!publicKey,
@@ -261,21 +399,63 @@ const positionClasses = {
             );
           }
 
+          const trimmedAssistantId = assistantId.trim();
+          console.log("Step 2: Credentials validated");
+          console.log("Trimmed AssistantId:", trimmedAssistantId);
+          console.log("Trimmed AssistantId length:", trimmedAssistantId.length);
+
           // Initialize Vapi
           try {
             // Create error handler that properly logs the error
             const handleError = function (error) {
+              console.error("=== Vapi Error Handler ===");
               console.error("Vapi error event:", error);
+              console.error("Error type:", typeof error);
+              console.error("Error constructor:", error?.constructor?.name);
+              
               // Try to extract error details
               let errorMessage = "Unknown error";
               if (error && typeof error === "object") {
                 errorMessage =
                   error.message || error.error || JSON.stringify(error);
+                
+                // Log all error properties
+                console.error("Error object properties:", Object.keys(error));
+                console.error("Error object values:", error);
+                
+                // Check for specific error types
+                if (error.type) {
+                  console.error("Error type:", error.type);
+                }
+                if (error.stage) {
+                  console.error("Error stage:", error.stage);
+                }
+                if (error.context) {
+                  console.error("Error context:", error.context);
+                }
+                if (error.error) {
+                  console.error("Nested error:", error.error);
+                  if (typeof error.error === 'object') {
+                    console.error("Nested error keys:", Object.keys(error.error));
+                    if (error.error.message) {
+                      console.error("Nested error message:", error.error.message);
+                    }
+                    if (error.error.status) {
+                      console.error("Nested error status:", error.error.status);
+                    }
+                    if (error.error.statusText) {
+                      console.error("Nested error statusText:", error.error.statusText);
+                    }
+                  }
+                }
+                if (error.message) {
+                  console.error("Error message:", error.message);
+                }
               } else if (error) {
                 errorMessage = String(error);
               }
 
-              console.error("Vapi error details:", {
+              console.error("Vapi error details summary:", {
                 message: errorMessage,
                 error: error,
                 type: typeof error,
@@ -284,6 +464,18 @@ const positionClasses = {
                     ? Object.keys(error)
                     : null,
               });
+              
+              // Check for 403/authentication errors
+              if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+                console.error("=== 403 Forbidden Error Detected ===");
+                console.error("This usually means:");
+                console.error("1. The API key (publicKey) is invalid or expired");
+                console.error("2. The API key doesn't have permission to use this assistant");
+                console.error("3. The assistant ID doesn't belong to the account associated with the API key");
+                console.error("4. The API key might be a public key that needs different permissions");
+                console.error("PublicKey used:", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+                console.error("AssistantId used:", assistantId);
+              }
 
               isActive = false;
               button.classList.remove("active");
@@ -311,47 +503,74 @@ const positionClasses = {
             };
 
             // Vapi constructor takes: apiToken, apiBaseUrl, dailyCallConfig, dailyCallObject
-            // The callbacks are passed in dailyCallConfig
+            // Use empty config to avoid function cloning issues - we'll use event listeners instead
+            console.log("Step 3: Creating Vapi instance");
+            console.log("Vapi constructor:", typeof Vapi);
+            console.log("Calling new Vapi() with:");
+            console.log("  - apiToken (publicKey):", publicKey ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}` : "N/A");
+            console.log("  - apiBaseUrl: undefined (using default)");
+            console.log("  - dailyCallConfig: {}");
+            
             vapiInstance = new Vapi(
               publicKey, // apiToken
               undefined, // apiBaseUrl (use default)
-              {
-                // dailyCallConfig with callbacks
-                onCallStart: function () {
-                  console.log("Vapi call started successfully");
-                  isActive = true;
-                  button.classList.add("active");
-                  button.setAttribute("aria-label", "End voice chat");
-                  button.disabled = false;
-                  button.style.opacity = "1";
-                  // Switch to microphone icon
-                  const questionIcon = document.getElementById("question-icon");
-                  const micIcon = document.getElementById("mic-icon");
-                  if (questionIcon) questionIcon.style.display = "none";
-                  if (micIcon) micIcon.style.display = "block";
-                },
-                onCallEnd: function () {
-                  console.log("Vapi call ended");
-                  isActive = false;
-                  button.classList.remove("active");
-                  button.setAttribute("aria-label", "Start voice chat");
-                  button.disabled = false;
-                  button.style.opacity = "1";
-                  // Switch back to question mark icon
-                  const questionIcon = document.getElementById("question-icon");
-                  const micIcon = document.getElementById("mic-icon");
-                  if (questionIcon) questionIcon.style.display = "block";
-                  if (micIcon) micIcon.style.display = "none";
-                  if (vapiInstance) {
-                    vapiInstance = null;
-                  }
-                },
-                onError: handleError,
-              }
+              {}, // Empty dailyCallConfig - functions can't be cloned by Daily.co
+              undefined // dailyCallObject
             );
+            
+            console.log("Step 4: Vapi instance created");
+            console.log("Vapi instance:", vapiInstance);
+            console.log("Vapi instance type:", typeof vapiInstance);
+            console.log("Vapi instance methods:", vapiInstance ? Object.keys(vapiInstance).filter(key => typeof vapiInstance[key] === 'function') : []);
+            console.log("Has start method:", vapiInstance && typeof vapiInstance.start === 'function');
+            console.log("Has call method:", vapiInstance && typeof vapiInstance.call === 'function');
+            console.log("Has on method:", vapiInstance && typeof vapiInstance.on === 'function');
 
-            // Add event listeners for error events (in case they're emitted differently)
+            // Use event listeners instead of callbacks to avoid cloning issues
+            // Daily.co tries to clone functions in callbacks, causing DataCloneError
             if (vapiInstance && typeof vapiInstance.on === "function") {
+              // Call start success event (fires when call actually starts)
+              vapiInstance.on("call-start-success", function () {
+                console.log("Vapi call started successfully");
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                // Switch to microphone icon
+                const questionIcon = document.getElementById("question-icon");
+                const micIcon = document.getElementById("mic-icon");
+                if (questionIcon) questionIcon.style.display = "none";
+                if (micIcon) micIcon.style.display = "block";
+              });
+
+              // Also listen to call-start for immediate feedback
+              vapiInstance.on("call-start", function () {
+                console.log("Vapi call starting...");
+                // Icon already switched before start() was called
+              });
+
+              // Call end event
+              vapiInstance.on("call-end", function () {
+                console.log("Vapi call ended");
+                isActive = false;
+                button.classList.remove("active");
+                button.setAttribute("aria-label", "Start voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                // Switch back to question mark icon
+                const questionIcon = document.getElementById("question-icon");
+                const micIcon = document.getElementById("mic-icon");
+                if (questionIcon) questionIcon.style.display = "block";
+                if (micIcon) micIcon.style.display = "none";
+                // Stop audio analyzer
+                stopAudioAnalyzer();
+                if (vapiInstance) {
+                  vapiInstance = null;
+                }
+              });
+
+              // Error event
               vapiInstance.on("error", handleError);
             }
 
@@ -371,10 +590,8 @@ const positionClasses = {
                     ? assistantId.trim()
                     : assistantId;
 
-                console.log(
-                  "Starting Vapi call with assistant:",
-                  validAssistantId
-                );
+                console.log("=== Starting Vapi Call ===");
+                console.log("Step 5: Preparing to call vapiInstance.start()");
                 console.log("AssistantId validation:", {
                   original: assistantId,
                   trimmed: validAssistantId,
@@ -390,8 +607,36 @@ const positionClasses = {
                   );
                 }
 
+                console.log("Step 6: Calling vapiInstance.start()");
+                console.log("Method:", typeof vapiInstance.start);
+                console.log("Parameter (assistantId):", validAssistantId);
+                console.log("Parameter type:", typeof validAssistantId);
+                console.log("Parameter length:", validAssistantId.length);
+                console.log("Vapi instance before start:", vapiInstance);
+                
                 // Pass assistantId as the first parameter to start()
-                vapiInstance.start(validAssistantId);
+                try {
+                  const startResult = vapiInstance.start(validAssistantId);
+                  console.log("Step 7: vapiInstance.start() called successfully");
+                  console.log("Start result:", startResult);
+                  console.log("Start result type:", typeof startResult);
+                  if (startResult && typeof startResult.then === 'function') {
+                    console.log("Start returned a Promise");
+                    startResult
+                      .then((result) => {
+                        console.log("Start Promise resolved:", result);
+                      })
+                      .catch((err) => {
+                        console.error("Start Promise rejected:", err);
+                      });
+                  }
+                } catch (startCallError) {
+                  console.error("Error thrown by vapiInstance.start():", startCallError);
+                  console.error("Error name:", startCallError?.name);
+                  console.error("Error message:", startCallError?.message);
+                  console.error("Error stack:", startCallError?.stack);
+                  throw startCallError;
+                }
               } else if (typeof vapiInstance.call === "function") {
                 console.log("Calling Vapi...");
                 if (!assistantId || assistantId.trim() === "") {
@@ -426,6 +671,8 @@ const positionClasses = {
           console.error("Error:", error);
           button.disabled = false;
           button.style.opacity = "1";
+          // Stop audio analyzer on error
+          stopAudioAnalyzer();
 
           if (error.name === "NotAllowedError") {
             alert("Please allow microphone access to use voice chat.");
@@ -615,6 +862,55 @@ const positionClasses = {
     }
   }
 
+  /* Audio level meter */
+  .audio-level-meter {
+    position: absolute;
+    bottom: -40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 30px;
+    width: 100%;
+    pointer-events: none;
+  }
+
+  .level-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+  }
+
+  .level-bar {
+    width: 4px;
+    min-height: 4px;
+    background: linear-gradient(
+      to top,
+      rgba(102, 126, 234, 1) 0%,
+      rgba(102, 126, 234, 0.8) 50%,
+      rgba(255, 255, 255, 0.6) 100%
+    );
+    border-radius: 2px;
+    transition:
+      height 0.1s ease,
+      opacity 0.2s ease;
+    opacity: 0.3;
+    height: 4px;
+  }
+
+  .vapi-voice-button.active ~ .audio-level-meter .level-bar {
+    background: linear-gradient(
+      to top,
+      rgba(245, 87, 108, 1) 0%,
+      rgba(245, 87, 108, 0.8) 50%,
+      rgba(255, 255, 255, 0.6) 100%
+    );
+  }
+
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .vapi-voice-button {
@@ -625,6 +921,15 @@ const positionClasses = {
     .vapi-icon {
       width: 24px;
       height: 24px;
+    }
+
+    .audio-level-meter {
+      bottom: -35px;
+    }
+
+    .level-bar {
+      width: 3px;
+      gap: 2px;
     }
   }
 </style>
