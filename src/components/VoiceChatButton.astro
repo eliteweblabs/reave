@@ -2,6 +2,8 @@
 // VoiceChatButton component for Vapi integration
 // Users need to set their VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID
 // These can be set as environment variables or passed as props
+import { HelpCircle, Mic } from "lucide-astro";
+
 interface Props {
   publicKey?: string;
   assistantId?: string;
@@ -32,58 +34,22 @@ const positionClasses = {
     aria-label="Start voice chat"
     title="Click to speak with our AI assistant"
   >
-    <svg
-      class="vapi-icon"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <!-- Question mark icon (default state) -->
-      <g id="question-icon" class="icon-default">
-        <text
-          x="12"
-          y="16"
-          font-family="Arial, sans-serif"
-          font-size="16"
-          font-weight="bold"
-          fill="currentColor"
-          text-anchor="middle"
-          dominant-baseline="middle">?</text
-        >
-      </g>
+    <!-- Question mark icon (default state) -->
+    <HelpCircle
+      id="question-icon"
+      class="vapi-icon icon-default"
+      size={28}
+      stroke-width={2.5}
+    />
 
-      <!-- Microphone icon (active/listening state) -->
-      <g id="mic-icon" class="icon-active" style="display: none;">
-        <path
-          d="M12 1C10.34 1 9 2.34 9 4V12C9 13.66 10.34 15 12 15C13.66 15 15 13.66 15 12V4C15 2.34 13.66 1 12 1Z"
-          stroke="currentColor"
-          stroke-width="2"
-          fill="none"
-          stroke-linecap="round"
-          stroke-linejoin="round"></path>
-        <path
-          d="M19 10V12C19 16.42 15.42 20 11 20H10C5.58 20 2 16.42 2 12V10"
-          stroke="currentColor"
-          stroke-width="2"
-          fill="none"
-          stroke-linecap="round"
-          stroke-linejoin="round"></path>
-        <path
-          d="M12 19V23"
-          stroke="currentColor"
-          stroke-width="2"
-          fill="none"
-          stroke-linecap="round"
-          stroke-linejoin="round"></path>
-        <path
-          d="M8 23H16"
-          stroke="currentColor"
-          stroke-width="2"
-          fill="none"
-          stroke-linecap="round"
-          stroke-linejoin="round"></path>
-      </g>
-    </svg>
+    <!-- Microphone icon (active/listening state) -->
+    <Mic
+      id="mic-icon"
+      class="vapi-icon icon-active"
+      size={28}
+      stroke-width={2.5}
+      style="display: none;"
+    />
     <span class="vapi-pulse"></span>
   </button>
 
@@ -269,7 +235,7 @@ const positionClasses = {
 
         // Dispatch custom event with audio level for gradient animation
         const audioLevelEvent = new CustomEvent("audioLevel", {
-          detail: { level: normalizedLevel, raw: average }
+          detail: { level: normalizedLevel, raw: average },
         });
         window.dispatchEvent(audioLevelEvent);
 
@@ -774,30 +740,33 @@ const positionClasses = {
                     // Enable automatic speech detection
                     enableAutoSpeech: true,
                   };
-                  
+
                   // Try calling start with options as second parameter
                   let startResult;
                   if (vapiInstance.start.length > 1) {
                     // start(assistantId, options)
-                    startResult = vapiInstance.start(validAssistantId, startOptions);
+                    startResult = vapiInstance.start(
+                      validAssistantId,
+                      startOptions
+                    );
                   } else {
                     // start(assistantId) - fallback
                     startResult = vapiInstance.start(validAssistantId);
                   }
-                  
+
                   console.log(
                     "Step 7: vapiInstance.start() called successfully"
                   );
                   console.log("Start result:", startResult);
                   console.log("Start result type:", typeof startResult);
-                  
+
                   // Mark as active immediately since call is starting
                   isActive = true;
                   button.classList.add("active");
                   button.setAttribute("aria-label", "End voice chat");
                   button.disabled = false;
                   button.style.opacity = "1";
-                  
+
                   if (startResult && typeof startResult.then === "function") {
                     console.log("Start returned a Promise");
                     startResult
@@ -963,18 +932,12 @@ const positionClasses = {
     height: 28px;
     color: white;
     z-index: 1;
-    position: relative;
-  }
-
-  /* Question mark uses fill */
-  #question-icon {
-    fill: currentColor;
-  }
-
-  /* Microphone uses stroke */
-  #mic-icon {
-    stroke: currentColor;
-    fill: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.2s ease;
+    pointer-events: none;
   }
 
   /* Icon state management */
