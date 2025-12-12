@@ -242,9 +242,9 @@ const positionClasses = {
           const levelMeter = document.getElementById("audio-level-meter");
           if (levelMeter) {
             levelMeter.style.display = "none";
-          }
-          return;
-        }
+      }
+      return;
+    }
 
         analyser.getByteFrequencyData(dataArray);
 
@@ -787,9 +787,9 @@ const positionClasses = {
               // Call start success event (fires when call actually starts)
               vapiInstance.on("call-start-success", function () {
                 console.log("Vapi call started successfully");
-                isActive = true;
-                button.classList.add("active");
-                button.setAttribute("aria-label", "End voice chat");
+                  isActive = true;
+                  button.classList.add("active");
+                  button.setAttribute("aria-label", "End voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
                 // Show microphone icon
@@ -938,9 +938,9 @@ const positionClasses = {
               // Call end event
               vapiInstance.on("call-end", function () {
                 console.log("Vapi call ended");
-                isActive = false;
-                button.classList.remove("active");
-                button.setAttribute("aria-label", "Start voice chat");
+                  isActive = false;
+                  button.classList.remove("active");
+                  button.setAttribute("aria-label", "Start voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
                 // Hide microphone icon
@@ -1061,9 +1061,9 @@ const positionClasses = {
               if (micIconEl) micIconEl.style.display = "none";
               handleError(startError);
               throw startError;
-            }
-          } catch (initError) {
-            console.error("Vapi initialization error:", initError);
+              }
+            } catch (initError) {
+              console.error("Vapi initialization error:", initError);
             button.disabled = false;
             button.classList.remove("connecting");
             button.classList.remove("active");
@@ -1077,7 +1077,7 @@ const positionClasses = {
             if (micIconErr) micIconErr.style.display = "none";
             // Stop audio analyzer if it was started
             stopAudioAnalyzer();
-            alert(
+              alert(
               "Failed to initialize voice chat: " +
                 (initError.message || "Unknown error")
             );
@@ -1192,11 +1192,11 @@ const positionClasses = {
 
   .vapi-voice-button {
     position: relative;
-    width: 80px;
+    width: 90px; /* Made wider */
     height: 40px;
     border-radius: 20px;
     background: transparent;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid transparent; /* Transparent to show gradient border */
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1206,10 +1206,36 @@ const positionClasses = {
     overflow: hidden;
   }
 
+  /* Colorful gradient border using pseudo-element */
+  .vapi-voice-button::before {
+    content: "";
+    position: absolute;
+    inset: -4px; /* Extend 4px outside for wider border effect */
+    border-radius: 22px; /* Slightly larger to match wider border */
+    background: linear-gradient(
+      90deg,
+      #ff0000 0%,
+      #ffff00 25%,
+      #00ffff 50%,
+      #ff00ff 75%,
+      #ff0000 100%
+    );
+    z-index: -1; /* Behind the button content */
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+  }
+
+  .vapi-voice-button.active::before {
+    opacity: 1;
+  }
+
   .vapi-widget-container.center-bottom .vapi-voice-button:hover {
     transform: scale(1.05);
-    border-color: rgba(255, 255, 255, 0.5);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  }
+
+  .vapi-widget-container.center-bottom .vapi-voice-button:hover::before {
+    opacity: 1;
   }
 
   .vapi-widget-container.center-bottom .vapi-voice-button:active {
@@ -1219,8 +1245,33 @@ const positionClasses = {
   /* Toggle track - gradient background */
   .toggle-track {
     position: absolute;
-    inset: 0;
-    border-radius: 20px;
+    inset: 3px; /* Contracted from edges to show more border */
+    border-radius: 17px; /* Adjusted to match inset */
+    background: #000000; /* Black background when off */
+    opacity: 1;
+    transition: background 0.3s ease, opacity 0.3s ease;
+  }
+
+  /* Colorful gradient border using pseudo-element */
+  .toggle-track::before {
+    content: "";
+    position: absolute;
+    inset: -4px; /* Extend 4px outside for wider border effect */
+    border-radius: 22px; /* Slightly larger to match wider border */
+    background: linear-gradient(
+      90deg,
+      #ff0000 0%,
+      #ffff00 25%,
+      #00ffff 50%,
+      #ff00ff 75%,
+      #ff0000 100%
+    );
+    z-index: -1; /* Behind the black background */
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+  }
+
+  .vapi-voice-button.active .toggle-track {
     background: radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
       radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
       radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
@@ -1236,12 +1287,21 @@ const positionClasses = {
       );
     background-size: 60px 40px;
     background-repeat: repeat;
-    opacity: 0.6;
-    transition: opacity 0.3s ease;
+    opacity: 1;
   }
 
-  .vapi-voice-button.active .toggle-track {
+  /* Brighter border when active */
+  .vapi-voice-button.active .toggle-track::before {
     opacity: 1;
+  }
+
+  /* Ensure inactive state returns to black background */
+  .vapi-voice-button:not(.active) .toggle-track {
+    background: #000000;
+  }
+
+  .vapi-voice-button:not(.active) .toggle-track::before {
+    opacity: 0.8;
   }
 
   .vapi-voice-button.connecting .toggle-track {
@@ -1253,7 +1313,7 @@ const positionClasses = {
   .toggle-thumb {
     position: absolute;
     left: 4px;
-    top: 4px;
+    top: 2px; /* Moved up 2px (was 4px) */
     width: 32px;
     height: 32px;
     border-radius: 50%;
@@ -1267,7 +1327,7 @@ const positionClasses = {
   }
 
   .vapi-voice-button.active .toggle-thumb {
-    transform: translateX(40px);
+    transform: translateX(50px); /* Adjusted for wider button (was 40px) */
     background: rgba(255, 255, 255, 1);
   }
 
