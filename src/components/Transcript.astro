@@ -1,0 +1,134 @@
+---
+// Simple transcript component that shows user and assistant messages
+// Displays only a few lines, scrolling up and fading out
+---
+
+<div id="transcript-container" class="transcript-container">
+  <div id="transcript-content" class="transcript-content"></div>
+</div>
+
+<style>
+  .transcript-container {
+    position: fixed;
+    bottom: 200px; /* Position under the logo, above the toggle */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    z-index: 100;
+    pointer-events: none; /* Don't block interactions */
+  }
+
+  .transcript-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .transcript-line {
+    font-size: 14px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+    max-width: 100%;
+    word-wrap: break-word;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    animation: slideUpFade 3s ease-out forwards;
+  }
+
+  .transcript-line.user {
+    color: rgba(100, 200, 255, 0.9);
+  }
+
+  .transcript-line.assistant {
+    color: rgba(255, 200, 100, 0.9);
+  }
+
+  @keyframes slideUpFade {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .transcript-container {
+      bottom: 180px;
+      width: 95%;
+    }
+
+    .transcript-line {
+      font-size: 12px;
+      padding: 3px 10px;
+    }
+  }
+</style>
+
+<script>
+  const MAX_LINES = 3; // Maximum number of lines to show
+  const transcriptContent = document.getElementById("transcript-content");
+  let messageQueue: Array<{ text: string; type: "user" | "assistant" }> = [];
+
+  function addTranscriptLine(text: string, type: "user" | "assistant") {
+    if (!transcriptContent) return;
+
+    // Clean and truncate text
+    const cleanText = text.trim().slice(0, 100); // Max 100 chars per line
+    if (!cleanText) return;
+
+    // Create new line element
+    const line = document.createElement("div");
+    line.className = `transcript-line ${type}`;
+    line.textContent = cleanText;
+
+    // Add to DOM
+    transcriptContent.appendChild(line);
+
+    // Remove old lines if we exceed max
+    const lines = transcriptContent.querySelectorAll(".transcript-line");
+    if (lines.length > MAX_LINES) {
+      lines[0].remove();
+    }
+
+    // Auto-remove after animation completes
+    setTimeout(() => {
+      if (line.parentNode) {
+        line.style.opacity = "0";
+        line.style.transform = "translateY(-20px)";
+        setTimeout(() => {
+          line.remove();
+        }, 500);
+      }
+    }, 2500);
+  }
+
+  // Listen for Vapi events via custom events
+  window.addEventListener("vapi-transcript", ((event: CustomEvent) => {
+    if (event.detail && event.detail.text && event.detail.type) {
+      addTranscriptLine(event.detail.text, event.detail.type);
+    }
+  }) as EventListener);
+
+  // Also listen for Vapi message events directly if available
+  if (window.Vapi) {
+    // This will be set up when Vapi instance is created
+    // We'll dispatch custom events from VoiceChatButton
+  }
+</script>
+

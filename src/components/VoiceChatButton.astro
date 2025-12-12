@@ -837,7 +837,46 @@ const positionClasses = {
 
               vapiInstance.on("message", function (data) {
                 console.log("Vapi message:", data);
+                // Dispatch transcript event if message contains transcript data
+                // Vapi message format: { role: "user" | "assistant", content: string }
+                if (data) {
+                  const text = data.content || data.transcript || data.text || data.message;
+                  const role = data.role || "assistant";
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: role === "user" ? "user" : "assistant",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
               });
+
+              // Listen for transcript events (if available in Vapi SDK)
+              if (typeof vapiInstance.on === "function") {
+                try {
+                  vapiInstance.on("transcript", function (data) {
+                    console.log("Vapi transcript event:", data);
+                    if (data) {
+                      const text = data.text || data.transcript || data.content;
+                      const role = data.role || "assistant";
+                      if (text && typeof text === "string" && text.trim()) {
+                        const transcriptEvent = new CustomEvent("vapi-transcript", {
+                          detail: {
+                            text: text.trim(),
+                            type: role === "user" ? "user" : "assistant",
+                          },
+                        });
+                        window.dispatchEvent(transcriptEvent);
+                      }
+                    }
+                  });
+                } catch (e) {
+                  console.log("Transcript event not available:", e);
+                }
+              }
 
               // Listen for when the assistant starts speaking
               vapiInstance.on("assistant-speech-start", function (data) {
@@ -855,11 +894,45 @@ const positionClasses = {
                 }
               });
 
+              // Listen for assistant speech end to capture final transcript
+              vapiInstance.on("assistant-speech-end", function (data) {
+                console.log("Assistant speech ended:", data);
+                if (data) {
+                  const text = data.transcript || data.text || data.content;
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: "assistant",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
+              });
+
               // Listen for when user speech is detected
               vapiInstance.on("user-speech-start", function (data) {
                 console.log("User speech detected:", data);
                 isActive = true;
                 button.classList.add("active");
+              });
+
+              // Listen for user speech end to capture final transcript
+              vapiInstance.on("user-speech-end", function (data) {
+                console.log("User speech ended:", data);
+                if (data) {
+                  const text = data.transcript || data.text || data.content;
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: "user",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
               });
 
               // Call end event
