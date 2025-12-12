@@ -10,7 +10,7 @@
 <style>
   .transcript-container {
     position: fixed;
-    bottom: 200px; /* Position under the logo, above the toggle */
+    top: 60%; /* Position under the logo (logo is centered) */
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
@@ -25,30 +25,69 @@
     gap: 8px;
     align-items: center;
     text-align: center;
+    min-height: 20px; /* Ensure container has minimum height */
   }
 
   .transcript-line {
     font-size: 14px;
     line-height: 1.4;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.95); /* Light white */
     padding: 4px 12px;
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(4px);
     max-width: 100%;
     word-wrap: break-word;
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-    animation: slideUpFade 3s ease-out forwards;
+    animation: slideUpFade 3s ease-out forwards, streaming 2s ease-in-out infinite;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Streaming/flowing text effect */
+  @keyframes streaming {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  /* Add a subtle shimmer effect for streaming */
+  .transcript-line::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
   }
 
   .transcript-line.user {
-    color: rgba(100, 200, 255, 0.9);
+    color: rgba(255, 255, 255, 0.95); /* Light white for both */
   }
 
   .transcript-line.assistant {
-    color: rgba(255, 200, 100, 0.9);
+    color: rgba(255, 255, 255, 0.95); /* Light white for both */
   }
 
   @keyframes slideUpFade {
@@ -69,7 +108,7 @@
   /* Responsive */
   @media (max-width: 768px) {
     .transcript-container {
-      bottom: 180px;
+      top: 65%; /* Adjust for mobile */
       width: 95%;
     }
 
@@ -86,7 +125,10 @@
   let messageQueue: Array<{ text: string; type: "user" | "assistant" }> = [];
 
   function addTranscriptLine(text: string, type: "user" | "assistant") {
-    if (!transcriptContent) return;
+    if (!transcriptContent) {
+      console.warn("transcriptContent not found");
+      return;
+    }
 
     // Clean and truncate text
     const cleanText = text.trim().slice(0, 100); // Max 100 chars per line
@@ -95,10 +137,21 @@
     // Create new line element
     const line = document.createElement("div");
     line.className = `transcript-line ${type}`;
-    line.textContent = cleanText;
+    
+    // Streaming text effect - reveal characters one by one
+    let currentIndex = 0;
+    const streamingInterval = setInterval(() => {
+      if (currentIndex <= cleanText.length) {
+        line.textContent = cleanText.slice(0, currentIndex);
+        currentIndex++;
+      } else {
+        clearInterval(streamingInterval);
+      }
+    }, 30); // Adjust speed (lower = faster)
 
-    // Add to DOM
+    // Add to DOM immediately (text will stream in)
     transcriptContent.appendChild(line);
+    console.log("Added transcript line:", cleanText);
 
     // Remove old lines if we exceed max
     const lines = transcriptContent.querySelectorAll(".transcript-line");
@@ -129,6 +182,33 @@
   if (window.Vapi) {
     // This will be set up when Vapi instance is created
     // We'll dispatch custom events from VoiceChatButton
+  }
+
+  // DUMMY TEXT FOR TESTING - Remove this when done testing
+  function initDummyText() {
+    if (!transcriptContent) {
+      console.warn("transcriptContent not ready, retrying...");
+      setTimeout(initDummyText, 100);
+      return;
+    }
+    
+    console.log("Initializing dummy transcript text");
+    setTimeout(() => {
+      addTranscriptLine("Hello, how can I help you today?", "assistant");
+      setTimeout(() => {
+        addTranscriptLine("I'd like to know more about your services", "user");
+        setTimeout(() => {
+          addTranscriptLine("I'd be happy to tell you about our services. We offer a wide range of solutions.", "assistant");
+        }, 2000);
+      }, 2000);
+    }, 500);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDummyText);
+  } else {
+    // Wait a bit to ensure DOM is fully ready
+    setTimeout(initDummyText, 100);
   }
 </script>
 

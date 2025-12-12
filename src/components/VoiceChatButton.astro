@@ -18,7 +18,7 @@ interface Props {
 const {
   publicKey = import.meta.env.PUBLIC_VAPI_PUBLIC_KEY || "",
   assistantId = import.meta.env.PUBLIC_VAPI_ASSISTANT_ID || "",
-  position = "bottom-righdea, t",
+  position = "center-bottom",
 } = Astro.props;
 
 const positionClasses = {
@@ -242,9 +242,9 @@ const positionClasses = {
           const levelMeter = document.getElementById("audio-level-meter");
           if (levelMeter) {
             levelMeter.style.display = "none";
-      }
-      return;
-    }
+          }
+          return;
+        }
 
         analyser.getByteFrequencyData(dataArray);
 
@@ -255,10 +255,12 @@ const positionClasses = {
         }
         const average = sum / dataArray.length;
         const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
+        // Make 25% more sensitive by amplifying the level
+        const sensitiveLevel = Math.min(normalizedLevel * 1.25, 1);
 
         // Dispatch custom event with audio level for gradient animation
         const audioLevelEvent = new CustomEvent("audioLevel", {
-          detail: { level: normalizedLevel, raw: average },
+          detail: { level: sensitiveLevel, raw: average },
         });
         window.dispatchEvent(audioLevelEvent);
 
@@ -267,7 +269,7 @@ const positionClasses = {
         bars.forEach((bar, index) => {
           // Create a wave effect with different thresholds for each bar
           const threshold = (index + 1) / bars.length;
-          const barLevel = Math.max(0, normalizedLevel - (1 - threshold));
+          const barLevel = Math.max(0, sensitiveLevel - (1 - threshold));
           const height = Math.min(barLevel * 100, 100);
           bar.style.height = height + "%";
           bar.style.opacity = height > 5 ? 1 : 0.3;
@@ -787,9 +789,9 @@ const positionClasses = {
               // Call start success event (fires when call actually starts)
               vapiInstance.on("call-start-success", function () {
                 console.log("Vapi call started successfully");
-                  isActive = true;
-                  button.classList.add("active");
-                  button.setAttribute("aria-label", "End voice chat");
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
                 // Show microphone icon
@@ -840,7 +842,11 @@ const positionClasses = {
                 // Dispatch transcript event if message contains transcript data
                 // Vapi message format: { role: "user" | "assistant", content: string }
                 if (data) {
-                  const text = data.content || data.transcript || data.text || data.message;
+                  const text =
+                    data.content ||
+                    data.transcript ||
+                    data.text ||
+                    data.message;
                   const role = data.role || "assistant";
                   if (text && typeof text === "string" && text.trim()) {
                     const transcriptEvent = new CustomEvent("vapi-transcript", {
@@ -863,12 +869,15 @@ const positionClasses = {
                       const text = data.text || data.transcript || data.content;
                       const role = data.role || "assistant";
                       if (text && typeof text === "string" && text.trim()) {
-                        const transcriptEvent = new CustomEvent("vapi-transcript", {
-                          detail: {
-                            text: text.trim(),
-                            type: role === "user" ? "user" : "assistant",
-                          },
-                        });
+                        const transcriptEvent = new CustomEvent(
+                          "vapi-transcript",
+                          {
+                            detail: {
+                              text: text.trim(),
+                              type: role === "user" ? "user" : "assistant",
+                            },
+                          }
+                        );
                         window.dispatchEvent(transcriptEvent);
                       }
                     }
@@ -938,9 +947,9 @@ const positionClasses = {
               // Call end event
               vapiInstance.on("call-end", function () {
                 console.log("Vapi call ended");
-                  isActive = false;
-                  button.classList.remove("active");
-                  button.setAttribute("aria-label", "Start voice chat");
+                isActive = false;
+                button.classList.remove("active");
+                button.setAttribute("aria-label", "Start voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
                 // Hide microphone icon
@@ -1061,9 +1070,9 @@ const positionClasses = {
               if (micIconEl) micIconEl.style.display = "none";
               handleError(startError);
               throw startError;
-              }
-            } catch (initError) {
-              console.error("Vapi initialization error:", initError);
+            }
+          } catch (initError) {
+            console.error("Vapi initialization error:", initError);
             button.disabled = false;
             button.classList.remove("connecting");
             button.classList.remove("active");
@@ -1077,7 +1086,7 @@ const positionClasses = {
             if (micIconErr) micIconErr.style.display = "none";
             // Stop audio analyzer if it was started
             stopAudioAnalyzer();
-              alert(
+            alert(
               "Failed to initialize voice chat: " +
                 (initError.message || "Unknown error")
             );
@@ -1249,7 +1258,9 @@ const positionClasses = {
     border-radius: 17px; /* Adjusted to match inset */
     background: #000000; /* Black background when off */
     opacity: 1;
-    transition: background 0.3s ease, opacity 0.3s ease;
+    transition:
+      background 0.3s ease,
+      opacity 0.3s ease;
   }
 
   /* Colorful gradient border using pseudo-element */
@@ -1312,7 +1323,7 @@ const positionClasses = {
   /* Toggle thumb - sliding circle */
   .toggle-thumb {
     position: absolute;
-    left: 4px;
+    left: 2px;
     top: 2px; /* Moved up 2px (was 4px) */
     width: 32px;
     height: 32px;
