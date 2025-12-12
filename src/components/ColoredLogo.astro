@@ -1,0 +1,326 @@
+---
+// Colored Logo with Mathematical Gradient Lava Lamp Effect
+// Colors calculated based on distance from each element's center to animated gradient points
+---
+
+<div class="colored-logo-container">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 512 512"
+    class="logo-svg"
+  >
+    <!-- R - center approximately at (118, 264) -->
+    <path
+      id="letter-r"
+      data-center-x="118"
+      data-center-y="264"
+      d="M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z"
+      fill="currentColor"
+    />
+
+    <!-- V (top part) - center approximately at (262, 214) -->
+    <path
+      id="letter-v-top"
+      data-center-x="262"
+      data-center-y="214"
+      d="M241.2,313.4l42.1-99.3,42.6,99.3"
+      fill="currentColor"
+    />
+
+    <!-- V (bottom part) - center approximately at (338, 264) -->
+    <path
+      id="letter-v-bottom"
+      data-center-x="338"
+      data-center-y="264"
+      d="M298.5,214.1h79.7l-40.3,99.3"
+      fill="currentColor"
+    />
+
+    <!-- E (top horizontal) - center approximately at (220, 241) -->
+    <polygon
+      id="letter-e-top"
+      data-center-x="220"
+      data-center-y="241"
+      points="251 258 175.9 258 175.9 224.7 264.7 224.7 251 258"
+      fill="currentColor"
+    />
+
+    <!-- E (middle horizontal) - center approximately at (211, 287) -->
+    <polygon
+      id="letter-e-middle"
+      data-center-x="211"
+      data-center-y="287"
+      points="232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8"
+      fill="currentColor"
+    />
+
+    <!-- E (right side - top vertical) - center approximately at (406, 287) -->
+    <polygon
+      id="letter-e-right-top"
+      data-center-x="406"
+      data-center-y="287"
+      points="368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5"
+      fill="currentColor"
+    />
+
+    <!-- E (right side - bottom vertical) - center approximately at (415, 241) -->
+    <polygon
+      id="letter-e-right-bottom"
+      data-center-x="415"
+      data-center-y="241"
+      points="386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7"
+      fill="currentColor"
+    />
+  </svg>
+</div>
+
+<style>
+  .colored-logo-container {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .logo-svg {
+    width: 80vmin;
+    height: 80vmin;
+    max-width: 800px;
+    max-height: 800px;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3))
+      drop-shadow(0 0 20px rgba(255, 100, 200, 0.2));
+    animation: zoomIn 1s linear forwards;
+    transform: scale(50);
+  }
+
+  @keyframes zoomIn {
+    0% {
+      transform: scale(50);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  /* Colors will be set dynamically via JavaScript based on gradient distance */
+  :global(#letter-r),
+  :global(#letter-v-top),
+  :global(#letter-v-bottom),
+  :global(#letter-e-top),
+  :global(#letter-e-middle),
+  :global(#letter-e-right-top),
+  :global(#letter-e-right-bottom) {
+    transition: color 0.3s ease;
+  }
+
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .logo-svg {
+      width: 70vmin;
+      height: 70vmin;
+    }
+  }
+</style>
+
+<script>
+  // Mathematical gradient lava lamp effect
+  // Colors calculated based on distance from each element's center to animated gradient points
+
+  interface ElementCenter {
+    id: string;
+    x: number;
+    y: number;
+    element: HTMLElement;
+  }
+
+  interface GradientPoint {
+    x: number;
+    y: number;
+    vx: number; // velocity x
+    vy: number; // velocity y
+    radius: number; // influence radius
+  }
+
+  function initGradient() {
+    // Extract center points from SVG elements
+    const elements: ElementCenter[] = [];
+    const svgElements = document.querySelectorAll<HTMLElement>(
+      "[data-center-x][data-center-y]"
+    );
+
+    if (svgElements.length === 0) {
+      // Retry after a short delay if elements aren't ready
+      setTimeout(initGradient, 100);
+      return;
+    }
+
+    svgElements.forEach((el) => {
+      const x = parseFloat(el.getAttribute("data-center-x") || "0");
+      const y = parseFloat(el.getAttribute("data-center-y") || "0");
+      elements.push({
+        id: el.id,
+        x,
+        y,
+        element: el,
+      });
+    });
+
+    // Gradient points that will animate (lava lamp effect)
+    // Multiple points create a more organic gradient
+    const gradientPoints: GradientPoint[] = [
+      {
+        x: 150,
+        y: 200,
+        vx: 0.3,
+        vy: 0.2,
+        radius: 180,
+      },
+      {
+        x: 300,
+        y: 280,
+        vx: -0.25,
+        vy: 0.3,
+        radius: 200,
+      },
+      {
+        x: 400,
+        y: 240,
+        vx: 0.2,
+        vy: -0.25,
+        radius: 170,
+      },
+    ];
+
+    // ViewBox dimensions
+    const viewBoxWidth = 512;
+    const viewBoxHeight = 512;
+
+    // Convert HSL to hex
+    function hslToHex(h: number, s: number, l: number): string {
+      l /= 100;
+      const a = (s * Math.min(l, 1 - l)) / 100;
+      const f = (n: number) => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color)
+          .toString(16)
+          .padStart(2, "0");
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    // Calculate color based on distance to gradient points
+    function calculateColor(
+      elementX: number,
+      elementY: number,
+      time: number
+    ): string {
+      let totalInfluence = 0;
+      let hueSum = 0;
+      let saturationSum = 0;
+      let lightnessSum = 0;
+
+      // Calculate influence from each gradient point
+      gradientPoints.forEach((point, index) => {
+        const dx = elementX - point.x;
+        const dy = elementY - point.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Inverse distance weighting (closer = stronger influence)
+        const influence = Math.max(0, point.radius - distance) / point.radius;
+
+        if (influence > 0) {
+          // Each point has a base hue that cycles
+          // Create a smooth color gradient across the spectrum
+          const baseHue = (index * 60 + time * 20) % 360; // 60° apart, animated
+          const hue = baseHue + (distance / point.radius) * 30; // Slight variation
+
+          totalInfluence += influence;
+          hueSum += hue * influence;
+          saturationSum += 85 * influence; // High saturation
+          lightnessSum += 55 * influence; // Medium lightness
+        }
+      });
+
+      if (totalInfluence === 0) {
+        // Fallback color if no influence
+        return "#ff0080";
+      }
+
+      // Weighted average
+      const hue = (hueSum / totalInfluence) % 360;
+      const saturation = saturationSum / totalInfluence;
+      const lightness = lightnessSum / totalInfluence;
+
+      return hslToHex(hue, saturation, lightness);
+    }
+
+    // Update gradient point positions (lava lamp movement)
+    function updateGradientPoints(deltaTime: number) {
+      gradientPoints.forEach((point) => {
+        // Update position
+        point.x += point.vx * deltaTime;
+        point.y += point.vy * deltaTime;
+
+        // Bounce off edges (with some padding)
+        const padding = 50;
+        if (point.x < padding || point.x > viewBoxWidth - padding) {
+          point.vx *= -1;
+          point.x = Math.max(padding, Math.min(viewBoxWidth - padding, point.x));
+        }
+        if (point.y < padding || point.y > viewBoxHeight - padding) {
+          point.vy *= -1;
+          point.y = Math.max(padding, Math.min(viewBoxHeight - padding, point.y));
+        }
+
+        // Add slight random variation to velocity for organic movement
+        point.vx += (Math.random() - 0.5) * 0.05;
+        point.vy += (Math.random() - 0.5) * 0.05;
+
+        // Clamp velocity
+        point.vx = Math.max(-0.5, Math.min(0.5, point.vx));
+        point.vy = Math.max(-0.5, Math.min(0.5, point.vy));
+      });
+    }
+
+    // Animation loop
+    let lastTime = performance.now();
+    let animationId: number;
+
+    function animate(currentTime: number) {
+      const deltaTime = (currentTime - lastTime) / 16; // Normalize to ~60fps
+      lastTime = currentTime;
+
+      // Update gradient points
+      updateGradientPoints(deltaTime * 0.1); // Slow down movement
+
+      // Calculate time for color cycling
+      const time = currentTime / 1000; // Convert to seconds
+
+      // Update colors for each element
+      elements.forEach(({ element, x, y }) => {
+        const color = calculateColor(x, y, time);
+        element.style.color = color;
+      });
+
+      animationId = requestAnimationFrame(animate);
+    }
+
+    // Start animation
+    if (elements.length > 0) {
+      animationId = requestAnimationFrame(animate);
+    }
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initGradient);
+  } else {
+    initGradient();
+  }
+</script>
+
