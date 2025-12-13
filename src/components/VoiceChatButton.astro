@@ -95,18 +95,59 @@ const positionClasses = {
     assistantOverrides,
   }}
 >
-  // Import Clerk client stores
-  import { $authStore, $userStore, $isLoadedStore } from "@clerk/astro/client";
-
   // Get auth state from Clerk client-side using nanostores
   let userId = null;
   let isAuthenticated = false;
   let unsubscribeAuth = null;
   let unsubscribeUser = null;
+  let $authStore = null;
+  let $userStore = null;
+  let $isLoadedStore = null;
 
   // Initialize Clerk auth state by subscribing to stores
-  function initAuth() {
+  async function initAuth() {
     try {
+      // Dynamically import Clerk client stores (required for Astro script tags)
+      console.log("Loading Clerk client stores...");
+      const clerkClient = await import("@clerk/astro/client");
+      $authStore = clerkClient.$authStore;
+      $userStore = clerkClient.$userStore;
+      $isLoadedStore = clerkClient.$isLoadedStore;
+
+      console.log("Clerk stores loaded:", {
+        hasAuthStore: !!$authStore,
+        hasUserStore: !!$userStore,
+        hasIsLoadedStore: !!$isLoadedStore,
+      });
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:110",
+            message: "Clerk stores imported",
+            data: {
+              hasAuthStore: !!$authStore,
+              hasUserStore: !!$userStore,
+              hasIsLoadedStore: !!$isLoadedStore,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "A",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+
+      if (!$authStore || !$userStore) {
+        console.error("Clerk stores not available");
+        return;
+      }
+
       // Subscribe to auth store for userId and session info
       unsubscribeAuth = $authStore.subscribe((auth) => {
         if (auth && auth.userId) {
@@ -166,20 +207,41 @@ const positionClasses = {
             timestamp: Date.now(),
             sessionId: "debug-session",
             runId: "init",
-            hypothesisId: "A",
+            hypothesisId: "B",
           }),
         }
       ).catch(() => {});
       // #endregion
     } catch (error) {
-      console.warn("Clerk auth initialization error:", error);
+      console.error("Clerk auth initialization error:", error);
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:195",
+            message: "Clerk auth initialization error",
+            data: {
+              error: error.message,
+              stack: error.stack,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "C",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
     }
   }
 
   // Initialize auth when script loads
   if (typeof window !== "undefined") {
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", initAuth);
+      document.addEventListener("DOMContentLoaded", () => initAuth());
     } else {
       initAuth();
     }
@@ -1202,27 +1264,53 @@ const positionClasses = {
 
                   // Get fresh auth state from Clerk stores
                   try {
-                    const currentAuth = $authStore.get();
-                    console.log(
-                      "Current Clerk auth store at call start:",
-                      currentAuth
-                    );
-                    if (currentAuth && currentAuth.userId) {
-                      currentUserId = currentAuth.userId;
-                      currentIsAuthenticated = true;
+                    if ($authStore) {
+                      const currentAuth = $authStore.get();
+                      console.log(
+                        "Current Clerk auth store at call start:",
+                        currentAuth
+                      );
+                      if (currentAuth && currentAuth.userId) {
+                        currentUserId = currentAuth.userId;
+                        currentIsAuthenticated = true;
+                      }
                     }
 
-                    const currentUser = $userStore.get();
-                    console.log(
-                      "Current Clerk user store at call start:",
-                      currentUser
-                    );
-                    if (currentUser && currentUser.id) {
-                      currentUserId = currentUser.id;
-                      currentIsAuthenticated = true;
+                    if ($userStore) {
+                      const currentUser = $userStore.get();
+                      console.log(
+                        "Current Clerk user store at call start:",
+                        currentUser
+                      );
+                      if (currentUser && currentUser.id) {
+                        currentUserId = currentUser.id;
+                        currentIsAuthenticated = true;
+                      }
                     }
                   } catch (e) {
                     console.warn("Error getting Clerk auth state:", e);
+                    // #region agent log
+                    fetch(
+                      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          location: "VoiceChatButton.astro:1180",
+                          message: "Error getting Clerk auth state",
+                          data: {
+                            error: e.message,
+                            hasAuthStore: !!$authStore,
+                            hasUserStore: !!$userStore,
+                          },
+                          timestamp: Date.now(),
+                          sessionId: "debug-session",
+                          runId: "init",
+                          hypothesisId: "D",
+                        }),
+                      }
+                    ).catch(() => {});
+                    // #endregion
                   }
 
                   // #region agent log
@@ -1232,19 +1320,24 @@ const positionClasses = {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
-                        location: "VoiceChatButton.astro:1165",
+                        location: "VoiceChatButton.astro:1200",
                         message: "Auth state check before Vapi start",
                         data: {
                           currentUserId: currentUserId || "not set",
                           currentIsAuthenticated,
-                          authStoreHasUser:
-                            $authStore.get()?.userId || "not set",
-                          userStoreHasUser: $userStore.get()?.id || "not set",
+                          hasAuthStore: !!$authStore,
+                          hasUserStore: !!$userStore,
+                          authStoreHasUser: $authStore
+                            ? $authStore.get()?.userId || "not set"
+                            : "store not loaded",
+                          userStoreHasUser: $userStore
+                            ? $userStore.get()?.id || "not set"
+                            : "store not loaded",
                         },
                         timestamp: Date.now(),
                         sessionId: "debug-session",
                         runId: "init",
-                        hypothesisId: "B",
+                        hypothesisId: "E",
                       }),
                     }
                   ).catch(() => {});
