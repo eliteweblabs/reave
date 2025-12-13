@@ -107,12 +107,22 @@ const positionClasses = {
   // Initialize Clerk auth state by subscribing to stores
   async function initAuth() {
     try {
-      // Dynamically import Clerk client stores (required for Astro script tags)
+      // Try to dynamically import Clerk client stores, but fall back to window.Clerk if it fails
       console.log("Loading Clerk client stores...");
-      const clerkClient = await import("@clerk/astro/client");
-      $authStore = clerkClient.$authStore;
-      $userStore = clerkClient.$userStore;
-      $isLoadedStore = clerkClient.$isLoadedStore;
+      let clerkClient = null;
+      try {
+        clerkClient = await import("@clerk/astro/client");
+        $authStore = clerkClient.$authStore;
+        $userStore = clerkClient.$userStore;
+        $isLoadedStore = clerkClient.$isLoadedStore;
+      } catch (importError) {
+        console.warn(
+          "Could not import Clerk client stores, will use window.Clerk:",
+          importError
+        );
+        // Fall back to checking window.Clerk directly
+        // Clerk integration should load it, we'll check for it in the checkClerk function
+      }
 
       console.log("Clerk stores loaded:", {
         hasAuthStore: !!$authStore,
@@ -143,48 +153,64 @@ const positionClasses = {
       ).catch(() => {});
       // #endregion
 
-      if (!$authStore || !$userStore) {
-        console.error("Clerk stores not available");
-        return;
-      }
+      // If stores are available, use them; otherwise fall back to window.Clerk
+      if ($authStore && $userStore) {
+        // Subscribe to auth store for userId and session info
+        unsubscribeAuth = $authStore.subscribe((auth) => {
+          if (auth && auth.userId) {
+            userId = auth.userId;
+            isAuthenticated = true;
+            console.log(
+              "Clerk auth store updated - user authenticated:",
+              userId
+            );
+          } else {
+            userId = null;
+            isAuthenticated = false;
+            console.log("Clerk auth store updated - user not authenticated");
+          }
+        });
 
-      // Subscribe to auth store for userId and session info
-      unsubscribeAuth = $authStore.subscribe((auth) => {
-        if (auth && auth.userId) {
-          userId = auth.userId;
+        // Also subscribe to user store for additional user data
+        unsubscribeUser = $userStore.subscribe((user) => {
+          if (user && user.id) {
+            userId = user.id;
+            isAuthenticated = true;
+            console.log("Clerk user store updated - user:", user.id);
+          }
+        });
+
+        // Check initial state
+        const initialAuth = $authStore.get();
+        console.log("Initial Clerk auth store:", initialAuth);
+        if (initialAuth && initialAuth.userId) {
+          userId = initialAuth.userId;
           isAuthenticated = true;
-          console.log("Clerk auth store updated - user authenticated:", userId);
-        } else {
-          userId = null;
-          isAuthenticated = false;
-          console.log("Clerk auth store updated - user not authenticated");
+          console.log("Initial Clerk auth state - user authenticated:", userId);
         }
-      });
 
-      // Also subscribe to user store for additional user data
-      unsubscribeUser = $userStore.subscribe((user) => {
-        if (user && user.id) {
-          userId = user.id;
+        const initialUser = $userStore.get();
+        console.log("Initial Clerk user store:", initialUser);
+        if (initialUser && initialUser.id) {
+          userId = initialUser.id;
           isAuthenticated = true;
-          console.log("Clerk user store updated - user:", user.id);
+          console.log("Initial Clerk user state - user:", userId);
         }
-      });
-
-      // Check initial state
-      const initialAuth = $authStore.get();
-      console.log("Initial Clerk auth store:", initialAuth);
-      if (initialAuth && initialAuth.userId) {
-        userId = initialAuth.userId;
-        isAuthenticated = true;
-        console.log("Initial Clerk auth state - user authenticated:", userId);
-      }
-
-      const initialUser = $userStore.get();
-      console.log("Initial Clerk user store:", initialUser);
-      if (initialUser && initialUser.id) {
-        userId = initialUser.id;
-        isAuthenticated = true;
-        console.log("Initial Clerk user state - user:", userId);
+      } else {
+        // Fallback: check window.Clerk directly when it loads
+        console.log(
+          "Clerk stores not available, will check window.Clerk directly"
+        );
+        const checkWindowClerk = () => {
+          if (window.Clerk && window.Clerk.user) {
+            userId = window.Clerk.user.id;
+            isAuthenticated = true;
+            console.log("Clerk user from window.Clerk:", userId);
+          }
+        };
+        window.addEventListener("clerk-loaded", checkWindowClerk);
+        // Also check immediately
+        checkWindowClerk();
       }
 
       // #region agent log
@@ -1082,7 +1108,7 @@ const positionClasses = {
               vapiInstance.on("message", function (data) {
                 console.log("Vapi message:", data);
                 // Dispatch transcript event if message contains transcript data
-                // Vapi message format: { role: "user" | "assistant", content: string }
+                // Vapi message format: { role: "user" | "assistant", content: string, transcriptType?: "partial" | "final" }
                 if (data) {
                   const text =
                     data.content ||
@@ -1090,11 +1116,18 @@ const positionClasses = {
                     data.text ||
                     data.message;
                   const role = data.role || "assistant";
+                  const transcriptType =
+                    data.transcriptType ||
+                    (data.type === "transcript" ? data.transcriptType : null);
+                  const isPartial = transcriptType === "partial";
+
                   if (text && typeof text === "string" && text.trim()) {
                     const transcriptEvent = new CustomEvent("vapi-transcript", {
                       detail: {
                         text: text.trim(),
                         type: role === "user" ? "user" : "assistant",
+                        isPartial: isPartial,
+                        transcriptType: transcriptType,
                       },
                     });
                     window.dispatchEvent(transcriptEvent);
@@ -1110,6 +1143,9 @@ const positionClasses = {
                     if (data) {
                       const text = data.text || data.transcript || data.content;
                       const role = data.role || "assistant";
+                      const transcriptType = data.transcriptType;
+                      const isPartial = transcriptType === "partial";
+
                       if (text && typeof text === "string" && text.trim()) {
                         const transcriptEvent = new CustomEvent(
                           "vapi-transcript",
@@ -1117,6 +1153,8 @@ const positionClasses = {
                             detail: {
                               text: text.trim(),
                               type: role === "user" ? "user" : "assistant",
+                              isPartial: isPartial,
+                              transcriptType: transcriptType,
                             },
                           }
                         );

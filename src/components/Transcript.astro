@@ -126,8 +126,14 @@
   const MAX_LINES = 3; // Maximum number of lines to show
   const transcriptContent = document.getElementById("transcript-content");
   let messageQueue: Array<{ text: string; type: "user" | "assistant" }> = [];
+  
+  // Track active lines for each role to handle partial updates
+  let activeLines: { [key: string]: HTMLElement | null } = {
+    assistant: null,
+    user: null,
+  };
 
-  function addTranscriptLine(text: string, type: "user" | "assistant") {
+  function addTranscriptLine(text: string, type: "user" | "assistant", isPartial: boolean = false) {
     if (!transcriptContent) {
       console.warn("transcriptContent not found");
       return;
@@ -137,47 +143,122 @@
     const cleanText = text.trim().slice(0, 100); // Max 100 chars per line
     if (!cleanText) return;
 
+    // If it's a partial transcript and we have an active line for this type, update it
+    if (isPartial && activeLines[type]) {
+      const existingLine = activeLines[type];
+      if (existingLine && existingLine.parentNode) {
+        existingLine.textContent = cleanText;
+        console.log("Updated partial transcript line:", cleanText);
+        
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "Transcript.astro:updatePartial",
+              message: "Updated partial transcript",
+              data: {
+                type,
+                text: cleanText,
+                isPartial: true,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "init",
+              hypothesisId: "A",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
+        return;
+      }
+    }
+
     // Create new line element
     const line = document.createElement("div");
     line.className = `transcript-line ${type}`;
+    line.textContent = cleanText; // Set text immediately (no streaming for partials)
     
-    // Streaming text effect - reveal characters one by one
-    let currentIndex = 0;
-    const streamingInterval = setInterval(() => {
-      if (currentIndex <= cleanText.length) {
-        line.textContent = cleanText.slice(0, currentIndex);
-        currentIndex++;
-      } else {
-        clearInterval(streamingInterval);
-      }
-    }, 30); // Adjust speed (lower = faster)
+    // Only add streaming effect for final transcripts
+    if (!isPartial) {
+      // Streaming text effect - reveal characters one by one
+      let currentIndex = 0;
+      const streamingInterval = setInterval(() => {
+        if (currentIndex <= cleanText.length) {
+          line.textContent = cleanText.slice(0, currentIndex);
+          currentIndex++;
+        } else {
+          clearInterval(streamingInterval);
+        }
+      }, 30); // Adjust speed (lower = faster)
+    }
 
-    // Add to DOM immediately (text will stream in)
+    // Add to DOM immediately
     transcriptContent.appendChild(line);
-    console.log("Added transcript line:", cleanText);
+    console.log("Added transcript line:", cleanText, isPartial ? "(partial)" : "(final)");
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:addLine",
+          message: "Added new transcript line",
+          data: {
+            type,
+            text: cleanText,
+            isPartial,
+            hasActiveLine: !!activeLines[type],
+          },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "B",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+
+    // Track this as the active line for this type
+    activeLines[type] = line;
 
     // Remove old lines if we exceed max
     const lines = transcriptContent.querySelectorAll(".transcript-line");
     if (lines.length > MAX_LINES) {
-      lines[0].remove();
+      const removedLine = lines[0];
+      // Clear active line if it was removed
+      if (activeLines.assistant === removedLine) activeLines.assistant = null;
+      if (activeLines.user === removedLine) activeLines.user = null;
+      removedLine.remove();
     }
 
-    // Auto-remove after animation completes
-    setTimeout(() => {
-      if (line.parentNode) {
-        line.style.opacity = "0";
-        line.style.transform = "translateY(-20px)";
-        setTimeout(() => {
-          line.remove();
-        }, 500);
-      }
-    }, 2500);
+    // Auto-remove after animation completes (only for final transcripts)
+    if (!isPartial) {
+      setTimeout(() => {
+        if (line.parentNode) {
+          line.style.opacity = "0";
+          line.style.transform = "translateY(-20px)";
+          setTimeout(() => {
+            // Clear active line if it was this one
+            if (activeLines[type] === line) {
+              activeLines[type] = null;
+            }
+            line.remove();
+          }, 500);
+        }
+      }, 2500);
+    }
   }
 
   // Listen for Vapi events via custom events
   window.addEventListener("vapi-transcript", ((event: CustomEvent) => {
     if (event.detail && event.detail.text && event.detail.type) {
-      addTranscriptLine(event.detail.text, event.detail.type);
+      const isPartial = event.detail.isPartial === true || event.detail.transcriptType === "partial";
+      addTranscriptLine(event.detail.text, event.detail.type, isPartial);
     }
   }) as EventListener);
 
