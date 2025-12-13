@@ -29,23 +29,17 @@ import Layout from "../layouts/Layout.astro";
       }
     }
 
-    async function waitForClerkComponents() {
+    function checkComponentsReady() {
       if (!window.Clerk) {
         return false;
       }
 
-      // If Clerk.load() is available, use it to ensure components are ready
-      if (typeof window.Clerk.load === "function") {
-        try {
-          await window.Clerk.load();
-          return true;
-        } catch (error) {
-          console.error("Error loading Clerk:", error);
-          return false;
-        }
+      // Check if mountSignIn is available (indicates components are ready)
+      if (typeof window.Clerk.mountSignIn === "function") {
+        return true;
       }
 
-      // Fallback: check if components are ready
+      // Fallback: check components API
       if (
         window.Clerk.components &&
         window.Clerk.components.signIn &&
@@ -54,12 +48,29 @@ import Layout from "../layouts/Layout.astro";
         return true;
       }
 
-      // Check if mountSignIn is available (indicates components are ready)
-      if (typeof window.Clerk.mountSignIn === "function") {
-        return true;
+      return false;
+    }
+
+    async function waitForClerkComponents() {
+      // If Clerk.load() is available, use it to ensure components are ready
+      if (window.Clerk && typeof window.Clerk.load === "function") {
+        try {
+          await window.Clerk.load();
+        } catch (error) {
+          console.error("Error loading Clerk:", error);
+        }
       }
 
-      return false;
+      // Poll until components are ready
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      while (!checkComponentsReady() && attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        attempts++;
+      }
+
+      return checkComponentsReady();
     }
 
     async function mountClerk() {
@@ -70,6 +81,7 @@ import Layout from "../layouts/Layout.astro";
       // Wait for Clerk components to be ready
       const componentsReady = await waitForClerkComponents();
       if (!componentsReady) {
+        console.warn("Clerk components not ready after waiting");
         return false;
       }
 
@@ -97,7 +109,9 @@ import Layout from "../layouts/Layout.astro";
             path: "/sign-in",
             signUpUrl: "/sign-up",
           });
-          console.log("Clerk sign-in mounted successfully (via components API)");
+          console.log(
+            "Clerk sign-in mounted successfully (via components API)"
+          );
           hideLoading();
           return true;
         }
@@ -147,7 +161,7 @@ import Layout from "../layouts/Layout.astro";
             loadingMessage.style.color = "#ffaa00";
           }
         }
-      }, 100);
+      }, 200);
     });
   }
 
