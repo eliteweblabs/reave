@@ -3,7 +3,7 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout>
-  <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000;">
+  <div class="page-container">
     <div id="clerk-sign-up"></div>
   </div>
 </Layout>
@@ -103,4 +103,27 @@ import Layout from "../layouts/Layout.astro";
     initSignUp();
   }
 </script>
+
+<style>
+  .page-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #000;
+    padding-top: 320px;
+  }
+
+  @media screen and (min-width: 768px) {
+    .page-container {
+      padding-top: 400px;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .page-container {
+      padding-top: 480px;
+    }
+  }
+</style>
 

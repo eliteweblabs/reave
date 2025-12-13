@@ -1,0 +1,121 @@
+---
+---
+
+<header class="header">
+  <div class="header-logo-mask">
+    <div class="header-gradient-layer"></div>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 320px;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .header-logo-mask {
+    position: relative;
+    width: 800px;
+    height: 320px;
+    mask-image: url("/logo-mask.svg");
+    -webkit-mask-image: url("/logo-mask.svg");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-position: center center;
+    -webkit-mask-position: center center;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 0 20px rgba(255, 100, 200, 0.3));
+    pointer-events: none;
+  }
+
+  .header-gradient-layer {
+    position: absolute;
+    width: 1200px;
+    height: 480px;
+    left: -200px;
+    top: -80px;
+    transform: translate3d(0, 0, 0);
+    background:
+      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
+      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
+      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
+      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
+      radial-gradient(
+        ellipse at center,
+        #ff0000 0%,
+        #ffff00 25%,
+        #00ffff 50%,
+        #ff00ff 75%,
+        #ff0000 100%
+      );
+    background-size: 600px 240px;
+    background-repeat: repeat;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout style paint;
+    animation: headerGradientMove 20s linear infinite;
+  }
+
+  @keyframes headerGradientMove {
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    100% {
+      background-position: 0% 0%;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media screen and (min-width: 768px) {
+    .header {
+      height: 400px;
+    }
+
+    .header-logo-mask {
+      width: 1000px;
+      height: 400px;
+    }
+
+    .header-gradient-layer {
+      width: 1600px;
+      height: 640px;
+      left: -300px;
+      top: -120px;
+      background-size: 800px 320px;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .header {
+      height: 480px;
+    }
+
+    .header-logo-mask {
+      width: 1200px;
+      height: 480px;
+    }
+
+    .header-gradient-layer {
+      width: 2000px;
+      height: 800px;
+      left: -400px;
+      top: -160px;
+      background-size: 1000px 400px;
+    }
+  }
+</style>
+

@@ -1,5 +1,9 @@
 ---
+import Header from "../components/Header.astro";
+
 const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
+const currentPath = Astro.url.pathname;
+const isIndexPage = currentPath === '/' || currentPath === '/index.html';
 ---
 
 <!doctype html>
@@ -16,6 +20,7 @@ const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
 		<meta name="description" content="/\V" />
 	</head>
 	<body>
+		{!isIndexPage && <Header />}
 		<slot />
 	</body>
 </html>
