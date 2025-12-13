@@ -12,14 +12,4 @@ export default defineConfig({
       signUpUrl: '/sign-up',
     }),
   ],
-  vite: {
-    resolve: {
-      alias: {
-        '@clerk/astro/components': '@clerk/astro/components',
-      },
-    },
-    optimizeDeps: {
-      include: ['@clerk/astro'],
-    },
-  },
 });

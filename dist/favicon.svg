@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 128 128">
+  <!-- Generator: Adobe Illustrator 29.8.2, SVG Export Plug-In . SVG Version: 2.1.1 Build 3)  -->
+  <defs>
+    <clipPath id="clippath">
+      <polygon points="55.8 0 108.8 128 128 128 128 0 55.8 0" fill="none"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect x="50.8" y="-5" width="82.2" height="138" fill="none"/>
+    </clipPath>
+    <clipPath id="clippath-2">
+      <polygon points="72 128 19 0 -.2 0 -.2 128 72 128" fill="none"/>
+    </clipPath>
+    <clipPath id="clippath-3">
+      <rect x="-5.2" y="-5" width="82.2" height="138" fill="none"/>
+    </clipPath>
+  </defs>
+  <g id="Layer_1" display="none">
+    <path d="M50.4,78.5c-9.9.4-19.5,2.7-28.5,6.9L46.1,19.7c.7-2,1.9-3.2,3.4-3.2h29c1.5,0,2.7,1.2,3.4,3.2l24.2,65.7s-11.6-7-28.5-7l-10.6-32.9c-.4-1.7-1.6-2.8-2.9-2.8s-2.5,1.1-2.9,2.7l-10.8,33.1ZM45.1,86.5c-2,6.6-.6,15.8,4.2,20.2,0-.2.1-.5.2-.7.5-2.7,2.9-4.6,5.7-4.5,2.8,0,4.3,1.5,4.7,4.7.2,1.1.2,2.3.2,3.5v.4c0,2.7.7,5.2,2.2,7.4,1.4,2.2,3.4,3.9,5.7,4.9v-.3l-.2-.3c-1.8-5.6-.5-9.5,4.4-12.8l1.5-1c1.1-.7,2.2-1.4,3.2-2.2,3.8-2.6,6.3-6.8,6.8-11.4.3-2,0-4-.6-6l-.8.6-1.6,1c-7,3.2-14.8,4.2-22.4,2.7-5-.7-9.7-2-13.2-6.2Z" fill="none"/>
+    <g id="nKTjWM.tif">
+      <image id="Layer_11" data-name="Layer_1" width="1568" height="1138" transform="translate(-131 -66.2) scale(.2)" xlink:href="favicon-1.png"/>
+    </g>
+  </g>
+  <g id="Layer_2">
+    <g clip-path="url(#clippath)">
+      <g clip-path="url(#clippath-1)">
+        <image width="173" height="289" transform="translate(50.4 -5.4) scale(.5)" xlink:href="favicon-2.png"/>
+      </g>
+    </g>
+    <g clip-path="url(#clippath-2)">
+      <g clip-path="url(#clippath-3)">
+        <image width="172" height="289" transform="translate(-5.3 -5.4) scale(.5)" xlink:href="favicon-3.png"/>
+      </g>
+    </g>
+  </g>
+</svg>

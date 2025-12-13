@@ -1,0 +1,1568 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"><meta name="generator" content="Astro v5.16.3"><title>/\V</title><meta name="description" content="/V"><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+</style>
+<link rel="stylesheet" href="/_astro/index.D8Hl4CU0.css"><script type="module" src="/_astro/page.eZDl0gQ3.js"></script></head> <body>  <div id="vapi-widget-container" class="vapi-widget-container center-bottom" data-astro-cid-fxhydyzz> <button id="vapi-voice-button" class="vapi-voice-button" aria-label="Start voice chat" title="Click to speak with our AI assistant" data-astro-cid-fxhydyzz> <!-- Toggle switch track --> <span class="toggle-track" data-astro-cid-fxhydyzz></span> <!-- Toggle switch thumb --> <span class="toggle-thumb" data-astro-cid-fxhydyzz> <!-- Microphone icon (active/listening state) --> <svg xmlns="http://www.w3.org/2000/svg" stroke-width="2.5" width="20" height="20" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" fill="none" viewBox="0 0 24 24" id="mic-icon" style="display: none;" data-astro-cid-fxhydyzz="true" class="lucide lucide-mic vapi-icon icon-active">  <path d="M12 19v3"></path> <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path> <rect x="9" y="2" width="6" height="13" rx="3"></rect>  </svg> <!-- Loading spinner (connecting state) --> <div id="loading-spinner" class="loading-spinner" style="display: none;" data-astro-cid-fxhydyzz> <div class="spinner-ring" data-astro-cid-fxhydyzz></div> </div> </span> </button> <!-- Audio level meter --> <div id="audio-level-meter" class="audio-level-meter" style="display: none;" data-astro-cid-fxhydyzz> <div class="level-bars" data-astro-cid-fxhydyzz> <div class="level-bar" style="--delay: 0ms" data-astro-cid-fxhydyzz></div> <div class="level-bar" style="--delay: 50ms" data-astro-cid-fxhydyzz></div> <div class="level-bar" style="--delay: 100ms" data-astro-cid-fxhydyzz></div> <div class="level-bar" style="--delay: 150ms" data-astro-cid-fxhydyzz></div> <div class="level-bar" style="--delay: 200ms" data-astro-cid-fxhydyzz></div> </div> </div> </div> <script>(function(){const publicKey = "1c0e5ddf-59db-4ff7-898a-2c9e631116c3";
+const assistantId = "22bcc946-16bd-47cd-8625-9a6a715b2c63";
+const enableVoiceRecognition = false;
+const voiceProfileId = "";
+const assistantOverrides = {};
+
+  // Get auth state from Clerk client-side using nanostores
+  let userId = null;
+  let isAuthenticated = false;
+  let unsubscribeAuth = null;
+  let unsubscribeUser = null;
+  let $authStore = null;
+  let $userStore = null;
+  let $isLoadedStore = null;
+
+  // Initialize Clerk auth state by subscribing to stores
+  async function initAuth() {
+    try {
+      // Dynamically import Clerk client stores (required for Astro script tags)
+      console.log("Loading Clerk client stores...");
+      const clerkClient = await import("@clerk/astro/client");
+      $authStore = clerkClient.$authStore;
+      $userStore = clerkClient.$userStore;
+      $isLoadedStore = clerkClient.$isLoadedStore;
+
+      console.log("Clerk stores loaded:", {
+        hasAuthStore: !!$authStore,
+        hasUserStore: !!$userStore,
+        hasIsLoadedStore: !!$isLoadedStore,
+      });
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:110",
+            message: "Clerk stores imported",
+            data: {
+              hasAuthStore: !!$authStore,
+              hasUserStore: !!$userStore,
+              hasIsLoadedStore: !!$isLoadedStore,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "A",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+
+      if (!$authStore || !$userStore) {
+        console.error("Clerk stores not available");
+        return;
+      }
+
+      // Subscribe to auth store for userId and session info
+      unsubscribeAuth = $authStore.subscribe((auth) => {
+        if (auth && auth.userId) {
+          userId = auth.userId;
+          isAuthenticated = true;
+          console.log("Clerk auth store updated - user authenticated:", userId);
+        } else {
+          userId = null;
+          isAuthenticated = false;
+          console.log("Clerk auth store updated - user not authenticated");
+        }
+      });
+
+      // Also subscribe to user store for additional user data
+      unsubscribeUser = $userStore.subscribe((user) => {
+        if (user && user.id) {
+          userId = user.id;
+          isAuthenticated = true;
+          console.log("Clerk user store updated - user:", user.id);
+        }
+      });
+
+      // Check initial state
+      const initialAuth = $authStore.get();
+      console.log("Initial Clerk auth store:", initialAuth);
+      if (initialAuth && initialAuth.userId) {
+        userId = initialAuth.userId;
+        isAuthenticated = true;
+        console.log("Initial Clerk auth state - user authenticated:", userId);
+      }
+
+      const initialUser = $userStore.get();
+      console.log("Initial Clerk user store:", initialUser);
+      if (initialUser && initialUser.id) {
+        userId = initialUser.id;
+        isAuthenticated = true;
+        console.log("Initial Clerk user state - user:", userId);
+      }
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:180",
+            message: "Clerk auth initialization",
+            data: {
+              initialAuth: initialAuth
+                ? { userId: initialAuth.userId, hasUser: !!initialAuth.user }
+                : null,
+              initialUser: initialUser ? { id: initialUser.id } : null,
+              isAuthenticated,
+              userId: userId || "not set",
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "B",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+    } catch (error) {
+      console.error("Clerk auth initialization error:", error);
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:195",
+            message: "Clerk auth initialization error",
+            data: {
+              error: error.message,
+              stack: error.stack,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "C",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+    }
+  }
+
+  // Initialize auth when script loads
+  if (typeof window !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => initAuth());
+    } else {
+      initAuth();
+    }
+  }
+
+  // Vapi SDK will be attached to window.Vapi
+  console.log("Vapi credentials check:", {
+    publicKey: publicKey ? "***" + publicKey.slice(-4) : "MISSING",
+    assistantId: assistantId ? assistantId : "MISSING",
+    publicKeyLength: publicKey?.length || 0,
+    assistantIdLength: assistantId?.length || 0,
+  });
+
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:100",
+      message: "Voice recognition config loaded",
+      data: {
+        enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  console.log("=== Voice Recognition Configuration Debug ===");
+  console.log(
+    "enableVoiceRecognition:",
+    enableVoiceRecognition,
+    "(type:",
+    typeof enableVoiceRecognition,
+    ")"
+  );
+  console.log(
+    "voiceProfileId:",
+    voiceProfileId || "not set",
+    "(type:",
+    typeof voiceProfileId,
+    ")"
+  );
+  console.log("assistantOverrides:", assistantOverrides);
+  console.log("=== Authentication Debug ===");
+  console.log(
+    "isAuthenticated:",
+    isAuthenticated,
+    "(type:",
+    typeof isAuthenticated,
+    ")"
+  );
+  console.log("userId:", userId || "not set", "(type:", typeof userId, ")");
+
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:125",
+      message: "Detailed voice recognition config check",
+      data: {
+        enableVoiceRecognition,
+        enableVoiceRecognitionType: typeof enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        voiceProfileIdType: typeof voiceProfileId,
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+        assistantOverridesEmpty:
+          Object.keys(assistantOverrides || {}).length === 0,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "E",
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  if (!publicKey || !assistantId) {
+    console.warn(
+      "Vapi credentials not found. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID environment variables."
+    );
+  }
+
+  // Lazy load Vapi SDK only when button is clicked (resource optimization)
+  let vapiSDKLoaded = false;
+  let vapiSDKLoading = false;
+
+  async function loadVapiSDK() {
+    const win = window;
+
+    // Return if already loaded
+    if (win.Vapi && typeof win.Vapi === "function") {
+      return win.Vapi;
+    }
+
+    // Return if already loading
+    if (vapiSDKLoading) {
+      // Wait for loading to complete
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (win.Vapi && typeof win.Vapi === "function") {
+            clearInterval(checkInterval);
+            resolve(win.Vapi);
+          } else if (vapiSDKLoaded && !win.Vapi) {
+            clearInterval(checkInterval);
+            resolve(null);
+          }
+        }, 100);
+      });
+    }
+
+    vapiSDKLoading = true;
+
+    try {
+      console.log("=== Loading Vapi SDK ===");
+      // Try importing from npm package (Vite will bundle it)
+      // Use the package name - Vite handles the resolution
+      let VapiModule;
+      try {
+        console.log("Attempting to import @vapi-ai/web from npm...");
+        VapiModule = await import("@vapi-ai/web");
+        console.log("Local import successful");
+      } catch (localError) {
+        // If local import fails (expected in browser), use CDN
+        // This is normal - browser scripts can't resolve npm packages directly
+        console.log("Local import failed, using CDN:", localError.message);
+        console.log(
+          "Importing from CDN: https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
+        );
+        VapiModule =
+          await import("https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm");
+        console.log("CDN import successful");
+      }
+
+      console.log("VapiModule:", VapiModule);
+      console.log("VapiModule keys:", Object.keys(VapiModule));
+      console.log("VapiModule.default:", VapiModule.default);
+      console.log("VapiModule.default type:", typeof VapiModule.default);
+
+      // Handle CommonJS default export
+      let Vapi = VapiModule.default;
+      console.log("Initial Vapi (from default):", Vapi);
+      console.log("Initial Vapi type:", typeof Vapi);
+
+      // If default is not a constructor, try other exports
+      if (!Vapi || typeof Vapi !== "function") {
+        console.log("Default is not a function, trying other exports...");
+        Vapi = VapiModule.Vapi || VapiModule.VapiClient || VapiModule;
+        console.log("Vapi after fallback:", Vapi);
+        console.log("Vapi type after fallback:", typeof Vapi);
+      }
+
+      // Final check - if still not a function, it might be wrapped
+      if (!Vapi || typeof Vapi !== "function") {
+        // Try accessing the constructor property if it exists
+        if (VapiModule.default && VapiModule.default.default) {
+          Vapi = VapiModule.default.default;
+        }
+      }
+
+      // Check if it's actually a constructor
+      if (Vapi && typeof Vapi === "function") {
+        console.log("Vapi constructor validated successfully");
+        console.log("Vapi prototype:", Vapi.prototype);
+        console.log(
+          "Vapi prototype methods:",
+          Object.getOwnPropertyNames(Vapi.prototype)
+        );
+        win.Vapi = Vapi;
+        vapiSDKLoaded = true;
+        vapiSDKLoading = false;
+        console.log("Vapi SDK loaded and ready");
+        return Vapi;
+      } else {
+        console.error("Vapi module structure:", VapiModule);
+        console.error("Final Vapi value:", Vapi);
+        console.error("Final Vapi type:", typeof Vapi);
+        throw new Error(
+          "Vapi is not a constructor. Module type: " + typeof Vapi
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load Vapi SDK:", error);
+      vapiSDKLoaded = true;
+      vapiSDKLoading = false;
+      return null;
+    }
+  }
+
+  // Audio level analyzer
+  let audioContext = null;
+  let analyser = null;
+  let microphone = null;
+  let dataArray = null;
+  let animationFrameId = null;
+  let audioStream = null;
+  let analyzerActive = false;
+
+  // Cached greeting audio
+  let cachedGreetingAudio = null;
+  let isRecordingGreeting = false;
+  let greetingRecorder = null;
+  let greetingAudioChunks = [];
+  let greetingPlayed = false;
+
+  function startAudioAnalyzer(stream) {
+    try {
+      analyzerActive = true;
+      audioStream = stream;
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Mobile Chrome requires AudioContext to be resumed after user interaction
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch((err) => {
+          console.warn("Failed to resume audio context:", err);
+        });
+      }
+
+      analyser = audioContext.createAnalyser();
+      microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      dataArray = new Uint8Array(bufferLength);
+
+      const levelMeter = document.getElementById("audio-level-meter");
+      if (levelMeter) {
+        levelMeter.style.display = "block";
+      }
+
+      function updateLevelMeter() {
+        if (!analyser || !analyzerActive) {
+          const levelMeter = document.getElementById("audio-level-meter");
+          if (levelMeter) {
+            levelMeter.style.display = "none";
+          }
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+
+        // Calculate average volume level
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
+        // Make 25% more sensitive by amplifying the level
+        const sensitiveLevel = Math.min(normalizedLevel * 1.25, 1);
+
+        // Dispatch custom event with audio level for gradient animation
+        const audioLevelEvent = new CustomEvent("audioLevel", {
+          detail: { level: sensitiveLevel, raw: average },
+        });
+        window.dispatchEvent(audioLevelEvent);
+
+        // Update level bars
+        const bars = document.querySelectorAll(".level-bar");
+        bars.forEach((bar, index) => {
+          // Create a wave effect with different thresholds for each bar
+          const threshold = (index + 1) / bars.length;
+          const barLevel = Math.max(0, sensitiveLevel - (1 - threshold));
+          const height = Math.min(barLevel * 100, 100);
+          bar.style.height = height + "%";
+          bar.style.opacity = height > 5 ? 1 : 0.3;
+        });
+
+        animationFrameId = requestAnimationFrame(updateLevelMeter);
+      }
+
+      updateLevelMeter();
+    } catch (error) {
+      console.error("Error starting audio analyzer:", error);
+    }
+  }
+
+  function stopAudioAnalyzer() {
+    analyzerActive = false;
+
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+
+    if (microphone) {
+      try {
+        microphone.disconnect();
+      } catch (e) {
+        // Ignore
+      }
+      microphone = null;
+    }
+
+    if (audioContext && audioContext.state !== "closed") {
+      audioContext.close().catch(() => {
+        // Ignore errors
+      });
+      audioContext = null;
+    }
+
+    analyser = null;
+    dataArray = null;
+
+    const levelMeter = document.getElementById("audio-level-meter");
+    if (levelMeter) {
+      levelMeter.style.display = "none";
+    }
+
+    // Note: Don't stop the stream tracks here - Vapi needs them
+    // The stream will be managed by Vapi
+    audioStream = null;
+  }
+
+  // Load cached greeting from localStorage
+  function loadCachedGreeting() {
+    try {
+      const cached = localStorage.getItem("vapi_greeting_audio");
+      if (cached) {
+        const audioBlob = new Blob([Uint8Array.from(JSON.parse(cached))], {
+          type: "audio/webm",
+        });
+        cachedGreetingAudio = URL.createObjectURL(audioBlob);
+        console.log("Loaded cached greeting from localStorage");
+        return true;
+      }
+    } catch (error) {
+      console.warn("Failed to load cached greeting:", error);
+    }
+    return false;
+  }
+
+  // Play cached greeting immediately
+  function playCachedGreeting() {
+    if (greetingPlayed) return; // Don't play twice in same session
+
+    // Try to load from localStorage if not already loaded
+    if (!cachedGreetingAudio) {
+      loadCachedGreeting();
+    }
+
+    if (cachedGreetingAudio) {
+      try {
+        const audio = new Audio(cachedGreetingAudio);
+        audio.volume = 0.8;
+        audio.play().catch((error) => {
+          console.warn("Failed to play cached greeting:", error);
+        });
+        greetingPlayed = true;
+        console.log("Playing cached greeting immediately");
+      } catch (error) {
+        console.warn("Error playing cached greeting:", error);
+      }
+    }
+  }
+
+  // Start recording the greeting from Vapi
+  function startRecordingGreeting(vapiInstance) {
+    if (isRecordingGreeting || cachedGreetingAudio) return;
+
+    try {
+      isRecordingGreeting = true;
+      greetingAudioChunks = [];
+
+      // Try to get the audio stream from Vapi
+      // Check if Vapi exposes the remote audio stream
+      let remoteStream = null;
+
+      // Try different methods to access Vapi's audio stream
+      if (
+        vapiInstance &&
+        typeof vapiInstance.getRemoteAudioStream === "function"
+      ) {
+        remoteStream = vapiInstance.getRemoteAudioStream();
+      } else if (vapiInstance && vapiInstance.remoteAudioStream) {
+        remoteStream = vapiInstance.remoteAudioStream;
+      } else if (
+        vapiInstance &&
+        vapiInstance.call &&
+        vapiInstance.call.remoteAudioStream
+      ) {
+        remoteStream = vapiInstance.call.remoteAudioStream;
+      }
+
+      if (remoteStream) {
+        greetingRecorder = new MediaRecorder(remoteStream, {
+          mimeType: "audio/webm;codecs=opus",
+        });
+
+        greetingRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            greetingAudioChunks.push(event.data);
+          }
+        };
+
+        greetingRecorder.onstop = () => {
+          if (greetingAudioChunks.length > 0) {
+            const audioBlob = new Blob(greetingAudioChunks, {
+              type: "audio/webm",
+            });
+            cachedGreetingAudio = URL.createObjectURL(audioBlob);
+
+            // Save to localStorage
+            try {
+              audioBlob.arrayBuffer().then((buffer) => {
+                const uint8Array = new Uint8Array(buffer);
+                localStorage.setItem(
+                  "vapi_greeting_audio",
+                  JSON.stringify(Array.from(uint8Array))
+                );
+                console.log("Cached greeting saved to localStorage");
+              });
+            } catch (error) {
+              console.warn("Failed to save greeting to localStorage:", error);
+            }
+          }
+          isRecordingGreeting = false;
+        };
+
+        // Record for up to 10 seconds (should be enough for greeting)
+        greetingRecorder.start();
+        console.log("Started recording greeting from Vapi");
+
+        setTimeout(() => {
+          if (greetingRecorder && greetingRecorder.state === "recording") {
+            greetingRecorder.stop();
+            console.log("Stopped recording greeting");
+          }
+        }, 10000);
+      } else {
+        console.log(
+          "Vapi doesn't expose remote stream - cannot record greeting automatically"
+        );
+        console.log("Vapi instance methods:", Object.keys(vapiInstance || {}));
+        isRecordingGreeting = false;
+      }
+    } catch (error) {
+      console.warn("Failed to start recording greeting:", error);
+      isRecordingGreeting = false;
+    }
+  }
+
+  function initializeVapi() {
+    const button = document.getElementById("vapi-voice-button");
+    if (!button) return;
+
+    let vapiInstance = null;
+    let isActive = false;
+
+    // Handle both click and touch events for mobile compatibility
+    const handleStart = async function (e) {
+      // Prevent double-firing on mobile
+      if (e && e.type === "touchstart") {
+        e.preventDefault();
+      }
+      if (isActive) {
+        // Stop the call
+        if (vapiInstance) {
+          try {
+            if (typeof vapiInstance.stop === "function") {
+              vapiInstance.stop();
+            } else if (typeof vapiInstance.end === "function") {
+              vapiInstance.end();
+            } else if (typeof vapiInstance.hangup === "function") {
+              vapiInstance.hangup();
+            }
+          } catch (error) {
+            console.error("Error stopping call:", error);
+          }
+          vapiInstance = null;
+        }
+        isActive = false;
+        button.classList.remove("active");
+        button.setAttribute("aria-label", "Start voice chat");
+        // Hide microphone icon
+        const micIcon = document.getElementById("mic-icon");
+        if (micIcon) micIcon.style.display = "none";
+        // Stop audio analyzer
+        stopAudioAnalyzer();
+      } else {
+        // Start the call - lazy load SDK here
+        try {
+          // Show immediate visual feedback
+          button.disabled = true;
+          button.classList.add("connecting");
+
+          // Show loading spinner
+          const loadingSpinnerEl = document.getElementById("loading-spinner");
+          if (loadingSpinnerEl) loadingSpinnerEl.style.display = "block";
+
+          // Load SDK (should be instant if preloaded)
+          console.log("Getting Vapi SDK (may already be preloaded)...");
+          const Vapi = await loadVapiSDK();
+          console.log("Vapi SDK loaded:", !!Vapi);
+          console.log("Vapi type:", typeof Vapi);
+          console.log("Vapi is function:", typeof Vapi === "function");
+          console.log(
+            "Vapi is constructor:",
+            typeof Vapi === "function" && Vapi.prototype
+          );
+
+          if (!Vapi || typeof Vapi !== "function") {
+            console.error("Vapi SDK validation failed");
+            throw new Error("Vapi SDK failed to load or is not a constructor");
+          }
+
+          // Validate credentials before requesting microphone (do this in parallel)
+          if (!publicKey || !assistantId) {
+            console.error("Missing credentials:", {
+              publicKey: !!publicKey,
+              assistantId: !!assistantId,
+            });
+            throw new Error(
+              "Vapi credentials are missing. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID."
+            );
+          }
+
+          // Request microphone permission and initialize Vapi in parallel for speed
+          const [stream] = await Promise.all([
+            navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+            }),
+            // Small delay to ensure SDK is ready
+            Promise.resolve(),
+          ]);
+
+          // Hide loading spinner, show microphone icon after permission granted
+          const loadingSpinnerEl2 = document.getElementById("loading-spinner");
+          const micIconEl = document.getElementById("mic-icon");
+          if (loadingSpinnerEl2) loadingSpinnerEl2.style.display = "none";
+          if (micIconEl) micIconEl.style.display = "block";
+
+          // Activate toggle immediately after microphone permission granted
+          button.classList.add("active");
+          isActive = true;
+
+          // Play cached greeting immediately if available
+          playCachedGreeting();
+
+          // Start audio level analyzer (non-blocking)
+          try {
+            startAudioAnalyzer(stream);
+          } catch (analyzerError) {
+            console.warn(
+              "Audio analyzer failed (non-critical):",
+              analyzerError
+            );
+            // Continue even if analyzer fails
+          }
+
+          // Validate credentials (already done above, but keeping for clarity)
+          console.log("=== Vapi Initialization Debug ===");
+          console.log("Step 1: Validating credentials");
+          console.log("PublicKey present:", !!publicKey);
+          console.log("PublicKey type:", typeof publicKey);
+          console.log("PublicKey length:", publicKey ? publicKey.length : 0);
+          console.log(
+            "PublicKey preview:",
+            publicKey
+              ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+              : "N/A"
+          );
+          console.log("AssistantId present:", !!assistantId);
+          console.log("AssistantId type:", typeof assistantId);
+          console.log("AssistantId value:", assistantId);
+          console.log(
+            "AssistantId length:",
+            assistantId ? assistantId.length : 0
+          );
+
+          if (!publicKey || !assistantId) {
+            console.error("Missing credentials:", {
+              publicKey: !!publicKey,
+              assistantId: !!assistantId,
+            });
+            throw new Error(
+              "Vapi credentials are missing. Please set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID."
+            );
+          }
+
+          // Additional validation - ensure assistantId is not just whitespace
+          const trimmedAssistantId = assistantId.trim();
+          if (
+            typeof assistantId !== "string" ||
+            trimmedAssistantId.length === 0
+          ) {
+            console.error("Invalid assistantId:", assistantId);
+            throw new Error(
+              "Assistant ID is invalid or empty. Please check your PUBLIC_VAPI_ASSISTANT_ID environment variable."
+            );
+          }
+          console.log("Step 2: Credentials validated");
+          console.log("Trimmed AssistantId:", trimmedAssistantId);
+          console.log("Trimmed AssistantId length:", trimmedAssistantId.length);
+
+          // Initialize Vapi
+          try {
+            // Create error handler that properly logs the error
+            const handleError = function (error) {
+              console.error("=== Vapi Error Handler ===");
+              console.error("Vapi error event:", error);
+              console.error("Error type:", typeof error);
+              console.error("Error constructor:", error?.constructor?.name);
+
+              // Try to extract error details
+              let errorMessage = "Unknown error";
+              if (error && typeof error === "object") {
+                // Try to get message from nested error structure
+                const nestedMessage = error.error?.message;
+                if (nestedMessage && typeof nestedMessage === "object") {
+                  errorMessage =
+                    nestedMessage.message || JSON.stringify(nestedMessage);
+                } else if (nestedMessage && typeof nestedMessage === "string") {
+                  errorMessage = nestedMessage;
+                } else {
+                  errorMessage =
+                    error.message || error.error || JSON.stringify(error);
+                }
+
+                // Log all error properties
+                console.error("Error object properties:", Object.keys(error));
+                console.error("Error object values:", error);
+
+                // Check for specific error types
+                if (error.type) {
+                  console.error("Error type:", error.type);
+                }
+                if (error.stage) {
+                  console.error("Error stage:", error.stage);
+                }
+                if (error.context) {
+                  console.error("Error context:", error.context);
+                }
+                if (error.error) {
+                  console.error("Nested error:", error.error);
+                  if (typeof error.error === "object") {
+                    console.error(
+                      "Nested error keys:",
+                      Object.keys(error.error)
+                    );
+                    if (error.error.message) {
+                      console.error(
+                        "Nested error message:",
+                        error.error.message
+                      );
+                    }
+                    if (error.error.status) {
+                      console.error("Nested error status:", error.error.status);
+                    }
+                    if (error.error.statusText) {
+                      console.error(
+                        "Nested error statusText:",
+                        error.error.statusText
+                      );
+                    }
+                  }
+                }
+                if (error.message) {
+                  console.error("Error message:", error.message);
+                }
+              } else if (error) {
+                errorMessage = String(error);
+              }
+
+              console.error("Vapi error details summary:", {
+                message: errorMessage,
+                error: error,
+                type: typeof error,
+                keys:
+                  error && typeof error === "object"
+                    ? Object.keys(error)
+                    : null,
+              });
+
+              // Check for 403/authentication errors
+              const errorMessageStr = String(errorMessage);
+              if (
+                errorMessageStr.includes("403") ||
+                errorMessageStr.includes("Forbidden") ||
+                errorMessageStr.includes("doesn't allow origin")
+              ) {
+                console.error("=== 403 Forbidden Error Detected ===");
+                console.error("This usually means:");
+                console.error(
+                  "1. The API key (publicKey) is invalid or expired"
+                );
+                console.error(
+                  "2. The API key doesn't have permission to use this assistant"
+                );
+                console.error(
+                  "3. The assistant ID doesn't belong to the account associated with the API key"
+                );
+                console.error(
+                  "4. The API key might be a public key that needs different permissions"
+                );
+                console.error(
+                  "PublicKey used:",
+                  publicKey
+                    ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+                    : "N/A"
+                );
+                console.error("AssistantId used:", assistantId);
+              }
+
+              isActive = false;
+              button.classList.remove("active");
+              button.setAttribute("aria-label", "Start voice chat");
+              button.disabled = false;
+              button.style.opacity = "1";
+
+              // Hide microphone icon
+              const micIcon = document.getElementById("mic-icon");
+              if (micIcon) micIcon.style.display = "none";
+
+              // Show user-friendly error
+              alert("Voice chat error: " + errorMessage);
+
+              if (vapiInstance) {
+                try {
+                  vapiInstance.stop?.();
+                } catch (e) {
+                  // Ignore cleanup errors
+                }
+                vapiInstance = null;
+              }
+            };
+
+            // Vapi constructor takes: apiToken, apiBaseUrl, dailyCallConfig, dailyCallObject
+            // Use empty config to avoid function cloning issues - we'll use event listeners instead
+            console.log("Step 3: Creating Vapi instance");
+            console.log("Vapi constructor:", typeof Vapi);
+            console.log("Calling new Vapi() with:");
+            console.log(
+              "  - apiToken (publicKey):",
+              publicKey
+                ? `${publicKey.substring(0, 8)}...${publicKey.substring(publicKey.length - 4)}`
+                : "N/A"
+            );
+            console.log("  - apiBaseUrl: undefined (using default)");
+            console.log("  - dailyCallConfig: {}");
+
+            vapiInstance = new Vapi(
+              publicKey, // apiToken
+              undefined, // apiBaseUrl (use default)
+              {}, // Empty dailyCallConfig - functions can't be cloned by Daily.co
+              undefined // dailyCallObject
+            );
+
+            console.log("Step 4: Vapi instance created");
+            console.log("Vapi instance:", vapiInstance);
+            console.log("Vapi instance type:", typeof vapiInstance);
+            console.log(
+              "Vapi instance methods:",
+              vapiInstance
+                ? Object.keys(vapiInstance).filter(
+                    (key) => typeof vapiInstance[key] === "function"
+                  )
+                : []
+            );
+            console.log(
+              "Has start method:",
+              vapiInstance && typeof vapiInstance.start === "function"
+            );
+            console.log(
+              "Has call method:",
+              vapiInstance && typeof vapiInstance.call === "function"
+            );
+            console.log(
+              "Has on method:",
+              vapiInstance && typeof vapiInstance.on === "function"
+            );
+
+            // Use event listeners instead of callbacks to avoid cloning issues
+            // Daily.co tries to clone functions in callbacks, causing DataCloneError
+            if (vapiInstance && typeof vapiInstance.on === "function") {
+              // Call start success event (fires when call actually starts)
+              vapiInstance.on("call-start-success", function () {
+                console.log("Vapi call started successfully");
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                // Show microphone icon
+                const micIcon = document.getElementById("mic-icon");
+                if (micIcon) micIcon.style.display = "block";
+              });
+
+              // Also listen to call-start for immediate feedback
+              vapiInstance.on("call-start", function () {
+                console.log("Vapi call starting...");
+                // Icon already switched before start() was called
+                // Mark as active immediately
+                isActive = true;
+                button.classList.add("active");
+                button.setAttribute("aria-label", "End voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+              });
+
+              // Listen for when the call is fully connected and ready
+              vapiInstance.on("call-update", function (data) {
+                console.log("Vapi call update:", data);
+                if (data && data.status) {
+                  console.log("Call status:", data.status);
+                  if (data.status === "connected" || data.status === "joined") {
+                    isActive = true;
+                    button.classList.add("active");
+                    button.setAttribute("aria-label", "End voice chat");
+                    button.disabled = false;
+                    button.style.opacity = "1";
+                  }
+                }
+              });
+
+              // Listen for speech events to ensure it's actively listening/speaking
+              vapiInstance.on("speech-start", function (data) {
+                console.log("Vapi speech started:", data);
+                isActive = true;
+                button.classList.add("active");
+              });
+
+              vapiInstance.on("speech-end", function (data) {
+                console.log("Vapi speech ended:", data);
+              });
+
+              vapiInstance.on("message", function (data) {
+                console.log("Vapi message:", data);
+                // Dispatch transcript event if message contains transcript data
+                // Vapi message format: { role: "user" | "assistant", content: string }
+                if (data) {
+                  const text =
+                    data.content ||
+                    data.transcript ||
+                    data.text ||
+                    data.message;
+                  const role = data.role || "assistant";
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: role === "user" ? "user" : "assistant",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
+              });
+
+              // Listen for transcript events (if available in Vapi SDK)
+              if (typeof vapiInstance.on === "function") {
+                try {
+                  vapiInstance.on("transcript", function (data) {
+                    console.log("Vapi transcript event:", data);
+                    if (data) {
+                      const text = data.text || data.transcript || data.content;
+                      const role = data.role || "assistant";
+                      if (text && typeof text === "string" && text.trim()) {
+                        const transcriptEvent = new CustomEvent(
+                          "vapi-transcript",
+                          {
+                            detail: {
+                              text: text.trim(),
+                              type: role === "user" ? "user" : "assistant",
+                            },
+                          }
+                        );
+                        window.dispatchEvent(transcriptEvent);
+                      }
+                    }
+                  });
+                } catch (e) {
+                  console.log("Transcript event not available:", e);
+                }
+              }
+
+              // Listen for when the assistant starts speaking
+              vapiInstance.on("assistant-speech-start", function (data) {
+                console.log("Assistant started speaking:", data);
+                isActive = true;
+                button.classList.add("active");
+
+                // Record the first greeting if not already cached
+                if (
+                  !greetingPlayed &&
+                  !cachedGreetingAudio &&
+                  !isRecordingGreeting
+                ) {
+                  startRecordingGreeting(vapiInstance);
+                }
+              });
+
+              // Listen for assistant speech end to capture final transcript
+              vapiInstance.on("assistant-speech-end", function (data) {
+                console.log("Assistant speech ended:", data);
+                if (data) {
+                  const text = data.transcript || data.text || data.content;
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: "assistant",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
+              });
+
+              // Listen for when user speech is detected
+              vapiInstance.on("user-speech-start", function (data) {
+                console.log("User speech detected:", data);
+                isActive = true;
+                button.classList.add("active");
+              });
+
+              // Listen for user speech end to capture final transcript
+              vapiInstance.on("user-speech-end", function (data) {
+                console.log("User speech ended:", data);
+                if (data) {
+                  const text = data.transcript || data.text || data.content;
+                  if (text && typeof text === "string" && text.trim()) {
+                    const transcriptEvent = new CustomEvent("vapi-transcript", {
+                      detail: {
+                        text: text.trim(),
+                        type: "user",
+                      },
+                    });
+                    window.dispatchEvent(transcriptEvent);
+                  }
+                }
+              });
+
+              // Call end event
+              vapiInstance.on("call-end", function () {
+                console.log("Vapi call ended");
+                isActive = false;
+                button.classList.remove("active");
+                button.setAttribute("aria-label", "Start voice chat");
+                button.disabled = false;
+                button.style.opacity = "1";
+                // Hide microphone icon
+                const micIcon = document.getElementById("mic-icon");
+                if (micIcon) micIcon.style.display = "none";
+                // Stop audio analyzer
+                stopAudioAnalyzer();
+                // Stop recording greeting if still recording
+                if (
+                  greetingRecorder &&
+                  greetingRecorder.state === "recording"
+                ) {
+                  greetingRecorder.stop();
+                }
+                // Reset greeting played flag for next session
+                greetingPlayed = false;
+                if (vapiInstance) {
+                  vapiInstance = null;
+                }
+              });
+
+              // Error event
+              vapiInstance.on("error", handleError);
+            }
+
+            // Start the call with proper error handling
+            // start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
+            try {
+              // Show microphone icon before starting call
+              const micIconEl = document.getElementById("mic-icon");
+              if (micIconEl) micIconEl.style.display = "block";
+
+              if (typeof vapiInstance.start === "function") {
+                // Ensure assistantId is a valid string before calling start
+                const validAssistantId =
+                  assistantId && typeof assistantId === "string"
+                    ? assistantId.trim()
+                    : assistantId;
+
+                console.log("=== Starting Vapi Call ===");
+                console.log("Step 5: Preparing to call vapiInstance.start()");
+                console.log("AssistantId validation:", {
+                  original: assistantId,
+                  trimmed: validAssistantId,
+                  type: typeof validAssistantId,
+                  length: validAssistantId?.length || 0,
+                  isEmpty: !validAssistantId || validAssistantId === "",
+                });
+
+                if (!validAssistantId || validAssistantId === "") {
+                  throw new Error(
+                    "Assistant ID is empty or invalid. Value: " +
+                      String(assistantId)
+                  );
+                }
+
+                console.log("Step 6: Calling vapiInstance.start()");
+                console.log("Method:", typeof vapiInstance.start);
+                console.log("Parameter (assistantId):", validAssistantId);
+                console.log("Parameter type:", typeof validAssistantId);
+                console.log("Parameter length:", validAssistantId.length);
+                console.log("Vapi instance before start:", vapiInstance);
+
+                // Pass assistantId as the first parameter to start()
+                try {
+                  // Check current auth state before starting call
+                  // Get fresh state from Clerk stores
+                  let currentUserId = userId;
+                  let currentIsAuthenticated = isAuthenticated;
+
+                  // Get fresh auth state from Clerk stores
+                  try {
+                    if ($authStore) {
+                      const currentAuth = $authStore.get();
+                      console.log(
+                        "Current Clerk auth store at call start:",
+                        currentAuth
+                      );
+                      if (currentAuth && currentAuth.userId) {
+                        currentUserId = currentAuth.userId;
+                        currentIsAuthenticated = true;
+                      }
+                    }
+
+                    if ($userStore) {
+                      const currentUser = $userStore.get();
+                      console.log(
+                        "Current Clerk user store at call start:",
+                        currentUser
+                      );
+                      if (currentUser && currentUser.id) {
+                        currentUserId = currentUser.id;
+                        currentIsAuthenticated = true;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn("Error getting Clerk auth state:", e);
+                    // #region agent log
+                    fetch(
+                      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          location: "VoiceChatButton.astro:1180",
+                          message: "Error getting Clerk auth state",
+                          data: {
+                            error: e.message,
+                            hasAuthStore: !!$authStore,
+                            hasUserStore: !!$userStore,
+                          },
+                          timestamp: Date.now(),
+                          sessionId: "debug-session",
+                          runId: "init",
+                          hypothesisId: "D",
+                        }),
+                      }
+                    ).catch(() => {});
+                    // #endregion
+                  }
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1200",
+                        message: "Auth state check before Vapi start",
+                        data: {
+                          currentUserId: currentUserId || "not set",
+                          currentIsAuthenticated,
+                          hasAuthStore: !!$authStore,
+                          hasUserStore: !!$userStore,
+                          authStoreHasUser: $authStore
+                            ? $authStore.get()?.userId || "not set"
+                            : "store not loaded",
+                          userStoreHasUser: $userStore
+                            ? $userStore.get()?.id || "not set"
+                            : "store not loaded",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "E",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  // Vapi start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
+                  // Build assistantOverrides with voice recognition settings if enabled
+                  // According to Vapi docs, voice recognition should be nested under voiceRecognition object
+                  // Add user context when authenticated
+                  const finalAssistantOverrides = {
+                    ...assistantOverrides,
+                    ...(enableVoiceRecognition
+                      ? {
+                          voiceRecognition: {
+                            enable: true,
+                            speakerIdentification: true,
+                            ...(voiceProfileId
+                              ? { voiceProfileId: voiceProfileId }
+                              : {}),
+                            // Additional voice recognition settings can be added here
+                          },
+                        }
+                      : {}),
+                    // Add user context for authenticated users
+                    ...(currentIsAuthenticated && currentUserId
+                      ? {
+                          // User context that can be accessed by the assistant
+                          // This allows the assistant to know who is calling and provide personalized responses
+                          user: {
+                            id: currentUserId,
+                            authenticated: true,
+                          },
+                          // You can add custom data here that the assistant can use
+                          // For example, email access, tools, etc.
+                        }
+                      : {}),
+                  };
+
+                  console.log("Auth state at call start:", {
+                    isAuthenticated: currentIsAuthenticated,
+                    userId: currentUserId || "not set",
+                    hasUserContext: currentIsAuthenticated && currentUserId,
+                  });
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1200",
+                        message: "Auth state at call start",
+                        data: {
+                          isAuthenticated: currentIsAuthenticated,
+                          userId: currentUserId || "not set",
+                          hasUserContext:
+                            currentIsAuthenticated && currentUserId,
+                          finalOverridesHasUser:
+                            currentIsAuthenticated &&
+                            currentUserId &&
+                            finalAssistantOverrides.user,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "F",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  console.log("Voice recognition config:", {
+                    enabled: enableVoiceRecognition,
+                    voiceProfileId: voiceProfileId || "not set",
+                    assistantOverrides:
+                      Object.keys(finalAssistantOverrides).length > 0
+                        ? finalAssistantOverrides
+                        : "none",
+                  });
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1055",
+                        message: "Voice recognition config before start()",
+                        data: {
+                          enableVoiceRecognition,
+                          voiceProfileId: voiceProfileId || "not set",
+                          hasOverrides:
+                            Object.keys(finalAssistantOverrides).length > 0,
+                          overridesKeys: Object.keys(finalAssistantOverrides),
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "B",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  // Pass assistantId and overrides to start()
+                  // If no overrides, just pass assistantId (backward compatible)
+                  const hasOverrides =
+                    Object.keys(finalAssistantOverrides).length > 0;
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1065",
+                        message: "Calling vapiInstance.start()",
+                        data: {
+                          hasOverrides,
+                          overrides: hasOverrides
+                            ? finalAssistantOverrides
+                            : null,
+                          assistantId: validAssistantId,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "C",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  const startResult = hasOverrides
+                    ? vapiInstance.start(
+                        validAssistantId,
+                        finalAssistantOverrides
+                      )
+                    : vapiInstance.start(validAssistantId);
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1075",
+                        message: "vapiInstance.start() called",
+                        data: {
+                          hasOverrides,
+                          resultType: typeof startResult,
+                          isPromise:
+                            startResult &&
+                            typeof startResult.then === "function",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "D",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  console.log(
+                    "Step 7: vapiInstance.start() called successfully"
+                  );
+                  console.log("Start result:", startResult);
+                  console.log("Start result type:", typeof startResult);
+
+                  // Keep connecting state until call actually starts
+                  // Don't mark as active yet - wait for call-start-success event
+                  button.setAttribute("aria-label", "Connecting...");
+
+                  if (startResult && typeof startResult.then === "function") {
+                    console.log("Start returned a Promise");
+                    startResult
+                      .then((result) => {
+                        console.log("Start Promise resolved:", result);
+                        // Ensure active state is set
+                        isActive = true;
+                        button.classList.add("active");
+                      })
+                      .catch((err) => {
+                        console.error("Start Promise rejected:", err);
+                      });
+                  }
+                } catch (startCallError) {
+                  console.error(
+                    "Error thrown by vapiInstance.start():",
+                    startCallError
+                  );
+                  console.error("Error name:", startCallError?.name);
+                  console.error("Error message:", startCallError?.message);
+                  console.error("Error stack:", startCallError?.stack);
+                  throw startCallError;
+                }
+              } else if (typeof vapiInstance.call === "function") {
+                console.log("Calling Vapi...");
+                if (!assistantId || assistantId.trim() === "") {
+                  throw new Error("Assistant ID is empty or invalid");
+                }
+                vapiInstance.call(assistantId.trim());
+              } else {
+                throw new Error(
+                  "Vapi instance does not have start() or call() method"
+                );
+              }
+            } catch (startError) {
+              console.error("Error starting Vapi call:", startError);
+              // Hide microphone icon on error
+              const micIconEl = document.getElementById("mic-icon");
+              if (micIconEl) micIconEl.style.display = "none";
+              handleError(startError);
+              throw startError;
+            }
+          } catch (initError) {
+            console.error("Vapi initialization error:", initError);
+            button.disabled = false;
+            button.classList.remove("connecting");
+            button.classList.remove("active");
+            isActive = false;
+            button.style.opacity = "1";
+            // Hide loading spinner and microphone icon
+            const loadingSpinnerErr =
+              document.getElementById("loading-spinner");
+            const micIconErr = document.getElementById("mic-icon");
+            if (loadingSpinnerErr) loadingSpinnerErr.style.display = "none";
+            if (micIconErr) micIconErr.style.display = "none";
+            // Stop audio analyzer if it was started
+            stopAudioAnalyzer();
+            alert(
+              "Failed to initialize voice chat: " +
+                (initError.message || "Unknown error")
+            );
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          button.disabled = false;
+          button.classList.remove("connecting");
+          button.classList.remove("active");
+          isActive = false;
+          button.style.opacity = "1";
+          // Hide loading spinner and microphone icon
+          const loadingSpinner = document.getElementById("loading-spinner");
+          const micIcon = document.getElementById("mic-icon");
+          if (loadingSpinner) loadingSpinner.style.display = "none";
+          if (micIcon) micIcon.style.display = "none";
+          // Stop audio analyzer on error
+          stopAudioAnalyzer();
+
+          if (error.name === "NotAllowedError") {
+            alert("Please allow microphone access to use voice chat.");
+          } else if (error.message && error.message.includes("constructor")) {
+            alert(
+              "Voice chat is temporarily unavailable. Please refresh the page."
+            );
+          } else {
+            alert(
+              "Error accessing microphone. Please check your browser settings."
+            );
+          }
+        }
+      }
+    };
+
+    // Add both click and touchstart listeners for mobile compatibility
+    button.addEventListener("click", handleStart);
+    button.addEventListener("touchstart", handleStart, { passive: false });
+  }
+
+  // Preload SDK immediately if credentials are available
+  // This reduces the delay when user clicks the button
+  if (publicKey && assistantId) {
+    // Preload SDK in the background
+    loadVapiSDK().catch((error) => {
+      console.warn("Failed to preload Vapi SDK:", error);
+      // Don't show error to user - it will retry on click
+    });
+
+    // Load cached greeting if available
+    loadCachedGreeting();
+
+    // Initialize button handler
+    initializeVapi();
+  } else {
+    // Disable button if credentials are missing
+    const button = document.getElementById("vapi-voice-button");
+    if (button) {
+      button.style.opacity = "0.5";
+      button.style.cursor = "not-allowed";
+      button.disabled = true;
+      button.setAttribute(
+        "title",
+        "Voice chat unavailable - credentials missing"
+      );
+    }
+  }
+})();</script>  <div id="transcript-container" class="transcript-container" data-astro-cid-o33qbafv> <div id="transcript-content" class="transcript-content" data-astro-cid-o33qbafv></div> </div>  <script type="module">const i=document.getElementById("transcript-content");function o(t,l){if(!i){console.warn("transcriptContent not found");return}const n=t.trim().slice(0,100);if(!n)return;const e=document.createElement("div");e.className=`transcript-line ${l}`;let r=0;const c=setInterval(()=>{r<=n.length?(e.textContent=n.slice(0,r),r++):clearInterval(c)},30);i.appendChild(e),console.log("Added transcript line:",n);const a=i.querySelectorAll(".transcript-line");a.length>3&&a[0].remove(),setTimeout(()=>{e.parentNode&&(e.style.opacity="0",e.style.transform="translateY(-20px)",setTimeout(()=>{e.remove()},500))},2500)}window.addEventListener("vapi-transcript",(t=>{t.detail&&t.detail.text&&t.detail.type&&o(t.detail.text,t.detail.type)}));function s(){if(!i){console.warn("transcriptContent not ready, retrying..."),setTimeout(s,100);return}console.log("Initializing dummy transcript text"),setTimeout(()=>{o("Hello, how can I help you today?","assistant"),setTimeout(()=>{o("I'd like to know more about your services","user"),setTimeout(()=>{o("I'd be happy to tell you about our services. We offer a wide range of solutions.","assistant")},2e3)},2e3)},500)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",s):setTimeout(s,100);</script> <div class="container" data-astro-cid-j7pv25f6> <!-- Fixed logo mask with moving gradient inside --> <div class="logo-mask" data-astro-cid-j7pv25f6> <div class="gradient-layer" id="gradientLayer" data-astro-cid-j7pv25f6></div> </div> <!-- Small watermark logo in bottom left --> <div class="watermark" data-astro-cid-j7pv25f6> <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-astro-cid-j7pv25f6> <line x1="241.9" y1="170.2" x2="241.9" y2="318.2" fill="#fff" stroke="#fff" stroke-miterlimit="10" stroke-width="30" data-astro-cid-j7pv25f6></line> <line x1="165.6" y1="248.2" x2="314.6" y2="248.2" fill="#fff" stroke="#fff" stroke-miterlimit="10" stroke-width="30" data-astro-cid-j7pv25f6></line> <path d="M242.1,332.5v14.8c0,54.4,44.1,98.6,98.6,98.6s98.6-44.1,98.6-98.6-44.1-98.6-98.6-98.6h-12.8" fill="none" stroke="#fff" stroke-miterlimit="10" stroke-width="30" data-astro-cid-j7pv25f6></path> <path d="M241.4,152.4v-45.9c0-27.7-22.4-50.1-50.1-50.1s-60.1,22.4-60.1,50.1l-1,11.4,2,19.4-12.3-2-16.4,1c-27.7,0-50.1,34.4-50.1,62.1s22.4,50.1,50.1,50.1h48.4" fill="none" stroke="#fff" stroke-miterlimit="10" stroke-width="30" data-astro-cid-j7pv25f6></path> </svg> </div> </div>  <script>(function(){const publishableKey = "pk_test_ZW1pbmVudC10dXJ0bGUtMzAuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
+  // Clerk is loaded by the Clerk integration in astro.config.mjs
+  // Just wait for it to be available
+  if (publishableKey) {
+    function checkClerk() {
+      if (window.Clerk) {
+        window.dispatchEvent(new Event('clerk-loaded'));
+      } else {
+        setTimeout(checkClerk, 100);
+      }
+    }
+    checkClerk();
+  }
+})();</script> </body></html>  <script type="module">let o=null,d=!1,c=0,u=0,r=0,l=0,f=0,g=0;const E=()=>({width:window.innerWidth*.5,height:window.innerHeight*.5});function m(e,t){const{width:n,height:a}=E();let s=(e%n+n)%n,S=(t%a+a)%a;return{x:s,y:S}}function v(e){d=!0;const t="touches"in e?e.touches[0]:e;if(c=t.clientX,u=t.clientY,o){o.classList.add("dragging");const n=r+f,a=l+g,s=m(n,a);r=s.x,l=s.y,f=0,g=0}}function p(e){if(!d||!o)return;e.preventDefault();const t="touches"in e?e.touches[0]:e,n=t.clientX-c,a=t.clientY-u;r+=n,l+=a;const s=m(r,l);o.style.transform=`translate3d(${s.x}px, ${s.y}px, 0) scale(${i})`,c=t.clientX,u=t.clientY}function w(){d=!1,o&&o.classList.remove("dragging")}let h=0,b=1,i=1;window.addEventListener("audioLevel",(e=>{e.detail&&typeof e.detail.level=="number"&&(h=e.detail.level,b=1+h*.4)}));function k(){if(!o)return;if(i+=(b-i)*.1,d){const t=m(r,l);o.style.transform=`translate3d(${t.x}px, ${t.y}px, 0) scale(${i})`}else o.style.transform=`translate3d(0, 0, 0) scale(${i})`;requestAnimationFrame(k)}function y(){const e=document.querySelector(".logo-mask");if(!e)return;const t=window.getComputedStyle(e),n=t.maskPosition||t.webkitMaskPosition,a=t.transform;console.log("Animation Debug:",{maskPosition:n,transform:a,maskSize:t.maskSize||t.webkitMaskSize})}function L(){if(o=document.getElementById("gradientLayer"),!o){console.error("gradientLayer element not found");return}if(o.style.transform="translate3d(0, 0, 0) scale(1)",k(),window.location.search.includes("debug=animation")){const e=document.querySelector(".logo-mask");if(e){new MutationObserver(()=>{y()}).observe(e,{attributes:!0,attributeFilter:["style","class"]});let n=0;const a=setInterval(()=>{y(),n++,n>100&&clearInterval(a)},100)}}document.addEventListener("mousedown",v),document.addEventListener("mousemove",p),document.addEventListener("mouseup",w),document.addEventListener("touchstart",v,{passive:!1}),document.addEventListener("touchmove",p,{passive:!1}),document.addEventListener("touchend",w)}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",L):L();</script>

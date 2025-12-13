@@ -1,12 +1,57 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import SignIn from "@clerk/astro/components/interactive/SignIn.astro";
 ---
 
 <Layout>
   <div
     style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000;"
   >
-    <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+    <div id="clerk-sign-in"></div>
   </div>
 </Layout>
+
+<script>
+  async function initSignIn() {
+    try {
+      // Wait for Clerk to be available
+      let attempts = 0;
+      const maxAttempts = 50;
+
+      const checkClerk = () => {
+        if (
+          window.Clerk &&
+          window.Clerk.components &&
+          window.Clerk.components.signIn
+        ) {
+          window.Clerk.components.signIn.mount(
+            document.getElementById("clerk-sign-in"),
+            {
+              routing: "path",
+              path: "/sign-in",
+              signUpUrl: "/sign-up",
+            }
+          );
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(checkClerk, 100);
+        } else {
+          console.warn("Clerk sign-in component not available");
+        }
+      };
+
+      // Also listen for clerk-loaded event
+      window.addEventListener("clerk-loaded", checkClerk);
+
+      // Start checking
+      checkClerk();
+    } catch (error) {
+      console.error("Error initializing Clerk sign-in:", error);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSignIn);
+  } else {
+    initSignIn();
+  }
+</script>

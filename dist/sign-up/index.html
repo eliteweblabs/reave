@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"><meta name="generator" content="Astro v5.16.3"><title>/\V</title><meta name="description" content="/V"><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+</style><script type="module" src="/_astro/page.eZDl0gQ3.js"></script></head> <body>  <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000;"> <div id="clerk-sign-up"></div> </div>  <script>(function(){const publishableKey = "pk_test_ZW1pbmVudC10dXJ0bGUtMzAuY2xlcmsuYWNjb3VudHMuZGV2JA";
+
+  // Clerk is loaded by the Clerk integration in astro.config.mjs
+  // Just wait for it to be available
+  if (publishableKey) {
+    function checkClerk() {
+      if (window.Clerk) {
+        window.dispatchEvent(new Event('clerk-loaded'));
+      } else {
+        setTimeout(checkClerk, 100);
+      }
+    }
+    checkClerk();
+  }
+})();</script> </body></html> <script type="module">async function t(){try{let n=0;const o=50,e=()=>{window.Clerk&&window.Clerk.components&&window.Clerk.components.signUp?window.Clerk.components.signUp.mount(document.getElementById("clerk-sign-up"),{routing:"path",path:"/sign-up",signInUrl:"/sign-in"}):n<o?(n++,setTimeout(e,100)):console.warn("Clerk sign-up component not available")};window.addEventListener("clerk-loaded",e),e()}catch(n){console.error("Error initializing Clerk sign-up:",n)}}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",t):t();</script>

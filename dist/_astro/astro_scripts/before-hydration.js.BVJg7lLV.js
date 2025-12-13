@@ -1,0 +1,1 @@
+import{r as n}from"../index.vpWcobte.js";await n({afterSignInUrl:"/",afterSignUpUrl:"/",signInUrl:"/sign-in",signUpUrl:"/sign-up",sdkMetadata:{version:"2.16.7",name:"@clerk/astro",environment:"production"}});

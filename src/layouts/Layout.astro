@@ -1,6 +1,4 @@
 ---
-import { ClerkProvider } from '@clerk/astro/components/ClerkProvider.astro';
-
 const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
 ---
 
@@ -18,11 +16,24 @@ const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
 		<meta name="description" content="/\V" />
 	</head>
 	<body>
-		<ClerkProvider publishableKey={publishableKey}>
-			<slot />
-		</ClerkProvider>
+		<slot />
 	</body>
 </html>
+
+<script define:vars={{ publishableKey }}>
+  // Clerk is loaded by the Clerk integration in astro.config.mjs
+  // Just wait for it to be available
+  if (publishableKey) {
+    function checkClerk() {
+      if (window.Clerk) {
+        window.dispatchEvent(new Event('clerk-loaded'));
+      } else {
+        setTimeout(checkClerk, 100);
+      }
+    }
+    checkClerk();
+  }
+</script>
 
 <style is:global>
 	* {
