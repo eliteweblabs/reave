@@ -1,3 +1,9 @@
+---
+import { ClerkProvider } from '@clerk/astro/components/ClerkProvider.astro';
+
+const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
+---
+
 <!doctype html>
 <html lang="en">
 	<head>
@@ -12,7 +18,9 @@
 		<meta name="description" content="/\V" />
 	</head>
 	<body>
-		<slot />
+		<ClerkProvider publishableKey={publishableKey}>
+			<slot />
+		</ClerkProvider>
 	</body>
 </html>
 

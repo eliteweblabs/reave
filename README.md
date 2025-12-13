@@ -8,12 +8,19 @@ This website includes a voice chat button powered by [Vapi](https://vapi.ai) tha
 
 ### Setup Instructions
 
-1. **Create a Vapi Account**
+1. **Set Up Clerk Authentication**
+   - Sign up at [https://clerk.com](https://clerk.com)
+   - Create a new application in your Clerk dashboard
+   - Copy your **Publishable Key** and **Secret Key** from the API Keys section
+   - Add them to your `.env` file as `PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`
+   - Configure authentication methods (email, social providers, etc.) in the Clerk dashboard
+
+2. **Create a Vapi Account**
    - Sign up at [https://vapi.ai](https://vapi.ai)
    - Create a new assistant in your dashboard
    - Configure your assistant's voice, personality, and capabilities
 
-2. **Get Your API Credentials**
+3. **Get Your Vapi API Credentials**
    - Navigate to your profile in the Vapi dashboard
    - Copy your **Public Key** from the API keys section
    - Copy your **Assistant ID** from your assistant settings
@@ -22,14 +29,39 @@ This website includes a voice chat button powered by [Vapi](https://vapi.ai) tha
    - Create a `.env` file in the root directory
    - Add the following variables:
      ```
+     # Vapi Configuration
      PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key_here
      PUBLIC_VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
+     
+     # Clerk Authentication (Required for authenticated features)
+     PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+     CLERK_SECRET_KEY=your_clerk_secret_key
+     
+     # Voice Recognition (Optional)
+     # Enable voice recognition to allow the agent to recognize your voice
+     PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION=true
+     PUBLIC_VAPI_VOICE_PROFILE_ID=your_voice_profile_id_here
      
      # Twilio SMS Configuration
      TWILIO_ACCOUNT_SID=your_twilio_account_sid
      TWILIO_AUTH_TOKEN=your_twilio_auth_token
      ```
    - Replace the placeholder values with your actual credentials
+
+### Authentication & Personalized Agent Features
+
+When users are **not authenticated**, the agent provides basic functionality for all visitors.
+
+When users **are authenticated** (signed in via Clerk), the agent:
+- Recognizes the authenticated user
+- Can access personalized features (email, tools, etc.)
+- Receives user context that can be used for personalized responses
+
+**To test authentication:**
+1. Start your dev server
+2. Visit `/sign-up` to create an account
+3. Sign in at `/sign-in`
+4. Once authenticated, the agent will receive your user ID and can provide personalized features
 
 4. **Start the Development Server**
    ```sh
@@ -38,12 +70,42 @@ This website includes a voice chat button powered by [Vapi](https://vapi.ai) tha
    - The voice chat button will appear on your website
    - Click it to start a voice conversation with your AI assistant
 
+### Voice Recognition Configuration
+
+The voice chat component supports voice recognition to allow the agent to recognize your voice. This can be configured in two ways:
+
+**Option 1: Environment Variables (Recommended)**
+Add to your `.env` file:
+```
+PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION=true
+PUBLIC_VAPI_VOICE_PROFILE_ID=your_voice_profile_id
+```
+
+**Option 2: Component Props**
+Pass voice recognition settings directly to the component:
+```astro
+<VoiceChatButton 
+  position="center-bottom"
+  enableVoiceRecognition={true}
+  voiceProfileId="your_voice_profile_id"
+/>
+```
+
+**Getting Your Voice Profile ID:**
+1. In your Vapi dashboard, navigate to Voice Recognition settings
+2. Create or select a voice profile
+3. Copy the Voice Profile ID
+4. Add it to your environment variables or component props
+
+**Note:** Voice recognition features depend on your Vapi plan and assistant configuration. Check the [Vapi documentation](https://docs.vapi.ai) for available voice recognition options.
+
 ### Customization
 
 You can customize the voice chat button by modifying `src/components/VoiceChatButton.astro`:
 - Change the button position (bottom-right, bottom-left, top-right, top-left)
 - Adjust colors and styling
 - Modify the button size and animations
+- Configure voice recognition settings
 
 Example:
 ```astro

@@ -9,6 +9,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@clerk/astro": "^2.16.7",
     "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8",
     "lucide-astro": "^0.556.0",

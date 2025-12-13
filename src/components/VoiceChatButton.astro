@@ -13,12 +13,25 @@ interface Props {
     | "top-right"
     | "top-left"
     | "center-bottom";
+  // Voice recognition configuration
+  enableVoiceRecognition?: boolean;
+  voiceProfileId?: string;
+  assistantOverrides?: Record<string, any>;
+  // Authentication
+  userId?: string;
+  isAuthenticated?: boolean;
 }
 
 const {
   publicKey = import.meta.env.PUBLIC_VAPI_PUBLIC_KEY || "",
   assistantId = import.meta.env.PUBLIC_VAPI_ASSISTANT_ID || "",
   position = "center-bottom",
+  enableVoiceRecognition = import.meta.env
+    .PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION === "true",
+  voiceProfileId = import.meta.env.PUBLIC_VAPI_VOICE_PROFILE_ID || "",
+  assistantOverrides = {},
+  userId,
+  isAuthenticated = false,
 } = Astro.props;
 
 const positionClasses = {
@@ -73,7 +86,63 @@ const positionClasses = {
   </div>
 </div>
 
-<script define:vars={{ publicKey, assistantId }}>
+<script
+  define:vars={{
+    publicKey,
+    assistantId,
+    enableVoiceRecognition,
+    voiceProfileId,
+    assistantOverrides,
+  }}
+>
+  // Get auth state from Clerk client-side
+  let userId = null;
+  let isAuthenticated = false;
+
+  // Initialize Clerk client and get user
+  async function initAuth() {
+    try {
+      // Wait for Clerk to be available
+      if (typeof window !== "undefined" && window.Clerk) {
+        const clerk = window.Clerk;
+        if (clerk.user) {
+          userId = clerk.user.id;
+          isAuthenticated = true;
+          console.log("Clerk user authenticated:", userId);
+        } else {
+          // Wait for user to load
+          clerk.load().then(() => {
+            if (clerk.user) {
+              userId = clerk.user.id;
+              isAuthenticated = true;
+              console.log("Clerk user loaded:", userId);
+            }
+          });
+        }
+      } else {
+        // Clerk not loaded yet, wait for it
+        window.addEventListener("clerk-loaded", () => {
+          if (window.Clerk && window.Clerk.user) {
+            userId = window.Clerk.user.id;
+            isAuthenticated = true;
+            console.log("Clerk user loaded via event:", userId);
+          }
+        });
+      }
+    } catch (error) {
+      console.warn("Clerk auth initialization error:", error);
+    }
+  }
+
+  // Initialize auth when script loads
+  if (typeof window !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initAuth);
+    } else {
+      initAuth();
+    }
+  }
+
   // Vapi SDK will be attached to window.Vapi
   console.log("Vapi credentials check:", {
     publicKey: publicKey ? "***" + publicKey.slice(-4) : "MISSING",
@@ -81,6 +150,76 @@ const positionClasses = {
     publicKeyLength: publicKey?.length || 0,
     assistantIdLength: assistantId?.length || 0,
   });
+
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:100",
+      message: "Voice recognition config loaded",
+      data: {
+        enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
+  // #endregion
+
+  console.log("=== Voice Recognition Configuration Debug ===");
+  console.log(
+    "enableVoiceRecognition:",
+    enableVoiceRecognition,
+    "(type:",
+    typeof enableVoiceRecognition,
+    ")"
+  );
+  console.log(
+    "voiceProfileId:",
+    voiceProfileId || "not set",
+    "(type:",
+    typeof voiceProfileId,
+    ")"
+  );
+  console.log("assistantOverrides:", assistantOverrides);
+  console.log("=== Authentication Debug ===");
+  console.log(
+    "isAuthenticated:",
+    isAuthenticated,
+    "(type:",
+    typeof isAuthenticated,
+    ")"
+  );
+  console.log("userId:", userId || "not set", "(type:", typeof userId, ")");
+
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:125",
+      message: "Detailed voice recognition config check",
+      data: {
+        enableVoiceRecognition,
+        enableVoiceRecognitionType: typeof enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        voiceProfileIdType: typeof voiceProfileId,
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+        assistantOverridesEmpty:
+          Object.keys(assistantOverrides || {}).length === 0,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "E",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   if (!publicKey || !assistantId) {
     console.warn(
@@ -134,9 +273,8 @@ const positionClasses = {
         console.log(
           "Importing from CDN: https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
         );
-        VapiModule = await import(
-          "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
-        );
+        VapiModule =
+          await import("https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm");
         console.log("CDN import successful");
       }
 
@@ -1015,9 +1153,185 @@ const positionClasses = {
 
                 // Pass assistantId as the first parameter to start()
                 try {
-                  // Vapi start() method signature: start(assistantId)
-                  // The assistant will start speaking automatically based on its configuration
-                  const startResult = vapiInstance.start(validAssistantId);
+                  // Check current auth state before starting call
+                  let currentUserId = userId;
+                  let currentIsAuthenticated = isAuthenticated;
+
+                  // Try to get fresh auth state from Clerk
+                  if (typeof window !== "undefined" && window.Clerk) {
+                    try {
+                      const clerk = window.Clerk;
+                      if (clerk.user) {
+                        currentUserId = clerk.user.id;
+                        currentIsAuthenticated = true;
+                      }
+                    } catch (e) {
+                      console.warn("Error getting Clerk user:", e);
+                    }
+                  }
+
+                  // Vapi start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
+                  // Build assistantOverrides with voice recognition settings if enabled
+                  // According to Vapi docs, voice recognition should be nested under voiceRecognition object
+                  // Add user context when authenticated
+                  const finalAssistantOverrides = {
+                    ...assistantOverrides,
+                    ...(enableVoiceRecognition
+                      ? {
+                          voiceRecognition: {
+                            enable: true,
+                            speakerIdentification: true,
+                            ...(voiceProfileId
+                              ? { voiceProfileId: voiceProfileId }
+                              : {}),
+                            // Additional voice recognition settings can be added here
+                          },
+                        }
+                      : {}),
+                    // Add user context for authenticated users
+                    ...(currentIsAuthenticated && currentUserId
+                      ? {
+                          // User context that can be accessed by the assistant
+                          // This allows the assistant to know who is calling and provide personalized responses
+                          user: {
+                            id: currentUserId,
+                            authenticated: true,
+                          },
+                          // You can add custom data here that the assistant can use
+                          // For example, email access, tools, etc.
+                        }
+                      : {}),
+                  };
+
+                  console.log("Auth state at call start:", {
+                    isAuthenticated: currentIsAuthenticated,
+                    userId: currentUserId || "not set",
+                    hasUserContext: currentIsAuthenticated && currentUserId,
+                  });
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1200",
+                        message: "Auth state at call start",
+                        data: {
+                          isAuthenticated: currentIsAuthenticated,
+                          userId: currentUserId || "not set",
+                          hasUserContext:
+                            currentIsAuthenticated && currentUserId,
+                          finalOverridesHasUser:
+                            currentIsAuthenticated &&
+                            currentUserId &&
+                            finalAssistantOverrides.user,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "F",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  console.log("Voice recognition config:", {
+                    enabled: enableVoiceRecognition,
+                    voiceProfileId: voiceProfileId || "not set",
+                    assistantOverrides:
+                      Object.keys(finalAssistantOverrides).length > 0
+                        ? finalAssistantOverrides
+                        : "none",
+                  });
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1055",
+                        message: "Voice recognition config before start()",
+                        data: {
+                          enableVoiceRecognition,
+                          voiceProfileId: voiceProfileId || "not set",
+                          hasOverrides:
+                            Object.keys(finalAssistantOverrides).length > 0,
+                          overridesKeys: Object.keys(finalAssistantOverrides),
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "B",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  // Pass assistantId and overrides to start()
+                  // If no overrides, just pass assistantId (backward compatible)
+                  const hasOverrides =
+                    Object.keys(finalAssistantOverrides).length > 0;
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1065",
+                        message: "Calling vapiInstance.start()",
+                        data: {
+                          hasOverrides,
+                          overrides: hasOverrides
+                            ? finalAssistantOverrides
+                            : null,
+                          assistantId: validAssistantId,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "C",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
+
+                  const startResult = hasOverrides
+                    ? vapiInstance.start(
+                        validAssistantId,
+                        finalAssistantOverrides
+                      )
+                    : vapiInstance.start(validAssistantId);
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1075",
+                        message: "vapiInstance.start() called",
+                        data: {
+                          hasOverrides,
+                          resultType: typeof startResult,
+                          isPromise:
+                            startResult &&
+                            typeof startResult.then === "function",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "D",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   console.log(
                     "Step 7: vapiInstance.start() called successfully"
@@ -1283,7 +1597,8 @@ const positionClasses = {
   }
 
   .vapi-voice-button.active .toggle-track {
-    background: radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
+    background:
+      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
       radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
       radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
       radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
