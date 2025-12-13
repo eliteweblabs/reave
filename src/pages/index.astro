@@ -246,82 +246,84 @@ import Transcript from "../components/Transcript.astro";
     return { x: wrappedX, y: wrappedY };
   }
 
-  // DRIFT ANIMATION DISABLED FOR PERFORMANCE
-  // let lastFrameTime = 0;
-  // let lastX = 0;
-  // let lastY = 0;
-  // const targetFPS = 15; // Reduced to 15fps for much better performance
-  // const frameInterval = 1000 / targetFPS;
-  // let isPageVisible = true;
+  // Drift animation for automatic movement
+  let lastFrameTime = 0;
+  let lastX = 0;
+  let lastY = 0;
+  const targetFPS = 15; // Reduced to 15fps for better performance
+  const frameInterval = 1000 / targetFPS;
+  let isPageVisible = true;
 
-  // // Pause animation when tab is hidden
-  // document.addEventListener("visibilitychange", () => {
-  //   isPageVisible = !document.hidden;
-  // });
+  // Pause animation when tab is hidden
+  document.addEventListener("visibilitychange", () => {
+    isPageVisible = !document.hidden;
+  });
 
-  // function animateDrift(timestamp: number) {
-  //   if (!gradientLayer || !isPageVisible) {
-  //     animationId = requestAnimationFrame(animateDrift);
-  //     return;
-  //   }
+  function animateDrift(timestamp: number) {
+    if (!gradientLayer || !isPageVisible) {
+      animationId = requestAnimationFrame(animateDrift);
+      return;
+    }
 
-  //   // Throttle to target FPS
-  //   const elapsed = timestamp - lastFrameTime;
-  //   if (elapsed < frameInterval) {
-  //     animationId = requestAnimationFrame(animateDrift);
-  //     return;
-  //   }
-  //   lastFrameTime = timestamp - (elapsed % frameInterval);
+    // Throttle to target FPS
+    const elapsed = timestamp - lastFrameTime;
+    if (elapsed < frameInterval) {
+      animationId = requestAnimationFrame(animateDrift);
+      return;
+    }
+    lastFrameTime = timestamp - (elapsed % frameInterval);
 
-  //   // Record first timestamp as init time if not set
-  //   if (initTimestamp === undefined) {
-  //     initTimestamp = timestamp;
-  //   }
+    // Record first timestamp as init time if not set
+    if (initTimestamp === undefined) {
+      initTimestamp = timestamp;
+    }
 
-  //   // Wait for intro animation to complete (1 second) before starting drift
-  //   const introDuration = 1000;
-  //   const timeSinceInit = timestamp - initTimestamp;
-  //   const introComplete = timeSinceInit >= introDuration;
+    // Wait for intro animation to complete (1 second) before starting drift
+    const introDuration = 1000;
+    const timeSinceInit = timestamp - initTimestamp;
+    const introComplete = timeSinceInit >= introDuration;
 
-  //   // Initialize startTime when intro completes
-  //   if (introComplete && !startTime) {
-  //     startTime = timestamp;
-  //     driftX = 0;
-  //     driftY = 0;
-  //   }
+    // Initialize startTime when intro completes
+    if (introComplete && !startTime) {
+      startTime = timestamp;
+      driftX = 0;
+      driftY = 0;
+    }
 
-  //   // Simplified calculations - only update if needed
-  //   if (introComplete && startTime && !isDragging) {
-  //     const elapsed = (timestamp - startTime) / 1000;
-  //     const duration = 40; // Slower movement
-  //     const progress = (elapsed % duration) / duration;
+    // Simplified calculations - only update if needed
+    if (introComplete && startTime && !isDragging) {
+      const elapsed = (timestamp - startTime) / 1000;
+      const duration = 40; // Slower movement
+      const progress = (elapsed % duration) / duration;
 
-  //     // Simplified single-frequency movement (much faster calculation)
-  //     const { width, height } = getPatternSize();
-  //     const angle = progress * Math.PI * 2;
-  //     driftX = Math.sin(angle) * width * 0.4;
-  //     driftY = Math.cos(angle) * height * 0.4;
-  //   }
+      // Simplified single-frequency movement (much faster calculation)
+      const { width, height } = getPatternSize();
+      const angle = progress * Math.PI * 2;
+      driftX = Math.sin(angle) * width * 0.4;
+      driftY = Math.cos(angle) * height * 0.4;
+    }
 
-  //   // Only apply transform after intro completes and only if changed
-  //   if (introComplete) {
-  //     const totalX = baseX + (isDragging ? 0 : driftX);
-  //     const totalY = baseY + (isDragging ? 0 : driftY);
-  //     const wrapped = wrapPosition(totalX, totalY);
+    // Only apply transform after intro completes and only if changed
+    if (introComplete) {
+      const totalX = baseX + (isDragging ? 0 : driftX);
+      const totalY = baseY + (isDragging ? 0 : driftY);
+      const wrapped = wrapPosition(totalX, totalY);
 
-  //     // Only update DOM if position actually changed (performance optimization)
-  //     if (
-  //       Math.abs(wrapped.x - lastX) > 0.5 ||
-  //       Math.abs(wrapped.y - lastY) > 0.5
-  //     ) {
-  //       gradientLayer.style.transform = `translate3d(${Math.round(wrapped.x)}px, ${Math.round(wrapped.y)}px, 0)`;
-  //       lastX = wrapped.x;
-  //       lastY = wrapped.y;
-  //     }
-  //   }
+      // Only update DOM if position actually changed (performance optimization)
+      if (
+        Math.abs(wrapped.x - lastX) > 0.5 ||
+        Math.abs(wrapped.y - lastY) > 0.5
+      ) {
+        // Combine with scale if audio level is being tracked
+        const transform = `translate3d(${Math.round(wrapped.x)}px, ${Math.round(wrapped.y)}px, 0) scale(${currentScale})`;
+        gradientLayer.style.transform = transform;
+        lastX = wrapped.x;
+        lastY = wrapped.y;
+      }
+    }
 
-  //   animationId = requestAnimationFrame(animateDrift);
-  // }
+    animationId = requestAnimationFrame(animateDrift);
+  }
 
   function handleStart(e: MouseEvent | TouchEvent) {
     isDragging = true;
@@ -411,16 +413,8 @@ import Transcript from "../components/Transcript.astro";
     const smoothing = 0.1;
     currentScale += (targetScale - currentScale) * smoothing;
 
-    // Apply scale to gradient layer (combine with existing transform if dragging)
-    if (isDragging) {
-      // During drag, preserve position but add scale
-      const wrapped = wrapPosition(baseX, baseY);
-      gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0) scale(${currentScale})`;
-    } else {
-      // When not dragging, just apply scale
-      gradientLayer.style.transform = `translate3d(0, 0, 0) scale(${currentScale})`;
-    }
-
+    // Note: Position transform is handled by animateDrift, we just update the scale
+    // The drift animation will combine scale with position
     scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
   }
 
@@ -490,9 +484,8 @@ import Transcript from "../components/Transcript.astro";
     document.addEventListener("touchmove", handleMove, { passive: false });
     document.addEventListener("touchend", handleEnd);
 
-    // DRIFT ANIMATION DISABLED
     // Start the drift animation (will wait for intro to complete)
-    // animationId = requestAnimationFrame(animateDrift);
+    animationId = requestAnimationFrame(animateDrift);
   }
 
   // Run when DOM is ready

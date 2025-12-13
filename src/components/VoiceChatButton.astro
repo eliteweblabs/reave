@@ -73,18 +73,10 @@ const positionClasses = {
       </div>
     </span>
   </button>
-
-  <!-- Audio level meter -->
-  <div id="audio-level-meter" class="audio-level-meter" style="display: none;">
-    <div class="level-bars">
-      <div class="level-bar" style="--delay: 0ms"></div>
-      <div class="level-bar" style="--delay: 50ms"></div>
-      <div class="level-bar" style="--delay: 100ms"></div>
-      <div class="level-bar" style="--delay: 150ms"></div>
-      <div class="level-bar" style="--delay: 200ms"></div>
-    </div>
-  </div>
 </div>
+
+<!-- Audio level meter - full page grayscale effect (outside container for proper fixed positioning) -->
+<div id="audio-level-meter" class="audio-level-meter"></div>
 
 <script
   define:vars={{
@@ -525,15 +517,11 @@ const positionClasses = {
       dataArray = new Uint8Array(bufferLength);
 
       const levelMeter = document.getElementById("audio-level-meter");
-      if (levelMeter) {
-        levelMeter.style.display = "block";
-      }
 
       function updateLevelMeter() {
         if (!analyser || !analyzerActive) {
-          const levelMeter = document.getElementById("audio-level-meter");
           if (levelMeter) {
-            levelMeter.style.display = "none";
+            levelMeter.style.opacity = "0";
           }
           return;
         }
@@ -556,16 +544,12 @@ const positionClasses = {
         });
         window.dispatchEvent(audioLevelEvent);
 
-        // Update level bars
-        const bars = document.querySelectorAll(".level-bar");
-        bars.forEach((bar, index) => {
-          // Create a wave effect with different thresholds for each bar
-          const threshold = (index + 1) / bars.length;
-          const barLevel = Math.max(0, sensitiveLevel - (1 - threshold));
-          const height = Math.min(barLevel * 100, 100);
-          bar.style.height = height + "%";
-          bar.style.opacity = height > 5 ? 1 : 0.3;
-        });
+        // Update full-page grayscale overlay opacity
+        if (levelMeter) {
+          // Map audio level (0-1) to opacity (0 - 0.8)
+          const opacity = sensitiveLevel * 0.8;
+          levelMeter.style.opacity = opacity.toString();
+        }
 
         animationFrameId = requestAnimationFrame(updateLevelMeter);
       }
@@ -1994,51 +1978,22 @@ const positionClasses = {
 
   /* Audio level meter */
   .audio-level-meter {
-    position: absolute;
-    bottom: -40px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 3px;
-    height: 30px;
-    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.15) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    opacity: 0;
     pointer-events: none;
-  }
-
-  .level-bars {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 3px;
-    height: 100%;
-  }
-
-  .level-bar {
-    width: 4px;
-    min-height: 4px;
-    background: linear-gradient(
-      to top,
-      rgba(102, 126, 234, 1) 0%,
-      rgba(102, 126, 234, 0.8) 50%,
-      rgba(255, 255, 255, 0.6) 100%
-    );
-    border-radius: 2px;
-    transition:
-      height 0.1s ease,
-      opacity 0.2s ease;
-    opacity: 0.3;
-    height: 4px;
-  }
-
-  .vapi-voice-button.active ~ .audio-level-meter .level-bar {
-    background: linear-gradient(
-      to top,
-      #00ffff 0%,
-      #ff00ff 50%,
-      rgba(255, 255, 255, 0.8) 100%
-    );
+    z-index: 5;
+    transition: opacity 0.1s ease-out;
+    filter: grayscale(100%);
   }
 
   /* Responsive adjustments */
@@ -2066,13 +2021,7 @@ const positionClasses = {
       height: 18px;
     }
 
-    .audio-level-meter {
-      bottom: -35px;
-    }
 
-    .level-bar {
-      width: 3px;
-      gap: 2px;
     }
   }
 </style>

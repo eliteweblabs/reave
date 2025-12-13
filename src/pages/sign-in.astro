@@ -90,6 +90,12 @@ import Layout from "../layouts/Layout.astro";
             routing: "path",
             path: "/sign-in",
             signUpUrl: "/sign-up",
+            // Prioritize passkeys/biometric login
+            appearance: {
+              elements: {
+                rootBox: "clerk-sign-in",
+              },
+            },
           });
           console.log("Clerk sign-in mounted successfully");
           hideLoading();
@@ -106,6 +112,12 @@ import Layout from "../layouts/Layout.astro";
             routing: "path",
             path: "/sign-in",
             signUpUrl: "/sign-up",
+            // Prioritize passkeys/biometric login
+            appearance: {
+              elements: {
+                rootBox: "clerk-sign-in",
+              },
+            },
           });
           console.log(
             "Clerk sign-in mounted successfully (via components API)"
