@@ -13,34 +13,84 @@ import Layout from "../layouts/Layout.astro";
 <script>
   async function initSignIn() {
     try {
+      const container = document.getElementById("clerk-sign-in");
+      if (!container) {
+        console.error("Sign-in container not found");
+        return;
+      }
+
       // Wait for Clerk to be available
       let attempts = 0;
-      const maxAttempts = 50;
+      const maxAttempts = 100; // Increased attempts
 
       const checkClerk = () => {
-        if (
-          window.Clerk &&
-          window.Clerk.components &&
-          window.Clerk.components.signIn
-        ) {
-          window.Clerk.components.signIn.mount(
-            document.getElementById("clerk-sign-in"),
-            {
+        // Try different Clerk API patterns
+        if (window.Clerk) {
+          // Method 1: Try mountSignIn directly
+          if (typeof window.Clerk.mountSignIn === "function") {
+            console.log("Using Clerk.mountSignIn()");
+            window.Clerk.mountSignIn(container, {
               routing: "path",
               path: "/sign-in",
               signUpUrl: "/sign-up",
-            }
-          );
-        } else if (attempts < maxAttempts) {
+            });
+            return;
+          }
+
+          // Method 2: Try components API
+          if (
+            window.Clerk.components &&
+            window.Clerk.components.signIn &&
+            typeof window.Clerk.components.signIn.mount === "function"
+          ) {
+            console.log("Using Clerk.components.signIn.mount()");
+            window.Clerk.components.signIn.mount(container, {
+              routing: "path",
+              path: "/sign-in",
+              signUpUrl: "/sign-up",
+            });
+            return;
+          }
+
+          // Method 3: Try load() then mount
+          if (typeof window.Clerk.load === "function") {
+            console.log("Clerk.load() available, loading...");
+            window.Clerk.load().then(() => {
+              if (window.Clerk.mountSignIn) {
+                window.Clerk.mountSignIn(container, {
+                  routing: "path",
+                  path: "/sign-in",
+                  signUpUrl: "/sign-up",
+                });
+              }
+            });
+            return;
+          }
+
+          // Log what's available for debugging
+          console.log("Clerk available but components not ready:", {
+            hasClerk: !!window.Clerk,
+            hasComponents: !!window.Clerk.components,
+            hasMountSignIn: typeof window.Clerk.mountSignIn === "function",
+            clerkKeys: Object.keys(window.Clerk || {}),
+          });
+        }
+
+        // Retry if not ready
+        if (attempts < maxAttempts) {
           attempts++;
           setTimeout(checkClerk, 100);
         } else {
-          console.warn("Clerk sign-in component not available");
+          console.warn("Clerk sign-in component not available after", maxAttempts, "attempts");
+          console.log("Available Clerk properties:", Object.keys(window.Clerk || {}));
         }
       };
 
-      // Also listen for clerk-loaded event
-      window.addEventListener("clerk-loaded", checkClerk);
+      // Listen for clerk-loaded event
+      window.addEventListener("clerk-loaded", () => {
+        console.log("Clerk loaded event received");
+        checkClerk();
+      });
 
       // Start checking
       checkClerk();
