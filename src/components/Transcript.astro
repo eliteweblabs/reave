@@ -139,6 +139,36 @@
       return;
     }
 
+    // Only show transcripts when voice chat is active
+    if (!isVoiceChatActive) {
+      console.log("Transcript ignored - voice chat not active", { text: cleanText, type, isPartial });
+      
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "Transcript.astro:addTranscriptLine",
+            message: "Transcript ignored - voice chat not active",
+            data: {
+              text: cleanText,
+              type,
+              isPartial,
+              isVoiceChatActive: false,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "C",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+      return;
+    }
+
     // Clean and truncate text
     const cleanText = text.trim().slice(0, 100); // Max 100 chars per line
     if (!cleanText) return;
@@ -268,31 +298,60 @@
     // We'll dispatch custom events from VoiceChatButton
   }
 
-  // DUMMY TEXT FOR TESTING - Remove this when done testing
-  function initDummyText() {
-    if (!transcriptContent) {
-      console.warn("transcriptContent not ready, retrying...");
-      setTimeout(initDummyText, 100);
-      return;
-    }
-    
-    console.log("Initializing dummy transcript text");
-    setTimeout(() => {
-      addTranscriptLine("Hello, how can I help you today?", "assistant");
-      setTimeout(() => {
-        addTranscriptLine("I'd like to know more about your services", "user");
-        setTimeout(() => {
-          addTranscriptLine("I'd be happy to tell you about our services. We offer a wide range of solutions.", "assistant");
-        }, 2000);
-      }, 2000);
-    }, 500);
-  }
+  // Track if voice chat is active - only show transcripts when active
+  let isVoiceChatActive = false;
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initDummyText);
-  } else {
-    // Wait a bit to ensure DOM is fully ready
-    setTimeout(initDummyText, 100);
-  }
+  // Listen for voice chat activation events
+  window.addEventListener("vapi-call-start", () => {
+    isVoiceChatActive = true;
+    console.log("Voice chat activated - transcripts enabled");
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:callStart",
+          message: "Voice chat activated",
+          data: { isVoiceChatActive: true },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "A",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+  });
+
+  window.addEventListener("vapi-call-end", () => {
+    isVoiceChatActive = false;
+    console.log("Voice chat ended - transcripts disabled");
+    
+    // Clear active lines when call ends
+    activeLines.assistant = null;
+    activeLines.user = null;
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:callEnd",
+          message: "Voice chat ended",
+          data: { isVoiceChatActive: false },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "B",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+  });
 </script>
 

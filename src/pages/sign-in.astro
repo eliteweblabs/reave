@@ -11,172 +11,53 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  async function initSignIn() {
-    try {
-      const container = document.getElementById(
-        "clerk-sign-in"
-      ) as HTMLDivElement;
-      if (!container) {
-        console.error("Sign-in container not found");
-        return;
-      }
-
-      // Wait for Clerk to be available
-      let attempts = 0;
-      const maxAttempts = 100; // Increased attempts
-
-      const checkClerk = () => {
-        // Try different Clerk API patterns
-        if (window.Clerk) {
-          // Method 1: Try mountSignIn directly
-          if (typeof window.Clerk.mountSignIn === "function") {
-            console.log("Using Clerk.mountSignIn()");
-            try {
-              window.Clerk.mountSignIn(container, {
-                routing: "path",
-                path: "/sign-in",
-                signUpUrl: "/sign-up",
-              });
-              // #region agent log
-              fetch(
-                "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    location: "sign-in.astro:mountSignIn",
-                    message: "Clerk.mountSignIn() called",
-                    data: { success: true },
-                    timestamp: Date.now(),
-                    sessionId: "debug-session",
-                    runId: "init",
-                    hypothesisId: "C",
-                  }),
-                }
-              ).catch(() => {});
-              // #endregion
-            } catch (mountError) {
-              console.error("Error mounting sign-in:", mountError);
-            }
-            return;
-          }
-
-          // Method 2: Try components API
-          if (
-            window.Clerk.components &&
-            window.Clerk.components.signIn &&
-            typeof window.Clerk.components.signIn.mount === "function"
-          ) {
-            console.log("Using Clerk.components.signIn.mount()");
-            window.Clerk.components.signIn.mount(container, {
-              routing: "path",
-              path: "/sign-in",
-              signUpUrl: "/sign-up",
-            });
-            return;
-          }
-
-          // Method 3: Try load() then mount
-          if (typeof window.Clerk.load === "function") {
-            console.log("Clerk.load() available, loading...");
-            window.Clerk.load().then(() => {
-              if (window.Clerk.mountSignIn) {
-                window.Clerk.mountSignIn(container, {
-                  routing: "path",
-                  path: "/sign-in",
-                  signUpUrl: "/sign-up",
-                });
-              }
-            });
-            return;
-          }
-
-          // Log what's available for debugging
-          console.log("Clerk available but components not ready:", {
-            hasClerk: !!window.Clerk,
-            hasComponents: !!window.Clerk.components,
-            hasMountSignIn: typeof window.Clerk.mountSignIn === "function",
-            clerkKeys: Object.keys(window.Clerk || {}),
-          });
-
-          // #region agent log
-          fetch(
-            "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                location: "sign-in.astro:checkClerk",
-                message: "Clerk API check",
-                data: {
-                  hasClerk: !!window.Clerk,
-                  hasComponents: !!window.Clerk?.components,
-                  hasMountSignIn:
-                    typeof window.Clerk?.mountSignIn === "function",
-                  clerkKeys: Object.keys(window.Clerk || {}),
-                  attempts,
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "init",
-                hypothesisId: "A",
-              }),
-            }
-          ).catch(() => {});
-          // #endregion
-        }
-
-        // Retry if not ready
-        if (attempts < maxAttempts) {
-          attempts++;
-          setTimeout(checkClerk, 100);
-        } else {
-          console.warn(
-            "Clerk sign-in component not available after",
-            maxAttempts,
-            "attempts"
-          );
-          console.log(
-            "Available Clerk properties:",
-            Object.keys(window.Clerk || {})
-          );
-
-          // #region agent log
-          fetch(
-            "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                location: "sign-in.astro:timeout",
-                message: "Clerk sign-in mount failed",
-                data: {
-                  attempts: maxAttempts,
-                  hasClerk: !!window.Clerk,
-                  clerkKeys: Object.keys(window.Clerk || {}),
-                },
-                timestamp: Date.now(),
-                sessionId: "debug-session",
-                runId: "init",
-                hypothesisId: "B",
-              }),
-            }
-          ).catch(() => {});
-          // #endregion
-        }
-      };
-
-      // Listen for clerk-loaded event
-      window.addEventListener("clerk-loaded", () => {
-        console.log("Clerk loaded event received");
-        checkClerk();
-      });
-
-      // Start checking
-      checkClerk();
-    } catch (error) {
-      console.error("Error initializing Clerk sign-in:", error);
+  function initSignIn() {
+    const container = document.getElementById("clerk-sign-in");
+    if (!container) {
+      console.error("Sign-in container not found");
+      return;
     }
+
+    function mountClerk() {
+      if (window.Clerk && window.Clerk.mountSignIn) {
+        try {
+          window.Clerk.mountSignIn(container, {
+            routing: "path",
+            path: "/sign-in",
+            signUpUrl: "/sign-up",
+          });
+          console.log("Clerk sign-in mounted successfully");
+        } catch (error) {
+          console.error("Error mounting Clerk sign-in:", error);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    // Try to mount immediately if Clerk is already available
+    if (mountClerk()) {
+      return;
+    }
+
+    // Listen for clerk-loaded event from Layout
+    window.addEventListener("clerk-loaded", () => {
+      console.log("Clerk loaded event received");
+      mountClerk();
+    });
+
+    // Fallback: poll for Clerk availability
+    let attempts = 0;
+    const maxAttempts = 50;
+    const checkInterval = setInterval(() => {
+      attempts++;
+      if (mountClerk() || attempts >= maxAttempts) {
+        clearInterval(checkInterval);
+        if (attempts >= maxAttempts) {
+          console.warn("Clerk sign-in component not available after", maxAttempts, "attempts");
+        }
+      }
+    }, 100);
   }
 
   if (document.readyState === "loading") {
