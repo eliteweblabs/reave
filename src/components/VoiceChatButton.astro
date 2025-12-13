@@ -95,40 +95,82 @@ const positionClasses = {
     assistantOverrides,
   }}
 >
-  // Get auth state from Clerk client-side
+  // Import Clerk client stores
+  import { $authStore, $userStore, $isLoadedStore } from "@clerk/astro/client";
+
+  // Get auth state from Clerk client-side using nanostores
   let userId = null;
   let isAuthenticated = false;
+  let unsubscribeAuth = null;
+  let unsubscribeUser = null;
 
-  // Initialize Clerk client and get user
-  async function initAuth() {
+  // Initialize Clerk auth state by subscribing to stores
+  function initAuth() {
     try {
-      // Wait for Clerk to be available
-      if (typeof window !== "undefined" && window.Clerk) {
-        const clerk = window.Clerk;
-        if (clerk.user) {
-          userId = clerk.user.id;
+      // Subscribe to auth store for userId and session info
+      unsubscribeAuth = $authStore.subscribe((auth) => {
+        if (auth && auth.userId) {
+          userId = auth.userId;
           isAuthenticated = true;
-          console.log("Clerk user authenticated:", userId);
+          console.log("Clerk auth store updated - user authenticated:", userId);
         } else {
-          // Wait for user to load
-          clerk.load().then(() => {
-            if (clerk.user) {
-              userId = clerk.user.id;
-              isAuthenticated = true;
-              console.log("Clerk user loaded:", userId);
-            }
-          });
+          userId = null;
+          isAuthenticated = false;
+          console.log("Clerk auth store updated - user not authenticated");
         }
-      } else {
-        // Clerk not loaded yet, wait for it
-        window.addEventListener("clerk-loaded", () => {
-          if (window.Clerk && window.Clerk.user) {
-            userId = window.Clerk.user.id;
-            isAuthenticated = true;
-            console.log("Clerk user loaded via event:", userId);
-          }
-        });
+      });
+
+      // Also subscribe to user store for additional user data
+      unsubscribeUser = $userStore.subscribe((user) => {
+        if (user && user.id) {
+          userId = user.id;
+          isAuthenticated = true;
+          console.log("Clerk user store updated - user:", user.id);
+        }
+      });
+
+      // Check initial state
+      const initialAuth = $authStore.get();
+      console.log("Initial Clerk auth store:", initialAuth);
+      if (initialAuth && initialAuth.userId) {
+        userId = initialAuth.userId;
+        isAuthenticated = true;
+        console.log("Initial Clerk auth state - user authenticated:", userId);
       }
+
+      const initialUser = $userStore.get();
+      console.log("Initial Clerk user store:", initialUser);
+      if (initialUser && initialUser.id) {
+        userId = initialUser.id;
+        isAuthenticated = true;
+        console.log("Initial Clerk user state - user:", userId);
+      }
+
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:180",
+            message: "Clerk auth initialization",
+            data: {
+              initialAuth: initialAuth
+                ? { userId: initialAuth.userId, hasUser: !!initialAuth.user }
+                : null,
+              initialUser: initialUser ? { id: initialUser.id } : null,
+              isAuthenticated,
+              userId: userId || "not set",
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "A",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
     } catch (error) {
       console.warn("Clerk auth initialization error:", error);
     }
@@ -1154,21 +1196,59 @@ const positionClasses = {
                 // Pass assistantId as the first parameter to start()
                 try {
                   // Check current auth state before starting call
+                  // Get fresh state from Clerk stores
                   let currentUserId = userId;
                   let currentIsAuthenticated = isAuthenticated;
 
-                  // Try to get fresh auth state from Clerk
-                  if (typeof window !== "undefined" && window.Clerk) {
-                    try {
-                      const clerk = window.Clerk;
-                      if (clerk.user) {
-                        currentUserId = clerk.user.id;
-                        currentIsAuthenticated = true;
-                      }
-                    } catch (e) {
-                      console.warn("Error getting Clerk user:", e);
+                  // Get fresh auth state from Clerk stores
+                  try {
+                    const currentAuth = $authStore.get();
+                    console.log(
+                      "Current Clerk auth store at call start:",
+                      currentAuth
+                    );
+                    if (currentAuth && currentAuth.userId) {
+                      currentUserId = currentAuth.userId;
+                      currentIsAuthenticated = true;
                     }
+
+                    const currentUser = $userStore.get();
+                    console.log(
+                      "Current Clerk user store at call start:",
+                      currentUser
+                    );
+                    if (currentUser && currentUser.id) {
+                      currentUserId = currentUser.id;
+                      currentIsAuthenticated = true;
+                    }
+                  } catch (e) {
+                    console.warn("Error getting Clerk auth state:", e);
                   }
+
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1165",
+                        message: "Auth state check before Vapi start",
+                        data: {
+                          currentUserId: currentUserId || "not set",
+                          currentIsAuthenticated,
+                          authStoreHasUser:
+                            $authStore.get()?.userId || "not set",
+                          userStoreHasUser: $userStore.get()?.id || "not set",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "B",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   // Vapi start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
                   // Build assistantOverrides with voice recognition settings if enabled
