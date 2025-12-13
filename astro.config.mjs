@@ -6,8 +6,8 @@ import clerk from '@clerk/astro';
 export default defineConfig({
   integrations: [
     clerk({
-      afterSignInUrl: '/',
-      afterSignUpUrl: '/',
+      // Use new prop names to avoid deprecation warnings
+      fallbackRedirectUrl: '/',
       signInUrl: '/sign-in',
       signUpUrl: '/sign-up',
     }),
