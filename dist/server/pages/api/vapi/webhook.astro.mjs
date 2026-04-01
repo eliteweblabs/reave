@@ -1,33 +1,6 @@
-import pg from 'pg';
+import { p as pool, C as CALCOM_USERNAME, a as CALCOM_BASE_URL, T as TIMEZONE, f as fmtDate, b as fmtTime } from '../../../chunks/calcom-db_C1CrVkPZ.mjs';
 export { renderers } from '../../../renderers.mjs';
 
-const { Pool } = pg;
-const CALCOM_DB_URL = "";
-const CALCOM_USERNAME = "reave";
-const CALCOM_BASE_URL = "https://cal.reave.app";
-const TIMEZONE = "America/New_York";
-const pool = new Pool({
-  connectionString: CALCOM_DB_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 5
-});
-function fmtTime(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-    timeZone: TIMEZONE
-  }).replace(":00", "").toLowerCase();
-}
-function fmtDate(iso) {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString("en-US", { weekday: "long", timeZone: TIMEZONE });
-  const month = d.toLocaleDateString("en-US", { month: "long", timeZone: TIMEZONE });
-  const num = parseInt(d.toLocaleDateString("en-US", { day: "numeric", timeZone: TIMEZONE }));
-  const suffix = [11, 12, 13].includes(num % 100) ? "th" : num % 10 === 1 ? "st" : num % 10 === 2 ? "nd" : num % 10 === 3 ? "rd" : "th";
-  return `${day} ${month} ${num}${suffix}`;
-}
 async function getStaffSchedule() {
   try {
     const userRes = await pool.query(

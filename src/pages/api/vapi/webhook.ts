@@ -1,46 +1,8 @@
 import type { APIRoute } from 'astro';
-import pg from 'pg';
-
-const { Pool } = pg;
-
-const CALCOM_DB_URL = import.meta.env.CALCOM_DATABASE_URL || '';
-const CALCOM_USERNAME = import.meta.env.CALCOM_USERNAME || 'reave';
-const CALCOM_BASE_URL = import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
-const TIMEZONE = 'America/New_York';
-
-const pool = new Pool({
-  connectionString: CALCOM_DB_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 5,
-});
-
-// Format time for voice: "2pm", "10:30am"
-function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: TIMEZONE,
-  }).replace(':00', '').toLowerCase();
-}
-
-// Format date for voice: "Thursday April 3rd"
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  const day = d.toLocaleDateString('en-US', { weekday: 'long', timeZone: TIMEZONE });
-  const month = d.toLocaleDateString('en-US', { month: 'long', timeZone: TIMEZONE });
-  const num = parseInt(d.toLocaleDateString('en-US', { day: 'numeric', timeZone: TIMEZONE }));
-  const suffix = [11, 12, 13].includes(num % 100) ? 'th'
-    : num % 10 === 1 ? 'st'
-    : num % 10 === 2 ? 'nd'
-    : num % 10 === 3 ? 'rd' : 'th';
-  return `${day} ${month} ${num}${suffix}`;
-}
+import { pool, CALCOM_USERNAME, CALCOM_BASE_URL, TIMEZONE, fmtTime, fmtDate } from '../../../lib/calcom-db';
 
 async function getStaffSchedule(): Promise<string> {
   try {
-    // Get the user and their event types
     const userRes = await pool.query(
       `SELECT u.id, u."defaultScheduleId", et.id as event_type_id, et.length, et.title
        FROM users u
@@ -58,7 +20,6 @@ async function getStaffSchedule(): Promise<string> {
     const scheduleId = user.defaultScheduleId;
     const slotLength = user.length || 30;
 
-    // Get availability schedule
     const schedRes = await pool.query(
       `SELECT a."days", a."startTime", a."endTime"
        FROM "Availability" a
@@ -71,7 +32,6 @@ async function getStaffSchedule(): Promise<string> {
       return 'No availability set up yet. Can I take your contact info and have someone call you?';
     }
 
-    // Get existing bookings for next 14 days
     const now = new Date();
     const twoWeeks = new Date();
     twoWeeks.setDate(twoWeeks.getDate() + 14);
@@ -86,23 +46,20 @@ async function getStaffSchedule(): Promise<string> {
     );
 
     const bookedSlots = new Set(
-      bookingsRes.rows.map(b => new Date(b.startTime).toISOString())
+      bookingsRes.rows.map((b: any) => new Date(b.startTime).toISOString())
     );
 
-    // Build available slots for next 14 days
     const availByDay: Record<string, string[]> = {};
     
     for (let i = 1; i <= 14; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
-      const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon...
+      const dayOfWeek = date.getDay();
 
-      // Find matching availability rules
       for (const rule of schedRes.rows) {
         const days: number[] = rule.days;
         if (!days.includes(dayOfWeek)) continue;
 
-        // Parse start/end times
         const startParts = rule.startTime.toISOString ? 
           new Date(rule.startTime) : new Date(`1970-01-01T${rule.startTime}`);
         const endParts = rule.endTime.toISOString ?
@@ -113,14 +70,12 @@ async function getStaffSchedule(): Promise<string> {
         const endHour = endParts.getUTCHours();
         const endMin = endParts.getUTCMinutes();
 
-        // Generate slots
         let slotTime = new Date(date);
         slotTime.setHours(startHour, startMin, 0, 0);
         
         const endTime = new Date(date);
         endTime.setHours(endHour, endMin, 0, 0);
 
-        // Convert to UTC for comparison with booked slots
         while (slotTime < endTime) {
           const slotISO = slotTime.toISOString();
           if (!bookedSlots.has(slotISO) && slotTime > now) {
@@ -133,7 +88,6 @@ async function getStaffSchedule(): Promise<string> {
       }
     }
 
-    // Format conversationally — offer 3-4 days, 2-3 times each
     const lines: string[] = [];
     let totalOffered = 0;
 
@@ -166,7 +120,6 @@ async function bookAppointment(args: {
   notes?: string;
 }): Promise<string> {
   try {
-    // Use Cal.com's internal booking endpoint (no API key needed for self-hosted)
     const userRes = await pool.query(
       `SELECT u.id, et.id as event_type_id, et.slug, et.length
        FROM users u
@@ -182,10 +135,8 @@ async function bookAppointment(args: {
 
     const { event_type_id, slug, length } = userRes.rows[0];
 
-    // Parse the start time
     let startDate: Date;
     if (typeof args.start === 'string') {
-      // Handle various formats VAPI might send
       startDate = new Date(args.start);
       if (isNaN(startDate.getTime())) {
         return 'I had trouble understanding that time. Could you say it again?';
@@ -196,7 +147,6 @@ async function bookAppointment(args: {
 
     const endDate = new Date(startDate.getTime() + length * 60000);
 
-    // Book via Cal.com's booking API (self-hosted, no API key)
     const bookingRes = await fetch(`${CALCOM_BASE_URL}/api/book/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
