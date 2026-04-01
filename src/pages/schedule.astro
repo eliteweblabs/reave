@@ -1,8 +1,19 @@
 ---
-import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Schedule — Reave</title>
+  <meta name="description" content="Book a meeting with Reave" />
+</head>
+<body>
   <div class="schedule-page">
     <div class="conversation" id="conversation">
       <!-- Messages will be injected here -->
@@ -14,7 +25,8 @@ import Layout from "../layouts/Layout.astro";
       </button>
     </div>
   </div>
-</Layout>
+</body>
+</html>
 
 <style>
   .schedule-page {
