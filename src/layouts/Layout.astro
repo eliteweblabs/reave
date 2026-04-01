@@ -1,7 +1,6 @@
 ---
 import Header from "../components/Header.astro";
 
-const publishableKey = import.meta.env.PUBLIC_CLERK_PUBLISHABLE_KEY || '';
 const currentPath = Astro.url.pathname;
 const isIndexPage = currentPath === '/' || currentPath === '/index.html';
 ---
@@ -24,36 +23,6 @@ const isIndexPage = currentPath === '/' || currentPath === '/index.html';
 		<slot />
 	</body>
 </html>
-
-<script define:vars={{ publishableKey }}>
-  // Clerk is loaded by the Clerk integration in astro.config.mjs
-  // Just wait for it to be available
-  if (publishableKey) {
-    let attempts = 0;
-    const maxAttempts = 100;
-    
-    function checkClerk() {
-      if (window.Clerk) {
-        window.dispatchEvent(new Event('clerk-loaded'));
-        return;
-      }
-      
-      attempts++;
-      if (attempts < maxAttempts) {
-        setTimeout(checkClerk, 100);
-      } else {
-        console.warn('Clerk not loaded after', maxAttempts, 'attempts');
-        // Dispatch event anyway so pages can handle the error
-        window.dispatchEvent(new Event('clerk-loaded'));
-      }
-    }
-    
-    // Start checking after a short delay to allow Clerk script to load
-    setTimeout(checkClerk, 50);
-  } else {
-    console.warn('PUBLIC_CLERK_PUBLISHABLE_KEY is not set');
-  }
-</script>
 
 <style is:global>
 	* {
