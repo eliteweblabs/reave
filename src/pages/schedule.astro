@@ -29,13 +29,40 @@
 </html>
 
 <style>
+  :root {
+    --primary: #a855f7;
+    --primary-light: #c084fc;
+    --secondary: #ec4899;
+    --accent: #06b6d4;
+    --bg-dark: #0a0a0a;
+    --bg-card: rgba(255,255,255,0.03);
+  }
+
+  * { font-family: 'Inter', sans-serif; }
+
   .schedule-page {
-    background: #000;
+    background: var(--bg-dark);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     padding: 120px 20px 100px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Ambient gradient background */
+  .schedule-page::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 20%, rgba(168, 85, 247, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(236, 72, 153, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
   }
 
   .conversation {
@@ -44,29 +71,55 @@
     display: flex;
     flex-direction: column;
     gap: 24px;
+    position: relative;
+    z-index: 1;
   }
 
-  /* Assistant message bubble */
+  /* Assistant message bubble with gradient text effect */
   .msg-assistant {
     opacity: 0;
     transform: translateY(12px);
     animation: msgIn 0.4s ease forwards;
   }
   .msg-assistant .bubble {
-    color: #fff;
     font-size: 1.35rem;
     line-height: 1.6;
     font-weight: 300;
     letter-spacing: 0.01em;
   }
+
+  /* Gradient text that animates as it types */
+  .msg-assistant .bubble .char {
+    display: inline;
+    background: linear-gradient(135deg, 
+      var(--secondary) 0%, 
+      var(--primary) 30%, 
+      var(--primary-light) 60%, 
+      var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: coolDown 2s ease forwards;
+  }
+
+  @keyframes coolDown {
+    0% {
+      filter: brightness(1.8) saturate(1.5);
+    }
+    100% {
+      filter: brightness(1) saturate(1);
+    }
+  }
+
   .msg-assistant .bubble .cursor {
     display: inline-block;
     width: 2px;
     height: 1.2em;
-    background: rgba(255,255,255,0.7);
+    background: linear-gradient(135deg, var(--secondary), var(--primary));
     margin-left: 2px;
     vertical-align: text-bottom;
     animation: blink 0.8s step-end infinite;
+    box-shadow: 0 0 10px var(--primary);
   }
 
   /* User message bubble */
@@ -77,13 +130,14 @@
     animation: msgIn 0.3s ease forwards;
   }
   .msg-user .bubble {
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(236, 72, 153, 0.08));
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 16px 16px 4px 16px;
     padding: 12px 20px;
     color: #fff;
     font-size: 1.1rem;
     font-weight: 400;
+    backdrop-filter: blur(10px);
   }
 
   /* Options grid */
@@ -96,23 +150,45 @@
     animation: msgIn 0.3s ease 0.1s forwards;
   }
   .options button {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: var(--bg-card);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
     padding: 10px 20px;
     color: #fff;
     font-size: 0.95rem;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .options button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .options button:hover::before {
+    opacity: 0.15;
   }
   .options button:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.4);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
   }
   .options button.selected {
-    background: rgba(255,255,255,0.15);
-    border-color: #fff;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.15));
+    border-color: var(--primary-light);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+  }
+  .options button span {
+    position: relative;
+    z-index: 1;
   }
 
   /* Date/time grid */
@@ -125,20 +201,22 @@
     animation: msgIn 0.3s ease 0.1s forwards;
   }
   .date-grid button {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: var(--bg-card);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 12px;
     padding: 14px 16px;
     color: #fff;
     font-size: 0.9rem;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     text-align: center;
   }
   .date-grid button:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.4);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.1));
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
   }
 
   .time-grid {
@@ -150,41 +228,50 @@
     animation: msgIn 0.3s ease 0.1s forwards;
   }
   .time-grid button {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: var(--bg-card);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 10px;
     padding: 10px 18px;
     color: #fff;
     font-size: 0.9rem;
     font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
   }
   .time-grid button:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.4);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.1));
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
   }
 
   /* Confirmation card */
   .confirm-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(236, 72, 153, 0.05));
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 16px;
     padding: 24px;
     margin-top: 12px;
     opacity: 0;
     animation: msgIn 0.3s ease 0.1s forwards;
+    backdrop-filter: blur(10px);
   }
   .confirm-card .detail {
     display: flex;
     justify-content: space-between;
     padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.7);
+    border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+    color: rgba(255,255,255,0.8);
     font-size: 0.95rem;
   }
   .confirm-card .detail:last-child { border-bottom: none; }
-  .confirm-card .detail .label { color: rgba(255,255,255,0.4); }
+  .confirm-card .detail .label { 
+    color: rgba(255,255,255,0.5);
+    background: linear-gradient(135deg, var(--primary-light), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
   .confirm-card .detail .value { color: #fff; font-weight: 500; }
 
   /* Success checkmark */
@@ -192,21 +279,24 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.3);
+    border: 2px solid var(--primary);
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto 16px;
     opacity: 0;
     animation: popIn 0.5s ease 0.2s forwards;
+    box-shadow: 0 0 30px rgba(168, 85, 247, 0.5);
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.2), transparent);
   }
   .success-mark svg {
     width: 32px;
     height: 32px;
-    stroke: #fff;
+    stroke: var(--primary-light);
     stroke-dasharray: 50;
     stroke-dashoffset: 50;
     animation: drawCheck 0.6s ease 0.5s forwards;
+    filter: drop-shadow(0 0 8px var(--primary));
   }
 
   /* Loading dots */
@@ -235,39 +325,43 @@
     display: flex;
     justify-content: center;
     gap: 10px;
-    background: linear-gradient(transparent, #000 40%);
+    background: linear-gradient(transparent, var(--bg-dark) 40%);
+    z-index: 10;
   }
   .input-area input {
     width: 100%;
     max-width: 580px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.15);
+    background: var(--bg-card);
+    border: 1px solid rgba(168, 85, 247, 0.3);
     border-radius: 14px;
     padding: 14px 20px;
     color: #fff;
     font-size: 1rem;
     font-family: inherit;
     outline: none;
-    transition: border-color 0.2s;
+    transition: all 0.3s;
+    backdrop-filter: blur(10px);
   }
   .input-area input:focus {
-    border-color: rgba(255,255,255,0.35);
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
   }
   .input-area input::placeholder {
-    color: rgba(255,255,255,0.25);
+    color: rgba(255,255,255,0.3);
   }
   .input-area button {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border: none;
     border-radius: 14px;
     padding: 14px 16px;
     color: #fff;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s;
     flex-shrink: 0;
   }
   .input-area button:hover {
-    background: rgba(255,255,255,0.18);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
   }
 
   @keyframes msgIn {
@@ -330,8 +424,11 @@
       let i = 0;
       const tick = () => {
         if (i < text.length) {
-          // Handle <br> if present
-          cursor.before(document.createTextNode(text[i]));
+          // Wrap each character in a span with gradient class
+          const char = document.createElement('span');
+          char.className = 'char';
+          char.textContent = text[i];
+          cursor.before(char);
           i++;
           scrollToBottom();
           setTimeout(tick, speed + Math.random() * 15);
