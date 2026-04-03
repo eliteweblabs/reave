@@ -3,6 +3,10 @@ import { pool, CALCOM_USERNAME, TIMEZONE, fmtDate } from '../../../lib/calcom-db
 
 export const GET: APIRoute = async () => {
   try {
+    console.log('[Availability] Starting availability check...');
+    console.log('[Availability] DB URL:', CALCOM_DB_URL?.substring(0, 50) + '...');
+    console.log('[Availability] Username:', CALCOM_USERNAME);
+    
     const userRes = await pool.query(
       `SELECT u.id, u."defaultScheduleId", et.id as event_type_id, et.length, et.title
        FROM users u
@@ -11,6 +15,8 @@ export const GET: APIRoute = async () => {
        LIMIT 1`,
       [CALCOM_USERNAME]
     );
+    
+    console.log('[Availability] User query returned:', userRes.rows.length, 'rows');
 
     if (userRes.rows.length === 0) {
       return new Response(JSON.stringify({ error: 'No schedule found', days: [] }), {
@@ -108,8 +114,14 @@ export const GET: APIRoute = async () => {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error('Availability error:', err);
-    return new Response(JSON.stringify({ error: 'Failed to fetch availability', days: [] }), {
+    console.error('[Availability] ERROR:', err);
+    console.error('[Availability] Error message:', err instanceof Error ? err.message : String(err));
+    console.error('[Availability] Error stack:', err instanceof Error ? err.stack : 'No stack');
+    return new Response(JSON.stringify({ 
+      error: 'Failed to fetch availability', 
+      details: err instanceof Error ? err.message : String(err),
+      days: [] 
+    }), {
       status: 500, headers: { 'Content-Type': 'application/json' },
     });
   }
