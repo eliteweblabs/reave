@@ -1,5 +1,6 @@
 ---
 import Header from "../components/Header.astro";
+import Logo from "../components/Logo.astro";
 
 const currentPath = Astro.url.pathname;
 const isIndexPage = currentPath === '/' || currentPath === '/index.html';
@@ -19,7 +20,14 @@ const isIndexPage = currentPath === '/' || currentPath === '/index.html';
 		<meta name="description" content="/\V" />
 	</head>
 	<body>
-		{!isIndexPage && <Header />}
+		{!isIndexPage && (
+			<>
+				<a href="/" aria-label="Go to homepage">
+					<Logo variant="nav" />
+				</a>
+				<Header />
+			</>
+		)}
 		<slot />
 	</body>
 </html>
@@ -37,5 +45,11 @@ const isIndexPage = currentPath === '/' || currentPath === '/index.html';
 		font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
+	}
+
+	/* Logo link styling */
+	body > a[href="/"] {
+		text-decoration: none;
+		display: block;
 	}
 </style>
