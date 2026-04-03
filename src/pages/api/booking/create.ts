@@ -12,7 +12,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    const userRes = await pool.query(
+    const userRes = await pool().query(
       `SELECT u.id, et.id as event_type_id, et.slug, et.length
        FROM users u
        JOIN "EventType" et ON et."userId" = u.id

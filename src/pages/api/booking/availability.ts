@@ -7,7 +7,7 @@ export const GET: APIRoute = async () => {
     console.log('[Availability] DB URL:', CALCOM_DB_URL?.substring(0, 50) + '...');
     console.log('[Availability] Username:', CALCOM_USERNAME);
     
-    const userRes = await pool.query(
+    const userRes = await pool().query(
       `SELECT u.id, u."defaultScheduleId", et.id as event_type_id, et.length, et.title
        FROM users u
        JOIN "EventType" et ON et."userId" = u.id
@@ -28,7 +28,7 @@ export const GET: APIRoute = async () => {
     const scheduleId = user.defaultScheduleId;
     const slotLength = user.length || 30;
 
-    const schedRes = await pool.query(
+    const schedRes = await pool().query(
       `SELECT a."days", a."startTime", a."endTime"
        FROM "Availability" a
        WHERE a."scheduleId" = $1
@@ -46,7 +46,7 @@ export const GET: APIRoute = async () => {
     const twoWeeks = new Date();
     twoWeeks.setDate(twoWeeks.getDate() + 14);
 
-    const bookingsRes = await pool.query(
+    const bookingsRes = await pool().query(
       `SELECT "startTime", "endTime" FROM "Booking"
        WHERE "userId" = $1
        AND status IN ('ACCEPTED', 'PENDING')

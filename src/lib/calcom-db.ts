@@ -2,17 +2,46 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-// Use process.env for server-side runtime variables
-export const CALCOM_DB_URL = process.env.CALCOM_DATABASE_URL || import.meta.env.CALCOM_DATABASE_URL || '';
-export const CALCOM_USERNAME = process.env.CALCOM_USERNAME || import.meta.env.CALCOM_USERNAME || 'reave';
-export const CALCOM_BASE_URL = process.env.CALCOM_API_URL || import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
 export const TIMEZONE = 'America/New_York';
 
-export const pool = new Pool({
-  connectionString: CALCOM_DB_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 5,
-});
+// Lazy getters that read env vars at runtime, not at module load time
+function getCalcomDbUrl(): string {
+  return process.env.CALCOM_DATABASE_URL || import.meta.env.CALCOM_DATABASE_URL || '';
+}
+
+function getCalcomUsername(): string {
+  return process.env.CALCOM_USERNAME || import.meta.env.CALCOM_USERNAME || 'reave';
+}
+
+function getCalcomBaseUrl(): string {
+  return process.env.CALCOM_API_URL || import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
+}
+
+// Lazy pool creation - only create when first accessed
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) {
+    const dbUrl = getCalcomDbUrl();
+    if (!dbUrl) {
+      throw new Error('CALCOM_DATABASE_URL is not defined at runtime');
+    }
+    _pool = new Pool({
+      connectionString: dbUrl,
+      ssl: { rejectUnauthorized: false },
+      max: 5,
+    });
+  }
+  return _pool;
+}
+
+// Export getters as properties (will be accessed at runtime, not module load)
+export { getCalcomDbUrl as CALCOM_DB_URL_GETTER };
+export const CALCOM_DB_URL = getCalcomDbUrl();
+export const CALCOM_USERNAME = getCalcomUsername();
+export const CALCOM_BASE_URL = getCalcomBaseUrl();
+
+// Export pool as a getter to ensure lazy initialization
+export { getPool as pool };
 
 export function fmtTime(iso: string): string {
   const d = new Date(iso);
