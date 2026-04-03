@@ -2,9 +2,10 @@ import pg from 'pg';
 
 const { Pool } = pg;
 
-export const CALCOM_DB_URL = import.meta.env.CALCOM_DATABASE_URL || '';
-export const CALCOM_USERNAME = import.meta.env.CALCOM_USERNAME || 'reave';
-export const CALCOM_BASE_URL = import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
+// Use process.env for server-side runtime variables
+export const CALCOM_DB_URL = process.env.CALCOM_DATABASE_URL || import.meta.env.CALCOM_DATABASE_URL || '';
+export const CALCOM_USERNAME = process.env.CALCOM_USERNAME || import.meta.env.CALCOM_USERNAME || 'reave';
+export const CALCOM_BASE_URL = process.env.CALCOM_API_URL || import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
 export const TIMEZONE = 'America/New_York';
 
 export const pool = new Pool({
