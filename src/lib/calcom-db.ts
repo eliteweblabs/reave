@@ -8,9 +8,18 @@ export const CALCOM_USERNAME = process.env.CALCOM_USERNAME || import.meta.env.CA
 export const CALCOM_BASE_URL = process.env.CALCOM_API_URL || import.meta.env.CALCOM_API_URL || 'https://cal.reave.app';
 export const TIMEZONE = 'America/New_York';
 
+// Debug logging
+if (typeof process !== 'undefined' && process.env) {
+  console.log('[Cal.com DB] Environment check:');
+  console.log('  - CALCOM_DATABASE_URL exists:', !!process.env.CALCOM_DATABASE_URL);
+  console.log('  - CALCOM_DATABASE_URL length:', process.env.CALCOM_DATABASE_URL?.length || 0);
+  console.log('  - CALCOM_DB_URL value set:', !!CALCOM_DB_URL);
+  console.log('  - CALCOM_DB_URL length:', CALCOM_DB_URL.length);
+}
+
 export const pool = new Pool({
-  connectionString: CALCOM_DB_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: CALCOM_DB_URL || undefined,
+  ssl: CALCOM_DB_URL ? { rejectUnauthorized: false } : undefined,
   max: 5,
 });
 

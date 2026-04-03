@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { pool, CALCOM_USERNAME, TIMEZONE, fmtDate } from '../../../lib/calcom-db';
+import { pool, CALCOM_DB_URL, CALCOM_USERNAME, TIMEZONE, fmtDate } from '../../../lib/calcom-db';
 
 export const GET: APIRoute = async () => {
   try {
