@@ -1,0 +1,192 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+const { slug } = Astro.params;
+---
+
+<Layout>
+  <div id="cf-context" data-form-slug={slug}></div>
+  <div id="loading" style="text-align: center; color: #fff; padding: 40px;">
+    Loading form...
+  </div>
+</Layout>
+
+<style is:global>
+  body {
+    margin: 0;
+    background: #0a0a0a;
+  }
+
+  #cf-context {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #loading {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  conversational-form {
+    --cf-color-background: #0a0a0a;
+    --cf-color-foreground: #ffffff;
+    --cf-color-primary: #a855f7;
+    --cf-color-secondary: #ec4899;
+    --cf-color-tertiary: rgba(255, 255, 255, 0.1);
+    --cf-font-family: 'Inter', sans-serif;
+  }
+
+  cf-chat {
+    max-width: 640px;
+    width: 100%;
+  }
+
+  cf-chat-response {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.15)) !important;
+    border: 1px solid rgba(168, 85, 247, 0.3) !important;
+    border-radius: 12px !important;
+    padding: 14px 18px !important;
+  }
+
+  cf-input-button button {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(168, 85, 247, 0.3) !important;
+    border-radius: 12px !important;
+    padding: 12px 20px !important;
+    margin: 5px !important;
+    transition: all 0.3s !important;
+  }
+
+  cf-input-button button:hover {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(236, 72, 153, 0.1)) !important;
+    border-color: #a855f7 !important;
+    transform: translateY(-2px) !important;
+  }
+
+  cf-input input, cf-input textarea {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(168, 85, 247, 0.3) !important;
+    border-radius: 12px !important;
+    color: #fff !important;
+    padding: 14px 20px !important;
+  }
+
+  cf-input input:focus, cf-input textarea:focus {
+    border-color: #a855f7 !important;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3) !important;
+    outline: none !important;
+  }
+</style>
+
+<script>
+  import cf from 'conversational-form';
+
+  async function loadForm() {
+    const context = document.getElementById('cf-context');
+    const loading = document.getElementById('loading');
+    const slug = context?.getAttribute('data-form-slug');
+
+    if (!slug) {
+      loading.textContent = 'Error: No form specified';
+      return;
+    }
+
+    try {
+      // Fetch form definition
+      const res = await fetch(`/forms/${slug}.json`);
+      if (!res.ok) throw new Error('Form not found');
+      
+      const formDef = await res.json();
+      loading.style.display = 'none';
+
+      // Convert JSON to conversational-form tags
+      const tags = formDef.fields.map((field: any) => {
+        const tag: any = {
+          tag: field.tag,
+          type: field.type,
+          name: field.name,
+          'cf-questions': field['cf-questions'],
+        };
+
+        if (field.required) tag.required = 'required';
+        if (field.pattern) tag.pattern = field.pattern;
+        if (field.placeholder) tag.placeholder = field.placeholder;
+
+        // Handle select/radio options
+        if (field.options && (field.tag === 'select' || field.type === 'radio')) {
+          tag.children = field.options.map((opt: any) => ({
+            tag: 'option',
+            value: opt.value,
+            'cf-label': opt.label || opt.value,
+          }));
+        }
+
+        return tag;
+      });
+
+      // Create conversational form
+      const conversationalForm = cf.ConversationalForm.startTheConversation({
+        formEl: document.createElement('form'),
+        context: context,
+        tags: tags,
+        submitCallback: async function() {
+          const formData = this.getFormData(true);
+          
+          // Show processing message
+          conversationalForm.addRobotChatResponse("Processing your submission...");
+
+          // Submit to endpoint if defined
+          if (formDef.submitEndpoint) {
+            try {
+              const submitRes = await fetch(formDef.submitEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+              });
+
+              const result = await submitRes.json();
+
+              if (submitRes.ok && result.success) {
+                conversationalForm.addRobotChatResponse(
+                  formDef.onComplete?.message || "All done! Thanks for submitting."
+                );
+                
+                // Redirect if specified
+                if (formDef.onComplete?.redirect) {
+                  setTimeout(() => {
+                    window.location.href = formDef.onComplete.redirect;
+                  }, 2000);
+                }
+              } else {
+                conversationalForm.addRobotChatResponse(
+                  `Error: ${result.error || 'Submission failed'}`
+                );
+              }
+            } catch (error) {
+              conversationalForm.addRobotChatResponse(
+                "Sorry, there was an error submitting your form. Please try again."
+              );
+            }
+          } else {
+            // No endpoint - just show completion message
+            conversationalForm.addRobotChatResponse(
+              formDef.onComplete?.message || "Thanks for completing the form!"
+            );
+          }
+
+          return false; // Prevent default form submission
+        }
+      });
+
+    } catch (error) {
+      console.error('Form load error:', error);
+      loading.textContent = 'Error loading form. Please try again.';
+    }
+  }
+
+  loadForm();
+</script>
