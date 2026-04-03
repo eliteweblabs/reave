@@ -11,10 +11,14 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8",
     "lucide-astro": "^0.556.0",
     "pg": "^8.20.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "react-simple-chatbot": "^0.6.1",
     "styled-components": "^4.4.1",
     "twilio": "^5.10.7"
