@@ -1,7 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 
-
 const { slug } = Astro.params;
 ---
 
@@ -45,8 +44,6 @@ const { slug } = Astro.params;
     background: #0a0a0a;
   }
 
-
-
   .form-container {
     max-width: 640px;
     margin: 0 auto;
@@ -82,13 +79,19 @@ const { slug } = Astro.params;
   }
 
   .message.robot {
-    background: linear-gradient(
-      135deg,
-      rgba(168, 85, 247, 0.2),
-      rgba(236, 72, 153, 0.15)
-    );
-    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: transparent;
+    border: none;
     align-self: flex-start;
+    padding: 0;
+  }
+
+  .message.robot .word {
+    display: inline;
+  }
+
+  .message.robot .word.just-typed {
+    filter: blur(0);
+    opacity: 1;
   }
 
   .message.user {
@@ -264,6 +267,7 @@ const { slug } = Astro.params;
   let formDef: any = null;
   let recognition: any = null;
   let isRecording = false;
+  let typewriterInProgress = false;
 
   // Availability picker state
   let availabilityDays: DayInfo[] = [];
@@ -348,6 +352,42 @@ const { slug } = Astro.params;
     msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  // Word-by-word typewriter effect with blur-in
+  async function appendTypewriter(text: string) {
+    const msg = document.createElement("div");
+    msg.className = "message robot";
+    container().appendChild(msg);
+    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    const words = text.split(" ");
+    typewriterInProgress = true;
+
+    for (let i = 0; i < words.length; i++) {
+      const wordSpan = document.createElement("span");
+      wordSpan.className = "word just-typed";
+      wordSpan.textContent = words[i] + (i < words.length - 1 ? " " : "");
+      
+      // Start with blur and low opacity, then transition to clear
+      wordSpan.style.filter = "blur(8px)";
+      wordSpan.style.opacity = "0.3";
+      wordSpan.style.transition = "filter 0.15s ease-out, opacity 0.15s ease-out";
+      
+      msg.appendChild(wordSpan);
+      
+      // Force reflow
+      wordSpan.offsetHeight;
+      
+      // Remove blur, bring into focus
+      wordSpan.style.filter = "blur(0)";
+      wordSpan.style.opacity = "1";
+      
+      // Small delay between words (adjust for speed)
+      await new Promise(r => setTimeout(r, 60));
+    }
+
+    typewriterInProgress = false;
+  }
+
   function appendLoading(text: string): HTMLElement {
     const el = document.createElement("div");
     el.className = "loading-msg";
@@ -395,7 +435,8 @@ const { slug } = Astro.params;
     const parts = text.split("&&").map((s: string) => s.trim());
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) await delay(500);
-      appendMessage(parts[i], "robot");
+      // Use typewriter for robot messages
+      await appendTypewriter(parts[i]);
     }
     await delay(300);
   }
