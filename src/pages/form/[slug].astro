@@ -17,6 +17,7 @@ const { slug } = Astro.params;
       <div id="questions-container"></div>
 
       <div class="input-area" id="input-area">
+        <button type="button" id="mic-btn" title="Voice input">🎤</button>
         <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off" />
         <button type="submit">Send</button>
       </div>
@@ -38,13 +39,6 @@ const { slug } = Astro.params;
   body {
     margin: 0;
     background: #0a0a0a;
-  }
-
-  .logo {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
   }
 
   .form-logo {
@@ -164,12 +158,38 @@ const { slug } = Astro.params;
     outline: none;
   }
 
+  #mic-btn {
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(255,255,255,0.06);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #mic-btn:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: #a855f7;
+  }
+
+  #mic-btn.recording {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
   .input-area input:focus {
     border-color: #a855f7;
     box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
   }
 
-  .input-area button {
+  .input-area button[type="submit"] {
     padding: 14px 24px;
     border-radius: 12px;
     border: none;
@@ -180,7 +200,7 @@ const { slug } = Astro.params;
     transition: transform 0.2s;
   }
 
-  .input-area button:hover {
+  .input-area button[type="submit"]:hover {
     transform: translateY(-2px);
   }
 
@@ -229,16 +249,60 @@ const { slug } = Astro.params;
   let currentFieldIndex = 0;
   let formData: Record<string, string> = {};
   let formDef: any = null;
+  let recognition: any = null;
+  let isRecording = false;
 
   // Availability picker state
   let availabilityDays: DayInfo[] = [];
-  let awaitingDayPick = false;
-  let awaitingSlotPick = false;
-  let pickedDay: DayInfo | null = null;
 
   const container = () => document.getElementById('questions-container')!;
   const inputArea = () => document.getElementById('input-area') as HTMLElement;
   const userInput = () => document.getElementById('user-input') as HTMLInputElement;
+
+  // Initialize speech recognition
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((result: any) => result[0].transcript)
+        .join('');
+      userInput().value = transcript;
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) micBtn.classList.remove('recording');
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      isRecording = false;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) micBtn.classList.remove('recording');
+    };
+  }
+
+  function toggleRecording() {
+    if (!recognition) {
+      appendMessage('Voice input not supported in this browser. Try Chrome.', 'robot');
+      return;
+    }
+
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      isRecording = true;
+      const micBtn = document.getElementById('mic-btn');
+      if (micBtn) micBtn.classList.add('recording');
+      recognition.start();
+    }
+  }
 
   async function loadForm() {
     const slug = window.location.pathname.split('/').pop();
@@ -273,7 +337,6 @@ const { slug } = Astro.params;
   }
 
   function showOptionButtons(options: { value: string; label: string }[], onPick: (value: string, label: string) => void) {
-    // Remove any existing options
     document.getElementById('current-options')?.remove();
 
     const wrapper = document.createElement('div');
@@ -350,27 +413,23 @@ const { slug } = Astro.params;
       loadingEl.remove();
 
       if (!res.ok || !data.days || data.days.length === 0) {
-        appendMessage('No available times found right now. Please reach out to us directly.', 'robot');
+        appendMessage('No available times found. Please contact us directly.', 'robot');
         return;
       }
 
       availabilityDays = data.days as DayInfo[];
-      awaitingDayPick = true;
 
       appendMessage('Pick a day:', 'robot');
       showOptionButtons(
         availabilityDays.map(d => ({ value: d.date, label: d.label })),
         (value, label) => {
-          awaitingDayPick = false;
-          pickedDay = availabilityDays.find(d => d.date === value) || null;
+          const pickedDay = availabilityDays.find(d => d.date === value);
           appendMessage(label, 'user');
           setTimeout(() => {
-            appendMessage('What time works for you?', 'robot');
-            awaitingSlotPick = true;
+            appendMessage('Pick a time:', 'robot');
             showOptionButtons(
               (pickedDay?.slots || []).map(s => ({ value: s.iso, label: s.label })),
               (slotIso, slotLabel) => {
-                awaitingSlotPick = false;
                 appendMessage(slotLabel, 'user');
                 formData[field.name] = slotIso;
                 currentFieldIndex++;
@@ -393,22 +452,14 @@ const { slug } = Astro.params;
     if (formDef.submitEndpoint) {
       const loadingEl = appendLoading('Booking your meeting...');
       try {
-        const res = await fetch(formDef.submitEndpoint, {
+        await fetch(formDef.submitEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
         });
-
-        loadingEl.remove();
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          showError(err.error || 'Booking failed. Please try again.');
-          return;
-        }
       } catch (err) {
         loadingEl.remove();
-        showError('Network error. Please check your connection and try again.');
+        showError('Network error. Please try again.');
         return;
       }
     }
@@ -417,9 +468,7 @@ const { slug } = Astro.params;
     document.getElementById('success-text')!.textContent = formDef.onComplete?.message || 'Thanks!';
 
     if (formDef.onComplete?.redirect) {
-      setTimeout(() => {
-        window.location.href = formDef.onComplete.redirect;
-      }, 2000);
+      setTimeout(() => window.location.href = formDef.onComplete.redirect, 2000);
     }
   }
 
@@ -446,5 +495,6 @@ const { slug } = Astro.params;
   }
 
   document.getElementById('conversational-form')!.addEventListener('submit', handleSubmit);
+  document.getElementById('mic-btn')!.addEventListener('click', toggleRecording);
   loadForm();
 </script>
