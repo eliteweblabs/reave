@@ -48,7 +48,6 @@ export const GET: APIRoute = async () => {
     const bookingsRes = await pool().query(
       `SELECT "startTime", "endTime" FROM "Booking"
        WHERE "userId" = $1
-       AND status IN ('BOOKED', 'PENDING')
        AND "startTime" >= $2
        AND "startTime" <= $3`,
       [user.id, now.toISOString(), twoWeeks.toISOString()]
