@@ -1,5 +1,5 @@
 {
-  "name": "--force",
+  "name": "reave",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -17,6 +17,7 @@
     "lucide-astro": "^0.556.0",
     "pg": "^8.20.0",
     "react-simple-chatbot": "^0.6.1",
+    "resend": "^4.0.0",
     "styled-components": "^4.4.1",
     "twilio": "^5.10.7"
   },

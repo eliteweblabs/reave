@@ -6,8 +6,8 @@ export const POST: APIRoute = async ({ request }) => {
     const formData = await request.json();
     const { name, email, message, subject, to } = formData;
 
-    // Get RESEND_API_KEY from environment
-    const resendKey = import.meta.env.RESEND_API_KEY;
+    // Get RESEND_API_KEY from environment (set in Railway)
+    const resendKey = import.meta.env.RESEND_API_KEY || import.meta.env.MAIL_PASSWORD;
     
     if (!resendKey) {
       console.log('[Form Submission] No RESEND_API_KEY, logging only:', formData);
@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request }) => {
     const recipient = to || email;
     const subjectLine = subject || 'New form submission';
     
-    const { error } = await resend.emails.send({
+    const { error, data } = await resend.emails.send({
       from: 'Elite Web Labs <onboarding@resend.dev>',
       to: recipient,
       subject: subjectLine,
@@ -49,7 +49,7 @@ export const POST: APIRoute = async ({ request }) => {
       });
     }
 
-    console.log('[Form Submission] Email sent to', recipient);
+    console.log('[Form Submission] Email sent to', recipient, 'ID:', data?.id);
 
     return new Response(JSON.stringify({ 
       success: true,
