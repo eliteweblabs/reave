@@ -87,9 +87,12 @@ export const GET: APIRoute = async () => {
 
         // Create a date in America/New_York timezone
         // Format: YYYY-MM-DDTHH:MM:SS-05:00 (EDT)
-        const dateStr = date.toISOString().split('T')[0];
-        let slotTime = new Date(`${dateStr}T${startStr}:00-05:00`);
-        const endTime = new Date(`${dateStr}T${endStr}:00-05:00`);
+        // Create slots using setHours (handles local time correctly)
+        let slotTime = new Date(date);
+        slotTime.setHours(startHour, startMin, 0, 0);
+
+        const endTime = new Date(date);
+        endTime.setHours(endHour, endMin, 0, 0);
 
         while (slotTime < endTime) {
           const slotISO = slotTime.toISOString();
