@@ -1,11 +1,14 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import ColoredLogo from "../../components/ColoredLogo.astro";
 
 const { slug } = Astro.params;
 ---
 
 <Layout>
-  <a href="/" class="logo">Reave</a>
+  <div class="form-logo">
+    <ColoredLogo />
+  </div>
   <div class="form-container">
     <h1 id="form-title">Loading...</h1>
     <p id="form-description"></p>
@@ -42,12 +45,19 @@ const { slug } = Astro.params;
     top: 20px;
     left: 20px;
     z-index: 1000;
-    font-size: 24px;
-    font-weight: bold;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-decoration: none;
+  }
+
+  .form-logo {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+
+  .form-logo :global(.logo-svg) {
+    width: 60px;
+    height: 60px;
   }
 
   .form-container {
