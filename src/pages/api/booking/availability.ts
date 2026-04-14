@@ -70,23 +70,28 @@ export const GET: APIRoute = async () => {
         const ruleDays: number[] = rule.days;
         if (!ruleDays.includes(dayOfWeek)) continue;
 
-        const startParts = rule.startTime.toISOString
-          ? new Date(rule.startTime)
-          : new Date(`1970-01-01T${rule.startTime}`);
-        const endParts = rule.endTime.toISOString
-          ? new Date(rule.endTime)
-          : new Date(`1970-01-01T${rule.endTime}`);
+        // Parse schedule times in local timezone (America/New_York)
+        // The times stored in DB are in local time (e.g., "09:00:00" means 9 AM ET)
+        const startStr = rule.startTime.toISOString ? rule.startTime.toISOString() : rule.startTime;
+        const endStr = rule.endTime.toISOString ? rule.endTime.toISOString() : rule.endTime;
+        
+        // Extract hours/minutes from the time string
+        const startMatch = startStr.match(/(\d{2}):(\d{2}):/);
+        const endMatch = endStr.match(/(\d{2}):(\d{2}):/);
+        
+        if (!startMatch || !endMatch) continue;
+        
+        const startHour = parseInt(startMatch[1]);
+        const startMin = parseInt(startMatch[2]);
+        const endHour = parseInt(endMatch[1]);
+        const endMin = parseInt(endMatch[2]);
 
-        const startHour = startParts.getUTCHours();
-        const startMin = startParts.getUTCMinutes();
-        const endHour = endParts.getUTCHours();
-        const endMin = endParts.getUTCMinutes();
-
+        // Create slots in local timezone
         let slotTime = new Date(date);
-        slotTime.setUTCHours(startHour, startMin, 0, 0);
+        slotTime.setHours(startHour, startMin, 0, 0);
 
         const endTime = new Date(date);
-        endTime.setUTCHours(endHour, endMin, 0, 0);
+        endTime.setHours(endHour, endMin, 0, 0);
 
         while (slotTime < endTime) {
           const slotISO = slotTime.toISOString();
