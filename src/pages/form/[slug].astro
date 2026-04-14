@@ -1,14 +1,11 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import ColoredLogo from "../../components/ColoredLogo.astro";
+
 
 const { slug } = Astro.params;
 ---
 
 <Layout>
-  <div class="form-logo">
-    <ColoredLogo />
-  </div>
   <div class="form-container">
     <h1 id="form-title">Loading...</h1>
     <p id="form-description"></p>
@@ -18,7 +15,12 @@ const { slug } = Astro.params;
 
       <div class="input-area" id="input-area">
         <button type="button" id="mic-btn" title="Voice input">🎤</button>
-        <input type="text" id="user-input" placeholder="Type your answer..." autocomplete="off" />
+        <input
+          type="text"
+          id="user-input"
+          placeholder="Type your answer..."
+          autocomplete="off"
+        />
         <button type="submit">Send</button>
       </div>
     </form>
@@ -30,7 +32,9 @@ const { slug } = Astro.params;
 
     <div id="error-message" class="hidden">
       <p id="error-text"></p>
-      <button id="retry-btn" onclick="window.location.reload()">Try again</button>
+      <button id="retry-btn" onclick="window.location.reload()"
+        >Try again</button
+      >
     </div>
   </div>
 </Layout>
@@ -41,25 +45,14 @@ const { slug } = Astro.params;
     background: #0a0a0a;
   }
 
-  .form-logo {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 1000;
-    pointer-events: none;
-  }
 
-  .form-logo :global(.logo-svg) {
-    width: 60px;
-    height: 60px;
-  }
 
   .form-container {
     max-width: 640px;
     margin: 0 auto;
-    padding: 80px 20px 120px;
+    padding: 40px 20px 120px;
     color: #fff;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
   }
 
   h1 {
@@ -70,7 +63,7 @@ const { slug } = Astro.params;
   }
 
   #form-description {
-    color: rgba(255,255,255,0.7);
+    color: rgba(255, 255, 255, 0.7);
     margin-bottom: 30px;
   }
 
@@ -89,14 +82,18 @@ const { slug } = Astro.params;
   }
 
   .message.robot {
-    background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.15));
+    background: linear-gradient(
+      135deg,
+      rgba(168, 85, 247, 0.2),
+      rgba(236, 72, 153, 0.15)
+    );
     border: 1px solid rgba(168, 85, 247, 0.3);
     align-self: flex-start;
   }
 
   .message.user {
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     align-self: flex-end;
     text-align: right;
   }
@@ -118,7 +115,10 @@ const { slug } = Astro.params;
     color: #fff;
     font-size: 14px;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      transform 0.15s;
   }
 
   .option-btn:hover {
@@ -128,7 +128,7 @@ const { slug } = Astro.params;
   }
 
   .loading-msg {
-    color: rgba(255,255,255,0.5);
+    color: rgba(255, 255, 255, 0.5);
     font-style: italic;
     font-size: 14px;
     align-self: flex-start;
@@ -152,7 +152,7 @@ const { slug } = Astro.params;
     padding: 14px 20px;
     border-radius: 12px;
     border: 1px solid rgba(168, 85, 247, 0.3);
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
     font-size: 16px;
     outline: none;
@@ -162,7 +162,7 @@ const { slug } = Astro.params;
     padding: 14px 16px;
     border-radius: 12px;
     border: 1px solid rgba(168, 85, 247, 0.3);
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     font-size: 18px;
     cursor: pointer;
     transition: all 0.2s;
@@ -180,8 +180,13 @@ const { slug } = Astro.params;
   }
 
   @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
   }
 
   .input-area input:focus {
@@ -234,11 +239,19 @@ const { slug } = Astro.params;
     background: rgba(239, 68, 68, 0.15);
   }
 
-  .hidden { display: none !important; }
+  .hidden {
+    display: none !important;
+  }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 </style>
 
@@ -255,42 +268,48 @@ const { slug } = Astro.params;
   // Availability picker state
   let availabilityDays: DayInfo[] = [];
 
-  const container = () => document.getElementById('questions-container')!;
-  const inputArea = () => document.getElementById('input-area') as HTMLElement;
-  const userInput = () => document.getElementById('user-input') as HTMLInputElement;
+  const container = () => document.getElementById("questions-container")!;
+  const inputArea = () => document.getElementById("input-area") as HTMLElement;
+  const userInput = () =>
+    document.getElementById("user-input") as HTMLInputElement;
 
   // Initialize speech recognition
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+  if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+    const SpeechRecognition =
+      (window as any).webkitSpeechRecognition ||
+      (window as any).SpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = "en-US";
 
     recognition.onresult = (event: any) => {
       const transcript = Array.from(event.results)
         .map((result: any) => result[0].transcript)
-        .join('');
+        .join("");
       userInput().value = transcript;
     };
 
     recognition.onend = () => {
       isRecording = false;
-      const micBtn = document.getElementById('mic-btn');
-      if (micBtn) micBtn.classList.remove('recording');
+      const micBtn = document.getElementById("mic-btn");
+      if (micBtn) micBtn.classList.remove("recording");
     };
 
     recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
+      console.error("Speech recognition error:", event.error);
       isRecording = false;
-      const micBtn = document.getElementById('mic-btn');
-      if (micBtn) micBtn.classList.remove('recording');
+      const micBtn = document.getElementById("mic-btn");
+      if (micBtn) micBtn.classList.remove("recording");
     };
   }
 
   function toggleRecording() {
     if (!recognition) {
-      appendMessage('Voice input not supported in this browser. Try Chrome.', 'robot');
+      appendMessage(
+        "Voice input not supported in this browser. Try Chrome.",
+        "robot",
+      );
       return;
     }
 
@@ -298,57 +317,62 @@ const { slug } = Astro.params;
       recognition.stop();
     } else {
       isRecording = true;
-      const micBtn = document.getElementById('mic-btn');
-      if (micBtn) micBtn.classList.add('recording');
+      const micBtn = document.getElementById("mic-btn");
+      if (micBtn) micBtn.classList.add("recording");
       recognition.start();
     }
   }
 
   async function loadForm() {
-    const slug = window.location.pathname.split('/').pop();
+    const slug = window.location.pathname.split("/").pop();
     try {
       const res = await fetch(`/forms/${slug}.json`);
-      if (!res.ok) throw new Error('Form not found');
+      if (!res.ok) throw new Error("Form not found");
       formDef = await res.json();
-      document.getElementById('form-title')!.textContent = formDef.title || 'Form';
-      document.getElementById('form-description')!.textContent = formDef.description || '';
+      document.getElementById("form-title")!.textContent =
+        formDef.title || "Form";
+      document.getElementById("form-description")!.textContent =
+        formDef.description || "";
       await showQuestion();
     } catch (err) {
-      document.getElementById('form-title')!.textContent = 'Error loading form';
+      document.getElementById("form-title")!.textContent = "Error loading form";
       console.error(err);
     }
   }
 
-  function appendMessage(text: string, type: 'robot' | 'user') {
-    const msg = document.createElement('div');
+  function appendMessage(text: string, type: "robot" | "user") {
+    const msg = document.createElement("div");
     msg.className = `message ${type}`;
     msg.textContent = text;
     container().appendChild(msg);
-    msg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function appendLoading(text: string): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'loading-msg';
+    const el = document.createElement("div");
+    el.className = "loading-msg";
     el.textContent = text;
     container().appendChild(el);
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return el;
   }
 
-  function showOptionButtons(options: { value: string; label: string }[], onPick: (value: string, label: string) => void) {
-    document.getElementById('current-options')?.remove();
+  function showOptionButtons(
+    options: { value: string; label: string }[],
+    onPick: (value: string, label: string) => void,
+  ) {
+    document.getElementById("current-options")?.remove();
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'options-wrapper';
-    wrapper.id = 'current-options';
+    const wrapper = document.createElement("div");
+    wrapper.className = "options-wrapper";
+    wrapper.id = "current-options";
 
-    options.forEach(opt => {
-      const btn = document.createElement('button');
-      btn.className = 'option-btn';
+    options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
       btn.textContent = opt.label;
-      btn.type = 'button';
-      btn.addEventListener('click', () => {
+      btn.type = "button";
+      btn.addEventListener("click", () => {
         wrapper.remove();
         onPick(opt.value, opt.label);
       });
@@ -356,22 +380,22 @@ const { slug } = Astro.params;
     });
 
     container().appendChild(wrapper);
-    wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function setInputVisible(visible: boolean) {
-    inputArea().style.display = visible ? 'flex' : 'none';
+    inputArea().style.display = visible ? "flex" : "none";
   }
 
   async function delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async function showMessages(text: string) {
-    const parts = text.split('&&').map((s: string) => s.trim());
+    const parts = text.split("&&").map((s: string) => s.trim());
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) await delay(500);
-      appendMessage(parts[i], 'robot');
+      appendMessage(parts[i], "robot");
     }
     await delay(300);
   }
@@ -383,98 +407,108 @@ const { slug } = Astro.params;
     }
 
     const field = formDef.fields[currentFieldIndex];
-    const questionText = field['cf-questions'] || `What's your ${field.name}?`;
+    const questionText = field["cf-questions"] || `What's your ${field.name}?`;
     await showMessages(questionText);
 
-    if (field.type === 'availability') {
+    if (field.type === "availability") {
       setInputVisible(false);
       await handleAvailabilityField(field);
-    } else if (field.type === 'select' && field.options) {
+    } else if (field.type === "select" && field.options) {
       setInputVisible(false);
       showOptionButtons(field.options, (value, label) => {
-        appendMessage(label, 'user');
+        appendMessage(label, "user");
         formData[field.name] = value;
         currentFieldIndex++;
         setTimeout(showQuestion, 500);
       });
     } else {
       setInputVisible(true);
-      userInput().placeholder = field.placeholder || 'Type your answer...';
+      userInput().placeholder = field.placeholder || "Type your answer...";
       userInput().focus();
     }
   }
 
   async function handleAvailabilityField(field: any) {
-    const loadingEl = appendLoading('Checking availability...');
+    const loadingEl = appendLoading("Checking availability...");
 
     try {
-      const res = await fetch('/api/booking/availability');
+      const res = await fetch("/api/booking/availability");
       const data = await res.json();
       loadingEl.remove();
 
       if (!res.ok || !data.days || data.days.length === 0) {
-        appendMessage('No available times found. Please contact us directly.', 'robot');
+        appendMessage(
+          "No available times found. Please contact us directly.",
+          "robot",
+        );
         return;
       }
 
       availabilityDays = data.days as DayInfo[];
 
-      appendMessage('Pick a day:', 'robot');
+      appendMessage("Pick a day:", "robot");
       showOptionButtons(
-        availabilityDays.map(d => ({ value: d.date, label: d.label })),
+        availabilityDays.map((d) => ({ value: d.date, label: d.label })),
         (value, label) => {
-          const pickedDay = availabilityDays.find(d => d.date === value);
-          appendMessage(label, 'user');
+          const pickedDay = availabilityDays.find((d) => d.date === value);
+          appendMessage(label, "user");
           setTimeout(() => {
-            appendMessage('Pick a time:', 'robot');
+            appendMessage("Pick a time:", "robot");
             showOptionButtons(
-              (pickedDay?.slots || []).map(s => ({ value: s.iso, label: s.label })),
+              (pickedDay?.slots || []).map((s) => ({
+                value: s.iso,
+                label: s.label,
+              })),
               (slotIso, slotLabel) => {
-                appendMessage(slotLabel, 'user');
+                appendMessage(slotLabel, "user");
                 formData[field.name] = slotIso;
                 currentFieldIndex++;
                 setTimeout(showQuestion, 500);
-              }
+              },
             );
           }, 400);
-        }
+        },
       );
     } catch (err) {
       loadingEl.remove();
-      appendMessage('Failed to load availability. Please try again.', 'robot');
+      appendMessage("Failed to load availability. Please try again.", "robot");
       console.error(err);
     }
   }
 
   async function submitForm() {
-    document.getElementById('conversational-form')!.classList.add('hidden');
+    document.getElementById("conversational-form")!.classList.add("hidden");
 
     if (formDef.submitEndpoint) {
-      const loadingEl = appendLoading('Booking your meeting...');
+      const loadingEl = appendLoading("Booking your meeting...");
       try {
         await fetch(formDef.submitEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
       } catch (err) {
         loadingEl.remove();
-        showError('Network error. Please try again.');
+        showError("Network error. Please try again.");
         return;
       }
     }
 
-    document.getElementById('success-message')!.classList.remove('hidden');
-    document.getElementById('success-text')!.textContent = formDef.onComplete?.message || 'Thanks!';
+    document.getElementById("success-message")!.classList.remove("hidden");
+    document.getElementById("success-text")!.textContent =
+      formDef.onComplete?.message || "Thanks!";
 
     if (formDef.onComplete?.redirect) {
-      setTimeout(() => window.location.href = formDef.onComplete.redirect, 2000);
+      setTimeout(
+        () => (window.location.href = formDef.onComplete.redirect),
+        2000,
+      );
     }
   }
 
   function showError(msg: string) {
-    document.getElementById('error-message')!.classList.remove('hidden');
-    document.getElementById('error-text')!.textContent = msg;
+    document.getElementById("error-message")!.classList.remove("hidden");
+    document.getElementById("error-text")!.textContent = msg;
   }
 
   function handleSubmit(e: Event) {
@@ -485,16 +519,20 @@ const { slug } = Astro.params;
     const field = formDef?.fields[currentFieldIndex];
     if (!field) return;
 
-    appendMessage(value, 'user');
+    appendMessage(value, "user");
     formData[field.name] = value;
-    userInput().value = '';
+    userInput().value = "";
     setInputVisible(false);
 
     currentFieldIndex++;
     setTimeout(showQuestion, 500);
   }
 
-  document.getElementById('conversational-form')!.addEventListener('submit', handleSubmit);
-  document.getElementById('mic-btn')!.addEventListener('click', toggleRecording);
+  document
+    .getElementById("conversational-form")!
+    .addEventListener("submit", handleSubmit);
+  document
+    .getElementById("mic-btn")!
+    .addEventListener("click", toggleRecording);
   loadForm();
 </script>
