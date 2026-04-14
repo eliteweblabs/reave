@@ -1,0 +1,11 @@
+node_modules
+dist
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Twilio credentials (already covered by .env, but being explicit)
+# TWILIO_ACCOUNT_SID
+# TWILIO_AUTH_TOKEN

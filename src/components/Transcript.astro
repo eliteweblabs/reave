@@ -1,0 +1,357 @@
+---
+// Simple transcript component that shows user and assistant messages
+// Displays only a few lines, scrolling up and fading out
+---
+
+<div id="transcript-container" class="transcript-container">
+  <div id="transcript-content" class="transcript-content"></div>
+</div>
+
+<style>
+  .transcript-container {
+    position: fixed;
+    top: 60%; /* Position under the logo (logo is centered) */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    z-index: 100;
+    pointer-events: none; /* Don't block interactions */
+  }
+
+  .transcript-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    text-align: center;
+    min-height: 20px; /* Ensure container has minimum height */
+  }
+
+  .transcript-line {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #ffffff !important; /* Force white text */
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.6) !important; /* Darker background for better contrast */
+    backdrop-filter: blur(4px);
+    max-width: 100%;
+    word-wrap: break-word;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    animation: slideUpFade 3s ease-out forwards, streaming 2s ease-in-out infinite;
+    overflow: hidden;
+    position: relative;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); /* Add text shadow for better visibility */
+  }
+
+  /* Streaming/flowing text effect */
+  @keyframes streaming {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  /* Add a subtle shimmer effect for streaming */
+  .transcript-line::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+
+  .transcript-line.user {
+    color: #ffffff !important; /* Force white text */
+    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
+  }
+
+  .transcript-line.assistant {
+    color: #ffffff !important; /* Force white text */
+    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
+  }
+
+  @keyframes slideUpFade {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .transcript-container {
+      top: 65%; /* Adjust for mobile */
+      width: 95%;
+    }
+
+    .transcript-line {
+      font-size: 12px;
+      padding: 3px 10px;
+    }
+  }
+</style>
+
+<script>
+  const MAX_LINES = 3; // Maximum number of lines to show
+  const transcriptContent = document.getElementById("transcript-content");
+  let messageQueue: Array<{ text: string; type: "user" | "assistant" }> = [];
+  
+  // Track active lines for each role to handle partial updates
+  let activeLines: { [key: string]: HTMLElement | null } = {
+    assistant: null,
+    user: null,
+  };
+
+  function addTranscriptLine(text: string, type: "user" | "assistant", isPartial: boolean = false) {
+    if (!transcriptContent) {
+      console.warn("transcriptContent not found");
+      return;
+    }
+
+    // Only show transcripts when voice chat is active
+    if (!isVoiceChatActive) {
+      console.log("Transcript ignored - voice chat not active", { text: cleanText, type, isPartial });
+      
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "Transcript.astro:addTranscriptLine",
+            message: "Transcript ignored - voice chat not active",
+            data: {
+              text: cleanText,
+              type,
+              isPartial,
+              isVoiceChatActive: false,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "C",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+      return;
+    }
+
+    // Clean and truncate text
+    const cleanText = text.trim().slice(0, 100); // Max 100 chars per line
+    if (!cleanText) return;
+
+    // If it's a partial transcript and we have an active line for this type, update it
+    if (isPartial && activeLines[type]) {
+      const existingLine = activeLines[type];
+      if (existingLine && existingLine.parentNode) {
+        existingLine.textContent = cleanText;
+        console.log("Updated partial transcript line:", cleanText);
+        
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "Transcript.astro:updatePartial",
+              message: "Updated partial transcript",
+              data: {
+                type,
+                text: cleanText,
+                isPartial: true,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "init",
+              hypothesisId: "A",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
+        return;
+      }
+    }
+
+    // Create new line element
+    const line = document.createElement("div");
+    line.className = `transcript-line ${type}`;
+    line.textContent = cleanText; // Set text immediately (no streaming for partials)
+    
+    // Only add streaming effect for final transcripts
+    if (!isPartial) {
+      // Streaming text effect - reveal characters one by one
+      let currentIndex = 0;
+      const streamingInterval = setInterval(() => {
+        if (currentIndex <= cleanText.length) {
+          line.textContent = cleanText.slice(0, currentIndex);
+          currentIndex++;
+        } else {
+          clearInterval(streamingInterval);
+        }
+      }, 30); // Adjust speed (lower = faster)
+    }
+
+    // Add to DOM immediately
+    transcriptContent.appendChild(line);
+    console.log("Added transcript line:", cleanText, isPartial ? "(partial)" : "(final)");
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:addLine",
+          message: "Added new transcript line",
+          data: {
+            type,
+            text: cleanText,
+            isPartial,
+            hasActiveLine: !!activeLines[type],
+          },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "B",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+
+    // Track this as the active line for this type
+    activeLines[type] = line;
+
+    // Remove old lines if we exceed max
+    const lines = transcriptContent.querySelectorAll(".transcript-line");
+    if (lines.length > MAX_LINES) {
+      const removedLine = lines[0];
+      // Clear active line if it was removed
+      if (activeLines.assistant === removedLine) activeLines.assistant = null;
+      if (activeLines.user === removedLine) activeLines.user = null;
+      removedLine.remove();
+    }
+
+    // Auto-remove after animation completes (only for final transcripts)
+    if (!isPartial) {
+      setTimeout(() => {
+        if (line.parentNode) {
+          line.style.opacity = "0";
+          line.style.transform = "translateY(-20px)";
+          setTimeout(() => {
+            // Clear active line if it was this one
+            if (activeLines[type] === line) {
+              activeLines[type] = null;
+            }
+            line.remove();
+          }, 500);
+        }
+      }, 2500);
+    }
+  }
+
+  // Listen for Vapi events via custom events
+  window.addEventListener("vapi-transcript", ((event: CustomEvent) => {
+    if (event.detail && event.detail.text && event.detail.type) {
+      const isPartial = event.detail.isPartial === true || event.detail.transcriptType === "partial";
+      addTranscriptLine(event.detail.text, event.detail.type, isPartial);
+    }
+  }) as EventListener);
+
+  // Also listen for Vapi message events directly if available
+  if (window.Vapi) {
+    // This will be set up when Vapi instance is created
+    // We'll dispatch custom events from VoiceChatButton
+  }
+
+  // Track if voice chat is active - only show transcripts when active
+  let isVoiceChatActive = false;
+
+  // Listen for voice chat activation events
+  window.addEventListener("vapi-call-start", () => {
+    isVoiceChatActive = true;
+    console.log("Voice chat activated - transcripts enabled");
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:callStart",
+          message: "Voice chat activated",
+          data: { isVoiceChatActive: true },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "A",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+  });
+
+  window.addEventListener("vapi-call-end", () => {
+    isVoiceChatActive = false;
+    console.log("Voice chat ended - transcripts disabled");
+    
+    // Clear active lines when call ends
+    activeLines.assistant = null;
+    activeLines.user = null;
+    
+    // #region agent log
+    fetch(
+      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "Transcript.astro:callEnd",
+          message: "Voice chat ended",
+          data: { isVoiceChatActive: false },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          runId: "init",
+          hypothesisId: "B",
+        }),
+      }
+    ).catch(() => {});
+    // #endregion
+  });
+</script>
+

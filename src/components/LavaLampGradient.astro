@@ -1,0 +1,223 @@
+---
+// Lava Lamp Rainbow Gradient Background Component
+// Seamless repeating pattern with smooth blob animations
+---
+
+<div id="lava-lamp-gradient" class="lava-lamp-container">
+  <div class="lava-blob blob-1"></div>
+  <div class="lava-blob blob-2"></div>
+  <div class="lava-blob blob-3"></div>
+  <div class="lava-blob blob-4"></div>
+  <div class="lava-blob blob-5"></div>
+  <div class="lava-blob blob-6"></div>
+</div>
+
+<style>
+  .lava-lamp-container {
+    position: absolute;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #000;
+    /* Static position - centered for visibility without animation */
+    transform: translate3d(0, 0, 0);
+  }
+
+  .lava-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.7;
+    mix-blend-mode: screen;
+    will-change: transform;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  /* Rainbow color blobs - each with different colors */
+  .blob-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, #ff0080, #ff0080);
+    animation: lavaMove1 20s ease-in-out infinite;
+    top: 10%;
+    left: 10%;
+  }
+
+  .blob-2 {
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, #8000ff, #8000ff);
+    animation: lavaMove2 25s ease-in-out infinite;
+    top: 60%;
+    left: 20%;
+  }
+
+  .blob-3 {
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle, #0080ff, #0080ff);
+    animation: lavaMove3 30s ease-in-out infinite;
+    top: 30%;
+    left: 60%;
+  }
+
+  .blob-4 {
+    width: 380px;
+    height: 380px;
+    background: radial-gradient(circle, #00ff80, #00ff80);
+    animation: lavaMove4 22s ease-in-out infinite;
+    top: 70%;
+    left: 70%;
+  }
+
+  .blob-5 {
+    width: 420px;
+    height: 420px;
+    background: radial-gradient(circle, #ffff00, #ffff00);
+    animation: lavaMove5 28s ease-in-out infinite;
+    top: 5%;
+    left: 50%;
+  }
+
+  .blob-6 {
+    width: 360px;
+    height: 360px;
+    background: radial-gradient(circle, #ff8000, #ff8000);
+    animation: lavaMove6 24s ease-in-out infinite;
+    top: 50%;
+    left: 5%;
+  }
+
+  /* Smooth lava lamp movements - seamless looping */
+  @keyframes lavaMove1 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    25% {
+      transform: translate(30vw, -20vh) scale(1.2);
+    }
+    50% {
+      transform: translate(20vw, 30vh) scale(0.9);
+    }
+    75% {
+      transform: translate(-10vw, 20vh) scale(1.1);
+    }
+  }
+
+  @keyframes lavaMove2 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(-25vw, 25vh) scale(1.15);
+    }
+    66% {
+      transform: translate(25vw, -15vh) scale(0.85);
+    }
+  }
+
+  @keyframes lavaMove3 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    20% {
+      transform: translate(-20vw, -30vh) scale(1.3);
+    }
+    40% {
+      transform: translate(15vw, 25vh) scale(0.8);
+    }
+    60% {
+      transform: translate(25vw, -10vh) scale(1.1);
+    }
+    80% {
+      transform: translate(-15vw, 20vh) scale(0.95);
+    }
+  }
+
+  @keyframes lavaMove4 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    30% {
+      transform: translate(20vw, 30vh) scale(1.25);
+    }
+    60% {
+      transform: translate(-30vw, -20vh) scale(0.9);
+    }
+  }
+
+  @keyframes lavaMove5 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    25% {
+      transform: translate(-15vw, 25vh) scale(1.1);
+    }
+    50% {
+      transform: translate(30vw, -25vh) scale(0.85);
+    }
+    75% {
+      transform: translate(10vw, 15vh) scale(1.2);
+    }
+  }
+
+  @keyframes lavaMove6 {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    40% {
+      transform: translate(25vw, 20vh) scale(1.15);
+    }
+    80% {
+      transform: translate(-20vw, -25vh) scale(0.9);
+    }
+  }
+
+  /* Performance optimizations */
+  @media (prefers-reduced-motion: reduce) {
+    .lava-blob {
+      animation: none;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .blob-1,
+    .blob-2,
+    .blob-3,
+    .blob-4,
+    .blob-5,
+    .blob-6 {
+      width: 300px;
+      height: 300px;
+      filter: blur(40px);
+    }
+  }
+</style>
+
+<script>
+  // Optional: Add audio-reactive scaling if audio level events are available
+  let currentAudioLevel = 0;
+
+  window.addEventListener("audioLevel", (event: Event) => {
+    const customEvent = event as CustomEvent<{ level: number }>;
+    currentAudioLevel = customEvent.detail.level;
+    updateBlobScale();
+  });
+
+  function updateBlobScale() {
+    const blobs = document.querySelectorAll<HTMLElement>(".lava-blob");
+    const scaleFactor = 1 + currentAudioLevel * 0.3; // Scale up to 30% based on audio
+    
+    blobs.forEach((blob) => {
+      const currentTransform = blob.style.transform || "";
+      // Preserve existing transform, just adjust scale
+      if (!currentTransform.includes("scale")) {
+        blob.style.transform = `${currentTransform} scale(${scaleFactor})`;
+      }
+    });
+  }
+</script>
+

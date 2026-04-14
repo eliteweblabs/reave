@@ -1,0 +1,128 @@
+import type { APIRoute } from 'astro';
+import { pool, CALCOM_USERNAME, TIMEZONE, fmtDate, fmtTime } from '../../../lib/calcom-db';
+
+export const GET: APIRoute = async () => {
+  try {
+    console.log('[Availability] Starting availability check...');
+    console.log('[Availability] Username:', CALCOM_USERNAME);
+    
+    const userRes = await pool().query(
+      `SELECT u.id, u."defaultScheduleId", et.id as event_type_id, et.length, et.title
+       FROM users u
+       JOIN "EventType" et ON et."userId" = u.id
+       WHERE u.username = $1
+       LIMIT 1`,
+      [CALCOM_USERNAME]
+    );
+    
+    console.log('[Availability] User query returned:', userRes.rows.length, 'rows');
+
+    if (userRes.rows.length === 0) {
+      return new Response(JSON.stringify({ error: 'No schedule found', days: [] }), {
+        status: 404, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const user = userRes.rows[0];
+    const scheduleId = user.defaultScheduleId;
+    const slotLength = user.length || 30;
+
+    const schedRes = await pool().query(
+      `SELECT a."days", a."startTime", a."endTime"
+       FROM "Availability" a
+       WHERE a."scheduleId" = $1
+       ORDER BY a."days"`,
+      [scheduleId]
+    );
+
+    if (schedRes.rows.length === 0) {
+      return new Response(JSON.stringify({ days: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const now = new Date();
+    const twoWeeks = new Date();
+    twoWeeks.setDate(twoWeeks.getDate() + 14);
+
+    const bookingsRes = await pool().query(
+      `SELECT "startTime", "endTime" FROM "Booking"
+       WHERE "userId" = $1
+       AND "startTime" >= $2
+       AND "startTime" <= $3`,
+      [user.id, now.toISOString(), twoWeeks.toISOString()]
+    );
+
+    const bookedSlots = new Set(
+      bookingsRes.rows.map((b: any) => new Date(b.startTime).toISOString())
+    );
+
+    const days: { date: string; label: string; slots: { iso: string; label: string }[] }[] = [];
+
+    for (let i = 1; i <= 14; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      const dayOfWeek = date.getDay();
+      const dateKey = date.toISOString().split('T')[0];
+      const daySlots: { iso: string; label: string }[] = [];
+
+      for (const rule of schedRes.rows) {
+        const ruleDays: number[] = rule.days;
+        if (!ruleDays.includes(dayOfWeek)) continue;
+
+        // Parse schedule times - they come as strings like "09:00:00"
+        const startStr = typeof rule.startTime === 'string' ? rule.startTime : '09:00:00';
+        const endStr = typeof rule.endTime === 'string' ? rule.endTime : '17:00:00';
+        
+        // Extract hours/minutes from the time string
+        const startMatch = startStr.match(/(\d{2}):(\d{2}):/);
+        const endMatch = endStr.match(/(\d{2}):(\d{2}):/);
+        
+        if (!startMatch || !endMatch) continue;
+        
+        // Parse ET time components
+        const startHour = parseInt(startMatch[1]);
+        const startMin = parseInt(startMatch[2]);
+        const endHour = parseInt(endMatch[1]);
+        const endMin = parseInt(endMatch[2]);
+        
+        // Create UTC times from ET (April is EDT = UTC-4)
+        const etToUtc = 4; // hours to add for EDT
+        
+        let slotTime = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), startHour + etToUtc, startMin));
+        let endTime = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), endHour + etToUtc, endMin));
+
+        while (slotTime < endTime) {
+          const slotISO = slotTime.toISOString();
+          if (!bookedSlots.has(slotISO) && slotTime > now) {
+            daySlots.push({ iso: slotISO, label: fmtTime(slotISO) });
+          }
+          slotTime = new Date(slotTime.getTime() + slotLength * 60000);
+        }
+      }
+
+      if (daySlots.length > 0) {
+        days.push({
+          date: dateKey,
+          label: fmtDate(date.toISOString()),
+          slots: daySlots,
+        });
+      }
+    }
+
+    return new Response(JSON.stringify({ days, slotLength }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    console.error('[Availability] ERROR:', err);
+    console.error('[Availability] Error message:', err instanceof Error ? err.message : String(err));
+    console.error('[Availability] Error stack:', err instanceof Error ? err.stack : 'No stack');
+    return new Response(JSON.stringify({ 
+      error: 'Failed to fetch availability', 
+      details: err instanceof Error ? err.message : String(err),
+      days: [] 
+    }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};

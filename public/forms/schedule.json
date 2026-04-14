@@ -1,0 +1,26 @@
+{
+  "title": "Schedule a Meeting",
+  "description": "Let's find a time that works for you.",
+  "fields": [
+    {
+      "name": "name",
+      "type": "text",
+      "cf-questions": "Hi there! I'm here to help you schedule a meeting.&&First, what's your name?"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "cf-questions": "Nice to meet you! What's your email address?"
+    },
+    {
+      "name": "start",
+      "type": "availability",
+      "cf-questions": "Let me check the calendar for you..."
+    }
+  ],
+  "submitEndpoint": "/api/booking/create",
+  "onComplete": {
+    "message": "You're booked! A confirmation will be sent to your email.",
+    "redirect": null
+  }
+}

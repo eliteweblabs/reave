@@ -1,0 +1,206 @@
+---
+// Seamless repeating SVG pattern with lava lamp style blobs
+---
+
+<div class="pattern-container">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    class="pattern-svg"
+    viewBox="0 0 400 400"
+    preserveAspectRatio="xMidYMid slice"
+  >
+    <defs>
+      <!-- Seamless repeating pattern -->
+      <pattern
+        id="lavaLampPattern"
+        x="0"
+        y="0"
+        width="400"
+        height="400"
+        patternUnits="userSpaceOnUse"
+      >
+        <!-- Gradient definitions - more cohesive color scheme -->
+        <!-- Warm tones (pink/orange/yellow) -->
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#ff0080;stop-opacity:0.5" />
+          <stop offset="50%" style="stop-color:#ff4000;stop-opacity:0.4" />
+          <stop offset="100%" style="stop-color:#ff8000;stop-opacity:0.5" />
+        </linearGradient>
+        
+        <!-- Warm to cool transition -->
+        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#ff8000;stop-opacity:0.5" />
+          <stop offset="50%" style="stop-color:#ffff00;stop-opacity:0.4" />
+          <stop offset="100%" style="stop-color:#80ff00;stop-opacity:0.5" />
+        </linearGradient>
+        
+        <!-- Cool tones (green/cyan) -->
+        <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#80ff00;stop-opacity:0.5" />
+          <stop offset="50%" style="stop-color:#00ff80;stop-opacity:0.4" />
+          <stop offset="100%" style="stop-color:#00ffff;stop-opacity:0.5" />
+        </linearGradient>
+        
+        <!-- Cool to warm transition -->
+        <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#00ffff;stop-opacity:0.5" />
+          <stop offset="50%" style="stop-color:#8000ff;stop-opacity:0.4" />
+          <stop offset="100%" style="stop-color:#ff0080;stop-opacity:0.5" />
+        </linearGradient>
+
+        <!-- Blur filter for smooth edges - reduced for more definition -->
+        <filter id="blur">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" />
+        </filter>
+
+        <!-- Lava lamp blob 1 - organic flowing shape -->
+        <path
+          d="M 50 100 
+             Q 80 60, 120 80
+             Q 160 100, 180 70
+             Q 200 40, 230 60
+             Q 260 80, 280 50
+             Q 300 20, 330 40
+             Q 360 60, 350 100
+             Q 340 140, 320 120
+             Q 300 100, 270 130
+             Q 240 160, 210 140
+             Q 180 120, 150 150
+             Q 120 180, 90 160
+             Q 60 140, 50 100 Z"
+          fill="url(#grad1)"
+          filter="url(#blur)"
+          opacity="0.6"
+        />
+
+        <!-- Lava lamp blob 2 -->
+        <path
+          d="M 100 250
+             Q 130 220, 160 240
+             Q 190 260, 220 230
+             Q 250 200, 280 220
+             Q 310 240, 340 210
+             Q 370 180, 380 220
+             Q 390 260, 360 280
+             Q 330 300, 300 270
+             Q 270 240, 240 270
+             Q 210 300, 180 280
+             Q 150 260, 120 290
+             Q 90 320, 100 250 Z"
+          fill="url(#grad2)"
+          filter="url(#blur)"
+          opacity="0.55"
+        />
+
+        <!-- Lava lamp blob 3 -->
+        <path
+          d="M 20 200
+             Q 40 160, 70 180
+             Q 100 200, 130 170
+             Q 160 140, 190 160
+             Q 220 180, 250 150
+             Q 280 120, 310 140
+             Q 340 160, 330 200
+             Q 320 240, 290 220
+             Q 260 200, 230 230
+             Q 200 260, 170 240
+             Q 140 220, 110 250
+             Q 80 280, 50 260
+             Q 20 240, 20 200 Z"
+          fill="url(#grad3)"
+          filter="url(#blur)"
+          opacity="0.5"
+        />
+
+        <!-- Lava lamp blob 4 - smaller accent -->
+        <path
+          d="M 150 50
+             Q 170 30, 200 40
+             Q 230 50, 250 30
+             Q 270 10, 300 20
+             Q 330 30, 320 60
+             Q 310 90, 280 80
+             Q 250 70, 220 90
+             Q 190 110, 160 100
+             Q 130 90, 150 50 Z"
+          fill="url(#grad4)"
+          filter="url(#blur)"
+          opacity="0.45"
+        />
+
+        <!-- Lava lamp blob 5 - bottom right -->
+        <path
+          d="M 250 300
+             Q 280 280, 310 290
+             Q 340 300, 370 280
+             Q 380 310, 360 330
+             Q 340 350, 310 340
+             Q 280 330, 250 350
+             Q 220 370, 200 350
+             Q 180 330, 210 320
+             Q 240 310, 250 300 Z"
+          fill="url(#grad1)"
+          filter="url(#blur)"
+          opacity="0.4"
+        />
+      </pattern>
+    </defs>
+
+    <!-- Apply the pattern as background -->
+    <rect width="100%" height="100%" fill="url(#lavaLampPattern)" />
+  </svg>
+</div>
+
+<style>
+  .pattern-container {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .pattern-svg {
+    width: 100%;
+    height: 100%;
+    opacity: 0.7;
+  }
+
+  /* Animate the pattern for lava lamp effect */
+  .pattern-svg {
+    animation: patternDrift 30s ease-in-out infinite;
+  }
+
+  @keyframes patternDrift {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    25% {
+      transform: translate(20px, -30px) scale(1.05);
+    }
+    50% {
+      transform: translate(-15px, 25px) scale(0.98);
+    }
+    75% {
+      transform: translate(25px, 15px) scale(1.02);
+    }
+  }
+
+  /* Optional: Add subtle color shift animation */
+  @keyframes colorShift {
+    0%, 100% {
+      filter: hue-rotate(0deg);
+    }
+    50% {
+      filter: hue-rotate(30deg);
+    }
+  }
+
+  .pattern-svg {
+    animation: patternDrift 30s ease-in-out infinite,
+      colorShift 60s ease-in-out infinite;
+  }
+</style>
+

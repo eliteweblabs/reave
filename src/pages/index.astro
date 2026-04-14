@@ -1,0 +1,497 @@
+---
+import Layout from "../layouts/Layout.astro";
+import VoiceChatButton from "../components/VoiceChatButton.astro";
+import Transcript from "../components/Transcript.astro";
+---
+
+<Layout>
+  <VoiceChatButton position="center-bottom" />
+  <Transcript />
+  <div class="container">
+    <!-- Fixed logo mask with moving gradient inside -->
+    <div class="logo-mask">
+      <div class="gradient-layer" id="gradientLayer"></div>
+    </div>
+
+    <!-- Small watermark logo in bottom left -->
+    <div class="watermark">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+        <line
+          x1="241.9"
+          y1="170.2"
+          x2="241.9"
+          y2="318.2"
+          fill="#fff"
+          stroke="#fff"
+          stroke-miterlimit="10"
+          stroke-width="30"></line>
+        <line
+          x1="165.6"
+          y1="248.2"
+          x2="314.6"
+          y2="248.2"
+          fill="#fff"
+          stroke="#fff"
+          stroke-miterlimit="10"
+          stroke-width="30"></line>
+        <path
+          d="M242.1,332.5v14.8c0,54.4,44.1,98.6,98.6,98.6s98.6-44.1,98.6-98.6-44.1-98.6-98.6-98.6h-12.8"
+          fill="none"
+          stroke="#fff"
+          stroke-miterlimit="10"
+          stroke-width="30"></path>
+        <path
+          d="M241.4,152.4v-45.9c0-27.7-22.4-50.1-50.1-50.1s-60.1,22.4-60.1,50.1l-1,11.4,2,19.4-12.3-2-16.4,1c-27.7,0-50.1,34.4-50.1,62.1s22.4,50.1,50.1,50.1h48.4"
+          fill="none"
+          stroke="#fff"
+          stroke-miterlimit="10"
+          stroke-width="30"></path>
+      </svg>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000000;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  .logo-mask {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    mask-image: url("/logo-mask.svg");
+    -webkit-mask-image: url("/logo-mask.svg");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    /* Initial position - will be overridden by animation */
+    mask-position: 42% center;
+    -webkit-mask-position: 42% center;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))
+      drop-shadow(0 0 40px rgba(255, 100, 200, 0.3));
+    /* Reduced drop-shadows for better performance */
+    pointer-events: none;
+    animation: zoomIn 1s linear forwards;
+    transform: scale(50);
+  }
+
+  .gradient-layer {
+    position: absolute;
+    width: 150vw;
+    height: 150vh;
+    left: -25vw;
+    top: -25vh;
+    /* Static position - centered for visibility without animation */
+    transform: translate3d(0, 0, 0);
+    /* Reduced gradient layers for better performance */
+    background:
+      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
+      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
+      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
+      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
+      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
+      radial-gradient(
+        ellipse at center,
+        #ff0000 0%,
+        #ffff00 25%,
+        #00ffff 50%,
+        #ff00ff 75%,
+        #ff0000 100%
+      );
+    background-size: 60vw 60vh;
+    background-repeat: repeat;
+    cursor: grab;
+    /* Performance optimizations */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* Reduce repaints */
+    contain: layout style paint;
+  }
+
+  .gradient-layer.dragging {
+    cursor: grabbing;
+  }
+
+  .watermark {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    width: 40px;
+    height: 40px;
+    opacity: 0.6;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .watermark svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Zoom in animation on page load - completely linear, smooth transition */
+  @keyframes zoomIn {
+    0% {
+      transform: scale(50);
+      /* Start focused on AV (3rd & 4th letters) */
+      mask-position: 42% center;
+      -webkit-mask-position: 42% center;
+    }
+    100% {
+      transform: scale(1);
+      /* Smoothly transition to center throughout entire animation */
+      mask-position: center center;
+      -webkit-mask-position: center center;
+    }
+  }
+
+  /* Debug mode - uncomment to see mask boundaries */
+  /* .logo-mask::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid red;
+    pointer-events: none;
+    z-index: 1000;
+  } */
+
+  /* Subtle drift animation to show it's interactive */
+  @keyframes drift {
+    0% {
+      transform: translate(0, 0);
+    }
+    25% {
+      transform: translate(30px, -20px);
+    }
+    50% {
+      transform: translate(-20px, 30px);
+    }
+    75% {
+      transform: translate(20px, 20px);
+    }
+    100% {
+      transform: translate(0, 0);
+    }
+  }
+
+  /* Responsive adjustments for larger screens */
+  @media screen and (min-width: 1024px) {
+    .logo-mask {
+      mask-size: 600px 600px;
+      -webkit-mask-size: 600px 600px;
+      /* Don't override mask-position - let animation handle it */
+    }
+  }
+
+  @media screen and (min-width: 1440px) {
+    .logo-mask {
+      mask-size: 800px 800px;
+      -webkit-mask-size: 800px 800px;
+    }
+  }
+
+  @media screen and (min-width: 1920px) {
+    .logo-mask {
+      mask-size: 1000px 1000px;
+      -webkit-mask-size: 1000px 1000px;
+    }
+  }
+
+  @media screen and (min-width: 2560px) {
+    .logo-mask {
+      mask-size: 1200px 1200px;
+      -webkit-mask-size: 1200px 1200px;
+    }
+  }
+</style>
+
+<script>
+  // Wait for DOM to be ready
+  let gradientLayer: HTMLElement | null = null;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let baseX = 0; // User's drag offset
+  let baseY = 0;
+  let driftX = 0; // Drift animation offset
+  let driftY = 0;
+  let animationId;
+  let startTime: number | undefined;
+  let initTimestamp: number | undefined;
+
+  // Pattern size matches background-size (50vw x 50vh)
+  const getPatternSize = () => ({
+    width: window.innerWidth * 0.5,
+    height: window.innerHeight * 0.5,
+  });
+
+  // Wrap position to keep it within pattern bounds (infinite scrolling)
+  function wrapPosition(x: number, y: number) {
+    const { width, height } = getPatternSize();
+    // Use modulo to wrap - keeps position within one pattern tile
+    let wrappedX = ((x % width) + width) % width;
+    let wrappedY = ((y % height) + height) % height;
+    return { x: wrappedX, y: wrappedY };
+  }
+
+  // Drift animation for automatic movement
+  let lastFrameTime = 0;
+  let lastX = 0;
+  let lastY = 0;
+  const targetFPS = 15; // Reduced to 15fps for better performance
+  const frameInterval = 1000 / targetFPS;
+  let isPageVisible = true;
+
+  // Pause animation when tab is hidden
+  document.addEventListener("visibilitychange", () => {
+    isPageVisible = !document.hidden;
+  });
+
+  function animateDrift(timestamp: number) {
+    if (!gradientLayer || !isPageVisible) {
+      animationId = requestAnimationFrame(animateDrift);
+      return;
+    }
+
+    // Throttle to target FPS
+    const elapsed = timestamp - lastFrameTime;
+    if (elapsed < frameInterval) {
+      animationId = requestAnimationFrame(animateDrift);
+      return;
+    }
+    lastFrameTime = timestamp - (elapsed % frameInterval);
+
+    // Record first timestamp as init time if not set
+    if (initTimestamp === undefined) {
+      initTimestamp = timestamp;
+    }
+
+    // Wait for intro animation to complete (1 second) before starting drift
+    const introDuration = 1000;
+    const timeSinceInit = timestamp - initTimestamp;
+    const introComplete = timeSinceInit >= introDuration;
+
+    // Initialize startTime when intro completes
+    if (introComplete && !startTime) {
+      startTime = timestamp;
+      driftX = 0;
+      driftY = 0;
+    }
+
+    // Simplified calculations - only update if needed
+    if (introComplete && startTime && !isDragging) {
+      const elapsed = (timestamp - startTime) / 1000;
+      const duration = 40; // Slower movement
+      const progress = (elapsed % duration) / duration;
+
+      // Simplified single-frequency movement (much faster calculation)
+      const { width, height } = getPatternSize();
+      const angle = progress * Math.PI * 2;
+      driftX = Math.sin(angle) * width * 0.4;
+      driftY = Math.cos(angle) * height * 0.4;
+    }
+
+    // Only apply transform after intro completes and only if changed
+    if (introComplete) {
+      const totalX = baseX + (isDragging ? 0 : driftX);
+      const totalY = baseY + (isDragging ? 0 : driftY);
+      const wrapped = wrapPosition(totalX, totalY);
+
+      // Only update DOM if position actually changed (performance optimization)
+      if (
+        Math.abs(wrapped.x - lastX) > 0.5 ||
+        Math.abs(wrapped.y - lastY) > 0.5
+      ) {
+        // Combine with scale if audio level is being tracked
+        const transform = `translate3d(${Math.round(wrapped.x)}px, ${Math.round(wrapped.y)}px, 0) scale(${currentScale})`;
+        gradientLayer.style.transform = transform;
+        lastX = wrapped.x;
+        lastY = wrapped.y;
+      }
+    }
+
+    animationId = requestAnimationFrame(animateDrift);
+  }
+
+  function handleStart(e: MouseEvent | TouchEvent) {
+    isDragging = true;
+    const point = "touches" in e ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+
+    if (gradientLayer) {
+      gradientLayer.classList.add("dragging");
+      // Capture current visual position (base + drift) into base
+      // Wrap it to keep within pattern bounds
+      const currentX = baseX + driftX;
+      const currentY = baseY + driftY;
+      const wrapped = wrapPosition(currentX, currentY);
+
+      // Set base to wrapped position to preserve it
+      baseX = wrapped.x;
+      baseY = wrapped.y;
+
+      // Reset drift so it restarts smoothly when drag ends
+      driftX = 0;
+      driftY = 0;
+      // Don't reset startTime - let drift continue from its current phase
+      // This ensures smooth continuation after drag
+    }
+  }
+
+  function handleMove(e: MouseEvent | TouchEvent) {
+    if (!isDragging || !gradientLayer) return;
+
+    e.preventDefault();
+    const point = "touches" in e ? e.touches[0] : e;
+
+    const deltaX = point.clientX - startX;
+    const deltaY = point.clientY - startY;
+
+    // Update base position with the drag delta
+    baseX += deltaX;
+    baseY += deltaY;
+
+    // Wrap position to keep it within pattern bounds for infinite scrolling
+    const wrapped = wrapPosition(baseX, baseY);
+
+    // Apply the transform immediately (driftX/driftY not applied during drag)
+    // Use transform3d for hardware acceleration, include current scale
+    gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0) scale(${currentScale})`;
+
+    // Update start position for next delta calculation
+    startX = point.clientX;
+    startY = point.clientY;
+  }
+
+  function handleEnd() {
+    isDragging = false;
+
+    if (gradientLayer) {
+      gradientLayer.classList.remove("dragging");
+      // baseX/baseY already preserve the drag position (wrapped within pattern bounds)
+      // driftX/driftY will continue from 0 and add smoothly on top
+      // No need to reset startTime - drift continues from where it was
+    }
+  }
+
+  // Audio level tracking for gradient scaling
+  let currentAudioLevel = 0;
+  let targetScale = 1;
+  let currentScale = 1;
+  let scaleAnimationFrame: number | null = null;
+
+  // Listen for audio level events from VoiceChatButton
+  window.addEventListener("audioLevel", ((event: CustomEvent) => {
+    if (event.detail && typeof event.detail.level === "number") {
+      currentAudioLevel = event.detail.level;
+      // Map audio level (0-1) to scale (1.0 - 1.4)
+      // Higher audio = larger scale, with smooth response
+      targetScale = 1 + currentAudioLevel * 0.4;
+    }
+  }) as EventListener);
+
+  function animateGradientScale() {
+    if (!gradientLayer) {
+      scaleAnimationFrame = null;
+      return;
+    }
+
+    // Smooth interpolation for scale (easing)
+    const smoothing = 0.1;
+    currentScale += (targetScale - currentScale) * smoothing;
+
+    // Note: Position transform is handled by animateDrift, we just update the scale
+    // The drift animation will combine scale with position
+    scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
+  }
+
+  // Debug helper: Log animation progress
+  function debugAnimation() {
+    const logoMask = document.querySelector(".logo-mask");
+    if (!logoMask) return;
+
+    // Get computed styles to see current mask position
+    const style = window.getComputedStyle(logoMask);
+    const maskPosition = style.maskPosition || style.webkitMaskPosition;
+    const transform = style.transform;
+
+    console.log("Animation Debug:", {
+      maskPosition,
+      transform,
+      maskSize: style.maskSize || style.webkitMaskSize,
+    });
+  }
+
+  // Initialize after DOM is ready
+  function init() {
+    gradientLayer = document.getElementById("gradientLayer");
+
+    if (!gradientLayer) {
+      console.error("gradientLayer element not found");
+      return;
+    }
+
+    // Set initial scale
+    gradientLayer.style.transform = "translate3d(0, 0, 0) scale(1)";
+
+    // Start gradient scale animation
+    animateGradientScale();
+
+    // Debug: Log animation state periodically (add ?debug=animation to URL)
+    if (window.location.search.includes("debug=animation")) {
+      const logoMask = document.querySelector(".logo-mask");
+      if (logoMask) {
+        const observer = new MutationObserver(() => {
+          debugAnimation();
+        });
+        observer.observe(logoMask, {
+          attributes: true,
+          attributeFilter: ["style", "class"],
+        });
+
+        // Also log during animation
+        let frameCount = 0;
+        const logInterval = setInterval(() => {
+          debugAnimation();
+          frameCount++;
+          if (frameCount > 100) {
+            clearInterval(logInterval);
+          }
+        }, 100);
+      }
+    }
+
+    // Mouse events
+    document.addEventListener("mousedown", handleStart);
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleEnd);
+
+    // Touch events
+    document.addEventListener("touchstart", handleStart, { passive: false });
+    document.addEventListener("touchmove", handleMove, { passive: false });
+    document.addEventListener("touchend", handleEnd);
+
+    // Start the drift animation (will wait for intro to complete)
+    animationId = requestAnimationFrame(animateDrift);
+  }
+
+  // Run when DOM is ready
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+</script>
