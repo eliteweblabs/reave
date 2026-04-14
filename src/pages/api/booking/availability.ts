@@ -1,10 +1,9 @@
 import type { APIRoute } from 'astro';
-import { pool, CALCOM_USERNAME, TIMEZONE, fmtDate } from '../../../lib/calcom-db';
+import { pool, CALCOM_USERNAME, TIMEZONE, fmtDate, fmtTime } from '../../../lib/calcom-db';
 
 export const GET: APIRoute = async () => {
   try {
     console.log('[Availability] Starting availability check...');
-    console.log('[Availability] DB URL:', CALCOM_DB_URL?.substring(0, 50) + '...');
     console.log('[Availability] Username:', CALCOM_USERNAME);
     
     const userRes = await pool().query(
@@ -59,14 +58,14 @@ export const GET: APIRoute = async () => {
       bookingsRes.rows.map((b: any) => new Date(b.startTime).toISOString())
     );
 
-    const days: { date: string; label: string; slots: string[] }[] = [];
+    const days: { date: string; label: string; slots: { iso: string; label: string }[] }[] = [];
 
     for (let i = 1; i <= 14; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
       const dayOfWeek = date.getDay();
       const dateKey = date.toISOString().split('T')[0];
-      const daySlots: string[] = [];
+      const daySlots: { iso: string; label: string }[] = [];
 
       for (const rule of schedRes.rows) {
         const ruleDays: number[] = rule.days;
@@ -85,17 +84,15 @@ export const GET: APIRoute = async () => {
         const endMin = endParts.getUTCMinutes();
 
         let slotTime = new Date(date);
-        slotTime.setHours(startHour, startMin, 0, 0);
+        slotTime.setUTCHours(startHour, startMin, 0, 0);
 
         const endTime = new Date(date);
-        endTime.setHours(endHour, endMin, 0, 0);
+        endTime.setUTCHours(endHour, endMin, 0, 0);
 
         while (slotTime < endTime) {
           const slotISO = slotTime.toISOString();
           if (!bookedSlots.has(slotISO) && slotTime > now) {
-            const h = slotTime.getHours();
-            const m = slotTime.getMinutes();
-            daySlots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+            daySlots.push({ iso: slotISO, label: fmtTime(slotISO) });
           }
           slotTime = new Date(slotTime.getTime() + slotLength * 60000);
         }

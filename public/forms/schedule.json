@@ -1,35 +1,26 @@
 {
   "title": "Schedule a Meeting",
+  "description": "Let's find a time that works for you.",
   "fields": [
     {
-      "tag": "input",
-      "type": "text",
       "name": "name",
-      "required": true,
-      "cf-questions": "Hi there! I'm here to help you schedule a meeting.&&Let's find a time that works.&&First, what's your name?"
+      "type": "text",
+      "cf-questions": "Hi there! I'm here to help you schedule a meeting.&&First, what's your name?"
     },
     {
-      "tag": "input",
-      "type": "email",
       "name": "email",
-      "required": true,
+      "type": "email",
       "cf-questions": "Nice to meet you! What's your email address?"
     },
     {
-      "tag": "select",
-      "name": "purpose",
-      "required": true,
-      "cf-questions": "What would you like to discuss?",
-      "options": [
-        { "value": "consultation", "label": "Consultation" },
-        { "value": "project", "label": "Project Inquiry" },
-        { "value": "general", "label": "General Question" }
-      ]
+      "name": "start",
+      "type": "availability",
+      "cf-questions": "Let me check the calendar for you..."
     }
   ],
   "submitEndpoint": "/api/booking/create",
   "onComplete": {
-    "message": "Thanks for reaching out! I'll send you a confirmation email.",
+    "message": "You're booked! A confirmation will be sent to your email.",
     "redirect": null
   }
 }

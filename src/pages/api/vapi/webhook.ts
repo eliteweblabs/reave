@@ -3,7 +3,7 @@ import { pool, CALCOM_USERNAME, CALCOM_BASE_URL, TIMEZONE, fmtTime, fmtDate } fr
 
 async function getStaffSchedule(): Promise<string> {
   try {
-    const userRes = await pool.query(
+    const userRes = await pool().query(
       `SELECT u.id, u."defaultScheduleId", et.id as event_type_id, et.length, et.title
        FROM users u
        JOIN "EventType" et ON et."userId" = u.id
@@ -20,7 +20,7 @@ async function getStaffSchedule(): Promise<string> {
     const scheduleId = user.defaultScheduleId;
     const slotLength = user.length || 30;
 
-    const schedRes = await pool.query(
+    const schedRes = await pool().query(
       `SELECT a."days", a."startTime", a."endTime"
        FROM "Availability" a
        WHERE a."scheduleId" = $1
@@ -36,7 +36,7 @@ async function getStaffSchedule(): Promise<string> {
     const twoWeeks = new Date();
     twoWeeks.setDate(twoWeeks.getDate() + 14);
 
-    const bookingsRes = await pool.query(
+    const bookingsRes = await pool().query(
       `SELECT "startTime", "endTime" FROM "Booking"
        WHERE "userId" = $1
        AND status != 'CANCELLED'
@@ -120,7 +120,7 @@ async function bookAppointment(args: {
   notes?: string;
 }): Promise<string> {
   try {
-    const userRes = await pool.query(
+    const userRes = await pool().query(
       `SELECT u.id, et.id as event_type_id, et.slug, et.length
        FROM users u
        JOIN "EventType" et ON et."userId" = u.id
