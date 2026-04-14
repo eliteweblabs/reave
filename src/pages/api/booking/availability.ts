@@ -80,19 +80,17 @@ export const GET: APIRoute = async () => {
         
         if (!startMatch || !endMatch) continue;
         
+        // Parse ET time components
         const startHour = parseInt(startMatch[1]);
         const startMin = parseInt(startMatch[2]);
         const endHour = parseInt(endMatch[1]);
         const endMin = parseInt(endMatch[2]);
-
-        // Create a date in America/New_York timezone
-        // Format: YYYY-MM-DDTHH:MM:SS-05:00 (EDT)
-        // Create slots using setHours (handles local time correctly)
-        let slotTime = new Date(date);
-        slotTime.setHours(startHour, startMin, 0, 0);
-
-        const endTime = new Date(date);
-        endTime.setHours(endHour, endMin, 0, 0);
+        
+        // Create UTC times from ET (April is EDT = UTC-4)
+        const etToUtc = 4; // hours to add for EDT
+        
+        let slotTime = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), startHour + etToUtc, startMin));
+        let endTime = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), endHour + etToUtc, endMin));
 
         while (slotTime < endTime) {
           const slotISO = slotTime.toISOString();
