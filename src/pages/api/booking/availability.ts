@@ -70,10 +70,9 @@ export const GET: APIRoute = async () => {
         const ruleDays: number[] = rule.days;
         if (!ruleDays.includes(dayOfWeek)) continue;
 
-        // Parse schedule times in local timezone (America/New_York)
-        // The times stored in DB are in local time (e.g., "09:00:00" means 9 AM ET)
-        const startStr = rule.startTime.toISOString ? rule.startTime.toISOString() : rule.startTime;
-        const endStr = rule.endTime.toISOString ? rule.endTime.toISOString() : rule.endTime;
+        // Parse schedule times - they come as strings like "09:00:00"
+        const startStr = typeof rule.startTime === 'string' ? rule.startTime : '09:00:00';
+        const endStr = typeof rule.endTime === 'string' ? rule.endTime : '17:00:00';
         
         // Extract hours/minutes from the time string
         const startMatch = startStr.match(/(\d{2}):(\d{2}):/);
