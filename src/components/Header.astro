@@ -6,25 +6,46 @@ interface Props {
 const { isIndex = false } = Astro.props;
 ---
 
-{isIndex ? (
-<header class="header">
-  <div class="header-logo-mask">
+{
+  isIndex ? (
+    <header class="header">
+      {/* <div class="header-logo-mask">
     <div class="header-gradient-layer"></div>
-  </div>
-</header>
-) : (
-<a href="/" class="small-logo">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="logo-svg">
-    <path d="M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z" fill="currentColor"/>
-    <path d="M241.2,313.4l42.1-99.3,42.6,99.3" fill="currentColor"/>
-    <path d="M298.5,214.1h79.7l-40.3,99.3" fill="currentColor"/>
-    <polygon points="251 258 175.9 258 175.9 224.7 264.7 224.7 251 258" fill="currentColor"/>
-    <polygon points="232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8" fill="currentColor"/>
-    <polygon points="368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5" fill="currentColor"/>
-    <polygon points="386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7" fill="currentColor"/>
-  </svg>
-</a>
-)}
+  </div> */}
+    </header>
+  ) : (
+    <a href="/" class="small-logo">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 512 512"
+        class="logo-svg"
+      >
+        <path
+          d="M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z"
+          fill="currentColor"
+        />
+        <path d="M241.2,313.4l42.1-99.3,42.6,99.3" fill="currentColor" />
+        <path d="M298.5,214.1h79.7l-40.3,99.3" fill="currentColor" />
+        <polygon
+          points="251 258 175.9 258 175.9 224.7 264.7 224.7 251 258"
+          fill="currentColor"
+        />
+        <polygon
+          points="232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8"
+          fill="currentColor"
+        />
+        <polygon
+          points="368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5"
+          fill="currentColor"
+        />
+        <polygon
+          points="386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7"
+          fill="currentColor"
+        />
+      </svg>
+    </a>
+  )
+}
 
 <style>
   .header {
@@ -87,9 +108,15 @@ const { isIndex = false } = Astro.props;
   }
 
   @keyframes headerGradientMove {
-    0% { background-position: 0% 0%; }
-    50% { background-position: 100% 100%; }
-    100% { background-position: 0% 0%; }
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    100% {
+      background-position: 0% 0%;
+    }
   }
 
   /* Small logo for non-index pages */
@@ -109,27 +136,63 @@ const { isIndex = false } = Astro.props;
     filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
   }
 
-  .small-logo path, .small-logo polygon {
+  .small-logo path,
+  .small-logo polygon {
     animation: colorShift 5s ease infinite;
   }
 
   @keyframes colorShift {
-    0%, 100% { color: #a855f7; }
-    33% { color: #ec4899; }
-    66% { color: #06b6d4; }
+    0%,
+    100% {
+      color: #a855f7;
+    }
+    33% {
+      color: #ec4899;
+    }
+    66% {
+      color: #06b6d4;
+    }
   }
 
   @media screen and (min-width: 768px) {
-    .header { height: 400px; }
-    .header-logo-mask { width: 1000px; height: 400px; }
-    .header-gradient-layer { width: 1600px; height: 640px; left: -300px; top: -120px; background-size: 800px 320px; }
-    .small-logo .logo-svg { width: 56px; height: 56px; }
+    .header {
+      height: 400px;
+    }
+    .header-logo-mask {
+      width: 1000px;
+      height: 400px;
+    }
+    .header-gradient-layer {
+      width: 1600px;
+      height: 640px;
+      left: -300px;
+      top: -120px;
+      background-size: 800px 320px;
+    }
+    .small-logo .logo-svg {
+      width: 56px;
+      height: 56px;
+    }
   }
 
   @media screen and (min-width: 1024px) {
-    .header { height: 480px; }
-    .header-logo-mask { width: 1200px; height: 480px; }
-    .header-gradient-layer { width: 2000px; height: 800px; left: -400px; top: -160px; background-size: 1000px 400px; }
-    .small-logo .logo-svg { width: 64px; height: 64px; }
+    .header {
+      height: 480px;
+    }
+    .header-logo-mask {
+      width: 1200px;
+      height: 480px;
+    }
+    .header-gradient-layer {
+      width: 2000px;
+      height: 800px;
+      left: -400px;
+      top: -160px;
+      background-size: 1000px 400px;
+    }
+    .small-logo .logo-svg {
+      width: 64px;
+      height: 64px;
+    }
   }
 </style>
