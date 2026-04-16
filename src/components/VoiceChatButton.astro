@@ -122,6 +122,28 @@ const positionClasses = {
         hasIsLoadedStore: !!$isLoadedStore,
       });
 
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:110",
+            message: "Clerk stores imported",
+            data: {
+              hasAuthStore: !!$authStore,
+              hasUserStore: !!$userStore,
+              hasIsLoadedStore: !!$isLoadedStore,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "A",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
 
       // If stores are available, use them; otherwise fall back to window.Clerk
       if ($authStore && $userStore) {
@@ -167,6 +189,31 @@ const positionClasses = {
           console.log("Initial Clerk user state - user:", userId);
         }
 
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "VoiceChatButton.astro:198",
+              message: "Clerk auth initialization (stores available)",
+              data: {
+                initialAuth: initialAuth
+                  ? { userId: initialAuth.userId, hasUser: !!initialAuth.user }
+                  : null,
+                initialUser: initialUser ? { id: initialUser.id } : null,
+                isAuthenticated,
+                userId: userId || "not set",
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "init",
+              hypothesisId: "B",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
       } else {
         // Fallback: check window.Clerk directly when it loads
         console.log(
@@ -183,9 +230,53 @@ const positionClasses = {
         // Also check immediately
         checkWindowClerk();
 
+        // #region agent log
+        fetch(
+          "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "VoiceChatButton.astro:220",
+              message: "Clerk auth initialization (fallback to window.Clerk)",
+              data: {
+                storesAvailable: false,
+                isAuthenticated,
+                userId: userId || "not set",
+                hasWindowClerk: !!window.Clerk,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "init",
+              hypothesisId: "C",
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
       }
     } catch (error) {
       console.error("Clerk auth initialization error:", error);
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "VoiceChatButton.astro:195",
+            message: "Clerk auth initialization error",
+            data: {
+              error: error.message,
+              stack: error.stack,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "init",
+            hypothesisId: "C",
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
     }
   }
 
@@ -206,6 +297,25 @@ const positionClasses = {
     assistantIdLength: assistantId?.length || 0,
   });
 
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:100",
+      message: "Voice recognition config loaded",
+      data: {
+        enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "A",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   console.log("=== Voice Recognition Configuration Debug ===");
   console.log(
@@ -233,6 +343,29 @@ const positionClasses = {
   );
   console.log("userId:", userId || "not set", "(type:", typeof userId, ")");
 
+  // #region agent log
+  fetch("http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "VoiceChatButton.astro:125",
+      message: "Detailed voice recognition config check",
+      data: {
+        enableVoiceRecognition,
+        enableVoiceRecognitionType: typeof enableVoiceRecognition,
+        voiceProfileId: voiceProfileId || "not set",
+        voiceProfileIdType: typeof voiceProfileId,
+        assistantOverridesKeys: Object.keys(assistantOverrides || {}),
+        assistantOverridesEmpty:
+          Object.keys(assistantOverrides || {}).length === 0,
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "init",
+      hypothesisId: "E",
+    }),
+  }).catch(() => {});
+  // #endregion
 
   if (!publicKey || !assistantId) {
     console.warn(
@@ -1228,8 +1361,59 @@ const positionClasses = {
                     }
                   } catch (e) {
                     console.warn("Error getting Clerk auth state:", e);
+                    // #region agent log
+                    fetch(
+                      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          location: "VoiceChatButton.astro:1180",
+                          message: "Error getting Clerk auth state",
+                          data: {
+                            error: e.message,
+                            hasAuthStore: !!$authStore,
+                            hasUserStore: !!$userStore,
+                          },
+                          timestamp: Date.now(),
+                          sessionId: "debug-session",
+                          runId: "init",
+                          hypothesisId: "D",
+                        }),
+                      }
+                    ).catch(() => {});
+                    // #endregion
                   }
 
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1200",
+                        message: "Auth state check before Vapi start",
+                        data: {
+                          currentUserId: currentUserId || "not set",
+                          currentIsAuthenticated,
+                          hasAuthStore: !!$authStore,
+                          hasUserStore: !!$userStore,
+                          authStoreHasUser: $authStore
+                            ? $authStore.get()?.userId || "not set"
+                            : "store not loaded",
+                          userStoreHasUser: $userStore
+                            ? $userStore.get()?.id || "not set"
+                            : "store not loaded",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "E",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   // Vapi start() method signature: start(assistant, assistantOverrides, squad, workflow, workflowOverrides, options)
                   // Build assistantOverrides with voice recognition settings if enabled
@@ -1270,6 +1454,33 @@ const positionClasses = {
                     hasUserContext: currentIsAuthenticated && currentUserId,
                   });
 
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1200",
+                        message: "Auth state at call start",
+                        data: {
+                          isAuthenticated: currentIsAuthenticated,
+                          userId: currentUserId || "not set",
+                          hasUserContext:
+                            currentIsAuthenticated && currentUserId,
+                          finalOverridesHasUser:
+                            currentIsAuthenticated &&
+                            currentUserId &&
+                            finalAssistantOverrides.user,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "F",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   console.log("Voice recognition config:", {
                     enabled: enableVoiceRecognition,
@@ -1280,12 +1491,60 @@ const positionClasses = {
                         : "none",
                   });
 
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1055",
+                        message: "Voice recognition config before start()",
+                        data: {
+                          enableVoiceRecognition,
+                          voiceProfileId: voiceProfileId || "not set",
+                          hasOverrides:
+                            Object.keys(finalAssistantOverrides).length > 0,
+                          overridesKeys: Object.keys(finalAssistantOverrides),
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "B",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   // Pass assistantId and overrides to start()
                   // If no overrides, just pass assistantId (backward compatible)
                   const hasOverrides =
                     Object.keys(finalAssistantOverrides).length > 0;
 
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1065",
+                        message: "Calling vapiInstance.start()",
+                        data: {
+                          hasOverrides,
+                          overrides: hasOverrides
+                            ? finalAssistantOverrides
+                            : null,
+                          assistantId: validAssistantId,
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "C",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   const startResult = hasOverrides
                     ? vapiInstance.start(
@@ -1294,6 +1553,30 @@ const positionClasses = {
                       )
                     : vapiInstance.start(validAssistantId);
 
+                  // #region agent log
+                  fetch(
+                    "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        location: "VoiceChatButton.astro:1075",
+                        message: "vapiInstance.start() called",
+                        data: {
+                          hasOverrides,
+                          resultType: typeof startResult,
+                          isPromise:
+                            startResult &&
+                            typeof startResult.then === "function",
+                        },
+                        timestamp: Date.now(),
+                        sessionId: "debug-session",
+                        runId: "init",
+                        hypothesisId: "D",
+                      }),
+                    }
+                  ).catch(() => {});
+                  // #endregion
 
                   console.log(
                     "Step 7: vapiInstance.start() called successfully"
