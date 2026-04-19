@@ -1,12 +1,12 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import VoiceChatButton from "../components/VoiceChatButton.astro";
-import Transcript from "../components/Transcript.astro";
+import ClientSearch from "../components/ClientSearch.astro";
 ---
 
 <Layout>
-  <VoiceChatButton position="center-bottom" />
-  <Transcript />
+  <div class="search-overlay">
+    <ClientSearch />
+  </div>
   <div class="container">
     <!-- Fixed logo mask with moving gradient inside -->
     <div class="logo-mask">
@@ -52,6 +52,20 @@ import Transcript from "../components/Transcript.astro";
 </Layout>
 
 <style>
+  .search-overlay {
+    position: fixed;
+    top: 24px;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    padding: 0 16px;
+    pointer-events: none;
+  }
+
+  .search-overlay > :global(.client-search) {
+    pointer-events: auto;
+  }
+
   .container {
     position: fixed;
     top: 0;
@@ -386,36 +400,7 @@ import Transcript from "../components/Transcript.astro";
     }
   }
 
-  // Audio level tracking for gradient scaling
-  let currentAudioLevel = 0;
-  let targetScale = 1;
   let currentScale = 1;
-  let scaleAnimationFrame: number | null = null;
-
-  // Listen for audio level events from VoiceChatButton
-  window.addEventListener("audioLevel", ((event: CustomEvent) => {
-    if (event.detail && typeof event.detail.level === "number") {
-      currentAudioLevel = event.detail.level;
-      // Map audio level (0-1) to scale (1.0 - 1.4)
-      // Higher audio = larger scale, with smooth response
-      targetScale = 1 + currentAudioLevel * 0.4;
-    }
-  }) as EventListener);
-
-  function animateGradientScale() {
-    if (!gradientLayer) {
-      scaleAnimationFrame = null;
-      return;
-    }
-
-    // Smooth interpolation for scale (easing)
-    const smoothing = 0.1;
-    currentScale += (targetScale - currentScale) * smoothing;
-
-    // Note: Position transform is handled by animateDrift, we just update the scale
-    // The drift animation will combine scale with position
-    scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
-  }
 
   // Debug helper: Log animation progress
   function debugAnimation() {
@@ -443,11 +428,7 @@ import Transcript from "../components/Transcript.astro";
       return;
     }
 
-    // Set initial scale
     gradientLayer.style.transform = "translate3d(0, 0, 0) scale(1)";
-
-    // Start gradient scale animation
-    animateGradientScale();
 
     // Debug: Log animation state periodically (add ?debug=animation to URL)
     if (window.location.search.includes("debug=animation")) {

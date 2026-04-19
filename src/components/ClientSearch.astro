@@ -1,0 +1,377 @@
+---
+interface Props {
+  placeholder?: string;
+  endpoint?: string;
+}
+
+const { placeholder = 'Search clients by name, email, phone, company…', endpoint = '/api/clients/search' } = Astro.props;
+---
+
+<div class="client-search" data-endpoint={endpoint}>
+  <div class="client-search__input-wrap">
+    <svg class="client-search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    <input
+      type="search"
+      class="client-search__input"
+      placeholder={placeholder}
+      autocomplete="off"
+      spellcheck="false"
+      aria-label="Client search"
+    />
+    <span class="client-search__status" aria-live="polite"></span>
+  </div>
+
+  <ul class="client-search__results" role="listbox" aria-label="Search results"></ul>
+
+  <div class="client-search__details" hidden>
+    <button type="button" class="client-search__back" aria-label="Back to results">&larr; Back</button>
+    <div class="client-search__details-body"></div>
+  </div>
+</div>
+
+<style>
+  .client-search {
+    --bg: rgba(255, 255, 255, 0.06);
+    --bg-hover: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.12);
+    --text: #f5f5f7;
+    --text-dim: rgba(245, 245, 247, 0.65);
+    --accent: #ff3fbd;
+
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .client-search__input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 14px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .client-search__input-wrap:focus-within {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+  }
+
+  .client-search__icon {
+    width: 18px;
+    height: 18px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+  }
+
+  .client-search__input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: var(--text);
+    font-size: 16px;
+    padding: 14px 10px;
+    font-family: inherit;
+  }
+
+  .client-search__input::placeholder {
+    color: var(--text-dim);
+  }
+
+  .client-search__status {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    padding-left: 6px;
+  }
+
+  .client-search__results {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .client-search__result {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+  }
+
+  .client-search__result:hover,
+  .client-search__result:focus-visible {
+    background: var(--bg-hover);
+    border-color: rgba(255, 255, 255, 0.22);
+    outline: none;
+    transform: translateY(-1px);
+  }
+
+  .client-search__result-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .client-search__name {
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .client-search__score {
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .client-search__meta {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+
+  .client-search__meta span {
+    white-space: nowrap;
+  }
+
+  .client-search__empty {
+    padding: 14px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 14px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    margin-top: 10px;
+  }
+
+  .client-search__details {
+    margin-top: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .client-search__back {
+    background: transparent;
+    border: 0;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 0 10px 0;
+    font-family: inherit;
+  }
+
+  .client-search__details h3 {
+    margin: 0 0 4px 0;
+    font-size: 18px;
+  }
+
+  .client-search__details dl {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 6px 14px;
+    margin: 12px 0 0 0;
+    font-size: 14px;
+  }
+
+  .client-search__details dt {
+    color: var(--text-dim);
+  }
+
+  .client-search__details dd {
+    margin: 0;
+    word-break: break-word;
+  }
+
+  .client-search__details a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .client-search__details a:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<script>
+  interface Client {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    nmls?: string;
+    notes?: string;
+    created_at: string;
+    score: number;
+  }
+
+  interface SearchResponse {
+    query: string;
+    count: number;
+    took_ms: number;
+    results: Client[];
+  }
+
+  function initClientSearch(root: HTMLElement) {
+    const endpoint = root.dataset.endpoint || '/api/clients/search';
+    const inputEl = root.querySelector<HTMLInputElement>('.client-search__input');
+    const resultsEl = root.querySelector<HTMLUListElement>('.client-search__results');
+    const statusEl = root.querySelector<HTMLSpanElement>('.client-search__status');
+    const detailsEl = root.querySelector<HTMLDivElement>('.client-search__details');
+    const detailsBodyEl = root.querySelector<HTMLDivElement>('.client-search__details-body');
+    const backBtnEl = root.querySelector<HTMLButtonElement>('.client-search__back');
+
+    if (!inputEl || !resultsEl || !statusEl || !detailsEl || !detailsBodyEl || !backBtnEl) return;
+
+    const input: HTMLInputElement = inputEl;
+    const results: HTMLUListElement = resultsEl;
+    const status: HTMLSpanElement = statusEl;
+    const details: HTMLDivElement = detailsEl;
+    const detailsBody: HTMLDivElement = detailsBodyEl;
+    const backBtn: HTMLButtonElement = backBtnEl;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let currentController: AbortController | null = null;
+    let lastResults: Client[] = [];
+
+    const escapeHtml = (value: string) =>
+      value.replace(/[&<>"']/g, (ch) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] as string)
+      );
+
+    function render(res: Client[]) {
+      results.innerHTML = '';
+      lastResults = res;
+
+      if (res.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'client-search__empty';
+        empty.textContent = input.value.trim() ? 'No matching clients.' : 'Start typing to search.';
+        results.appendChild(empty);
+        return;
+      }
+
+      for (const client of res) {
+        const li = document.createElement('li');
+        li.className = 'client-search__result';
+        li.tabIndex = 0;
+        li.setAttribute('role', 'option');
+        li.dataset.id = client.id;
+
+        const relevance = Math.max(0, Math.min(1, 1 - client.score));
+        const relevancePct = Math.round(relevance * 100);
+
+        li.innerHTML = `
+          <div class="client-search__result-head">
+            <span class="client-search__name">${escapeHtml(client.name)}</span>
+            <span class="client-search__score">${relevancePct}% match</span>
+          </div>
+          <div class="client-search__meta">
+            <span>${escapeHtml(client.email)}</span>
+            <span>${escapeHtml(client.phone)}</span>
+            <span>${escapeHtml(client.company)}</span>
+          </div>
+        `;
+
+        li.addEventListener('click', () => showDetails(client));
+        li.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            showDetails(client);
+          }
+        });
+
+        results.appendChild(li);
+      }
+    }
+
+    function showDetails(client: Client) {
+      results.hidden = true;
+      details.hidden = false;
+
+      const parts: string[] = [];
+      parts.push(`<h3>${escapeHtml(client.name)}</h3>`);
+      parts.push(`<div class="client-search__meta"><span>${escapeHtml(client.company)}</span></div>`);
+      parts.push('<dl>');
+      parts.push(`<dt>Email</dt><dd><a href="mailto:${escapeHtml(client.email)}">${escapeHtml(client.email)}</a></dd>`);
+      parts.push(`<dt>Phone</dt><dd><a href="tel:${escapeHtml(client.phone)}">${escapeHtml(client.phone)}</a></dd>`);
+      if (client.nmls) parts.push(`<dt>NMLS</dt><dd>${escapeHtml(client.nmls)}</dd>`);
+      if (client.notes) parts.push(`<dt>Notes</dt><dd>${escapeHtml(client.notes)}</dd>`);
+      const created = new Date(client.created_at);
+      if (!isNaN(created.getTime())) {
+        parts.push(`<dt>Added</dt><dd>${created.toLocaleDateString()}</dd>`);
+      }
+      parts.push('</dl>');
+
+      detailsBody.innerHTML = parts.join('');
+    }
+
+    function showList() {
+      details.hidden = true;
+      results.hidden = false;
+    }
+
+    backBtn.addEventListener('click', showList);
+
+    async function runSearch(q: string) {
+      if (currentController) currentController.abort();
+      const controller = new AbortController();
+      currentController = controller;
+
+      if (!q) {
+        status.textContent = '';
+        render([]);
+        return;
+      }
+
+      status.textContent = 'Searching…';
+
+      try {
+        const res = await fetch(`${endpoint}?q=${encodeURIComponent(q)}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as SearchResponse;
+        if (controller.signal.aborted) return;
+        status.textContent = `${data.count} result${data.count === 1 ? '' : 's'} · ${data.took_ms.toFixed(1)}ms`;
+        render(data.results);
+        showList();
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        status.textContent = 'Error';
+        console.error('Client search failed:', err);
+      }
+    }
+
+    input.addEventListener('input', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const value = input.value;
+      debounceTimer = setTimeout(() => runSearch(value.trim()), 120);
+    });
+
+    render([]);
+  }
+
+  const roots = document.querySelectorAll<HTMLElement>('.client-search');
+  roots.forEach(initClientSearch);
+</script>
