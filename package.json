@@ -11,12 +11,16 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.5",
+    "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8",
     "conversational-form": "^1.0.2",
-    "fuse.js": "^7.3.0",
     "lucide-astro": "^0.556.0",
+    "pg": "^8.20.0",
     "react-simple-chatbot": "^0.6.1",
     "styled-components": "^4.4.1",
     "twilio": "^5.10.7"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
   }
 }
