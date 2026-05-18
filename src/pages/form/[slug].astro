@@ -1,15 +1,12 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 
-
 const { slug } = Astro.params;
+const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || '';
 ---
 
 <Layout>
   <div class="form-container">
-    <h1 id="form-title">Loading...</h1>
-    <p id="form-description"></p>
-
     <form id="conversational-form" class="conversation">
       <div id="questions-container"></div>
 
@@ -18,7 +15,7 @@ const { slug } = Astro.params;
         <input
           type="text"
           id="user-input"
-          placeholder="Type your answer..."
+          placeholder=""
           autocomplete="off"
         />
         <button type="submit">Send</button>
@@ -50,21 +47,9 @@ const { slug } = Astro.params;
   .form-container {
     max-width: 640px;
     margin: 0 auto;
-    padding: 40px 20px 120px;
+    padding: calc(16vw + 48px) 20px 120px;
     color: #fff;
     font-family: "Inter", sans-serif;
-  }
-
-  h1 {
-    background: linear-gradient(135deg, #a855f7, #ec4899);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 10px;
-  }
-
-  #form-description {
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 30px;
   }
 
   .conversation {
@@ -74,28 +59,21 @@ const { slug } = Astro.params;
   }
 
   .message {
-    padding: 14px 18px;
-    border-radius: 12px;
     max-width: 85%;
     animation: fadeIn 0.3s ease;
-    line-height: 1.5;
+    line-height: 1.6;
+    font-size: 15px;
   }
 
   .message.robot {
-    background: linear-gradient(
-      135deg,
-      rgba(168, 85, 247, 0.2),
-      rgba(236, 72, 153, 0.15)
-    );
-    border: 1px solid rgba(168, 85, 247, 0.3);
     align-self: flex-start;
+    color: rgba(255, 255, 255, 0.9);
   }
 
   .message.user {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
     align-self: flex-end;
     text-align: right;
+    color: rgba(255, 255, 255, 0.5);
   }
 
   .options-wrapper {
@@ -138,11 +116,10 @@ const { slug } = Astro.params;
   .input-area {
     display: flex;
     gap: 10px;
-    margin-top: 20px;
     position: fixed;
-    bottom: 20px;
+    top: 50%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     max-width: 640px;
     width: 90%;
   }
@@ -255,37 +232,32 @@ const { slug } = Astro.params;
   }
 </style>
 
-<script>
-  type SlotInfo = { iso: string; label: string };
-  type DayInfo = { date: string; label: string; slots: SlotInfo[] };
+<script define:vars={{ bookingApiUrl }}>
+  const BOOKING_API = bookingApiUrl;
 
   let currentFieldIndex = 0;
-  let formData: Record<string, string> = {};
-  let formDef: any = null;
-  let recognition: any = null;
+  let formData = {};
+  let formDef = null;
+  let recognition = null;
   let isRecording = false;
+  let availabilityDays = [];
 
-  // Availability picker state
-  let availabilityDays: DayInfo[] = [];
-
-  const container = () => document.getElementById("questions-container")!;
-  const inputArea = () => document.getElementById("input-area") as HTMLElement;
-  const userInput = () =>
-    document.getElementById("user-input") as HTMLInputElement;
+  const container = () => document.getElementById("questions-container");
+  const inputArea = () => document.getElementById("input-area");
+  const userInput = () => document.getElementById("user-input");
 
   // Initialize speech recognition
   if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
     const SpeechRecognition =
-      (window as any).webkitSpeechRecognition ||
-      (window as any).SpeechRecognition;
+      window.webkitSpeechRecognition || window.SpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
+        .map((result) => result[0].transcript)
         .join("");
       userInput().value = transcript;
     };
@@ -296,7 +268,7 @@ const { slug } = Astro.params;
       if (micBtn) micBtn.classList.remove("recording");
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
       isRecording = false;
       const micBtn = document.getElementById("mic-btn");
@@ -312,7 +284,6 @@ const { slug } = Astro.params;
       );
       return;
     }
-
     if (isRecording) {
       recognition.stop();
     } else {
@@ -329,18 +300,13 @@ const { slug } = Astro.params;
       const res = await fetch(`/forms/${slug}.json`);
       if (!res.ok) throw new Error("Form not found");
       formDef = await res.json();
-      document.getElementById("form-title")!.textContent =
-        formDef.title || "Form";
-      document.getElementById("form-description")!.textContent =
-        formDef.description || "";
       await showQuestion();
     } catch (err) {
-      document.getElementById("form-title")!.textContent = "Error loading form";
       console.error(err);
     }
   }
 
-  function appendMessage(text: string, type: "robot" | "user") {
+  function appendMessage(text, type) {
     const msg = document.createElement("div");
     msg.className = `message ${type}`;
     msg.textContent = text;
@@ -348,7 +314,7 @@ const { slug } = Astro.params;
     msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  function appendLoading(text: string): HTMLElement {
+  function appendLoading(text) {
     const el = document.createElement("div");
     el.className = "loading-msg";
     el.textContent = text;
@@ -357,10 +323,7 @@ const { slug } = Astro.params;
     return el;
   }
 
-  function showOptionButtons(
-    options: { value: string; label: string }[],
-    onPick: (value: string, label: string) => void,
-  ) {
+  function showOptionButtons(options, onPick) {
     document.getElementById("current-options")?.remove();
 
     const wrapper = document.createElement("div");
@@ -383,16 +346,16 @@ const { slug } = Astro.params;
     wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  function setInputVisible(visible: boolean) {
+  function setInputVisible(visible) {
     inputArea().style.display = visible ? "flex" : "none";
   }
 
-  async function delay(ms: number) {
+  async function delay(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  async function showMessages(text: string) {
-    const parts = text.split("&&").map((s: string) => s.trim());
+  async function showMessages(text) {
+    const parts = text.split("&&").map((s) => s.trim());
     for (let i = 0; i < parts.length; i++) {
       if (i > 0) await delay(500);
       appendMessage(parts[i], "robot");
@@ -408,31 +371,42 @@ const { slug } = Astro.params;
 
     const field = formDef.fields[currentFieldIndex];
     const questionText = field["cf-questions"] || `What's your ${field.name}?`;
-    await showMessages(questionText);
+    const parts = questionText.split("&&").map((s) => s.trim());
 
-    if (field.type === "availability") {
-      setInputVisible(false);
-      await handleAvailabilityField(field);
-    } else if (field.type === "select" && field.options) {
-      setInputVisible(false);
-      showOptionButtons(field.options, (value, label) => {
-        appendMessage(label, "user");
-        formData[field.name] = value;
-        currentFieldIndex++;
-        setTimeout(showQuestion, 500);
-      });
+    if (field.type === "availability" || (field.type === "select" && field.options)) {
+      // Show all parts as messages for non-text fields (no placeholder available)
+      await showMessages(questionText);
+      if (field.type === "availability") {
+        setInputVisible(false);
+        await handleAvailabilityField(field);
+      } else {
+        setInputVisible(false);
+        showOptionButtons(field.options, (value, label) => {
+          appendMessage(label, "user");
+          formData[field.name] = value;
+          currentFieldIndex++;
+          setTimeout(showQuestion, 500);
+        });
+      }
     } else {
+      // Show only intro lines as messages; last part becomes the placeholder
+      const introLines = parts.slice(0, -1);
+      const promptLine = parts[parts.length - 1];
+      for (let i = 0; i < introLines.length; i++) {
+        if (i > 0) await delay(500);
+        appendMessage(introLines[i], "robot");
+      }
+      if (introLines.length > 0) await delay(300);
       setInputVisible(true);
-      userInput().placeholder = field.placeholder || "Type your answer...";
+      userInput().placeholder = promptLine;
       userInput().focus();
     }
   }
 
-  async function handleAvailabilityField(field: any) {
+  async function handleAvailabilityField(field) {
     const loadingEl = appendLoading("Checking availability...");
-
     try {
-      const res = await fetch("/api/booking/availability");
+      const res = await fetch(`${BOOKING_API}/api/booking/availability`);
       const data = await res.json();
       loadingEl.remove();
 
@@ -444,7 +418,7 @@ const { slug } = Astro.params;
         return;
       }
 
-      availabilityDays = data.days as DayInfo[];
+      availabilityDays = data.days;
 
       appendMessage("Pick a day:", "robot");
       showOptionButtons(
@@ -477,16 +451,20 @@ const { slug } = Astro.params;
   }
 
   async function submitForm() {
-    document.getElementById("conversational-form")!.classList.add("hidden");
+    document.getElementById("conversational-form").classList.add("hidden");
 
     if (formDef.submitEndpoint) {
       const loadingEl = appendLoading("Booking your meeting...");
       try {
-        await fetch(formDef.submitEndpoint, {
+        const endpoint = formDef.submitEndpoint.startsWith("/")
+          ? `${BOOKING_API}${formDef.submitEndpoint}`
+          : formDef.submitEndpoint;
+        await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
+        loadingEl.remove();
       } catch (err) {
         loadingEl.remove();
         showError("Network error. Please try again.");
@@ -494,8 +472,8 @@ const { slug } = Astro.params;
       }
     }
 
-    document.getElementById("success-message")!.classList.remove("hidden");
-    document.getElementById("success-text")!.textContent =
+    document.getElementById("success-message").classList.remove("hidden");
+    document.getElementById("success-text").textContent =
       formDef.onComplete?.message || "Thanks!";
 
     if (formDef.onComplete?.redirect) {
@@ -506,12 +484,12 @@ const { slug } = Astro.params;
     }
   }
 
-  function showError(msg: string) {
-    document.getElementById("error-message")!.classList.remove("hidden");
-    document.getElementById("error-text")!.textContent = msg;
+  function showError(msg) {
+    document.getElementById("error-message").classList.remove("hidden");
+    document.getElementById("error-text").textContent = msg;
   }
 
-  function handleSubmit(e: Event) {
+  function handleSubmit(e) {
     e.preventDefault();
     const value = userInput().value.trim();
     if (!value) return;
@@ -529,10 +507,10 @@ const { slug } = Astro.params;
   }
 
   document
-    .getElementById("conversational-form")!
+    .getElementById("conversational-form")
     .addEventListener("submit", handleSubmit);
   document
-    .getElementById("mic-btn")!
+    .getElementById("mic-btn")
     .addEventListener("click", toggleRecording);
   loadForm();
 </script>

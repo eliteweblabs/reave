@@ -17,7 +17,7 @@ const { isIndex = false } = Astro.props;
     <a href="/" class="small-logo">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 512 512"
+        viewBox="80 205 368 118"
         class="logo-svg"
       >
         <path
@@ -119,19 +119,20 @@ const { isIndex = false } = Astro.props;
     }
   }
 
-  /* Small logo for non-index pages */
+  /* Logo for non-index pages */
   .small-logo {
     position: fixed;
     top: 20px;
-    left: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 1000;
     display: block;
     text-decoration: none;
   }
 
   .small-logo .logo-svg {
-    width: 48px;
-    height: 48px;
+    width: max(50vw, 280px);
+    height: auto;
     animation: none;
     filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
   }
@@ -154,7 +155,7 @@ const { isIndex = false } = Astro.props;
     }
   }
 
-  @media screen and (min-width: 768px) {
+  /* @media screen and (min-width: 768px) {
     .header {
       height: 400px;
     }
@@ -173,7 +174,7 @@ const { isIndex = false } = Astro.props;
       width: 56px;
       height: 56px;
     }
-  }
+  } */
 
   @media screen and (min-width: 1024px) {
     .header {
@@ -189,10 +190,6 @@ const { isIndex = false } = Astro.props;
       left: -400px;
       top: -160px;
       background-size: 1000px 400px;
-    }
-    .small-logo .logo-svg {
-      width: 64px;
-      height: 64px;
     }
   }
 </style>
