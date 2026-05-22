@@ -94,31 +94,21 @@ import Transcript from "../components/Transcript.astro";
     height: 150vh;
     left: -25vw;
     top: -25vh;
-    /* Static position - centered for visibility without animation */
-    transform: translate3d(0, 0, 0);
-    /* Reduced gradient layers for better performance */
-    background:
-      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
-      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
-      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
-      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
-      radial-gradient(
-        ellipse at center,
-        #ff0000 0%,
-        #ffff00 25%,
-        #00ffff 50%,
-        #ff00ff 75%,
-        #ff0000 100%
-      );
+    /* Base fill until client script assigns `background-image` */
+    background-color: #000000;
+    background-image: none;
     background-size: 60vw 60vh;
     background-repeat: repeat;
+    background-position: 0 0;
+    /* Soften repeating-tile seams (sharp “hard lines” between pattern cells) */
+    filter: blur(12px);
+    /* Static position - centered for visibility without animation */
+    transform: translate3d(0, 0, 0);
     cursor: grab;
-    /* Performance optimizations */
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    /* Reduce repaints */
-    contain: layout style paint;
+    /* `paint` containment clips filters in some engines — avoid it here */
+    contain: layout style;
   }
 
   .gradient-layer.dragging {
@@ -218,8 +208,15 @@ import Transcript from "../components/Transcript.astro";
 </style>
 
 <script>
+  import { lavaBackdropImageLayers, randomLavaTheme } from "../lib/lavaLampRandom";
+
   // Wait for DOM to be ready
   let gradientLayer: HTMLElement | null = null;
+  /** Drift loop length in seconds (set from random lava theme) */
+  let driftDurationSec = 40;
+  /** Matches `background-size` vw/vh fractions for wrap math */
+  let patternFracW = 0.6;
+  let patternFracH = 0.6;
   let isDragging = false;
   let startX = 0;
   let startY = 0;
@@ -231,10 +228,10 @@ import Transcript from "../components/Transcript.astro";
   let startTime: number | undefined;
   let initTimestamp: number | undefined;
 
-  // Pattern size matches background-size (50vw x 50vh)
+  // Pattern size matches background-size (theme vw/vh)
   const getPatternSize = () => ({
-    width: window.innerWidth * 0.5,
-    height: window.innerHeight * 0.5,
+    width: window.innerWidth * patternFracW,
+    height: window.innerHeight * patternFracH,
   });
 
   // Wrap position to keep it within pattern bounds (infinite scrolling)
@@ -293,8 +290,7 @@ import Transcript from "../components/Transcript.astro";
     // Simplified calculations - only update if needed
     if (introComplete && startTime && !isDragging) {
       const elapsed = (timestamp - startTime) / 1000;
-      const duration = 40; // Slower movement
-      const progress = (elapsed % duration) / duration;
+      const progress = (elapsed % driftDurationSec) / driftDurationSec;
 
       // Simplified single-frequency movement (much faster calculation)
       const { width, height } = getPatternSize();
@@ -446,6 +442,21 @@ import Transcript from "../components/Transcript.astro";
 
     // Set initial scale
     gradientLayer.style.transform = "translate3d(0, 0, 0) scale(1)";
+
+    const params = new URLSearchParams(window.location.search);
+    const lavaSeedRaw = params.get("lavaSeed");
+    const lavaSeedParsed =
+      lavaSeedRaw !== null ? Number.parseInt(lavaSeedRaw, 10) : NaN;
+    const theme = randomLavaTheme(
+      Number.isFinite(lavaSeedParsed) ? lavaSeedParsed : undefined,
+    );
+    driftDurationSec = theme.driftDurationSec;
+    patternFracW = theme.bgSizeVw / 100;
+    patternFracH = theme.bgSizeVh / 100;
+    gradientLayer.style.backgroundImage = lavaBackdropImageLayers(theme);
+    gradientLayer.style.backgroundSize = `${theme.bgSizeVw}vw ${theme.bgSizeVh}vh`;
+    gradientLayer.style.backgroundRepeat = "repeat";
+    gradientLayer.style.backgroundPosition = "0 0";
 
     // Start gradient scale animation
     animateGradientScale();

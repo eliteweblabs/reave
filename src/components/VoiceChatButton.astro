@@ -1416,7 +1416,7 @@ const positionClasses = {
         button.style.cursor = "not-allowed";
         button.disabled = true;
       }
-      setStatusLabel("Not available", "error");
+      setStatusLabel("localhost", "error");
     } else {
       loadVapiSDK().catch((error) => {
         console.warn("Failed to preload Vapi SDK:", error);
