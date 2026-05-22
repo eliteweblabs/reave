@@ -1,0 +1,10 @@
+---
+description: Vapi voice SDK does not work on localhost
+alwaysApply: true
+---
+
+# Vapi Does Not Work on Localhost
+
+The Vapi SDK (`@vapi-ai/web`) only works when the app is served from the production server URL. On `http://localhost:4321` (or any localhost port), Vapi returns a **403 "Key doesn't allow origin"** error and the call never connects — the microphone permission dialog will not appear.
+
+**Do not debug Vapi mic/call issues on localhost.** Always test on the deployed server URL.

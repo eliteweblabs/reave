@@ -141,31 +141,7 @@
 
     // Only show transcripts when voice chat is active
     if (!isVoiceChatActive) {
-      console.log("Transcript ignored - voice chat not active", { text: cleanText, type, isPartial });
-      
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "Transcript.astro:addTranscriptLine",
-            message: "Transcript ignored - voice chat not active",
-            data: {
-              text: cleanText,
-              type,
-              isPartial,
-              isVoiceChatActive: false,
-            },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "init",
-            hypothesisId: "C",
-          }),
-        }
-      ).catch(() => {});
-      // #endregion
+      console.log("Transcript ignored - voice chat not active", { text, type, isPartial });
       return;
     }
 
@@ -179,29 +155,6 @@
       if (existingLine && existingLine.parentNode) {
         existingLine.textContent = cleanText;
         console.log("Updated partial transcript line:", cleanText);
-        
-        // #region agent log
-        fetch(
-          "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              location: "Transcript.astro:updatePartial",
-              message: "Updated partial transcript",
-              data: {
-                type,
-                text: cleanText,
-                isPartial: true,
-              },
-              timestamp: Date.now(),
-              sessionId: "debug-session",
-              runId: "init",
-              hypothesisId: "A",
-            }),
-          }
-        ).catch(() => {});
-        // #endregion
         return;
       }
     }
@@ -228,30 +181,6 @@
     // Add to DOM immediately
     transcriptContent.appendChild(line);
     console.log("Added transcript line:", cleanText, isPartial ? "(partial)" : "(final)");
-    
-    // #region agent log
-    fetch(
-      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location: "Transcript.astro:addLine",
-          message: "Added new transcript line",
-          data: {
-            type,
-            text: cleanText,
-            isPartial,
-            hasActiveLine: !!activeLines[type],
-          },
-          timestamp: Date.now(),
-          sessionId: "debug-session",
-          runId: "init",
-          hypothesisId: "B",
-        }),
-      }
-    ).catch(() => {});
-    // #endregion
 
     // Track this as the active line for this type
     activeLines[type] = line;
@@ -305,53 +234,15 @@
   window.addEventListener("vapi-call-start", () => {
     isVoiceChatActive = true;
     console.log("Voice chat activated - transcripts enabled");
-    
-    // #region agent log
-    fetch(
-      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location: "Transcript.astro:callStart",
-          message: "Voice chat activated",
-          data: { isVoiceChatActive: true },
-          timestamp: Date.now(),
-          sessionId: "debug-session",
-          runId: "init",
-          hypothesisId: "A",
-        }),
-      }
-    ).catch(() => {});
-    // #endregion
   });
 
   window.addEventListener("vapi-call-end", () => {
     isVoiceChatActive = false;
     console.log("Voice chat ended - transcripts disabled");
-    
+
     // Clear active lines when call ends
     activeLines.assistant = null;
     activeLines.user = null;
-    
-    // #region agent log
-    fetch(
-      "http://127.0.0.1:7242/ingest/b70a058c-165e-4820-adda-384130e4a687",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          location: "Transcript.astro:callEnd",
-          message: "Voice chat ended",
-          data: { isVoiceChatActive: false },
-          timestamp: Date.now(),
-          sessionId: "debug-session",
-          runId: "init",
-          hypothesisId: "B",
-        }),
-      }
-    ).catch(() => {});
-    // #endregion
   });
 </script>
 
