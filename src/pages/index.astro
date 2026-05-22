@@ -100,8 +100,7 @@ import Transcript from "../components/Transcript.astro";
     background-size: 60vw 60vh;
     background-repeat: repeat;
     background-position: 0 0;
-    /* Soften repeating-tile seams (sharp “hard lines” between pattern cells) */
-    filter: blur(12px);
+    /* Match toggle track: no blur (blur mixes primaries toward gray) */
     /* Static position - centered for visibility without animation */
     transform: translate3d(0, 0, 0);
     cursor: grab;
@@ -377,9 +376,20 @@ import Transcript from "../components/Transcript.astro";
 
     if (gradientLayer) {
       gradientLayer.classList.remove("dragging");
-      // baseX/baseY already preserve the drag position (wrapped within pattern bounds)
-      // driftX/driftY will continue from 0 and add smoothly on top
-      // No need to reset startTime - drift continues from where it was
+      /*
+       * While dragging, drift is held at 0 but `startTime` kept advancing, so on
+       * release `sin(elapsed)` would jump to a non-zero offset. Re-seed the phase
+       * from “now” so drift grows smoothly from the dropped position.
+       */
+      const w = wrapPosition(baseX, baseY);
+      baseX = w.x;
+      baseY = w.y;
+      driftX = 0;
+      driftY = 0;
+      startTime = performance.now();
+      lastX = w.x;
+      lastY = w.y;
+      gradientLayer.style.transform = `translate3d(${Math.round(w.x)}px, ${Math.round(w.y)}px, 0) scale(${currentScale})`;
     }
   }
 
@@ -494,6 +504,7 @@ import Transcript from "../components/Transcript.astro";
     document.addEventListener("touchstart", handleStart, { passive: false });
     document.addEventListener("touchmove", handleMove, { passive: false });
     document.addEventListener("touchend", handleEnd);
+    document.addEventListener("touchcancel", handleEnd);
 
     // Start the drift animation (will wait for intro to complete)
     animationId = requestAnimationFrame(animateDrift);
