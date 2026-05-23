@@ -79,7 +79,9 @@ import Transcript from "../components/Transcript.astro";
     position: fixed;
     inset: 0;
     z-index: 0;
-    pointer-events: none;
+    /* Must not be `none` — some engines skip hit-testing the whole subtree (incl. canvas). */
+    pointer-events: auto;
+    cursor: crosshair;
     overflow: hidden;
     mask-image: url("/logo-mask.svg");
     -webkit-mask-image: url("/logo-mask.svg");
@@ -102,7 +104,9 @@ import Transcript from "../components/Transcript.astro";
     inset: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
+    /* Host still targets the canvas; stack owns pointer-events + cursor. */
+    pointer-events: auto;
+    touch-action: none;
     overflow: hidden;
     transform: scale(calc(1.05 + var(--audio-boost, 0) * 0.08));
     transform-origin: center center;

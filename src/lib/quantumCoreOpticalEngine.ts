@@ -225,12 +225,16 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   let mouseX = 0;
   let mouseY = 0;
 
-  /** Subtle look-parallax; clamped so the core cannot slide off-camera (read as “chopped”). */
-  const onMouseMove = (e: MouseEvent) => {
-    mouseX = (e.clientX - window.innerWidth / 2) * 0.00022;
-    mouseY = (e.clientY - window.innerHeight / 2) * 0.00022;
+  function setParallaxFromClient(clientX: number, clientY: number) {
+    mouseX = (clientX - window.innerWidth / 2) * 0.00022;
+    mouseY = (clientY - window.innerHeight / 2) * 0.00022;
+  }
+
+  /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
+  const onPointerMove = (e: PointerEvent) => {
+    setParallaxFromClient(e.clientX, e.clientY);
   };
-  document.addEventListener("mousemove", onMouseMove);
+  window.addEventListener("pointermove", onPointerMove, { passive: true });
 
   function triggerShake(amt: number) {
     shakeIntensity = amt;
@@ -347,7 +351,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     alive = false;
     cancelAnimationFrame(raf);
     window.removeEventListener("resize", onResize);
-    document.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("pointermove", onPointerMove);
     btnStabilize?.removeEventListener("click", onStabilize);
     btnDestabilize?.removeEventListener("click", onDestabilize);
     btnReset?.removeEventListener("click", onReset);
