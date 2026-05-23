@@ -61,15 +61,14 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     typeof matchMedia !== "undefined" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /** ~50% smaller on-screen than the original pen, with a wider FOV so the view still spans the logo mask. */
-  const VIEW_Z = 16.6;
+  /**
+   * Camera distance: farther = smaller sphere on screen → more rim/fresnel + noise
+   * across the mask (too close = front cap fills the letters = one flat color + bloom).
+   */
+  const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  const CORE_VIS_SCALE = 0.46;
-  const PARTICLE_VIS_SCALE = 0.5;
-  /** Slightly slower beat when Reduce Motion is on — cycle still runs (iOS often reports reduce). */
-  const DEFAULT_FOCUS_WARP_MS = 3500;
-  const focusWarpCycleMs = prefersReduced ? 6500 : DEFAULT_FOCUS_WARP_MS;
-  const focusWarpCycleSec = focusWarpCycleMs / 1000;
+  const CORE_VIS_SCALE = 0.38;
+  const PARTICLE_VIS_SCALE = 0.52;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -230,12 +229,13 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     varying vec3 vNormal; varying vec3 vPos;
     void main() {
       vec3 viewDir = normalize(cameraPosition - vPos);
-      float fresnel = dot(viewDir, vNormal);
-      fresnel = clamp(1.0 - fresnel, 0.0, 1.0);
-      fresnel = pow(fresnel, 2.0);
-      float scan = sin(vPos.y * 50.0 + uTime * 5.0) * 0.05;
-      vec3 color = mix(uColorA, uColorB, fresnel + scan);
-      color += uColorB * fresnel * 2.5;
+      float ndv = clamp(dot(viewDir, vNormal), 0.0, 1.0);
+      float fresnel = pow(1.0 - ndv, 1.65);
+      float scan = sin(vPos.y * 50.0 + uTime * 5.0) * 0.08;
+      float ir = 0.1 * sin(uTime * 2.2 + dot(vNormal, vec3(4.1, 2.7, 1.9)));
+      float mixAmt = clamp(fresnel + scan + ir, 0.0, 1.0);
+      vec3 color = mix(uColorA, uColorB, mixAmt);
+      color += uColorB * fresnel * 2.2;
       gl_FragColor = vec4(color, 1.0);
     }
   `;
@@ -464,15 +464,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   btnDestabilize?.addEventListener("click", onDestabilize);
   btnReset?.addEventListener("click", onReset);
 
-  /** Auto-drive Focus ↔ Warp (always on; slower when Reduce Motion). */
-  let focusWarpIntervalId: number | undefined;
-  let nextAutoIsWarp = true;
-  focusWarpIntervalId = window.setInterval(() => {
-    if (nextAutoIsWarp) onDestabilize();
-    else onStabilize();
-    nextAutoIsWarp = !nextAutoIsWarp;
-  }, focusWarpCycleMs);
-
   const clock = new THREE.Clock();
   let raf = 0;
   let alive = true;
@@ -505,14 +496,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
     particles.rotation.y = -rawT * 0.1 * particleSpeedMult;
 
-    /* One “breath” per Focus/Warp beat: scale up from center then back down; amplitude alternates each beat. */
-    const phase = (rawT % focusWarpCycleSec) / focusWarpCycleSec;
-    const bump = Math.sin(phase * Math.PI);
-    const beatIndex = Math.floor(rawT / focusWarpCycleSec);
-    const pulseAmp = beatIndex % 2 === 0 ? 0.12 : 0.07;
-    const pulseScale =
-      1 + pulseAmp * bump * Math.max(motionScale, 0.35);
-    pulseGroup.scale.setScalar(pulseScale);
+    pulseGroup.scale.setScalar(1);
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
     pulseGroup.rotation.x +=
@@ -598,9 +582,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     btnDestabilize?.removeEventListener("click", onDestabilize);
     btnReset?.removeEventListener("click", onReset);
 
-    if (focusWarpIntervalId !== undefined) {
-      window.clearInterval(focusWarpIntervalId);
-    }
     sphereGeo.dispose();
     sphereMat.dispose();
     particlesGeo.dispose();
