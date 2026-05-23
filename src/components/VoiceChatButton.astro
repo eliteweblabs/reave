@@ -79,6 +79,8 @@ const positionClasses = {
   id="vapi-widget-container"
   class={`vapi-widget-container ${positionClasses[position]}`}
 >
+  <div id="vapi-status-label" class="vapi-status-label">Tap to speak</div>
+
   <button
     id="vapi-voice-button"
     class="vapi-voice-button"
@@ -105,8 +107,6 @@ const positionClasses = {
       </div>
     </span>
   </button>
-
-  <div id="vapi-status-label" class="vapi-status-label">Tap to speak</div>
 </div>
 
 <script
@@ -605,11 +605,35 @@ const positionClasses = {
     }
   }
 
+  let idleHintFadeTimeoutId = null;
+
+  function clearIdleHintFadeTimer() {
+    if (idleHintFadeTimeoutId != null) {
+      clearTimeout(idleHintFadeTimeoutId);
+      idleHintFadeTimeoutId = null;
+    }
+  }
+
+  function resetIdleHintVisibility() {
+    const label = document.getElementById("vapi-status-label");
+    if (!label) return;
+    label.classList.remove("vapi-status-label--hint-dismissed");
+    label.style.opacity = "";
+  }
+
   function setStatusLabel(text, type = "idle") {
     const label = document.getElementById("vapi-status-label");
     if (!label) return;
+    clearIdleHintFadeTimer();
+    resetIdleHintVisibility();
     label.textContent = text;
     label.className = "vapi-status-label" + (type !== "idle" ? ` ${type}` : "");
+    if (text === "Tap to speak" && type === "idle") {
+      idleHintFadeTimeoutId = window.setTimeout(() => {
+        idleHintFadeTimeoutId = null;
+        label.classList.add("vapi-status-label--hint-dismissed");
+      }, 5000);
+    }
   }
 
   function initializeVapi() {
@@ -1439,6 +1463,8 @@ const positionClasses = {
       });
       loadCachedGreeting();
       initializeVapi();
+      /* Initial HTML is already “Tap to speak”; start the idle fade timer. */
+      setStatusLabel("Tap to speak", "idle");
     }
   } else {
     // Disable button if credentials are missing
@@ -1495,12 +1521,13 @@ const positionClasses = {
   }
 
   .vapi-widget-container.center-bottom {
-    bottom: 80px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
   }
 
@@ -1512,7 +1539,16 @@ const positionClasses = {
     color: rgba(255, 255, 255, 0.45);
     white-space: nowrap;
     pointer-events: none;
-    transition: color 0.3s ease, opacity 0.3s ease;
+    transition:
+      color 0.3s ease,
+      opacity 0.3s ease;
+  }
+
+  .vapi-status-label.vapi-status-label--hint-dismissed {
+    opacity: 0;
+    transition:
+      color 0.3s ease,
+      opacity 1s ease;
   }
 
   .vapi-status-label.error {
@@ -1744,7 +1780,7 @@ const positionClasses = {
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .vapi-widget-container.center-bottom {
-      bottom: 60px;
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     }
 
     .vapi-voice-button {
