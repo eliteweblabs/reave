@@ -351,7 +351,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
-  const targetColor = new THREE.Color(0x00f3ff);
+  /** Mirrored from the live rainbow each frame (for any logic that reads the current tint). */
+  const targetColor = new THREE.Color(0xff0000);
+  const rainbowTint = new THREE.Color(0xff0000);
   let particleSpeedMult = 1.0;
   let shakeIntensity = 0;
   let mouseX = 0;
@@ -433,7 +435,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onStabilize = () => {
     targetSpike = 0.1;
-    targetColor.set("#00f3ff");
     bloomPass.strength = 1.3;
     particleSpeedMult = 0.5;
     lensPass.uniforms.uAberration.value = 0.002;
@@ -443,7 +444,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onDestabilize = () => {
     targetSpike = 1.2;
-    targetColor.set("#ff0055");
     bloomPass.strength = 2.8;
     particleSpeedMult = 8.0;
     triggerShake(0.5);
@@ -453,7 +453,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onReset = () => {
     targetSpike = 0.3;
-    targetColor.set("#bc13fe");
     bloomPass.strength = 1.6;
     particleSpeedMult = 1.0;
     lensPass.uniforms.uAberration.value = 0.005;
@@ -496,13 +495,15 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
     sphereMat.uniforms.uSpike.value +=
       (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
-    sphereMat.uniforms.uColorB.value.lerp(
-      targetColor,
-      Math.max(0.05 * motionScale, 0.028),
-    );
+
+    /* Full-saturation spectrum (same idea as the Vapi toggle stroke: red → yellow → cyan → magenta → …). */
+    const rainbowCyclesPerSec = prefersReduced ? 0.045 : 0.09;
+    rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, 1, 0.5);
+    targetColor.copy(rainbowTint);
+    sphereMat.uniforms.uColorB.value.copy(rainbowTint);
+    particlesMat.color.copy(rainbowTint);
 
     particles.rotation.y = -rawT * 0.1 * particleSpeedMult;
-    particlesMat.color.lerp(targetColor, Math.max(0.05 * motionScale, 0.028));
 
     /* One “breath” per Focus/Warp beat: scale up from center then back down; amplitude alternates each beat. */
     const phase = (rawT % focusWarpCycleSec) / focusWarpCycleSec;
@@ -546,10 +547,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     camera.position.z = VIEW_Z;
     camera.lookAt(scene.position);
 
-    if (
-      lensPass.uniforms.uDistortion.value > 0.15 &&
-      targetColor.getHexString() !== "ff0055"
-    ) {
+    /* Ease lens back down when not in “warp” spike mode (was tied to warp red hex). */
+    if (lensPass.uniforms.uDistortion.value > 0.15 && targetSpike < 0.9) {
       lensPass.uniforms.uDistortion.value +=
         (0.15 - lensPass.uniforms.uDistortion.value) * 0.05 * motionScale;
       lensPass.uniforms.uAberration.value +=
