@@ -4,7 +4,6 @@
  */
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { FilmPass } from "three/examples/jsm/postprocessing/FilmPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
@@ -67,8 +66,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
    */
   const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  const CORE_VIS_SCALE = 0.3;
-  const PARTICLE_VIS_SCALE = 0.54;
+  const CORE_VIS_SCALE = 0.38;
+  const PARTICLE_VIS_SCALE = 0.52;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -78,10 +77,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const isLikelyIOS =
     typeof navigator !== "undefined" &&
     /iP(ad|hone|od)/.test(navigator.userAgent);
-
-  const pointerCoarseAtInit =
-    typeof matchMedia !== "undefined" &&
-    matchMedia("(pointer: coarse)").matches;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
@@ -217,7 +212,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     void main() {
       vUv = uv; vNormal = normalize(normalMatrix * normal);
       float n = snoise(position * 2.5 + uTime * 0.5);
-      float pulse = sin(uTime * 4.0) * 0.05;
+      float pulse = sin(uTime * 4.0) * 0.03;
       vec3 newPos = position + normal * (n * uSpike + pulse);
       vPos = newPos;
       gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
@@ -230,11 +225,11 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     void main() {
       vec3 viewDir = normalize(cameraPosition - vPos);
       float ndv = clamp(dot(viewDir, vNormal), 0.0, 1.0);
-      /* Linear “deep space” limb (no pow-fresnel ring, no hot center). */
+      /* Linear limb only — avoids fresnel/additive/center-multiply bands that read as a ring under bloom. */
       float limb = 1.0 - ndv;
-      float tw = sin(vPos.y * 28.0 + uTime * 3.4) * 0.03
-        + sin(dot(vPos, vec3(1.7, 2.3, 1.1)) * 6.0 + uTime * 1.8) * 0.025;
-      float depth = clamp(0.06 + 0.44 * limb + tw, 0.0, 1.0);
+      float tw = sin(vPos.y * 28.0 + uTime * 3.4) * 0.028
+        + sin(dot(vPos, vec3(1.7, 2.3, 1.1)) * 6.0 + uTime * 1.8) * 0.022;
+      float depth = clamp(0.05 + 0.4 * limb + tw, 0.0, 1.0);
       vec3 color = mix(uColorA, uColorB, depth);
       gl_FragColor = vec4(color, 1.0);
     }
@@ -253,6 +248,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   });
   const core = new THREE.Mesh(sphereGeo, sphereMat);
   core.scale.setScalar(CORE_VIS_SCALE);
+  /* Logo read: particles only — the icosahedron reads as a bright “planet” in the mask. */
+  core.visible = false;
 
   const particleCount = 4000;
   const particlesGeo = new THREE.BufferGeometry();
@@ -260,17 +257,17 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   for (let i = 0; i < particleCount; i++) {
     const r = 2.5 + Math.random() * 8;
     const theta = Math.random() * Math.PI * 2;
-    const phi = (Math.random() - 0.5) * 0.5;
+    const phi = (Math.random() - 0.5) * 0.72;
     positions[i * 3] = r * Math.cos(theta);
     positions[i * 3 + 1] = r * Math.sin(phi);
     positions[i * 3 + 2] = r * Math.sin(theta);
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const particlesMat = new THREE.PointsMaterial({
-    size: 0.048,
+    size: 0.058,
     color: 0x00f3ff,
     transparent: true,
-    opacity: 0.58,
+    opacity: 0.6,
     blending: THREE.AdditiveBlending,
   });
   const particles = new THREE.Points(particlesGeo, particlesMat);
@@ -333,21 +330,17 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     0.4,
     0.85,
   );
-  bloomPass.threshold = 0;
-  bloomPass.strength = 0.96;
-  bloomPass.radius = 0.48;
+  /* Threshold > 0: full-frame bloom (0) stacks into a bright center ring after blur. */
+  bloomPass.threshold = 0.16;
+  bloomPass.strength = 0.68;
+  bloomPass.radius = 0.36;
+  bloomPass.highPassUniforms["smoothWidth"].value = 0.085;
   composer.addPass(bloomPass);
 
-  /* Film grain is surprisingly heavy on iOS GPUs and can hitch the compositor with masked WebGL. */
-  let filmPass: FilmPass | null = null;
-  if (!pointerCoarseAtInit) {
-    filmPass = new FilmPass(0.5, 0.05, 648, false);
-    composer.addPass(filmPass);
-  }
-
   const lensPass = new ShaderPass(AdvancedLensShader);
-  lensPass.uniforms.uAberration.value = 0.005;
-  lensPass.uniforms.uDistortion.value = 0.15;
+  /* Zero = passthrough (no barrel / CA ring). */
+  lensPass.uniforms.uAberration.value = 0;
+  lensPass.uniforms.uDistortion.value = 0;
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
@@ -435,10 +428,10 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onStabilize = () => {
     targetSpike = 0.1;
-    bloomPass.strength = 0.96;
+    bloomPass.strength = 0.68;
     particleSpeedMult = 0.5;
-    lensPass.uniforms.uAberration.value = 0.002;
-    lensPass.uniforms.uDistortion.value = 0.05;
+    lensPass.uniforms.uAberration.value = 0;
+    lensPass.uniforms.uDistortion.value = 0;
     triggerShake(0.1);
   };
 
@@ -453,10 +446,10 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onReset = () => {
     targetSpike = 0.3;
-    bloomPass.strength = 1.0;
+    bloomPass.strength = 0.72;
     particleSpeedMult = 1.0;
-    lensPass.uniforms.uAberration.value = 0.005;
-    lensPass.uniforms.uDistortion.value = 0.15;
+    lensPass.uniforms.uAberration.value = 0;
+    lensPass.uniforms.uDistortion.value = 0;
     triggerShake(0.2);
   };
 
@@ -533,12 +526,17 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     camera.position.z = VIEW_Z;
     camera.lookAt(scene.position);
 
-    /* Ease lens back down when not in “warp” spike mode (was tied to warp red hex). */
-    if (lensPass.uniforms.uDistortion.value > 0.15 && targetSpike < 0.9) {
+    /* Return lens to passthrough after warp (defaults are 0 / 0). */
+    const lensCalmD = 0;
+    const lensCalmA = 0;
+    if (
+      lensPass.uniforms.uDistortion.value > 0.002 &&
+      targetSpike < 0.9
+    ) {
       lensPass.uniforms.uDistortion.value +=
-        (0.15 - lensPass.uniforms.uDistortion.value) * 0.05 * motionScale;
+        (lensCalmD - lensPass.uniforms.uDistortion.value) * 0.08 * motionScale;
       lensPass.uniforms.uAberration.value +=
-        (0.005 - lensPass.uniforms.uAberration.value) * 0.05 * motionScale;
+        (lensCalmA - lensPass.uniforms.uAberration.value) * 0.08 * motionScale;
     }
 
     composer.render();
@@ -588,7 +586,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.dispose();
     particlesGeo.dispose();
     particlesMat.dispose();
-    filmPass?.dispose();
     composer.dispose();
     renderer.dispose();
     if (renderer.domElement.parentElement === host) {
