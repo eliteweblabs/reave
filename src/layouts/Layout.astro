@@ -1,11 +1,11 @@
 ---
 import Header from "../components/Header.astro";
 
-const currentPath = Astro.url.pathname;
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage =
-	currentPath === '/' ||
-	currentPath === '/index.html' ||
-	currentPath === '/index2';
+	pathNorm === "/" ||
+	pathNorm === "/index.html" ||
+	pathNorm === "/index2";
 ---
 
 <!doctype html>

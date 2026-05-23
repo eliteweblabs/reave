@@ -74,6 +74,13 @@ import Transcript from "../components/Transcript.astro";
     background: #050505;
   }
 
+  /* Let drags reach the scene on iOS (otherwise Safari keeps scroll/rubber-band). */
+  :global(html.quantum-page-touch),
+  :global(html.quantum-page-touch body) {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
   /* Wrapper is masked; canvas paints only inside the logo SVG silhouette. */
   .quantum-logo-stack {
     position: fixed;
@@ -82,10 +89,11 @@ import Transcript from "../components/Transcript.astro";
     /* Must not be `none` — some engines skip hit-testing the whole subtree (incl. canvas). */
     pointer-events: auto;
     cursor: crosshair;
+    touch-action: none;
     overflow: hidden;
     mask-image: url("/logo-mask.svg");
     -webkit-mask-image: url("/logo-mask.svg");
-    /* Large enough to read as a logo “window”; wide caps avoid a narrow left strip. */
+    /* Resolved size/position are read in JS so the WebGL camera matches this box (tight fit in the letters). */
     mask-size: min(92vmin, 96vw, 820px);
     -webkit-mask-size: min(92vmin, 96vw, 820px);
     mask-position: 42% center;
@@ -249,6 +257,15 @@ import Transcript from "../components/Transcript.astro";
     }
   }
 
+  /* iOS/WebKit: animating mask + filtered WebGL in the same layer often tears or “replays” the first frames. */
+  @media (hover: none) {
+    .quantum-logo-stack {
+      animation: none;
+      mask-position: center center;
+      -webkit-mask-position: center center;
+    }
+  }
+
   @media screen and (min-width: 1024px) {
     .quantum-logo-stack {
       mask-size: min(88vmin, 94vw, 880px);
@@ -303,24 +320,34 @@ import Transcript from "../components/Transcript.astro";
     const host = document.getElementById("quantumCanvasHost");
     if (!host) return () => {};
 
+    document.documentElement.classList.add("quantum-page-touch");
+    document.body.classList.add("quantum-page-touch");
+
     let detach: (() => void) | undefined;
 
     const start = () => {
       detach = attachQuantumCoreOpticalEngine(host);
     };
 
-    const delayMs = prefersReducedMotion() ? 0 : 400;
+    const touchUi =
+      typeof matchMedia !== "undefined" &&
+      (matchMedia("(pointer: coarse)").matches ||
+        matchMedia("(hover: none)").matches);
+    const delayMs = prefersReducedMotion() || touchUi ? 0 : 400;
     const delayId = window.setTimeout(start, delayMs);
 
     return () => {
       window.clearTimeout(delayId);
       detach?.();
+      document.documentElement.classList.remove("quantum-page-touch");
+      document.body.classList.remove("quantum-page-touch");
     };
   }
 
   let cleanup: (() => void) | undefined;
 
   function boot() {
+    cleanup?.();
     cleanup = init();
     window.addEventListener(
       "pagehide",

@@ -9,6 +9,53 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
+/** Resolved `mask-size` from computed style (single or two lengths in px). */
+function parseMaskImageSize(css: string): { w: number; h: number } | null {
+  const parts = css.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  const w = parseCssLengthPx(parts[0]!);
+  if (!Number.isFinite(w) || w <= 0) return null;
+  if (parts.length === 1) return { w, h: w };
+  const h = parseCssLengthPx(parts[1]!);
+  if (!Number.isFinite(h) || h <= 0) return { w, h: w };
+  return { w, h };
+}
+
+function parseCssLengthPx(token: string): number {
+  const t = token.trim();
+  if (!t || t === "auto") return NaN;
+  const m = /^([\d.]+)px$/i.exec(t);
+  return m ? parseFloat(m[1]!) : NaN;
+}
+
+function splitMaskPositionShorthand(
+  merged: string,
+  secondDefault: string,
+): [string, string] {
+  const parts = merged.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return [parts[0]!, parts[1]!];
+  if (parts.length === 1) return [parts[0]!, secondDefault];
+  return ["50%", "50%"];
+}
+
+/** One axis of `mask-position` (keywords, %, or px) → offset of mask image’s top-left in the positioning box. */
+function maskOrigin1D(
+  axisToken: string,
+  extent: number,
+  maskExtent: number,
+): number {
+  const t = axisToken.trim().toLowerCase();
+  if (t === "center") return 0.5 * (extent - maskExtent);
+  if (t === "left" || t === "top") return 0;
+  if (t === "right" || t === "bottom") return extent - maskExtent;
+  if (t.endsWith("%")) {
+    const p = parseFloat(t) / 100;
+    return p * (extent - maskExtent);
+  }
+  if (t.endsWith("px")) return parseFloat(t);
+  return 0.5 * (extent - maskExtent);
+}
+
 export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
@@ -19,6 +66,23 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const VIEW_FOV = 60;
   const CORE_VIS_SCALE = 0.46;
   const PARTICLE_VIS_SCALE = 0.5;
+  /** Slightly slower beat when Reduce Motion is on — cycle still runs (iOS often reports reduce). */
+  const DEFAULT_FOCUS_WARP_MS = 3500;
+  const focusWarpCycleMs = prefersReduced ? 6500 : DEFAULT_FOCUS_WARP_MS;
+  const focusWarpCycleSec = focusWarpCycleMs / 1000;
+
+  /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
+  while (host.firstChild) {
+    host.removeChild(host.firstChild);
+  }
+
+  const isLikelyIOS =
+    typeof navigator !== "undefined" &&
+    /iP(ad|hone|od)/.test(navigator.userAgent);
+
+  const pointerCoarseAtInit =
+    typeof matchMedia !== "undefined" &&
+    matchMedia("(pointer: coarse)").matches;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
@@ -32,9 +96,69 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   );
   camera.position.z = VIEW_Z;
 
+  const stackEl = host.parentElement as HTMLElement | null;
+
+  function resetCameraViewportAspect() {
+    const vw = window.innerWidth;
+    const vh = Math.max(1, window.innerHeight);
+    camera.clearViewOffset();
+    camera.aspect = vw / vh;
+    camera.updateProjectionMatrix();
+  }
+
+  /** Match the perspective frustum to the CSS mask image box so the scene scales with the logo (not the full viewport). */
+  function syncCameraToMask() {
+    if (!stackEl) {
+      resetCameraViewportAspect();
+      return;
+    }
+    const vw = window.innerWidth;
+    const vh = Math.max(1, window.innerHeight);
+    const cs = getComputedStyle(stackEl);
+    const csExt = cs as unknown as {
+      webkitMaskSize?: string;
+      webkitMaskPositionX?: string;
+      webkitMaskPositionY?: string;
+    };
+    const sizeStr = csExt.webkitMaskSize || cs.maskSize || "";
+    const dims = parseMaskImageSize(sizeStr);
+    if (!dims) {
+      resetCameraViewportAspect();
+      return;
+    }
+    const maskW0 = dims.w;
+    const maskH0 = dims.h;
+    let posXStr: string;
+    let posYStr: string;
+    if (csExt.webkitMaskPositionX && csExt.webkitMaskPositionY) {
+      posXStr = csExt.webkitMaskPositionX;
+      posYStr = csExt.webkitMaskPositionY;
+    } else {
+      [posXStr, posYStr] = splitMaskPositionShorthand(
+        cs.maskPosition || "50% 50%",
+        "center",
+      );
+    }
+    let left = maskOrigin1D(posXStr, vw, maskW0);
+    let top = maskOrigin1D(posYStr, vh, maskH0);
+    const right = Math.min(vw, left + maskW0);
+    const bottom = Math.min(vh, top + maskH0);
+    left = Math.max(0, left);
+    top = Math.max(0, top);
+    const clipW = right - left;
+    const clipH = bottom - top;
+    if (clipW < 2 || clipH < 2) {
+      resetCameraViewportAspect();
+      return;
+    }
+    camera.setViewOffset(vw, vh, left, top, clipW, clipH);
+    camera.updateProjectionMatrix();
+  }
+
   const renderer = new THREE.WebGLRenderer({
     antialias: false,
-    powerPreference: "high-performance",
+    alpha: false,
+    powerPreference: isLikelyIOS ? "default" : "high-performance",
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -129,7 +253,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   });
   const core = new THREE.Mesh(sphereGeo, sphereMat);
   core.scale.setScalar(CORE_VIS_SCALE);
-  scene.add(core);
 
   const particleCount = 4000;
   const particlesGeo = new THREE.BufferGeometry();
@@ -152,7 +275,12 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   });
   const particles = new THREE.Points(particlesGeo, particlesMat);
   particles.scale.setScalar(PARTICLE_VIS_SCALE);
-  scene.add(particles);
+
+  /** Scales core + ring from world center in sync with the Focus/Warp cycle. */
+  const pulseGroup = new THREE.Group();
+  pulseGroup.add(core);
+  pulseGroup.add(particles);
+  scene.add(pulseGroup);
 
   const AdvancedLensShader = {
     uniforms: {
@@ -210,8 +338,12 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   bloomPass.radius = 0.6;
   composer.addPass(bloomPass);
 
-  const filmPass = new FilmPass(0.5, 0.05, 648, false);
-  composer.addPass(filmPass);
+  /* Film grain is surprisingly heavy on iOS GPUs and can hitch the compositor with masked WebGL. */
+  let filmPass: FilmPass | null = null;
+  if (!pointerCoarseAtInit) {
+    filmPass = new FilmPass(0.5, 0.05, 648, false);
+    composer.addPass(filmPass);
+  }
 
   const lensPass = new ShaderPass(AdvancedLensShader);
   lensPass.uniforms.uAberration.value = 0.005;
@@ -224,17 +356,72 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   let shakeIntensity = 0;
   let mouseX = 0;
   let mouseY = 0;
+  let tiltTargetX = 0;
+  let tiltTargetY = 0;
+
+  function isCoarsePointer(): boolean {
+    return (
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(pointer: coarse)").matches
+    );
+  }
 
   function setParallaxFromClient(clientX: number, clientY: number) {
-    mouseX = (clientX - window.innerWidth / 2) * 0.00022;
-    mouseY = (clientY - window.innerHeight / 2) * 0.00022;
+    const w = window.innerWidth;
+    const h = Math.max(1, window.innerHeight);
+    const coarse = isCoarsePointer();
+    const px = coarse ? 0.00052 : 0.00022;
+    mouseX = (clientX - w / 2) * px;
+    mouseY = (clientY - h / 2) * px;
+    const nx = (clientX - w / 2) / w;
+    const ny = (clientY - h / 2) / h;
+    const tiltMul = coarse ? 0.72 : 0.42;
+    tiltTargetY = nx * tiltMul;
+    tiltTargetX = -ny * tiltMul;
+  }
+
+  function clearParallaxTargets() {
+    mouseX = 0;
+    mouseY = 0;
+    tiltTargetX = 0;
+    tiltTargetY = 0;
   }
 
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
   const onPointerMove = (e: PointerEvent) => {
     setParallaxFromClient(e.clientX, e.clientY);
   };
+  const onPointerDown = (e: PointerEvent) => {
+    if (e.isPrimary) setParallaxFromClient(e.clientX, e.clientY);
+  };
+  const onPointerUp = (e: PointerEvent) => {
+    if (e.pointerType === "touch" && e.isPrimary) clearParallaxTargets();
+  };
+
+  const touchClient = (e: TouchEvent) =>
+    e.touches[0] ?? e.changedTouches[0] ?? null;
+
+  const onHostTouchStart = (e: TouchEvent) => {
+    const t = touchClient(e);
+    if (t) setParallaxFromClient(t.clientX, t.clientY);
+  };
+  const onHostTouchMove = (e: TouchEvent) => {
+    if (e.cancelable) e.preventDefault();
+    const t = e.touches[0];
+    if (t) setParallaxFromClient(t.clientX, t.clientY);
+  };
+  const onHostTouchEnd = () => {
+    clearParallaxTargets();
+  };
+
+  host.addEventListener("touchstart", onHostTouchStart, { passive: true });
+  host.addEventListener("touchmove", onHostTouchMove, { passive: false });
+  host.addEventListener("touchend", onHostTouchEnd, { passive: true });
+  host.addEventListener("touchcancel", onHostTouchEnd, { passive: true });
+
   window.addEventListener("pointermove", onPointerMove, { passive: true });
+  window.addEventListener("pointerdown", onPointerDown, { passive: true });
+  window.addEventListener("pointerup", onPointerUp, { passive: true });
 
   function triggerShake(amt: number) {
     shakeIntensity = amt;
@@ -278,41 +465,77 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   btnDestabilize?.addEventListener("click", onDestabilize);
   btnReset?.addEventListener("click", onReset);
 
-  /** Auto-drive Focus ↔ Warp transitions (same as button handlers). */
-  const FOCUS_WARP_CYCLE_MS = 3500;
+  /** Auto-drive Focus ↔ Warp (always on; slower when Reduce Motion). */
   let focusWarpIntervalId: number | undefined;
   let nextAutoIsWarp = true;
-  if (!prefersReduced) {
-    focusWarpIntervalId = window.setInterval(() => {
-      if (nextAutoIsWarp) onDestabilize();
-      else onStabilize();
-      nextAutoIsWarp = !nextAutoIsWarp;
-    }, FOCUS_WARP_CYCLE_MS);
-  }
+  focusWarpIntervalId = window.setInterval(() => {
+    if (nextAutoIsWarp) onDestabilize();
+    else onStabilize();
+    nextAutoIsWarp = !nextAutoIsWarp;
+  }, focusWarpCycleMs);
 
   const clock = new THREE.Clock();
   let raf = 0;
   let alive = true;
   const motionScale = prefersReduced ? 0.2 : 1;
 
+  const onCtxLost = (ev: Event) => {
+    ev.preventDefault();
+    alive = false;
+    cancelAnimationFrame(raf);
+  };
+  renderer.domElement.addEventListener("webglcontextlost", onCtxLost);
+
   function animate() {
     if (!alive) return;
     raf = requestAnimationFrame(animate);
-    const t = clock.getElapsedTime() * motionScale;
+    syncCameraToMask();
+    const rawT = clock.getElapsedTime();
+    /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
+    sphereMat.uniforms.uTime.value = rawT;
 
-    sphereMat.uniforms.uTime.value = t;
     sphereMat.uniforms.uSpike.value +=
       (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
-    sphereMat.uniforms.uColorB.value.lerp(targetColor, 0.05 * motionScale);
+    sphereMat.uniforms.uColorB.value.lerp(
+      targetColor,
+      Math.max(0.05 * motionScale, 0.028),
+    );
 
-    particles.rotation.y = -t * 0.1 * particleSpeedMult * motionScale;
-    particlesMat.color.lerp(targetColor, 0.05 * motionScale);
+    particles.rotation.y = -rawT * 0.1 * particleSpeedMult;
+    particlesMat.color.lerp(targetColor, Math.max(0.05 * motionScale, 0.028));
+
+    /* One “breath” per Focus/Warp beat: scale up from center then back down; amplitude alternates each beat. */
+    const phase = (rawT % focusWarpCycleSec) / focusWarpCycleSec;
+    const bump = Math.sin(phase * Math.PI);
+    const beatIndex = Math.floor(rawT / focusWarpCycleSec);
+    const pulseAmp = beatIndex % 2 === 0 ? 0.12 : 0.07;
+    const pulseScale =
+      1 + pulseAmp * bump * Math.max(motionScale, 0.35);
+    pulseGroup.scale.setScalar(pulseScale);
+
+    const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
+    pulseGroup.rotation.x +=
+      (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
+    pulseGroup.rotation.y +=
+      (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
+    pulseGroup.rotation.x = THREE.MathUtils.clamp(
+      pulseGroup.rotation.x,
+      -0.55,
+      0.55,
+    );
+    pulseGroup.rotation.y = THREE.MathUtils.clamp(
+      pulseGroup.rotation.y,
+      -0.62,
+      0.62,
+    );
 
     shakeIntensity *= 0.9;
     const shakeX = (Math.random() - 0.5) * shakeIntensity;
     const shakeY = (Math.random() - 0.5) * shakeIntensity;
 
-    const parallaxAmp = prefersReduced ? 0.85 : 1.55;
+    const coarse = isCoarsePointer();
+    const parallaxAmp =
+      (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
     const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
     camera.position.x +=
       (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
@@ -336,22 +559,42 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     composer.render();
   }
 
-  const onResize = () => {
+  let resizeRaf = 0;
+  const applyResize = () => {
     const h = Math.max(1, window.innerHeight);
-    camera.aspect = window.innerWidth / h;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
+    const w = window.innerWidth;
+    renderer.setSize(w, h);
+    composer.setSize(w, h);
+    bloomPass.setSize(w, h);
+    syncCameraToMask();
+  };
+
+  const onResize = () => {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      applyResize();
+    });
   };
   window.addEventListener("resize", onResize);
 
+  applyResize();
   raf = requestAnimationFrame(animate);
 
   return () => {
     alive = false;
     cancelAnimationFrame(raf);
+    cancelAnimationFrame(resizeRaf);
+    resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
     window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerdown", onPointerDown);
+    window.removeEventListener("pointerup", onPointerUp);
+    host.removeEventListener("touchstart", onHostTouchStart);
+    host.removeEventListener("touchmove", onHostTouchMove);
+    host.removeEventListener("touchend", onHostTouchEnd);
+    host.removeEventListener("touchcancel", onHostTouchEnd);
+    renderer.domElement.removeEventListener("webglcontextlost", onCtxLost);
     btnStabilize?.removeEventListener("click", onStabilize);
     btnDestabilize?.removeEventListener("click", onDestabilize);
     btnReset?.removeEventListener("click", onReset);
@@ -363,6 +606,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.dispose();
     particlesGeo.dispose();
     particlesMat.dispose();
+    filmPass?.dispose();
     composer.dispose();
     renderer.dispose();
     if (renderer.domElement.parentElement === host) {
