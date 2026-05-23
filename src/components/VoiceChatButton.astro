@@ -109,9 +109,6 @@ const positionClasses = {
   <div id="vapi-status-label" class="vapi-status-label">Tap to speak</div>
 </div>
 
-<!-- Audio level meter - full page grayscale effect (outside container for proper fixed positioning) -->
-<div id="audio-level-meter" class="audio-level-meter"></div>
-
 <script
   define:vars={{
     publicKey,
@@ -412,13 +409,8 @@ const positionClasses = {
       const bufferLength = analyser.frequencyBinCount;
       dataArray = new Uint8Array(bufferLength);
 
-      const levelMeter = document.getElementById("audio-level-meter");
-
       function updateLevelMeter() {
         if (!analyser || !analyzerActive) {
-          if (levelMeter) {
-            levelMeter.style.opacity = "0";
-          }
           return;
         }
 
@@ -439,13 +431,6 @@ const positionClasses = {
           detail: { level: sensitiveLevel, raw: average },
         });
         window.dispatchEvent(audioLevelEvent);
-
-        // Update full-page grayscale overlay opacity
-        if (levelMeter) {
-          // Map audio level (0-1) to opacity (0 - 0.8)
-          const opacity = sensitiveLevel * 0.8;
-          levelMeter.style.opacity = opacity.toString();
-        }
 
         animationFrameId = requestAnimationFrame(updateLevelMeter);
       }
@@ -483,10 +468,9 @@ const positionClasses = {
     analyser = null;
     dataArray = null;
 
-    const levelMeter = document.getElementById("audio-level-meter");
-    if (levelMeter) {
-      levelMeter.style.display = "none";
-    }
+    window.dispatchEvent(
+      new CustomEvent("audioLevel", { detail: { level: 0, raw: 0 } }),
+    );
 
     // Note: Don't stop the stream tracks here - Vapi needs them
     // The stream will be managed by Vapi
@@ -1757,26 +1741,6 @@ const positionClasses = {
     }
   }
 
-  /* Audio level meter */
-  .audio-level-meter {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: radial-gradient(
-      circle at center,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0) 100%
-    );
-    opacity: 0;
-    pointer-events: none;
-    z-index: 5;
-    transition: opacity 0.1s ease-out;
-    filter: grayscale(100%);
-  }
-
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .vapi-widget-container.center-bottom {
@@ -1800,9 +1764,6 @@ const positionClasses = {
     .vapi-icon {
       width: 18px;
       height: 18px;
-    }
-
-
     }
   }
 </style>

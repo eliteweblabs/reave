@@ -255,7 +255,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const particlesGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
   for (let i = 0; i < particleCount; i++) {
-    const r = 2.5 + Math.random() * 8;
+    const r = 2.65 + Math.random() * 8.45;
     const theta = Math.random() * Math.PI * 2;
     const phi = (Math.random() - 0.5) * 0.72;
     positions[i * 3] = r * Math.cos(theta);
@@ -270,6 +270,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     opacity: 0.6,
     blending: THREE.AdditiveBlending,
   });
+  const particleBaseSize = particlesMat.size;
+  const particleBaseOpacity = particlesMat.opacity;
   const particles = new THREE.Points(particlesGeo, particlesMat);
   particles.scale.setScalar(PARTICLE_VIS_SCALE);
 
@@ -348,6 +350,19 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const targetColor = new THREE.Color(0xff0000);
   const rainbowTint = new THREE.Color(0xff0000);
   let particleSpeedMult = 1.0;
+  /** Smoothed 0–1 from `window` `audioLevel` events (voice reactive). */
+  let micLevelTarget = 0;
+  let micLevelSmoothed = 0;
+  const onAudioLevel: EventListener = (ev: Event) => {
+    const e = ev as CustomEvent<{ level?: number }>;
+    const v = e.detail?.level;
+    micLevelTarget =
+      typeof v === "number" && Number.isFinite(v)
+        ? THREE.MathUtils.clamp(v, 0, 1)
+        : 0;
+  };
+  window.addEventListener("audioLevel", onAudioLevel);
+
   let shakeIntensity = 0;
   let mouseX = 0;
   let mouseY = 0;
@@ -489,7 +504,24 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.uniforms.uColorB.value.copy(rainbowTint);
     particlesMat.color.copy(rainbowTint);
 
-    particles.rotation.y = -rawT * 0.1 * particleSpeedMult;
+    const micLerp = prefersReduced ? 0.06 : 0.14;
+    micLevelSmoothed +=
+      (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
+    const mic = micLevelSmoothed;
+
+    const spinBoost =
+      1 +
+      mic * (prefersReduced ? 0.42 : 1.55) * Math.max(motionScale, 0.35);
+    particles.rotation.y = -rawT * 0.1 * particleSpeedMult * spinBoost;
+
+    const sizeBoost = 1 + mic * (prefersReduced ? 0.32 : 0.72);
+    const opacityBoost = 1 + mic * (prefersReduced ? 0.22 : 0.52);
+    particlesMat.size = particleBaseSize * sizeBoost;
+    particlesMat.opacity = THREE.MathUtils.clamp(
+      particleBaseOpacity * opacityBoost,
+      0.22,
+      1,
+    );
 
     pulseGroup.scale.setScalar(1);
 
@@ -570,6 +602,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     cancelAnimationFrame(resizeRaf);
     resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
+    window.removeEventListener("audioLevel", onAudioLevel);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerdown", onPointerDown);
     window.removeEventListener("pointerup", onPointerUp);

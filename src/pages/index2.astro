@@ -116,8 +116,6 @@ import Transcript from "../components/Transcript.astro";
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
-    transform: scale(calc(1.05 + var(--audio-boost, 0) * 0.08));
-    transform-origin: center center;
   }
 
   .quantum-host :global(canvas) {
@@ -304,17 +302,6 @@ import Transcript from "../components/Transcript.astro";
       matchMedia("(prefers-reduced-motion: reduce)").matches
     );
   }
-
-  window.addEventListener(
-    "audioLevel",
-    ((event: CustomEvent<{ level: number }>) => {
-      const host = document.getElementById("quantumCanvasHost");
-      if (!host || !event.detail || typeof event.detail.level !== "number") {
-        return;
-      }
-      host.style.setProperty("--audio-boost", String(event.detail.level));
-    }) as EventListener,
-  );
 
   function init(): () => void {
     const host = document.getElementById("quantumCanvasHost");
