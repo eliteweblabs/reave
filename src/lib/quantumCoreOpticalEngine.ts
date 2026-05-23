@@ -67,8 +67,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
    */
   const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  const CORE_VIS_SCALE = 0.38;
-  const PARTICLE_VIS_SCALE = 0.52;
+  const CORE_VIS_SCALE = 0.3;
+  const PARTICLE_VIS_SCALE = 0.54;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -162,7 +162,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.02;
   host.appendChild(renderer.domElement);
 
   const noiseVertex = `
@@ -230,12 +230,12 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     void main() {
       vec3 viewDir = normalize(cameraPosition - vPos);
       float ndv = clamp(dot(viewDir, vNormal), 0.0, 1.0);
-      float fresnel = pow(1.0 - ndv, 1.65);
-      float scan = sin(vPos.y * 50.0 + uTime * 5.0) * 0.08;
-      float ir = 0.1 * sin(uTime * 2.2 + dot(vNormal, vec3(4.1, 2.7, 1.9)));
-      float mixAmt = clamp(fresnel + scan + ir, 0.0, 1.0);
-      vec3 color = mix(uColorA, uColorB, mixAmt);
-      color += uColorB * fresnel * 2.2;
+      /* Linear “deep space” limb (no pow-fresnel ring, no hot center). */
+      float limb = 1.0 - ndv;
+      float tw = sin(vPos.y * 28.0 + uTime * 3.4) * 0.03
+        + sin(dot(vPos, vec3(1.7, 2.3, 1.1)) * 6.0 + uTime * 1.8) * 0.025;
+      float depth = clamp(0.06 + 0.44 * limb + tw, 0.0, 1.0);
+      vec3 color = mix(uColorA, uColorB, depth);
       gl_FragColor = vec4(color, 1.0);
     }
   `;
@@ -247,7 +247,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     uniforms: {
       uTime: { value: 0 },
       uSpike: { value: 0.2 },
-      uColorA: { value: new THREE.Color("#000000") },
+      uColorA: { value: new THREE.Color("#03060c") },
       uColorB: { value: new THREE.Color("#00f3ff") },
     },
   });
@@ -267,10 +267,10 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const particlesMat = new THREE.PointsMaterial({
-    size: 0.056,
+    size: 0.048,
     color: 0x00f3ff,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.58,
     blending: THREE.AdditiveBlending,
   });
   const particles = new THREE.Points(particlesGeo, particlesMat);
@@ -334,8 +334,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     0.85,
   );
   bloomPass.threshold = 0;
-  bloomPass.strength = 1.3;
-  bloomPass.radius = 0.6;
+  bloomPass.strength = 0.96;
+  bloomPass.radius = 0.48;
   composer.addPass(bloomPass);
 
   /* Film grain is surprisingly heavy on iOS GPUs and can hitch the compositor with masked WebGL. */
@@ -435,7 +435,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onStabilize = () => {
     targetSpike = 0.1;
-    bloomPass.strength = 1.3;
+    bloomPass.strength = 0.96;
     particleSpeedMult = 0.5;
     lensPass.uniforms.uAberration.value = 0.002;
     lensPass.uniforms.uDistortion.value = 0.05;
@@ -453,7 +453,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onReset = () => {
     targetSpike = 0.3;
-    bloomPass.strength = 1.6;
+    bloomPass.strength = 1.0;
     particleSpeedMult = 1.0;
     lensPass.uniforms.uAberration.value = 0.005;
     lensPass.uniforms.uDistortion.value = 0.15;
@@ -487,9 +487,11 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.uniforms.uSpike.value +=
       (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
 
-    /* Full-saturation spectrum (same idea as the Vapi toggle stroke: red → yellow → cyan → magenta → …). */
+    /* Rainbow hue, softened saturation / lightness (less “neon solid” Monday feel). */
     const rainbowCyclesPerSec = prefersReduced ? 0.045 : 0.09;
-    rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, 1, 0.5);
+    const sat = prefersReduced ? 0.68 : 0.74;
+    const light = prefersReduced ? 0.51 : 0.53;
+    rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, sat, light);
     targetColor.copy(rainbowTint);
     sphereMat.uniforms.uColorB.value.copy(rainbowTint);
     particlesMat.color.copy(rainbowTint);
