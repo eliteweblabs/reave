@@ -22,17 +22,49 @@ interface Props {
   isAuthenticated?: boolean;
 }
 
-const {
-  publicKey = import.meta.env.PUBLIC_VAPI_PUBLIC_KEY || "",
-  assistantId = import.meta.env.PUBLIC_VAPI_ASSISTANT_ID || "",
-  position = "center-bottom",
-  enableVoiceRecognition = import.meta.env
-    .PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION === "true",
-  voiceProfileId = import.meta.env.PUBLIC_VAPI_VOICE_PROFILE_ID || "",
-  assistantOverrides = {},
-  userId,
-  isAuthenticated = false,
-} = Astro.props;
+const props = Astro.props as Props;
+
+// Prefer `process.env` when rendering on the Node server: Docker/Railway usually
+// inject PUBLIC_* at container runtime, after `astro build`, when `import.meta.env`
+// was already baked in as empty during the image build.
+function envString(key: string): string {
+  const fromProcess =
+    typeof process !== "undefined" ? process.env[key] : undefined;
+  const fromMeta = (import.meta.env as Record<string, string | boolean | undefined>)[key];
+  const raw = fromProcess ?? fromMeta ?? "";
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function envFlag(key: string): boolean {
+  const fromProcess =
+    typeof process !== "undefined" ? process.env[key] : undefined;
+  const fromMeta = (import.meta.env as Record<string, string | boolean | undefined>)[key];
+  const raw = fromProcess ?? fromMeta;
+  return raw === "true" || raw === true || raw === "1";
+}
+
+const publicKey = String(
+  props.publicKey ?? envString("PUBLIC_VAPI_PUBLIC_KEY")
+).trim();
+
+const assistantId = String(
+  props.assistantId ?? envString("PUBLIC_VAPI_ASSISTANT_ID")
+).trim();
+
+const position = props.position ?? "center-bottom";
+
+const enableVoiceRecognition =
+  props.enableVoiceRecognition !== undefined
+    ? props.enableVoiceRecognition
+    : envFlag("PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION");
+
+const voiceProfileId = String(
+  props.voiceProfileId ?? envString("PUBLIC_VAPI_VOICE_PROFILE_ID")
+).trim();
+
+const assistantOverrides = props.assistantOverrides ?? {};
+const userId = props.userId;
+const isAuthenticated = props.isAuthenticated ?? false;
 
 const positionClasses = {
   "bottom-right": "bottom-right",
@@ -1433,10 +1465,10 @@ const positionClasses = {
       button.disabled = true;
       button.setAttribute(
         "title",
-        "Voice chat unavailable - credentials missing"
+        "Set PUBLIC_VAPI_PUBLIC_KEY and PUBLIC_VAPI_ASSISTANT_ID on the server"
       );
     }
-    setStatusLabel("Not available", "error");
+    setStatusLabel("Vapi not configured", "error");
   }
 </script>
 

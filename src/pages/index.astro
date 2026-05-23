@@ -5,15 +5,18 @@ import Transcript from "../components/Transcript.astro";
 ---
 
 <Layout>
+  <div class="page-lava-wrap" id="pageLavaWrap" aria-hidden="true">
+    <div id="pageLava" class="page-lava"></div>
+  </div>
+
+  <!-- One masked copy of the same field (mask on the painted layer, not an empty box) -->
+  <div class="logo-stack">
+    <div class="page-lava page-lava--logo-cutout" aria-hidden="true"></div>
+  </div>
+
   <VoiceChatButton position="center-bottom" />
   <Transcript />
   <div class="container">
-    <!-- Fixed logo mask with moving gradient inside -->
-    <div class="logo-mask">
-      <div class="gradient-layer" id="gradientLayer"></div>
-    </div>
-
-    <!-- Small watermark logo in bottom left -->
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
         <line
@@ -52,6 +55,132 @@ import Transcript from "../components/Transcript.astro";
 </Layout>
 
 <style>
+  /*
+   * Defaults on :root only. Never set --bx* / --hue on `.page-lava` — that shadows
+   * these values and kills motion (all blobs stuck at 50%,50%).
+   */
+  :global(:root) {
+    --bx0: 50%;
+    --by0: 50%;
+    --bx1: 50%;
+    --by1: 50%;
+    --bx2: 50%;
+    --by2: 50%;
+    --bx3: 50%;
+    --by3: 50%;
+    --bx4: 50%;
+    --by4: 50%;
+    --bx5: 50%;
+    --by5: 50%;
+    --c0: #ff0080;
+    --c1: #ff00ff;
+    --c2: #00ffff;
+    --c3: #00ff00;
+    --c4: #ffff00;
+    --c5: #ff0000;
+    --hue: 0deg;
+  }
+
+  :global(html),
+  :global(body) {
+    min-height: 100%;
+    background: rgb(6, 0, 12);
+  }
+
+  .page-lava-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transform: scale(calc(1.1 + var(--audio-boost, 0) * 0.08));
+    transform-origin: center center;
+  }
+
+  .logo-stack {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .page-lava {
+    position: absolute;
+    inset: -10%;
+    width: 120%;
+    height: 120%;
+    background:
+      radial-gradient(
+        circle at var(--bx0) var(--by0),
+        var(--c0) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        circle at var(--bx1) var(--by1),
+        var(--c1) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        circle at var(--bx2) var(--by2),
+        var(--c2) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        circle at var(--bx3) var(--by3),
+        var(--c3) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        circle at var(--bx4) var(--by4),
+        var(--c4) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        circle at var(--bx5) var(--by5),
+        var(--c5) 0%,
+        transparent 56%
+      ),
+      radial-gradient(
+        ellipse 115% 115% at 50% 50%,
+        rgba(120, 40, 180, 0.32) 0%,
+        rgba(35, 6, 55, 0.85) 55%,
+        rgb(10, 0, 18) 100%
+      );
+    filter: blur(48px) saturate(1.42) hue-rotate(var(--hue));
+    will-change: filter;
+  }
+
+  .page-lava-wrap .page-lava {
+    position: absolute;
+    inset: -10%;
+    width: 120%;
+    height: 120%;
+  }
+
+  .page-lava--logo-cutout {
+    position: fixed;
+    left: -10vw;
+    top: -10vh;
+    width: 120vw;
+    height: 120vh;
+    z-index: 0;
+    mask-image: url("/logo-mask.svg");
+    -webkit-mask-image: url("/logo-mask.svg");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-position: 42% center;
+    -webkit-mask-position: 42% center;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+    mask-mode: alpha;
+    -webkit-mask-mode: alpha;
+    filter: blur(48px) saturate(1.42) hue-rotate(var(--hue))
+      drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
+      drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
+    animation: logoMaskIntro 1.4s ease-out forwards;
+  }
+
   .container {
     position: fixed;
     top: 0;
@@ -61,57 +190,12 @@ import Transcript from "../components/Transcript.astro";
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #000000;
+    background: transparent;
     overflow: hidden;
     margin: 0;
     padding: 0;
     pointer-events: none;
-  }
-
-  .logo-mask {
-    position: fixed;
-    inset: 0;
-    overflow: hidden;
-    mask-image: url("/logo-mask.svg");
-    -webkit-mask-image: url("/logo-mask.svg");
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    /* Initial position - will be overridden by animation */
-    mask-position: 42% center;
-    -webkit-mask-position: 42% center;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.5))
-      drop-shadow(0 0 40px rgba(255, 100, 200, 0.3));
-    /* Reduced drop-shadows for better performance */
-    pointer-events: none;
-    animation: zoomIn 1.4s ease-out forwards;
-  }
-
-  .gradient-layer {
-    position: absolute;
-    width: 150vw;
-    height: 150vh;
-    left: -25vw;
-    top: -25vh;
-    /* Base fill until client script assigns `background-image` */
-    background-color: #000000;
-    background-image: none;
-    background-size: 60vw 60vh;
-    background-repeat: repeat;
-    background-position: 0 0;
-    /* Match toggle track: no blur (blur mixes primaries toward gray) */
-    /* Static position - centered for visibility without animation */
-    transform: translate3d(0, 0, 0);
-    cursor: grab;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    /* `paint` containment clips filters in some engines — avoid it here */
-    contain: layout style;
-  }
-
-  .gradient-layer.dragging {
-    cursor: grabbing;
+    z-index: 2;
   }
 
   .watermark {
@@ -130,387 +214,78 @@ import Transcript from "../components/Transcript.astro";
     height: 100%;
   }
 
-  /* Zoom in animation on page load - completely linear, smooth transition */
-  @keyframes zoomIn {
+  @keyframes logoMaskIntro {
     0% {
-      transform: scale(50);
-      /* Start focused on AV (3rd & 4th letters) */
       mask-position: 42% center;
       -webkit-mask-position: 42% center;
     }
     100% {
-      transform: scale(1);
-      /* Smoothly transition to center throughout entire animation */
       mask-position: center center;
       -webkit-mask-position: center center;
     }
   }
 
-  /* Debug mode - uncomment to see mask boundaries */
-  /* .logo-mask::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border: 2px solid red;
-    pointer-events: none;
-    z-index: 1000;
-  } */
-
-  /* Subtle drift animation to show it's interactive */
-  @keyframes drift {
-    0% {
-      transform: translate(0, 0);
-    }
-    25% {
-      transform: translate(30px, -20px);
-    }
-    50% {
-      transform: translate(-20px, 30px);
-    }
-    75% {
-      transform: translate(20px, 20px);
-    }
-    100% {
-      transform: translate(0, 0);
-    }
-  }
-
-  /* Responsive adjustments for larger screens */
   @media screen and (min-width: 1024px) {
-    .logo-mask {
+    .page-lava--logo-cutout {
       mask-size: 600px 600px;
       -webkit-mask-size: 600px 600px;
-      /* Don't override mask-position - let animation handle it */
     }
   }
 
   @media screen and (min-width: 1440px) {
-    .logo-mask {
+    .page-lava--logo-cutout {
       mask-size: 800px 800px;
       -webkit-mask-size: 800px 800px;
     }
   }
 
   @media screen and (min-width: 1920px) {
-    .logo-mask {
+    .page-lava--logo-cutout {
       mask-size: 1000px 1000px;
       -webkit-mask-size: 1000px 1000px;
     }
   }
 
   @media screen and (min-width: 2560px) {
-    .logo-mask {
+    .page-lava--logo-cutout {
       mask-size: 1200px 1200px;
       -webkit-mask-size: 1200px 1200px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-lava,
+    .page-lava--logo-cutout {
+      filter: blur(36px) saturate(1.2) hue-rotate(var(--hue));
     }
   }
 </style>
 
 <script>
-  import { lavaBackdropImageLayers, randomLavaTheme } from "../lib/lavaLampRandom";
+  import { attachMorphingPageLava } from "../lib/morphingPageLava";
 
-  // Wait for DOM to be ready
-  let gradientLayer: HTMLElement | null = null;
-  /** Drift loop length in seconds (set from random lava theme) */
-  let driftDurationSec = 40;
-  /** Matches `background-size` vw/vh fractions for wrap math */
-  let patternFracW = 0.6;
-  let patternFracH = 0.6;
-  let isDragging = false;
-  let startX = 0;
-  let startY = 0;
-  let baseX = 0; // User's drag offset
-  let baseY = 0;
-  let driftX = 0; // Drift animation offset
-  let driftY = 0;
-  let animationId;
-  let startTime: number | undefined;
-  let initTimestamp: number | undefined;
-
-  // Pattern size matches background-size (theme vw/vh)
-  const getPatternSize = () => ({
-    width: window.innerWidth * patternFracW,
-    height: window.innerHeight * patternFracH,
-  });
-
-  // Wrap position to keep it within pattern bounds (infinite scrolling)
-  function wrapPosition(x: number, y: number) {
-    const { width, height } = getPatternSize();
-    // Use modulo to wrap - keeps position within one pattern tile
-    let wrappedX = ((x % width) + width) % width;
-    let wrappedY = ((y % height) + height) % height;
-    return { x: wrappedX, y: wrappedY };
-  }
-
-  // Drift animation for automatic movement
-  let lastFrameTime = 0;
-  let lastX = 0;
-  let lastY = 0;
-  const targetFPS = 15; // Reduced to 15fps for better performance
-  const frameInterval = 1000 / targetFPS;
-  let isPageVisible = true;
-
-  // Pause animation when tab is hidden
-  document.addEventListener("visibilitychange", () => {
-    isPageVisible = !document.hidden;
-  });
-
-  function animateDrift(timestamp: number) {
-    if (!gradientLayer || !isPageVisible) {
-      animationId = requestAnimationFrame(animateDrift);
-      return;
-    }
-
-    // Throttle to target FPS
-    const elapsed = timestamp - lastFrameTime;
-    if (elapsed < frameInterval) {
-      animationId = requestAnimationFrame(animateDrift);
-      return;
-    }
-    lastFrameTime = timestamp - (elapsed % frameInterval);
-
-    // Record first timestamp as init time if not set
-    if (initTimestamp === undefined) {
-      initTimestamp = timestamp;
-    }
-
-    // Wait for intro animation to complete (1 second) before starting drift
-    const introDuration = 1000;
-    const timeSinceInit = timestamp - initTimestamp;
-    const introComplete = timeSinceInit >= introDuration;
-
-    // Initialize startTime when intro completes
-    if (introComplete && !startTime) {
-      startTime = timestamp;
-      driftX = 0;
-      driftY = 0;
-    }
-
-    // Simplified calculations - only update if needed
-    if (introComplete && startTime && !isDragging) {
-      const elapsed = (timestamp - startTime) / 1000;
-      const progress = (elapsed % driftDurationSec) / driftDurationSec;
-
-      // Simplified single-frequency movement (much faster calculation)
-      const { width, height } = getPatternSize();
-      const angle = progress * Math.PI * 2;
-      driftX = Math.sin(angle) * width * 0.4;
-      driftY = Math.cos(angle) * height * 0.4;
-    }
-
-    // Only apply transform after intro completes and only if changed
-    if (introComplete) {
-      const totalX = baseX + (isDragging ? 0 : driftX);
-      const totalY = baseY + (isDragging ? 0 : driftY);
-      const wrapped = wrapPosition(totalX, totalY);
-
-      // Only update DOM if position actually changed (performance optimization)
-      if (
-        Math.abs(wrapped.x - lastX) > 0.5 ||
-        Math.abs(wrapped.y - lastY) > 0.5
-      ) {
-        // Combine with scale if audio level is being tracked
-        const transform = `translate3d(${Math.round(wrapped.x)}px, ${Math.round(wrapped.y)}px, 0) scale(${currentScale})`;
-        gradientLayer.style.transform = transform;
-        lastX = wrapped.x;
-        lastY = wrapped.y;
+  window.addEventListener(
+    "audioLevel",
+    ((event: CustomEvent<{ level: number }>) => {
+      const wrap = document.getElementById("pageLavaWrap");
+      if (!wrap || !event.detail || typeof event.detail.level !== "number") {
+        return;
       }
-    }
+      wrap.style.setProperty("--audio-boost", String(event.detail.level));
+    }) as EventListener,
+  );
 
-    animationId = requestAnimationFrame(animateDrift);
-  }
-
-  function handleStart(e: MouseEvent | TouchEvent) {
-    isDragging = true;
-    const point = "touches" in e ? e.touches[0] : e;
-    startX = point.clientX;
-    startY = point.clientY;
-
-    if (gradientLayer) {
-      gradientLayer.classList.add("dragging");
-      // Capture current visual position (base + drift) into base
-      // Wrap it to keep within pattern bounds
-      const currentX = baseX + driftX;
-      const currentY = baseY + driftY;
-      const wrapped = wrapPosition(currentX, currentY);
-
-      // Set base to wrapped position to preserve it
-      baseX = wrapped.x;
-      baseY = wrapped.y;
-
-      // Reset drift so it restarts smoothly when drag ends
-      driftX = 0;
-      driftY = 0;
-      // Don't reset startTime - let drift continue from its current phase
-      // This ensures smooth continuation after drag
-    }
-  }
-
-  function handleMove(e: MouseEvent | TouchEvent) {
-    if (!isDragging || !gradientLayer) return;
-
-    e.preventDefault();
-    const point = "touches" in e ? e.touches[0] : e;
-
-    const deltaX = point.clientX - startX;
-    const deltaY = point.clientY - startY;
-
-    // Update base position with the drag delta
-    baseX += deltaX;
-    baseY += deltaY;
-
-    // Wrap position to keep it within pattern bounds for infinite scrolling
-    const wrapped = wrapPosition(baseX, baseY);
-
-    // Apply the transform immediately (driftX/driftY not applied during drag)
-    // Use transform3d for hardware acceleration, include current scale
-    gradientLayer.style.transform = `translate3d(${wrapped.x}px, ${wrapped.y}px, 0) scale(${currentScale})`;
-
-    // Update start position for next delta calculation
-    startX = point.clientX;
-    startY = point.clientY;
-  }
-
-  function handleEnd() {
-    isDragging = false;
-
-    if (gradientLayer) {
-      gradientLayer.classList.remove("dragging");
-      /*
-       * While dragging, drift is held at 0 but `startTime` kept advancing, so on
-       * release `sin(elapsed)` would jump to a non-zero offset. Re-seed the phase
-       * from “now” so drift grows smoothly from the dropped position.
-       */
-      const w = wrapPosition(baseX, baseY);
-      baseX = w.x;
-      baseY = w.y;
-      driftX = 0;
-      driftY = 0;
-      startTime = performance.now();
-      lastX = w.x;
-      lastY = w.y;
-      gradientLayer.style.transform = `translate3d(${Math.round(w.x)}px, ${Math.round(w.y)}px, 0) scale(${currentScale})`;
-    }
-  }
-
-  // Audio level tracking for gradient scaling
-  let currentAudioLevel = 0;
-  let targetScale = 1;
-  let currentScale = 1;
-  let scaleAnimationFrame: number | null = null;
-
-  // Listen for audio level events from VoiceChatButton
-  window.addEventListener("audioLevel", ((event: CustomEvent) => {
-    if (event.detail && typeof event.detail.level === "number") {
-      currentAudioLevel = event.detail.level;
-      // Map audio level (0-1) to scale (1.0 - 1.4)
-      // Higher audio = larger scale, with smooth response
-      targetScale = 1 + currentAudioLevel * 0.4;
-    }
-  }) as EventListener);
-
-  function animateGradientScale() {
-    if (!gradientLayer) {
-      scaleAnimationFrame = null;
-      return;
-    }
-
-    // Smooth interpolation for scale (easing)
-    const smoothing = 0.1;
-    currentScale += (targetScale - currentScale) * smoothing;
-
-    // Note: Position transform is handled by animateDrift, we just update the scale
-    // The drift animation will combine scale with position
-    scaleAnimationFrame = requestAnimationFrame(animateGradientScale);
-  }
-
-  // Debug helper: Log animation progress
-  function debugAnimation() {
-    const logoMask = document.querySelector(".logo-mask");
-    if (!logoMask) return;
-
-    // Get computed styles to see current mask position
-    const style = window.getComputedStyle(logoMask);
-    const maskPosition = style.maskPosition || style.webkitMaskPosition;
-    const transform = style.transform;
-
-    console.log("Animation Debug:", {
-      maskPosition,
-      transform,
-      maskSize: style.maskSize || style.webkitMaskSize,
-    });
-  }
-
-  // Initialize after DOM is ready
   function init() {
-    gradientLayer = document.getElementById("gradientLayer");
-
-    if (!gradientLayer) {
-      console.error("gradientLayer element not found");
-      return;
-    }
-
-    // Set initial scale
-    gradientLayer.style.transform = "translate3d(0, 0, 0) scale(1)";
-
     const params = new URLSearchParams(window.location.search);
     const lavaSeedRaw = params.get("lavaSeed");
     const lavaSeedParsed =
       lavaSeedRaw !== null ? Number.parseInt(lavaSeedRaw, 10) : NaN;
-    const theme = randomLavaTheme(
-      Number.isFinite(lavaSeedParsed) ? lavaSeedParsed : undefined,
-    );
-    driftDurationSec = theme.driftDurationSec;
-    patternFracW = theme.bgSizeVw / 100;
-    patternFracH = theme.bgSizeVh / 100;
-    gradientLayer.style.backgroundImage = lavaBackdropImageLayers(theme);
-    gradientLayer.style.backgroundSize = `${theme.bgSizeVw}vw ${theme.bgSizeVh}vh`;
-    gradientLayer.style.backgroundRepeat = "repeat";
-    gradientLayer.style.backgroundPosition = "0 0";
 
-    // Start gradient scale animation
-    animateGradientScale();
-
-    // Debug: Log animation state periodically (add ?debug=animation to URL)
-    if (window.location.search.includes("debug=animation")) {
-      const logoMask = document.querySelector(".logo-mask");
-      if (logoMask) {
-        const observer = new MutationObserver(() => {
-          debugAnimation();
-        });
-        observer.observe(logoMask, {
-          attributes: true,
-          attributeFilter: ["style", "class"],
-        });
-
-        // Also log during animation
-        let frameCount = 0;
-        const logInterval = setInterval(() => {
-          debugAnimation();
-          frameCount++;
-          if (frameCount > 100) {
-            clearInterval(logInterval);
-          }
-        }, 100);
-      }
-    }
-
-    // Mouse events
-    document.addEventListener("mousedown", handleStart);
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseup", handleEnd);
-
-    // Touch events
-    document.addEventListener("touchstart", handleStart, { passive: false });
-    document.addEventListener("touchmove", handleMove, { passive: false });
-    document.addEventListener("touchend", handleEnd);
-    document.addEventListener("touchcancel", handleEnd);
-
-    // Start the drift animation (will wait for intro to complete)
-    animationId = requestAnimationFrame(animateDrift);
+    attachMorphingPageLava({
+      seed: Number.isFinite(lavaSeedParsed) ? lavaSeedParsed : undefined,
+    });
   }
 
-  // Run when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {

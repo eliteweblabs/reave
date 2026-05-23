@@ -112,6 +112,14 @@ Example:
 <VoiceChatButton position="bottom-left" />
 ```
 
+### Deployment (Docker / Railway)
+
+The `Dockerfile` runs `npm run build` **before** your hosting platform injects environment variables into the running container. Values read only from `import.meta.env` can end up empty in production even when Railway variables are set correctly.
+
+`VoiceChatButton` therefore reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these two variables are defined on the **running service** in Railway (or your host). They must use the `PUBLIC_` prefix so they are intended for client-side use; the server injects them into the page when it renders.
+
+If the toggle still shows **VAPI NOT CONFIGURED**, the server process does not see those variables—double-check the variable names and redeploy.
+
 ## 📱 SMS Integration (Twilio)
 
 This project includes inbound SMS handling via Twilio.

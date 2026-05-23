@@ -2,7 +2,10 @@
 import Header from "../components/Header.astro";
 
 const currentPath = Astro.url.pathname;
-const isIndexPage = currentPath === '/' || currentPath === '/index.html';
+const isIndexPage =
+	currentPath === '/' ||
+	currentPath === '/index.html' ||
+	currentPath === '/index2';
 ---
 
 <!doctype html>
