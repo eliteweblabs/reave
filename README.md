@@ -2,6 +2,8 @@
 
 A modern website with integrated Vapi voice chat functionality, allowing visitors to interact with an AI assistant through voice commands.
 
+**Where does the code live?** GitHub (`eliteweblabs/reave`) is the source of truth; Railway deploys from that repo. See [GITHUB_AND_RAILWAY.md](GITHUB_AND_RAILWAY.md) for clone, `git pull`, and optional Railway CLI usage.
+
 ## 🎤 Voice Chat Feature
 
 This website includes a voice chat button powered by [Vapi](https://vapi.ai) that allows visitors to speak their needs directly. The button appears as a floating action button in the bottom-right corner of the page.

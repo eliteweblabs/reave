@@ -5,6 +5,8 @@ dist
 .env
 .env.local
 .env.*.local
+# Snapshot from `railway variable list` (optional local sync)
+.env.railway
 
 # Twilio credentials (already covered by .env, but being explicit)
 # TWILIO_ACCOUNT_SID

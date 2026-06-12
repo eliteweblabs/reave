@@ -4,7 +4,10 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev --host",
+    "dev:railway": "railway run -- npm run dev",
+    "railway:vars": "railway variable list -k > .env.railway",
     "build": "astro build",
+    "check": "astro check",
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
     "astro": "astro"
@@ -22,6 +25,9 @@
     "twilio": "^5.10.7"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0"
+    "@astrojs/check": "^0.9.9",
+    "@types/pg": "^8.20.0",
+    "@types/three": "^0.160.0",
+    "typescript": "^5.9.3"
   }
 }
