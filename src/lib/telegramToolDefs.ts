@@ -7,6 +7,7 @@ import {
   isContactApiConfigured,
   resolveContact,
   listContacts,
+  createContact,
   getContact,
   setContactPortal,
   extractPortal,
@@ -207,6 +208,26 @@ export function buildTools(): TelegramToolDef[] {
               q: { type: 'string', description: 'Optional search text (name or email); omit to list all' },
               limit: { type: 'integer', description: 'Max results (1-200, default 50)' },
             },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'create_contact',
+          description:
+            'Add a new contact/client to the master contact-api. Use when the user wants to add a client or create a test client. Returns the new contact uid and its portal_url.',
+          parameters: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Full name (required)' },
+              email: { type: 'string' },
+              phone: { type: 'string' },
+              company: { type: 'string' },
+              notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
+            },
+            required: ['name'],
             additionalProperties: false,
           },
         },
@@ -708,6 +729,26 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
           company: c.company ?? null,
           portal_url: clientPortalUrl(c.uid),
         })),
+      });
+    }
+    if (name === 'create_contact') {
+      const contactName = String(args.name ?? '').trim();
+      if (!contactName) return JSON.stringify({ error: 'name is required' });
+      const result = await createContact({
+        name: contactName,
+        email: typeof args.email === 'string' ? args.email : undefined,
+        phone: typeof args.phone === 'string' ? args.phone : undefined,
+        company: typeof args.company === 'string' ? args.company : undefined,
+        notes: typeof args.notes === 'string' ? args.notes : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({
+        success: true,
+        uid: result.data.uid,
+        name: result.data.name,
+        email: result.data.email ?? null,
+        phone: result.data.phone ?? null,
+        portal_url: clientPortalUrl(result.data.uid),
       });
     }
     if (name === 'set_client_portal') {

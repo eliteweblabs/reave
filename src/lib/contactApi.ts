@@ -200,6 +200,57 @@ export async function getContact(
   }
 }
 
+/** Create a new contact (POST /api/contacts). Returns the created record. */
+export async function createContact(input: {
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  notes?: string;
+}): Promise<{ ok: true; data: ContactRecord } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!input.name?.trim()) return { ok: false, error: 'name is required' };
+
+  try {
+    const res = await fetch(`${base}/api/contacts`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        name: input.name.trim(),
+        email: input.email?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+        company: input.company?.trim() || undefined,
+        notes: input.notes?.trim() || undefined,
+      }),
+    });
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const err =
+        json && typeof json === 'object' && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : text.slice(0, 200) || res.statusText;
+      return { ok: false, error: err, status: res.status };
+    }
+    const contact =
+      json && typeof json === 'object' && 'contact' in json
+        ? ((json as { contact: ContactRecord }).contact)
+        : (json as ContactRecord);
+    if (!contact || typeof contact !== 'object' || !contact.uid) {
+      return { ok: false, error: 'Unexpected contact-api response' };
+    }
+    return { ok: true, data: contact };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** List/search contacts (GET /api/contacts). Optional fuzzy text `q`. */
 export async function listContacts(opts: {
   q?: string;
