@@ -200,6 +200,50 @@ export async function getContact(
   }
 }
 
+/** List/search contacts (GET /api/contacts). Optional fuzzy text `q`. */
+export async function listContacts(opts: {
+  q?: string;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<
+  | { ok: true; data: { total: number; contacts: ContactRecord[] } }
+  | { ok: false; error: string; status?: number }
+> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+
+  const params = new URLSearchParams();
+  if (opts.q?.trim()) params.set('q', opts.q.trim());
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
+  params.set('limit', String(limit));
+  if (opts.offset && opts.offset > 0) params.set('offset', String(opts.offset));
+
+  try {
+    const res = await fetch(`${base}/api/contacts?${params.toString()}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const err =
+        json && typeof json === 'object' && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : text.slice(0, 200) || res.statusText;
+      return { ok: false, error: err, status: res.status };
+    }
+    const o = (json ?? {}) as { total?: number; contacts?: ContactRecord[] };
+    return { ok: true, data: { total: Number(o.total ?? 0), contacts: o.contacts ?? [] } };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Pull the portal payload out of a contact's links, if present. */
 export function extractPortal(contact: ContactRecord): ClientPortal | null {
   const link = (contact.links ?? []).find((l) => l.system === PORTAL_SYSTEM);

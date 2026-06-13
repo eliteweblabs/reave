@@ -6,6 +6,7 @@ import { listKnowledgeSlugs, readKnowledgeMarkdown, summarizeKnowledgeIndex } fr
 import {
   isContactApiConfigured,
   resolveContact,
+  listContacts,
   getContact,
   setContactPortal,
   extractPortal,
@@ -188,6 +189,22 @@ export function buildTools(): TelegramToolDef[] {
     });
 
     base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'list_contacts',
+          description:
+            'List or search ALL contacts in the master contact-api (the full client list). Use when the user asks to see/browse their contacts or clients, or wants to pick one. Optional `q` filters by name/email; omit it to list everyone (newest first).',
+          parameters: {
+            type: 'object',
+            properties: {
+              q: { type: 'string', description: 'Optional search text (name or email); omit to list all' },
+              limit: { type: 'integer', description: 'Max results (1-200, default 50)' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
       {
         type: 'function',
         function: {
@@ -633,6 +650,23 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return JSON.stringify(result.data);
+    }
+    if (name === 'list_contacts') {
+      const result = await listContacts({
+        q: typeof args.q === 'string' ? args.q : undefined,
+        limit: typeof args.limit === 'number' ? args.limit : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({
+        total: result.data.total,
+        contacts: result.data.contacts.slice(0, 50).map((c) => ({
+          uid: c.uid,
+          name: c.name,
+          email: c.email ?? null,
+          phone: c.phone ?? null,
+          company: c.company ?? null,
+        })),
+      });
     }
     if (name === 'set_client_portal') {
       const target = await resolvePortalTarget(args);

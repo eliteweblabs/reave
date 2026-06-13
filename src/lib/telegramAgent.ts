@@ -48,7 +48,7 @@ export async function runTelegramKnowledgeAgent(opts: {
   const sysParts = [
     'You are a concise assistant for a solo developer business OS.',
     'You receive prior turns from this Telegram chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
-    'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames).',
+    'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
     'After tools, answer in plain text for Telegram (short paragraphs, avoid huge markdown tables).',
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
     'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
