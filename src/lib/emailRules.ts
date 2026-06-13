@@ -1,7 +1,7 @@
 /**
  * Email triage rule engine (Reave).
  *
- * Ported from the retired Email Tools IMAP monitor. Instead of
+ * Ported from the retired `email-tools` IMAP monitor. Instead of
  * polling a mailbox, inbound mail now arrives via a Resend webhook
  * (`/api/email/inbound`). Each message is matched against keyword/phrase rules
  * that resolve to a `status` and decide whether to ping the Telegram bot.
@@ -42,7 +42,7 @@ export interface Classification {
 }
 
 /**
- * Default rule table — ported from the Email Tools `status-rules.json` snapshot.
+ * Default rule table — ported from the `email-tools` `status-rules.json` snapshot.
  * Edit here (or swap for a DB/JSON loader later) to tune triage.
  */
 export const DEFAULT_RULES: EmailRule[] = [

@@ -16,7 +16,7 @@
    ```sh
    npm run dev
    ```
-3. **Ship changes** — commit, push to GitHub; Railway auto-deploys from the repo Railway has connected (this project: `eliteweblabs/reave` → **Reave App** / **Astro** on Railway).
+3. **Ship changes** — commit, push to GitHub; Railway auto-deploys from the repo Railway has connected (this project: `eliteweblabs/reave` → **Reave App** / **reave** on Railway).
 
 ## First-time clone (new folder)
 
@@ -36,7 +36,7 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```sh
   railway link -p af65eb9a-b11c-4c1c-8030-66b4347dcf71 -e production -s 0ef02496-5250-4314-a079-34a4c399f430
   ```
-  (IDs are for **Reave App** → **production** → **Astro**; you can also run `railway link` interactively.)
+  (IDs are for **Reave App** → **production** → **reave**; you can also run `railway link` interactively.)
 
 - **Run dev with production env injected** (no file copy):
   ```sh

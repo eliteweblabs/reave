@@ -4,14 +4,14 @@ Crater is the authoritative invoicing system, hosted at **https://ap.reave.app**
 
 ## Auth
 
-All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRATER_API_TOKEN` env. The Astro service uses the same value in its `CRATER_API_TOKEN` variable (shared secret via Railway reference or shared var).
+All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRATER_API_TOKEN` env. The **reave** service uses the same value in its `CRATER_API_TOKEN` variable (shared secret via Railway reference or shared var).
 
-## Env (Astro / Reave)
+## Env (reave / crater)
 
 | Variable | Purpose |
 |----------|---------|
 | `CRATER_API_BASE_URL` | Crater host, no trailing slash. Prefer `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}`. |
-| `CRATER_API_TOKEN` | Shared secret; sent as `X-Crater-Api-Token`. Set on **both** Astro and Crater. |
+| `CRATER_API_TOKEN` | Shared secret; sent as `X-Crater-Api-Token`. Set on **both reave and crater**. |
 
 ## Telegram usage
 
@@ -41,4 +41,4 @@ Prices in create/add payloads are **whole dollars** (Crater stores cents). `reco
 
 Implementation: `src/lib/craterClient.ts` (HTTP) + `src/lib/telegramToolDefs.ts` (JSON schema + dispatch).
 
-**Deploy note:** Set `CRATER_API_TOKEN` on the Crater Railway service to the same shared secret Astro uses.
+**Deploy note:** Set `CRATER_API_TOKEN` on the **crater** Railway service to the same shared secret **reave** uses.

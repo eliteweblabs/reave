@@ -1,7 +1,7 @@
 # Email triage (Reave)
 
 Inbound email automation lives **inside this Astro app** — there is no separate
-Email Tools service. Mail arrives via a **Resend inbound webhook**, gets classified
+`email-tools` service. Mail arrives via a **Resend inbound webhook**, gets classified
 by a keyword rule table, and (when a rule says so) pings this Telegram bot.
 
 ## Flow
@@ -52,4 +52,4 @@ envs to restrict senders when you want strict triage.
 
 1. Resend dashboard → enable receiving on a `reave.app` subdomain (add the MX record).
 2. Create a webhook for `email.received` pointing at `https://reave.app/api/email/inbound`; copy the `whsec_…` secret.
-3. Set `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_NOTIFY_CHAT_ID` on the Astro service.
+3. Set `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_NOTIFY_CHAT_ID` on the **reave** Railway service.

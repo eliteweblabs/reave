@@ -12,7 +12,7 @@ Older deployments under other projects are **out of scope** for this repo—poin
 
 ## Railway variable references (preferred)
 
-Avoid pasting public URLs by hand. On the **Astro** (or any consumer) service → **Variables**, define:
+Avoid pasting public URLs by hand. On the **reave** (or any consumer) service → **Variables**, define:
 
 ```text
 CONTACT_API_BASE_URL=https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}
@@ -27,7 +27,7 @@ Official docs: [Reference variables](https://docs.railway.com/guides/variables#r
 If **contact-api** enforces `API_KEY`, prefer a **shared variable** (Project → Shared Variables) e.g. `CONTACT_API_CLIENT_KEY`, then reference it on both services:
 
 - On **contact-api**: `API_KEY=${{ shared.CONTACT_API_CLIENT_KEY }}` (or set `API_KEY` only there and share read-only to consumers — pattern depends on how you seal secrets).
-- On **Astro**: `CONTACT_API_KEY=${{ shared.CONTACT_API_CLIENT_KEY }}`
+- On **reave**: `CONTACT_API_KEY=${{ shared.CONTACT_API_CLIENT_KEY }}`
 
 So the client never stores a duplicate literal; one shared source, two references.
 
@@ -35,7 +35,7 @@ So the client never stores a duplicate literal; one shared source, two reference
 
 For HTTP **inside** the Railway private network you can reference private hostnames instead of public URLs; your stack must listen on the right interface/port. Most setups still use `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` for simplicity unless you intentionally use internal DNS.
 
-## Env (Reave / Astro)
+## Env (Reave / reave service)
 
 - `CONTACT_API_BASE_URL` — base URL for `contact-api` (no trailing slash). On Railway, prefer **`https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}`** via variable reference.
 - `CONTACT_API_KEY` — optional; sent as `X-API-Key` if contact-api requires it; prefer **shared variable + reference** above.

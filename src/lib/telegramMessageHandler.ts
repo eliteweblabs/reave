@@ -63,7 +63,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   const invoiceMatch = t.match(/^\/invoice\s+(.+)$/is);
   if (invoiceMatch) {
     if (!isCraterConfigured()) {
-      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the Astro service.';
+      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the reave service.';
     }
     const parts = invoiceMatch[1].split('|').map((s) => s.trim());
     const customer = parts[0] ?? '';

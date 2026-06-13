@@ -2,11 +2,11 @@
 
 ## What it does
 
-When Railway posts a **deployment failure** (or crash-style) webhook to Reave, Astro sends a short message to Telegram so you see it on your phone.
+When Railway posts a **deployment failure** (or crash-style) webhook to Reave, the **reave** app sends a short message to Telegram so you see it on your phone.
 
 ## Setup
 
-1. **Astro env** (Reave App → Astro service):
+1. **reave env** (Reave App → **reave** service):
    - `RAILWAY_WEBHOOK_INGRESS_KEY` — long random secret (generate locally).
    - `TELEGRAM_BOT_TOKEN` — same bot you use for the OS bot is fine.
    - `TELEGRAM_DEPLOY_NOTIFY_CHAT_ID` — numeric chat id (your user id for DMs, or a group id).
@@ -19,4 +19,4 @@ When Railway posts a **deployment failure** (or crash-style) webhook to Reave, A
 
 ## Caveat
 
-If a deploy fails so badly that **this Astro service never starts**, the webhook cannot reach it. Keep Railway’s own UI/email habits too; this path covers “service still up, new revision failed” cases well.
+If a deploy fails so badly that **reave never starts**, the webhook cannot reach it. Keep Railway’s own UI/email habits too; this path covers “service still up, new revision failed” cases well.
