@@ -1,0 +1,16 @@
+%% Telegram + bundled knowledge — edit and refresh /dev/os-map
+flowchart TB
+  TG[Telegram user] --> WH["POST /api/telegram/webhook"]
+  WH --> SECRET{Secret header OK?}
+  SECRET -->|no| E401[401]
+  SECRET -->|yes| CMD{Slash command?}
+  CMD -->|/list /get| FILES[src/knowledge/*.md]
+  CMD -->|/resolve /who| CA[contact-api POST /resolve]
+  CMD -->|/railway project| RW[Railway GraphQL projectCreate]
+  CA --> CP[(contact-postgres)]
+  RW --> REPLY[sendMessage]
+  CMD -->|freeform| LLM[OpenAI optional]
+  LLM --> TOOLS[list_knowledge / read_knowledge / resolve_contact]
+  TOOLS --> FILES
+  TOOLS --> CA
+  FILES --> REPLY[sendMessage]

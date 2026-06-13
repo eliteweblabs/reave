@@ -3,9 +3,11 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev --host",
+    "dev": "astro dev",
+    "dev:poll": "VITE_USE_POLLING=1 astro dev",
     "dev:railway": "railway run -- npm run dev",
     "railway:vars": "railway variable list -k > .env.railway",
+    "knowledge:sync-openclaw": "./scripts/sync-openclaw-knowledge.sh",
     "build": "astro build",
     "check": "astro check",
     "start": "node ./dist/server/entry.mjs",

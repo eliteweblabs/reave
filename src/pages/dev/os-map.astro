@@ -1,0 +1,136 @@
+---
+/**
+ * Personal Business OS dashboard (v1): live Mermaid diagrams from `public/dev/*.mmd`.
+ * Also: http://localhost:4321/dashboard → redirect here.
+ */
+export const prerender = true;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Business OS — dashboard</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1419;
+        --fg: #e6edf3;
+        --muted: #8b949e;
+        --card: #161b22;
+        --border: #30363d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        line-height: 1.5;
+        padding: 1.25rem 1.5rem 3rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0 0 0.35rem;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+      }
+      .sub code {
+        background: var(--card);
+        padding: 0.12rem 0.35rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+      section {
+        margin-bottom: 2rem;
+      }
+      h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+        color: var(--muted);
+      }
+      .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+        overflow: auto;
+      }
+      .panel :global(svg) {
+        max-width: 100%;
+        height: auto;
+      }
+      .err {
+        color: #f85149;
+        font-size: 0.9rem;
+      }
+      .hint {
+        margin-top: 1.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .hint ul {
+        margin: 0.35rem 0 0;
+        padding-left: 1.2rem;
+      }
+      .smoke-banner {
+        display: inline-block;
+        margin: 0 0 0.75rem;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: #0f1419;
+        background: #3fb950;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Business OS — dashboard</h1>
+    <p class="smoke-banner">Live dev: if this badge updates after you save, your dev server is picking up changes.</p>
+    <p class="sub">
+      Diagrams load from <code>public/dev/*.mmd</code> — edit, save, refresh. With <code>npm run dev</code>, Vite serves
+      <code>public/</code> live (no rebuild for <code>.mmd</code> changes).
+    </p>
+
+    <section>
+      <h2>Architecture</h2>
+      <div class="panel" id="arch-out"></div>
+      <p class="err" id="arch-err" hidden></p>
+    </section>
+
+    <section>
+      <h2>Telegram + knowledge</h2>
+      <div class="panel" id="tg-out"></div>
+      <p class="err" id="tg-err" hidden></p>
+    </section>
+
+    <div class="hint">
+      <strong>Paths on disk</strong>
+      <ul>
+        <li><code>public/dev/os-architecture.mmd</code></li>
+        <li><code>public/dev/telegram-knowledge.mmd</code></li>
+      </ul>
+      Mermaid syntax: <a href="https://mermaid.js.org/syntax/flowchart.html" style="color: #58a6ff">flowchart docs</a>.
+    </div>
+
+    <script is:inline type="module" src="/dev/os-map-loader.js"></script>
+  </body>
+</html>

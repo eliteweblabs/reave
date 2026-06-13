@@ -1,0 +1,25 @@
+%% Personal Business OS — edit this file and refresh http://localhost:4321/dev/os-map
+flowchart LR
+  subgraph sources["Sources"]
+    Crater[Crater billing]
+    GH[GitHub]
+    G[Gmail]
+    P[Proton]
+    Cal[Calendar]
+    AN[Apple Notes]
+  end
+  subgraph railway["Railway: Reave App"]
+    API[Astro / API]
+    W[Workers / cron]
+    DB[(App Postgres — future)]
+    Dash[Dashboard]
+    CA[contact-api]
+    CP[(contact-postgres)]
+  end
+  sources --> W
+  W --> DB
+  API --> DB
+  Dash --> API
+  API -.->|CONTACT_API_BASE_URL| CA
+  CA --> CP
+  Crater --> API
