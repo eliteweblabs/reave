@@ -8,16 +8,14 @@ import {
 } from './craterClient';
 import { serverEnv } from './serverEnv';
 
-type ChatMessage =
-  | { role: 'system'; content: string }
-  | { role: 'user'; content: string }
-  | { role: 'assistant'; content?: string; tool_calls?: ToolCall[] }
-  | { role: 'tool'; tool_call_id: string; content: string };
+type AnthropicContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; tool_use_id: string; content: string };
 
-type ToolCall = {
-  id: string;
-  type: 'function';
-  function: { name: string; arguments: string };
+type AnthropicMessage = {
+  role: 'user' | 'assistant';
+  content: string | AnthropicContentBlock[];
 };
 
 function buildTools(): Array<{
@@ -134,6 +132,19 @@ function buildTools(): Array<{
   return base;
 }
 
+/** Map the internal (OpenAI-style) tool defs to Anthropic's tools shape. */
+function buildAnthropicTools(): Array<{
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}> {
+  return buildTools().map((t) => ({
+    name: t.function.name,
+    description: t.function.description,
+    input_schema: t.function.parameters,
+  }));
+}
+
 async function runTool(name: string, argsJson: string): Promise<string> {
   try {
     if (name === 'list_knowledge') {
@@ -212,16 +223,18 @@ async function runTool(name: string, argsJson: string): Promise<string> {
 }
 
 /**
- * Minimal agent loop: model may call list_knowledge / read_knowledge / resolve_contact, we execute and continue.
+ * Minimal agent loop (Anthropic Messages API): the model may call
+ * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
+ * we execute each tool and feed results back until it produces a final answer.
  */
 export async function runTelegramKnowledgeAgent(userText: string): Promise<string> {
-  const apiKey = serverEnv('OPENAI_API_KEY');
+  const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return 'LLM is not configured. Set OPENAI_API_KEY, or use /list, /get, /resolve.';
+    return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /list, /get, /invoice, /resolve.';
   }
 
-  const model = serverEnv('OPENAI_MODEL')?.trim() || 'gpt-4o-mini';
-  const tools = buildTools();
+  const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
+  const tools = buildAnthropicTools();
 
   const sysParts = [
     'You are a concise assistant for a solo developer business OS.',
@@ -239,53 +252,58 @@ export async function runTelegramKnowledgeAgent(userText: string): Promise<strin
     sysParts.push('Note: resolve_contact is unavailable (CONTACT_API_BASE_URL not set).');
   }
 
-  const messages: ChatMessage[] = [
-    { role: 'system', content: sysParts.join('\n') },
-    { role: 'user', content: userText },
-  ];
+  const system = sysParts.join('\n');
+  const messages: AnthropicMessage[] = [{ role: 'user', content: userText }];
 
   const maxRounds = 5;
 
   for (let round = 0; round < maxRounds; round++) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
+        max_tokens: 1024,
+        system,
         messages,
         tools,
-        tool_choice: 'auto',
-        temperature: 0.3,
       }),
     });
 
     if (!res.ok) {
       const t = await res.text().catch(() => '');
-      return `OpenAI error (${res.status}): ${t.slice(0, 500)}`;
+      return `Anthropic error (${res.status}): ${t.slice(0, 500)}`;
     }
 
     const data = (await res.json()) as {
-      choices?: Array<{ message?: { role?: string; content?: string | null; tool_calls?: ToolCall[] } }>;
+      stop_reason?: string;
+      content?: AnthropicContentBlock[];
     };
 
-    const msg = data.choices?.[0]?.message;
-    if (!msg) return 'OpenAI returned no message.';
+    const content = data.content ?? [];
 
-    const toolCalls = msg.tool_calls;
-    if (toolCalls?.length) {
-      messages.push({ role: 'assistant', tool_calls: toolCalls });
-      for (const tc of toolCalls) {
-        const name = tc.function.name;
-        const out = await runTool(name, tc.function.arguments || '{}');
-        messages.push({ role: 'tool', tool_call_id: tc.id, content: out });
+    if (data.stop_reason === 'tool_use') {
+      messages.push({ role: 'assistant', content });
+      const toolResults: AnthropicContentBlock[] = [];
+      for (const block of content) {
+        if (block.type === 'tool_use') {
+          const out = await runTool(block.name, JSON.stringify(block.input ?? {}));
+          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
+        }
       }
+      messages.push({ role: 'user', content: toolResults });
       continue;
     }
 
-    const text = (msg.content ?? '').trim();
+    const text = content
+      .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+      .trim();
     return text || '(no text)';
   }
 

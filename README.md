@@ -192,7 +192,7 @@ All commands are run from the root of the project, from a terminal:
 
 ## Telegram (rudimentary knowledge bot)
 
-Bundled markdown lives in `src/knowledge/*.md`. The webhook exposes **slash commands** (no LLM) and optional **OpenAI tool use** for freeform questions.
+Bundled markdown lives in `src/knowledge/*.md`. The webhook exposes **slash commands** (no LLM) and optional **Anthropic (Claude) tool use** for freeform questions.
 
 ### Live architecture diagrams (local)
 
@@ -202,7 +202,7 @@ Snapshots from local **OpenClaw** (`../openclaw-email-tools`) are copied in as `
 
 1. Copy `.env.example` → `.env` and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_IDS` (your numeric user id).
 2. Deploy or tunnel a **public** HTTPS URL (Telegram cannot call `localhost` directly). Point the bot webhook at `https://<host>/api/telegram/webhook` with the same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`.
-3. In Telegram: `/list`, `/get business-os-overview`, `/help`, `/resolve <name>` (or `/who`). With `OPENAI_API_KEY` set, freeform messages use tools: `list_knowledge`, `read_knowledge`, and **`resolve_contact`** when `CONTACT_API_BASE_URL` is set.
+3. In Telegram: `/list`, `/get business-os-overview`, `/help`, `/invoice <customer> | <amount>`, `/resolve <name>` (or `/who`). With `ANTHROPIC_API_KEY` set, freeform messages use tools: `list_knowledge`, `read_knowledge`, **`resolve_contact`** (when `CONTACT_API_BASE_URL` is set), and **`create_invoice`**/`search_customers`/`list_recent_invoices` (when `CRATER_API_BASE_URL` is set).
 
 4. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**; OpenClaw email-tools is separate.
 

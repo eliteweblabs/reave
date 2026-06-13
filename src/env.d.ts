@@ -9,14 +9,18 @@ interface ImportMetaEnv {
   TELEGRAM_ALLOWED_USER_IDS?: string;
   /** Numeric chat id for Railway deploy-failure webhooks (often your Telegram user id for DMs) */
   TELEGRAM_DEPLOY_NOTIFY_CHAT_ID?: string;
-  /** Optional: OpenAI key for freeform tool-using replies */
-  OPENAI_API_KEY?: string;
-  /** Optional: defaults to gpt-4o-mini */
-  OPENAI_MODEL?: string;
+  /** Optional: Anthropic (Claude) key for freeform tool-using replies */
+  ANTHROPIC_API_KEY?: string;
+  /** Optional: defaults to claude-sonnet-4-6 */
+  ANTHROPIC_MODEL?: string;
   /** eliteweblabs/contact-api base URL (no trailing slash), e.g. Railway public URL */
   CONTACT_API_BASE_URL?: string;
   /** Optional X-API-Key when contact-api has API_KEY set */
   CONTACT_API_KEY?: string;
+  /** Crater custom API base URL (e.g. https://ap.reave.app) */
+  CRATER_API_BASE_URL?: string;
+  /** Mirror of Crater's OPENCLAW_API_TOKEN; sent as X-OpenClaw-Token */
+  CRATER_API_TOKEN?: string;
   /** Railway public API (GraphQL). Create at railway.com/account/tokens — needs permission to create projects. */
   RAILWAY_API_TOKEN?: string;
   /** Optional: Cmd+K → Copy Active Workspace ID if projectCreate requires it */

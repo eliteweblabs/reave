@@ -116,7 +116,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/railway help — Railway commands',
       '/help',
       '',
-      `Freeform: needs OPENAI_API_KEY (tools: ${tools.join(', ')}).`,
+      `Freeform: needs ANTHROPIC_API_KEY (tools: ${tools.join(', ')}).`,
     ];
     return lines.join('\n');
   }

@@ -16,7 +16,7 @@ All custom routes require header **`X-OpenClaw-Token`** equal to Crater's `OPENC
 ## Telegram usage
 
 - **Deterministic (no LLM):** `/invoice <customer> | <amount> [| description]` — e.g. `/invoice Tony Vello | 100 | Website work`. Creates a one-line DRAFT invoice.
-- **Freeform (needs `OPENAI_API_KEY`):** "create an invoice for Tony Vello for $100" → the agent calls the `create_invoice` tool.
+- **Freeform (needs `ANTHROPIC_API_KEY`):** "create an invoice for Tony Vello for $100" → the agent (Claude) calls the `create_invoice` tool.
 
 ## Key endpoints (used by the bot)
 
