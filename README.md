@@ -198,17 +198,19 @@ Bundled markdown lives in `src/knowledge/*.md`. The webhook exposes **slash comm
 
 With `npm run dev`, open **http://localhost:4321/dashboard** (redirects to **`/dev/os-map`**) — your v1 **OS dashboard**: diagrams load from `public/dev/*.mmd`. Edit those files, save, refresh. `noindex` so it is not for public SEO; you can still protect deploys separately if needed.
 
-Snapshots from local **OpenClaw** (`../openclaw-email-tools`) are copied in as `openclaw-*.md`; they are not auto-synced — run `npm run knowledge:sync-openclaw` when that repo changes (or set `OPENCLAW_EMAIL_TOOLS_DIR`).
+**Inbound email triage** runs inside this app (no separate service): mail arrives via a **Resend webhook** at `/api/email/inbound`, is classified by a keyword rule table, and pings the Telegram bot. See `src/knowledge/email-rules.md`.
 
 1. Copy `.env.example` → `.env` and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_IDS` (your numeric user id).
 2. Deploy or tunnel a **public** HTTPS URL (Telegram cannot call `localhost` directly). Point the bot webhook at `https://<host>/api/telegram/webhook` with the same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`.
 3. In Telegram: `/list`, `/get business-os-overview`, `/help`, `/invoice <customer> | <amount>`, `/resolve <name>` (or `/who`). With `ANTHROPIC_API_KEY` set, freeform messages use tools: `list_knowledge`, `read_knowledge`, **`resolve_contact`** (when `CONTACT_API_BASE_URL` is set), and **`create_invoice`**/`search_customers`/`list_recent_invoices` (when `CRATER_API_BASE_URL` is set).
 
-4. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**; OpenClaw email-tools is separate.
+4. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**.
 
 5. **Railway from phone:** set **`RAILWAY_API_TOKEN`** (and optionally **`RAILWAY_WORKSPACE_ID`**, **`RAILWAY_DRY_RUN=1`** for rehearsals) on Astro. In Telegram: **`/railway project My New Project`**. See `src/knowledge/railway-telegram.md`.
 
-6. **Deploy failure → Telegram (automatic):** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as Astro env **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Set **`TELEGRAM_DEPLOY_NOTIFY_CHAT_ID`** on Astro. Details: `src/knowledge/railway-deploy-webhook.md`.### Hot reload (local)
+6. **Deploy failure → Telegram (automatic):** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as Astro env **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Set **`TELEGRAM_DEPLOY_NOTIFY_CHAT_ID`** on Astro. Details: `src/knowledge/railway-deploy-webhook.md`.
+
+7. **Inbound email → Telegram (automatic):** in Resend, enable receiving on a `reave.app` subdomain (add the MX record) and create an `email.received` webhook to `https://reave.app/api/email/inbound`. Set **`RESEND_API_KEY`**, **`RESEND_WEBHOOK_SECRET`**, and **`EMAIL_NOTIFY_CHAT_ID`** on Astro. Tune rules in `src/lib/emailRules.ts`. Details: `src/knowledge/email-rules.md`.### Hot reload (local)
 
 - Run **`npm run dev`** — Astro + Vite hot-reload **client** scripts/styles and refresh **server** routes when you save (some `.astro` layout changes may still do a full page reload; that is normal).
 - Prefer **`http://localhost:4321`** for the fewest WebSocket/HMR edge cases. The dev server listens on **all interfaces** (`server.host: true`) so LAN access still works.

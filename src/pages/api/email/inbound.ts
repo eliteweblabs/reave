@@ -1,0 +1,91 @@
+import type { APIRoute } from 'astro';
+import { Resend } from 'resend';
+import { serverEnv } from '../../../lib/serverEnv';
+import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
+
+export const prerender = false;
+
+export const GET: APIRoute = async () => {
+  return new Response(
+    JSON.stringify({
+      ok: true,
+      service: 'reave-email-inbound',
+      time: new Date().toISOString(),
+    }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+};
+
+export const POST: APIRoute = async ({ request }) => {
+  const apiKey = serverEnv('RESEND_API_KEY');
+  const secret = serverEnv('RESEND_WEBHOOK_SECRET');
+
+  if (!apiKey?.trim() || !secret?.trim()) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'RESEND_API_KEY / RESEND_WEBHOOK_SECRET not set' }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Raw body is required for signature verification.
+  const payload = await request.text();
+  const resend = new Resend(apiKey);
+
+  let event;
+  try {
+    event = resend.webhooks.verify({
+      payload,
+      headers: {
+        id: request.headers.get('svix-id') ?? '',
+        timestamp: request.headers.get('svix-timestamp') ?? '',
+        signature: request.headers.get('svix-signature') ?? '',
+      },
+      webhookSecret: secret,
+    });
+  } catch (e) {
+    console.warn('[email] webhook verification failed', e);
+    return new Response(JSON.stringify({ ok: false, error: 'invalid signature' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (event.type !== 'email.received') {
+    return new Response(JSON.stringify({ ok: true, action: 'ignored' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const meta = event.data;
+    let from = meta.from ?? '';
+    let subject = meta.subject ?? '';
+    let text = '';
+
+    // The webhook payload carries metadata only; fetch the full email for the body.
+    if (meta.email_id) {
+      const { data, error } = await resend.emails.receiving.get(meta.email_id);
+      if (error) {
+        console.warn('[email] receiving.get error', error);
+      } else if (data) {
+        from = data.from || from;
+        subject = data.subject || subject;
+        text = data.text || data.html || '';
+      }
+    }
+
+    const result = await handleInboundEmail({ from, subject, text });
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    console.error('[email] inbound handler error', e);
+    // Always 200 so Resend does not retry a message we already received.
+    return new Response(JSON.stringify({ ok: false, action: 'error' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+};

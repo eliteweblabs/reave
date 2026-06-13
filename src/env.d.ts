@@ -33,6 +33,16 @@ interface ImportMetaEnv {
   RAILWAY_PROJECT_DESCRIPTION_PREFIX?: string;
   /** Shared secret: same value must appear as ?key= on /api/railway/webhook */
   RAILWAY_WEBHOOK_INGRESS_KEY?: string;
+  /** Resend API key — inbound email receiving (/api/email/inbound) */
+  RESEND_API_KEY?: string;
+  /** Resend webhook signing secret (whsec_…) for verifying inbound events */
+  RESEND_WEBHOOK_SECRET?: string;
+  /** Chat id for inbound email alerts; falls back to TELEGRAM_DEPLOY_NOTIFY_CHAT_ID */
+  EMAIL_NOTIFY_CHAT_ID?: string;
+  /** Optional comma-separated allowlist of sender addresses */
+  EMAIL_ALLOWED_SENDERS?: string;
+  /** Optional comma-separated allowlist of sender domains */
+  EMAIL_ALLOWED_DOMAINS?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */

@@ -6,6 +6,8 @@ Crater is the authoritative invoicing system, hosted at **https://ap.reave.app**
 
 All custom routes require header **`X-OpenClaw-Token`** equal to Crater's `OPENCLAW_API_TOKEN` env. In Reave the Astro service stores the same value as `CRATER_API_TOKEN`.
 
+> **Note:** `openclaw` here is just the **legacy route prefix / header name** baked into the Crater PHP routes — it is **not** a separate service. There is no OpenClaw system in the Reave stack.
+
 ## Env (Astro / Reave)
 
 | Variable | Purpose |

@@ -7,7 +7,6 @@
     "dev:poll": "VITE_USE_POLLING=1 astro dev",
     "dev:railway": "railway run -- npm run dev",
     "railway:vars": "railway variable list -k > .env.railway",
-    "knowledge:sync-openclaw": "./scripts/sync-openclaw-knowledge.sh",
     "build": "astro build",
     "check": "astro check",
     "start": "node ./dist/server/entry.mjs",
@@ -22,6 +21,7 @@
     "lucide-astro": "^0.556.0",
     "pg": "^8.20.0",
     "react-simple-chatbot": "^0.6.1",
+    "resend": "^6.12.4",
     "styled-components": "^4.4.1",
     "three": "^0.160.0",
     "twilio": "^5.10.7"

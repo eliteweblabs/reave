@@ -6,7 +6,7 @@ Standalone service: **fuzzy contact identity** — `eliteweblabs/contact-api` on
 
 Use the **`contact-api`** + **`contact-postgres`** services inside the **Reave App** Railway project. That is the master client database for Reave work.
 
-Typical public base URL pattern: `https://contact-api-production-<id>.up.railway.app` — do **not** hardcode; use a variable reference (below). On **Reave**, `contact-api` is usually configured with CORS like **`https://reave.app`** and **`https://claw.reave.app`** (`ALLOWED_ORIGINS`).
+Typical public base URL pattern: `https://contact-api-production-<id>.up.railway.app` — do **not** hardcode; use a variable reference (below). On **Reave**, `contact-api` is usually configured with CORS like **`https://reave.app`** (`ALLOWED_ORIGINS`).
 
 Older deployments under other projects are **out of scope** for this repo—point all consumers at **Reave App** `contact-api` only.
 
