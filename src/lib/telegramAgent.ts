@@ -1,5 +1,11 @@
 import { listKnowledgeSlugs, readKnowledgeMarkdown, summarizeKnowledgeIndex } from './localKnowledge';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
+import {
+  isCraterConfigured,
+  craterCreateInvoice,
+  craterSearchCustomers,
+  craterListInvoices,
+} from './craterClient';
 import { serverEnv } from './serverEnv';
 
 type ChatMessage =
@@ -63,6 +69,68 @@ function buildTools(): Array<{
       },
     });
   }
+  if (isCraterConfigured()) {
+    base.push(
+      {
+        type: 'function' as const,
+        function: {
+          name: 'create_invoice',
+          description:
+            'Create an invoice in Crater for a customer. Crater finds or creates the customer by name. Prices are in whole dollars. Defaults to a DRAFT invoice unless status is given.',
+          parameters: {
+            type: 'object',
+            properties: {
+              customer_name: { type: 'string', description: 'Customer/client name' },
+              customer_email: { type: 'string', description: 'Optional email for a new customer' },
+              items: {
+                type: 'array',
+                description: 'Line items. For a simple "$X for <desc>" request, use one item with quantity 1.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: 'Line item name (e.g. "Web development")' },
+                    description: { type: 'string' },
+                    quantity: { type: 'number', description: 'Defaults to 1 if omitted' },
+                    price: { type: 'number', description: 'Unit price in whole dollars' },
+                  },
+                  required: ['name', 'price'],
+                  additionalProperties: false,
+                },
+              },
+              notes: { type: 'string' },
+              status: {
+                type: 'string',
+                enum: ['DRAFT', 'SENT', 'VIEWED', 'OVERDUE', 'COMPLETED'],
+                description: 'Defaults to DRAFT. Only set SENT if the user says it was sent.',
+              },
+            },
+            required: ['customer_name', 'items'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'search_customers',
+          description: 'Search Crater customers by name/email/phone. Use to confirm a customer exists or disambiguate before invoicing.',
+          parameters: {
+            type: 'object',
+            properties: { q: { type: 'string', description: 'Search text (optional; empty lists all)' } },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function' as const,
+        function: {
+          name: 'list_recent_invoices',
+          description: 'List recent invoices from Crater with status, totals, and links.',
+          parameters: { type: 'object', properties: {}, additionalProperties: false },
+        },
+      }
+    );
+  }
   return base;
 }
 
@@ -96,6 +164,47 @@ async function runTool(name: string, argsJson: string): Promise<string> {
       }
       return JSON.stringify(result.data);
     }
+    if (name === 'create_invoice') {
+      const args = JSON.parse(argsJson) as {
+        customer_name?: string;
+        customer_email?: string;
+        items?: Array<{ name?: string; description?: string; quantity?: number; price?: number }>;
+        notes?: string;
+        status?: 'DRAFT' | 'SENT' | 'VIEWED' | 'OVERDUE' | 'COMPLETED';
+      };
+      const items = (args.items ?? [])
+        .filter((i) => i && typeof i.price === 'number')
+        .map((i) => ({
+          name: (i.name ?? 'Service').trim() || 'Service',
+          description: i.description,
+          quantity: typeof i.quantity === 'number' && i.quantity > 0 ? i.quantity : 1,
+          price: i.price as number,
+        }));
+      if (!args.customer_name?.trim()) return JSON.stringify({ error: 'customer_name is required' });
+      if (!items.length) return JSON.stringify({ error: 'at least one item with a price is required' });
+      const result = await craterCreateInvoice({
+        customerName: args.customer_name,
+        customerEmail: args.customer_email,
+        items,
+        notes: args.notes,
+        status: args.status,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'search_customers') {
+      const args = JSON.parse(argsJson) as { q?: string };
+      const result = await craterSearchCustomers(args.q ?? '');
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      const customers = result.data.customers?.slice(0, 25) ?? [];
+      return JSON.stringify({ count: result.data.count, customers });
+    }
+    if (name === 'list_recent_invoices') {
+      const result = await craterListInvoices();
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      const invoices = result.data.invoices?.slice(0, 20) ?? [];
+      return JSON.stringify({ count: result.data.count, invoices });
+    }
     return JSON.stringify({ error: `unknown tool ${name}` });
   } catch (e) {
     return JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
@@ -119,6 +228,13 @@ export async function runTelegramKnowledgeAgent(userText: string): Promise<strin
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames).',
     'After tools, answer in plain text for Telegram (short paragraphs, avoid huge markdown tables).',
   ];
+  if (isCraterConfigured()) {
+    sysParts.push(
+      'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.'
+    );
+  } else {
+    sysParts.push('Note: invoicing tools are unavailable (CRATER_API_BASE_URL / CRATER_API_TOKEN not set).');
+  }
   if (!isContactApiConfigured()) {
     sysParts.push('Note: resolve_contact is unavailable (CONTACT_API_BASE_URL not set).');
   }

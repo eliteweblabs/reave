@@ -3,6 +3,7 @@ import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
 import { telegramSendMessage } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
+import { isCraterConfigured, craterCreateInvoice, formatCreatedInvoice } from './craterClient';
 import { serverEnv } from './serverEnv';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
@@ -57,6 +58,29 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return 'Usage: /resolve <name>  or  /who <name>\nExample: /resolve todd smith';
   }
 
+  const invoiceMatch = t.match(/^\/invoice\s+(.+)$/is);
+  if (invoiceMatch) {
+    if (!isCraterConfigured()) {
+      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the Astro service.';
+    }
+    const parts = invoiceMatch[1].split('|').map((s) => s.trim());
+    const customer = parts[0] ?? '';
+    const amount = Number((parts[1] ?? '').replace(/[$,]/g, ''));
+    const description = parts[2]?.trim() || 'Services rendered';
+    if (!customer || !Number.isFinite(amount) || amount <= 0) {
+      return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
+    }
+    const out = await craterCreateInvoice({
+      customerName: customer,
+      items: [{ name: description, quantity: 1, price: amount }],
+    });
+    if (!out.ok) return `Invoice failed: ${out.error}${out.status != null ? ` (${out.status})` : ''}`;
+    return formatCreatedInvoice(out.data);
+  }
+  if (t === '/invoice') {
+    return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
+  }
+
   const railwayHelp = [
     'Railway (empty project):',
     '/railway project <name> — create a new empty Railway project',
@@ -79,18 +103,20 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   }
 
   if (t === '/help') {
+    const tools = ['list_knowledge', 'read_knowledge'];
+    if (isContactApiConfigured()) tools.push('resolve_contact');
+    if (isCraterConfigured()) tools.push('create_invoice', 'search_customers', 'list_recent_invoices');
     const lines = [
       'Commands:',
       '/list — knowledge slugs',
       '/get <slug> — read a knowledge file',
+      '/invoice <customer> | <amount> [| description] — create a Crater invoice',
       '/resolve <name> or /who <name> — fuzzy match against contact-api',
       '/railway project <name> — new empty Railway project',
       '/railway help — Railway commands',
       '/help',
       '',
-      'Freeform: needs OPENAI_API_KEY (tools: list_knowledge, read_knowledge' +
-        (isContactApiConfigured() ? ', resolve_contact' : '') +
-        ').',
+      `Freeform: needs OPENAI_API_KEY (tools: ${tools.join(', ')}).`,
     ];
     return lines.join('\n');
   }
