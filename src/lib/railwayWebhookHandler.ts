@@ -1,4 +1,5 @@
 import { telegramSendMessage } from './telegramClient';
+import { serverEnv } from './serverEnv';
 
 type RailwayWebhookBody = {
   type?: string;
@@ -69,8 +70,8 @@ export async function handleRailwayWebhook(opts: {
   }
 
   const type = body.type ?? '';
-  const token = import.meta.env.TELEGRAM_BOT_TOKEN?.trim();
-  const chatRaw = import.meta.env.TELEGRAM_DEPLOY_NOTIFY_CHAT_ID?.trim();
+  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
+  const chatRaw = serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
   const chatId = chatRaw ? Number(chatRaw) : NaN;
 
   if (!isDeployFailureEvent(type)) {

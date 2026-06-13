@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { handleTelegramTextMessage, type TelegramUpdate } from '../../../lib/telegramMessageHandler';
+import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
 
@@ -15,8 +16,8 @@ export const GET: APIRoute = async () => {
 };
 
 export const POST: APIRoute = async ({ request }) => {
-  const secret = import.meta.env.TELEGRAM_WEBHOOK_SECRET;
-  const token = import.meta.env.TELEGRAM_BOT_TOKEN;
+  const secret = serverEnv('TELEGRAM_WEBHOOK_SECRET');
+  const token = serverEnv('TELEGRAM_BOT_TOKEN');
 
   if (!token?.trim()) {
     return new Response(JSON.stringify({ ok: false, error: 'TELEGRAM_BOT_TOKEN not set' }), {

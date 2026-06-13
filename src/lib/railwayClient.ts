@@ -2,6 +2,7 @@
  * Minimal Railway public GraphQL client (account / workspace token).
  * @see https://docs.railway.com/integrations/api
  */
+import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
 
@@ -14,7 +15,7 @@ export async function railwayGraphql<T>(opts: {
   | { ok: true; data: T }
   | { ok: false; errors: RailwayGqlError[]; status?: number; raw?: string }
 > {
-  const token = import.meta.env.RAILWAY_API_TOKEN?.trim();
+  const token = serverEnv('RAILWAY_API_TOKEN')?.trim();
   if (!token) {
     return { ok: false, errors: [{ message: 'RAILWAY_API_TOKEN is not set on this service' }] };
   }
@@ -64,7 +65,8 @@ export async function createRailwayEmptyProject(name: string): Promise<
   | { ok: true; id: string; name: string }
   | { ok: false; message: string }
 > {
-  const dry = import.meta.env.RAILWAY_DRY_RUN === '1' || import.meta.env.RAILWAY_DRY_RUN === 'true';
+  const dryRaw = serverEnv('RAILWAY_DRY_RUN');
+  const dry = dryRaw === '1' || dryRaw === 'true';
   const clean = sanitizeRailwayProjectName(name);
   if (!clean) {
     return { ok: false, message: 'Project name is empty.' };
@@ -74,8 +76,8 @@ export async function createRailwayEmptyProject(name: string): Promise<
     return { ok: true, id: '(dry-run)', name: clean };
   }
 
-  const workspaceId = import.meta.env.RAILWAY_WORKSPACE_ID?.trim();
-  const prefix = import.meta.env.RAILWAY_PROJECT_DESCRIPTION_PREFIX?.trim();
+  const workspaceId = serverEnv('RAILWAY_WORKSPACE_ID')?.trim();
+  const prefix = serverEnv('RAILWAY_PROJECT_DESCRIPTION_PREFIX')?.trim();
 
   const input: Record<string, string> = { name: clean };
   if (prefix) input.description = `${prefix} (via Reave Telegram)`;

@@ -1,5 +1,6 @@
 import { listKnowledgeSlugs, readKnowledgeMarkdown, summarizeKnowledgeIndex } from './localKnowledge';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
+import { serverEnv } from './serverEnv';
 
 type ChatMessage =
   | { role: 'system'; content: string }
@@ -105,12 +106,12 @@ async function runTool(name: string, argsJson: string): Promise<string> {
  * Minimal agent loop: model may call list_knowledge / read_knowledge / resolve_contact, we execute and continue.
  */
 export async function runTelegramKnowledgeAgent(userText: string): Promise<string> {
-  const apiKey = import.meta.env.OPENAI_API_KEY;
+  const apiKey = serverEnv('OPENAI_API_KEY');
   if (!apiKey) {
     return 'LLM is not configured. Set OPENAI_API_KEY, or use /list, /get, /resolve.';
   }
 
-  const model = import.meta.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+  const model = serverEnv('OPENAI_MODEL')?.trim() || 'gpt-4o-mini';
   const tools = buildTools();
 
   const sysParts = [

@@ -2,9 +2,10 @@
  * eliteweblabs/contact-api — fuzzy contact resolution (Railway: Reave App → contact-api + contact-postgres).
  * @see https://github.com/eliteweblabs/contact-api
  */
+import { serverEnv } from './serverEnv';
 
 function baseUrl(): string | null {
-  const raw = import.meta.env.CONTACT_API_BASE_URL?.trim();
+  const raw = serverEnv('CONTACT_API_BASE_URL')?.trim();
   if (!raw) return null;
   return raw.replace(/\/+$/, '');
 }
@@ -30,7 +31,7 @@ export async function resolveContact(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const key = import.meta.env.CONTACT_API_KEY?.trim();
+  const key = serverEnv('CONTACT_API_KEY')?.trim();
   if (key) headers['X-API-Key'] = key;
 
   try {

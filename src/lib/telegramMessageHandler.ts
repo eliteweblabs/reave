@@ -3,6 +3,7 @@ import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
 import { telegramSendMessage } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
+import { serverEnv } from './serverEnv';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
   if (!raw?.trim()) return null;
@@ -115,7 +116,7 @@ export async function handleTelegramTextMessage(opts: {
   }
 
   const prod = import.meta.env.PROD;
-  const allowed = parseAllowedUserIds(import.meta.env.TELEGRAM_ALLOWED_USER_IDS);
+  const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
   if (!isUserAllowed(fromId, allowed, prod)) {
     await telegramSendMessage(token, chatId, 'Unauthorized for this bot.');
     return;
