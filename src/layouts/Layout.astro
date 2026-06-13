@@ -2,10 +2,7 @@
 import Header from "../components/Header.astro";
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
-const isIndexPage =
-	pathNorm === "/" ||
-	pathNorm === "/index.html" ||
-	pathNorm === "/index2";
+const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 ---
 
 <!doctype html>

@@ -2,20 +2,27 @@
 import Layout from "../layouts/Layout.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
+import TextFallback from "../components/TextFallback.astro";
 ---
 
 <Layout>
-  <div class="page-lava-wrap" id="pageLavaWrap" aria-hidden="true">
-    <div id="pageLava" class="page-lava"></div>
+  <!-- Mask clips the WebGL layer (mask on the painted content, not an empty box). -->
+  <div class="quantum-logo-stack" aria-hidden="true">
+    <div id="quantumCanvasHost" class="quantum-host"></div>
   </div>
+  <div class="quantum-vignette" aria-hidden="true"></div>
 
-  <!-- One masked copy of the same field (mask on the painted layer, not an empty box) -->
-  <div class="logo-stack">
-    <div class="page-lava page-lava--logo-cutout" aria-hidden="true"></div>
+  <div class="quantum-controls-dock" aria-label="Background controls">
+    <div class="quantum-controls">
+      <button type="button" class="quantum-btn" id="btn-stabilize">Focus</button>
+      <button type="button" class="quantum-btn quantum-btn--alert" id="btn-destabilize">Warp</button>
+      <button type="button" class="quantum-btn" id="btn-reset">Reset</button>
+    </div>
   </div>
 
   <VoiceChatButton position="center-bottom" />
   <Transcript />
+  <TextFallback />
   <div class="container">
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -55,130 +62,155 @@ import Transcript from "../components/Transcript.astro";
 </Layout>
 
 <style>
-  /*
-   * Defaults on :root only. Never set --bx* / --hue on `.page-lava` — that shadows
-   * these values and kills motion (all blobs stuck at 50%,50%).
-   */
-  :global(:root) {
-    --bx0: 50%;
-    --by0: 50%;
-    --bx1: 50%;
-    --by1: 50%;
-    --bx2: 50%;
-    --by2: 50%;
-    --bx3: 50%;
-    --by3: 50%;
-    --bx4: 50%;
-    --by4: 50%;
-    --bx5: 50%;
-    --by5: 50%;
-    --c0: #ff0080;
-    --c1: #ff00ff;
-    --c2: #00ffff;
-    --c3: #00ff00;
-    --c4: #ffff00;
-    --c5: #ff0000;
-    --hue: 0deg;
+  :root {
+    --quantum-neon-blue: #00f3ff;
+    --quantum-neon-purple: #bc13fe;
+    --quantum-neon-red: #ff0055;
+    --quantum-glass: rgba(10, 10, 12, 0.6);
+    --quantum-border: rgba(255, 255, 255, 0.1);
   }
 
   :global(html),
   :global(body) {
     min-height: 100%;
-    background: rgb(6, 0, 12);
+    background: #050505;
   }
 
-  .page-lava-wrap {
+  /* Let drags reach the scene on iOS (otherwise Safari keeps scroll/rubber-band). */
+  :global(html.quantum-page-touch),
+  :global(html.quantum-page-touch body) {
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  /* Wrapper is masked; canvas paints only inside the logo SVG silhouette. */
+  .quantum-logo-stack {
     position: fixed;
     inset: 0;
     z-index: 0;
-    pointer-events: none;
+    /* Must not be `none` — some engines skip hit-testing the whole subtree (incl. canvas). */
+    pointer-events: auto;
+    cursor: default;
+    touch-action: none;
     overflow: hidden;
-    transform: scale(calc(1.1 + var(--audio-boost, 0) * 0.08));
-    transform-origin: center center;
-  }
-
-  .logo-stack {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    overflow: visible;
-  }
-
-  .page-lava {
-    position: absolute;
-    inset: -10%;
-    width: 120%;
-    height: 120%;
-    background:
-      radial-gradient(
-        circle at var(--bx0) var(--by0),
-        var(--c0) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        circle at var(--bx1) var(--by1),
-        var(--c1) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        circle at var(--bx2) var(--by2),
-        var(--c2) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        circle at var(--bx3) var(--by3),
-        var(--c3) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        circle at var(--bx4) var(--by4),
-        var(--c4) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        circle at var(--bx5) var(--by5),
-        var(--c5) 0%,
-        transparent 56%
-      ),
-      radial-gradient(
-        ellipse 115% 115% at 50% 50%,
-        rgba(120, 40, 180, 0.32) 0%,
-        rgba(35, 6, 55, 0.85) 55%,
-        rgb(10, 0, 18) 100%
-      );
-    filter: blur(48px) saturate(1.42) hue-rotate(var(--hue));
-    will-change: filter;
-  }
-
-  .page-lava-wrap .page-lava {
-    position: absolute;
-    inset: -10%;
-    width: 120%;
-    height: 120%;
-  }
-
-  .page-lava--logo-cutout {
-    position: fixed;
-    left: -10vw;
-    top: -10vh;
-    width: 120vw;
-    height: 120vh;
-    z-index: 0;
     mask-image: url("/logo-mask.svg");
     -webkit-mask-image: url("/logo-mask.svg");
-    mask-size: contain;
-    -webkit-mask-size: contain;
+    /* Resolved size/position are read in JS so the WebGL camera matches this box (tight fit in the letters). */
+    mask-size: min(92vmin, 96vw, 820px);
+    -webkit-mask-size: min(92vmin, 96vw, 820px);
     mask-position: 42% center;
     -webkit-mask-position: 42% center;
     mask-repeat: no-repeat;
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-    filter: blur(48px) saturate(1.42) hue-rotate(var(--hue))
-      drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
       drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
-    animation: logoMaskIntro 1.4s ease-out forwards;
+    animation: quantumLogoIntro 1.4s ease-out forwards;
+  }
+
+  .quantum-host {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Host still targets the canvas; stack owns pointer-events + cursor. */
+    pointer-events: auto;
+    touch-action: none;
+    overflow: hidden;
+  }
+
+  .quantum-host :global(canvas) {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none;
+    object-fit: cover;
+  }
+
+  .quantum-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background: radial-gradient(
+      circle at center,
+      transparent 40%,
+      rgba(0, 0, 0, 0.8) 110%
+    );
+  }
+
+  .quantum-controls-dock {
+    /* Hidden. When showing again, set `display: flex`. */
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    justify-content: center;
+    padding-top: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: max(
+      calc(12px + env(safe-area-inset-bottom, 0px)),
+      clamp(88px, 18vh, 140px)
+    );
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      rgba(5, 5, 5, 0.85) 0%,
+      rgba(5, 5, 5, 0.35) 55%,
+      transparent 100%
+    );
+  }
+
+  .quantum-controls {
+    pointer-events: auto;
+    background: var(--quantum-glass);
+    padding: 10px;
+    border: 1px solid var(--quantum-border);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    transform: skewX(-10deg);
+  }
+
+  .quantum-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    padding: 15px 24px;
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      box-shadow 0.2s ease,
+      border-color 0.2s ease;
+    transform: skewX(10deg);
+    min-width: 100px;
+  }
+
+  .quantum-btn:hover {
+    background: var(--quantum-neon-blue);
+    color: #000;
+    box-shadow: 0 0 25px var(--quantum-neon-blue);
+    border-color: var(--quantum-neon-blue);
+  }
+
+  .quantum-btn--alert:hover {
+    background: var(--quantum-neon-red);
+    color: #fff;
+    box-shadow: 0 0 30px var(--quantum-neon-red);
+    border-color: var(--quantum-neon-red);
   }
 
   .container {
@@ -195,7 +227,7 @@ import Transcript from "../components/Transcript.astro";
     margin: 0;
     padding: 0;
     pointer-events: none;
-    z-index: 2;
+    z-index: 3;
   }
 
   .watermark {
@@ -214,7 +246,7 @@ import Transcript from "../components/Transcript.astro";
     height: 100%;
   }
 
-  @keyframes logoMaskIntro {
+  @keyframes quantumLogoIntro {
     0% {
       mask-position: 42% center;
       -webkit-mask-position: 42% center;
@@ -225,70 +257,100 @@ import Transcript from "../components/Transcript.astro";
     }
   }
 
+  /* iOS/WebKit: animating mask + filtered WebGL in the same layer often tears or “replays” the first frames. */
+  @media (hover: none) {
+    .quantum-logo-stack {
+      animation: none;
+      mask-position: center center;
+      -webkit-mask-position: center center;
+    }
+  }
+
   @media screen and (min-width: 1024px) {
-    .page-lava--logo-cutout {
-      mask-size: 600px 600px;
-      -webkit-mask-size: 600px 600px;
+    .quantum-logo-stack {
+      mask-size: min(88vmin, 94vw, 880px);
+      -webkit-mask-size: min(88vmin, 94vw, 880px);
     }
   }
 
   @media screen and (min-width: 1440px) {
-    .page-lava--logo-cutout {
-      mask-size: 800px 800px;
-      -webkit-mask-size: 800px 800px;
+    .quantum-logo-stack {
+      mask-size: min(84vmin, 92vw, 960px);
+      -webkit-mask-size: min(84vmin, 92vw, 960px);
     }
   }
 
   @media screen and (min-width: 1920px) {
-    .page-lava--logo-cutout {
-      mask-size: 1000px 1000px;
-      -webkit-mask-size: 1000px 1000px;
+    .quantum-logo-stack {
+      mask-size: min(80vmin, 90vw, 1040px);
+      -webkit-mask-size: min(80vmin, 90vw, 1040px);
     }
   }
 
   @media screen and (min-width: 2560px) {
-    .page-lava--logo-cutout {
-      mask-size: 1200px 1200px;
-      -webkit-mask-size: 1200px 1200px;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .page-lava,
-    .page-lava--logo-cutout {
-      filter: blur(36px) saturate(1.2) hue-rotate(var(--hue));
+    .quantum-logo-stack {
+      mask-size: min(76vmin, 88vw, 1180px);
+      -webkit-mask-size: min(76vmin, 88vw, 1180px);
     }
   }
 </style>
 
 <script>
-  import { attachMorphingPageLava } from "../lib/morphingPageLava";
+  import { attachQuantumCoreOpticalEngine } from "../lib/quantumCoreOpticalEngine";
 
-  window.addEventListener(
-    "audioLevel",
-    ((event: CustomEvent<{ level: number }>) => {
-      const wrap = document.getElementById("pageLavaWrap");
-      if (!wrap || !event.detail || typeof event.detail.level !== "number") {
-        return;
-      }
-      wrap.style.setProperty("--audio-boost", String(event.detail.level));
-    }) as EventListener,
-  );
+  function prefersReducedMotion(): boolean {
+    return (
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
 
-  function init() {
-    const params = new URLSearchParams(window.location.search);
-    const lavaSeedRaw = params.get("lavaSeed");
-    const lavaSeedParsed =
-      lavaSeedRaw !== null ? Number.parseInt(lavaSeedRaw, 10) : NaN;
+  function init(): () => void {
+    const host = document.getElementById("quantumCanvasHost");
+    if (!host) return () => {};
 
-    attachMorphingPageLava({
-      seed: Number.isFinite(lavaSeedParsed) ? lavaSeedParsed : undefined,
-    });
+    document.documentElement.classList.add("quantum-page-touch");
+    document.body.classList.add("quantum-page-touch");
+
+    let detach: (() => void) | undefined;
+
+    const start = () => {
+      detach = attachQuantumCoreOpticalEngine(host);
+    };
+
+    const touchUi =
+      typeof matchMedia !== "undefined" &&
+      (matchMedia("(pointer: coarse)").matches ||
+        matchMedia("(hover: none)").matches);
+    const delayMs = prefersReducedMotion() || touchUi ? 0 : 400;
+    const delayId = window.setTimeout(start, delayMs);
+
+    return () => {
+      window.clearTimeout(delayId);
+      detach?.();
+      document.documentElement.classList.remove("quantum-page-touch");
+      document.body.classList.remove("quantum-page-touch");
+    };
+  }
+
+  let cleanup: (() => void) | undefined;
+
+  function boot() {
+    cleanup?.();
+    cleanup = init();
+    window.addEventListener(
+      "pagehide",
+      () => {
+        cleanup?.();
+        cleanup = undefined;
+      },
+      { once: true },
+    );
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
   } else {
-    init();
+    boot();
   }
 </script>

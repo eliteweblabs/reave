@@ -2,7 +2,7 @@
 // VoiceChatButton component for Vapi integration
 // Users need to set their VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID
 // These can be set as environment variables or passed as props
-import { Mic } from "lucide-astro";
+import { Fingerprint, MessageCircle } from "lucide-astro";
 
 interface Props {
   publicKey?: string;
@@ -79,33 +79,35 @@ const positionClasses = {
   id="vapi-widget-container"
   class={`vapi-widget-container ${positionClasses[position]}`}
 >
-  <div id="vapi-status-label" class="vapi-status-label">Tap to speak</div>
+  <div id="vapi-status-label" class="vapi-status-label">Touch to speak</div>
 
   <button
     id="vapi-voice-button"
     class="vapi-voice-button"
     aria-label="Start voice chat"
-    title="Click to speak with our AI assistant"
+    title="Touch to speak with our AI assistant"
   >
-    <!-- Toggle switch track -->
-    <span class="toggle-track"></span>
+    <!-- Mobile (touch): fingerprint icon -->
+    <Fingerprint
+      id="fingerprint-icon"
+      class="vapi-btn-icon"
+      size={34}
+      stroke-width={1.75}
+    />
 
-    <!-- Toggle switch thumb -->
-    <span class="toggle-thumb">
-      <!-- Microphone icon (active/listening state) -->
-      <Mic
-        id="mic-icon"
-        class="vapi-icon icon-active"
-        size={20}
-        stroke-width={2.5}
-        style="display: none;"
-      />
+    <!-- Desktop (pointer): chat bubble icon — swapped in by JS -->
+    <MessageCircle
+      id="chat-icon"
+      class="vapi-btn-icon"
+      size={30}
+      stroke-width={1.75}
+      style="display: none;"
+    />
 
-      <!-- Loading spinner (connecting state) -->
-      <div id="loading-spinner" class="loading-spinner" style="display: none;">
-        <div class="spinner-ring"></div>
-      </div>
-    </span>
+    <!-- Loading spinner (connecting state) -->
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+      <div class="spinner-ring"></div>
+    </div>
   </button>
 </div>
 
@@ -225,6 +227,32 @@ const positionClasses = {
       initAuth();
     }
   }
+
+  // Icon & label: show fingerprint on touch devices, chat bubble on pointer devices.
+  (function swapIcon() {
+    const fp   = document.getElementById("fingerprint-icon");
+    const chat = document.getElementById("chat-icon");
+    const btn  = document.getElementById("vapi-voice-button");
+    const label = document.getElementById("vapi-status-label");
+    if (!fp || !chat || !btn) return;
+
+    const isTouch =
+      typeof matchMedia !== "undefined" &&
+      (matchMedia("(pointer: coarse)").matches ||
+       matchMedia("(hover: none)").matches);
+
+    if (isTouch) {
+      fp.style.display   = "";
+      chat.style.display = "none";
+      btn.setAttribute("title", "Touch to speak with our AI assistant");
+      if (label) label.textContent = "Touch to speak";
+    } else {
+      fp.style.display   = "none";
+      chat.style.display = "";
+      btn.setAttribute("title", "Click to speak with our AI assistant");
+      if (label) label.textContent = "Click to speak";
+    }
+  })();
 
   // Vapi SDK will be attached to window.Vapi
   console.log("Vapi credentials check:", {
@@ -706,7 +734,7 @@ const positionClasses = {
     resetIdleHintVisibility();
     label.textContent = text;
     label.className = "vapi-status-label" + (type !== "idle" ? ` ${type}` : "");
-    if (text === "Tap to speak" && type === "idle") {
+    if (text === "Touch to speak" && type === "idle") {
       idleHintFadeTimeoutId = window.setTimeout(() => {
         idleHintFadeTimeoutId = null;
         label.classList.add("vapi-status-label--hint-dismissed");
@@ -749,7 +777,7 @@ const positionClasses = {
         button.disabled = false;
         button.style.opacity = "1";
         button.setAttribute("aria-label", "Start voice chat");
-        setStatusLabel("Tap to speak");
+        setStatusLabel("Touch to speak");
         // Hide microphone icon
         const micIcon = document.getElementById("mic-icon");
         if (micIcon) micIcon.style.display = "none";
@@ -1005,7 +1033,7 @@ const positionClasses = {
               if (loadingSpinner) loadingSpinner.style.display = "none";
 
               setStatusLabel("Connection failed", "error");
-              setTimeout(() => setStatusLabel("Tap to speak"), 4000);
+              setTimeout(() => setStatusLabel("Touch to speak"), 4000);
 
               if (vapiInstance) {
                 try {
@@ -1264,7 +1292,7 @@ const positionClasses = {
                 button.setAttribute("aria-label", "Start voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
-                setStatusLabel("Tap to speak");
+                setStatusLabel("Touch to speak");
                 // Hide microphone icon
                 const micIcon = document.getElementById("mic-icon");
                 if (micIcon) micIcon.style.display = "none";
@@ -1498,7 +1526,7 @@ const positionClasses = {
             // Stop audio analyzer if it was started
             stopAudioAnalyzer();
             setStatusLabel("Failed to connect", "error");
-            setTimeout(() => setStatusLabel("Tap to speak"), 4000);
+            setTimeout(() => setStatusLabel("Touch to speak"), 4000);
           }
         } catch (error) {
           console.error("Error:", error);
@@ -1522,7 +1550,7 @@ const positionClasses = {
           } else {
             setStatusLabel("Mic error — check settings", "error");
           }
-          setTimeout(() => setStatusLabel("Tap to speak"), 4000);
+          setTimeout(() => setStatusLabel("Touch to speak"), 4000);
         }
       }
     };
@@ -1555,8 +1583,8 @@ const positionClasses = {
       });
       loadCachedGreeting();
       initializeVapi();
-      /* Initial HTML is already “Tap to speak”; start the idle fade timer. */
-      setStatusLabel("Tap to speak", "idle");
+      /* Initial HTML is already “Touch to speak”; start the idle fade timer. */
+      setStatusLabel("Touch to speak", "idle");
     }
   } else {
     // Disable button if credentials are missing
@@ -1613,7 +1641,7 @@ const positionClasses = {
   }
 
   .vapi-widget-container.center-bottom {
-    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(5vh + 10px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -1653,152 +1681,93 @@ const positionClasses = {
 
   .vapi-voice-button {
     position: relative;
-    width: 90px; /* Made wider */
-    height: 40px;
-    border-radius: 20px;
-    background: transparent;
-    border: 2px solid transparent; /* Transparent to show gradient border */
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(8, 8, 10, 0.45);
+    border: 2px solid rgba(255, 255, 255, 0.85);
     cursor: pointer;
     display: flex;
     align-items: center;
-    padding: 4px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-    overflow: hidden;
+    justify-content: center;
+    padding: 0;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.3s ease,
+      border-color 0.3s ease,
+      background 0.3s ease;
+    overflow: visible; /* let the pulse ring extend beyond the border */
+    -webkit-tap-highlight-color: transparent;
+    /* Idle pulse: slow ring breath to draw attention */
+    animation: btn-idle-pulse 3s ease-in-out infinite;
   }
 
-  /* Colorful gradient border using pseudo-element */
-  .vapi-voice-button::before {
-    content: "";
-    position: absolute;
-    inset: -4px; /* Extend 4px outside for wider border effect */
-    border-radius: 22px; /* Slightly larger to match wider border */
-    background: linear-gradient(
-      90deg,
-      #ff0000 0%,
-      #ffff00 25%,
-      #00ffff 50%,
-      #ff00ff 75%,
-      #ff0000 100%
-    );
-    z-index: -1; /* Behind the button content */
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-  }
-
-  .vapi-voice-button.active::before {
-    opacity: 1;
+  @keyframes btn-idle-pulse {
+    0%, 100% {
+      box-shadow:
+        0 2px 14px rgba(0, 0, 0, 0.45),
+        0 0 0 0 rgba(255, 255, 255, 0);
+    }
+    50% {
+      box-shadow:
+        0 2px 14px rgba(0, 0, 0, 0.45),
+        0 0 0 8px rgba(255, 255, 255, 0.12);
+    }
   }
 
   .vapi-widget-container.center-bottom .vapi-voice-button:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-  }
-
-  .vapi-widget-container.center-bottom .vapi-voice-button:hover::before {
-    opacity: 1;
+    border-color: #fff;
   }
 
   .vapi-widget-container.center-bottom .vapi-voice-button:active {
     transform: scale(0.98);
   }
 
-  /* Toggle track - gradient background */
-  .toggle-track {
-    position: absolute;
-    inset: 3px; /* Contracted from edges to show more border */
-    border-radius: 17px; /* Adjusted to match inset */
-    background: #000000; /* Black background when off */
-    opacity: 1;
+  /* Shared icon styles — applies to both fingerprint and chat bubble */
+  .vapi-btn-icon {
+    position: relative;
+    z-index: 2;
+    color: rgba(255, 255, 255, 0.9);
+    pointer-events: none;
     transition:
-      background 0.3s ease,
-      opacity 0.3s ease;
+      color 0.3s ease,
+      transform 0.25s ease,
+      opacity 0.2s ease;
   }
 
-  /* Colorful gradient border using pseudo-element */
-  .toggle-track::before {
-    content: "";
-    position: absolute;
-    inset: -4px; /* Extend 4px outside for wider border effect */
-    border-radius: 22px; /* Slightly larger to match wider border */
-    background: linear-gradient(
-      90deg,
-      #ff0000 0%,
-      #ffff00 25%,
-      #00ffff 50%,
-      #ff00ff 75%,
-      #ff0000 100%
-    );
-    z-index: -1; /* Behind the black background */
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
+  .vapi-voice-button:hover .vapi-btn-icon {
+    color: #fff;
   }
 
-  .vapi-voice-button.active .toggle-track {
-    background:
-      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
-      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
-      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
-      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
-      radial-gradient(
-        ellipse at center,
-        #ff0000 0%,
-        #ffff00 25%,
-        #00ffff 50%,
-        #ff00ff 75%,
-        #ff0000 100%
-      );
-    background-size: 60px 40px;
-    background-repeat: repeat;
-    opacity: 1;
+  /* Active (in-call): icon pulses gently */
+  .vapi-voice-button.active .vapi-btn-icon {
+    color: #fff;
+    animation: icon-active-pulse 1.6s ease-in-out infinite;
   }
 
-  /* Brighter border when active */
-  .vapi-voice-button.active .toggle-track::before {
-    opacity: 1;
+  @keyframes icon-active-pulse {
+    0%, 100% { transform: scale(1);    opacity: 0.85; }
+    50%       { transform: scale(1.12); opacity: 1;    }
   }
 
-  /* Ensure inactive state returns to black background */
-  .vapi-voice-button:not(.active):not(.connecting) .toggle-track {
-    background: #000000 !important;
-    opacity: 1;
-    animation: none;
+  /* Connecting: hide icon so the spinner reads cleanly */
+  .vapi-voice-button.connecting .vapi-btn-icon {
+    opacity: 0;
   }
 
-  .vapi-voice-button:not(.active):not(.connecting) .toggle-track::before {
-    opacity: 0.8;
-  }
-
-  .vapi-voice-button.connecting .toggle-track {
-    opacity: 0.8;
+  .vapi-voice-button.connecting {
     animation: connecting-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* Toggle thumb - sliding circle */
-  .toggle-thumb {
-    position: absolute;
-    left: 2px;
-    top: 2px; /* Moved up 2px (was 4px) */
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    z-index: 2;
-  }
-
-  .vapi-voice-button.active .toggle-thumb {
-    transform: translateX(50px); /* Adjusted for wider button (was 40px) */
-    background: rgba(255, 255, 255, 1);
-  }
-
   .vapi-voice-button.active {
-    border-color: rgba(255, 255, 255, 0.6);
+    border-color: #fff;
+    background: rgba(12, 12, 16, 0.6);
+    /* Active overrides idle pulse with a steady glow */
+    animation: none;
+    box-shadow: 0 0 22px rgba(255, 255, 255, 0.35);
   }
 
   /* Loading spinner */
@@ -1837,61 +1806,20 @@ const positionClasses = {
     }
   }
 
-  .vapi-icon {
-    width: 20px;
-    height: 20px;
-    color: #000;
-    z-index: 3;
-    position: relative;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
-  }
-
-  /* Icon state management */
-  .icon-active {
-    display: none;
-  }
-
-  .vapi-voice-button.active .icon-active {
-    display: block;
-    animation: mic-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes mic-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.8;
-    }
-  }
-
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .vapi-widget-container.center-bottom {
-      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(5vh + 10px + env(safe-area-inset-bottom, 0px));
     }
 
     .vapi-voice-button {
-      width: 70px;
-      height: 36px;
+      width: 58px;
+      height: 58px;
     }
 
-    .toggle-thumb {
+    .vapi-btn-icon {
       width: 28px;
       height: 28px;
-    }
-
-    .vapi-voice-button.active .toggle-thumb {
-      transform: translateX(34px);
-    }
-
-    .vapi-icon {
-      width: 18px;
-      height: 18px;
     }
   }
 </style>

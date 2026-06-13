@@ -383,6 +383,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   /** Mirrored from the live rainbow each frame (for any logic that reads the current tint). */
   const targetColor = new THREE.Color(0xff0000);
   const rainbowTint = new THREE.Color(0xff0000);
+  /** Reused per-frame so the speaker color flash doesn't allocate. */
+  const liveTint = new THREE.Color(0xff0000);
   let particleSpeedMult = 1.0;
   /** Smoothed 0–1 from `window` `audioLevel` events (voice reactive). */
   let micLevelTarget = 0;
@@ -396,6 +398,40 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
         : 0;
   };
   window.addEventListener("audioLevel", onAudioLevel);
+
+  /**
+   * Conversation reactivity: a smoothed "engaged" baseline while a call is live,
+   * plus decaying transient bursts on call start / each transcript chunk, and a
+   * color flash that differs by who is speaking. Idle (no call) stays calm.
+   */
+  let callEnergyTarget = 0;
+  let callEnergySmoothed = 0;
+  let burst = 0;
+  let speakerBlend = 0;
+  const speakerColor = new THREE.Color(0x00f3ff);
+  const USER_COLOR = new THREE.Color(0x00f3ff);
+  const ASSISTANT_COLOR = new THREE.Color(0xff2bd6);
+
+  const onCallStart: EventListener = () => {
+    callEnergyTarget = 1;
+    burst = Math.min(burst + 0.9, 1.6);
+    triggerShake(0.55);
+  };
+  const onCallEnd: EventListener = () => {
+    callEnergyTarget = 0;
+    burst = Math.min(burst + 0.35, 1.6);
+    triggerShake(0.25);
+  };
+  const onTranscript: EventListener = (ev: Event) => {
+    const e = ev as CustomEvent<{ type?: string }>;
+    speakerColor.copy(e.detail?.type === "user" ? USER_COLOR : ASSISTANT_COLOR);
+    speakerBlend = 1;
+    burst = Math.min(burst + 0.5, 1.6);
+    triggerShake(0.28);
+  };
+  window.addEventListener("vapi-call-start", onCallStart);
+  window.addEventListener("vapi-call-end", onCallEnd);
+  window.addEventListener("vapi-transcript", onTranscript);
 
   let shakeIntensity = 0;
   let mouseX = 0;
@@ -534,22 +570,37 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     const sat = prefersReduced ? 0.68 : 0.74;
     const light = prefersReduced ? 0.51 : 0.53;
     rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, sat, light);
-    targetColor.copy(rainbowTint);
-    sphereMat.uniforms.uColorB.value.copy(rainbowTint);
-    particlesMat.color.copy(rainbowTint);
+    liveTint.copy(rainbowTint);
+    /* While someone is speaking, flash the field toward the speaker's color. */
+    if (speakerBlend > 0.001) {
+      liveTint.lerp(speakerColor, Math.min(speakerBlend, 1) * 0.85);
+    }
+    targetColor.copy(liveTint);
+    sphereMat.uniforms.uColorB.value.copy(liveTint);
+    particlesMat.color.copy(liveTint);
 
     const micLerp = prefersReduced ? 0.06 : 0.14;
     micLevelSmoothed +=
       (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
     const mic = micLevelSmoothed;
 
+    /* Smooth the "in a call" baseline and decay transient bursts / speaker flash. */
+    callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.05;
+    burst *= 0.92;
+    speakerBlend *= 0.94;
+    const wild = callEnergySmoothed;
+    const energy = THREE.MathUtils.clamp(mic + burst + wild * 0.12, 0, 1.8);
+
     const spinBoost =
       1 +
-      mic * (prefersReduced ? 0.42 : 1.55) * Math.max(motionScale, 0.35);
+      energy *
+        (prefersReduced ? 0.42 : 1.55 + wild * 2.4) *
+        Math.max(motionScale, 0.35);
     particles.rotation.y = -rawT * 0.1 * particleSpeedMult * spinBoost;
 
-    const sizeBoost = 1 + mic * (prefersReduced ? 0.32 : 0.72);
-    const opacityBoost = 1 + mic * (prefersReduced ? 0.22 : 0.52);
+    const sizeBoost = 1 + energy * (prefersReduced ? 0.32 : 0.72 + wild * 0.9);
+    const opacityBoost =
+      1 + energy * (prefersReduced ? 0.22 : 0.52 + wild * 0.4);
     particlesMat.size = particleBaseSize * sizeBoost;
     particlesMat.opacity = THREE.MathUtils.clamp(
       particleBaseOpacity * opacityBoost,
@@ -558,8 +609,18 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     );
 
     const scaleBreath =
-      1 + mic * (prefersReduced ? 0.045 : 0.12) * Math.max(motionScale, 0.35);
+      1 +
+      energy *
+        (prefersReduced ? 0.045 : 0.12 + wild * 0.16) *
+        Math.max(motionScale, 0.35);
     pulseGroup.scale.setScalar(scaleBreath);
+
+    /* Bloom surges with voice energy → the logo "lights up" as you speak. */
+    bloomPass.strength = THREE.MathUtils.clamp(
+      0.95 + wild * 0.35 + energy * 1.6,
+      0.85,
+      3.2,
+    );
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
     pulseGroup.rotation.x +=
@@ -594,18 +655,15 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     camera.position.z = VIEW_Z;
     camera.lookAt(scene.position);
 
-    /* Return lens to passthrough after warp (defaults are 0 / 0). */
-    const lensCalmD = 0;
-    const lensCalmA = 0;
-    if (
-      lensPass.uniforms.uDistortion.value > 0.002 &&
-      targetSpike < 0.9
-    ) {
-      lensPass.uniforms.uDistortion.value +=
-        (lensCalmD - lensPass.uniforms.uDistortion.value) * 0.08 * motionScale;
-      lensPass.uniforms.uAberration.value +=
-        (lensCalmA - lensPass.uniforms.uAberration.value) * 0.08 * motionScale;
-    }
+    /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
+       then eases back to passthrough (0/0) when the conversation goes quiet. */
+    const warpTarget = THREE.MathUtils.clamp(energy * 0.42, 0, 0.6) * motionScale;
+    const aberrTarget =
+      THREE.MathUtils.clamp(energy * 0.028, 0, 0.05) * motionScale;
+    lensPass.uniforms.uDistortion.value +=
+      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.2;
+    lensPass.uniforms.uAberration.value +=
+      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.2;
 
     composer.render();
   }
@@ -639,6 +697,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
     window.removeEventListener("audioLevel", onAudioLevel);
+    window.removeEventListener("vapi-call-start", onCallStart);
+    window.removeEventListener("vapi-call-end", onCallEnd);
+    window.removeEventListener("vapi-transcript", onTranscript);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerdown", onPointerDown);
     window.removeEventListener("pointerup", onPointerUp);
