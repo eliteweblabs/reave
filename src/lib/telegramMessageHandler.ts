@@ -1,4 +1,5 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
+import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
 import { telegramSendMessage } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
@@ -102,6 +103,10 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return `Created Railway project "${out.name}"\nID: ${out.id}\n${out.id === '(dry-run)' ? '(dry run — no API call)' : `Open: ${dash}`}`;
   }
 
+  if (t === '/clear' || t === '/reset') {
+    return '__CLEAR_HISTORY__';
+  }
+
   if (t === '/help') {
     const tools = ['list_knowledge', 'read_knowledge'];
     if (isContactApiConfigured()) tools.push('resolve_contact');
@@ -114,9 +119,10 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/resolve <name> or /who <name> — fuzzy match against contact-api',
       '/railway project <name> — new empty Railway project',
       '/railway help — Railway commands',
+      '/clear — forget this chat’s conversation history',
       '/help',
       '',
-      `Freeform: needs ANTHROPIC_API_KEY (tools: ${tools.join(', ')}).`,
+      `Freeform: needs ANTHROPIC_API_KEY (tools: ${tools.join(', ')}). Keeps recent chat history for follow-ups.`,
     ];
     return lines.join('\n');
   }
@@ -124,8 +130,21 @@ async function handleSlashCommand(text: string): Promise<string | null> {
 }
 
 export type TelegramUpdate = {
-  message?: { chat?: { id?: number }; from?: { id?: number }; text?: string };
+  message?: {
+    chat?: { id?: number };
+    from?: { id?: number };
+    text?: string;
+    reply_to_message?: { text?: string };
+  };
 };
+
+function enrichUserText(text: string, replyTo?: { text?: string }): string {
+  const quoted = replyTo?.text?.trim();
+  if (!quoted) return text;
+  const cap = 800;
+  const snippet = quoted.length > cap ? `${quoted.slice(0, cap)}…` : quoted;
+  return `[User is replying to this earlier message:\n"${snippet}"]\n\n${text}`;
+}
 
 export async function handleTelegramTextMessage(opts: {
   token: string;
@@ -154,11 +173,22 @@ export async function handleTelegramTextMessage(opts: {
   }
 
   const slash = await handleSlashCommand(text);
+  if (slash === '__CLEAR_HISTORY__') {
+    clearChatHistory(chatId);
+    await telegramSendMessage(token, chatId, 'Conversation history cleared.');
+    return;
+  }
   if (slash) {
     await telegramSendMessage(token, chatId, slash);
     return;
   }
 
-  const reply = await runTelegramKnowledgeAgent(text);
+  const userText = enrichUserText(text, update.message?.reply_to_message);
+  const priorTurns = getChatHistory(chatId);
+  const reply = await runTelegramKnowledgeAgent({ userText, priorTurns });
+  appendChatTurns(chatId, [
+    { role: 'user', content: userText },
+    { role: 'assistant', content: reply },
+  ]);
   await telegramSendMessage(token, chatId, reply);
 }

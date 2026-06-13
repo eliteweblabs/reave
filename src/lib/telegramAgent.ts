@@ -7,6 +7,7 @@ import {
   craterListInvoices,
 } from './craterClient';
 import { serverEnv } from './serverEnv';
+import type { TelegramChatTurn } from './telegramChatHistory';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -227,7 +228,11 @@ async function runTool(name: string, argsJson: string): Promise<string> {
  * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
  * we execute each tool and feed results back until it produces a final answer.
  */
-export async function runTelegramKnowledgeAgent(userText: string): Promise<string> {
+export async function runTelegramKnowledgeAgent(opts: {
+  userText: string;
+  priorTurns?: TelegramChatTurn[];
+}): Promise<string> {
+  const { userText, priorTurns = [] } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
     return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /list, /get, /invoice, /resolve.';
@@ -238,6 +243,7 @@ export async function runTelegramKnowledgeAgent(userText: string): Promise<strin
 
   const sysParts = [
     'You are a concise assistant for a solo developer business OS.',
+    'You receive prior turns from this Telegram chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames).',
     'After tools, answer in plain text for Telegram (short paragraphs, avoid huge markdown tables).',
   ];
@@ -253,7 +259,10 @@ export async function runTelegramKnowledgeAgent(userText: string): Promise<strin
   }
 
   const system = sysParts.join('\n');
-  const messages: AnthropicMessage[] = [{ role: 'user', content: userText }];
+  const messages: AnthropicMessage[] = [
+    ...priorTurns.map((turn) => ({ role: turn.role, content: turn.content })),
+    { role: 'user', content: userText },
+  ];
 
   const maxRounds = 5;
 

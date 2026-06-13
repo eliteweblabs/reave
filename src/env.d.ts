@@ -13,6 +13,8 @@ interface ImportMetaEnv {
   ANTHROPIC_API_KEY?: string;
   /** Optional: defaults to claude-sonnet-4-6 */
   ANTHROPIC_MODEL?: string;
+  /** Optional: max user+assistant turns kept per Telegram chat (default 20) */
+  TELEGRAM_CHAT_HISTORY_TURNS?: string;
   /** eliteweblabs/contact-api base URL (no trailing slash), e.g. Railway public URL */
   CONTACT_API_BASE_URL?: string;
   /** Optional X-API-Key when contact-api has API_KEY set */
