@@ -1,7 +1,7 @@
 import { NODES, EDGES, GROUPS } from '/dev/os-map-data.js';
 
 const GRID = 12;
-const STORE = 'os-map-pos-v2';
+const STORE = 'os-map-pos-v3';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 const wrap = document.getElementById('wrap');
