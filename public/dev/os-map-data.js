@@ -2,7 +2,7 @@
 // ⚠️ KEEP CURRENT: add/edit nodes + edges here whenever a feature, service,
 //    API route, integration, or bot command changes. Rendered at /dev/os-map.
 //
-// node:  { id, title, sub, icon, hue, status?, ghost?, group?, x, y }
+// node:  { id, title, sub, icon, hue, ghost?, group?, x, y }
 // edge:  { from, to, label?, dashed?, ghost? }
 // group: { id, title, hue, members: [nodeId, ...] }
 
@@ -13,14 +13,14 @@ export const NODES = [
   { id: 'dev', title: 'Dev / dashboard', sub: '/dev/os-map', icon: '🧑‍💻', hue: 325, group: 'clients', x: 60, y: 430 },
 
   // Reave App (Railway) — the hub
-  { id: 'astro', title: 'reave', sub: 'reave.app · /api/*', icon: '🔺', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
+  { id: 'astro', title: 'reave', sub: 'reave.app · /api/*', icon: '🔺', hue: 150, group: 'reave', x: 430, y: 300 },
   { id: 'app_pg', title: 'reave-postgres', sub: 'volume', icon: '🗃️', hue: 215, ghost: true, group: 'reave', x: 430, y: 470 },
-  { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
-  { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
-  { id: 'crater', title: 'crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
-  { id: 'crater_mysql', title: 'crater-mysql', sub: 'volume', icon: '🐬', hue: 12, status: true, group: 'reave', x: 990, y: 440 },
-  { id: 'calcom_web', title: 'calcom-web-app', sub: 'cal.reave.app', icon: '📅', hue: 340, status: true, group: 'reave', x: 990, y: 300 },
-  { id: 'calcom_api', title: 'calcom-booking-api', sub: 'booking API', icon: '🗓️', hue: 350, status: true, group: 'reave', x: 990, y: 160 },
+  { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, group: 'reave', x: 790, y: 160 },
+  { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', hue: 48, group: 'reave', x: 790, y: 300 },
+  { id: 'crater', title: 'crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, group: 'reave', x: 790, y: 440 },
+  { id: 'crater_mysql', title: 'crater-mysql', sub: 'volume', icon: '🐬', hue: 12, group: 'reave', x: 990, y: 440 },
+  { id: 'calcom_web', title: 'calcom-web-app', sub: 'cal.reave.app', icon: '📅', hue: 340, group: 'reave', x: 990, y: 300 },
+  { id: 'calcom_api', title: 'calcom-booking-api', sub: 'booking API', icon: '🗓️', hue: 350, group: 'reave', x: 990, y: 160 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages', icon: '🤖', hue: 265, group: 'external', x: 1160, y: 120 },
@@ -28,8 +28,8 @@ export const NODES = [
   { id: 'resend', title: 'Resend', sub: 'inbound · marketing', icon: '✉️', hue: 330, group: 'external', x: 1160, y: 400 },
   { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage', icon: '💬', hue: 200, group: 'external', x: 1160, y: 540 },
 
-  // Separate Railway project (legacy IMAP — replaced by Resend inbound on reave)
-  { id: 'imap', title: 'email-tools', sub: 'IMAP · watches Gmail', icon: '📨', hue: 100, status: true, group: 'email_tools', x: 790, y: 620 },
+  // Retired — inbound email now handled on reave via Resend webhook
+  { id: 'imap', title: 'email-tools', sub: 'retired · IMAP monitor', icon: '📨', hue: 100, ghost: true, group: 'email_tools', x: 790, y: 620 },
 ];
 
 export const EDGES = [

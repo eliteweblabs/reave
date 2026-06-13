@@ -69,7 +69,6 @@ for (const n of byId.values()) {
       <span class="ttl">${n.title}</span>
     </div>
     ${n.sub ? `<div class="sub">${n.sub}</div>` : ''}
-    ${n.status ? `<div class="status">Online</div>` : ''}
   `;
   world.appendChild(el);
   nodeEls.set(n.id, el);
