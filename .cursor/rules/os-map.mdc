@@ -23,7 +23,12 @@ The page is **tabbed** via `MAPS` in that file. Each map is
 
 Within each map:
 
-- `nodes` — services / integrations / clients (id, title, sub, icon, hue, status, ghost, group, x, y).
+- `nodes` — services / integrations / clients (id, title, sub, icon, brand, hue, status, ghost, group, x, y).
+  - `brand` is a [Simple Icons](https://simpleicons.org) slug (e.g. `railway`,
+    `github`, `supabase`). When set, the card shows the company's real logo
+    (tinted to the node hue); `icon` (an emoji) stays as the fallback for brands
+    Simple Icons doesn't carry (Twilio, BrowserStack) or generic nodes. Confirm a
+    slug exists before using it.
 - `edges` — connections (from, to, label, dashed, ghost).
 - `groups` — Railway-project-style containers (id, title, hue, members).
 

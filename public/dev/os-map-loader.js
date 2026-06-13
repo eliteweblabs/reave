@@ -5,6 +5,18 @@ const STORE = 'os-map-pos-v2';
 const MAP_STORE = 'os-map-active-v1';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
+// Real brand logos via Simple Icons (https://simpleicons.org), pinned to a
+// major version. We render the SVG as a CSS mask so each glyph can be tinted to
+// its node's hue, keeping the full-spectrum look on the dark canvas.
+const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
+function chipHtml(n) {
+  if (n.brand) {
+    return `<span class="chip brand"><i class="bi" style="--icon:url('${ICON_CDN(n.brand)}')"></i></span>`;
+  }
+  return `<span class="chip">${n.icon ?? '•'}</span>`;
+}
+
 const wrap = document.getElementById('wrap');
 const world = document.getElementById('world');
 const edgesSvg = document.getElementById('edges');
@@ -101,7 +113,7 @@ function buildMap() {
     el.style.top = `${n.y}px`;
     el.innerHTML = `
       <div class="row">
-        <span class="chip">${n.icon ?? '•'}</span>
+        ${chipHtml(n)}
         <span class="ttl">${n.title}</span>
       </div>
       ${n.sub ? `<div class="sub">${n.sub}</div>` : ''}

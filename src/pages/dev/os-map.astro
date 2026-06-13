@@ -137,6 +137,14 @@ export const prerender = true;
         background: hsl(var(--h) 70% 55% / 0.16);
         border: 1px solid hsl(var(--h) 70% 60% / 0.4);
       }
+      /* Real brand logo (Simple Icons) tinted to the node hue via CSS mask. */
+      .node .chip .bi {
+        width: 0.95rem;
+        height: 0.95rem;
+        background-color: hsl(var(--h) 90% 72%);
+        -webkit-mask: var(--icon) center / contain no-repeat;
+        mask: var(--icon) center / contain no-repeat;
+      }
       .node .ttl { font-size: 0.85rem; font-weight: 600; color: var(--fg); }
       .node .sub {
         margin-top: 0.2rem;
