@@ -372,14 +372,95 @@ const positionClasses = {
     }
   }
 
+  /** Vapi / Daily remote (assistant TTS) stream — same discovery as greeting capture. */
+  function getRemoteAudioStreamFromVapi(vapiInstance) {
+    if (!vapiInstance) return null;
+    try {
+      if (typeof vapiInstance.getRemoteAudioStream === "function") {
+        const s = vapiInstance.getRemoteAudioStream();
+        if (s?.getAudioTracks?.()?.length) return s;
+      }
+      if (vapiInstance.remoteAudioStream?.getAudioTracks?.()?.length) {
+        return vapiInstance.remoteAudioStream;
+      }
+      const fromCall = vapiInstance.call?.remoteAudioStream;
+      if (fromCall?.getAudioTracks?.()?.length) return fromCall;
+    } catch (e) {
+      console.warn("getRemoteAudioStreamFromVapi:", e);
+    }
+    return null;
+  }
+
   // Audio level analyzer
   let audioContext = null;
   let analyser = null;
   let microphone = null;
   let dataArray = null;
+  let timeDataArray = null;
   let animationFrameId = null;
   let audioStream = null;
   let analyzerActive = false;
+  let remoteAudioSourceNode = null;
+  let remoteAttachPollId = null;
+  let lastRemoteAttachedTrackId = null;
+
+  function stopRemoteAttachPolling() {
+    if (remoteAttachPollId != null) {
+      clearInterval(remoteAttachPollId);
+      remoteAttachPollId = null;
+    }
+  }
+
+  /** Remote stream may appear only after WebRTC connects — poll briefly around call / speech. */
+  function scheduleRemoteAttachRetries(vapiInstance) {
+    stopRemoteAttachPolling();
+    let attempts = 0;
+    const maxAttempts = 32;
+    remoteAttachPollId = setInterval(() => {
+      tryAttachRemoteAudioToAnalyzer(vapiInstance);
+      attempts += 1;
+      if (remoteAudioSourceNode || attempts >= maxAttempts) {
+        stopRemoteAttachPolling();
+      }
+    }, 200);
+  }
+
+  function detachRemoteAudioFromAnalyzer() {
+    if (remoteAudioSourceNode) {
+      try {
+        remoteAudioSourceNode.disconnect();
+      } catch (e) {
+        // Ignore
+      }
+      remoteAudioSourceNode = null;
+    }
+    lastRemoteAttachedTrackId = null;
+  }
+
+  function tryAttachRemoteAudioToAnalyzer(vapiInstance) {
+    if (!analyzerActive || !audioContext || !analyser) return;
+    const stream = getRemoteAudioStreamFromVapi(vapiInstance);
+    if (!stream) return;
+    const track = stream.getAudioTracks()[0];
+    if (!track || track.readyState === "ended") return;
+
+    if (remoteAudioSourceNode && lastRemoteAttachedTrackId === track.id) {
+      return;
+    }
+
+    detachRemoteAudioFromAnalyzer();
+
+    try {
+      remoteAudioSourceNode = audioContext.createMediaStreamSource(stream);
+      remoteAudioSourceNode.connect(analyser);
+      lastRemoteAttachedTrackId = track.id;
+      console.log("Assistant remote audio routed to level analyzer");
+    } catch (e) {
+      console.warn("Failed to attach remote audio to analyzer:", e);
+      remoteAudioSourceNode = null;
+      lastRemoteAttachedTrackId = null;
+    }
+  }
 
   // Cached greeting audio
   let cachedGreetingAudio = null;
@@ -392,6 +473,8 @@ const positionClasses = {
     try {
       analyzerActive = true;
       audioStream = stream;
+      detachRemoteAudioFromAnalyzer();
+      stopRemoteAttachPolling();
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
       // Mobile Chrome requires AudioContext to be resumed after user interaction
@@ -405,9 +488,11 @@ const positionClasses = {
       microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);
 
-      analyser.fftSize = 256;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.35;
       const bufferLength = analyser.frequencyBinCount;
       dataArray = new Uint8Array(bufferLength);
+      timeDataArray = new Uint8Array(analyser.fftSize);
 
       function updateLevelMeter() {
         if (!analyser || !analyzerActive) {
@@ -415,20 +500,28 @@ const positionClasses = {
         }
 
         analyser.getByteFrequencyData(dataArray);
+        analyser.getByteTimeDomainData(timeDataArray);
 
-        // Calculate average volume level
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
           sum += dataArray[i];
         }
-        const average = sum / dataArray.length;
-        const normalizedLevel = Math.min(average / 128, 1); // Normalize to 0-1
-        // Make 25% more sensitive by amplifying the level
-        const sensitiveLevel = Math.min(normalizedLevel * 1.25, 1);
+        const freqAvg = sum / dataArray.length;
 
-        // Dispatch custom event with audio level for gradient animation
+        let peak = 0;
+        for (let i = 0; i < timeDataArray.length; i++) {
+          const dev = (timeDataArray[i] - 128) / 128;
+          const a = Math.abs(dev);
+          if (a > peak) peak = a;
+        }
+
+        /* Frequency + envelope: assistant TTS often reads clearer on time-domain peak. */
+        const freqNorm = Math.min(freqAvg / 96, 1);
+        const envNorm = Math.min(peak * 1.45, 1);
+        const merged = Math.min(Math.max(freqNorm, envNorm * 0.95) * 1.2, 1);
+
         const audioLevelEvent = new CustomEvent("audioLevel", {
-          detail: { level: sensitiveLevel, raw: average },
+          detail: { level: merged, raw: freqAvg },
         });
         window.dispatchEvent(audioLevelEvent);
 
@@ -443,6 +536,8 @@ const positionClasses = {
 
   function stopAudioAnalyzer() {
     analyzerActive = false;
+    stopRemoteAttachPolling();
+    detachRemoteAudioFromAnalyzer();
 
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
@@ -467,6 +562,7 @@ const positionClasses = {
 
     analyser = null;
     dataArray = null;
+    timeDataArray = null;
 
     window.dispatchEvent(
       new CustomEvent("audioLevel", { detail: { level: 0, raw: 0 } }),
@@ -527,25 +623,7 @@ const positionClasses = {
       isRecordingGreeting = true;
       greetingAudioChunks = [];
 
-      // Try to get the audio stream from Vapi
-      // Check if Vapi exposes the remote audio stream
-      let remoteStream = null;
-
-      // Try different methods to access Vapi's audio stream
-      if (
-        vapiInstance &&
-        typeof vapiInstance.getRemoteAudioStream === "function"
-      ) {
-        remoteStream = vapiInstance.getRemoteAudioStream();
-      } else if (vapiInstance && vapiInstance.remoteAudioStream) {
-        remoteStream = vapiInstance.remoteAudioStream;
-      } else if (
-        vapiInstance &&
-        vapiInstance.call &&
-        vapiInstance.call.remoteAudioStream
-      ) {
-        remoteStream = vapiInstance.call.remoteAudioStream;
-      }
+      const remoteStream = getRemoteAudioStreamFromVapi(vapiInstance);
 
       if (remoteStream) {
         greetingRecorder = new MediaRecorder(remoteStream, {
@@ -1000,6 +1078,9 @@ const positionClasses = {
                 const micIcon = document.getElementById("mic-icon");
                 if (micIcon) micIcon.style.display = "block";
 
+                tryAttachRemoteAudioToAnalyzer(vapiInstance);
+                scheduleRemoteAttachRetries(vapiInstance);
+
                 // Dispatch event to enable transcripts
                 window.dispatchEvent(new CustomEvent("vapi-call-start"));
               });
@@ -1013,6 +1094,9 @@ const positionClasses = {
                 button.disabled = false;
                 button.style.opacity = "1";
                 setStatusLabel("Listening…", "active");
+
+                tryAttachRemoteAudioToAnalyzer(vapiInstance);
+                scheduleRemoteAttachRetries(vapiInstance);
 
                 // Dispatch event to enable transcripts (early activation)
                 window.dispatchEvent(new CustomEvent("vapi-call-start"));
@@ -1029,6 +1113,8 @@ const positionClasses = {
                     button.setAttribute("aria-label", "End voice chat");
                     button.disabled = false;
                     button.style.opacity = "1";
+                    tryAttachRemoteAudioToAnalyzer(vapiInstance);
+                    scheduleRemoteAttachRetries(vapiInstance);
                   }
                 }
               });
@@ -1038,6 +1124,8 @@ const positionClasses = {
                 console.log("Vapi speech started:", data);
                 isActive = true;
                 button.classList.add("active");
+                tryAttachRemoteAudioToAnalyzer(vapiInstance);
+                scheduleRemoteAttachRetries(vapiInstance);
               });
 
               vapiInstance.on("speech-end", function (data) {
@@ -1112,6 +1200,9 @@ const positionClasses = {
                 isActive = true;
                 button.classList.add("active");
 
+                tryAttachRemoteAudioToAnalyzer(vapiInstance);
+                scheduleRemoteAttachRetries(vapiInstance);
+
                 // Record the first greeting if not already cached
                 if (
                   !greetingPlayed &&
@@ -1125,6 +1216,7 @@ const positionClasses = {
               // Listen for assistant speech end to capture final transcript
               vapiInstance.on("assistant-speech-end", function (data) {
                 console.log("Assistant speech ended:", data);
+                stopRemoteAttachPolling();
                 if (data) {
                   const text = data.transcript || data.text || data.content;
                   if (text && typeof text === "string" && text.trim()) {

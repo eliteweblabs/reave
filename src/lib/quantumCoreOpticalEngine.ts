@@ -55,6 +55,30 @@ function maskOrigin1D(
   return 0.5 * (extent - maskExtent);
 }
 
+/** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
+function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
+  const w = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = w;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return new THREE.CanvasTexture(canvas);
+  }
+  const c = w / 2;
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c * 0.98);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.15, "rgba(255,255,255,0.9)");
+  g.addColorStop(0.38, "rgba(255,255,255,0.35)");
+  g.addColorStop(0.62, "rgba(255,255,255,0.08)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, w);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
@@ -80,7 +104,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
-  scene.fog = new THREE.FogExp2(0x000000, 0.018);
+  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. */
+  scene.fog = new THREE.FogExp2(0x030308, 0.0095);
 
   const camera = new THREE.PerspectiveCamera(
     VIEW_FOV,
@@ -157,7 +182,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.02;
+  renderer.toneMappingExposure = 1.12;
   host.appendChild(renderer.domElement);
 
   const noiseVertex = `
@@ -263,12 +288,17 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     positions[i * 3 + 2] = r * Math.sin(theta);
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const particleSprite = createSoftParticleSpriteTexture();
   const particlesMat = new THREE.PointsMaterial({
-    size: 0.058,
+    map: particleSprite,
+    size: 0.082,
     color: 0x00f3ff,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.78,
+    depthWrite: false,
+    fog: false,
     blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
   });
   const particleBaseSize = particlesMat.size;
   const particleBaseOpacity = particlesMat.opacity;
@@ -332,11 +362,15 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     0.4,
     0.85,
   );
-  /* Threshold > 0: full-frame bloom (0) stacks into a bright center ring after blur. */
-  bloomPass.threshold = 0.16;
-  bloomPass.strength = 0.68;
-  bloomPass.radius = 0.36;
-  bloomPass.highPassUniforms["smoothWidth"].value = 0.085;
+  /* More generous bloom so points read as luminous haze, not isolated dots. */
+  bloomPass.threshold = 0.065;
+  bloomPass.strength = 1.05;
+  bloomPass.radius = 0.48;
+  const hpUniforms = bloomPass.highPassUniforms as Record<
+    string,
+    { value: number }
+  >;
+  hpUniforms["smoothWidth"].value = 0.11;
   composer.addPass(bloomPass);
 
   const lensPass = new ShaderPass(AdvancedLensShader);
@@ -443,7 +477,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onStabilize = () => {
     targetSpike = 0.1;
-    bloomPass.strength = 0.68;
+    bloomPass.strength = 0.88;
     particleSpeedMult = 0.5;
     lensPass.uniforms.uAberration.value = 0;
     lensPass.uniforms.uDistortion.value = 0;
@@ -461,7 +495,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onReset = () => {
     targetSpike = 0.3;
-    bloomPass.strength = 0.72;
+    bloomPass.strength = 0.92;
     particleSpeedMult = 1.0;
     lensPass.uniforms.uAberration.value = 0;
     lensPass.uniforms.uDistortion.value = 0;
@@ -523,7 +557,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
       1,
     );
 
-    pulseGroup.scale.setScalar(1);
+    const scaleBreath =
+      1 + mic * (prefersReduced ? 0.045 : 0.12) * Math.max(motionScale, 0.35);
+    pulseGroup.scale.setScalar(scaleBreath);
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
     pulseGroup.rotation.x +=
