@@ -37,6 +37,25 @@ client's name).
 The page also shows tap-to-**Call / Text / Email** actions from the contact's
 phone/email, a **Save** action, plus the client name and company.
 
+## Outstanding bills (Crater)
+
+When Crater is configured, the page automatically shows the client's
+**outstanding balance** and **unpaid invoices** with one-tap **Pay** links. The
+client is matched to a Crater customer by email (preferred) or name; if there's
+no match or nothing due, the billing section is simply omitted. This is read-only
+and reflects live Crater data on each page load.
+
+## Send the link to a client
+
+Use **`send_client_portal`** ("send the client link to <name>") to deliver the
+link straight to the client:
+
+- **Email** via Resend (needs `RESEND_API_KEY`, sender `RESEND_FROM`).
+- **SMS** via Twilio (needs `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`,
+  sender `TWILIO_FROM_NUMBER`).
+- `channel: auto` (default) emails them if an email is on file, else texts them.
+- Optional `message` adds a short personal note.
+
 ## vCard export (`/c/<uid>.vcf`)
 
 The **Save** button (and the direct URL `https://reave.app/c/<uid>.vcf`) returns a

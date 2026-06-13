@@ -10,6 +10,7 @@
  * Internal `notes` are intentionally NOT shown.
  */
 import { getContact, extractPortal, type ContactRecord, type ClientPortal } from '../../lib/contactApi';
+import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -35,6 +36,16 @@ if (!contact) notFound = true;
 if (notFound) {
   Astro.response.status = 404;
 }
+
+// Outstanding bills from Crater (best-effort; skipped if not configured/matched).
+let billing: ClientBilling | null = null;
+if (contact && isCraterConfigured()) {
+  const b = await craterGetClientBilling({ email: contact.email ?? undefined, name: contact.name });
+  if (b.ok && b.data && (b.data.totalDue > 0 || b.data.invoices.length > 0)) {
+    billing = b.data;
+  }
+}
+const money = (n: number) => `$${Number(n).toFixed(2)}`;
 
 // ---- Presentation helpers (run server-side) -------------------------------
 function escapeHtml(s: string): string {
@@ -146,6 +157,39 @@ const themeColor = '#0a0a0a';
             </nav>
           )}
 
+          {billing && (
+            <section class="billing">
+              <div class="billing-head">
+                <span class="billing-title">Outstanding balance</span>
+                <span class={`billing-total ${billing.totalDue > 0 ? 'due' : 'clear'}`}>
+                  {money(billing.totalDue)}
+                </span>
+              </div>
+              {billing.invoices.length > 0 ? (
+                <ul class="invoices">
+                  {billing.invoices.map((inv) => (
+                    <li class="invoice">
+                      <div class="inv-main">
+                        <span class="inv-num">#{inv.number}</span>
+                        <span class="inv-status">{inv.status}</span>
+                      </div>
+                      <div class="inv-side">
+                        <span class="inv-due">{money(inv.due)}</span>
+                        {inv.payUrl && (
+                          <a class="pay" href={inv.payUrl} target="_blank" rel="noopener noreferrer">
+                            Pay
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p class="all-clear">You’re all paid up — thank you!</p>
+              )}
+            </section>
+          )}
+
           {headline && <h2 class="headline">{headline}</h2>}
 
           {bodyHtml && <section class="body" set:html={bodyHtml} />}
@@ -248,6 +292,93 @@ const themeColor = '#0a0a0a';
       }
       .action .ico {
         font-size: 22px;
+      }
+      .billing {
+        margin-bottom: 28px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
+      }
+      .billing-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 16px 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      }
+      .billing-title {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .billing-total {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .billing-total.due {
+        color: #fca5a5;
+      }
+      .billing-total.clear {
+        color: #86efac;
+      }
+      .invoices {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .invoice {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .invoice:first-child {
+        border-top: none;
+      }
+      .inv-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .inv-num {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .inv-status {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.45);
+        text-transform: capitalize;
+      }
+      .inv-side {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .inv-due {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .pay {
+        padding: 7px 16px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #a855f7, #ec4899);
+        color: #fff;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .pay:active {
+        opacity: 0.85;
+      }
+      .all-clear {
+        margin: 0;
+        padding: 14px 18px;
+        color: #86efac;
+        font-size: 14px;
       }
       .headline {
         font-size: 20px;

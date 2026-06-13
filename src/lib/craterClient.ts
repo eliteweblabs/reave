@@ -402,6 +402,75 @@ export async function craterResetInvoices(input: {
   });
 }
 
+export type ClientBilling = {
+  customerId: number;
+  customerName: string;
+  totalDue: number;
+  invoices: Array<{
+    id: number;
+    number: string;
+    status: string;
+    paidStatus: string;
+    total: number;
+    due: number;
+    payUrl: string | null;
+  }>;
+};
+
+/**
+ * Resolve a Crater customer for a contact (prefer email match, else name) and
+ * return their outstanding balance + unpaid invoices (with public pay links).
+ * Returns ok:true with data:null when no matching customer is found.
+ */
+export async function craterGetClientBilling(input: {
+  email?: string;
+  name?: string;
+}): Promise<CraterResult<ClientBilling | null>> {
+  const email = input.email?.trim().toLowerCase() || '';
+  const name = input.name?.trim() || '';
+  if (!email && !name) return { ok: false, error: 'email or name is required' };
+
+  const search = await craterSearchCustomers(email || name);
+  if (!search.ok) return { ok: false, error: search.error, status: search.status };
+
+  const customers = search.data.customers ?? [];
+  let customer: CraterCustomer | undefined;
+  if (email) {
+    customer = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
+  }
+  if (!customer && name) {
+    customer = customers.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+  }
+  if (!customer) customer = customers[0];
+  if (!customer) return { ok: true, data: null };
+
+  const totalDue = Number(customer.invoice_summary?.total_due ?? 0);
+
+  const list = await craterListInvoices();
+  const invoices = list.ok
+    ? (list.data.invoices ?? [])
+        .filter(
+          (inv) =>
+            (inv.customer_name ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase() &&
+            Number(inv.due) > 0
+        )
+        .map((inv) => ({
+          id: inv.id,
+          number: inv.invoice_number,
+          status: inv.status,
+          paidStatus: inv.paid_status,
+          total: Number(inv.total),
+          due: Number(inv.due),
+          payUrl: inv.public_url ?? null,
+        }))
+    : [];
+
+  return {
+    ok: true,
+    data: { customerId: customer.id, customerName: customer.name, totalDue, invoices },
+  };
+}
+
 /** Format a created invoice for a Telegram reply. */
 export function formatCreatedInvoice(inv: CreatedInvoice): string {
   const lines = [

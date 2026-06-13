@@ -31,6 +31,12 @@ import {
   craterRepairPaymentNumbers,
   craterResetInvoices,
 } from './craterClient';
+import {
+  isEmailSendConfigured,
+  isSmsSendConfigured,
+  sendEmail,
+  sendSms,
+} from './outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
@@ -264,6 +270,33 @@ export function buildTools(): TelegramToolDef[] {
         },
       }
     );
+
+    if (isEmailSendConfigured() || isSmsSendConfigured()) {
+      base.push({
+        type: 'function',
+        function: {
+          name: 'send_client_portal',
+          description:
+            'Send a client their portal link directly to them via email (Resend) and/or SMS (Twilio). This is the "send the client link to <name>" command. Identify by uid or name (fuzzy-resolved). channel "auto" (default) emails them if an email is on file, otherwise texts them. Use the message field to add a short personal note. The page shows their details and any outstanding Crater invoices.',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+              name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+              email: { type: 'string', description: 'Optional, improves name resolution' },
+              phone: { type: 'string', description: 'Optional, improves name resolution' },
+              channel: {
+                type: 'string',
+                enum: ['auto', 'email', 'sms'],
+                description: 'auto = email if available else SMS. Defaults to auto.',
+              },
+              message: { type: 'string', description: 'Optional short personal note prepended to the message.' },
+            },
+            additionalProperties: false,
+          },
+        },
+      });
+    }
   }
 
   if (isCraterConfigured()) {
@@ -526,6 +559,14 @@ function parseLineItems(raw: unknown): Array<{ name: string; description?: strin
     });
 }
 
+function escapeForHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function parsePortalFields(raw: unknown): ClientPortalField[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const fields = raw
@@ -712,6 +753,65 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         has_custom_content: Boolean(portal),
         portal: portal ?? null,
       });
+    }
+    if (name === 'send_client_portal') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const c = current.data;
+
+      const portal = extractPortal(c);
+      if (portal && portal.enabled === false) {
+        return JSON.stringify({ error: 'This client’s page is hidden (enabled:false). Re-enable it before sending.' });
+      }
+
+      const url = clientPortalUrl(target.uid);
+      const firstName = (c.firstName || c.name || '').trim().split(/\s+/)[0] || 'there';
+      const intro = typeof args.message === 'string' && args.message.trim() ? `${args.message.trim()}\n\n` : '';
+
+      const channel = String(args.channel ?? 'auto');
+      let useEmail = false;
+      let useSms = false;
+      if (channel === 'email') useEmail = true;
+      else if (channel === 'sms') useSms = true;
+      else if (c.email) useEmail = true;
+      else if (c.phone) useSms = true;
+
+      if (useEmail && !c.email) {
+        return JSON.stringify({ error: 'No email on file for this client. Try channel "sms" or add an email.' });
+      }
+      if (useSms && !c.phone) {
+        return JSON.stringify({ error: 'No phone on file for this client. Try channel "email" or add a phone.' });
+      }
+      if (!useEmail && !useSms) {
+        return JSON.stringify({ error: 'This client has no email or phone on file to send to.' });
+      }
+
+      const sent: Record<string, unknown> = {};
+      if (useEmail) {
+        const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
+        const text =
+          `${intro}Hi ${firstName},\n\n` +
+          `Here's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\n` +
+          `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
+        const html =
+          `<p>${intro ? `${escapeForHtml(intro.trim())}<br/><br/>` : ''}Hi ${escapeForHtml(firstName)},</p>` +
+          `<p>Here's your personal client page — your details and any outstanding invoices live here:</p>` +
+          `<p><a href="${url}">${url}</a></p>` +
+          `<p style="color:#666;font-size:13px">Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.</p>`;
+        const r = await sendEmail({ to: c.email as string, subject, text, html });
+        sent.email = r.ok ? { ok: true, to: c.email, id: r.id } : { ok: false, error: r.error };
+      }
+      if (useSms) {
+        const body = `${intro}Hi ${firstName}, here's your client page: ${url}`;
+        const r = await sendSms({ to: c.phone as string, body });
+        sent.sms = r.ok ? { ok: true, to: c.phone, id: r.id } : { ok: false, error: r.error };
+      }
+
+      const anyOk = Object.values(sent).some((v) => (v as { ok?: boolean }).ok);
+      return JSON.stringify({ success: anyOk, uid: target.uid, name: c.name, url, sent });
     }
     if (name === 'create_invoice') {
       const items = parseLineItems(args.items);

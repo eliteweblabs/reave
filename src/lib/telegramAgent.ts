@@ -64,7 +64,7 @@ export async function runTelegramKnowledgeAgent(opts: {
   }
   if (isContactApiConfigured()) {
     sysParts.push(
-      'Client portals: EVERY client automatically has a shareable mobile page at /c/<uid> (a link they open on iPhone and can "Add to Home Screen") — you never need to "create" one. list_contacts returns each portal_url, and get_client_portal fetches a single link. Use set_client_portal only to CUSTOMIZE what the client sees (headline, body, labeled fields) or to hide a page (enabled:false). These are CLIENT-FACING — never put private/internal notes there. If a name is ambiguous, the tool returns candidates; confirm before writing. Always report the share URL so the user can send it.'
+      'Client portals: EVERY client automatically has a shareable mobile page at /c/<uid> (a link they open on iPhone and can "Add to Home Screen") — you never need to "create" one. The page shows the client\'s details plus any outstanding Crater invoices (with pay links). list_contacts returns each portal_url, and get_client_portal fetches a single link. Use set_client_portal only to CUSTOMIZE what the client sees (headline, body, labeled fields) or to hide a page (enabled:false). To actually deliver the link to a client ("send the client link to <name>"), use send_client_portal, which emails or texts it to them. These are CLIENT-FACING — never put private/internal notes there. If a name is ambiguous, the tool returns candidates; confirm before sending. Always report the share URL.'
     );
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
