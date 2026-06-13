@@ -13,10 +13,22 @@ integration, or Telegram bot command, update the map **in the same change**.
 
 Single source of truth: **`public/dev/os-map-data.js`**
 
-- `NODES` — services / integrations / clients (id, title, sub, icon, hue, status, ghost, group, x, y).
-- `EDGES` — connections (from, to, label, dashed, ghost).
-- `GROUPS` — Railway-project-style containers (id, title, hue, members).
+The page is **tabbed** via `MAPS` in that file. Each map is
+`{ id, title, nodes, edges, groups }`:
 
-Give each node a distinct `hue` (0–360) so the map stays full-spectrum. The
-render/interaction engine is `public/dev/os-map-loader.js` (drag + snap, pan,
-zoom, persistence) — only touch it for behavior changes, not content.
+- **`system`** — the runtime architecture (clients, Reave App, external APIs).
+- **`tooling`** — the "MCP & CLI" dev plane (Cursor agent → MCP servers / CLIs →
+  platforms → production). Update it when an MCP server or CLI is added/removed
+  or when what a tool can reach changes.
+
+Within each map:
+
+- `nodes` — services / integrations / clients (id, title, sub, icon, hue, status, ghost, group, x, y).
+- `edges` — connections (from, to, label, dashed, ghost).
+- `groups` — Railway-project-style containers (id, title, hue, members).
+
+Give each node a distinct `hue` (0–360) so the map stays full-spectrum (in the
+`tooling` map a vendor may share its hue across its mcp/cli/svc nodes on
+purpose). The render/interaction engine is `public/dev/os-map-loader.js` (tabs,
+drag + snap, pan, zoom, per-map persistence) — only touch it for behavior
+changes, not content.

@@ -2,6 +2,7 @@
 /**
  * Personal Business OS map (v2): interactive, Railway-style canvas.
  * /dashboard redirects here. Nodes/edges live in `public/dev/os-map-data.js`.
+ * Tabs switch between the "System" runtime map and the "MCP & CLI" tooling map.
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
 export const prerender = true;
@@ -148,7 +149,7 @@ export const prerender = true;
       .node .status {
         margin-top: 0.4rem;
         font-size: 0.7rem;
-        color: #3fb950;
+        color: var(--sc, #8b97a8);
         display: flex;
         align-items: center;
         gap: 0.35rem;
@@ -158,8 +159,22 @@ export const prerender = true;
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: #3fb950;
-        box-shadow: 0 0 6px #3fb950;
+        background: var(--sc, #8b97a8);
+        box-shadow: 0 0 6px var(--sc, #8b97a8);
+      }
+
+      /* Status states (driven by /api/health) */
+      .st-up { --sc: #3fb950; }
+      .st-down { --sc: #f85149; }
+      .st-degraded { --sc: #d29922; }
+      .st-configured { --sc: #58a6ff; }
+      .st-unconfigured { --sc: #6e7681; }
+      .st-unknown { --sc: #6e7681; }
+      .st-checking { --sc: #8b97a8; }
+      .node .status.st-checking::before { animation: stpulse 1.1s ease-in-out infinite; }
+      @keyframes stpulse {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 1; }
       }
 
       /* Top bar */
@@ -176,6 +191,34 @@ export const prerender = true;
       }
       #topbar .title { font-size: 0.9rem; font-weight: 600; }
       #topbar .note { font-size: 0.72rem; color: var(--muted); }
+
+      /* Tabs */
+      #tabs {
+        display: flex;
+        gap: 0.25rem;
+        pointer-events: auto;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 9px;
+        padding: 0.18rem;
+      }
+      #tabs button {
+        pointer-events: auto;
+        font: inherit;
+        font-size: 0.76rem;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        padding: 0.28rem 0.7rem;
+        cursor: pointer;
+      }
+      #tabs button:hover { color: var(--fg); }
+      #tabs button.active {
+        color: var(--fg);
+        background: #1b2230;
+        border-color: var(--panel-border);
+      }
       #topbar .note code { background: var(--panel); padding: 0.06rem 0.3rem; border-radius: 4px; }
       #topbar .spacer { flex: 1; }
       #topbar button {
@@ -240,15 +283,27 @@ export const prerender = true;
         padding: 0.2rem 0.55rem;
       }
       #legend .dot { width: 9px; height: 9px; border-radius: 50%; }
+      #legend .st-key { color: var(--sc, var(--muted)); }
+      #legend .st-key .st-dot {
+        background: var(--sc, #6e7681);
+        box-shadow: 0 0 5px var(--sc, transparent);
+      }
+      #health-checked {
+        font-size: 0.68rem;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
     </style>
   </head>
   <body>
     <div id="topbar">
       <span class="title">Business OS — map</span>
+      <div id="tabs"></div>
       <span class="note">
-        Static architecture diagram — not live Railway status. Edit <code>public/dev/os-map-data.js</code> when the system changes.
+        ⚠️ Keep current — edit <code>public/dev/os-map-data.js</code> when the system changes.
       </span>
       <span class="spacer"></span>
+      <span id="health-checked"></span>
       <button id="reset">Reset layout</button>
     </div>
 

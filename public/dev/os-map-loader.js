@@ -1,7 +1,8 @@
-import { NODES, EDGES, GROUPS } from '/dev/os-map-data.js';
+import { MAPS } from '/dev/os-map-data.js';
 
 const GRID = 12;
-const STORE = 'os-map-pos-v3';
+const STORE = 'os-map-pos-v2';
+const MAP_STORE = 'os-map-active-v1';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 const wrap = document.getElementById('wrap');
@@ -15,64 +16,187 @@ let z = 1;
 let panX = 0;
 let panY = 0;
 
-// ---- state ----
-const byId = new Map();
-NODES.forEach((n) => byId.set(n.id, { ...n }));
-loadPositions();
+// ---- live health (System tab only) ----
+const HEALTH_URL = '/api/health';
+const HEALTH_INTERVAL_MS = 20000;
+const STATUS_LABELS = {
+  up: 'Online',
+  down: 'Down',
+  degraded: 'Degraded',
+  configured: 'Configured',
+  unconfigured: 'Not set',
+  unknown: 'Unknown',
+};
+let healthTimer = null;
+let healthAbort = null;
+let lastChecked = null;
 
-const nodeEls = new Map();
-const edgeEls = [];
-const labelEls = [];
-const groupEls = new Map();
+// ---- active map state (rebuilt on tab switch) ----
+let activeKey = loadActiveKey();
+let MAP = MAPS[activeKey];
+let byId = new Map();
+let nodeEls = new Map();
+let edgeEls = [];
+let labelEls = [];
+let groupEls = new Map();
 
-// ---- build groups ----
-for (const g of GROUPS) {
-  const el = document.createElement('div');
-  el.className = 'group';
-  el.style.setProperty('--h', g.hue);
-  const label = document.createElement('div');
-  label.className = 'g-label';
-  label.textContent = g.title;
-  el.appendChild(label);
-  world.appendChild(el);
-  groupEls.set(g.id, el);
+function storeKey() {
+  return `${STORE}:${activeKey}`;
 }
 
-// ---- build edges (paths + labels) ----
-for (const e of EDGES) {
-  const path = document.createElementNS(SVGNS, 'path');
-  path.setAttribute('class', `edge${e.dashed ? '' : ' solid'}`);
-  const hue = (byId.get(e.from) || {}).hue ?? 210;
-  path.setAttribute('stroke', `hsl(${hue} 80% 62% / ${e.ghost ? 0.4 : 0.9})`);
-  edgesSvg.appendChild(path);
-  edgeEls.push({ e, path });
+// ---- build the active map into the world ----
+function buildMap() {
+  byId = new Map();
+  nodeEls = new Map();
+  edgeEls = [];
+  labelEls = [];
+  groupEls = new Map();
 
-  if (e.label) {
-    const lab = document.createElement('div');
-    lab.className = 'elabel';
-    lab.textContent = e.label;
-    world.appendChild(lab);
-    labelEls.push({ e, lab });
+  // Clear everything except the persistent <svg id="edges">.
+  for (const child of Array.from(world.children)) {
+    if (child !== edgesSvg) world.removeChild(child);
+  }
+  while (edgesSvg.firstChild) edgesSvg.removeChild(edgesSvg.firstChild);
+
+  MAP.nodes.forEach((n) => byId.set(n.id, { ...n }));
+  loadPositions();
+
+  // groups
+  for (const g of MAP.groups) {
+    const el = document.createElement('div');
+    el.className = 'group';
+    el.style.setProperty('--h', g.hue);
+    const label = document.createElement('div');
+    label.className = 'g-label';
+    label.textContent = g.title;
+    el.appendChild(label);
+    world.appendChild(el);
+    groupEls.set(g.id, el);
+  }
+
+  // edges (paths + labels)
+  for (const e of MAP.edges) {
+    const path = document.createElementNS(SVGNS, 'path');
+    path.setAttribute('class', `edge${e.dashed ? '' : ' solid'}`);
+    const hue = (byId.get(e.from) || {}).hue ?? 210;
+    path.setAttribute('stroke', `hsl(${hue} 80% 62% / ${e.ghost ? 0.4 : 0.9})`);
+    edgesSvg.appendChild(path);
+    edgeEls.push({ e, path });
+
+    if (e.label) {
+      const lab = document.createElement('div');
+      lab.className = 'elabel';
+      lab.textContent = e.label;
+      world.appendChild(lab);
+      labelEls.push({ e, lab });
+    }
+  }
+
+  // nodes
+  for (const n of byId.values()) {
+    const el = document.createElement('div');
+    el.className = `node${n.ghost ? ' ghost' : ''}`;
+    el.style.setProperty('--h', n.hue);
+    el.style.left = `${n.x}px`;
+    el.style.top = `${n.y}px`;
+    el.innerHTML = `
+      <div class="row">
+        <span class="chip">${n.icon ?? '•'}</span>
+        <span class="ttl">${n.title}</span>
+      </div>
+      ${n.sub ? `<div class="sub">${n.sub}</div>` : ''}
+      ${n.status ? `<div class="status st-checking" data-st="${n.id}">Checking…</div>` : ''}
+    `;
+    world.appendChild(el);
+    nodeEls.set(n.id, el);
+    attachDrag(n, el);
+  }
+
+  buildLegend();
+}
+
+function setActiveMap(key) {
+  if (!MAPS[key] || key === activeKey) {
+    if (MAPS[key]) updateTabs();
+    return;
+  }
+  activeKey = key;
+  MAP = MAPS[key];
+  saveActiveKey();
+  updateTabs();
+  buildMap();
+  requestAnimationFrame(() => {
+    redraw();
+    fit();
+  });
+  syncHealthLifecycle();
+}
+
+// ---- health polling ----
+function syncHealthLifecycle() {
+  if (activeKey === 'system') startHealth();
+  else stopHealth();
+}
+
+function startHealth() {
+  stopHealth();
+  pollHealth();
+  healthTimer = setInterval(pollHealth, HEALTH_INTERVAL_MS);
+}
+
+function stopHealth() {
+  if (healthTimer) {
+    clearInterval(healthTimer);
+    healthTimer = null;
+  }
+  if (healthAbort) {
+    healthAbort.abort();
+    healthAbort = null;
   }
 }
 
-// ---- build nodes ----
-for (const n of byId.values()) {
-  const el = document.createElement('div');
-  el.className = `node${n.ghost ? ' ghost' : ''}`;
-  el.style.setProperty('--h', n.hue);
-  el.style.left = `${n.x}px`;
-  el.style.top = `${n.y}px`;
-  el.innerHTML = `
-    <div class="row">
-      <span class="chip">${n.icon ?? '•'}</span>
-      <span class="ttl">${n.title}</span>
-    </div>
-    ${n.sub ? `<div class="sub">${n.sub}</div>` : ''}
-  `;
-  world.appendChild(el);
-  nodeEls.set(n.id, el);
-  attachDrag(n, el);
+async function pollHealth() {
+  if (activeKey !== 'system') return;
+  try {
+    healthAbort = new AbortController();
+    const res = await fetch(HEALTH_URL, { cache: 'no-store', signal: healthAbort.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    lastChecked = data.checkedAt ? new Date(data.checkedAt) : new Date();
+    applyHealth(data.services || {});
+  } catch {
+    // Network/abort errors are non-fatal; leave the last known state in place.
+  } finally {
+    healthAbort = null;
+  }
+}
+
+function applyHealth(services) {
+  for (const [id, probe] of Object.entries(services)) {
+    const el = world.querySelector(`[data-st="${id}"]`);
+    if (!el) continue;
+    const status = probe && probe.status ? probe.status : 'unknown';
+    el.className = `status st-${status}`;
+    el.textContent = STATUS_LABELS[status] || status;
+    const bits = [];
+    if (probe && probe.mode) bits.push(probe.mode);
+    if (probe && probe.detail) bits.push(probe.detail);
+    if (probe && typeof probe.ms === 'number') bits.push(`${probe.ms}ms`);
+    el.title = bits.join(' · ');
+  }
+  drawGroups();
+  drawEdges();
+  updateChecked();
+}
+
+function updateChecked() {
+  const el = document.getElementById('health-checked');
+  if (!el) return;
+  if (activeKey !== 'system') {
+    el.textContent = '';
+    return;
+  }
+  el.textContent = lastChecked ? `checked ${lastChecked.toLocaleTimeString()}` : '';
 }
 
 // ---- rendering ----
@@ -146,7 +270,7 @@ function drawEdges() {
 }
 
 function drawGroups() {
-  for (const g of GROUPS) {
+  for (const g of MAP.groups) {
     const ms = g.members.map((id) => byId.get(id)).filter(Boolean);
     if (!ms.length) continue;
     let minX = Infinity;
@@ -200,7 +324,7 @@ function attachDrag(n, el) {
       drawGroups();
       drawEdges();
     };
-    const up = (e) => {
+    const up = () => {
       el.classList.remove('dragging');
       try { el.releasePointerCapture(ev.pointerId); } catch {}
       el.removeEventListener('pointermove', move);
@@ -291,9 +415,9 @@ document.querySelectorAll('#tools button').forEach((btn) => {
   });
 });
 document.getElementById('reset').addEventListener('click', () => {
-  localStorage.removeItem(STORE);
+  localStorage.removeItem(storeKey());
   for (const n of byId.values()) {
-    const orig = NODES.find((d) => d.id === n.id);
+    const orig = MAP.nodes.find((d) => d.id === n.id);
     n.x = orig.x;
     n.y = orig.y;
     const el = nodeEls.get(n.id);
@@ -304,13 +428,53 @@ document.getElementById('reset').addEventListener('click', () => {
   fit();
 });
 
+// ---- tabs ----
+function buildTabs() {
+  const tabs = document.getElementById('tabs');
+  if (!tabs) return;
+  tabs.innerHTML = '';
+  for (const key of Object.keys(MAPS)) {
+    const btn = document.createElement('button');
+    btn.dataset.map = key;
+    btn.textContent = MAPS[key].title;
+    btn.addEventListener('click', () => setActiveMap(key));
+    tabs.appendChild(btn);
+  }
+  updateTabs();
+}
+function updateTabs() {
+  document.querySelectorAll('#tabs button').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.map === activeKey);
+  });
+}
+
 // ---- legend ----
-const legend = document.getElementById('legend');
-for (const g of GROUPS) {
-  const chip = document.createElement('span');
-  chip.className = 'chip';
-  chip.innerHTML = `<span class="dot" style="background:hsl(${g.hue} 75% 58%)"></span>${g.title}`;
-  legend.appendChild(chip);
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  for (const g of MAP.groups) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = `<span class="dot" style="background:hsl(${g.hue} 75% 58%)"></span>${g.title}`;
+    legend.appendChild(chip);
+  }
+
+  // Status key (only meaningful on the live System map).
+  if (activeKey === 'system') {
+    const states = [
+      ['up', 'Online'],
+      ['down', 'Down'],
+      ['configured', 'Configured'],
+      ['unconfigured', 'Not set'],
+      ['unknown', 'Unknown'],
+    ];
+    for (const [s, label] of states) {
+      const chip = document.createElement('span');
+      chip.className = `chip st-key st-${s}`;
+      chip.innerHTML = `<span class="dot st-dot"></span>${label}`;
+      legend.appendChild(chip);
+    }
+  }
 }
 
 // ---- persistence ----
@@ -318,13 +482,13 @@ function savePositions() {
   const pos = {};
   for (const n of byId.values()) pos[n.id] = { x: n.x, y: n.y };
   try {
-    localStorage.setItem(STORE, JSON.stringify(pos));
+    localStorage.setItem(storeKey(), JSON.stringify(pos));
   } catch {}
 }
 function loadPositions() {
   let pos;
   try {
-    pos = JSON.parse(localStorage.getItem(STORE) || 'null');
+    pos = JSON.parse(localStorage.getItem(storeKey()) || 'null');
   } catch {
     pos = null;
   }
@@ -336,9 +500,31 @@ function loadPositions() {
     }
   }
 }
+function loadActiveKey() {
+  let key;
+  try {
+    key = localStorage.getItem(MAP_STORE);
+  } catch {
+    key = null;
+  }
+  return MAPS[key] ? key : 'system';
+}
+function saveActiveKey() {
+  try {
+    localStorage.setItem(MAP_STORE, activeKey);
+  } catch {}
+}
 
 // ---- init ----
+buildTabs();
+buildMap();
 requestAnimationFrame(() => {
   redraw();
   fit();
+});
+syncHealthLifecycle();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopHealth();
+  else syncHealthLifecycle();
 });
