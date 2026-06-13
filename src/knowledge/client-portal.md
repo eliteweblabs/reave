@@ -7,9 +7,12 @@ client's name).
 
 ## What it is
 
-- **URL:** `https://reave.app/c/<uid>` where `<uid>` is the contact's UUID from
-  `contact-api`. The uid is random/unguessable, so the link itself is the access
-  token — only people you send it to can open it. The page is `noindex`.
+- **Every client has a page by default** at `https://reave.app/c/<uid>` where
+  `<uid>` is the contact's UUID from `contact-api`. Nothing to "create" — the link
+  works for any contact. The uid is random/unguessable, so the link itself is the
+  access token — only people you send it to can open it. The page is `noindex`.
+  Customizing content (headline/body/fields) is optional; setting `enabled:false`
+  hides/revokes a page.
 - **Source of truth:** `contact-api` (Reave App). No new database — the
   client-facing content is stored as a `portal` **link** on the contact
   (`contact_links`, `system='portal'`, JSONB `metadata`). This is **separate from
@@ -44,12 +47,14 @@ revoked).
 
 ## Manage it from Telegram
 
-With `ANTHROPIC_API_KEY` + `CONTACT_API_BASE_URL` set, the bot has two tools:
+With `ANTHROPIC_API_KEY` + `CONTACT_API_BASE_URL` set, the bot has these tools:
 
-- **`set_client_portal`** — create/update a client's portal. Identify by `uid` or
-  by `name` (fuzzy-resolved; if ambiguous it returns candidates to confirm).
-  Updates merge with existing content. Returns the share URL.
-- **`get_client_portal`** — fetch the link + current content.
+- **`list_contacts`** — list/search all clients; each row includes its
+  `portal_url`. (Every client already has a page.)
+- **`set_client_portal`** — customize a client's portal content, or hide it
+  (`enabled:false`). Identify by `uid` or by `name` (fuzzy-resolved; if ambiguous
+  it returns candidates to confirm). Updates merge with existing content.
+- **`get_client_portal`** — fetch the link + current content for one client.
 
 Examples (freeform to the bot):
 

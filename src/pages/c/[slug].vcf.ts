@@ -3,8 +3,8 @@
  *
  * Opens natively in iOS Contacts ("Add to Contacts"). Only client-safe fields
  * are included (name, company, email, phone, portal URL) — never the internal
- * private `notes` field. Gated the same way as the portal page: the contact must
- * have a portal that isn't revoked.
+ * private `notes` field. Gated the same way as the portal page: available for any
+ * non-archived contact unless the portal has been explicitly revoked.
  */
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, clientPortalUrl } from '../../lib/contactApi';
@@ -28,7 +28,7 @@ export const GET: APIRoute = async ({ params }) => {
   if (!res.ok || res.data.archived) return new Response('Not found', { status: 404 });
 
   const portal = extractPortal(res.data);
-  if (!portal || portal.enabled === false) return new Response('Not found', { status: 404 });
+  if (portal && portal.enabled === false) return new Response('Not found', { status: 404 });
 
   const c = res.data;
   const first = (c.firstName ?? '').trim();

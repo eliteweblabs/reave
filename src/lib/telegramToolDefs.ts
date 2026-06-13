@@ -194,7 +194,7 @@ export function buildTools(): TelegramToolDef[] {
         function: {
           name: 'list_contacts',
           description:
-            'List or search ALL contacts in the master contact-api (the full client list). Use when the user asks to see/browse their contacts or clients, or wants to pick one. Optional `q` filters by name/email; omit it to list everyone (newest first).',
+            'List or search ALL contacts in the master contact-api (the full client list). Each result includes a portal_url — every client automatically has a shareable page. Use when the user asks to see/browse their contacts or clients, wants a client’s link, or wants to pick one. Optional `q` filters by name/email; omit it to list everyone (newest first).',
           parameters: {
             type: 'object',
             properties: {
@@ -210,7 +210,7 @@ export function buildTools(): TelegramToolDef[] {
         function: {
           name: 'set_client_portal',
           description:
-            'Create or update a client’s shareable portal page (a mobile-friendly link you send to the client, great for iOS "Add to Home Screen"). Identify the client by uid or by name (it will fuzzy-resolve; if ambiguous it returns candidates to confirm). Updates are merged with any existing portal content. Returns the shareable URL. This is client-facing — it does NOT expose the internal private notes field.',
+            'Customize a client’s shareable portal page (every client already HAS a page; this sets the optional headline/body/fields shown on it). The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the client by uid or by name (it will fuzzy-resolve; if ambiguous it returns candidates to confirm). Updates are merged with any existing content. Set enabled:false to hide/revoke the page. Returns the shareable URL. This is client-facing — it does NOT expose the internal private notes field.',
           parameters: {
             type: 'object',
             properties: {
@@ -250,7 +250,7 @@ export function buildTools(): TelegramToolDef[] {
         function: {
           name: 'get_client_portal',
           description:
-            'Get a client’s shareable portal link and its current content. Identify by uid or name (fuzzy-resolved). Use to retrieve the link to send to a client or to review what they currently see.',
+            'Get a client’s shareable portal link and its current custom content. Every client has a page by default, so the link is always valid unless the page was explicitly hidden (enabled:false). Identify by uid or name (fuzzy-resolved). Use to retrieve the link to send to a client or to review what they currently see.',
           parameters: {
             type: 'object',
             properties: {
@@ -665,6 +665,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
           email: c.email ?? null,
           phone: c.phone ?? null,
           company: c.company ?? null,
+          portal_url: clientPortalUrl(c.uid),
         })),
       });
     }
@@ -707,8 +708,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         uid: target.uid,
         name: current.data.name,
         url: clientPortalUrl(target.uid),
-        exists: Boolean(portal),
-        enabled: portal?.enabled ?? false,
+        live: portal?.enabled !== false,
+        has_custom_content: Boolean(portal),
         portal: portal ?? null,
       });
     }

@@ -15,7 +15,7 @@ export const GET: APIRoute = async ({ params }) => {
     const res = await getContact(uid);
     if (res.ok && !res.data.archived) {
       const portal = extractPortal(res.data);
-      if (portal && portal.enabled !== false) {
+      if (!portal || portal.enabled !== false) {
         name = res.data.name || name;
       }
     }

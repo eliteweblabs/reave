@@ -15,21 +15,22 @@ const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
 
 let contact: ContactRecord | null = null;
-let portal: ClientPortal | null = null;
+let portal: ClientPortal = {};
 let notFound = false;
 
 if (uid) {
   const res = await getContact(uid);
   if (res.ok && !res.data.archived) {
     const p = extractPortal(res.data);
-    // A portal must be deliberately created AND not revoked to be visible.
-    if (p && p.enabled !== false) {
+    // Every client has a page by default; only an explicit `enabled:false`
+    // (revoked) hides it. Custom content (headline/body/fields) is optional.
+    if (!p || p.enabled !== false) {
       contact = res.data;
-      portal = p;
+      portal = p ?? {};
     }
   }
 }
-if (!contact || !portal) notFound = true;
+if (!contact) notFound = true;
 
 if (notFound) {
   Astro.response.status = 404;
