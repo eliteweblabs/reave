@@ -66,6 +66,35 @@ async function reach(url: string): Promise<Probe> {
   }
 }
 
+/** GitHub /rate_limit validates the token without consuming any quota. */
+async function githubProbe(token: string): Promise<Probe> {
+  const started = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch('https://api.github.com/rate_limit', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'reave-os-map-health',
+      },
+      signal: ctrl.signal,
+    });
+    const ms = Date.now() - started;
+    if (res.ok) return { status: 'up', mode: 'live', detail: 'token valid', ms };
+    if (res.status === 401 || res.status === 403) {
+      return { status: 'down', mode: 'live', detail: `HTTP ${res.status} (bad token)`, ms };
+    }
+    return { status: 'degraded', mode: 'live', detail: `HTTP ${res.status}`, ms };
+  } catch (e) {
+    const ms = Date.now() - started;
+    const msg = e instanceof Error ? e.message : String(e);
+    return { status: 'down', mode: 'live', detail: msg.includes('aborted') ? 'timeout' : msg, ms };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Telegram getMe is the canonical "is my bot alive" check. */
 async function telegramProbe(token: string): Promise<Probe> {
   const started = Date.now();
@@ -96,12 +125,14 @@ export const GET: APIRoute = async () => {
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const tgToken = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
+  const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, craterProbe, tgProbe] = await Promise.all([
+  const [contactProbe, craterProbe, tgProbe, ghProbe] = await Promise.all([
     contactBase ? reach(contactBase) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     craterBase ? reach(craterBase) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
     tgToken ? telegramProbe(tgToken) : Promise.resolve(unconfigured('TELEGRAM_BOT_TOKEN not set')),
+    ghToken ? githubProbe(ghToken) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
   ]);
 
   // contact-postgres sits behind contact-api on the private network — infer it.
@@ -129,6 +160,10 @@ export const GET: APIRoute = async () => {
     resend: serverEnv('RESEND_API_KEY')
       ? configured('RESEND_API_KEY set')
       : unconfigured('RESEND_API_KEY not set'),
+    github: ghProbe,
+    twilio: serverEnv('TWILIO_AUTH_TOKEN')
+      ? configured('TWILIO_AUTH_TOKEN set')
+      : unconfigured('TWILIO_AUTH_TOKEN not set'),
     // Separate Railway service with no exposed health route we can reach from here.
     imap: { status: 'unknown', mode: 'config', detail: 'no reachable health endpoint' },
   };

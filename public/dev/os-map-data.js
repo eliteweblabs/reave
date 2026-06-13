@@ -18,7 +18,7 @@ const SYSTEM_NODES = [
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/*', icon: '🔺', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'future', icon: '🗃️', hue: 215, ghost: true, group: 'reave', x: 430, y: 470 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'future · TG chat history', icon: '🗃️', hue: 215, ghost: true, group: 'reave', x: 430, y: 470 },
   { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
@@ -28,7 +28,8 @@ const SYSTEM_NODES = [
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'projectCreate', icon: '🚆', hue: 185, status: true, group: 'external', x: 1160, y: 260 },
   { id: 'resend', title: 'Resend', sub: 'inbound · marketing', icon: '✉️', hue: 330, status: true, group: 'external', x: 1160, y: 400 },
   { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage', icon: '💬', hue: 200, status: true, group: 'external', x: 1160, y: 540 },
-  { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST', icon: '🐙', hue: 235, group: 'external', x: 1160, y: 680 },
+  { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST', icon: '🐙', hue: 235, status: true, group: 'external', x: 1160, y: 680 },
+  { id: 'twilio', title: 'Twilio', sub: 'inbound SMS · TwiML', icon: '📲', hue: 355, status: true, group: 'external', x: 1160, y: 820 },
 
   // Separate Railway service
   { id: 'imap', title: 'openclaw-email-tools', sub: 'IMAP · watches Gmail', icon: '📨', hue: 100, status: true, group: 'openclaw', x: 790, y: 620 },
@@ -48,13 +49,15 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'resend', label: 'inbound webhook' },
   { from: 'astro', to: 'app_pg', label: 'future', ghost: true, dashed: true },
   { from: 'astro', to: 'github', label: 'status / commits' },
+  { from: 'twilio', to: 'astro', label: 'SMS webhook', dashed: true },
+  { from: 'railway_gql', to: 'astro', label: 'deploy webhook', dashed: true },
   { from: 'imap', to: 'tg_api', label: 'trigger:telegram' },
 ];
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'dev'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github', 'twilio'] },
   { id: 'openclaw', title: 'Railway — openclaw-email-tools', hue: 100, members: ['imap'] },
 ];
 
