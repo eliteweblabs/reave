@@ -1,7 +1,8 @@
 ---
 /**
- * Personal Business OS dashboard (v1): live Mermaid diagrams from `public/dev/*.mmd`.
- * Also: http://localhost:4321/dashboard → redirect here.
+ * Personal Business OS map (v2): interactive, Railway-style canvas.
+ * /dashboard redirects here. Nodes/edges live in `public/dev/os-map-data.js`.
+ * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
 export const prerender = true;
 ---
@@ -12,123 +13,257 @@ export const prerender = true;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Business OS — dashboard</title>
-    <style>
+    <title>Business OS — map</title>
+    <style is:global>
       :root {
         color-scheme: dark;
-        --bg: #0f1419;
-        --fg: #e6edf3;
-        --muted: #8b949e;
-        --card: #161b22;
-        --border: #30363d;
+        --bg: #0a0d14;
+        --grid: #1a2230;
+        --fg: #e9eef6;
+        --muted: #8b97a8;
+        --card: #11151d;
+        --card-border: #232c3a;
+        --panel: #121722;
+        --panel-border: #283142;
       }
-      * {
-        box-sizing: border-box;
-      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
       body {
-        margin: 0;
-        font-family:
-          ui-sans-serif,
-          system-ui,
-          -apple-system,
-          Segoe UI,
-          Roboto,
-          sans-serif;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         background: var(--bg);
         color: var(--fg);
-        line-height: 1.5;
-        padding: 1.25rem 1.5rem 3rem;
+        overflow: hidden;
       }
-      h1 {
-        font-size: 1.25rem;
+
+      #wrap {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        cursor: grab;
+        background-color: var(--bg);
+        background-image: radial-gradient(circle at 1px 1px, var(--grid) 1.4px, transparent 0);
+        background-size: 24px 24px;
+        background-position: 0 0;
+        touch-action: none;
+      }
+      #wrap.panning { cursor: grabbing; }
+
+      #world {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transform-origin: 0 0;
+        width: 0;
+        height: 0;
+      }
+      #edges {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 6000px;
+        height: 4200px;
+        overflow: visible;
+        pointer-events: none;
+      }
+      .edge { fill: none; stroke-width: 1.6; stroke-dasharray: 6 6; opacity: 0.85; }
+      .edge.solid { stroke-dasharray: none; }
+
+      .group {
+        position: absolute;
+        border: 1px solid hsl(var(--h) 45% 45% / 0.35);
+        background: hsl(var(--h) 50% 50% / 0.05);
+        border-radius: 16px;
+        pointer-events: none;
+      }
+      .group > .g-label {
+        position: absolute;
+        top: -0.65rem;
+        left: 0.9rem;
+        font-size: 0.72rem;
         font-weight: 600;
-        margin: 0 0 0.35rem;
+        letter-spacing: 0.02em;
+        color: hsl(var(--h) 70% 72%);
+        background: var(--bg);
+        padding: 0 0.4rem;
       }
-      .sub {
+
+      .elabel {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        font-size: 0.66rem;
         color: var(--muted);
-        font-size: 0.9rem;
-        margin-bottom: 1.5rem;
+        background: rgba(10, 13, 20, 0.82);
+        padding: 0.05rem 0.32rem;
+        border-radius: 5px;
+        white-space: nowrap;
+        pointer-events: none;
       }
-      .sub code {
+
+      .node {
+        position: absolute;
+        width: 210px;
         background: var(--card);
-        padding: 0.12rem 0.35rem;
-        border-radius: 4px;
-        font-size: 0.85em;
+        border: 1px solid var(--card-border);
+        border-left: 3px solid hsl(var(--h) 75% 58%);
+        border-radius: 11px;
+        padding: 0.6rem 0.7rem;
+        cursor: grab;
+        user-select: none;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.02) inset,
+          0 6px 20px rgba(0, 0, 0, 0.35),
+          0 0 0 0 hsl(var(--h) 80% 55% / 0);
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
       }
-      section {
-        margin-bottom: 2rem;
+      .node:hover {
+        border-color: hsl(var(--h) 75% 58% / 0.8);
+        box-shadow:
+          0 6px 22px rgba(0, 0, 0, 0.45),
+          0 0 22px hsl(var(--h) 85% 55% / 0.28);
       }
-      h2 {
-        font-size: 1rem;
-        font-weight: 600;
-        margin: 0 0 0.5rem;
-        color: var(--muted);
-      }
-      .panel {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 1rem;
-        overflow: auto;
-      }
-      .panel :global(svg) {
-        max-width: 100%;
-        height: auto;
-      }
-      .err {
-        color: #f85149;
+      .node.dragging { cursor: grabbing; z-index: 50; }
+      .node.ghost { opacity: 0.6; border-style: dashed; }
+
+      .node .row { display: flex; align-items: center; gap: 0.45rem; }
+      .node .chip {
+        width: 1.5rem;
+        height: 1.5rem;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
         font-size: 0.9rem;
+        border-radius: 7px;
+        background: hsl(var(--h) 70% 55% / 0.16);
+        border: 1px solid hsl(var(--h) 70% 60% / 0.4);
       }
-      .hint {
-        margin-top: 1.5rem;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border);
-        font-size: 0.85rem;
+      .node .ttl { font-size: 0.85rem; font-weight: 600; color: var(--fg); }
+      .node .sub {
+        margin-top: 0.2rem;
+        font-size: 0.72rem;
         color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .hint ul {
-        margin: 0.35rem 0 0;
-        padding-left: 1.2rem;
+      .node .status {
+        margin-top: 0.4rem;
+        font-size: 0.7rem;
+        color: #3fb950;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
       }
-      .smoke-banner {
-        display: inline-block;
-        margin: 0 0 0.75rem;
-        padding: 0.35rem 0.6rem;
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: #0f1419;
+      .node .status::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
         background: #3fb950;
-        border-radius: 6px;
+        box-shadow: 0 0 6px #3fb950;
       }
+
+      /* Top bar */
+      #topbar {
+        position: fixed;
+        top: 0.7rem;
+        left: 0.7rem;
+        right: 0.7rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        pointer-events: none;
+        z-index: 20;
+      }
+      #topbar .title { font-size: 0.9rem; font-weight: 600; }
+      #topbar .note { font-size: 0.72rem; color: var(--muted); }
+      #topbar .note code { background: var(--panel); padding: 0.06rem 0.3rem; border-radius: 4px; }
+      #topbar .spacer { flex: 1; }
+      #topbar button {
+        pointer-events: auto;
+        font: inherit;
+        font-size: 0.78rem;
+        color: var(--fg);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        padding: 0.35rem 0.7rem;
+        cursor: pointer;
+      }
+      #topbar button:hover { border-color: #4b5563; }
+
+      /* Left toolbar */
+      #tools {
+        position: fixed;
+        left: 0.7rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        z-index: 20;
+      }
+      #tools button {
+        width: 2.1rem;
+        height: 2.1rem;
+        display: grid;
+        place-items: center;
+        font-size: 1rem;
+        color: var(--fg);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 9px;
+        cursor: pointer;
+      }
+      #tools button:hover { border-color: #58a6ff; color: #58a6ff; }
+
+      /* Legend */
+      #legend {
+        position: fixed;
+        right: 0.7rem;
+        bottom: 0.7rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        max-width: 60vw;
+        justify-content: flex-end;
+        z-index: 20;
+      }
+      #legend .chip {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.7rem;
+        color: var(--muted);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 0.2rem 0.55rem;
+      }
+      #legend .dot { width: 9px; height: 9px; border-radius: 50%; }
     </style>
   </head>
   <body>
-    <h1>Business OS — dashboard</h1>
-    <p class="smoke-banner">Live dev: if this badge updates after you save, your dev server is picking up changes.</p>
-    <p class="sub">
-      Diagrams load from <code>public/dev/*.mmd</code> — edit, save, refresh. With <code>npm run dev</code>, Vite serves
-      <code>public/</code> live (no rebuild for <code>.mmd</code> changes).
-    </p>
+    <div id="topbar">
+      <span class="title">Business OS — map</span>
+      <span class="note">
+        ⚠️ Keep current — edit <code>public/dev/os-map-data.js</code> when the system changes.
+      </span>
+      <span class="spacer"></span>
+      <button id="reset">Reset layout</button>
+    </div>
 
-    <section>
-      <h2>Architecture</h2>
-      <div class="panel" id="arch-out"></div>
-      <p class="err" id="arch-err" hidden></p>
-    </section>
+    <div id="tools">
+      <button data-act="in" title="Zoom in">+</button>
+      <button data-act="out" title="Zoom out">−</button>
+      <button data-act="fit" title="Fit to screen">⤢</button>
+    </div>
 
-    <section>
-      <h2>Telegram + knowledge</h2>
-      <div class="panel" id="tg-out"></div>
-      <p class="err" id="tg-err" hidden></p>
-    </section>
+    <div id="legend"></div>
 
-    <div class="hint">
-      <strong>Paths on disk</strong>
-      <ul>
-        <li><code>public/dev/os-architecture.mmd</code></li>
-        <li><code>public/dev/telegram-knowledge.mmd</code></li>
-      </ul>
-      Mermaid syntax: <a href="https://mermaid.js.org/syntax/flowchart.html" style="color: #58a6ff">flowchart docs</a>.
+    <div id="wrap">
+      <div id="world">
+        <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
     </div>
 
     <script is:inline type="module" src="/dev/os-map-loader.js"></script>

@@ -1,7 +1,7 @@
 # Email triage (Reave)
 
 Inbound email automation lives **inside this Astro app** — there is no separate
-OpenClaw service. Mail arrives via a **Resend inbound webhook**, gets classified
+Email Tools service. Mail arrives via a **Resend inbound webhook**, gets classified
 by a keyword rule table, and (when a rule says so) pings this Telegram bot.
 
 ## Flow

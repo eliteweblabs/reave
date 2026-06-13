@@ -5,6 +5,7 @@ import { telegramSendMessage } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
 import { isCraterConfigured, craterCreateInvoice, formatCreatedInvoice } from './craterClient';
+import { buildTools } from './telegramToolDefs';
 import { serverEnv } from './serverEnv';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
@@ -108,9 +109,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   }
 
   if (t === '/help') {
-    const tools = ['list_knowledge', 'read_knowledge'];
-    if (isContactApiConfigured()) tools.push('resolve_contact');
-    if (isCraterConfigured()) tools.push('create_invoice', 'search_customers', 'list_recent_invoices');
+    const tools = buildTools().map((t) => t.function.name);
     const lines = [
       'Commands:',
       '/list — knowledge slugs',
