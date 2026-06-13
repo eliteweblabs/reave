@@ -26,6 +26,11 @@ const TOOL_NAMES = [
   'list_knowledge',
   'read_knowledge',
   'run_dev_task',
+  'get_git_status',
+  'get_recent_commits',
+  'check_deployment_status',
+  'list_open_branches',
+  'run_terminal_command',
   'resolve_contact',
   'create_invoice',
   'search_customers',
@@ -52,7 +57,7 @@ async function craterFetch(path, method = 'GET', body) {
     method,
     headers: {
       Accept: 'application/json',
-      'X-Crater-Api-Token': tok,
+      'X-OpenClaw-Token': tok,
       ...(body ? { 'Content-Type': 'application/json' } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -72,14 +77,14 @@ console.log(`${TOOL_NAMES.length} tools when Crater + contact-api configured:\n$
 
 console.log('=== Crater API smoke tests ===');
 
-const list = await craterFetch('/api/custom/invoices');
+const list = await craterFetch('/api/openclaw/invoices');
 if (list.skipped) {
   console.log(`list_recent_invoices: SKIP (${list.reason})`);
 } else {
   console.log(`list_recent_invoices: HTTP ${list.status}`, list.ok ? `(count=${list.data?.count})` : list.data);
 }
 
-const del = await craterFetch('/api/custom/invoice/0', 'DELETE');
+const del = await craterFetch('/api/openclaw/invoice/0', 'DELETE');
 if (del.skipped) {
   console.log(`delete_invoice: SKIP (${del.reason})`);
 } else {
@@ -89,7 +94,7 @@ if (del.skipped) {
   );
 }
 
-const repair = await craterFetch('/api/custom/repair-invoice-numbers', 'POST', { dry_run: true });
+const repair = await craterFetch('/api/openclaw/repair-invoice-numbers', 'POST', { dry_run: true });
 if (repair.skipped) {
   console.log(`repair_invoice_numbers: SKIP (${repair.reason})`);
 } else {

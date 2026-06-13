@@ -21,7 +21,7 @@ interface ImportMetaEnv {
   CONTACT_API_KEY?: string;
   /** Crater custom API base URL (e.g. https://ap.reave.app) */
   CRATER_API_BASE_URL?: string;
-  /** Shared secret with Crater custom API; sent as X-Crater-Api-Token */
+  /** Mirror of Crater's OPENCLAW_API_TOKEN; sent as X-OpenClaw-Token */
   CRATER_API_TOKEN?: string;
   /** Railway public API (GraphQL). Create at railway.com/account/tokens — needs permission to create projects. */
   RAILWAY_API_TOKEN?: string;
@@ -33,6 +33,22 @@ interface ImportMetaEnv {
   RAILWAY_PROJECT_DESCRIPTION_PREFIX?: string;
   /** Shared secret: same value must appear as ?key= on /api/railway/webhook */
   RAILWAY_WEBHOOK_INGRESS_KEY?: string;
+  /** GitHub PAT (read-only Contents+Metadata) for dev/status tools. Recommended even for public repos to avoid rate limits. */
+  GITHUB_TOKEN?: string;
+  /** Optional alias for GITHUB_TOKEN. */
+  GH_TOKEN?: string;
+  /** Optional owner/repo override for status tools (default: eliteweblabs/reave). */
+  GITHUB_REPO?: string;
+  /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */
+  DEPLOY_HEALTH_URL?: string;
+  /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */
+  RAILWAY_GIT_COMMIT_SHA?: string;
+  /** Injected by Railway — public domain of the service (used for the health ping). */
+  RAILWAY_PUBLIC_DOMAIN?: string;
+  /** Injected by Railway — repo owner of the connected GitHub repo. */
+  RAILWAY_GIT_REPO_OWNER?: string;
+  /** Injected by Railway — repo name of the connected GitHub repo. */
+  RAILWAY_GIT_REPO_NAME?: string;
   /** Resend API key — inbound email receiving (/api/email/inbound) */
   RESEND_API_KEY?: string;
   /** Resend webhook signing secret (whsec_…) for verifying inbound events */

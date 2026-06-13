@@ -10,8 +10,32 @@ function baseUrl(): string | null {
   return raw.replace(/\/+$/, '');
 }
 
+function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const key = serverEnv('CONTACT_API_KEY')?.trim();
+  if (key) headers['X-API-Key'] = key;
+  return headers;
+}
+
 export function isContactApiConfigured(): boolean {
   return Boolean(baseUrl());
+}
+
+/**
+ * Public origin used to build shareable client-portal links. Prefer an explicit
+ * PUBLIC_SITE_URL; otherwise fall back to Railway's injected domain, then reave.app.
+ */
+export function siteBaseUrl(): string {
+  const explicit = serverEnv('PUBLIC_SITE_URL')?.trim();
+  if (explicit) return explicit.replace(/\/+$/, '');
+  const railway = serverEnv('RAILWAY_PUBLIC_DOMAIN')?.trim();
+  if (railway) return `https://${railway.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
+  return 'https://reave.app';
+}
+
+/** Shareable, iOS-friendly portal URL for a contact uid. */
+export function clientPortalUrl(uid: string): string {
+  return `${siteBaseUrl()}/c/${encodeURIComponent(uid)}`;
 }
 
 export type ResolveContactInput = {
@@ -28,16 +52,10 @@ export async function resolveContact(
     return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  const key = serverEnv('CONTACT_API_KEY')?.trim();
-  if (key) headers['X-API-Key'] = key;
-
   try {
     const res = await fetch(`${base}/api/contacts/resolve`, {
       method: 'POST',
-      headers,
+      headers: authHeaders(),
       body: JSON.stringify({
         name: input.name?.trim() || undefined,
         email: input.email?.trim() || undefined,
@@ -101,4 +119,121 @@ export function formatResolveForTelegram(data: unknown): string {
   const extra = JSON.stringify(o, null, 2);
   if (extra.length < 2800) return lines.join('\n') + '\n\n' + extra;
   return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Client portal — a shareable, iOS-friendly page per contact.
+//
+// Storage trick: we DO NOT need to modify the contact-api schema. Client-facing
+// content is stored as a `contact_links` row with system='portal' (JSONB
+// metadata), which the existing POST /api/contacts/:uid/link upserts and
+// GET /api/contacts/:uid returns. This keeps the portal cleanly separate from
+// the private internal `notes` field (so internal notes never leak to clients).
+// ---------------------------------------------------------------------------
+
+export type ContactLink = { system: string; externalId: string; metadata?: Record<string, unknown> | null };
+
+export type ContactRecord = {
+  uid: string;
+  name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  notes?: string | null;
+  archived?: boolean;
+  links?: ContactLink[];
+};
+
+export type ClientPortalField = { label: string; value: string };
+
+export type ClientPortal = {
+  /** When false, the public page returns 404 (revoked) even if content exists. */
+  enabled?: boolean;
+  headline?: string;
+  /** Free text shown to the client; newlines preserved, URLs auto-linked. */
+  body?: string;
+  fields?: ClientPortalField[];
+  updatedAt?: string;
+};
+
+const PORTAL_SYSTEM = 'portal';
+
+/** Fetch a single contact (with aliases + links) by uid. */
+export async function getContact(
+  uid: string
+): Promise<{ ok: true; data: ContactRecord } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+
+  try {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const err =
+        json && typeof json === 'object' && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : text.slice(0, 200) || res.statusText;
+      return { ok: false, error: err, status: res.status };
+    }
+    const contact =
+      json && typeof json === 'object' && 'contact' in json
+        ? ((json as { contact: ContactRecord }).contact)
+        : (json as ContactRecord);
+    if (!contact || typeof contact !== 'object' || !contact.uid) {
+      return { ok: false, error: 'Unexpected contact-api response' };
+    }
+    return { ok: true, data: contact };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Pull the portal payload out of a contact's links, if present. */
+export function extractPortal(contact: ContactRecord): ClientPortal | null {
+  const link = (contact.links ?? []).find((l) => l.system === PORTAL_SYSTEM);
+  if (!link || !link.metadata || typeof link.metadata !== 'object') return null;
+  return link.metadata as ClientPortal;
+}
+
+/**
+ * Create/replace the portal payload for a contact (upsert on system='portal').
+ * NOTE: contact-api replaces metadata wholesale, so callers should pass the full
+ * desired portal object (merge with existing first if doing partial updates).
+ */
+export async function setContactPortal(
+  uid: string,
+  portal: ClientPortal
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+
+  const metadata: ClientPortal = { ...portal, updatedAt: new Date().toISOString() };
+
+  try {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}/link`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ system: PORTAL_SYSTEM, externalId: uid.trim(), metadata }),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: text.slice(0, 200) || res.statusText };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
 }

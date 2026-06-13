@@ -84,6 +84,7 @@ function buildMap() {
     el.appendChild(label);
     world.appendChild(el);
     groupEls.set(g.id, el);
+    attachGroupDrag(g, label);
   }
 
   // edges (paths + labels)
@@ -348,6 +349,43 @@ function attachDrag(n, el) {
   });
 }
 
+// ---- group dragging (move every member node together, Railway-style) ----
+function attachGroupDrag(g, handle) {
+  handle.addEventListener('pointerdown', (ev) => {
+    const members = g.members.map((id) => byId.get(id)).filter(Boolean);
+    if (!members.length) return;
+    ev.stopPropagation();
+    try { handle.setPointerCapture(ev.pointerId); } catch {}
+    handle.classList.add('dragging');
+    const start = toWorld(ev.clientX, ev.clientY);
+    const origins = members.map((n) => ({ n, x: n.x, y: n.y }));
+
+    const move = (e) => {
+      const p = toWorld(e.clientX, e.clientY);
+      const dx = snap(p.x - start.x);
+      const dy = snap(p.y - start.y);
+      for (const o of origins) {
+        o.n.x = o.x + dx;
+        o.n.y = o.y + dy;
+        const el = nodeEls.get(o.n.id);
+        el.style.left = `${o.n.x}px`;
+        el.style.top = `${o.n.y}px`;
+      }
+      drawGroups();
+      drawEdges();
+    };
+    const up = () => {
+      handle.classList.remove('dragging');
+      try { handle.releasePointerCapture(ev.pointerId); } catch {}
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      savePositions();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  });
+}
+
 // ---- pan ----
 wrap.addEventListener('pointerdown', (ev) => {
   if (ev.target.closest('.node')) return;
@@ -387,7 +425,10 @@ wrap.addEventListener(
   'wheel',
   (e) => {
     e.preventDefault();
-    zoomAt(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX, e.clientY);
+    // Proportional, gentle zoom: smooth for trackpads, slower for mouse wheels.
+    // Clamp per-event so a single big wheel tick can't jump too far.
+    const factor = clamp(Math.exp(-e.deltaY * 0.0004), 0.95, 1.05);
+    zoomAt(factor, e.clientX, e.clientY);
   },
   { passive: false }
 );

@@ -1,8 +1,8 @@
 /**
  * Crater custom API client (eliteweblabs/crater-invoicing → routes/api-custom.php).
  *
- * The custom routes are mounted under `/api/custom/*` and authenticated with
- * the `X-Crater-Api-Token` header (matches Crater's CRATER_API_TOKEN env).
+ * The custom routes are mounted under `/api/openclaw/*` and authenticated with
+ * the `X-OpenClaw-Token` header (matches Crater's OPENCLAW_API_TOKEN env).
  * Prices are sent in whole-dollar units; Crater stores cents internally.
  */
 import { serverEnv } from './serverEnv';
@@ -54,7 +54,7 @@ async function craterFetch<T>(path: string, init: CraterFetchInit): Promise<Crat
       headers: {
         Accept: 'application/json',
         ...(init.body != null ? { 'Content-Type': 'application/json' } : {}),
-        'X-Crater-Api-Token': tok,
+        'X-OpenClaw-Token': tok,
       },
       body: init.body != null ? JSON.stringify(init.body) : undefined,
     });
@@ -120,7 +120,7 @@ export async function craterCreateInvoice(
   if (!input.items?.length) {
     return { ok: false, error: 'at least one line item is required' };
   }
-  return craterFetch<CreatedInvoice>('/api/custom/create-invoice', {
+  return craterFetch<CreatedInvoice>('/api/openclaw/create-invoice', {
     method: 'POST',
     body: {
       customer_name: input.customerName.trim(),
@@ -150,7 +150,7 @@ export async function craterSearchCustomers(
   q: string,
   companyId?: number
 ): Promise<CraterResult<{ count: number; customers: CraterCustomer[] }>> {
-  return craterFetch<{ count: number; customers: CraterCustomer[] }>('/api/custom/customers', {
+  return craterFetch<{ count: number; customers: CraterCustomer[] }>('/api/openclaw/customers', {
     method: 'GET',
     query: { q: q.trim() || undefined, company_id: companyId },
   });
@@ -171,7 +171,7 @@ export type CraterInvoiceSummary = {
 export async function craterListInvoices(
   companyId?: number
 ): Promise<CraterResult<{ count: number; invoices: CraterInvoiceSummary[] }>> {
-  return craterFetch<{ count: number; invoices: CraterInvoiceSummary[] }>('/api/custom/invoices', {
+  return craterFetch<{ count: number; invoices: CraterInvoiceSummary[] }>('/api/openclaw/invoices', {
     method: 'GET',
     query: { company_id: companyId },
   });
@@ -203,7 +203,7 @@ export type CraterInvoiceDetail = {
 export async function craterGetInvoice(invoiceId: string | number): Promise<CraterResult<CraterInvoiceDetail>> {
   const id = String(invoiceId).trim();
   if (!id) return { ok: false, error: 'invoice_id is required' };
-  return craterFetch<CraterInvoiceDetail>(`/api/custom/invoice/${encodeURIComponent(id)}`, {
+  return craterFetch<CraterInvoiceDetail>(`/api/openclaw/invoice/${encodeURIComponent(id)}`, {
     method: 'GET',
   });
 }
@@ -219,7 +219,7 @@ export async function craterUpdateInvoice(
   const id = String(invoiceId).trim();
   if (!id) return { ok: false, error: 'invoice_id is required' };
   return craterFetch<{ success: boolean; invoice_id: number; status: string }>(
-    `/api/custom/invoice/${encodeURIComponent(id)}`,
+    `/api/openclaw/invoice/${encodeURIComponent(id)}`,
     { method: 'PUT', body: input }
   );
 }
@@ -230,7 +230,7 @@ export async function craterDeleteInvoice(
   const id = String(invoiceId).trim();
   if (!id) return { ok: false, error: 'invoice_id is required' };
   return craterFetch<{ success: boolean; invoice_id: number; deleted: boolean }>(
-    `/api/custom/invoice/${encodeURIComponent(id)}`,
+    `/api/openclaw/invoice/${encodeURIComponent(id)}`,
     { method: 'DELETE' }
   );
 }
@@ -252,7 +252,7 @@ export async function craterAddInvoiceItems(
   const id = String(invoiceId).trim();
   if (!id) return { ok: false, error: 'invoice_id is required' };
   if (!items.length) return { ok: false, error: 'at least one item is required' };
-  return craterFetch(`/api/custom/invoice/${encodeURIComponent(id)}/items`, {
+  return craterFetch(`/api/openclaw/invoice/${encodeURIComponent(id)}/items`, {
     method: 'POST',
     body: {
       items: items.map((i) => ({
@@ -276,7 +276,7 @@ export async function craterSearchLineItems(
   q?: string,
   companyId?: number
 ): Promise<CraterResult<{ count: number; line_items: CraterLineItem[] }>> {
-  return craterFetch<{ count: number; line_items: CraterLineItem[] }>('/api/custom/line-items', {
+  return craterFetch<{ count: number; line_items: CraterLineItem[] }>('/api/openclaw/line-items', {
     method: 'GET',
     query: { q: q?.trim() || undefined, company_id: companyId },
   });
@@ -298,7 +298,7 @@ export async function craterRecordPayment(
   if (!Number.isFinite(input.amount) || input.amount <= 0) {
     return { ok: false, error: 'amount must be a positive number' };
   }
-  return craterFetch<Record<string, unknown>>('/api/custom/record-payment', {
+  return craterFetch<Record<string, unknown>>('/api/openclaw/record-payment', {
     method: 'POST',
     body: {
       customer_name: input.customerName.trim(),
@@ -325,7 +325,7 @@ export async function craterListRecurringInvoices(
   companyId?: number
 ): Promise<CraterResult<{ count: number; recurring_invoices: CraterRecurringInvoice[] }>> {
   return craterFetch<{ count: number; recurring_invoices: CraterRecurringInvoice[] }>(
-    '/api/custom/recurring-invoices',
+    '/api/openclaw/recurring-invoices',
     { method: 'GET', query: { status, company_id: companyId } }
   );
 }
@@ -345,7 +345,7 @@ export async function craterCreateRecurringInvoice(input: {
   }>
 > {
   if (!input.customerName?.trim()) return { ok: false, error: 'customerName is required' };
-  return craterFetch('/api/custom/create-recurring-invoice', {
+  return craterFetch('/api/openclaw/create-recurring-invoice', {
     method: 'POST',
     body: {
       customer_name: input.customerName.trim(),
@@ -361,7 +361,7 @@ export async function craterRepairInvoiceNumbers(input: {
   dryRun?: boolean;
   only?: 'numbers' | 'totals' | 'all';
 }): Promise<CraterResult<Record<string, unknown>>> {
-  return craterFetch<Record<string, unknown>>('/api/custom/repair-invoice-numbers', {
+  return craterFetch<Record<string, unknown>>('/api/openclaw/repair-invoice-numbers', {
     method: 'POST',
     body: {
       company_id: input.companyId,
@@ -375,7 +375,7 @@ export async function craterRepairPaymentNumbers(input: {
   companyId?: number;
   dryRun?: boolean;
 }): Promise<CraterResult<Record<string, unknown>>> {
-  return craterFetch<Record<string, unknown>>('/api/custom/repair-payment-numbers', {
+  return craterFetch<Record<string, unknown>>('/api/openclaw/repair-payment-numbers', {
     method: 'POST',
     body: {
       company_id: input.companyId,
@@ -392,7 +392,7 @@ export async function craterResetInvoices(input: {
   if (input.confirm !== 'YES_DELETE_EVERYTHING') {
     return { ok: false, error: 'confirm must be YES_DELETE_EVERYTHING' };
   }
-  return craterFetch<Record<string, unknown>>('/api/custom/reset-invoices', {
+  return craterFetch<Record<string, unknown>>('/api/openclaw/reset-invoices', {
     method: 'POST',
     body: {
       confirm: input.confirm,

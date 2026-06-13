@@ -27,6 +27,7 @@ const SYSTEM_NODES = [
   { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
+  { id: 'portal', title: 'Client portal', sub: '/c/:uid · shareable PWA', icon: '📇', hue: 320, status: true, group: 'reave', x: 600, y: 560 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 120 },
@@ -48,6 +49,9 @@ const SYSTEM_EDGES = [
   { from: 'tg_api', to: 'tg_user', dashed: true, label: 'reply' },
   { from: 'astro', to: 'anthropic', label: 'freeform LLM' },
   { from: 'astro', to: 'contact_api', label: 'resolve' },
+  { from: 'astro', to: 'portal', label: 'serves /c/:uid' },
+  { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
+  { from: 'web', to: 'portal', label: 'iOS share link', dashed: true },
   { from: 'contact_api', to: 'contact_pg' },
   { from: 'astro', to: 'railway_gql', label: '/railway project' },
   { from: 'astro', to: 'crater', label: '/invoice' },
@@ -61,7 +65,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'dev'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater'] },
+  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater', 'portal'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github', 'twilio'] },
   { id: 'openclaw', title: 'Railway — openclaw-email-tools', hue: 100, members: ['imap'] },
 ];

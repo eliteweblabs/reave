@@ -3,7 +3,16 @@
  * Single source of truth for buildTools / runTool.
  */
 import { listKnowledgeSlugs, readKnowledgeMarkdown, summarizeKnowledgeIndex } from './localKnowledge';
-import { isContactApiConfigured, resolveContact } from './contactApi';
+import {
+  isContactApiConfigured,
+  resolveContact,
+  getContact,
+  setContactPortal,
+  extractPortal,
+  clientPortalUrl,
+  type ClientPortal,
+  type ClientPortalField,
+} from './contactApi';
 import {
   isCraterConfigured,
   craterCreateInvoice,
@@ -22,6 +31,8 @@ import {
   craterResetInvoices,
 } from './craterClient';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
+import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
+import { describeSafeShell, runSafeShellCommand } from './safeShell';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -88,6 +99,73 @@ export function buildTools(): TelegramToolDef[] {
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'get_git_status',
+        description:
+          'Snapshot of the GitHub repo (source of truth): current/default branch, latest commits, branch count, and whether the live deploy is on the latest commit. Use to verify work was committed & pushed. Local uncommitted/unstaged changes are NOT visible here — use run_terminal_command on a checked-out repo for that.',
+        parameters: {
+          type: 'object',
+          properties: {
+            branch: { type: 'string', description: 'Branch to inspect; defaults to the repo default branch.' },
+            limit: { type: 'integer', description: 'How many recent commits to include (1-30, default 8).' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_recent_commits',
+        description:
+          'Recent commit history from GitHub (author, message, timestamp, link; optionally files changed). Use to verify whether specific work landed.',
+        parameters: {
+          type: 'object',
+          properties: {
+            branch: { type: 'string', description: 'Branch to read; defaults to the repo default branch.' },
+            limit: { type: 'integer', description: 'Number of commits (1-30, default 5).' },
+            with_files: { type: 'boolean', description: 'Include changed files + stats per commit (slower).' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'check_deployment_status',
+        description:
+          'Is the latest pushed code actually live? Compares the deployed commit (Railway RAILWAY_GIT_COMMIT_SHA) to GitHub’s latest commit on the default branch and pings the public health endpoint. Returns a one-line summary plus details.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_open_branches',
+        description:
+          'List active branches on GitHub with how far each is ahead/behind the default branch. Use to track in-progress work.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'run_terminal_command',
+        description:
+          `Run a single READ-ONLY shell command in a sandbox (no shell, no pipes/redirects/chaining). Allowed binaries: ${describeSafeShell().binaries.join(', ')}; git is limited to read-only subcommands (${describeSafeShell().git_subcommands.join(', ')}). Useful where the repo is checked out; on the live container there may be no git checkout.`,
+        parameters: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'e.g. "git log --oneline -10", "git status", "git branch -a", "ls".' },
+          },
+          required: ['command'],
+          additionalProperties: false,
+        },
+      },
+    },
   ];
 
   if (isContactApiConfigured()) {
@@ -108,6 +186,67 @@ export function buildTools(): TelegramToolDef[] {
         },
       },
     });
+
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'set_client_portal',
+          description:
+            'Create or update a client’s shareable portal page (a mobile-friendly link you send to the client, great for iOS "Add to Home Screen"). Identify the client by uid or by name (it will fuzzy-resolve; if ambiguous it returns candidates to confirm). Updates are merged with any existing portal content. Returns the shareable URL. This is client-facing — it does NOT expose the internal private notes field.',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+              name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+              email: { type: 'string', description: 'Optional, improves name resolution' },
+              phone: { type: 'string', description: 'Optional, improves name resolution' },
+              headline: { type: 'string', description: 'Short title shown at the top of the portal' },
+              body: {
+                type: 'string',
+                description: 'Main client-facing text (project status, links, instructions). Newlines and URLs are preserved.',
+              },
+              fields: {
+                type: 'array',
+                description: 'Optional labeled key/value rows (e.g. "Site URL" → "https://…", "Plan" → "Annual").',
+                items: {
+                  type: 'object',
+                  properties: {
+                    label: { type: 'string' },
+                    value: { type: 'string' },
+                  },
+                  required: ['label', 'value'],
+                  additionalProperties: false,
+                },
+              },
+              enabled: {
+                type: 'boolean',
+                description: 'Set false to revoke/hide the portal (link returns 404). Defaults to true.',
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_client_portal',
+          description:
+            'Get a client’s shareable portal link and its current content. Identify by uid or name (fuzzy-resolved). Use to retrieve the link to send to a client or to review what they currently see.',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+              name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+              email: { type: 'string' },
+              phone: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
+      }
+    );
   }
 
   if (isCraterConfigured()) {
@@ -370,6 +509,63 @@ function parseLineItems(raw: unknown): Array<{ name: string; description?: strin
     });
 }
 
+function parsePortalFields(raw: unknown): ClientPortalField[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const fields = raw
+    .filter((f) => f && typeof f === 'object')
+    .map((f) => {
+      const row = f as { label?: unknown; value?: unknown };
+      return { label: String(row.label ?? '').trim(), value: String(row.value ?? '').trim() };
+    })
+    .filter((f) => f.label && f.value);
+  return fields;
+}
+
+/**
+ * Resolve a portal tool's target to a single contact uid. Accepts an explicit
+ * uid, or fuzzy-resolves a name/email/phone. Returns a needs_selection payload
+ * (as a JSON string) when the match is ambiguous so the caller can confirm.
+ */
+async function resolvePortalTarget(args: {
+  uid?: unknown;
+  name?: unknown;
+  email?: unknown;
+  phone?: unknown;
+}): Promise<{ ok: true; uid: string } | { ok: false; payload: string }> {
+  const uid = typeof args.uid === 'string' ? args.uid.trim() : '';
+  if (uid) return { ok: true, uid };
+
+  const name = typeof args.name === 'string' ? args.name.trim() : '';
+  const email = typeof args.email === 'string' ? args.email.trim() : '';
+  const phone = typeof args.phone === 'string' ? args.phone.trim() : '';
+  if (!name && !email && !phone) {
+    return { ok: false, payload: JSON.stringify({ error: 'Provide a uid, or a name/email/phone to resolve.' }) };
+  }
+
+  const resolved = await resolveContact({ name, email, phone });
+  if (!resolved.ok) {
+    return { ok: false, payload: JSON.stringify({ error: resolved.error, status: resolved.status }) };
+  }
+  const data = resolved.data as {
+    match?: string;
+    contact?: { uid?: string; name?: string };
+    candidates?: Array<{ uid?: string; name?: string; score?: number }>;
+  };
+  if ((data.match === 'exact' || data.match === 'likely') && data.contact?.uid) {
+    return { ok: true, uid: data.contact.uid };
+  }
+  return {
+    ok: false,
+    payload: JSON.stringify({
+      needs_selection: true,
+      reason: data.match === 'none' ? 'no_match' : 'ambiguous',
+      match: data.match ?? 'none',
+      candidates: (data.candidates ?? []).map((c) => ({ uid: c.uid, name: c.name, score: c.score })),
+      hint: 'Re-call with an exact uid from candidates (or confirm the name).',
+    }),
+  };
+}
+
 export async function runTool(name: string, argsJson: string): Promise<string> {
   try {
     const args = JSON.parse(argsJson) as Record<string, unknown>;
@@ -395,6 +591,40 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!out.ok) return JSON.stringify({ error: out.error });
       return JSON.stringify(out);
     }
+    if (name === 'get_git_status') {
+      const result = await getGitStatus({
+        branch: typeof args.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined,
+        limit: typeof args.limit === 'number' ? args.limit : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'get_recent_commits') {
+      const result = await getRecentCommits({
+        branch: typeof args.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined,
+        limit: typeof args.limit === 'number' ? args.limit : undefined,
+        with_files: args.with_files === true,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'check_deployment_status') {
+      const result = await checkDeploymentStatus();
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'list_open_branches') {
+      const result = await listOpenBranches();
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'run_terminal_command') {
+      const command = String(args.command ?? '').trim();
+      if (!command) return JSON.stringify({ error: 'command is required' });
+      const result = await runSafeShellCommand(command);
+      if (!result.ok) return JSON.stringify({ error: result.error, allowed: describeSafeShell() });
+      return JSON.stringify(result);
+    }
     if (name === 'resolve_contact') {
       const result = await resolveContact({
         name: args.name as string | undefined,
@@ -403,6 +633,50 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return JSON.stringify(result.data);
+    }
+    if (name === 'set_client_portal') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const existing = extractPortal(current.data) ?? {};
+
+      const fields = parsePortalFields(args.fields);
+      const next: ClientPortal = {
+        ...existing,
+        enabled: typeof args.enabled === 'boolean' ? args.enabled : existing.enabled ?? true,
+        headline: typeof args.headline === 'string' ? args.headline.trim() : existing.headline,
+        body: typeof args.body === 'string' ? args.body : existing.body,
+        fields: fields !== undefined ? fields : existing.fields,
+      };
+
+      const saved = await setContactPortal(target.uid, next);
+      if (!saved.ok) return JSON.stringify({ error: saved.error, status: saved.status });
+      return JSON.stringify({
+        success: true,
+        uid: target.uid,
+        name: current.data.name,
+        url: clientPortalUrl(target.uid),
+        enabled: next.enabled,
+        portal: next,
+      });
+    }
+    if (name === 'get_client_portal') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const portal = extractPortal(current.data);
+      return JSON.stringify({
+        uid: target.uid,
+        name: current.data.name,
+        url: clientPortalUrl(target.uid),
+        exists: Boolean(portal),
+        enabled: portal?.enabled ?? false,
+        portal: portal ?? null,
+      });
     }
     if (name === 'create_invoice') {
       const items = parseLineItems(args.items);

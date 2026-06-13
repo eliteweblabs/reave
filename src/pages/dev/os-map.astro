@@ -78,15 +78,22 @@ export const prerender = true;
       }
       .group > .g-label {
         position: absolute;
-        top: -0.65rem;
+        top: -0.7rem;
         left: 0.9rem;
         font-size: 0.72rem;
         font-weight: 600;
         letter-spacing: 0.02em;
         color: hsl(var(--h) 70% 72%);
         background: var(--bg);
-        padding: 0 0.4rem;
+        padding: 0.1rem 0.5rem;
+        border: 1px solid hsl(var(--h) 45% 45% / 0.4);
+        border-radius: 7px;
+        pointer-events: auto;
+        cursor: grab;
+        user-select: none;
       }
+      .group > .g-label:hover { border-color: hsl(var(--h) 70% 60% / 0.8); }
+      .group > .g-label.dragging { cursor: grabbing; }
 
       .elabel {
         position: absolute;
@@ -197,7 +204,19 @@ export const prerender = true;
         pointer-events: none;
         z-index: 20;
       }
-      #topbar .title { font-size: 0.9rem; font-weight: 600; }
+      #topbar .brand {
+        pointer-events: auto;
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 auto;
+        line-height: 0;
+      }
+      #topbar .brand-icon { height: 1.7rem; width: auto; display: block; }
+      #topbar .brand-logo { height: 1.4rem; width: auto; display: none; }
+      @media (min-width: 640px) {
+        #topbar .brand-icon { display: none; }
+        #topbar .brand-logo { display: block; }
+      }
       #topbar .note { font-size: 0.72rem; color: var(--muted); }
 
       /* Tabs */
@@ -246,8 +265,7 @@ export const prerender = true;
       #tools {
         position: fixed;
         left: 0.7rem;
-        top: 50%;
-        transform: translateY(-50%);
+        bottom: 0.7rem;
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
@@ -305,7 +323,10 @@ export const prerender = true;
   </head>
   <body>
     <div id="topbar">
-      <span class="title">Business OS — map</span>
+      <a href="/" class="brand" aria-label="Reave">
+        <img class="brand-icon" src="/favicon.svg" alt="Reave" width="128" height="128" />
+        <img class="brand-logo" src="/reave-logo.png" alt="Reave" />
+      </a>
       <div id="tabs"></div>
       <span class="note">
         ⚠️ Keep current — edit <code>public/dev/os-map-data.js</code> when the system changes.

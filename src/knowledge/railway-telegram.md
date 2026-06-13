@@ -5,7 +5,7 @@
 - `/railway help` — usage
 - `/railway project <name>` — creates an **empty** Railway project via public GraphQL (`projectCreate`).
 
-## Env (reave)
+## Env (Astro / Reave)
 
 | Variable | Purpose |
 |----------|---------|

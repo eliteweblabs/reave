@@ -51,6 +51,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames).',
     'After tools, answer in plain text for Telegram (short paragraphs, avoid huge markdown tables).',
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
+    'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
   ];
   if (isCraterConfigured()) {
     sysParts.push(
@@ -61,8 +62,12 @@ export async function runTelegramKnowledgeAgent(opts: {
   } else {
     sysParts.push('Note: invoicing tools are unavailable (CRATER_API_BASE_URL / CRATER_API_TOKEN not set).');
   }
-  if (!isContactApiConfigured()) {
-    sysParts.push('Note: resolve_contact is unavailable (CONTACT_API_BASE_URL not set).');
+  if (isContactApiConfigured()) {
+    sysParts.push(
+      'Client portals: each client can have a shareable mobile page (a link they open on iPhone and can "Add to Home Screen"). Use set_client_portal to create/update what the client sees (headline, body, labeled fields) and get_client_portal to fetch the link. These are CLIENT-FACING — never put private/internal notes there. If a name is ambiguous, the tool returns candidates; confirm before writing. After setting one, report the share URL so the user can send it.'
+    );
+  } else {
+    sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
   }
 
   const system = sysParts.join('\n');

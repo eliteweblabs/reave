@@ -4,6 +4,7 @@
  */
 import { isContactApiConfigured } from './contactApi';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
+import { isGithubConfigured, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
 import { serverEnv } from './serverEnv';
 
@@ -34,6 +35,8 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
           railway: Boolean(serverEnv('RAILWAY_API_TOKEN')?.trim()),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
+          github_token: isGithubConfigured(),
+          github_repo: githubRepoSlug(),
         },
       };
 

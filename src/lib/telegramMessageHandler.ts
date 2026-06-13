@@ -63,7 +63,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   const invoiceMatch = t.match(/^\/invoice\s+(.+)$/is);
   if (invoiceMatch) {
     if (!isCraterConfigured()) {
-      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the reave service.';
+      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the Astro service.';
     }
     const parts = invoiceMatch[1].split('|').map((s) => s.trim());
     const customer = parts[0] ?? '';
@@ -118,6 +118,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/resolve <name> or /who <name> — fuzzy match against contact-api',
       '/railway project <name> — new empty Railway project',
       '/railway help — Railway commands',
+      'Dev status (freeform): “is the latest code deployed?”, “show recent commits”, “git status”, “list branches”',
       '/clear — forget this chat’s conversation history',
       '/help',
       '',
