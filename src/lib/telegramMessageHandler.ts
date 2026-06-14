@@ -157,7 +157,9 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if ((d.match === 'exact' || d.match === 'likely') && d.contact?.uid) {
       return `__PORTAL_RESULT__:${d.contact.uid}`;
     }
-    return fmtNoMatch('portal', name, d.candidates ?? []);
+    const portalCands = d.candidates ?? [];
+    if (portalCands.length === 1 && portalCands[0].uid) return `__CONFIRM__:portal:${portalCands[0].uid}`;
+    return fmtNoMatch('portal', name, portalCands);
   }
 
   // ── /portalsend <name> ─────────────────────────────────────────────────────
@@ -173,7 +175,9 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if (!resolved.ok) return `resolve failed: ${resolved.error}`;
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
     if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
-      return fmtNoMatch('portalsend', name, d.candidates ?? []);
+      const psCands = (d.candidates ?? []) as Array<{ uid?: string; name?: string }>;
+      if (psCands.length === 1 && psCands[0].uid) return `__CONFIRM__:portalsend:${psCands[0].uid}`;
+      return fmtNoMatch('portalsend', name, psCands);
     }
     const uid = d.contact.uid;
     const full = await getContact(uid);
@@ -211,7 +215,9 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       const submitUrl = `${clientPortalUrl(d.contact.uid)}?submit`;
       return `${d.contact.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`;
     }
-    return fmtNoMatch('submitlink', name, d.candidates ?? []);
+    const slCands = (d.candidates ?? []) as Array<{ uid?: string; name?: string }>;
+    if (slCands.length === 1 && slCands[0].uid) return `__CONFIRM__:submitlink:${slCands[0].uid}`;
+    return fmtNoMatch('submitlink', name, slCands);
   }
 
   // ── /invoices ──────────────────────────────────────────────────────────────
@@ -478,6 +484,20 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
 
+  if (slash?.startsWith('__CONFIRM__:')) {
+    const rest = slash.slice('__CONFIRM__:'.length);
+    const sep = rest.indexOf(':');
+    const cmd = sep >= 0 ? rest.slice(0, sep) : rest;
+    const uid = sep >= 0 ? rest.slice(sep + 1) : '';
+    const full = uid ? await getContact(uid) : null;
+    const displayName = full?.ok ? full.data.name : uid || '?';
+    await telegramSendMenu(token, chatId, `Did you mean ${displayName}?`, [[
+      { text: '✓ Yes', data: `qcmd:${cmd}:${uid}` },
+      { text: '✗ No', data: 'cancel:' },
+    ]]);
+    return;
+  }
+
   if (slash?.startsWith('__CONTACTS_SINGLE__:')) {
     const uid = slash.slice('__CONTACTS_SINGLE__:'.length);
     const full = await getContact(uid);
@@ -557,7 +577,17 @@ export async function handleTelegramTextMessage(opts: {
     }
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
     if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
-      await telegramSendMessage(token, chatId, fmtNoMatch('document', name, d.candidates ?? []));
+      const docCands = (d.candidates ?? []) as Array<{ uid?: string; name?: string }>;
+      if (docCands.length === 1 && docCands[0].uid) {
+        const full = await getContact(docCands[0].uid);
+        const displayName = full.ok ? full.data.name : (docCands[0].name ?? docCands[0].uid ?? '?');
+        await telegramSendMenu(token, chatId, `Did you mean ${displayName}?`, [[
+          { text: '✓ Yes', data: `qcmd:document:${docCands[0].uid}` },
+          { text: '✗ No', data: 'cancel:' },
+        ]]);
+        return;
+      }
+      await telegramSendMessage(token, chatId, fmtNoMatch('document', name, docCands));
       return;
     }
     const uid = d.contact.uid;
@@ -626,6 +656,13 @@ export async function handleTelegramCallbackQuery(opts: {
   const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
   if (!isUserAllowed(fromId, allowed, prod)) {
     console.warn('[telegram] callback_query fromId not allowed', { fromId });
+    return;
+  }
+
+  if (data.startsWith('cancel:') || data === 'cancel:') {
+    if (messageId != null) {
+      await telegramEditMessage(token, chatId, messageId, 'OK.');
+    }
     return;
   }
 
