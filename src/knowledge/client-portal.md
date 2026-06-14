@@ -88,6 +88,20 @@ Examples (freeform to the bot):
 - `PUBLIC_SITE_URL` — origin for building share links (defaults to
   `https://${RAILWAY_PUBLIC_DOMAIN}`, then `https://reave.app`).
 
+## Apple Notes (one-way pull via Shortcut)
+
+`GET /c/<uid>/note.txt` returns a plain-text summary of the client (details,
+custom content, fields, outstanding balance, portal link). Apple Notes has no
+API, so true sync isn't possible — but an **Apple Shortcut** can fetch this text
+and create/update a Note on the iPhone:
+
+1. Shortcuts app → New Shortcut.
+2. **Get Contents of URL** → `https://reave.app/c/<uid>/note.txt`.
+3. **Create Note** (or **Append to Note**) with the result as the body.
+4. Optionally add it to the Home Screen or a scheduled Automation to "refresh".
+
+It's one-way (server → Notes); edits made in Notes don't flow back.
+
 ## Why not Apple Notes?
 
 Apple Notes has **no public/server API** (no CloudKit access, AppleScript is
