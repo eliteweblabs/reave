@@ -578,17 +578,24 @@ export async function handleTelegramCallbackQuery(opts: {
   // Always ack immediately to remove Telegram's loading spinner.
   if (callbackId) await telegramAnswerCallback(token, callbackId);
 
-  if (chatId == null || fromId == null) return;
+  if (chatId == null || fromId == null) {
+    console.error('[telegram] callback_query missing chatId or fromId', { callbackId, chatId, fromId, data });
+    return;
+  }
 
   const prod = import.meta.env.PROD;
   const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
-  if (!isUserAllowed(fromId, allowed, prod)) return;
+  if (!isUserAllowed(fromId, allowed, prod)) {
+    console.warn('[telegram] callback_query fromId not allowed', { fromId });
+    return;
+  }
 
   if (data.startsWith('doc:')) {
     // Format: doc:{uid}:{templateSlug}
     const parts = data.slice(4).split(':');
     const uid = parts[0] ?? '';
     const templateSlug = parts.slice(1).join(':'); // handle slugs with colons (shouldn't happen, but safe)
+    console.log(`[telegram] doc callback — uid=${uid} template=${templateSlug} chatId=${chatId}`);
     if (!uid || !templateSlug) {
       await telegramSendMessage(token, chatId, 'Invalid document callback.');
       return;
@@ -596,8 +603,7 @@ export async function handleTelegramCallbackQuery(opts: {
     const docUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
     const contactRes = await getContact(uid);
     const contactName = contactRes.ok ? contactRes.data.name : uid;
-    const { listTemplates: lt } = await import('./documentTemplates');
-    const tmpl = lt().find((t) => t.slug === templateSlug);
+    const tmpl = listTemplates().find((t) => t.slug === templateSlug);
     const docTitle = tmpl?.title ?? templateSlug;
     await telegramSendMessage(
       token,
