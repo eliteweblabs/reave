@@ -1,6 +1,7 @@
 ---
 /**
- * /dev/contacts — visualization of the master contact database (contact-api).
+ * /dev/contacts — visualization of the master contact database (contact-api),
+ * with a Crater sync tab that surfaces customers missing from the master DB.
  *
  * SENSITIVE: lists every client (PII + links through to portal credentials), so
  * it is gated behind DASHBOARD_KEY. Provide the key once via ?key=… (stored in
@@ -9,6 +10,7 @@
 export const prerender = false;
 
 import { listContacts, clientPortalUrl, type ContactRecord } from '../../lib/contactApi';
+import { craterSearchCustomers, isCraterConfigured, type CraterCustomer } from '../../lib/craterClient';
 import { serverEnv } from '../../lib/serverEnv';
 
 const COOKIE = 'dev_contacts_key';
@@ -37,6 +39,7 @@ if (!expectedKey) {
   lockReason = 'Incorrect key.';
 }
 
+// ── Master DB ──────────────────────────────────────────────────────────────────
 let contacts: ContactRecord[] = [];
 let total = 0;
 let loadError = '';
@@ -51,6 +54,63 @@ if (authorized) {
   }
 }
 
+// ── Crater sync ────────────────────────────────────────────────────────────────
+let craterCustomers: CraterCustomer[] = [];
+let craterError = '';
+const craterConfigured = isCraterConfigured();
+
+if (authorized && craterConfigured) {
+  const res = await craterSearchCustomers('');
+  if (res.ok) {
+    craterCustomers = res.data.customers ?? [];
+  } else {
+    craterError = res.error;
+  }
+}
+
+type SyncStatus = 'matched' | 'unmatched';
+type CraterSyncEntry = { customer: CraterCustomer; status: SyncStatus; matchedUid?: string };
+
+const syncEntries: CraterSyncEntry[] = craterCustomers.map((c) => {
+  const email = (c.email ?? '').trim().toLowerCase();
+  const cName = c.name.trim().toLowerCase();
+  const cnName = (c.contact_name ?? '').trim().toLowerCase();
+
+  if (email) {
+    const m = contacts.find((ct) => (ct.email ?? '').trim().toLowerCase() === email);
+    if (m) return { customer: c, status: 'matched', matchedUid: m.uid };
+  }
+  const m2 = contacts.find((ct) => ct.name.trim().toLowerCase() === cName);
+  if (m2) return { customer: c, status: 'matched', matchedUid: m2.uid };
+  if (cnName) {
+    const m3 = contacts.find((ct) => ct.name.trim().toLowerCase() === cnName);
+    if (m3) return { customer: c, status: 'matched', matchedUid: m3.uid };
+  }
+  return { customer: c, status: 'unmatched' };
+});
+
+const syncStats = {
+  total: syncEntries.length,
+  matched: syncEntries.filter((e) => e.status === 'matched').length,
+  unmatched: syncEntries.filter((e) => e.status === 'unmatched').length,
+};
+
+// Contacts in master DB that have no Crater customer (orphaned / deleted from Crater)
+const craterEmails = new Set(
+  craterCustomers.map((c) => (c.email ?? '').trim().toLowerCase()).filter(Boolean)
+);
+const craterNames = new Set([
+  ...craterCustomers.map((c) => c.name.trim().toLowerCase()),
+  ...craterCustomers.map((c) => (c.contact_name ?? '').trim().toLowerCase()).filter(Boolean),
+]);
+const orphanedContacts = contacts.filter((c) => {
+  const email = (c.email ?? '').trim().toLowerCase();
+  if (email && craterEmails.has(email)) return false;
+  if (craterNames.has(c.name.trim().toLowerCase())) return false;
+  return true;
+});
+
+// ── helpers ────────────────────────────────────────────────────────────────────
 if (!authorized) Astro.response.status = 401;
 
 const stats = {
@@ -64,6 +124,8 @@ const fmtDate = (s?: string | null) => {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
+const fmtMoney = (n: number) =>
+  n === 0 ? '' : `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 ---
 
 <!doctype html>
@@ -101,19 +163,40 @@ const fmtDate = (s?: string | null) => {
       }
       .err { color: #fca5a5; font-size: 13px; margin-top: 10px; }
 
-      .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 14px; }
+      /* ── tabs ───────────────────────────────────────────────────────────── */
+      .tabs { display: flex; gap: 4px; margin: 20px 0 0; border-bottom: 1px solid #232c3a; }
+      .tab-btn {
+        padding: 9px 18px; border: none; background: none; color: #8b97a8;
+        font: inherit; font-size: 14px; cursor: pointer; border-bottom: 2px solid transparent;
+        margin-bottom: -1px; border-radius: 6px 6px 0 0; transition: color 0.15s;
+      }
+      .tab-btn:hover { color: #e9eef6; }
+      .tab-btn.active { color: #e9eef6; border-bottom-color: #6366f1; font-weight: 600; }
+      .tab-badge {
+        display: inline-block; background: #1e2535; color: #8b97a8;
+        font-size: 11px; padding: 1px 6px; border-radius: 10px; margin-left: 5px;
+      }
+      .tab-badge.warn { background: #2a1f0e; color: #f59e0b; }
+      .tab-panel { display: none; padding-top: 20px; }
+      .tab-panel.active { display: block; }
+
+      /* ── stats ──────────────────────────────────────────────────────────── */
+      .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 18px; }
       .stat {
         background: #11151d; border: 1px solid #232c3a; border-radius: 12px;
         padding: 10px 16px; min-width: 110px;
       }
       .stat .n { font-size: 22px; font-weight: 700; }
       .stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #8b97a8; }
+      .stat.warn { border-color: #3d2800; }
+      .stat.warn .n { color: #f59e0b; }
 
       .search {
         width: 100%; padding: 12px 14px; margin-bottom: 16px; border-radius: 10px;
         border: 1px solid #283142; background: #11151d; color: #fff; font: inherit;
       }
 
+      /* ── contact cards ──────────────────────────────────────────────────── */
       .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
       .card {
         background: #11151d; border: 1px solid #232c3a; border-radius: 14px; padding: 14px 16px;
@@ -124,7 +207,7 @@ const fmtDate = (s?: string | null) => {
       .card .meta { font-size: 13px; color: #c7d0dc; word-break: break-word; }
       .card .meta a { text-decoration: none; }
       .card .when { font-size: 11px; color: #6e7681; margin-top: 2px; }
-      .card .links { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+      .card .links { display: flex; gap: 8px; flex-wrap: wrap; }
       .card .links a {
         font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 8px;
         border: 1px solid #283142; background: #161b25; color: #cbd5e1;
@@ -133,6 +216,47 @@ const fmtDate = (s?: string | null) => {
       .empty-note { color: #8b97a8; margin-top: 20px; }
       .no-match { color: #8b97a8; display: none; margin-top: 20px; }
 
+      /* ── sync cards ─────────────────────────────────────────────────────── */
+      .sync-filter {
+        display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap;
+      }
+      .sync-filter label { font-size: 13px; color: #8b97a8; white-space: nowrap; }
+      .sync-filter select {
+        padding: 7px 12px; border-radius: 8px; border: 1px solid #283142;
+        background: #11151d; color: #e9eef6; font: inherit; font-size: 13px; cursor: pointer;
+      }
+      .sync-filter .search { margin: 0; flex: 1; min-width: 160px; }
+      .card.synced { border-color: #1a3a2a; }
+      .card.unsynced { border-color: #3d2800; }
+      .sync-badge {
+        display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+        font-size: 11px; padding: 2px 8px; border-radius: 10px; width: fit-content;
+      }
+      .sync-badge.ok { background: #0f2c1e; color: #4ade80; }
+      .sync-badge.missing { background: #2a1000; color: #fb923c; }
+      .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .btn-import {
+        margin-top: 4px; padding: 7px 14px; border-radius: 9px; border: none; cursor: pointer;
+        background: linear-gradient(135deg, #f59e0b, #ea580c); color: #0a0d14;
+        font: inherit; font-size: 13px; font-weight: 700; align-self: flex-start;
+        transition: opacity 0.15s;
+      }
+      .btn-import:hover { opacity: 0.88; }
+      .btn-import:disabled { opacity: 0.45; cursor: default; }
+      .btn-import.done { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+      .btn-delete {
+        margin-top: 4px; padding: 7px 14px; border-radius: 9px; border: 1px solid #4b1c1c; cursor: pointer;
+        background: #1c0a0a; color: #f87171;
+        font: inherit; font-size: 13px; font-weight: 600; align-self: flex-start;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .btn-delete:hover { background: #2d1010; border-color: #7f1d1d; }
+      .btn-delete:disabled { opacity: 0.45; cursor: default; }
+      .import-msg { font-size: 12px; margin-top: 4px; }
+      .import-msg.ok { color: #4ade80; }
+      .import-msg.err { color: #fca5a5; }
+
+      /* ── add button + modal ─────────────────────────────────────────────── */
       .btn-add {
         padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer;
         background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
@@ -185,7 +309,7 @@ const fmtDate = (s?: string | null) => {
                 <button type="submit">Unlock</button>
               </form>
             )}
-            {lockReason === 'Incorrect key.' && <div class="err">That key didn’t work.</div>}
+            {lockReason === 'Incorrect key.' && <div class="err">That key didn't work.</div>}
           </div>
         </main>
       ) : (
@@ -201,48 +325,202 @@ const fmtDate = (s?: string | null) => {
             </div>
           </div>
 
-          {loadError ? (
-            <p class="empty-note">Couldn’t load contacts: {loadError}</p>
-          ) : (
-            <>
-              <div class="stats">
-                <div class="stat"><div class="n">{total}</div><div class="l">Total</div></div>
-                <div class="stat"><div class="n">{stats.withCompany}</div><div class="l">Company</div></div>
-                <div class="stat"><div class="n">{stats.withEmail}</div><div class="l">Email</div></div>
-                <div class="stat"><div class="n">{stats.withPhone}</div><div class="l">Phone</div></div>
-                {total > stats.shown && (
-                  <div class="stat"><div class="n">{stats.shown}</div><div class="l">Shown</div></div>
-                )}
-              </div>
+          {/* ── tab bar ───────────────────────────────────────────────────── */}
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="master">
+              Master DB
+              <span class="tab-badge">{total}</span>
+            </button>
+            {craterConfigured && (
+              <button class="tab-btn" data-tab="sync">
+                Crater sync
+                {syncStats.unmatched > 0
+                  ? <span class="tab-badge warn">{syncStats.unmatched} missing</span>
+                  : <span class="tab-badge">{syncStats.total}</span>
+                }
+              </button>
+            )}
+          </div>
 
-              <input id="search" class="search" type="search" placeholder="Search name, company, email, phone…" autocomplete="off" />
+          {/* ── Master DB tab ─────────────────────────────────────────────── */}
+          <div class="tab-panel active" id="panel-master">
+            {loadError ? (
+              <p class="empty-note">Couldn't load contacts: {loadError}</p>
+            ) : (
+              <>
+                <div class="stats">
+                  <div class="stat"><div class="n">{total}</div><div class="l">Total</div></div>
+                  <div class="stat"><div class="n">{stats.withCompany}</div><div class="l">Company</div></div>
+                  <div class="stat"><div class="n">{stats.withEmail}</div><div class="l">Email</div></div>
+                  <div class="stat"><div class="n">{stats.withPhone}</div><div class="l">Phone</div></div>
+                  {total > stats.shown && (
+                    <div class="stat"><div class="n">{stats.shown}</div><div class="l">Shown</div></div>
+                  )}
+                </div>
 
-              <div class="grid" id="grid">
-                {contacts.map((c) => {
-                  const portal = clientPortalUrl(c.uid);
-                  const search = [c.name, c.company, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
-                  return (
-                    <div class="card" data-search={search}>
-                      <div class="name">{c.name}</div>
-                      {c.company && <div class="company">{c.company}</div>}
-                      {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
-                      {c.phone && <div class="meta"><a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>{c.phone}</a></div>}
-                      {c.updatedAt && <div class="when">Updated {fmtDate(c.updatedAt)}</div>}
-                      <div class="links">
-                        <a href={portal} target="_blank" rel="noopener noreferrer">Portal</a>
-                        <a href={`/c/${encodeURIComponent(c.uid)}.vcf`}>vCard</a>
-                        <a href={`/c/${encodeURIComponent(c.uid)}/note.txt`} target="_blank" rel="noopener noreferrer">Notes</a>
+                <input id="search" class="search" type="search" placeholder="Search name, company, email, phone…" autocomplete="off" />
+
+                <div class="grid" id="grid">
+                  {contacts.map((c) => {
+                    const portal = clientPortalUrl(c.uid);
+                    const searchVal = [c.name, c.company, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
+                    return (
+                      <div class="card" data-search={searchVal}>
+                        <div class="name">{c.name}</div>
+                        {c.company && <div class="company">{c.company}</div>}
+                        {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
+                        {c.phone && <div class="meta"><a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>{c.phone}</a></div>}
+                        {c.updatedAt && <div class="when">Updated {fmtDate(c.updatedAt)}</div>}
+                        <div class="links">
+                          <a href={portal} target="_blank" rel="noopener noreferrer">Portal</a>
+                          <a href={`/c/${encodeURIComponent(c.uid)}.vcf`}>vCard</a>
+                          <a href={`/c/${encodeURIComponent(c.uid)}/note.txt`} target="_blank" rel="noopener noreferrer">Notes</a>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+                <p class="no-match" id="noMatch">No contacts match your search.</p>
+                {contacts.length === 0 && <p class="empty-note">No contacts yet.</p>}
+              </>
+            )}
+          </div>
+
+          {/* ── Crater Sync tab ───────────────────────────────────────────── */}
+          {craterConfigured && (
+            <div class="tab-panel" id="panel-sync">
+              {craterError ? (
+                <p class="empty-note" style="color:#fca5a5">Couldn't load Crater customers: {craterError}</p>
+              ) : (
+                <>
+                  <div class="stats">
+                    <div class="stat">
+                      <div class="n">{syncStats.total}</div>
+                      <div class="l">Crater customers</div>
                     </div>
-                  );
-                })}
-              </div>
-              <p class="no-match" id="noMatch">No contacts match your search.</p>
-              {contacts.length === 0 && <p class="empty-note">No contacts yet.</p>}
-            </>
+                    <div class="stat">
+                      <div class="n" style="color:#4ade80">{syncStats.matched}</div>
+                      <div class="l">Matched</div>
+                    </div>
+                    <div class={`stat${syncStats.unmatched > 0 ? ' warn' : ''}`}>
+                      <div class="n">{syncStats.unmatched}</div>
+                      <div class="l">Missing from master</div>
+                    </div>
+                    <div class={`stat${orphanedContacts.length > 0 ? ' warn' : ''}`}>
+                      <div class="n">{orphanedContacts.length}</div>
+                      <div class="l">Not in Crater</div>
+                    </div>
+                  </div>
+
+                  <div class="sync-filter">
+                    <label for="syncFilter">Show:</label>
+                    <select id="syncFilter">
+                      <option value="unmatched" selected={syncStats.unmatched > 0 && orphanedContacts.length === 0}>
+                        Missing from master DB ({syncStats.unmatched})
+                      </option>
+                      <option value="orphaned" selected={orphanedContacts.length > 0}>
+                        Not in Crater — master DB only ({orphanedContacts.length})
+                      </option>
+                      <option value="all">All Crater customers ({syncStats.total})</option>
+                      <option value="matched">Matched ({syncStats.matched})</option>
+                    </select>
+                    <input id="syncSearch" class="search" type="search" placeholder="Filter by name or email…" autocomplete="off" />
+                  </div>
+
+                  {/* Crater customers grid (unmatched / matched / all) */}
+                  <div class="grid" id="syncGrid">
+                    {syncEntries.map((e) => {
+                      const c = e.customer;
+                      const displayName = c.contact_name || c.name;
+                      const isCompany = Boolean(c.contact_name);
+                      const sv = [c.name, c.contact_name, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
+                      const portalUrl = e.matchedUid ? clientPortalUrl(e.matchedUid) : null;
+                      const due = c.invoice_summary?.total_due ?? 0;
+                      return (
+                        <div
+                          class={`card ${e.status === 'matched' ? 'synced' : 'unsynced'}`}
+                          data-view="crater"
+                          data-sync={e.status}
+                          data-search={sv}
+                        >
+                          <div class="card-header">
+                            <div class="name">{displayName}</div>
+                            {e.status === 'matched'
+                              ? <span class="sync-badge ok">✓ synced</span>
+                              : <span class="sync-badge missing">⚠ missing</span>
+                            }
+                          </div>
+                          {isCompany && <div class="company">{c.name}</div>}
+                          {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
+                          {c.phone && <div class="meta"><a href={`tel:${c.phone.replace(/[^\d+]/g,'')}`}>{c.phone}</a></div>}
+                          {c.invoice_summary && (
+                            <div class="when">
+                              {c.invoice_summary.count} invoice{c.invoice_summary.count !== 1 ? 's' : ''}
+                              {due > 0 && ` · ${fmtMoney(due)} due`}
+                            </div>
+                          )}
+                          {portalUrl && (
+                            <div class="links">
+                              <a href={portalUrl} target="_blank" rel="noopener noreferrer">Portal</a>
+                            </div>
+                          )}
+                          {e.status === 'unmatched' && (
+                            <>
+                              <button
+                                class="btn-import"
+                                data-name={displayName}
+                                data-company={isCompany ? c.name : ''}
+                                data-email={c.email ?? ''}
+                                data-phone={c.phone ?? ''}
+                                data-notes={`Imported from Crater customer #${c.id}`}
+                              >
+                                Import to master DB
+                              </button>
+                              <div class="import-msg" style="display:none"></div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Master-DB-only (orphaned) grid */}
+                  <div class="grid" id="orphanGrid">
+                    {orphanedContacts.map((c) => {
+                      const portal = clientPortalUrl(c.uid);
+                      const sv = [c.name, c.company, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
+                      return (
+                        <div class="card unsynced" data-view="orphaned" data-search={sv}>
+                          <div class="card-header">
+                            <div class="name">{c.name}</div>
+                            <span class="sync-badge missing">not in Crater</span>
+                          </div>
+                          {c.company && <div class="company">{c.company}</div>}
+                          {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
+                          {c.phone && <div class="meta"><a href={`tel:${c.phone.replace(/[^\d+]/g,'')}`}>{c.phone}</a></div>}
+                          {c.updatedAt && <div class="when">Added {fmtDate(c.updatedAt)}</div>}
+                          <div class="links">
+                            <a href={portal} target="_blank" rel="noopener noreferrer">Portal</a>
+                          </div>
+                          <button class="btn-delete" data-uid={c.uid} data-name={c.name}>
+                            Delete from master DB
+                          </button>
+                          <div class="import-msg" style="display:none"></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {syncEntries.length === 0 && orphanedContacts.length === 0 && (
+                    <p class="empty-note">No contacts or Crater customers found.</p>
+                  )}
+                  <p class="no-match" id="syncNoMatch">No contacts match your filter.</p>
+                </>
+              )}
+            </div>
           )}
 
-          {/* Add-contact modal */}
+          {/* ── Add-contact modal ─────────────────────────────────────────── */}
           <div class="modal-backdrop" id="modalBackdrop">
             <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
               <h2 id="modalTitle">Add contact</h2>
@@ -269,7 +547,18 @@ const fmtDate = (s?: string | null) => {
     }
 
     <script>
-      // ── search filter ──────────────────────────────────────────────────────
+      // ── tab switching ──────────────────────────────────────────────────────
+      const tabBtns = Array.from(document.querySelectorAll<HTMLButtonElement>('.tab-btn'));
+      const tabPanels = Array.from(document.querySelectorAll<HTMLElement>('.tab-panel'));
+      tabBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const target = btn.dataset.tab;
+          tabBtns.forEach((b) => b.classList.toggle('active', b === btn));
+          tabPanels.forEach((p) => p.classList.toggle('active', p.id === `panel-${target}`));
+        });
+      });
+
+      // ── master DB search filter ────────────────────────────────────────────
       const search = document.getElementById('search') as HTMLInputElement | null;
       const cards = Array.from(document.querySelectorAll<HTMLElement>('#grid .card'));
       const noMatch = document.getElementById('noMatch');
@@ -283,6 +572,128 @@ const fmtDate = (s?: string | null) => {
           if (show) visible++;
         }
         if (noMatch) noMatch.style.display = visible === 0 && cards.length > 0 ? 'block' : 'none';
+      });
+
+      // ── Crater sync filter + search ────────────────────────────────────────
+      const syncFilter = document.getElementById('syncFilter') as HTMLSelectElement | null;
+      const syncSearch = document.getElementById('syncSearch') as HTMLInputElement | null;
+      const craterCards = Array.from(document.querySelectorAll<HTMLElement>('#syncGrid .card'));
+      const orphanCards = Array.from(document.querySelectorAll<HTMLElement>('#orphanGrid .card'));
+      const syncNoMatch = document.getElementById('syncNoMatch');
+
+      function applySyncFilter() {
+        const filterVal = syncFilter?.value ?? 'orphaned';
+        const q = syncSearch?.value.trim().toLowerCase() ?? '';
+        let visible = 0;
+
+        // Crater cards: shown for 'all', 'matched', 'unmatched'
+        for (const card of craterCards) {
+          const syncStatus = card.getAttribute('data-sync') || '';
+          const hay = card.getAttribute('data-search') || '';
+          const matchFilter = filterVal === 'all' || filterVal === syncStatus;
+          const matchSearch = !q || hay.includes(q);
+          const show = matchFilter && matchSearch;
+          card.style.display = show ? '' : 'none';
+          if (show) visible++;
+        }
+
+        // Orphan cards: shown only for 'orphaned'
+        for (const card of orphanCards) {
+          const hay = card.getAttribute('data-search') || '';
+          const matchSearch = !q || hay.includes(q);
+          const show = filterVal === 'orphaned' && matchSearch;
+          card.style.display = show ? '' : 'none';
+          if (show) visible++;
+        }
+
+        const totalCards = craterCards.length + orphanCards.length;
+        if (syncNoMatch) {
+          syncNoMatch.style.display = visible === 0 && totalCards > 0 ? 'block' : 'none';
+        }
+      }
+
+      syncFilter?.addEventListener('change', applySyncFilter);
+      syncSearch?.addEventListener('input', applySyncFilter);
+      applySyncFilter();
+
+      // ── Import-to-master buttons ───────────────────────────────────────────
+      const dashKey = (document.querySelector('meta[name="dashboard-key"]') as HTMLMetaElement | null)?.content || '';
+
+      document.querySelectorAll<HTMLButtonElement>('.btn-import').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const card = btn.closest('.card') as HTMLElement | null;
+          const msgEl = card?.querySelector<HTMLElement>('.import-msg');
+
+          btn.disabled = true;
+          if (msgEl) { msgEl.textContent = 'Importing…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+
+          const payload = {
+            name: btn.dataset.name || '',
+            company: btn.dataset.company || undefined,
+            email: btn.dataset.email || undefined,
+            phone: btn.dataset.phone || undefined,
+            notes: btn.dataset.notes || undefined,
+          };
+
+          try {
+            const res = await fetch('/api/contacts', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-dashboard-key': dashKey },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json() as { ok: boolean; error?: string; contact?: { name?: string } };
+            if (data.ok) {
+              btn.textContent = '✓ Imported';
+              btn.classList.add('done');
+              if (card) card.classList.replace('unsynced', 'synced');
+              const badge = card?.querySelector('.sync-badge');
+              if (badge) { badge.textContent = '✓ synced'; badge.className = 'sync-badge ok'; }
+              if (msgEl) { msgEl.textContent = 'Added to master DB.'; msgEl.className = 'import-msg ok'; }
+            } else {
+              btn.disabled = false;
+              if (msgEl) { msgEl.textContent = data.error || 'Import failed.'; msgEl.className = 'import-msg err'; }
+            }
+          } catch (e) {
+            btn.disabled = false;
+            if (msgEl) { msgEl.textContent = `Error: ${e instanceof Error ? e.message : String(e)}`; msgEl.className = 'import-msg err'; }
+          }
+        });
+      });
+
+      // ── Delete-from-master buttons ─────────────────────────────────────────
+      document.querySelectorAll<HTMLButtonElement>('.btn-delete').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.uid || '';
+          const name = btn.dataset.name || 'this contact';
+          if (!confirm(`Delete "${name}" from the master DB? This cannot be undone.`)) return;
+
+          const card = btn.closest('.card') as HTMLElement | null;
+          const msgEl = card?.querySelector<HTMLElement>('.import-msg');
+
+          btn.disabled = true;
+          if (msgEl) { msgEl.textContent = 'Deleting…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+
+          try {
+            const res = await fetch(`/api/contacts/${encodeURIComponent(uid)}`, {
+              method: 'DELETE',
+              headers: { 'x-dashboard-key': dashKey },
+            });
+            const data = await res.json() as { ok: boolean; error?: string };
+            if (data.ok) {
+              if (card) {
+                card.style.opacity = '0.4';
+                card.style.pointerEvents = 'none';
+              }
+              if (msgEl) { msgEl.textContent = 'Deleted.'; msgEl.className = 'import-msg ok'; }
+            } else {
+              btn.disabled = false;
+              if (msgEl) { msgEl.textContent = data.error || 'Delete failed.'; msgEl.className = 'import-msg err'; }
+            }
+          } catch (e) {
+            btn.disabled = false;
+            if (msgEl) { msgEl.textContent = `Error: ${e instanceof Error ? e.message : String(e)}`; msgEl.className = 'import-msg err'; }
+          }
+        });
       });
 
       // ── add-contact modal ──────────────────────────────────────────────────
@@ -325,25 +736,21 @@ const fmtDate = (s?: string | null) => {
 
         if (saveBtn) saveBtn.disabled = true;
 
-        // Read the dashboard key from the cookie or ask the browser to send it
-        // The key is stored httpOnly so we pass it via a meta tag stamped at render time.
-        const dashKey = (document.querySelector('meta[name="dashboard-key"]') as HTMLMetaElement | null)?.content || '';
+        const key = (document.querySelector('meta[name="dashboard-key"]') as HTMLMetaElement | null)?.content || '';
 
         try {
           const res = await fetch('/api/contacts', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-dashboard-key': dashKey },
+            headers: { 'Content-Type': 'application/json', 'x-dashboard-key': key },
             body: JSON.stringify({ name, company: company || undefined, email: email || undefined, phone: phone || undefined, notes: notes || undefined }),
           });
           const data = await res.json() as { ok: boolean; error?: string; contact?: { uid?: string; name?: string } };
           if (data.ok && data.contact) {
             if (okEl) { okEl.textContent = `Added ${data.contact.name}.`; okEl.style.display = 'block'; }
-            // Clear fields
             (['f-name','f-company','f-email','f-phone','f-notes'] as const).forEach(id => {
               const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null;
               if (el) el.value = '';
             });
-            // Reload after short delay so the new card appears
             setTimeout(() => { window.location.reload(); }, 900);
           } else {
             if (errEl) { errEl.textContent = data.error || 'Unknown error.'; errEl.style.display = 'block'; }

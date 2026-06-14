@@ -329,6 +329,34 @@ export async function listContacts(opts: {
   }
 }
 
+/** Delete a contact by uid (DELETE /api/contacts/:uid). */
+export async function deleteContact(
+  uid: string
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+
+  try {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    if (res.ok) return { ok: true };
+    const text = await res.text().catch(() => '');
+    let msg: string;
+    try {
+      const j = text ? (JSON.parse(text) as { error?: string; message?: string }) : {};
+      msg = j.error ?? j.message ?? text.slice(0, 200) ?? res.statusText;
+    } catch {
+      msg = text.slice(0, 200) || res.statusText;
+    }
+    return { ok: false, error: msg, status: res.status };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** Pull the portal payload out of a contact's links, if present. */
 export function extractPortal(contact: ContactRecord): ClientPortal | null {
   const link = (contact.links ?? []).find((l) => l.system === PORTAL_SYSTEM);

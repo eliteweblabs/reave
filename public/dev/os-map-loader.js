@@ -217,11 +217,12 @@ function applyHealth(services) {
 function updateChecked() {
   const el = document.getElementById('health-checked');
   if (!el) return;
-  if (activeKey !== 'system') {
-    el.textContent = '';
+  if (activeKey !== 'system' || !lastChecked) {
+    el.innerHTML = '';
     return;
   }
-  el.textContent = lastChecked ? `checked ${lastChecked.toLocaleTimeString()}` : '';
+  const time = lastChecked.toLocaleTimeString();
+  el.innerHTML = `🕐<span class="clock-tip">Health checked at ${time}</span>`;
 }
 
 // ---- rendering ----

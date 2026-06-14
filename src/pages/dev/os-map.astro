@@ -333,9 +333,36 @@ export const prerender = true;
         box-shadow: 0 0 5px var(--sc, transparent);
       }
       #health-checked {
-        font-size: 0.68rem;
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        cursor: default;
         color: var(--muted);
+        font-size: 1rem;
+        line-height: 1;
+      }
+      #health-checked .clock-tip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        white-space: nowrap;
+        background: #1a2030;
+        border: 1px solid #2d3a4f;
+        color: #c8d4e3;
+        font-size: 0.7rem;
         font-variant-numeric: tabular-nums;
+        padding: 4px 9px;
+        border-radius: 6px;
+        pointer-events: none;
+        transition: opacity 0.12s;
+        z-index: 200;
+      }
+      #health-checked:hover .clock-tip,
+      #health-checked:focus .clock-tip {
+        visibility: visible;
+        opacity: 1;
       }
 
       /* ── Documents editor tab ── */
