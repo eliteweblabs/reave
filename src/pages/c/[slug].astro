@@ -100,6 +100,10 @@ const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = displayName;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0a0a0a';
+
+// ?submit — show a focused data-submission form instead of the full portal.
+const submitMode = !notFound && Astro.url.searchParams.has('submit');
+const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 ---
 
 <!doctype html>
@@ -133,6 +137,36 @@ const themeColor = '#0a0a0a';
             <h1>This page isn’t available</h1>
             <p>The link may be expired or incorrect. Please reach out and we’ll send you a fresh one.</p>
           </div>
+        </main>
+      ) : submitMode ? (
+        <main class="wrap">
+          <header class="hero">
+            <div class="logo">/\V</div>
+            <h1>{displayName}</h1>
+            {company && <p class="company">{company}</p>}
+          </header>
+
+          <div id="submit-form">
+            <p class="submit-intro">Fill in the details below and tap <strong>Submit</strong>. Add as many entries as you need.</p>
+
+            <div id="entries-list"></div>
+
+            <button class="add-btn" id="add-entry" type="button">+ Add another</button>
+
+            <button class="submit-btn" id="submit-btn" type="button">Submit</button>
+          </div>
+
+          <div id="submit-success" style="display:none">
+            <div class="success-card">
+              <div class="success-icon">&#x2713;</div>
+              <h2>Submitted</h2>
+              <p>Your info has been received. You can close this page.</p>
+            </div>
+          </div>
+
+          <footer class="foot">
+            <span class="brand">Powered by Reave</span>
+          </footer>
         </main>
       ) : (
         <main class="wrap">
@@ -298,7 +332,7 @@ const themeColor = '#0a0a0a';
       )
     }
 
-    <script>
+    <script define:vars={{ submitEndpoint, submitMode }}>
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-tab-btn');
@@ -328,6 +362,90 @@ const themeColor = '#0a0a0a';
           } catch {}
         });
       });
+
+      // Submit-mode form logic
+      const entriesList = document.getElementById('entries-list');
+      const addBtn = document.getElementById('add-entry');
+      const submitBtn = document.getElementById('submit-btn');
+      const submitForm = document.getElementById('submit-form');
+      const submitSuccess = document.getElementById('submit-success');
+
+      if (entriesList && addBtn && submitBtn) {
+        let entryCount = 0;
+
+        function addEntry() {
+          entryCount++;
+          const idx = entryCount;
+          const card = document.createElement('div');
+          card.className = 'entry-card';
+          card.dataset.idx = String(idx);
+          card.innerHTML = `
+            <div class="entry-header">
+              <span class="entry-num">Entry ${idx}</span>
+              ${idx > 1 ? '<button class="entry-remove" type="button" aria-label="Remove">✕</button>' : ''}
+            </div>
+            <input class="entry-label" type="text" placeholder="Label (e.g. Hosting, cPanel, Domain…)" autocomplete="off" />
+            <textarea class="entry-value" rows="4" placeholder="Paste your info here…"></textarea>
+          `;
+          const removeBtn = card.querySelector('.entry-remove');
+          if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+              card.remove();
+              // Renumber remaining entries
+              entriesList.querySelectorAll('.entry-card').forEach((c, i) => {
+                const numEl = c.querySelector('.entry-num');
+                if (numEl) numEl.textContent = `Entry ${i + 1}`;
+              });
+              entryCount = entriesList.querySelectorAll('.entry-card').length;
+            });
+          }
+          entriesList.appendChild(card);
+          card.querySelector('input')?.focus();
+        }
+
+        addEntry(); // start with one
+
+        addBtn.addEventListener('click', addEntry);
+
+        submitBtn.addEventListener('click', async () => {
+          const cards = entriesList.querySelectorAll('.entry-card');
+          const entries = [];
+          let hasError = false;
+
+          cards.forEach((card) => {
+            const label = (card.querySelector('.entry-label')).value.trim();
+            const value = (card.querySelector('.entry-value')).value.trim();
+            if (!label) {
+              (card.querySelector('.entry-label')).classList.add('input-error');
+              hasError = true;
+              return;
+            }
+            (card.querySelector('.entry-label')).classList.remove('input-error');
+            if (label || value) entries.push({ label, value });
+          });
+
+          if (hasError || entries.length === 0) return;
+
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting…';
+
+          try {
+            const res = await fetch(submitEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ entries }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.ok) throw new Error(json.error || 'Submit failed');
+            if (submitForm) submitForm.style.display = 'none';
+            if (submitSuccess) submitSuccess.style.display = '';
+          } catch (err) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+            alert('Something went wrong. Please try again or contact us directly.');
+          }
+        });
+      }
     </script>
 
     <style is:global>
@@ -482,6 +600,66 @@ const themeColor = '#0a0a0a';
       .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
       .empty .card h1 { font-size: 22px; margin: 18px 0 10px; }
       .empty .card p { color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; max-width: 340px; margin: 0 auto; }
+
+      /* Submit mode */
+      .submit-intro {
+        color: rgba(255, 255, 255, 0.6); font-size: 15px; line-height: 1.6;
+        margin: 0 0 20px;
+      }
+      .submit-intro strong { color: rgba(255, 255, 255, 0.9); }
+      .entry-card {
+        padding: 16px; margin-bottom: 14px; border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04);
+        display: flex; flex-direction: column; gap: 10px;
+      }
+      .entry-header { display: flex; justify-content: space-between; align-items: center; }
+      .entry-num { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255, 255, 255, 0.4); }
+      .entry-remove {
+        background: none; border: none; color: rgba(255, 255, 255, 0.35);
+        font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+      }
+      .entry-remove:hover { color: rgba(255, 255, 255, 0.7); }
+      .entry-label, .entry-value {
+        width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px; color: #fff; font-family: inherit; font-size: 15px;
+        padding: 11px 14px; outline: none; resize: none;
+        transition: border-color 0.2s;
+      }
+      .entry-label::placeholder, .entry-value::placeholder { color: rgba(255, 255, 255, 0.3); }
+      .entry-label:focus, .entry-value:focus { border-color: rgba(168, 85, 247, 0.6); }
+      .entry-label.input-error { border-color: #f87171; }
+      .entry-value { font-size: 14px; line-height: 1.5; }
+      .add-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; padding: 13px; margin-bottom: 14px;
+        border: 1px dashed rgba(255, 255, 255, 0.2); border-radius: 12px;
+        background: transparent; color: rgba(255, 255, 255, 0.5);
+        font: inherit; font-size: 14px; cursor: pointer;
+        transition: border-color 0.2s, color 0.2s;
+      }
+      .add-btn:hover { border-color: rgba(168, 85, 247, 0.5); color: rgba(255, 255, 255, 0.8); }
+      .submit-btn {
+        width: 100%; padding: 16px;
+        background: linear-gradient(135deg, #a855f7, #ec4899);
+        border: none; border-radius: 14px; color: #fff;
+        font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+        transition: opacity 0.2s, transform 0.15s;
+      }
+      .submit-btn:active { transform: scale(0.98); }
+      .submit-btn:disabled { opacity: 0.5; cursor: default; }
+      .success-card {
+        text-align: center; padding: 48px 24px;
+        border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .success-icon {
+        font-size: 36px; width: 64px; height: 64px; border-radius: 50%;
+        background: linear-gradient(135deg, #a855f7, #ec4899);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 20px; color: #fff;
+      }
+      .success-card h2 { margin: 0 0 10px; font-size: 22px; }
+      .success-card p { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; }
     </style>
   </body>
 </html>
