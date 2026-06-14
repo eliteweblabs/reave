@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { handleTelegramTextMessage, type TelegramUpdate } from '../../../lib/telegramMessageHandler';
+import { handleTelegramTextMessage, handleTelegramCallbackQuery, type TelegramUpdate } from '../../../lib/telegramMessageHandler';
 import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
@@ -47,7 +47,11 @@ export const POST: APIRoute = async ({ request }) => {
   const update = body as TelegramUpdate;
 
   try {
-    await handleTelegramTextMessage({ token, update });
+    if (update.callback_query) {
+      await handleTelegramCallbackQuery({ token, update });
+    } else {
+      await handleTelegramTextMessage({ token, update });
+    }
   } catch (e) {
     console.error('[telegram] handler error', e);
     return new Response(JSON.stringify({ ok: false, error: 'handler failed' }), {

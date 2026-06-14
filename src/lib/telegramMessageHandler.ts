@@ -1,11 +1,12 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage } from './telegramClient';
+import { telegramSendMessage, telegramSendMenu, telegramAnswerCallback } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
 import { isCraterConfigured, craterCreateInvoice, formatCreatedInvoice } from './craterClient';
 import { serverEnv } from './serverEnv';
+import { getCommandMenuButtons, formatSectionForTelegram } from './telegramCommandDocs';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
   if (!raw?.trim()) return null;
@@ -107,11 +108,16 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return '__CLEAR_HISTORY__';
   }
 
+  if (t === '/commands') {
+    return '__COMMANDS_MENU__';
+  }
+
   if (t === '/help') {
     const hasContacts = isContactApiConfigured();
     const hasCrater = isCraterConfigured();
     const lines = [
       'COMMANDS (type these):',
+      '/commands — browse all commands with buttons',
       '/list — knowledge docs',
       '/get <slug> — read a knowledge doc',
       ...(hasContacts ? ['/resolve <name> (or /who) — find a client'] : []),
@@ -151,6 +157,12 @@ export type TelegramUpdate = {
     from?: { id?: number };
     text?: string;
     reply_to_message?: { text?: string };
+  };
+  callback_query?: {
+    id?: string;
+    from?: { id?: number };
+    message?: { chat?: { id?: number } };
+    data?: string;
   };
 };
 
@@ -194,6 +206,11 @@ export async function handleTelegramTextMessage(opts: {
     await telegramSendMessage(token, chatId, 'Conversation history cleared.');
     return;
   }
+  if (slash === '__COMMANDS_MENU__') {
+    const buttons = getCommandMenuButtons();
+    await telegramSendMenu(token, chatId, 'What do you want to look up?', buttons);
+    return;
+  }
   if (slash) {
     await telegramSendMessage(token, chatId, slash);
     return;
@@ -207,4 +224,34 @@ export async function handleTelegramTextMessage(opts: {
     { role: 'assistant', content: reply },
   ]);
   await telegramSendMessage(token, chatId, reply);
+}
+
+/** Handle Telegram inline keyboard button presses (callback_query). */
+export async function handleTelegramCallbackQuery(opts: {
+  token: string;
+  update: TelegramUpdate;
+}): Promise<void> {
+  const { token, update } = opts;
+  const cb = update.callback_query;
+  if (!cb) return;
+
+  const callbackId = cb.id ?? '';
+  const chatId = cb.message?.chat?.id;
+  const fromId = cb.from?.id;
+  const data = cb.data ?? '';
+
+  // Always ack immediately to remove Telegram's loading spinner.
+  if (callbackId) await telegramAnswerCallback(token, callbackId);
+
+  if (chatId == null || fromId == null) return;
+
+  const prod = import.meta.env.PROD;
+  const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
+  if (!isUserAllowed(fromId, allowed, prod)) return;
+
+  if (data.startsWith('cmd:')) {
+    const sectionId = data.slice(4);
+    const text = formatSectionForTelegram(sectionId);
+    await telegramSendMessage(token, chatId, text);
+  }
 }
