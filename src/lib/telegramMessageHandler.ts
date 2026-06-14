@@ -52,6 +52,29 @@ function noApi(service = 'Contact API'): string {
   return `${service} not configured. Check your environment variables.`;
 }
 
+/**
+ * Format a resolve-not-found response consistently across all commands.
+ * One candidate → "Did you mean X?" with a corrected command suggestion.
+ * Many candidates → list them and ask to be more specific.
+ */
+function fmtNoMatch(
+  command: string,
+  query: string,
+  candidates: Array<{ name?: string; uid?: string }>
+): string {
+  if (candidates.length === 1) {
+    const suggestion = candidates[0].name ?? candidates[0].uid ?? '?';
+    return `Did you mean ${suggestion}?\n\nTry: /${command} ${suggestion}`;
+  }
+  if (candidates.length > 1) {
+    const lines = [`Multiple matches for "${query}":`];
+    for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name ?? c.uid}`);
+    lines.push('', `Be more specific: /${command} John Smith`);
+    return lines.join('\n');
+  }
+  return `No contact found for "${query}".`;
+}
+
 function fmtMoney(n: number): string {
   return `$${Number(n).toFixed(2)}`;
 }
@@ -158,14 +181,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
         `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
       ].filter(Boolean).join('\n');
     }
-    const candidates = d.candidates ?? [];
-    if (candidates.length) {
-      const lines = [`Multiple matches for "${name}":`];
-      for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name ?? c.uid}`);
-      lines.push('', 'Be more specific: /portal John Smith');
-      return lines.join('\n');
-    }
-    return `No contact found for "${name}".`;
+    return fmtNoMatch('portal', name, d.candidates ?? []);
   }
 
   // ── /portalsend <name> ─────────────────────────────────────────────────────
@@ -181,14 +197,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if (!resolved.ok) return `resolve failed: ${resolved.error}`;
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
     if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
-      const candidates = d.candidates ?? [];
-      if (candidates.length) {
-        const lines = [`Multiple matches for "${name}":`];
-        for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
-        lines.push('', 'Be more specific: /portalsend John Smith');
-        return lines.join('\n');
-      }
-      return `No contact found for "${name}".`;
+      return fmtNoMatch('portalsend', name, d.candidates ?? []);
     }
     const uid = d.contact.uid;
     const full = await getContact(uid);
@@ -226,14 +235,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       const submitUrl = `${clientPortalUrl(d.contact.uid)}?submit`;
       return `${d.contact.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`;
     }
-    const candidates = d.candidates ?? [];
-    if (candidates.length) {
-      const lines = [`Multiple matches for "${name}":`];
-      for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
-      lines.push('', 'Be more specific: /submitlink John Smith');
-      return lines.join('\n');
-    }
-    return `No contact found for "${name}".`;
+    return fmtNoMatch('submitlink', name, d.candidates ?? []);
   }
 
   // ── /invoices ──────────────────────────────────────────────────────────────
@@ -518,15 +520,7 @@ export async function handleTelegramTextMessage(opts: {
     }
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
     if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
-      const candidates = d.candidates ?? [];
-      if (candidates.length) {
-        const lines = [`Multiple matches for "${name}":`];
-        for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
-        lines.push('', 'Be more specific: /document John Smith');
-        await telegramSendMessage(token, chatId, lines.join('\n'));
-      } else {
-        await telegramSendMessage(token, chatId, `No contact found for "${name}".`);
-      }
+      await telegramSendMessage(token, chatId, fmtNoMatch('document', name, d.candidates ?? []));
       return;
     }
     const uid = d.contact.uid;
