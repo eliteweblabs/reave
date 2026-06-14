@@ -1,8 +1,10 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands } from './telegramClient';
+import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu } from './telegramClient';
 import { buildCommandList } from './telegramCommandList';
+import { listTemplates } from './documentTemplates';
+import { siteBaseUrl } from './contactApi';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -17,6 +19,12 @@ import { isCraterConfigured, craterCreateInvoice, craterListInvoices, formatCrea
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
 import { checkDeploymentStatus, getRecentCommits } from './devStatus';
 import { serverEnv } from './serverEnv';
+import {
+  isVoiceAgentEnabled,
+  setVoiceAgentEnabled,
+  listActiveSessions,
+} from './voiceSessionManager';
+import { telnyxTransferCall, isTelnyxConfigured } from './telnyxClient';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
   if (!raw?.trim()) return null;
@@ -166,7 +174,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   if (portalSendMatch) {
     if (!isContactApiConfigured()) return noApi();
     if (!isEmailSendConfigured() && !isSmsSendConfigured()) {
-      return 'No outbound channel configured. Set RESEND_API_KEY (email) or TWILIO_* (SMS).';
+      return 'No outbound channel configured. Set RESEND_API_KEY (email) or TELNYX_API_KEY + TELNYX_FROM_NUMBER (SMS).';
     }
     const name = portalSendMatch[1].trim();
     const resolved = await resolveContact({ name });
@@ -316,6 +324,48 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return `Created "${out.name}"\n${out.id === '(dry-run)' ? '(dry run)' : `Open: ${dash}`}`;
   }
 
+  // ── /document ──────────────────────────────────────────────────────────────
+  if (t === '/document') return 'Usage: /document <name>\nExample: /document John Smith';
+  if (t.match(/^\/document\s/i)) return '__DOCUMENT_MENU__';
+
+  // ── /voice on|off ─────────────────────────────────────────────────────────
+  const voiceToggle = t.match(/^\/voice\s+(on|off)$/i);
+  if (voiceToggle) {
+    if (!isTelnyxConfigured()) return 'Telnyx not configured. Set TELNYX_API_KEY.';
+    const enable = voiceToggle[1].toLowerCase() === 'on';
+    setVoiceAgentEnabled(enable);
+    return `Voice agent ${enable ? 'enabled ✅' : 'disabled ⛔'}.\nNote: resets on server restart. Set VOICE_AGENT_ENABLED=1 in env to persist.`;
+  }
+  if (t === '/voice') return 'Usage: /voice on|off\nToggle the AI phone agent for inbound Telnyx calls.';
+
+  // ── /calls ─────────────────────────────────────────────────────────────────
+  if (t === '/calls') {
+    const all = listActiveSessions();
+    if (!all.length) return 'No active calls.';
+    const lines = [`Active calls (${all.length}):`];
+    for (const s of all) {
+      lines.push(`- ${s.from} → ${s.to}  [${s.mode}]  ${s.durationSecs()}s`);
+    }
+    lines.push('', '/takeover <phone> to transfer a call to your number.');
+    return lines.join('\n');
+  }
+
+  // ── /takeover <phone> ──────────────────────────────────────────────────────
+  if (t === '/takeover') return 'Usage: /takeover <caller-phone>\nExample: /takeover +12125551234\nTransfers that active call to TELNYX_OPERATOR_NUMBER.';
+  const takeoverMatch = t.match(/^\/takeover\s+(\+?\d[\d\s\-().]+)$/i);
+  if (takeoverMatch) {
+    if (!isTelnyxConfigured()) return 'Telnyx not configured.';
+    const operatorNumber = serverEnv('TELNYX_OPERATOR_NUMBER')?.trim();
+    if (!operatorNumber) return 'TELNYX_OPERATOR_NUMBER not set. Set it to your phone number (E.164).';
+    const searchPhone = takeoverMatch[1].trim().replace(/\s/g, '');
+    const sessions = listActiveSessions();
+    const session = sessions.find((s) => s.from === searchPhone || s.from.replace(/\s/g, '') === searchPhone);
+    if (!session) return `No active call from ${searchPhone}.\nUse /calls to see active calls.`;
+    const r = await telnyxTransferCall(session.callControlId, operatorNumber);
+    if (!r.ok) return `Transfer failed: ${r.error}`;
+    return `Transferring ${session.from} to ${operatorNumber}…\nYou should receive an incoming call now.`;
+  }
+
   // ── /ai ────────────────────────────────────────────────────────────────────
   if (t === '/ai') return 'Usage: /ai <your question>\nExample: /ai What\'s the status of the last deployment?';
 
@@ -336,6 +386,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
         '/portal <name>  — portal link + summary',
         '/portalsend <name>  — email/SMS the link',
         '/submitlink <name>  — data collection link',
+        '/document <name>  — send a document to sign',
       ] : []),
       ...(hasB ? [
         '/invoices  — recent invoices',
@@ -440,6 +491,54 @@ export async function handleTelegramTextMessage(opts: {
     );
     return;
   }
+
+  if (slash === '__DOCUMENT_MENU__') {
+    const docMatch = text.match(/^\/document\s+(.+)$/i);
+    const name = docMatch ? docMatch[1].trim() : '';
+    if (!name) {
+      await telegramSendMessage(token, chatId, 'Usage: /document <name>\nExample: /document John Smith');
+      return;
+    }
+    if (!isContactApiConfigured()) {
+      await telegramSendMessage(token, chatId, noApi());
+      return;
+    }
+    const resolved = await resolveContact({ name });
+    if (!resolved.ok) {
+      await telegramSendMessage(token, chatId, `resolve failed: ${resolved.error}`);
+      return;
+    }
+    const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
+    if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
+      const candidates = d.candidates ?? [];
+      if (candidates.length) {
+        const lines = [`Multiple matches for "${name}":`];
+        for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
+        lines.push('', 'Be more specific: /document John Smith');
+        await telegramSendMessage(token, chatId, lines.join('\n'));
+      } else {
+        await telegramSendMessage(token, chatId, `No contact found for "${name}".`);
+      }
+      return;
+    }
+    const uid = d.contact.uid;
+    const cName = d.contact.name ?? name;
+    const templates = listTemplates();
+    if (!templates.length) {
+      await telegramSendMessage(token, chatId, 'No document templates found. Add HTML files to src/content/documents/.');
+      return;
+    }
+    // Telegram callback_data max 64 bytes — keep template slugs short
+    const buttons = templates.map((tmpl) => ({
+      text: tmpl.title,
+      data: `doc:${uid}:${tmpl.slug}`,
+    }));
+    // 2 per row
+    const rows: Array<Array<{ text: string; data: string }>> = [];
+    for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
+    await telegramSendMenu(token, chatId, `Send a document to ${cName} — choose a template:`, rows);
+    return;
+  }
   if (slash) {
     await telegramSendMessage(token, chatId, slash);
     return;
@@ -484,9 +583,30 @@ export async function handleTelegramCallbackQuery(opts: {
   const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
   if (!isUserAllowed(fromId, allowed, prod)) return;
 
+  if (data.startsWith('doc:')) {
+    // Format: doc:{uid}:{templateSlug}
+    const parts = data.slice(4).split(':');
+    const uid = parts[0] ?? '';
+    const templateSlug = parts.slice(1).join(':'); // handle slugs with colons (shouldn't happen, but safe)
+    if (!uid || !templateSlug) {
+      await telegramSendMessage(token, chatId, 'Invalid document callback.');
+      return;
+    }
+    const docUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
+    const contactRes = await getContact(uid);
+    const contactName = contactRes.ok ? contactRes.data.name : uid;
+    const { listTemplates: lt } = await import('./documentTemplates');
+    const tmpl = lt().find((t) => t.slug === templateSlug);
+    const docTitle = tmpl?.title ?? templateSlug;
+    await telegramSendMessage(
+      token,
+      chatId,
+      `${docTitle} — ${contactName}\n\nSend this link to the client:\n${docUrl}\n\nThey can read and sign it from any device. Once signed, it appears in their portal under Documents.`
+    );
+    return;
+  }
+
   if (data.startsWith('cmd:')) {
-    // Inline keyboard callbacks are no longer actively used (commands are direct slash commands),
-    // but we keep the handler so existing keyboard buttons don't leave unanswered callbacks.
     await telegramSendMessage(token, chatId, 'Use /help to see all commands.');
   }
 }

@@ -162,6 +162,22 @@ export type ClientDataEntry = {
   url?: string;
 };
 
+/** A signed/approved document stored in the client's portal. */
+export type PortalDocument = {
+  /** Unique UUID per signing event. */
+  id: string;
+  /** Template slug (e.g. "contract", "nda"). */
+  template: string;
+  /** Human-readable title. */
+  title: string;
+  /** ISO timestamp of signing. */
+  signedAt: string;
+  /** Full name typed by signer. */
+  signerName: string;
+  /** Rendered HTML content (post-placeholder fill) — used for re-display and print-to-PDF. */
+  content: string;
+};
+
 export type ClientPortal = {
   /** When false, the public page returns 404 (revoked) even if content exists. */
   enabled?: boolean;
@@ -171,6 +187,8 @@ export type ClientPortal = {
   fields?: ClientPortalField[];
   /** Web-design handoff data (passwords, DNS, hosting…) shown in the Data tab. */
   data?: ClientDataEntry[];
+  /** Signed documents — appended on each signing event, never overwritten. */
+  documents?: PortalDocument[];
   updatedAt?: string;
 };
 

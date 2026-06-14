@@ -12,7 +12,7 @@
  * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Data
  * (web-design handoff: passwords/DNS/hosting). Tabs only appear when populated.
  */
-import { getContact, extractPortal, type ContactRecord, type ClientPortal } from '../../lib/contactApi';
+import { getContact, extractPortal, type ContactRecord, type ClientPortal, type PortalDocument } from '../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 
 const { slug } = Astro.params;
@@ -80,6 +80,10 @@ const dataEntries = (portal?.data ?? []).filter(
   (e) => e && e.label && (e.value || e.username || e.password || e.url)
 );
 
+const portalDocs = (portal?.documents ?? [])
+  .slice()
+  .sort((a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime());
+
 const email = contact?.email?.trim() || '';
 const phone = contact?.phone?.trim() || '';
 const telHref = phone ? phone.replace(/[^\d+]/g, '') : '';
@@ -90,10 +94,12 @@ const updatedAt = fmtDate(portal?.updatedAt);
 const hasOverview = Boolean(headline || bodyHtml || fields.length > 0);
 const hasBilling = Boolean(billing);
 const hasData = dataEntries.length > 0;
+const hasDocs = portalDocs.length > 0;
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
 if (hasData) tabs.push({ id: 'data', label: 'Data' });
+if (hasDocs) tabs.push({ id: 'documents', label: 'Documents' });
 const showTabs = tabs.length > 1;
 
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
@@ -320,6 +326,27 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                   )}
                   {e.value && <div class="data-value">{e.value}</div>}
                 </div>
+              ))}
+            </section>
+          )}
+
+          {/* Documents */}
+          {hasDocs && (
+            <section class="panel" data-tab-panel="documents">
+              <p class="data-note">Signed documents — tap to view or download as PDF.</p>
+              {portalDocs.map((doc) => (
+                <a
+                  class="doc-card"
+                  href={`/doc/${encodeURIComponent(uid)}/view/${encodeURIComponent(doc.id)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <div class="doc-card-left">
+                    <div class="doc-card-title">{doc.title}</div>
+                    <div class="doc-card-meta">Signed by {doc.signerName} · {fmtDate(doc.signedAt)}</div>
+                  </div>
+                  <span class="doc-card-arrow">↗</span>
+                </a>
               ))}
             </section>
           )}
@@ -567,6 +594,19 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .pay:active { opacity: 0.85; }
       .view { color: #d8b4fe; text-decoration: none; font-size: 13px; font-weight: 500; }
+
+      /* Documents tab */
+      .doc-card {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px 16px; margin-bottom: 10px; border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+        text-decoration: none; color: #fff; transition: background 0.2s, border-color 0.2s;
+      }
+      .doc-card:active { background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.4); }
+      .doc-card-left { flex: 1; min-width: 0; }
+      .doc-card-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .doc-card-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+      .doc-card-arrow { font-size: 18px; color: rgba(168, 85, 247, 0.8); flex: none; }
 
       .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
       .data-card {

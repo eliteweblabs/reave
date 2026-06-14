@@ -26,6 +26,7 @@ export function buildCommandList(): BotCommand[] {
       { command: 'portal', description: 'Get portal link for a client' },
       { command: 'portalsend', description: 'Send portal link to a client (email/SMS)' },
       { command: 'submitlink', description: 'Get data collection link for a client' },
+      { command: 'document', description: 'Send a document to sign (contract, NDA…)' },
     );
   }
 

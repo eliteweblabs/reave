@@ -1,0 +1,275 @@
+---
+/**
+ * /doc/:uid/view/:docId  — View a signed document.
+ *
+ * Renders the stored HTML content with a "SIGNED" banner and a print button.
+ * Clicking "Download as PDF" triggers window.print(); modern browsers offer
+ * "Save as PDF" natively. Print CSS hides UI chrome so only the document prints.
+ */
+import { getContact, extractPortal } from '../../../../lib/contactApi';
+
+const { uid, docId } = Astro.params;
+
+let error: string | null = null;
+let content = '';
+let title = '';
+let signerName = '';
+let signedAt = '';
+let contactName = '';
+
+if (!uid || !docId) {
+  error = 'Invalid link.';
+} else {
+  const contactRes = await getContact(uid);
+  if (!contactRes.ok || contactRes.data.archived) {
+    error = 'This document is no longer available.';
+  } else {
+    const portal = extractPortal(contactRes.data);
+    if (portal?.enabled === false) {
+      error = 'This document is no longer available.';
+    } else {
+      const doc = (portal?.documents ?? []).find((d) => d.id === docId);
+      if (!doc) {
+        error = 'Document not found.';
+      } else {
+        content = doc.content;
+        title = doc.title;
+        signerName = doc.signerName;
+        signedAt = doc.signedAt;
+        contactName = contactRes.data.name;
+      }
+    }
+  }
+}
+
+if (error) Astro.response.status = 404;
+
+const fmtDate = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{error ? 'Not found' : `${title} — Signed`}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    {error ? (
+      <main class="error-wrap">
+        <div class="logo">/\V</div>
+        <h1>Document not found</h1>
+        <p>{error}</p>
+      </main>
+    ) : (
+      <main>
+        <div class="toolbar no-print">
+          <div class="logo">/\V</div>
+          <button class="print-btn" type="button" onclick="window.print()">
+            ⬇ Download as PDF
+          </button>
+        </div>
+
+        <div class="signed-banner no-print">
+          <span class="check">✓</span>
+          <div>
+            <div class="signed-label">Signed document</div>
+            <div class="signed-meta">
+              Signed by <strong>{signerName}</strong> on {fmtDate(signedAt)}
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-header">
+          <div class="logo print-only">/\V</div>
+          <div class="doc-header-text">
+            <div class="doc-title">{title}</div>
+            <div class="doc-for">Prepared for {contactName}</div>
+          </div>
+        </div>
+
+        <div class="doc-body" set:html={content} />
+
+        <div class="signature-block">
+          <div class="sig-divider"></div>
+          <div class="sig-row">
+            <div class="sig-col">
+              <div class="sig-label">Electronically signed by</div>
+              <div class="sig-name">{signerName}</div>
+              <div class="sig-date">{fmtDate(signedAt)}</div>
+            </div>
+            <div class="sig-stamp">
+              <div class="stamp-inner">
+                <div class="stamp-signed">SIGNED</div>
+                <div class="stamp-via">via Reave</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="doc-foot">
+          <span>Document ID: {docId}</span>
+          <span>Powered by Reave</span>
+        </footer>
+      </main>
+    )}
+
+    <style is:global>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        background: #fff;
+        color: #1a1a1a;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, Georgia, serif;
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+      main { max-width: 780px; margin: 0 auto; padding: 24px 32px 80px; }
+
+      /* ── Toolbar ── */
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .logo { font-weight: 800; letter-spacing: 2px; font-size: 18px; }
+      .print-btn {
+        padding: 10px 22px;
+        background: #1a1a1a;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+      }
+      .print-btn:hover { opacity: 0.8; }
+
+      /* ── Signed banner ── */
+      .signed-banner {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 20px;
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        border-radius: 12px;
+        margin-bottom: 32px;
+      }
+      .check {
+        font-size: 20px;
+        width: 40px;
+        height: 40px;
+        background: #16a34a;
+        color: #fff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .signed-label { font-weight: 600; color: #166534; }
+      .signed-meta { font-size: 14px; color: #15803d; }
+
+      /* ── Doc header ── */
+      .doc-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 40px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid #1a1a1a;
+      }
+      .doc-header-text { flex: 1; }
+      .doc-title { font-size: 18px; font-weight: 700; }
+      .doc-for { font-size: 14px; color: #666; }
+
+      /* ── Document body ── */
+      .doc-body { margin-bottom: 56px; }
+      .doc-body h1 { font-size: 28px; font-weight: 800; margin: 0 0 6px; }
+      .doc-body h2 {
+        font-size: 15px; font-weight: 700; margin: 32px 0 8px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .doc-body p { margin: 0 0 14px; color: #333; }
+      .doc-body ul { margin: 0 0 14px; padding-left: 24px; color: #333; }
+      .doc-body li { margin-bottom: 6px; }
+      .doc-body .doc-meta {
+        font-size: 14px; color: #888; margin-bottom: 32px;
+        padding-bottom: 24px; border-bottom: 1px solid #eee;
+      }
+
+      /* ── Signature block ── */
+      .signature-block { margin-top: 40px; }
+      .sig-divider { height: 1px; background: #1a1a1a; margin-bottom: 28px; }
+      .sig-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+      }
+      .sig-col { flex: 1; }
+      .sig-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
+      .sig-name { font-size: 22px; font-style: italic; font-weight: 600; border-bottom: 1px solid #ccc; padding-bottom: 6px; margin-bottom: 6px; }
+      .sig-date { font-size: 13px; color: #666; }
+      .sig-stamp {
+        width: 110px;
+        height: 110px;
+        border: 3px solid #166534;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+        transform: rotate(-15deg);
+      }
+      .stamp-inner { text-align: center; }
+      .stamp-signed { font-weight: 800; font-size: 16px; color: #166534; letter-spacing: 2px; }
+      .stamp-via { font-size: 11px; color: #166534; letter-spacing: 1px; }
+
+      /* ── Footer ── */
+      .doc-foot {
+        margin-top: 48px; padding-top: 16px; border-top: 1px solid #eee;
+        font-size: 11px; color: #bbb; display: flex; justify-content: space-between;
+      }
+
+      /* ── Error ── */
+      .error-wrap { max-width: 400px; margin: 80px auto; text-align: center; padding: 0 20px; }
+      .error-wrap .logo { font-size: 22px; margin-bottom: 24px; display: block; }
+      .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
+      .error-wrap p { color: #666; }
+
+      /* ── Print ── */
+      .print-only { display: none; }
+
+      @media print {
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        main { padding: 0; }
+        .doc-header { margin-top: 16px; }
+        .signature-block { page-break-inside: avoid; }
+        .doc-foot { page-break-inside: avoid; }
+      }
+
+      @media (max-width: 600px) {
+        main { padding: 20px 20px 60px; }
+        .sig-row { flex-direction: column; align-items: flex-start; }
+        .sig-stamp { transform: none; }
+      }
+    </style>
+  </body>
+</html>

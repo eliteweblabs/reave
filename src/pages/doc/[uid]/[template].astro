@@ -1,0 +1,376 @@
+---
+/**
+ * /doc/:uid/:template  — Client-facing document signing page.
+ *
+ * The contact's info is filled into the template placeholders server-side.
+ * The client types their name and clicks "Sign" — that POSTs to the sign API
+ * which appends the document to their portal and returns the docId.
+ * On success we redirect to /doc/:uid/view/:docId for a print-ready view.
+ */
+import { getContact, extractPortal } from '../../../lib/contactApi';
+import { getTemplate, fillTemplate } from '../../../lib/documentTemplates';
+
+const { uid, template: templateSlug } = Astro.params;
+
+let error: string | null = null;
+let filled = '';
+let title = '';
+let contactName = '';
+
+if (!uid || !templateSlug) {
+  error = 'Invalid link.';
+} else {
+  const tmpl = getTemplate(templateSlug);
+  if (!tmpl) {
+    error = 'Document template not found.';
+  } else {
+    const contactRes = await getContact(uid);
+    if (!contactRes.ok) {
+      error = 'This link is no longer valid.';
+    } else if (contactRes.data.archived) {
+      error = 'This link is no longer valid.';
+    } else {
+      const portal = extractPortal(contactRes.data);
+      if (portal?.enabled === false) {
+        error = 'This link is no longer valid.';
+      } else {
+        filled = fillTemplate(tmpl.html, contactRes.data);
+        title = tmpl.title;
+        contactName = contactRes.data.name;
+      }
+    }
+  }
+}
+
+if (error) Astro.response.status = 404;
+
+const signEndpoint = `/api/doc/${encodeURIComponent(uid ?? '')}/sign`;
+const siteBase = Astro.url.origin;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{error ? 'Not found' : `${title} — Sign`}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    {error ? (
+      <main class="error-wrap">
+        <div class="logo">/\V</div>
+        <h1>This link isn't available</h1>
+        <p>{error}</p>
+      </main>
+    ) : (
+      <main>
+        <div class="doc-header">
+          <div class="logo">/\V</div>
+          <div class="doc-header-text">
+            <div class="doc-title">{title}</div>
+            <div class="doc-for">Prepared for {contactName}</div>
+          </div>
+        </div>
+
+        <div class="doc-body" set:html={filled} />
+
+        <div class="sign-section" id="sign-section">
+          <div class="sign-divider"></div>
+          <h2 class="sign-heading">Sign this document</h2>
+          <p class="sign-sub">
+            By typing your full name and clicking <strong>Sign &amp; Agree</strong>, you confirm that you
+            have read and agree to the terms above. This constitutes a legally binding electronic signature.
+          </p>
+
+          <label class="sign-label" for="signer-name">Full name</label>
+          <input
+            id="signer-name"
+            class="sign-input"
+            type="text"
+            placeholder="e.g. John Smith"
+            autocomplete="name"
+            autocorrect="off"
+          />
+
+          <div class="sign-date" id="sign-date-display"></div>
+
+          <button class="sign-btn" id="sign-btn" type="button" disabled>Sign &amp; Agree</button>
+
+          <p class="sign-legal">
+            Signed electronically via Reave · {siteBase}
+          </p>
+        </div>
+
+        <div class="success-section" id="success-section" style="display:none">
+          <div class="success-icon">✓</div>
+          <h2>Document signed</h2>
+          <p>Thank you, <strong id="signer-display"></strong>. Your signed copy has been saved.</p>
+          <a class="view-btn" id="view-link" href="#">View &amp; Download PDF →</a>
+        </div>
+
+        <footer class="doc-foot">
+          <span>Powered by Reave</span>
+        </footer>
+      </main>
+    )}
+
+    <script define:vars={{ signEndpoint, templateSlug }}>
+      const nameInput = document.getElementById('signer-name');
+      const signBtn = document.getElementById('sign-btn');
+      const signSection = document.getElementById('sign-section');
+      const successSection = document.getElementById('success-section');
+      const signerDisplay = document.getElementById('signer-display');
+      const viewLink = document.getElementById('view-link');
+      const dateDisplay = document.getElementById('sign-date-display');
+
+      if (dateDisplay) {
+        dateDisplay.textContent = new Date().toLocaleString('en-US', {
+          dateStyle: 'long', timeStyle: 'short',
+        });
+      }
+
+      if (nameInput && signBtn) {
+        nameInput.addEventListener('input', () => {
+          signBtn.disabled = nameInput.value.trim().length < 2;
+        });
+
+        signBtn.addEventListener('click', async () => {
+          const name = nameInput.value.trim();
+          if (name.length < 2) return;
+
+          signBtn.disabled = true;
+          signBtn.textContent = 'Saving…';
+
+          try {
+            const res = await fetch(signEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ template: templateSlug, signerName: name }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.ok) throw new Error(json.error || 'Sign failed');
+
+            if (signerDisplay) signerDisplay.textContent = name;
+            if (viewLink) viewLink.href = json.viewUrl;
+            if (signSection) signSection.style.display = 'none';
+            if (successSection) successSection.style.display = '';
+          } catch (err) {
+            signBtn.disabled = false;
+            signBtn.textContent = 'Sign & Agree';
+            alert('Something went wrong. Please try again.');
+          }
+        });
+      }
+    </script>
+
+    <style is:global>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #fff;
+        color: #1a1a1a;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, Georgia, serif;
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      main {
+        max-width: 780px;
+        margin: 0 auto;
+        padding: 40px 32px 80px;
+      }
+
+      /* ── Header ── */
+      .doc-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 40px;
+        padding-bottom: 24px;
+        border-bottom: 2px solid #1a1a1a;
+      }
+      .logo {
+        font-weight: 800;
+        letter-spacing: 2px;
+        font-size: 20px;
+        color: #1a1a1a;
+        flex: none;
+      }
+      .doc-header-text { flex: 1; }
+      .doc-title { font-size: 18px; font-weight: 700; }
+      .doc-for { font-size: 14px; color: #666; }
+
+      /* ── Document body ── */
+      .doc-body { margin-bottom: 56px; }
+      .doc-body h1 {
+        font-size: 28px;
+        font-weight: 800;
+        margin: 0 0 6px;
+        color: #0a0a0a;
+      }
+      .doc-body h2 {
+        font-size: 16px;
+        font-weight: 700;
+        margin: 32px 0 8px;
+        color: #0a0a0a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .doc-body p { margin: 0 0 14px; color: #333; }
+      .doc-body ul { margin: 0 0 14px; padding-left: 24px; color: #333; }
+      .doc-body li { margin-bottom: 6px; }
+      .doc-body .doc-meta {
+        font-size: 14px;
+        color: #888;
+        margin-bottom: 32px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #eee;
+      }
+
+      /* ── Sign section ── */
+      .sign-divider {
+        height: 2px;
+        background: #1a1a1a;
+        margin-bottom: 40px;
+      }
+      .sign-heading {
+        font-size: 22px;
+        font-weight: 700;
+        margin: 0 0 10px;
+      }
+      .sign-sub {
+        font-size: 14px;
+        color: #555;
+        margin: 0 0 28px;
+        line-height: 1.6;
+      }
+      .sign-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        color: #444;
+      }
+      .sign-input {
+        width: 100%;
+        padding: 14px 16px;
+        font-family: inherit;
+        font-size: 20px;
+        font-style: italic;
+        border: 2px solid #d0d0d0;
+        border-radius: 10px;
+        outline: none;
+        transition: border-color 0.2s;
+        background: #fafafa;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+      }
+      .sign-input:focus { border-color: #1a1a1a; background: #fff; }
+      .sign-date {
+        font-size: 13px;
+        color: #888;
+        margin-bottom: 20px;
+      }
+      .sign-btn {
+        width: 100%;
+        padding: 16px;
+        background: #1a1a1a;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font: inherit;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.2s, transform 0.15s;
+        margin-bottom: 14px;
+      }
+      .sign-btn:active { transform: scale(0.99); }
+      .sign-btn:disabled { opacity: 0.35; cursor: default; }
+      .sign-legal {
+        font-size: 12px;
+        color: #aaa;
+        text-align: center;
+        margin: 0;
+      }
+
+      /* ── Success ── */
+      .success-section {
+        text-align: center;
+        padding: 60px 24px;
+        border: 2px solid #1a1a1a;
+        border-radius: 16px;
+        margin: 40px 0;
+      }
+      .success-icon {
+        font-size: 32px;
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: #1a1a1a;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+      }
+      .success-section h2 { margin: 0 0 10px; font-size: 22px; }
+      .success-section p { color: #555; margin: 0 0 24px; }
+      .view-btn {
+        display: inline-block;
+        padding: 13px 28px;
+        background: #1a1a1a;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        transition: opacity 0.2s;
+      }
+      .view-btn:hover { opacity: 0.8; }
+
+      /* ── Footer ── */
+      .doc-foot {
+        margin-top: 64px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        font-size: 12px;
+        color: #bbb;
+        text-align: center;
+      }
+
+      /* ── Error ── */
+      .error-wrap {
+        max-width: 400px;
+        margin: 80px auto;
+        text-align: center;
+        padding: 0 20px;
+      }
+      .error-wrap .logo { font-size: 22px; margin-bottom: 24px; display: block; }
+      .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
+      .error-wrap p { color: #666; }
+
+      /* ── Print ── */
+      @media print {
+        .sign-section, .doc-foot, .doc-header { display: none !important; }
+        main { padding: 0; }
+        .doc-body { margin-bottom: 0; }
+        .success-section .view-btn { display: none; }
+      }
+
+      @media (max-width: 600px) {
+        main { padding: 24px 20px 60px; }
+        .doc-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      }
+    </style>
+  </body>
+</html>
