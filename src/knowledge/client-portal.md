@@ -108,6 +108,14 @@ Examples (freeform to the bot):
 - `PUBLIC_SITE_URL` — origin for building share links (defaults to
   `https://${RAILWAY_PUBLIC_DOMAIN}`, then `https://reave.app`).
 
+## Master contacts dashboard
+
+`/dev/contacts` visualizes the whole contact-api database: counts (total /
+company / email / phone) and a searchable grid of every client with quick links
+to each one's **Portal / vCard / Notes** feed. It's **sensitive** (PII), so it's
+gated behind `DASHBOARD_KEY` — visit `/dev/contacts?key=<key>` once (stored in an
+httpOnly cookie). `noindex`, never prerendered.
+
 ## Apple Notes (one-way pull via Shortcut)
 
 `GET /c/<uid>/note.txt` returns a plain-text summary of the client (details,

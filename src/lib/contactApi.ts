@@ -143,6 +143,8 @@ export type ContactRecord = {
   company?: string | null;
   notes?: string | null;
   archived?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   links?: ContactLink[];
 };
 
