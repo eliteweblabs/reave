@@ -402,24 +402,41 @@ export async function craterResetInvoices(input: {
   });
 }
 
+export type BillingInvoice = {
+  id: number;
+  number: string;
+  status: string;
+  paidStatus: string;
+  date: string | null;
+  total: number;
+  due: number;
+  url: string | null;
+};
+
+export type UpcomingInvoice = {
+  id: number;
+  status: string;
+  total: number;
+  frequency: string | null;
+  nextAt: string | null;
+};
+
 export type ClientBilling = {
   customerId: number;
   customerName: string;
   totalDue: number;
-  invoices: Array<{
-    id: number;
-    number: string;
-    status: string;
-    paidStatus: string;
-    total: number;
-    due: number;
-    payUrl: string | null;
-  }>;
+  /** Unpaid invoices (due > 0). */
+  outstanding: BillingInvoice[];
+  /** Settled/historical invoices (due <= 0). */
+  previous: BillingInvoice[];
+  /** Scheduled recurring invoices. */
+  upcoming: UpcomingInvoice[];
 };
 
 /**
  * Resolve a Crater customer for a contact (prefer email match, else name) and
- * return their outstanding balance + unpaid invoices (with public pay links).
+ * return their full billing picture: outstanding (unpaid) + previous (paid)
+ * invoices with public links, plus upcoming recurring invoices.
  * Returns ok:true with data:null when no matching customer is found.
  */
 export async function craterGetClientBilling(input: {
@@ -444,30 +461,42 @@ export async function craterGetClientBilling(input: {
   if (!customer) customer = customers[0];
   if (!customer) return { ok: true, data: null };
 
+  const matchesCustomer = (n?: string | null) =>
+    (n ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase();
+
   const totalDue = Number(customer.invoice_summary?.total_due ?? 0);
 
   const list = await craterListInvoices();
-  const invoices = list.ok
-    ? (list.data.invoices ?? [])
-        .filter(
-          (inv) =>
-            (inv.customer_name ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase() &&
-            Number(inv.due) > 0
-        )
-        .map((inv) => ({
-          id: inv.id,
-          number: inv.invoice_number,
-          status: inv.status,
-          paidStatus: inv.paid_status,
-          total: Number(inv.total),
-          due: Number(inv.due),
-          payUrl: inv.public_url ?? null,
+  const mine = list.ok ? (list.data.invoices ?? []).filter((inv) => matchesCustomer(inv.customer_name)) : [];
+  const toInvoice = (inv: CraterInvoiceSummary): BillingInvoice => ({
+    id: inv.id,
+    number: inv.invoice_number,
+    status: inv.status,
+    paidStatus: inv.paid_status,
+    date: inv.invoice_date ?? null,
+    total: Number(inv.total),
+    due: Number(inv.due),
+    url: inv.public_url ?? null,
+  });
+  const outstanding = mine.filter((inv) => Number(inv.due) > 0).map(toInvoice);
+  const previous = mine.filter((inv) => Number(inv.due) <= 0).map(toInvoice);
+
+  const recurring = await craterListRecurringInvoices();
+  const upcoming = recurring.ok
+    ? (recurring.data.recurring_invoices ?? [])
+        .filter((r) => matchesCustomer(r.customer?.name))
+        .map((r) => ({
+          id: r.id,
+          status: r.status,
+          total: Number(r.total),
+          frequency: r.frequency_human ?? null,
+          nextAt: r.next_invoice_at ?? null,
         }))
     : [];
 
   return {
     ok: true,
-    data: { customerId: customer.id, customerName: customer.name, totalDue, invoices },
+    data: { customerId: customer.id, customerName: customer.name, totalDue, outstanding, previous, upcoming },
   };
 }
 

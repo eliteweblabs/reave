@@ -51,7 +51,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'contact_api', label: 'resolve' },
   { from: 'astro', to: 'portal', label: 'serves /c/:uid' },
   { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
-  { from: 'portal', to: 'crater', label: 'outstanding bills', dashed: true },
+  { from: 'portal', to: 'crater', label: 'billing (due/upcoming/paid)', dashed: true },
   { from: 'astro', to: 'twilio', label: 'send link (SMS)', dashed: true },
   { from: 'web', to: 'portal', label: 'iOS share link', dashed: true },
   { from: 'contact_api', to: 'contact_pg' },

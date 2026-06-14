@@ -14,6 +14,7 @@ import {
   clientPortalUrl,
   type ClientPortal,
   type ClientPortalField,
+  type ClientDataEntry,
 } from './contactApi';
 import {
   isCraterConfigured,
@@ -237,7 +238,7 @@ export function buildTools(): TelegramToolDef[] {
         function: {
           name: 'set_client_portal',
           description:
-            'Customize a client’s shareable portal page (every client already HAS a page; this sets the optional headline/body/fields shown on it). The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the client by uid or by name (it will fuzzy-resolve; if ambiguous it returns candidates to confirm). Updates are merged with any existing content. Set enabled:false to hide/revoke the page. Returns the shareable URL. This is client-facing — it does NOT expose the internal private notes field.',
+            'Customize a client’s shareable portal page (every client already HAS a page; this sets optional content). Overview = headline/body/fields. Billing = automatic from Crater. Data tab = web-design handoff items (passwords, DNS, hosting) via the `data` param. The link is mobile-friendly and great for iOS "Add to Home Screen". Identify the client by uid or by name (fuzzy-resolved; if ambiguous it returns candidates to confirm). Text updates merge; fields/data replace the prior list when provided. Set enabled:false to hide/revoke the page. Returns the shareable URL. Client-facing — does NOT expose the internal private notes field.',
           parameters: {
             type: 'object',
             properties: {
@@ -252,7 +253,7 @@ export function buildTools(): TelegramToolDef[] {
               },
               fields: {
                 type: 'array',
-                description: 'Optional labeled key/value rows (e.g. "Site URL" → "https://…", "Plan" → "Annual").',
+                description: 'Optional labeled key/value rows shown in Overview (e.g. "Site URL" → "https://…", "Plan" → "Annual").',
                 items: {
                   type: 'object',
                   properties: {
@@ -260,6 +261,23 @@ export function buildTools(): TelegramToolDef[] {
                     value: { type: 'string' },
                   },
                   required: ['label', 'value'],
+                  additionalProperties: false,
+                },
+              },
+              data: {
+                type: 'array',
+                description:
+                  'Web-design handoff items shown in the client’s DATA tab (passwords, DNS records, hosting/login info, etc.). Each entry has a label plus any of: value, username, password, url. Passwords are masked on the page (reveal/copy). Replaces the existing data list when provided.',
+                items: {
+                  type: 'object',
+                  properties: {
+                    label: { type: 'string', description: 'e.g. "WordPress admin", "DNS — A record", "Hosting"' },
+                    value: { type: 'string', description: 'Free-form value/notes (e.g. a DNS record or instructions)' },
+                    username: { type: 'string' },
+                    password: { type: 'string' },
+                    url: { type: 'string' },
+                  },
+                  required: ['label'],
                   additionalProperties: false,
                 },
               },
@@ -600,6 +618,27 @@ function parsePortalFields(raw: unknown): ClientPortalField[] | undefined {
   return fields;
 }
 
+function parsePortalData(raw: unknown): ClientDataEntry[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  return raw
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => {
+      const row = e as Record<string, unknown>;
+      const entry: ClientDataEntry = { label: str(row.label) };
+      const value = str(row.value);
+      const username = str(row.username);
+      const password = str(row.password);
+      const url = str(row.url);
+      if (value) entry.value = value;
+      if (username) entry.username = username;
+      if (password) entry.password = password;
+      if (url) entry.url = url;
+      return entry;
+    })
+    .filter((e) => e.label && (e.value || e.username || e.password || e.url));
+}
+
 /**
  * Resolve a portal tool's target to a single contact uid. Accepts an explicit
  * uid, or fuzzy-resolves a name/email/phone. Returns a needs_selection payload
@@ -760,12 +799,14 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const existing = extractPortal(current.data) ?? {};
 
       const fields = parsePortalFields(args.fields);
+      const data = parsePortalData(args.data);
       const next: ClientPortal = {
         ...existing,
         enabled: typeof args.enabled === 'boolean' ? args.enabled : existing.enabled ?? true,
         headline: typeof args.headline === 'string' ? args.headline.trim() : existing.headline,
         body: typeof args.body === 'string' ? args.body : existing.body,
         fields: fields !== undefined ? fields : existing.fields,
+        data: data !== undefined ? data : existing.data,
       };
 
       const saved = await setContactPortal(target.uid, next);

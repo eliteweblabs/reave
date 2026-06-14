@@ -58,12 +58,23 @@ export const GET: APIRoute = async ({ params }) => {
 
   if (isCraterConfigured()) {
     const b = await craterGetClientBilling({ email: c.email ?? undefined, name: c.name });
-    if (b.ok && b.data && (b.data.totalDue > 0 || b.data.invoices.length > 0)) {
-      lines.push('');
-      lines.push(`Outstanding balance: ${money(b.data.totalDue)}`);
-      for (const inv of b.data.invoices) {
-        const pay = inv.payUrl ? ` — Pay: ${inv.payUrl}` : '';
-        lines.push(`  #${inv.number}  ${money(inv.due)}  (${inv.status})${pay}`);
+    if (b.ok && b.data) {
+      const bill = b.data;
+      if (bill.outstanding.length > 0) {
+        lines.push('');
+        lines.push(`Outstanding balance: ${money(bill.totalDue)}`);
+        for (const inv of bill.outstanding) {
+          const pay = inv.url ? ` — Pay: ${inv.url}` : '';
+          lines.push(`  #${inv.number}  ${money(inv.due)}  (${inv.status})${pay}`);
+        }
+      }
+      if (bill.upcoming.length > 0) {
+        lines.push('');
+        lines.push('Upcoming:');
+        for (const r of bill.upcoming) {
+          const when = r.nextAt ? ` — next ${new Date(r.nextAt).toLocaleDateString('en-US')}` : '';
+          lines.push(`  ${r.frequency || 'Recurring'}  ${money(r.total)}${when}`);
+        }
       }
     }
   }

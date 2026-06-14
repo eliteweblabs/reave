@@ -37,13 +37,33 @@ client's name).
 The page also shows tap-to-**Call / Text / Email** actions from the contact's
 phone/email, a **Save** action, plus the client name and company.
 
-## Outstanding bills (Crater)
+## Tabs
 
-When Crater is configured, the page automatically shows the client's
-**outstanding balance** and **unpaid invoices** with one-tap **Pay** links. The
-client is matched to a Crater customer by email (preferred) or name; if there's
-no match or nothing due, the billing section is simply omitted. This is read-only
-and reflects live Crater data on each page load.
+The page is tabbed (tabs appear only when populated):
+
+- **Overview** — headline, body, and labeled fields (from `set_client_portal`).
+- **Billing** — automatic from Crater (see below).
+- **Data** — web-design handoff items (passwords, DNS, hosting, etc.).
+
+## Billing (Crater)
+
+When Crater is configured, the page automatically shows live billing, grouped:
+
+- **Outstanding** — unpaid invoices with one-tap **Pay** links + balance due.
+- **Upcoming** — scheduled recurring invoices (frequency + next date).
+- **Previous** — paid/historical invoices with **View** links.
+
+The client is matched to a Crater customer by email (preferred) or name; if
+there's no match or nothing on file, the Billing tab is omitted. Read-only.
+
+## Data tab (web-design handoff)
+
+Populate via `set_client_portal`'s `data` array. Each entry: a `label` plus any
+of `value`, `username`, `password`, `url`. Passwords render **masked** with
+reveal/copy buttons. Example: WordPress admin login, DNS records, hosting
+credentials. **These are sensitive** — they live in `contact-postgres` (the
+portal `metadata`) and are visible to anyone with the unguessable link, so only
+share creds you intend the client to have, and rotate the link if leaked.
 
 ## Send the link to a client
 

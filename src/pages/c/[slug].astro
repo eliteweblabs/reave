@@ -8,6 +8,9 @@
  * Rendered server-side so the CONTACT_API_KEY never reaches the browser. Content
  * comes from the `portal` link metadata on the contact (see src/lib/contactApi).
  * Internal `notes` are intentionally NOT shown.
+ *
+ * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Data
+ * (web-design handoff: passwords/DNS/hosting). Tabs only appear when populated.
  */
 import { getContact, extractPortal, type ContactRecord, type ClientPortal } from '../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
@@ -24,7 +27,7 @@ if (uid) {
   if (res.ok && !res.data.archived) {
     const p = extractPortal(res.data);
     // Every client has a page by default; only an explicit `enabled:false`
-    // (revoked) hides it. Custom content (headline/body/fields) is optional.
+    // (revoked) hides it. Custom content is optional.
     if (!p || p.enabled !== false) {
       contact = res.data;
       portal = p ?? {};
@@ -32,22 +35,24 @@ if (uid) {
   }
 }
 if (!contact) notFound = true;
+if (notFound) Astro.response.status = 404;
 
-if (notFound) {
-  Astro.response.status = 404;
-}
-
-// Outstanding bills from Crater (best-effort; skipped if not configured/matched).
+// Billing from Crater (best-effort; skipped if not configured/matched).
 let billing: ClientBilling | null = null;
 if (contact && isCraterConfigured()) {
   const b = await craterGetClientBilling({ email: contact.email ?? undefined, name: contact.name });
-  if (b.ok && b.data && (b.data.totalDue > 0 || b.data.invoices.length > 0)) {
+  if (b.ok && b.data && (b.data.outstanding.length > 0 || b.data.previous.length > 0 || b.data.upcoming.length > 0)) {
     billing = b.data;
   }
 }
-const money = (n: number) => `$${Number(n).toFixed(2)}`;
 
-// ---- Presentation helpers (run server-side) -------------------------------
+const money = (n: number) => `$${Number(n).toFixed(2)}`;
+const fmtDate = (s: string | null | undefined) => {
+  if (!s) return '';
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -56,8 +61,6 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
-
-/** Escape first, then turn bare URLs into links and preserve line breaks. */
 function richText(s: string): string {
   const escaped = escapeHtml(s);
   const linked = escaped.replace(
@@ -73,13 +76,25 @@ const headline = portal?.headline?.trim() || '';
 const bodyHtml = portal?.body?.trim() ? richText(portal.body.trim()) : '';
 const fields = (portal?.fields ?? []).filter((f) => f && f.label && f.value);
 
+const dataEntries = (portal?.data ?? []).filter(
+  (e) => e && e.label && (e.value || e.username || e.password || e.url)
+);
+
 const email = contact?.email?.trim() || '';
 const phone = contact?.phone?.trim() || '';
 const telHref = phone ? phone.replace(/[^\d+]/g, '') : '';
 
-const updatedAt = portal?.updatedAt
-  ? new Date(portal.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  : '';
+const updatedAt = fmtDate(portal?.updatedAt);
+
+// Which tabs to show
+const hasOverview = Boolean(headline || bodyHtml || fields.length > 0);
+const hasBilling = Boolean(billing);
+const hasData = dataEntries.length > 0;
+const tabs: Array<{ id: string; label: string }> = [];
+tabs.push({ id: 'overview', label: 'Overview' });
+if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
+if (hasData) tabs.push({ id: 'data', label: 'Data' });
+const showTabs = tabs.length > 1;
 
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = displayName;
@@ -95,8 +110,6 @@ const themeColor = '#0a0a0a';
     <meta name="robots" content="noindex, nofollow" />
     <title>{notFound ? 'Not found' : pageTitle}</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    {/* PWA / iOS "Add to Home Screen" */}
     {!notFound && manifestHref && <link rel="manifest" href={manifestHref} />}
     <meta name="theme-color" content={themeColor} />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -104,7 +117,6 @@ const themeColor = '#0a0a0a';
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     {!notFound && <meta name="apple-mobile-web-app-title" content={appTitle} />}
     <link rel="apple-touch-icon" href="/favicon.svg" />
-
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -130,76 +142,149 @@ const themeColor = '#0a0a0a';
             {company && <p class="company">{company}</p>}
           </header>
 
-          {(
-            <nav class="actions" aria-label="Quick contact">
-              {telHref && (
-                <a class="action" href={`tel:${telHref}`}>
-                  <span class="ico">📞</span>
-                  <span>Call</span>
-                </a>
-              )}
-              {telHref && (
-                <a class="action" href={`sms:${telHref}`}>
-                  <span class="ico">💬</span>
-                  <span>Text</span>
-                </a>
-              )}
-              {email && (
-                <a class="action" href={`mailto:${email}`}>
-                  <span class="ico">✉️</span>
-                  <span>Email</span>
-                </a>
-              )}
-              <a class="action" href={`/c/${encodeURIComponent(uid)}.vcf`}>
-                <span class="ico">👤</span>
-                <span>Save</span>
+          <nav class="actions" aria-label="Quick contact">
+            {telHref && (
+              <a class="action" href={`tel:${telHref}`}>
+                <span class="ico">📞</span><span>Call</span>
               </a>
-            </nav>
+            )}
+            {telHref && (
+              <a class="action" href={`sms:${telHref}`}>
+                <span class="ico">💬</span><span>Text</span>
+              </a>
+            )}
+            {email && (
+              <a class="action" href={`mailto:${email}`}>
+                <span class="ico">✉️</span><span>Email</span>
+              </a>
+            )}
+            <a class="action" href={`/c/${encodeURIComponent(uid)}.vcf`}>
+              <span class="ico">👤</span><span>Save</span>
+            </a>
+          </nav>
+
+          {showTabs && (
+            <div class="tabbar" role="tablist">
+              {tabs.map((t, i) => (
+                <button class={`tab ${i === 0 ? 'active' : ''}`} data-tab-btn={t.id} type="button">
+                  {t.label}
+                </button>
+              ))}
+            </div>
           )}
 
-          {billing && (
-            <section class="billing">
-              <div class="billing-head">
-                <span class="billing-title">Outstanding balance</span>
-                <span class={`billing-total ${billing.totalDue > 0 ? 'due' : 'clear'}`}>
-                  {money(billing.totalDue)}
-                </span>
+          {/* Overview */}
+          <section class="panel active" data-tab-panel="overview">
+            {headline && <h2 class="headline">{headline}</h2>}
+            {bodyHtml && <div class="body" set:html={bodyHtml} />}
+            {fields.length > 0 && (
+              <div class="fields">
+                {fields.map((f) => (
+                  <div class="field">
+                    <div class="field-label">{f.label}</div>
+                    <div class="field-value">{f.value}</div>
+                  </div>
+                ))}
               </div>
-              {billing.invoices.length > 0 ? (
-                <ul class="invoices">
-                  {billing.invoices.map((inv) => (
-                    <li class="invoice">
-                      <div class="inv-main">
-                        <span class="inv-num">#{inv.number}</span>
-                        <span class="inv-status">{inv.status}</span>
-                      </div>
-                      <div class="inv-side">
-                        <span class="inv-due">{money(inv.due)}</span>
-                        {inv.payUrl && (
-                          <a class="pay" href={inv.payUrl} target="_blank" rel="noopener noreferrer">
-                            Pay
-                          </a>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p class="all-clear">You’re all paid up — thank you!</p>
+            )}
+            {!hasOverview && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
+          </section>
+
+          {/* Billing */}
+          {hasBilling && billing && (
+            <section class="panel" data-tab-panel="billing">
+              <div class="billing-head">
+                <span class="billing-title">Balance due</span>
+                <span class={`billing-total ${billing.totalDue > 0 ? 'due' : 'clear'}`}>{money(billing.totalDue)}</span>
+              </div>
+
+              {billing.outstanding.length > 0 && (
+                <div class="bill-group">
+                  <h3 class="group-title">Outstanding</h3>
+                  <ul class="invoices">
+                    {billing.outstanding.map((inv) => (
+                      <li class="invoice">
+                        <div class="inv-main">
+                          <span class="inv-num">#{inv.number}</span>
+                          <span class="inv-meta">{fmtDate(inv.date)} · {inv.status}</span>
+                        </div>
+                        <div class="inv-side">
+                          <span class="inv-due">{money(inv.due)}</span>
+                          {inv.url && <a class="pay" href={inv.url} target="_blank" rel="noopener noreferrer">Pay</a>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {billing.upcoming.length > 0 && (
+                <div class="bill-group">
+                  <h3 class="group-title">Upcoming</h3>
+                  <ul class="invoices">
+                    {billing.upcoming.map((r) => (
+                      <li class="invoice">
+                        <div class="inv-main">
+                          <span class="inv-num">{r.frequency || 'Recurring'}</span>
+                          <span class="inv-meta">{r.nextAt ? `Next: ${fmtDate(r.nextAt)}` : r.status}</span>
+                        </div>
+                        <div class="inv-side">
+                          <span class="inv-due upcoming">{money(r.total)}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {billing.previous.length > 0 && (
+                <div class="bill-group">
+                  <h3 class="group-title">Previous</h3>
+                  <ul class="invoices">
+                    {billing.previous.map((inv) => (
+                      <li class="invoice">
+                        <div class="inv-main">
+                          <span class="inv-num">#{inv.number}</span>
+                          <span class="inv-meta">{fmtDate(inv.date)} · Paid</span>
+                        </div>
+                        <div class="inv-side">
+                          <span class="inv-due paid">{money(inv.total)}</span>
+                          {inv.url && <a class="view" href={inv.url} target="_blank" rel="noopener noreferrer">View</a>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </section>
           )}
 
-          {headline && <h2 class="headline">{headline}</h2>}
-
-          {bodyHtml && <section class="body" set:html={bodyHtml} />}
-
-          {fields.length > 0 && (
-            <section class="fields">
-              {fields.map((f) => (
-                <div class="field">
-                  <div class="field-label">{f.label}</div>
-                  <div class="field-value">{f.value}</div>
+          {/* Data (web-design handoff) */}
+          {hasData && (
+            <section class="panel" data-tab-panel="data">
+              <p class="data-note">Account details &amp; credentials for your project. Keep this link private.</p>
+              {dataEntries.map((e) => (
+                <div class="data-card">
+                  <div class="data-label">{e.label}</div>
+                  {e.url && (
+                    <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
+                  )}
+                  {e.username && (
+                    <div class="cred">
+                      <span class="cred-key">User</span>
+                      <code class="cred-val">{e.username}</code>
+                      <button class="mini" data-copy type="button">Copy</button>
+                    </div>
+                  )}
+                  {e.password && (
+                    <div class="cred">
+                      <span class="cred-key">Pass</span>
+                      <code class="cred-val secret">{e.password}</code>
+                      <button class="mini" data-reveal type="button">Show</button>
+                      <button class="mini" data-copy type="button">Copy</button>
+                    </div>
+                  )}
+                  {e.value && <div class="data-value">{e.value}</div>}
                 </div>
               ))}
             </section>
@@ -213,16 +298,42 @@ const themeColor = '#0a0a0a';
       )
     }
 
+    <script>
+      document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-tab-btn');
+          document.querySelectorAll('[data-tab-btn]').forEach((b) => b.classList.toggle('active', b === btn));
+          document
+            .querySelectorAll('[data-tab-panel]')
+            .forEach((p) => p.classList.toggle('active', p.getAttribute('data-tab-panel') === id));
+        });
+      });
+      document.querySelectorAll('[data-reveal]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const code = btn.parentElement?.querySelector('code');
+          if (!code) return;
+          const revealed = code.classList.toggle('revealed');
+          btn.textContent = revealed ? 'Hide' : 'Show';
+        });
+      });
+      document.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const code = btn.parentElement?.querySelector('code');
+          if (!code) return;
+          try {
+            await navigator.clipboard.writeText(code.textContent || '');
+            const prev = btn.textContent;
+            btn.textContent = 'Copied';
+            setTimeout(() => (btn.textContent = prev), 1200);
+          } catch {}
+        });
+      });
+    </script>
+
     <style is:global>
-      :root {
-        color-scheme: dark;
-      }
-      * {
-        box-sizing: border-box;
-        -webkit-tap-highlight-color: transparent;
-      }
-      html,
-      body {
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body {
         margin: 0;
         min-height: 100%;
         background: #0a0a0a;
@@ -242,218 +353,135 @@ const themeColor = '#0a0a0a';
         margin: 0 auto;
         padding: calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 56px);
       }
-      .logo {
-        font-weight: 700;
-        letter-spacing: 2px;
-        font-size: 18px;
-        color: rgba(255, 255, 255, 0.55);
-      }
-      .hero {
-        text-align: center;
-        margin-bottom: 28px;
-      }
-      .hero h1 {
-        margin: 18px 0 4px;
-        font-size: 30px;
-        font-weight: 700;
-        line-height: 1.15;
-      }
-      .company {
-        margin: 0;
-        color: rgba(255, 255, 255, 0.55);
-        font-size: 15px;
-      }
+      .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
+      .hero { text-align: center; margin-bottom: 24px; }
+      .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
+      .company { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; }
+
       .actions {
         display: grid;
         grid-auto-flow: column;
         grid-auto-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 28px;
+        gap: 10px;
+        margin-bottom: 22px;
       }
       .action {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 6px;
-        padding: 16px 8px;
-        border-radius: 16px;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        padding: 14px 6px; border-radius: 16px;
         border: 1px solid rgba(168, 85, 247, 0.35);
         background: rgba(168, 85, 247, 0.1);
-        color: #fff;
-        text-decoration: none;
-        font-size: 13px;
-        font-weight: 500;
+        color: #fff; text-decoration: none; font-size: 12px; font-weight: 500;
         transition: transform 0.15s, background 0.2s, border-color 0.2s;
       }
-      .action:active {
-        transform: scale(0.97);
-        background: rgba(168, 85, 247, 0.22);
-        border-color: #a855f7;
-      }
-      .action .ico {
-        font-size: 22px;
-      }
-      .billing {
-        margin-bottom: 28px;
-        border-radius: 16px;
+      .action:active { transform: scale(0.97); background: rgba(168, 85, 247, 0.22); border-color: #a855f7; }
+      .action .ico { font-size: 20px; }
+
+      .tabbar {
+        display: flex; gap: 6px; padding: 5px;
+        background: rgba(255, 255, 255, 0.05);
         border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
-        overflow: hidden;
+        border-radius: 14px; margin-bottom: 22px;
       }
+      .tab {
+        flex: 1; padding: 10px 8px; border: none; border-radius: 10px;
+        background: transparent; color: rgba(255, 255, 255, 0.6);
+        font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+        transition: background 0.2s, color 0.2s;
+      }
+      .tab.active { background: linear-gradient(135deg, #a855f7, #ec4899); color: #fff; }
+
+      .panel { display: none; }
+      .panel.active { display: block; }
+
+      .muted { color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; }
+
+      .headline { font-size: 20px; font-weight: 600; margin: 0 0 12px; }
+      .body {
+        font-size: 16px; line-height: 1.7; color: rgba(255, 255, 255, 0.9);
+        padding: 18px 20px; border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+        word-wrap: break-word; overflow-wrap: anywhere;
+      }
+      .body a { color: #d8b4fe; }
+      .fields {
+        margin-top: 18px; display: flex; flex-direction: column; gap: 1px;
+        border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .field { display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; background: rgba(255, 255, 255, 0.04); }
+      .field-label { color: rgba(255, 255, 255, 0.5); font-size: 14px; }
+      .field-value { text-align: right; font-size: 15px; font-weight: 500; word-break: break-word; }
+
       .billing-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        padding: 16px 18px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        display: flex; justify-content: space-between; align-items: baseline;
+        padding: 4px 2px 16px;
       }
-      .billing-title {
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        color: rgba(255, 255, 255, 0.5);
-      }
-      .billing-total {
-        font-size: 22px;
-        font-weight: 700;
-      }
-      .billing-total.due {
-        color: #fca5a5;
-      }
-      .billing-total.clear {
-        color: #86efac;
+      .billing-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255, 255, 255, 0.5); }
+      .billing-total { font-size: 24px; font-weight: 700; }
+      .billing-total.due { color: #fca5a5; }
+      .billing-total.clear { color: #86efac; }
+
+      .bill-group { margin-bottom: 18px; }
+      .group-title {
+        font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+        color: rgba(255, 255, 255, 0.4); margin: 0 0 8px 2px;
       }
       .invoices {
-        list-style: none;
-        margin: 0;
-        padding: 0;
+        list-style: none; margin: 0; padding: 0;
+        border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
       }
       .invoice {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 13px 18px;
+        display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        padding: 13px 16px; background: rgba(255, 255, 255, 0.04);
         border-top: 1px solid rgba(255, 255, 255, 0.05);
       }
-      .invoice:first-child {
-        border-top: none;
-      }
-      .inv-main {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .inv-num {
-        font-size: 15px;
-        font-weight: 600;
-      }
-      .inv-status {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
-        text-transform: capitalize;
-      }
-      .inv-side {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-      .inv-due {
-        font-size: 15px;
-        font-weight: 600;
-      }
+      .invoice:first-child { border-top: none; }
+      .inv-main { display: flex; flex-direction: column; gap: 2px; }
+      .inv-num { font-size: 15px; font-weight: 600; }
+      .inv-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); text-transform: capitalize; }
+      .inv-side { display: flex; align-items: center; gap: 12px; }
+      .inv-due { font-size: 15px; font-weight: 600; }
+      .inv-due.paid { color: rgba(255, 255, 255, 0.5); }
+      .inv-due.upcoming { color: #fcd34d; }
       .pay {
-        padding: 7px 16px;
-        border-radius: 999px;
+        padding: 7px 16px; border-radius: 999px;
         background: linear-gradient(135deg, #a855f7, #ec4899);
-        color: #fff;
-        text-decoration: none;
-        font-size: 13px;
-        font-weight: 600;
+        color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
       }
-      .pay:active {
-        opacity: 0.85;
+      .pay:active { opacity: 0.85; }
+      .view { color: #d8b4fe; text-decoration: none; font-size: 13px; font-weight: 500; }
+
+      .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
+      .data-card {
+        padding: 14px 16px; margin-bottom: 12px; border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
       }
-      .all-clear {
-        margin: 0;
-        padding: 14px 18px;
-        color: #86efac;
-        font-size: 14px;
+      .data-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+      .data-url { display: block; color: #d8b4fe; font-size: 14px; margin-bottom: 8px; word-break: break-all; }
+      .data-value { font-size: 14px; color: rgba(255, 255, 255, 0.85); white-space: pre-wrap; word-break: break-word; }
+      .cred { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+      .cred-key { width: 42px; font-size: 12px; color: rgba(255, 255, 255, 0.45); flex: none; }
+      .cred-val {
+        flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px;
+        background: rgba(0, 0, 0, 0.3); padding: 7px 10px; border-radius: 8px;
+        word-break: break-all; color: #fff;
       }
-      .headline {
-        font-size: 20px;
-        font-weight: 600;
-        margin: 0 0 12px;
+      .cred-val.secret { -webkit-text-security: disc; text-security: disc; }
+      .cred-val.secret.revealed { -webkit-text-security: none; text-security: none; }
+      .mini {
+        flex: none; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.06); color: #fff; font: inherit; font-size: 12px; cursor: pointer;
       }
-      .body {
-        font-size: 16px;
-        line-height: 1.7;
-        color: rgba(255, 255, 255, 0.9);
-        padding: 18px 20px;
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.04);
-        word-wrap: break-word;
-        overflow-wrap: anywhere;
-      }
-      .body a {
-        color: #d8b4fe;
-      }
-      .fields {
-        margin-top: 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .field {
-        display: flex;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 14px 18px;
-        background: rgba(255, 255, 255, 0.04);
-      }
-      .field-label {
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 14px;
-      }
-      .field-value {
-        text-align: right;
-        font-size: 15px;
-        font-weight: 500;
-        word-break: break-word;
-      }
+      .mini:active { background: rgba(255, 255, 255, 0.14); }
+
       .foot {
-        margin-top: 36px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.35);
+        margin-top: 36px; display: flex; justify-content: space-between; align-items: center;
+        font-size: 12px; color: rgba(255, 255, 255, 0.35);
       }
-      .brand {
-        letter-spacing: 0.5px;
-      }
-      .empty {
-        display: flex;
-        min-height: 80vh;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-      }
-      .empty .card h1 {
-        font-size: 22px;
-        margin: 18px 0 10px;
-      }
-      .empty .card p {
-        color: rgba(255, 255, 255, 0.55);
-        font-size: 15px;
-        line-height: 1.6;
-        max-width: 340px;
-        margin: 0 auto;
-      }
+      .brand { letter-spacing: 0.5px; }
+
+      .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
+      .empty .card h1 { font-size: 22px; margin: 18px 0 10px; }
+      .empty .card p { color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; max-width: 340px; margin: 0 auto; }
     </style>
   </body>
 </html>

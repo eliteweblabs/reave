@@ -148,6 +148,18 @@ export type ContactRecord = {
 
 export type ClientPortalField = { label: string; value: string };
 
+/**
+ * A handoff "Data" entry shared with a web-design client: a credential, a DNS
+ * record, hosting info, etc. `password` is masked on the page (reveal/copy).
+ */
+export type ClientDataEntry = {
+  label: string;
+  value?: string;
+  username?: string;
+  password?: string;
+  url?: string;
+};
+
 export type ClientPortal = {
   /** When false, the public page returns 404 (revoked) even if content exists. */
   enabled?: boolean;
@@ -155,6 +167,8 @@ export type ClientPortal = {
   /** Free text shown to the client; newlines preserved, URLs auto-linked. */
   body?: string;
   fields?: ClientPortalField[];
+  /** Web-design handoff data (passwords, DNS, hosting…) shown in the Data tab. */
+  data?: ClientDataEntry[];
   updatedAt?: string;
 };
 
