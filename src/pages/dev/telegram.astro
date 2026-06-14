@@ -16,6 +16,9 @@ const slash: Cmd[] = [
   { say: '/resolve <name>  (or /who)', does: 'Fuzzy-find a client in contact-api' },
   { say: '/invoice <customer> | <amount> | <description>', does: 'Create a Crater invoice (description optional)' },
   { say: '/railway project <name>', does: 'Create a new empty Railway project' },
+  { say: '/voice on|off', does: 'Enable or disable the AI phone agent for inbound Telnyx calls' },
+  { say: '/calls', does: 'List active calls with caller, mode, and duration' },
+  { say: '/takeover <phone>', does: 'Transfer that active call to TELNYX_OPERATOR_NUMBER (your phone)' },
   { say: '/clear  (or /reset)', does: 'Forget this chat’s conversation history' },
 ];
 
@@ -43,7 +46,7 @@ const sections: Section[] = [
     title: 'Send to the client',
     items: [
       { say: '“Send Jane her link.”', does: 'Emails it (or texts, if no email on file)' },
-      { say: '“Text Jane her portal link.”', does: 'Force SMS via Twilio' },
+      { say: '“Text Jane her portal link.”', does: 'Force SMS via Telnyx' },
     ],
   },
   {
@@ -62,6 +65,16 @@ const sections: Section[] = [
       { say: '“Show recent commits.” / “git status”', does: 'Repo state from GitHub' },
       { say: '“List open branches.”', does: 'In-progress work' },
       { say: '“Run a service status check.”', does: 'Which integrations are configured/reachable' },
+    ],
+  },
+  {
+    title: 'Voice & SMS (Telnyx)',
+    note: 'TELNYX_API_KEY required. Voice agent must be enabled via /voice on or VOICE_AGENT_ENABLED=1.',
+    items: [
+      { say: '/voice on', does: 'Enable AI phone agent for inbound calls' },
+      { say: '/voice off', does: 'Disable AI agent (callers hear unavailable message)' },
+      { say: '/calls', does: 'List active calls with caller number, mode, and duration' },
+      { say: '/takeover +1234567890', does: 'Transfer that call to TELNYX_OPERATOR_NUMBER' },
     ],
   },
   {
@@ -144,6 +157,8 @@ const sections: Section[] = [
         Plain-English requests use Claude (needs <code>ANTHROPIC_API_KEY</code>) and keep recent chat
         history, so follow-ups like “yes, do it” work. Names are fuzzy-matched; if ambiguous the bot
         asks you to confirm.
+        SMS uses Telnyx (<code>TELNYX_API_KEY</code> + <code>TELNYX_FROM_NUMBER</code>).
+        Voice agent needs <code>TELNYX_WEBHOOK_PUBLIC_KEY</code> configured and webhook URL set in the Telnyx portal.
       </p>
     </main>
   </body>

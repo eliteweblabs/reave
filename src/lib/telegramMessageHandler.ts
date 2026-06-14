@@ -379,6 +379,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   if (t === '/help') {
     const hasC = isContactApiConfigured();
     const hasB = isCraterConfigured();
+    const hasTelnyx = isTelnyxConfigured();
     const lines = [
       'BUSINESS COMMANDS:',
       ...(hasC ? [
@@ -399,6 +400,13 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/railway project <name>  — create project',
       '/list   /get <slug>  — knowledge docs',
       '/clear  — clear chat history',
+      ...(hasTelnyx ? [
+        '',
+        'VOICE & SMS (Telnyx):',
+        `/voice on|off  — AI phone agent (currently ${isVoiceAgentEnabled() ? 'ON ✅' : 'OFF ⛔'})`,
+        '/calls  — list active calls',
+        '/takeover <phone>  — transfer call to your number',
+      ] : []),
       '',
       'CLAUDE (AI):',
       '/ai <question>  — ask Claude anything',

@@ -161,9 +161,9 @@ export const GET: APIRoute = async () => {
       ? configured('RESEND_API_KEY set')
       : unconfigured('RESEND_API_KEY not set'),
     github: ghProbe,
-    twilio: serverEnv('TWILIO_AUTH_TOKEN')
-      ? configured('TWILIO_AUTH_TOKEN set')
-      : unconfigured('TWILIO_AUTH_TOKEN not set'),
+    telnyx: serverEnv('TELNYX_API_KEY')
+      ? configured(`TELNYX_API_KEY set${serverEnv('VOICE_AGENT_ENABLED') === '1' ? ' · voice enabled' : ''}`)
+      : unconfigured('TELNYX_API_KEY not set'),
     // Separate Railway service with no exposed health route we can reach from here.
     imap: { status: 'unknown', mode: 'config', detail: 'no reachable health endpoint' },
   };
