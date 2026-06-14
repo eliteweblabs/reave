@@ -170,10 +170,86 @@ const TOOLING_GROUPS = [
   { id: 't_prod', title: 'Production', hue: 150, members: ['t_prod'] },
 ];
 
+// ───────────────────────── TELEGRAM COMMANDS (bot interface) ─────────────────────────
+// Shows the full Telegram bot surface: slash commands (direct, no LLM) + Claude
+// agent tool categories. Useful for remembering what you can ask the bot to do.
+const TG_NODES = [
+  // Entry
+  { id: 'tc_you',     title: 'You',            sub: 'Telegram message',           icon: '📱', brand: 'telegram', hue: 205, group: 'tc_entry',  x: 60,   y: 540 },
+  { id: 'tc_handler', title: 'Bot handler',     sub: 'auth · history · route',     icon: '⚙️', hue: 185,          group: 'tc_entry',  x: 360,  y: 540 },
+
+  // Routing nodes
+  { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
+  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · up to 5 rounds',  icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
+
+  // Slash commands (one node per command or tight group)
+  { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'list tools · wipe chat history',            icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
+  { id: 'tc_cmd_knowledge', title: '/list · /get',            sub: 'list & read knowledge docs',                icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
+  { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
+  { id: 'tc_cmd_invoice',   title: '/invoice',                sub: 'customer | amount [| description]',         icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
+  { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'create empty Railway project',              icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
+
+  // LLM tool categories (what Claude can call)
+  { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list_knowledge · read_knowledge · run_dev_task',                        icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
+  { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · check_deployment · branches · run_terminal_command',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
+  { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
+  { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send · get_submit_link',                                    icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
+  { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
+
+  // External services reached
+  { id: 'tc_svc_tg',        title: 'Telegram API',   sub: 'sendMessage · replies',      icon: '💬', brand: 'telegram',  hue: 200, group: 'tc_svc', x: 1260, y: 60   },
+  { id: 'tc_svc_anthropic',  title: 'Anthropic',      sub: 'Claude Messages API',        icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_svc', x: 1260, y: 300  },
+  { id: 'tc_svc_capi',       title: 'contact-api',    sub: 'contacts + portal data',     icon: '🧩', hue: 30,            group: 'tc_svc', x: 1260, y: 580  },
+  { id: 'tc_svc_crater',     title: 'Crater',         sub: 'invoicing',                  icon: '🧾', hue: 0,             group: 'tc_svc', x: 1260, y: 820  },
+  { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · status',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },
+];
+
+const TG_EDGES = [
+  // Entry flow
+  { from: 'tc_you',     to: 'tc_handler', label: 'message' },
+  { from: 'tc_handler', to: 'tc_slash',   label: '/cmd' },
+  { from: 'tc_handler', to: 'tc_claude',  label: 'freeform' },
+  { from: 'tc_handler', to: 'tc_svc_tg',  label: 'reply', dashed: true },
+
+  // Slash commands
+  { from: 'tc_slash', to: 'tc_cmd_util' },
+  { from: 'tc_slash', to: 'tc_cmd_knowledge' },
+  { from: 'tc_slash', to: 'tc_cmd_resolve' },
+  { from: 'tc_slash', to: 'tc_cmd_invoice' },
+  { from: 'tc_slash', to: 'tc_cmd_railway' },
+
+  // Slash → services
+  { from: 'tc_cmd_resolve', to: 'tc_svc_capi',   dashed: true },
+  { from: 'tc_cmd_invoice', to: 'tc_svc_crater',  dashed: true },
+
+  // Claude agent
+  { from: 'tc_claude', to: 'tc_svc_anthropic', label: 'tool loop' },
+  { from: 'tc_claude', to: 'tc_tool_knowledge' },
+  { from: 'tc_claude', to: 'tc_tool_devops' },
+  { from: 'tc_claude', to: 'tc_tool_contacts' },
+  { from: 'tc_claude', to: 'tc_tool_portal' },
+  { from: 'tc_claude', to: 'tc_tool_billing' },
+
+  // Tool categories → services
+  { from: 'tc_tool_contacts', to: 'tc_svc_capi',   dashed: true },
+  { from: 'tc_tool_portal',   to: 'tc_svc_capi',   dashed: true },
+  { from: 'tc_tool_billing',  to: 'tc_svc_crater',  dashed: true },
+  { from: 'tc_tool_devops',   to: 'tc_svc_github',  dashed: true },
+];
+
+const TG_GROUPS = [
+  { id: 'tc_entry',     title: 'Entry',              hue: 185, members: ['tc_you', 'tc_handler'] },
+  { id: 'tc_routing',   title: 'Routing',             hue: 55,  members: ['tc_slash', 'tc_claude'] },
+  { id: 'tc_slash_grp', title: 'Slash commands',      hue: 55,  members: ['tc_cmd_util', 'tc_cmd_knowledge', 'tc_cmd_resolve', 'tc_cmd_invoice', 'tc_cmd_railway'] },
+  { id: 'tc_tools',     title: 'Claude tool catalog', hue: 265, members: ['tc_tool_knowledge', 'tc_tool_devops', 'tc_tool_contacts', 'tc_tool_portal', 'tc_tool_billing'] },
+  { id: 'tc_svc',       title: 'External services',   hue: 240, members: ['tc_svc_tg', 'tc_svc_anthropic', 'tc_svc_capi', 'tc_svc_crater', 'tc_svc_github'] },
+];
+
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
-  system: { id: 'system', title: 'System', nodes: SYSTEM_NODES, edges: SYSTEM_EDGES, groups: SYSTEM_GROUPS },
-  tooling: { id: 'tooling', title: 'MCP & CLI', nodes: TOOLING_NODES, edges: TOOLING_EDGES, groups: TOOLING_GROUPS },
+  system:   { id: 'system',   title: 'System',     nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
+  tooling:  { id: 'tooling',  title: 'MCP & CLI',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
+  telegram: { id: 'telegram', title: 'Telegram',   nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },
 };
 
 // Back-compat: the "System" map is still the default export surface.

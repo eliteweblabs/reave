@@ -307,6 +307,24 @@ export function buildTools(): TelegramToolDef[] {
             additionalProperties: false,
           },
         },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_client_submit_link',
+          description:
+            'Get the data-submission link for a client (/c/:uid?submit). Send them this URL and they can paste hosting credentials, passwords, DNS records, or any other handoff info directly from their browser — entries are appended to their Data tab. Use this when you need to collect info FROM the client (e.g. "send John a link so he can give us his cPanel password"). Identify by uid or name (fuzzy-resolved).',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+              name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+              email: { type: 'string' },
+              phone: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
       }
     );
 
@@ -834,6 +852,24 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         live: portal?.enabled !== false,
         has_custom_content: Boolean(portal),
         portal: portal ?? null,
+      });
+    }
+    if (name === 'get_client_submit_link') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const portal = extractPortal(current.data);
+      if (portal?.enabled === false) {
+        return JSON.stringify({ error: 'This client\'s page is hidden (enabled:false). Re-enable it before sending.' });
+      }
+      const submitUrl = `${clientPortalUrl(target.uid)}?submit`;
+      return JSON.stringify({
+        uid: target.uid,
+        name: current.data.name,
+        submit_url: submitUrl,
+        note: 'Send this link to the client — they can paste credentials or any handoff data directly from their browser. Entries appear in their Data tab.',
       });
     }
     if (name === 'send_client_portal') {
