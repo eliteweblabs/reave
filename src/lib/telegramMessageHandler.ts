@@ -1,12 +1,21 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramSendMenu, telegramAnswerCallback } from './telegramClient';
-import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
+import { telegramSendMessage, telegramAnswerCallback } from './telegramClient';
+import {
+  isContactApiConfigured,
+  resolveContact,
+  listContacts,
+  getContact,
+  extractPortal,
+  clientPortalUrl,
+  formatResolveForTelegram,
+} from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
-import { isCraterConfigured, craterCreateInvoice, formatCreatedInvoice } from './craterClient';
+import { isCraterConfigured, craterCreateInvoice, craterListInvoices, formatCreatedInvoice } from './craterClient';
+import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
+import { checkDeploymentStatus, getRecentCommits } from './devStatus';
 import { serverEnv } from './serverEnv';
-import { getCommandMenuButtons, formatSectionForTelegram } from './telegramCommandDocs';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
   if (!raw?.trim()) return null;
@@ -28,43 +37,257 @@ function isUserAllowed(userId: number, allowed: Set<number> | null, prod: boolea
   return allowed.has(userId);
 }
 
+// ─── formatting helpers ───────────────────────────────────────────────────────
+
+function noApi(service = 'Contact API'): string {
+  return `${service} not configured. Check your environment variables.`;
+}
+
+function fmtMoney(n: number): string {
+  return `$${Number(n).toFixed(2)}`;
+}
+
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+// ─── slash command handler ────────────────────────────────────────────────────
+
 async function handleSlashCommand(text: string): Promise<string | null> {
   const t = text.trim();
+
+  // ── /list ──────────────────────────────────────────────────────────────────
   if (t === '/list' || t === '/start') {
     const slugs = listKnowledgeSlugs();
     return slugs.length ? `Knowledge slugs:\n${slugs.map((s) => `- ${s}`).join('\n')}` : 'No knowledge files bundled.';
   }
+
+  // ── /get <slug> ────────────────────────────────────────────────────────────
   const getMatch = t.match(/^\/get\s+([a-z0-9._-]+)\s*$/i);
   if (getMatch) {
     const slug = getMatch[1].toLowerCase();
     const doc = readKnowledgeMarkdown(slug);
     if (!doc) return `Unknown slug "${slug}". Use /list.`;
     const cap = 3500;
-    return doc.content.length > cap ? `${doc.content.slice(0, cap)}\n…(truncated)` : doc.content;
+    return doc.content.length > cap ? `${doc.content.slice(0, cap)}\n...(truncated)` : doc.content;
   }
 
+  // ── /contacts [query] ──────────────────────────────────────────────────────
+  if (t === '/contacts') {
+    if (!isContactApiConfigured()) return noApi();
+    const res = await listContacts({ limit: 25 });
+    if (!res.ok) return `contacts failed: ${res.error}`;
+    const { total, contacts } = res.data;
+    if (!contacts.length) return 'No contacts found.';
+    const lines = [`Contacts (${total} total):`];
+    for (const c of contacts.slice(0, 20)) {
+      const detail = c.email || c.phone || c.company || '';
+      lines.push(`- ${c.name}${detail ? ` - ${detail}` : ''}`);
+    }
+    if (total > 20) lines.push(`...and ${total - 20} more`);
+    lines.push('', '/contacts <name> to search   /portal <name> for a link');
+    return lines.join('\n');
+  }
+  const contactsSearch = t.match(/^\/contacts\s+(.+)$/i);
+  if (contactsSearch) {
+    if (!isContactApiConfigured()) return noApi();
+    const q = contactsSearch[1].trim();
+    const res = await listContacts({ q, limit: 10 });
+    if (!res.ok) return `contacts failed: ${res.error}`;
+    const { contacts } = res.data;
+    if (!contacts.length) return `No contacts found for "${q}".`;
+    if (contacts.length === 1) {
+      const c = contacts[0];
+      const lines = [c.name];
+      if (c.email) lines.push(c.email);
+      if (c.phone) lines.push(c.phone);
+      if (c.company) lines.push(c.company);
+      lines.push('', clientPortalUrl(c.uid));
+      lines.push('', `/portal ${c.name}`, `/portalsend ${c.name}`, `/submitlink ${c.name}`);
+      return lines.join('\n');
+    }
+    const lines = [`${contacts.length} matches for "${q}":`];
+    for (const c of contacts) {
+      const detail = c.email || c.phone || '';
+      lines.push(`- ${c.name}${detail ? ` (${detail})` : ''}`);
+    }
+    lines.push('', 'Be more specific: /contacts john smith');
+    return lines.join('\n');
+  }
+
+  // ── /portal <name> ─────────────────────────────────────────────────────────
+  if (t === '/portal') return 'Usage: /portal <name>\nExample: /portal John Smith';
+  const portalMatch = t.match(/^\/portal\s+(.+)$/i);
+  if (portalMatch) {
+    if (!isContactApiConfigured()) return noApi();
+    const name = portalMatch[1].trim();
+    const resolved = await resolveContact({ name });
+    if (!resolved.ok) return `resolve failed: ${resolved.error}`;
+    const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ uid?: string; name?: string }> };
+    if ((d.match === 'exact' || d.match === 'likely') && d.contact?.uid) {
+      const uid = d.contact.uid;
+      const full = await getContact(uid);
+      if (!full.ok) return `Could not load contact: ${full.error}`;
+      const c = full.data;
+      const portal = extractPortal(c);
+      const dataCount = portal?.data?.length ?? 0;
+      const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
+      return [
+        `${c.name}${c.company ? ` - ${c.company}` : ''}`,
+        c.email ?? '',
+        '',
+        clientPortalUrl(uid),
+        '',
+        `Overview: ${hasOverview ? 'has content' : 'empty'}`,
+        `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
+        `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
+      ].filter(Boolean).join('\n');
+    }
+    const candidates = d.candidates ?? [];
+    if (candidates.length) {
+      const lines = [`Multiple matches for "${name}":`];
+      for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name ?? c.uid}`);
+      lines.push('', 'Be more specific: /portal John Smith');
+      return lines.join('\n');
+    }
+    return `No contact found for "${name}".`;
+  }
+
+  // ── /portalsend <name> ─────────────────────────────────────────────────────
+  if (t === '/portalsend') return 'Usage: /portalsend <name>\nExample: /portalsend John Smith';
+  const portalSendMatch = t.match(/^\/portalsend\s+(.+)$/i);
+  if (portalSendMatch) {
+    if (!isContactApiConfigured()) return noApi();
+    if (!isEmailSendConfigured() && !isSmsSendConfigured()) {
+      return 'No outbound channel configured. Set RESEND_API_KEY (email) or TWILIO_* (SMS).';
+    }
+    const name = portalSendMatch[1].trim();
+    const resolved = await resolveContact({ name });
+    if (!resolved.ok) return `resolve failed: ${resolved.error}`;
+    const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
+    if ((d.match !== 'exact' && d.match !== 'likely') || !d.contact?.uid) {
+      const candidates = d.candidates ?? [];
+      if (candidates.length) {
+        const lines = [`Multiple matches for "${name}":`];
+        for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
+        lines.push('', 'Be more specific: /portalsend John Smith');
+        return lines.join('\n');
+      }
+      return `No contact found for "${name}".`;
+    }
+    const uid = d.contact.uid;
+    const full = await getContact(uid);
+    if (!full.ok) return `Could not load contact: ${full.error}`;
+    const c = full.data;
+    const portal = extractPortal(c);
+    if (portal?.enabled === false) return `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`;
+    const url = clientPortalUrl(uid);
+    const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
+    if (isEmailSendConfigured() && c.email) {
+      const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
+      const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
+      const r = await sendEmail({ to: c.email, subject, text: bodyText });
+      if (!r.ok) return `Email failed: ${r.error}`;
+      return `Sent to ${c.email}\n${url}`;
+    }
+    if (isSmsSendConfigured() && c.phone) {
+      const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, here's your client page: ${url}` });
+      if (!r.ok) return `SMS failed: ${r.error}`;
+      return `Sent to ${c.phone}\n${url}`;
+    }
+    return `${c.name} has no email or phone on file. Add one first.`;
+  }
+
+  // ── /submitlink <name> ─────────────────────────────────────────────────────
+  if (t === '/submitlink') return 'Usage: /submitlink <name>\nExample: /submitlink John Smith';
+  const submitMatch = t.match(/^\/submitlink\s+(.+)$/i);
+  if (submitMatch) {
+    if (!isContactApiConfigured()) return noApi();
+    const name = submitMatch[1].trim();
+    const resolved = await resolveContact({ name });
+    if (!resolved.ok) return `resolve failed: ${resolved.error}`;
+    const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
+    if ((d.match === 'exact' || d.match === 'likely') && d.contact?.uid) {
+      const submitUrl = `${clientPortalUrl(d.contact.uid)}?submit`;
+      return `${d.contact.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`;
+    }
+    const candidates = d.candidates ?? [];
+    if (candidates.length) {
+      const lines = [`Multiple matches for "${name}":`];
+      for (const c of candidates.slice(0, 5)) lines.push(`- ${c.name}`);
+      lines.push('', 'Be more specific: /submitlink John Smith');
+      return lines.join('\n');
+    }
+    return `No contact found for "${name}".`;
+  }
+
+  // ── /invoices ──────────────────────────────────────────────────────────────
+  if (t === '/invoices') {
+    if (!isCraterConfigured()) return noApi('Crater');
+    const res = await craterListInvoices();
+    if (!res.ok) return `invoices failed: ${res.error}`;
+    const invs = (res.data.invoices ?? []).slice(0, 15);
+    if (!invs.length) return 'No invoices found.';
+    const lines = [`Recent invoices (${res.data.count} total):`];
+    for (const inv of invs) {
+      const num = inv.invoice_number ? `#${inv.invoice_number}` : `#${inv.id}`;
+      const customer = inv.customer_name ?? '?';
+      const total = fmtMoney(Number(inv.total ?? 0));
+      const status = String(inv.status ?? '').toLowerCase();
+      lines.push(`${num} - ${customer} - ${total} - ${status}`);
+    }
+    return lines.join('\n');
+  }
+
+  // ── /status ────────────────────────────────────────────────────────────────
+  if (t === '/status') {
+    const res = await checkDeploymentStatus();
+    if (!res.ok) return `status failed: ${res.error}`;
+    const d = res.data as Record<string, unknown>;
+    if (d.summary) return String(d.summary);
+    return JSON.stringify(d, null, 2).slice(0, 800);
+  }
+
+  // ── /commits [n] ───────────────────────────────────────────────────────────
+  if (t === '/commits' || t.match(/^\/commits\s+\d+$/i)) {
+    const limitMatch = t.match(/\/commits\s+(\d+)/i);
+    const limit = limitMatch ? Math.min(parseInt(limitMatch[1], 10), 20) : 7;
+    const res = await getRecentCommits({ limit });
+    if (!res.ok) return `commits failed: ${res.error}`;
+    const d = res.data as { branch?: string; commits?: Array<{ sha?: string; message?: string; author?: string; date?: string }> };
+    const commits = d.commits ?? [];
+    if (!commits.length) return 'No commits found.';
+    const lines = [`Recent commits - ${d.branch ?? 'main'}:`];
+    for (const c of commits) {
+      const sha = (c.sha ?? '').slice(0, 7);
+      const msg = (c.message ?? '').split('\n')[0].slice(0, 60);
+      const ago = timeAgo(c.date);
+      lines.push(`${sha}  ${msg}${ago ? `  (${ago})` : ''}`);
+    }
+    return lines.join('\n');
+  }
+
+  // ── /resolve / /who ────────────────────────────────────────────────────────
   const resolveMatch = t.match(/^\/(?:resolve|who)\s+(.+)$/i);
   if (resolveMatch) {
     const name = resolveMatch[1].trim();
-    if (!name) return 'Usage: /resolve <name>  or  /who <name>';
-    if (!isContactApiConfigured()) {
-      return 'Contact API not configured. Set CONTACT_API_BASE_URL (and CONTACT_API_KEY if your service uses one).';
-    }
+    if (!isContactApiConfigured()) return noApi();
     const result = await resolveContact({ name });
-    if (!result.ok) {
-      return `resolve failed: ${result.error}${result.status != null ? ` (${result.status})` : ''}`;
-    }
+    if (!result.ok) return `resolve failed: ${result.error}`;
     return formatResolveForTelegram(result.data);
   }
-  if (t === '/resolve' || t === '/who') {
-    return 'Usage: /resolve <name>  or  /who <name>\nExample: /resolve todd smith';
-  }
+  if (t === '/resolve' || t === '/who') return 'Usage: /resolve <name>  or  /who <name>';
 
+  // ── /invoice ───────────────────────────────────────────────────────────────
   const invoiceMatch = t.match(/^\/invoice\s+(.+)$/is);
   if (invoiceMatch) {
-    if (!isCraterConfigured()) {
-      return 'Invoicing not configured. Set CRATER_API_BASE_URL and CRATER_API_TOKEN on the Astro service.';
-    }
+    if (!isCraterConfigured()) return noApi('Crater');
     const parts = invoiceMatch[1].split('|').map((s) => s.trim());
     const customer = parts[0] ?? '';
     const amount = Number((parts[1] ?? '').replace(/[$,]/g, ''));
@@ -72,27 +295,15 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if (!customer || !Number.isFinite(amount) || amount <= 0) {
       return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
     }
-    const out = await craterCreateInvoice({
-      customerName: customer,
-      items: [{ name: description, quantity: 1, price: amount }],
-    });
-    if (!out.ok) return `Invoice failed: ${out.error}${out.status != null ? ` (${out.status})` : ''}`;
+    const out = await craterCreateInvoice({ customerName: customer, items: [{ name: description, quantity: 1, price: amount }] });
+    if (!out.ok) return `Invoice failed: ${out.error}`;
     return formatCreatedInvoice(out.data);
   }
-  if (t === '/invoice') {
-    return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
-  }
+  if (t === '/invoice') return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
 
-  const railwayHelp = [
-    'Railway (empty project):',
-    '/railway project <name> — create a new empty Railway project',
-    '/railway help — this blurb',
-    '',
-    'Needs RAILWAY_API_TOKEN on Astro. Optional: RAILWAY_WORKSPACE_ID (Cmd+K → Copy Active Workspace ID), RAILWAY_DRY_RUN=1 to test without creating.',
-  ].join('\n');
-
+  // ── /railway ───────────────────────────────────────────────────────────────
   if (t === '/railway' || t === '/railway help') {
-    return railwayHelp;
+    return '/railway project <name> - create a new empty Railway project\nNeeds RAILWAY_API_TOKEN on Astro.';
   }
   const railwayProj = t.match(/^\/railway\s+project\s+(.+)$/i);
   if (railwayProj) {
@@ -101,56 +312,41 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     const out = await createRailwayEmptyProject(name);
     if (!out.ok) return `Railway: ${out.message}`;
     const dash = `https://railway.com/project/${out.id}/`;
-    return `Created Railway project "${out.name}"\nID: ${out.id}\n${out.id === '(dry-run)' ? '(dry run — no API call)' : `Open: ${dash}`}`;
+    return `Created "${out.name}"\n${out.id === '(dry-run)' ? '(dry run)' : `Open: ${dash}`}`;
   }
 
-  if (t === '/clear' || t === '/reset') {
-    return '__CLEAR_HISTORY__';
-  }
+  // ── /clear ─────────────────────────────────────────────────────────────────
+  if (t === '/clear' || t === '/reset') return '__CLEAR_HISTORY__';
 
-  if (t === '/commands') {
-    return '__COMMANDS_MENU__';
-  }
-
+  // ── /help ──────────────────────────────────────────────────────────────────
   if (t === '/help') {
-    const hasContacts = isContactApiConfigured();
-    const hasCrater = isCraterConfigured();
+    const hasC = isContactApiConfigured();
+    const hasB = isCraterConfigured();
     const lines = [
-      'COMMANDS (type these):',
-      '/commands — browse all commands with buttons',
-      '/list — knowledge docs',
-      '/get <slug> — read a knowledge doc',
-      ...(hasContacts ? ['/resolve <name> (or /who) — find a client'] : []),
-      ...(hasCrater ? ['/invoice <customer> | <amount> [| description] — new invoice'] : []),
-      '/railway project <name> — new empty Railway project',
-      '/clear — forget this chat’s history',
-      '/help — this menu',
+      'SLASH COMMANDS:',
+      ...(hasC ? [
+        '/contacts [query]',
+        '/portal <name>',
+        '/portalsend <name>',
+        '/submitlink <name>',
+      ] : []),
+      ...(hasB ? ['/invoices', '/invoice <customer> | <amount> [| desc]'] : []),
+      '/status',
+      '/commits [n]',
+      '/list   /get <slug>',
+      '/railway project <name>',
+      '/clear',
       '',
-      'OR JUST SAY IT (plain English):',
+      'FREEFORM (just say it):',
+      ...(hasC ? ['"Add a client named..."', '"Set John\'s portal headline to..."', '"Add a WordPress login to John\'s Data tab"'] : []),
+      ...(hasB ? ['"Record a $200 cash payment from John"'] : []),
+      '"Is the latest code live?"',
     ];
-    if (hasContacts) {
-      lines.push(
-        '• Clients: “list my contacts”, “add a client named …”, “what’s <name>’s portal link?”',
-        '• Portal: “set <name>’s page headline … body …”, “add Data to <name>: WordPress login …”, “hide <name>’s page”',
-        '• Send: “send <name> their link” (emails or texts them their portal)'
-      );
-    }
-    if (hasCrater) {
-      lines.push(
-        '• Billing: “invoice <name> $100 for website work”, “who has an unpaid invoice?”, “record a $50 payment from <name>”'
-      );
-    }
-    lines.push(
-      '• Dev/deploy: “is the latest code live?”, “show recent commits”, “git status”, “list branches”',
-      '• Knowledge: “what’s our email triage rule?” (reads bundled docs)',
-      '',
-      'Freeform needs ANTHROPIC_API_KEY. I keep recent chat history for follow-ups.'
-    );
     return lines.join('\n');
   }
+
   return null;
 }
-
 export type TelegramUpdate = {
   message?: {
     chat?: { id?: number };
@@ -204,11 +400,6 @@ export async function handleTelegramTextMessage(opts: {
   if (slash === '__CLEAR_HISTORY__') {
     clearChatHistory(chatId);
     await telegramSendMessage(token, chatId, 'Conversation history cleared.');
-    return;
-  }
-  if (slash === '__COMMANDS_MENU__') {
-    const buttons = getCommandMenuButtons();
-    await telegramSendMenu(token, chatId, 'What do you want to look up?', buttons);
     return;
   }
   if (slash) {
