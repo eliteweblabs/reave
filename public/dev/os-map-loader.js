@@ -729,6 +729,7 @@ async function loadDocumentsTab() {
   docState.templates = templates;
   docState.activeSlug = null;
   docState.dirty = false;
+  getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
 
@@ -790,7 +791,15 @@ function renderNewForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
-  header.innerHTML = '<span class="de-doc-name">New Document</span>';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.innerHTML = '‹ Back';
+  backBtn.addEventListener('click', () => backToList());
+  header.appendChild(backBtn);
+  const nameEl = document.createElement('span');
+  nameEl.className = 'de-doc-name';
+  nameEl.textContent = 'New Document';
+  header.appendChild(nameEl);
   pane.appendChild(header);
 
   const fields = document.createElement('div');
@@ -850,7 +859,19 @@ function renderEditForm(pane) {
 
       const header = document.createElement('div');
       header.className = 'de-header';
-      header.innerHTML = `<span class="de-doc-name">${escHtml(tpl?.title ?? slug)}</span><span class="de-doc-slug">${escHtml(slug)}.html</span>`;
+      const backBtn2 = document.createElement('button');
+      backBtn2.className = 'de-back-btn';
+      backBtn2.innerHTML = '‹ Back';
+      backBtn2.addEventListener('click', () => backToList());
+      header.appendChild(backBtn2);
+      const nameEl2 = document.createElement('span');
+      nameEl2.className = 'de-doc-name';
+      nameEl2.textContent = tpl?.title ?? slug;
+      header.appendChild(nameEl2);
+      const slugEl = document.createElement('span');
+      slugEl.className = 'de-doc-slug';
+      slugEl.textContent = `${slug}.html`;
+      header.appendChild(slugEl);
       pane.appendChild(header);
 
       const ta = document.createElement('textarea');
@@ -899,12 +920,22 @@ async function openDocument(slug) {
   docState.activeSlug = slug;
   docState.dirty = false;
   renderDocEditor();
+  getDocEditor()?.classList.add('de-pane-active');
 }
 
 function startNewDocument() {
   if (docState.dirty && !confirm('Discard unsaved changes?')) return;
   docState.activeSlug = '__new__';
   docState.dirty = false;
+  renderDocEditor();
+  getDocEditor()?.classList.add('de-pane-active');
+}
+
+function backToList() {
+  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  docState.activeSlug = null;
+  docState.dirty = false;
+  getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
 
@@ -964,6 +995,7 @@ async function deleteDocument(slug) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     docState.activeSlug = null;
     docState.dirty = false;
+    getDocEditor()?.classList.remove('de-pane-active');
     await loadDocumentsTab();
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);

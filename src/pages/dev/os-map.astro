@@ -366,6 +366,30 @@ export const prerender = true;
         background: var(--panel);
         overflow: hidden;
       }
+
+      /* Mobile: single-pane navigation */
+      @media (max-width: 639px) {
+        #doc-editor {
+          flex-direction: column;
+        }
+        .de-sidebar {
+          width: 100%;
+          flex: 1 1 auto;
+          border-right: none;
+          border-bottom: 1px solid var(--panel-border);
+        }
+        .de-pane {
+          display: none;
+        }
+        /* When a document is open on mobile, hide sidebar and show pane */
+        #doc-editor.de-pane-active .de-sidebar {
+          display: none;
+        }
+        #doc-editor.de-pane-active .de-pane {
+          display: flex;
+          flex: 1 1 auto;
+        }
+      }
       .de-new-btn {
         margin: 0.7rem;
         padding: 0.45rem 0.8rem;
@@ -432,11 +456,26 @@ export const prerender = true;
 
       .de-header {
         display: flex;
-        align-items: baseline;
+        align-items: center;
         gap: 0.6rem;
         padding: 0.75rem 1rem 0.6rem;
         border-bottom: 1px solid var(--panel-border);
         flex: 0 0 auto;
+      }
+      .de-back-btn {
+        display: none;
+        font: inherit;
+        font-size: 0.8rem;
+        color: #58a6ff;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0.1rem 0.2rem;
+        flex: 0 0 auto;
+      }
+      @media (max-width: 639px) {
+        .de-back-btn { display: inline-flex; align-items: center; gap: 0.25rem; }
+        .de-doc-name { font-size: 0.88rem; }
       }
       .de-doc-name {
         font-size: 0.95rem;
