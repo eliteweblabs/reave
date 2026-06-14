@@ -113,16 +113,15 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   // ── /contacts [query] ──────────────────────────────────────────────────────
   if (t === '/contacts') {
     if (!isContactApiConfigured()) return noApi();
-    const res = await listContacts({ limit: 25 });
+    const res = await listContacts({ limit: 200 });
     if (!res.ok) return `contacts failed: ${res.error}`;
     const { total, contacts } = res.data;
     if (!contacts.length) return 'No contacts found.';
     const lines = [`Contacts (${total} total):`];
-    for (const c of contacts.slice(0, 20)) {
-      const detail = c.email || c.phone || c.company || '';
-      lines.push(`- ${c.name}${detail ? ` - ${detail}` : ''}`);
+    for (const c of contacts) {
+      const detail = c.company || c.email || c.phone || '';
+      lines.push(`- ${c.name}${detail ? ` — ${detail}` : ''}`);
     }
-    if (total > 20) lines.push(`...and ${total - 20} more`);
     lines.push('', '/contacts <name> to search   /portal <name> for a link');
     return lines.join('\n');
   }
