@@ -72,6 +72,7 @@ const fmtDate = (s?: string | null) => {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
+    {authorized && <meta name="dashboard-key" content={expectedKey} />}
     <title>Master contacts</title>
     <style is:global>
       :root { color-scheme: dark; }
@@ -131,6 +132,44 @@ const fmtDate = (s?: string | null) => {
       .card .links a:hover { border-color: #4b5563; color: #fff; }
       .empty-note { color: #8b97a8; margin-top: 20px; }
       .no-match { color: #8b97a8; display: none; margin-top: 20px; }
+
+      .btn-add {
+        padding: 9px 16px; border-radius: 10px; border: none; cursor: pointer;
+        background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
+        font: inherit; font-size: 14px; font-weight: 600;
+      }
+      .btn-add:hover { opacity: 0.88; }
+
+      .modal-backdrop {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+        z-index: 100; align-items: center; justify-content: center;
+      }
+      .modal-backdrop.open { display: flex; }
+      .modal {
+        background: #11151d; border: 1px solid #283142; border-radius: 16px;
+        padding: 28px 28px 24px; width: 100%; max-width: 420px; margin: 0 16px;
+      }
+      .modal h2 { margin: 0 0 18px; font-size: 17px; }
+      .modal label { display: block; font-size: 13px; color: #8b97a8; margin-bottom: 4px; margin-top: 12px; }
+      .modal label:first-of-type { margin-top: 0; }
+      .modal input, .modal textarea {
+        width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid #283142;
+        background: #0a0d14; color: #fff; font: inherit; font-size: 14px;
+      }
+      .modal textarea { resize: vertical; min-height: 64px; }
+      .modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+      .btn-cancel {
+        padding: 9px 16px; border-radius: 10px; border: 1px solid #283142;
+        background: none; color: #8b97a8; font: inherit; font-size: 14px; cursor: pointer;
+      }
+      .btn-save {
+        padding: 9px 18px; border-radius: 10px; border: none; cursor: pointer;
+        background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff;
+        font: inherit; font-size: 14px; font-weight: 600;
+      }
+      .btn-save:disabled { opacity: 0.5; cursor: default; }
+      .modal-err { color: #fca5a5; font-size: 13px; margin-top: 10px; display: none; }
+      .modal-ok { color: #86efac; font-size: 13px; margin-top: 10px; display: none; }
     </style>
   </head>
   <body>
@@ -156,7 +195,10 @@ const fmtDate = (s?: string | null) => {
               <h1>Master contacts</h1>
               <div class="sub">contact-api · contact-postgres</div>
             </div>
-            <a href="/dev/os-map">← OS map</a>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <button class="btn-add" id="openAdd">+ Add contact</button>
+              <a href="/dev/os-map">← OS map</a>
+            </div>
           </div>
 
           {loadError ? (
@@ -199,11 +241,35 @@ const fmtDate = (s?: string | null) => {
               {contacts.length === 0 && <p class="empty-note">No contacts yet.</p>}
             </>
           )}
+
+          {/* Add-contact modal */}
+          <div class="modal-backdrop" id="modalBackdrop">
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+              <h2 id="modalTitle">Add contact</h2>
+              <label for="f-name">Name *</label>
+              <input id="f-name" type="text" placeholder="Jason Kahan" autocomplete="off" />
+              <label for="f-company">Company</label>
+              <input id="f-company" type="text" placeholder="CAPCO Design Group" autocomplete="off" />
+              <label for="f-email">Email</label>
+              <input id="f-email" type="email" placeholder="jason@example.com" autocomplete="off" />
+              <label for="f-phone">Phone</label>
+              <input id="f-phone" type="tel" placeholder="+1 (617) 000-0000" autocomplete="off" />
+              <label for="f-notes">Notes</label>
+              <textarea id="f-notes" placeholder="Internal notes (never shown to client)"></textarea>
+              <div class="modal-err" id="modalErr"></div>
+              <div class="modal-ok" id="modalOk"></div>
+              <div class="modal-actions">
+                <button class="btn-cancel" id="closeModal">Cancel</button>
+                <button class="btn-save" id="saveContact">Save</button>
+              </div>
+            </div>
+          </div>
         </main>
       )
     }
 
     <script>
+      // ── search filter ──────────────────────────────────────────────────────
       const search = document.getElementById('search') as HTMLInputElement | null;
       const cards = Array.from(document.querySelectorAll<HTMLElement>('#grid .card'));
       const noMatch = document.getElementById('noMatch');
@@ -217,6 +283,76 @@ const fmtDate = (s?: string | null) => {
           if (show) visible++;
         }
         if (noMatch) noMatch.style.display = visible === 0 && cards.length > 0 ? 'block' : 'none';
+      });
+
+      // ── add-contact modal ──────────────────────────────────────────────────
+      const backdrop  = document.getElementById('modalBackdrop');
+      const openBtn   = document.getElementById('openAdd');
+      const closeBtn  = document.getElementById('closeModal');
+      const saveBtn   = document.getElementById('saveContact') as HTMLButtonElement | null;
+      const errEl     = document.getElementById('modalErr');
+      const okEl      = document.getElementById('modalOk');
+
+      function openModal() {
+        backdrop?.classList.add('open');
+        (document.getElementById('f-name') as HTMLInputElement)?.focus();
+      }
+      function closeModal() {
+        backdrop?.classList.remove('open');
+        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+        if (okEl)  { okEl.textContent  = ''; okEl.style.display  = 'none'; }
+      }
+
+      openBtn?.addEventListener('click', openModal);
+      closeBtn?.addEventListener('click', closeModal);
+      backdrop?.addEventListener('click', (e) => { if (e.target === backdrop) closeModal(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+      saveBtn?.addEventListener('click', async () => {
+        const name    = (document.getElementById('f-name')    as HTMLInputElement).value.trim();
+        const company = (document.getElementById('f-company') as HTMLInputElement).value.trim();
+        const email   = (document.getElementById('f-email')   as HTMLInputElement).value.trim();
+        const phone   = (document.getElementById('f-phone')   as HTMLInputElement).value.trim();
+        const notes   = (document.getElementById('f-notes')   as HTMLTextAreaElement).value.trim();
+
+        if (errEl) { errEl.style.display = 'none'; }
+        if (okEl)  { okEl.style.display  = 'none'; }
+
+        if (!name) {
+          if (errEl) { errEl.textContent = 'Name is required.'; errEl.style.display = 'block'; }
+          return;
+        }
+
+        if (saveBtn) saveBtn.disabled = true;
+
+        // Read the dashboard key from the cookie or ask the browser to send it
+        // The key is stored httpOnly so we pass it via a meta tag stamped at render time.
+        const dashKey = (document.querySelector('meta[name="dashboard-key"]') as HTMLMetaElement | null)?.content || '';
+
+        try {
+          const res = await fetch('/api/contacts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-dashboard-key': dashKey },
+            body: JSON.stringify({ name, company: company || undefined, email: email || undefined, phone: phone || undefined, notes: notes || undefined }),
+          });
+          const data = await res.json() as { ok: boolean; error?: string; contact?: { uid?: string; name?: string } };
+          if (data.ok && data.contact) {
+            if (okEl) { okEl.textContent = `Added ${data.contact.name}.`; okEl.style.display = 'block'; }
+            // Clear fields
+            (['f-name','f-company','f-email','f-phone','f-notes'] as const).forEach(id => {
+              const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null;
+              if (el) el.value = '';
+            });
+            // Reload after short delay so the new card appears
+            setTimeout(() => { window.location.reload(); }, 900);
+          } else {
+            if (errEl) { errEl.textContent = data.error || 'Unknown error.'; errEl.style.display = 'block'; }
+          }
+        } catch (e) {
+          if (errEl) { errEl.textContent = `Network error: ${e instanceof Error ? e.message : String(e)}`; errEl.style.display = 'block'; }
+        } finally {
+          if (saveBtn) saveBtn.disabled = false;
+        }
       });
     </script>
   </body>
