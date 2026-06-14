@@ -1,5 +1,9 @@
 ---
 import Header from "../components/Header.astro";
+import SEOHead from "../components/SEOHead.astro";
+import type { Props as SEOProps } from "../components/SEOHead.astro";
+
+export type Props = SEOProps;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
@@ -11,12 +15,11 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
 		<meta name="generator" content={Astro.generator} />
-		<title>/\V</title>
-		<meta name="description" content="/\V" />
+		<SEOHead {...Astro.props} />
 	</head>
 	<body>
 		<Header isIndex={isIndexPage} />
