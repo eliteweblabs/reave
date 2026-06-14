@@ -516,7 +516,7 @@ document.querySelectorAll('#tools button').forEach((btn) => {
     else if (act === 'fit') fit();
   });
 });
-document.getElementById('reset').addEventListener('click', () => {
+document.getElementById('reset')?.addEventListener('click', () => {
   localStorage.removeItem(storeKey());
   for (const n of byId.values()) {
     const orig = MAP.nodes.find((d) => d.id === n.id);
