@@ -26,6 +26,7 @@ export const prerender = true;
         --card-border: #232c3a;
         --panel: #121722;
         --panel-border: #283142;
+        --topbar-h: 3.4rem;
       }
       * { box-sizing: border-box; }
       html, body { height: 100%; margin: 0; }
@@ -196,14 +197,19 @@ export const prerender = true;
       /* Top bar */
       #topbar {
         position: fixed;
-        top: 0.7rem;
-        left: 0.7rem;
-        right: 0.7rem;
+        top: 0;
+        left: 0;
+        right: 0;
         display: flex;
         align-items: center;
         gap: 0.6rem;
+        padding: 0.7rem 0.7rem;
         pointer-events: none;
         z-index: 20;
+        background: rgba(10, 13, 20, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(35, 44, 58, 0.5);
       }
       #topbar .brand {
         pointer-events: auto;
@@ -238,12 +244,20 @@ export const prerender = true;
         border-radius: 7px;
         padding: 0.28rem 0.7rem;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
       }
       #tabs button:hover { color: var(--fg); }
       #tabs button.active {
         color: var(--fg);
         background: #1b2230;
         border-color: var(--panel-border);
+      }
+      .tab-icon { font-size: 0.9rem; line-height: 1; flex: 0 0 auto; }
+      @media (max-width: 600px) {
+        .tab-label { display: none; }
+        #tabs button { padding: 0.28rem 0.5rem; }
       }
       #topbar .note code { background: var(--panel); padding: 0.06rem 0.3rem; border-radius: 4px; }
       #topbar .spacer { flex: 1; }
@@ -323,6 +337,199 @@ export const prerender = true;
         color: var(--muted);
         font-variant-numeric: tabular-nums;
       }
+
+      /* ── Documents editor tab ── */
+      #doc-editor {
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        display: flex;
+        flex-direction: row;
+        background: var(--bg);
+        z-index: 10;
+      }
+
+      .de-loading {
+        margin: auto;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .de-error { color: #f85149; }
+
+      /* Sidebar */
+      .de-sidebar {
+        width: 260px;
+        flex: 0 0 260px;
+        border-right: 1px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        background: var(--panel);
+        overflow: hidden;
+      }
+      .de-new-btn {
+        margin: 0.7rem;
+        padding: 0.45rem 0.8rem;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--fg);
+        background: #1e3a5f;
+        border: 1px solid #2d5a94;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        flex: 0 0 auto;
+      }
+      .de-new-btn:hover { background: #265080; border-color: #3a72b8; }
+
+      .de-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 0.5rem 0.5rem;
+      }
+      .de-empty {
+        padding: 0.8rem 0.4rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .de-list-item {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.1rem;
+        padding: 0.55rem 0.65rem;
+        font: inherit;
+        font-size: 0.8rem;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        margin-bottom: 0.15rem;
+      }
+      .de-list-item:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
+      .de-list-item.active { color: var(--fg); background: #11253d; border-color: #2d5a94; }
+      .de-item-title { font-weight: 600; font-size: 0.82rem; color: inherit; }
+      .de-item-slug { font-size: 0.69rem; color: var(--muted); font-family: ui-monospace, monospace; }
+
+      /* Editor pane */
+      .de-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 0;
+      }
+      .de-placeholder {
+        margin: auto;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .de-placeholder-icon { font-size: 2.5rem; margin-bottom: 0.6rem; }
+
+      .de-header {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        padding: 0.75rem 1rem 0.6rem;
+        border-bottom: 1px solid var(--panel-border);
+        flex: 0 0 auto;
+      }
+      .de-doc-name {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--fg);
+      }
+      .de-doc-slug {
+        font-size: 0.72rem;
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+      }
+
+      .de-fields {
+        padding: 0.7rem 1rem 0;
+        flex: 0 0 auto;
+      }
+      .de-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .de-input {
+        font: inherit;
+        font-size: 0.84rem;
+        font-family: ui-monospace, monospace;
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 7px;
+        padding: 0.4rem 0.6rem;
+        outline: none;
+        width: 100%;
+        max-width: 340px;
+      }
+      .de-input:focus { border-color: #3b82f6; }
+
+      .de-textarea {
+        flex: 1;
+        resize: none;
+        margin: 0.6rem 1rem;
+        padding: 0.7rem 0.9rem;
+        font: 0.83rem/1.6 ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+        color: #c9d1d9;
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 9px;
+        outline: none;
+        tab-size: 2;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: auto;
+      }
+      .de-textarea:focus { border-color: #3b82f6; }
+
+      .de-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 1rem;
+        border-top: 1px solid var(--panel-border);
+        flex: 0 0 auto;
+      }
+      .de-btn {
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.38rem 0.9rem;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .de-btn:disabled { opacity: 0.45; cursor: default; }
+      .de-btn-primary {
+        color: #fff;
+        background: #2563eb;
+        border-color: #3b82f6;
+      }
+      .de-btn-primary:not(:disabled):hover { background: #1d4ed8; }
+      .de-btn-ghost {
+        color: var(--muted);
+        background: transparent;
+        border-color: var(--panel-border);
+      }
+      .de-btn-ghost:hover { color: var(--fg); border-color: #4b5563; }
+      .de-btn-danger {
+        color: #f85149;
+        background: transparent;
+        border-color: #f8514940;
+      }
+      .de-btn-danger:hover { background: #f8514915; border-color: #f85149; }
     </style>
   </head>
   <body>
@@ -352,6 +559,9 @@ export const prerender = true;
         <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
+
+    <!-- Documents tab panel (hidden unless documents tab is active) -->
+    <div id="doc-editor" style="display:none"></div>
 
     <script is:inline type="module" src="/dev/os-map-loader.js"></script>
   </body>

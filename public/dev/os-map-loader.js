@@ -138,13 +138,23 @@ function setActiveMap(key) {
   MAP = MAPS[key];
   saveActiveKey();
   updateTabs();
-  buildMap();
-  requestAnimationFrame(() => {
-    redraw();
-    fit();
-  });
-  if (MAP.type === 'todo') loadAndBuildTodoNodes();
+  syncCanvasVisibility();
+  if (MAP.type !== 'documents') {
+    buildMap();
+    requestAnimationFrame(() => { redraw(); fit(); });
+    if (MAP.type === 'todo') loadAndBuildTodoNodes();
+  } else {
+    loadDocumentsTab();
+  }
   syncHealthLifecycle();
+}
+
+function syncCanvasVisibility() {
+  const isDoc = MAP.type === 'documents';
+  wrap.style.display = isDoc ? 'none' : '';
+  document.getElementById('tools').style.display = isDoc ? 'none' : '';
+  document.getElementById('legend').style.display = isDoc ? 'none' : '';
+  document.getElementById('doc-editor').style.display = isDoc ? 'flex' : 'none';
 }
 
 // ---- health polling ----
@@ -528,7 +538,11 @@ function buildTabs() {
   for (const key of Object.keys(MAPS)) {
     const btn = document.createElement('button');
     btn.dataset.map = key;
-    btn.textContent = MAPS[key].title;
+    const m = MAPS[key];
+    btn.innerHTML = m.icon
+      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
+      : m.title;
+    btn.title = m.title;
     btn.addEventListener('click', () => setActiveMap(key));
     tabs.appendChild(btn);
   }
@@ -689,6 +703,277 @@ async function loadAndBuildTodoNodes() {
   }
 }
 
+// ---- documents tab ----
+
+let docState = {
+  templates: [],   // [{ slug, title }]
+  activeSlug: null,
+  dirty: false,
+};
+
+function getDocEditor() { return document.getElementById('doc-editor'); }
+
+async function loadDocumentsTab() {
+  const root = getDocEditor();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading templates…</div>';
+  let templates;
+  try {
+    const res = await fetch('/api/documents', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    templates = await res.json();
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">Failed to load templates: ${e.message}</div>`;
+    return;
+  }
+  docState.templates = templates;
+  docState.activeSlug = null;
+  docState.dirty = false;
+  renderDocEditor();
+}
+
+function renderDocEditor() {
+  const root = getDocEditor();
+  if (!root) return;
+  const { templates, activeSlug, dirty } = docState;
+
+  root.innerHTML = '';
+
+  // ── Sidebar ──
+  const sidebar = document.createElement('div');
+  sidebar.className = 'de-sidebar';
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn';
+  newBtn.textContent = '+ New Document';
+  newBtn.addEventListener('click', () => startNewDocument());
+  sidebar.appendChild(newBtn);
+
+  const list = document.createElement('div');
+  list.className = 'de-list';
+  for (const tpl of templates) {
+    const item = document.createElement('button');
+    item.className = 'de-list-item' + (tpl.slug === activeSlug ? ' active' : '');
+    item.dataset.slug = tpl.slug;
+    item.innerHTML = `<span class="de-item-title">${escHtml(tpl.title)}</span><span class="de-item-slug">${escHtml(tpl.slug)}</span>`;
+    item.addEventListener('click', () => openDocument(tpl.slug));
+    list.appendChild(item);
+  }
+  if (templates.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No templates yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  // ── Editor pane ──
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+
+  if (activeSlug === '__new__') {
+    renderNewForm(pane);
+  } else if (activeSlug) {
+    renderEditForm(pane);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = `<div class="de-placeholder-icon">📄</div><p>Select a template to edit, or create a new one.</p>`;
+    pane.appendChild(placeholder);
+  }
+
+  root.appendChild(pane);
+}
+
+function renderNewForm(pane) {
+  pane.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  header.innerHTML = '<span class="de-doc-name">New Document</span>';
+  pane.appendChild(header);
+
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+
+  const slugLabel = document.createElement('label');
+  slugLabel.className = 'de-label';
+  slugLabel.textContent = 'Filename (slug)';
+  const slugInput = document.createElement('input');
+  slugInput.className = 'de-input';
+  slugInput.type = 'text';
+  slugInput.placeholder = 'e.g. service-agreement';
+  slugInput.pattern = '[a-zA-Z0-9_-]+';
+  slugInput.id = 'de-new-slug';
+  slugLabel.appendChild(slugInput);
+  fields.appendChild(slugLabel);
+  pane.appendChild(fields);
+
+  const ta = document.createElement('textarea');
+  ta.className = 'de-textarea';
+  ta.id = 'de-new-html';
+  ta.spellcheck = false;
+  ta.placeholder = '<!-- title: My Document -->\n<h1>Title</h1>\n<p>Content…</p>';
+  pane.appendChild(ta);
+
+  const actions = document.createElement('div');
+  actions.className = 'de-actions';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'de-btn de-btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => {
+    docState.activeSlug = null;
+    docState.dirty = false;
+    renderDocEditor();
+  });
+  const createBtn = document.createElement('button');
+  createBtn.className = 'de-btn de-btn-primary';
+  createBtn.textContent = 'Create';
+  createBtn.addEventListener('click', () => createDocument(slugInput.value.trim(), ta.value));
+  actions.appendChild(cancelBtn);
+  actions.appendChild(createBtn);
+  pane.appendChild(actions);
+}
+
+function renderEditForm(pane) {
+  const slug = docState.activeSlug;
+  const tpl = docState.templates.find((t) => t.slug === slug);
+  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+
+  fetch(`/api/documents/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(({ html }) => {
+      pane.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'de-header';
+      header.innerHTML = `<span class="de-doc-name">${escHtml(tpl?.title ?? slug)}</span><span class="de-doc-slug">${escHtml(slug)}.html</span>`;
+      pane.appendChild(header);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'de-textarea';
+      ta.id = `de-edit-${slug}`;
+      ta.spellcheck = false;
+      ta.value = html;
+      ta.addEventListener('input', () => { docState.dirty = true; updateSaveBtn(); });
+      pane.appendChild(ta);
+
+      const actions = document.createElement('div');
+      actions.className = 'de-actions';
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'de-btn de-btn-danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteDocument(slug));
+
+      const spacer = document.createElement('span');
+      spacer.style.flex = '1';
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'de-btn de-btn-primary';
+      saveBtn.id = 'de-save-btn';
+      saveBtn.textContent = 'Save';
+      saveBtn.disabled = !docState.dirty;
+      saveBtn.addEventListener('click', () => saveDocument(slug, ta.value, saveBtn));
+
+      actions.appendChild(delBtn);
+      actions.appendChild(spacer);
+      actions.appendChild(saveBtn);
+      pane.appendChild(actions);
+    })
+    .catch((e) => {
+      pane.innerHTML = `<div class="de-loading de-error">Failed to load: ${e.message}</div>`;
+    });
+}
+
+function updateSaveBtn() {
+  const btn = document.getElementById('de-save-btn');
+  if (btn) btn.disabled = !docState.dirty;
+}
+
+async function openDocument(slug) {
+  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  docState.activeSlug = slug;
+  docState.dirty = false;
+  renderDocEditor();
+}
+
+function startNewDocument() {
+  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  docState.activeSlug = '__new__';
+  docState.dirty = false;
+  renderDocEditor();
+}
+
+async function createDocument(slug, html) {
+  if (!slug) { alert('Please enter a filename (slug).'); return; }
+  if (!/^[a-z0-9_-]+$/i.test(slug)) { alert('Slug may only contain letters, numbers, hyphens, and underscores.'); return; }
+  if (!html.trim()) { alert('HTML content cannot be empty.'); return; }
+  try {
+    const res = await fetch('/api/documents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, html }),
+    });
+    if (res.status === 409) { alert('A template with that slug already exists.'); return; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    docState.dirty = false;
+    await loadDocumentsTab();
+    docState.activeSlug = slug;
+    renderDocEditor();
+  } catch (e) {
+    alert(`Failed to create: ${e.message}`);
+  }
+}
+
+async function saveDocument(slug, html, btn) {
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    docState.dirty = false;
+    btn.textContent = 'Saved ✓';
+    setTimeout(() => { btn.textContent = 'Save'; btn.disabled = true; }, 1800);
+    // Refresh title in sidebar in case <!-- title: --> changed
+    const newTitle = html.match(/<!--\s*title:\s*(.+?)\s*-->/i)?.[1]?.trim()
+      ?? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const tpl = docState.templates.find((t) => t.slug === slug);
+    if (tpl) tpl.title = newTitle;
+    document.querySelector(`.de-list-item[data-slug="${CSS.escape(slug)}"] .de-item-title`)
+      ?.replaceWith(Object.assign(document.createElement('span'), { className: 'de-item-title', textContent: newTitle }));
+  } catch (e) {
+    btn.textContent = 'Save';
+    btn.disabled = false;
+    alert(`Failed to save: ${e.message}`);
+  }
+}
+
+async function deleteDocument(slug) {
+  const tpl = docState.templates.find((t) => t.slug === slug);
+  if (!confirm(`Delete "${tpl?.title ?? slug}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    docState.activeSlug = null;
+    docState.dirty = false;
+    await loadDocumentsTab();
+  } catch (e) {
+    alert(`Failed to delete: ${e.message}`);
+  }
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // ---- persistence ----
 function savePositions() {
   const pos = {};
@@ -729,12 +1014,14 @@ function saveActiveKey() {
 
 // ---- init ----
 buildTabs();
-buildMap();
-requestAnimationFrame(() => {
-  redraw();
-  fit();
-});
-if (activeKey === 'todo') loadAndBuildTodoNodes();
+syncCanvasVisibility();
+if (MAP.type !== 'documents') {
+  buildMap();
+  requestAnimationFrame(() => { redraw(); fit(); });
+  if (MAP.type === 'todo') loadAndBuildTodoNodes();
+} else {
+  loadDocumentsTab();
+}
 syncHealthLifecycle();
 
 document.addEventListener('visibilitychange', () => {
