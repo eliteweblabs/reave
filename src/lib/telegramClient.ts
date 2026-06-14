@@ -70,3 +70,26 @@ export async function telegramAnswerCallback(
     body: JSON.stringify({ callback_query_id: callbackQueryId }),
   });
 }
+
+export type BotCommand = { command: string; description: string };
+
+/**
+ * Register the bot's slash command list with Telegram.
+ * Commands appear in the native / picker in the order given.
+ * Descriptions are limited to 256 chars; command names must be lowercase a-z 0-9 _.
+ */
+export async function telegramSetMyCommands(
+  token: string,
+  commands: BotCommand[]
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/setMyCommands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ commands }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    return { ok: false, error: `${res.status} ${errText}` };
+  }
+  return { ok: true };
+}

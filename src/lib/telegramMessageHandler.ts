@@ -1,7 +1,8 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramAnswerCallback } from './telegramClient';
+import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands } from './telegramClient';
+import { buildCommandList } from './telegramCommandList';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -315,6 +316,12 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return `Created "${out.name}"\n${out.id === '(dry-run)' ? '(dry run)' : `Open: ${dash}`}`;
   }
 
+  // ── /ai ────────────────────────────────────────────────────────────────────
+  if (t === '/ai') return 'Usage: /ai <your question>\nExample: /ai What\'s the status of the last deployment?';
+
+  // ── /registercommands (hidden admin) ───────────────────────────────────────
+  if (t === '/registercommands') return '__REGISTER_COMMANDS__';
+
   // ── /clear ─────────────────────────────────────────────────────────────────
   if (t === '/clear' || t === '/reset') return '__CLEAR_HISTORY__';
 
@@ -323,24 +330,29 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     const hasC = isContactApiConfigured();
     const hasB = isCraterConfigured();
     const lines = [
-      'SLASH COMMANDS:',
+      'BUSINESS COMMANDS:',
       ...(hasC ? [
-        '/contacts [query]',
-        '/portal <name>',
-        '/portalsend <name>',
-        '/submitlink <name>',
+        '/contacts [query]  — list or search clients',
+        '/portal <name>  — portal link + summary',
+        '/portalsend <name>  — email/SMS the link',
+        '/submitlink <name>  — data collection link',
       ] : []),
-      ...(hasB ? ['/invoices', '/invoice <customer> | <amount> [| desc]'] : []),
-      '/status',
-      '/commits [n]',
-      '/list   /get <slug>',
-      '/railway project <name>',
-      '/clear',
+      ...(hasB ? [
+        '/invoices  — recent invoices',
+        '/invoice <customer> | <amount>  — create invoice',
+      ] : []),
       '',
-      'FREEFORM (just say it):',
-      ...(hasC ? ['"Add a client named..."', '"Set John\'s portal headline to..."', '"Add a WordPress login to John\'s Data tab"'] : []),
-      ...(hasB ? ['"Record a $200 cash payment from John"'] : []),
-      '"Is the latest code live?"',
+      'DEV / OPS:',
+      '/status  — deployment health',
+      '/commits [n]  — recent git commits',
+      '/railway project <name>  — create project',
+      '/list   /get <slug>  — knowledge docs',
+      '/clear  — clear chat history',
+      '',
+      'CLAUDE (AI):',
+      '/ai <question>  — ask Claude anything',
+      '',
+      'Or just type freely — Claude handles anything not matched above.',
     ];
     return lines.join('\n');
   }
@@ -396,14 +408,46 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
 
+  // /ai <query> — explicit Claude route; strip prefix and treat as freeform
+  const aiMatch = text.match(/^\/ai\s+(.+)$/is);
+  if (aiMatch) {
+    const userText = enrichUserText(aiMatch[1].trim(), update.message?.reply_to_message);
+    const priorTurns = getChatHistory(chatId);
+    const reply = await runTelegramKnowledgeAgent({ userText, priorTurns });
+    appendChatTurns(chatId, [
+      { role: 'user', content: userText },
+      { role: 'assistant', content: reply },
+    ]);
+    await telegramSendMessage(token, chatId, reply);
+    return;
+  }
+
   const slash = await handleSlashCommand(text);
   if (slash === '__CLEAR_HISTORY__') {
     clearChatHistory(chatId);
     await telegramSendMessage(token, chatId, 'Conversation history cleared.');
     return;
   }
+  if (slash === '__REGISTER_COMMANDS__') {
+    const commands = buildCommandList();
+    const res = await telegramSetMyCommands(token, commands);
+    await telegramSendMessage(
+      token,
+      chatId,
+      res.ok
+        ? `Registered ${commands.length} commands with Telegram.`
+        : `setMyCommands failed: ${res.error}`
+    );
+    return;
+  }
   if (slash) {
     await telegramSendMessage(token, chatId, slash);
+    return;
+  }
+
+  // Unknown slash commands get a helpful nudge instead of going to the LLM.
+  if (text.startsWith('/')) {
+    await telegramSendMessage(token, chatId, 'Unknown command. Try /help.');
     return;
   }
 
@@ -441,8 +485,8 @@ export async function handleTelegramCallbackQuery(opts: {
   if (!isUserAllowed(fromId, allowed, prod)) return;
 
   if (data.startsWith('cmd:')) {
-    const sectionId = data.slice(4);
-    const text = formatSectionForTelegram(sectionId);
-    await telegramSendMessage(token, chatId, text);
+    // Inline keyboard callbacks are no longer actively used (commands are direct slash commands),
+    // but we keep the handler so existing keyboard buttons don't leave unanswered callbacks.
+    await telegramSendMessage(token, chatId, 'Use /help to see all commands.');
   }
 }
