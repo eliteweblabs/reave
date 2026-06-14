@@ -134,14 +134,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     const { contacts } = res.data;
     if (!contacts.length) return `No contacts found for "${q}".`;
     if (contacts.length === 1) {
-      const c = contacts[0];
-      const lines = [c.name];
-      if (c.email) lines.push(c.email);
-      if (c.phone) lines.push(c.phone);
-      if (c.company) lines.push(c.company);
-      lines.push('', clientPortalUrl(c.uid));
-      lines.push('', `/portal ${c.name}`, `/portalsend ${c.name}`, `/submitlink ${c.name}`);
-      return lines.join('\n');
+      return `__CONTACTS_SINGLE__:${contacts[0].uid}`;
     }
     const lines = [`${contacts.length} matches for "${q}":`];
     for (const c of contacts) {
@@ -501,6 +494,34 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
 
+  if (slash?.startsWith('__CONTACTS_SINGLE__:')) {
+    const uid = slash.slice('__CONTACTS_SINGLE__:'.length);
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    const c = full.data;
+    const infoLines = [c.name];
+    if (c.email) infoLines.push(c.email);
+    if (c.phone) infoLines.push(c.phone);
+    if (c.company) infoLines.push(c.company);
+    infoLines.push('', clientPortalUrl(uid));
+    const hasDoc = listTemplates().length > 0;
+    const rows: Array<Array<{ text: string; data: string }>> = [
+      [
+        { text: 'Portal Link', data: `qcmd:portal:${uid}` },
+        { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
+      ],
+      [
+        { text: 'Submit Link', data: `qcmd:submitlink:${uid}` },
+        ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
+      ],
+    ];
+    await telegramSendMenu(token, chatId, infoLines.join('\n'), rows);
+    return;
+  }
+
   if (slash === '__DOCUMENT_MENU__') {
     const docMatch = text.match(/^\/document\s+(.+)$/i);
     const name = docMatch ? docMatch[1].trim() : '';
@@ -587,6 +608,93 @@ export async function handleTelegramCallbackQuery(opts: {
   const allowed = parseAllowedUserIds(serverEnv('TELEGRAM_ALLOWED_USER_IDS'));
   if (!isUserAllowed(fromId, allowed, prod)) {
     console.warn('[telegram] callback_query fromId not allowed', { fromId });
+    return;
+  }
+
+  if (data.startsWith('qcmd:')) {
+    // Format: qcmd:{cmd}:{uid}  e.g. qcmd:portal:53b12d12-...
+    const rest = data.slice(5);
+    const sep = rest.indexOf(':');
+    const cmd = sep >= 0 ? rest.slice(0, sep) : rest;
+    const uid = sep >= 0 ? rest.slice(sep + 1) : '';
+    if (!cmd || !uid) {
+      await telegramSendMessage(token, chatId, 'Invalid quick command.');
+      return;
+    }
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    const c = full.data;
+
+    if (cmd === 'portal') {
+      const portal = extractPortal(c);
+      const dataCount = portal?.data?.length ?? 0;
+      const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
+      await telegramSendMessage(token, chatId, [
+        `${c.name}${c.company ? ` - ${c.company}` : ''}`,
+        c.email ?? '',
+        '',
+        clientPortalUrl(uid),
+        '',
+        `Overview: ${hasOverview ? 'has content' : 'empty'}`,
+        `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
+        `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
+      ].filter(Boolean).join('\n'));
+      return;
+    }
+
+    if (cmd === 'portalsend') {
+      if (!isEmailSendConfigured() && !isSmsSendConfigured()) {
+        await telegramSendMessage(token, chatId, 'No outbound channel configured. Set RESEND_API_KEY (email) or TELNYX_API_KEY + TELNYX_FROM_NUMBER (SMS).');
+        return;
+      }
+      const portal = extractPortal(c);
+      if (portal?.enabled === false) {
+        await telegramSendMessage(token, chatId, `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`);
+        return;
+      }
+      const url = clientPortalUrl(uid);
+      const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
+      if (isEmailSendConfigured() && c.email) {
+        const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
+        const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
+        const r = await sendEmail({ to: c.email, subject, text: bodyText });
+        if (!r.ok) { await telegramSendMessage(token, chatId, `Email failed: ${r.error}`); return; }
+        await telegramSendMessage(token, chatId, `Sent to ${c.email}\n${url}`);
+        return;
+      }
+      if (isSmsSendConfigured() && c.phone) {
+        const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, here's your client page: ${url}` });
+        if (!r.ok) { await telegramSendMessage(token, chatId, `SMS failed: ${r.error}`); return; }
+        await telegramSendMessage(token, chatId, `Sent to ${c.phone}\n${url}`);
+        return;
+      }
+      await telegramSendMessage(token, chatId, `${c.name} has no email or phone on file. Add one first.`);
+      return;
+    }
+
+    if (cmd === 'submitlink') {
+      const submitUrl = `${clientPortalUrl(uid)}?submit`;
+      await telegramSendMessage(token, chatId, `${c.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`);
+      return;
+    }
+
+    if (cmd === 'document') {
+      const templates = listTemplates();
+      if (!templates.length) {
+        await telegramSendMessage(token, chatId, 'No document templates found. Add HTML files to src/content/documents/.');
+        return;
+      }
+      const btnRows: Array<Array<{ text: string; data: string }>> = [];
+      const docBtns = templates.map((tmpl) => ({ text: tmpl.title, data: `doc:${uid}:${tmpl.slug}` }));
+      for (let i = 0; i < docBtns.length; i += 2) btnRows.push(docBtns.slice(i, i + 2));
+      await telegramSendMenu(token, chatId, `Send a document to ${c.name} — choose a template:`, btnRows);
+      return;
+    }
+
+    await telegramSendMessage(token, chatId, 'Unknown quick command.');
     return;
   }
 
