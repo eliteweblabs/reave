@@ -4,6 +4,7 @@ const GRID = 12;
 const STORE = 'os-map-pos-v2';
 const MAP_STORE = 'os-map-active-v1';
 const SVGNS = 'http://www.w3.org/2000/svg';
+const PINCH_ZOOM = true;
 
 // Real brand logos via Simple Icons (https://simpleicons.org), pinned to a
 // major version. We render the SVG as a CSS mask so each glyph can be tinted to
@@ -387,24 +388,61 @@ function attachGroupDrag(g, handle) {
   });
 }
 
-// ---- pan ----
+// ---- pan + pinch-zoom ----
+// _canvasPtrs tracks all active pointers on the canvas background so the
+// single-pointer pan handler can yield to a two-finger pinch when PINCH_ZOOM
+// is true. Flip the constant to false to disable pinch gestures entirely.
+const _canvasPtrs = new Map(); // pointerId → current { x, y }
+let _pinchDist = null;         // baseline finger distance when a pinch begins
+
 wrap.addEventListener('pointerdown', (ev) => {
   if (ev.target.closest('.node')) return;
-  wrap.classList.add('panning');
-  const sx = ev.clientX - panX;
-  const sy = ev.clientY - panY;
-  const move = (e) => {
-    panX = e.clientX - sx;
-    panY = e.clientY - sy;
-    applyWorld();
-  };
-  const up = () => {
+  _canvasPtrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+  if (_canvasPtrs.size === 1) {
+    wrap.classList.add('panning');
+    const sx = ev.clientX - panX;
+    const sy = ev.clientY - panY;
+    const move = (e) => {
+      if (_canvasPtrs.size >= 2) return; // yield to pinch
+      panX = e.clientX - sx;
+      panY = e.clientY - sy;
+      applyWorld();
+    };
+    const up = () => {
+      wrap.classList.remove('panning');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  } else if (PINCH_ZOOM && _canvasPtrs.size === 2) {
     wrap.classList.remove('panning');
-    window.removeEventListener('pointermove', move);
-    window.removeEventListener('pointerup', up);
-  };
-  window.addEventListener('pointermove', move);
-  window.addEventListener('pointerup', up);
+    const pts = [..._canvasPtrs.values()];
+    _pinchDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  }
+});
+
+wrap.addEventListener('pointermove', (ev) => {
+  if (!PINCH_ZOOM || !_canvasPtrs.has(ev.pointerId) || _canvasPtrs.size < 2) return;
+  _canvasPtrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (!_pinchDist) return;
+  const pts = [..._canvasPtrs.values()];
+  const newDist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  const factor = clamp(newDist / _pinchDist, 0.85, 1.15);
+  const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+  zoomAt(factor, mid.x, mid.y);
+  _pinchDist = newDist;
+});
+
+wrap.addEventListener('pointerup', (ev) => {
+  _canvasPtrs.delete(ev.pointerId);
+  if (_canvasPtrs.size < 2) _pinchDist = null;
+});
+
+wrap.addEventListener('pointercancel', (ev) => {
+  _canvasPtrs.delete(ev.pointerId);
+  if (_canvasPtrs.size < 2) _pinchDist = null;
 });
 
 // ---- zoom ----

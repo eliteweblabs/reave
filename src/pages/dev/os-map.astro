@@ -34,6 +34,7 @@ export const prerender = true;
         background: var(--bg);
         color: var(--fg);
         overflow: hidden;
+        touch-action: manipulation;
       }
 
       #wrap {
@@ -211,13 +212,11 @@ export const prerender = true;
         flex: 0 0 auto;
         line-height: 0;
       }
-      #topbar .brand-icon { height: 1.7rem; width: auto; display: block; }
-      #topbar .brand-logo { height: 1.4rem; width: auto; display: none; }
-      @media (min-width: 640px) {
-        #topbar .brand-icon { display: none; }
-        #topbar .brand-logo { display: block; }
-      }
+      #topbar .brand-img { height: 1.4rem; width: auto; display: block; }
       #topbar .note { font-size: 0.72rem; color: var(--muted); }
+      @media (max-width: 639px) {
+        #topbar .note { display: none; }
+      }
 
       /* Tabs */
       #tabs {
@@ -329,8 +328,7 @@ export const prerender = true;
   <body>
     <div id="topbar">
       <a href="/" class="brand" aria-label="Reave">
-        <img class="brand-icon" src="/favicon.svg" alt="Reave" width="128" height="128" />
-        <img class="brand-logo" src="/reave-logo.png" alt="Reave" />
+        <img class="brand-img" src="/reave-logo.png" alt="Reave" />
       </a>
       <div id="tabs"></div>
       <span class="note">
