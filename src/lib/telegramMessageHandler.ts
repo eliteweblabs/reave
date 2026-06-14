@@ -155,23 +155,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if (!resolved.ok) return `resolve failed: ${resolved.error}`;
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ uid?: string; name?: string }> };
     if ((d.match === 'exact' || d.match === 'likely') && d.contact?.uid) {
-      const uid = d.contact.uid;
-      const full = await getContact(uid);
-      if (!full.ok) return `Could not load contact: ${full.error}`;
-      const c = full.data;
-      const portal = extractPortal(c);
-      const dataCount = portal?.data?.length ?? 0;
-      const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
-      return [
-        `${c.name}${c.company ? ` - ${c.company}` : ''}`,
-        c.email ?? '',
-        '',
-        clientPortalUrl(uid),
-        '',
-        `Overview: ${hasOverview ? 'has content' : 'empty'}`,
-        `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
-        `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
-      ].filter(Boolean).join('\n');
+      return `__PORTAL_RESULT__:${d.contact.uid}`;
     }
     return fmtNoMatch('portal', name, d.candidates ?? []);
   }
@@ -519,6 +503,39 @@ export async function handleTelegramTextMessage(opts: {
       ],
     ];
     await telegramSendMenu(token, chatId, infoLines.join('\n'), rows);
+    return;
+  }
+
+  if (slash?.startsWith('__PORTAL_RESULT__:')) {
+    const uid = slash.slice('__PORTAL_RESULT__:'.length);
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    const c = full.data;
+    const portal = extractPortal(c);
+    const dataCount = portal?.data?.length ?? 0;
+    const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
+    const summaryLines = [
+      `${c.name}${c.company ? ` - ${c.company}` : ''}`,
+      c.email ?? '',
+      '',
+      clientPortalUrl(uid),
+      '',
+      `Overview: ${hasOverview ? 'has content' : 'empty'}`,
+      `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
+      `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
+    ].filter(Boolean).join('\n');
+    const hasDoc = listTemplates().length > 0;
+    const portalRows: Array<Array<{ text: string; data: string }>> = [
+      [
+        { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
+        { text: 'Submit Link', data: `qcmd:submitlink:${uid}` },
+        ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
+      ],
+    ];
+    await telegramSendMenu(token, chatId, summaryLines, portalRows);
     return;
   }
 
