@@ -1,7 +1,7 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu } from './telegramClient';
+import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, telegramEditMessage } from './telegramClient';
 import { buildCommandList } from './telegramCommandList';
 import { listTemplates } from './documentTemplates';
 import { siteBaseUrl } from './contactApi';
@@ -406,7 +406,7 @@ export type TelegramUpdate = {
   callback_query?: {
     id?: string;
     from?: { id?: number };
-    message?: { chat?: { id?: number } };
+    message?: { chat?: { id?: number }; message_id?: number };
     data?: string;
   };
 };
@@ -610,6 +610,7 @@ export async function handleTelegramCallbackQuery(opts: {
 
   const callbackId = cb.id ?? '';
   const chatId = cb.message?.chat?.id;
+  const messageId = cb.message?.message_id;
   const fromId = cb.from?.id;
   const data = cb.data ?? '';
 
@@ -707,7 +708,12 @@ export async function handleTelegramCallbackQuery(opts: {
       const btnRows: Array<Array<{ text: string; data: string }>> = [];
       const docBtns = templates.map((tmpl) => ({ text: tmpl.title, data: `doc:${uid}:${tmpl.slug}` }));
       for (let i = 0; i < docBtns.length; i += 2) btnRows.push(docBtns.slice(i, i + 2));
-      await telegramSendMenu(token, chatId, `Send a document to ${c.name} — choose a template:`, btnRows);
+      const pickerText = `Send a document to ${c.name} — choose a template:`;
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, pickerText, btnRows);
+      } else {
+        await telegramSendMenu(token, chatId, pickerText, btnRows);
+      }
       return;
     }
 
@@ -730,11 +736,12 @@ export async function handleTelegramCallbackQuery(opts: {
     const contactName = contactRes.ok ? contactRes.data.name : uid;
     const tmpl = listTemplates().find((t) => t.slug === templateSlug);
     const docTitle = tmpl?.title ?? templateSlug;
-    await telegramSendMessage(
-      token,
-      chatId,
-      `${docTitle} — ${contactName}\n\nSend this link to the client:\n${docUrl}\n\nThey can read and sign it from any device. Once signed, it appears in their portal under Documents.`
-    );
+    const linkMsg = `${docTitle} — ${contactName}\n\nSend this link to the client:\n${docUrl}\n\nThey can read and sign it from any device. Once signed, it appears in their portal under Documents.`;
+    if (messageId != null) {
+      await telegramEditMessage(token, chatId, messageId, linkMsg);
+    } else {
+      await telegramSendMessage(token, chatId, linkMsg);
+    }
     return;
   }
 

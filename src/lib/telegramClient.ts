@@ -59,6 +59,42 @@ export async function telegramSendMenu(
   }
 }
 
+/**
+ * Edit an existing bot message in-place (text + inline keyboard).
+ * Use this from callback handlers so the visible message updates immediately
+ * instead of a new message appearing that the user might not notice.
+ */
+export async function telegramEditMessage(
+  token: string,
+  chatId: number,
+  messageId: number,
+  text: string,
+  buttons?: Array<Array<{ text: string; data: string }>>
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    disable_web_page_preview: true,
+  };
+  if (buttons) {
+    body.reply_markup = {
+      inline_keyboard: buttons.map((row) =>
+        row.map((btn) => ({ text: btn.text, callback_data: btn.data }))
+      ),
+    };
+  }
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/editMessageText`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Telegram editMessageText failed: ${res.status} ${errText}`);
+  }
+}
+
 /** Acknowledge a callback_query so Telegram removes the loading spinner. */
 export async function telegramAnswerCallback(
   token: string,
