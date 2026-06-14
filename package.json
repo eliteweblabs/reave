@@ -1,5 +1,5 @@
 {
-  "name": "--force",
+  "name": "reave",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
