@@ -142,6 +142,7 @@ function setActiveMap(key) {
     redraw();
     fit();
   });
+  if (MAP.type === 'todo') loadAndBuildTodoNodes();
   syncHealthLifecycle();
 }
 
@@ -530,6 +531,126 @@ function buildLegend() {
   }
 }
 
+// ---- todo tab (node/canvas approach) ----
+
+/**
+ * Fetch /api/todo, convert sections → MAP nodes + groups, rebuild the canvas.
+ * Each file = one group. Each checkbox item = one draggable node.
+ * Click the chip icon to toggle done/undone. Drag to reprioritize.
+ * Positions are persisted to localStorage like every other map tab.
+ */
+async function loadAndBuildTodoNodes() {
+  let sections;
+  try {
+    const res = await fetch('/api/todo', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    sections = await res.json();
+  } catch (e) {
+    console.error('[todo] fetch failed:', e);
+    return;
+  }
+
+  const nodes = [];
+  const groups = [];
+  const COL_W = 260;
+  const ROW_H = 108;
+  const MARGIN = 60;
+
+  let colX = MARGIN;
+  for (const section of sections) {
+    const memberIds = [];
+    // Unchecked first, then checked (ghost) at bottom
+    const ordered = [
+      ...section.items.filter((i) => !i.checked),
+      ...section.items.filter((i) => i.checked),
+    ];
+
+    let rowY = MARGIN;
+    for (const item of ordered) {
+      const id = `td_${section.slug}_${item.lineIndex}`;
+      memberIds.push(id);
+      const label = item.text.length > 44 ? item.text.slice(0, 43) + '…' : item.text;
+      nodes.push({
+        id,
+        title: label,
+        sub: section.title,
+        icon: item.checked ? '✅' : '☐',
+        hue: item.checked ? 115 : 220,
+        ghost: item.checked,
+        x: colX,
+        y: rowY,
+        // private: not part of MAP schema, used by toggle handler below
+        _slug: section.slug,
+        _lineIndex: item.lineIndex,
+        _checked: item.checked,
+        _fullText: item.text,
+      });
+      rowY += ROW_H;
+    }
+
+    if (memberIds.length > 0) {
+      groups.push({
+        id: `grp_${section.slug}`,
+        title: section.title,
+        hue: 220,
+        members: memberIds,
+      });
+    }
+    colX += COL_W;
+  }
+
+  // Swap MAP content in-place so the existing position store key ('todo') still applies.
+  MAP.nodes = nodes;
+  MAP.groups = groups;
+  MAP.edges = [];
+
+  buildMap();
+  requestAnimationFrame(() => { redraw(); fit(); });
+  buildLegend();
+
+  // Wire up click-to-toggle on each node's chip after the DOM is built.
+  for (const n of nodes) {
+    const el = nodeEls.get(n.id);
+    if (!el) continue;
+    if (n._fullText && n._fullText !== n.title) el.title = n._fullText;
+    el.classList.toggle('todo-done', n._checked);
+    const chip = el.querySelector('.chip');
+    if (!chip) continue;
+    chip.style.cursor = 'pointer';
+    chip.title = n._checked ? 'Mark as undone' : 'Mark as done';
+    // Prevent drag start when clicking the chip.
+    chip.addEventListener('pointerdown', (e) => e.stopPropagation());
+    chip.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newChecked = !n._checked;
+      // Optimistic DOM update
+      n._checked = newChecked;
+      n.icon = newChecked ? '✅' : '☐';
+      chip.textContent = n.icon;
+      chip.title = newChecked ? 'Mark as undone' : 'Mark as done';
+      el.classList.toggle('ghost', newChecked);
+      el.classList.toggle('todo-done', newChecked);
+      el.style.setProperty('--h', newChecked ? 115 : 220);
+      // Persist to file
+      fetch('/api/todo/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: n._slug, lineIndex: n._lineIndex, checked: newChecked }),
+      }).catch((err) => {
+        // Revert on network error
+        n._checked = !newChecked;
+        n.icon = !newChecked ? '✅' : '☐';
+        chip.textContent = n.icon;
+        chip.title = !newChecked ? 'Mark as undone' : 'Mark as done';
+        el.classList.toggle('ghost', !newChecked);
+        el.classList.toggle('todo-done', !newChecked);
+        el.style.setProperty('--h', !newChecked ? 115 : 220);
+        console.error('[todo] toggle error:', err);
+      });
+    });
+  }
+}
+
 // ---- persistence ----
 function savePositions() {
   const pos = {};
@@ -575,6 +696,7 @@ requestAnimationFrame(() => {
   redraw();
   fit();
 });
+if (activeKey === 'todo') loadAndBuildTodoNodes();
 syncHealthLifecycle();
 
 document.addEventListener('visibilitychange', () => {

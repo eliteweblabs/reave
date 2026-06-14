@@ -1,0 +1,17 @@
+# Telnyx Setup
+
+Go live with Telnyx SMS and the AI phone agent. Add vars to Railway → Astro service → Variables.
+
+- [ ] Get API key from https://portal.telnyx.com/#/app/api-keys
+- [ ] Add TELNYX_API_KEY to Railway vars
+- [ ] Add TELNYX_FROM_NUMBER (E.164 format, e.g. +12125551234)
+- [ ] In Telnyx portal → Messaging → Messaging Profiles → Inbound Webhook → set to https://<host>/api/sms
+- [ ] In Telnyx portal → Numbers → your number → Call Control Webhook → set to https://<host>/api/voice/webhook
+- [ ] Copy TELNYX_WEBHOOK_PUBLIC_KEY from the webhook config in the portal
+- [ ] Add TELNYX_WEBHOOK_PUBLIC_KEY to Railway vars
+- [ ] Set TELNYX_OPERATOR_NUMBER to your personal phone (E.164) for /takeover
+- [ ] Create a Call Control Application in Telnyx portal and copy its ID as TELNYX_APP_ID (needed for outbound calls)
+- [ ] Test inbound SMS: text your Telnyx number and verify Telegram alert fires
+- [ ] Set VOICE_AGENT_ENABLED=1 (or use /voice on in Telegram) and call the number
+- [ ] Set TELNYX_VOICE and TELNYX_VOICE_LANGUAGE if you want a different TTS voice
+- [ ] Set SMS_AI_REPLY_ENABLED=1 if you want Claude to auto-reply to inbound texts

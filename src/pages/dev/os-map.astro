@@ -285,6 +285,11 @@ export const prerender = true;
       }
       #tools button:hover { border-color: #58a6ff; color: #58a6ff; }
 
+      /* Todo node: chip is the click-to-toggle zone */
+      .node.todo-done .ttl { text-decoration: line-through; text-decoration-color: #3d4a5c; }
+      .node.todo-done .chip { cursor: pointer; }
+      .node:not(.todo-done) .chip { cursor: pointer; }
+
       /* Legend */
       #legend {
         position: fixed;

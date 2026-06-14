@@ -253,6 +253,7 @@ export const MAPS = {
   system:   { id: 'system',   title: 'System',     nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:  { id: 'tooling',  title: 'MCP & CLI',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
   telegram: { id: 'telegram', title: 'Telegram',   nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },
+  todo:     { id: 'todo',     title: 'To-do',      type: 'todo',          nodes: [],             edges: [],             groups: [] },
 };
 
 // Back-compat: the "System" map is still the default export surface.
