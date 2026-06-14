@@ -1,12 +1,15 @@
 <!-- title: Service Agreement -->
 <h1>Web Design Service Agreement</h1>
-<p class="doc-meta">Prepared for <strong>{client.name}</strong>{client.company_str} &nbsp;·&nbsp; {date}</p>
+<p class="doc-meta">Prepared for <strong>{client.name}</strong>{client.company_str} &nbsp;·&nbsp; <strong>{date}</strong></p>
 
 <h2>1. Parties</h2>
 <p>
   This Web Design Service Agreement ("<strong>Agreement</strong>") is entered into as of <strong>{date}</strong>
-  between <strong>Reave</strong> ("<strong>Company</strong>") and <strong>{client.name}</strong>
-  {client.company_str} ("<strong>Client</strong>").
+  between <strong>Reave</strong> ("<strong>Company</strong>") and <strong>{client.name}</strong>{client.company_str}
+  ("<strong>Client</strong>").
+</p>
+<p>
+  Client contact: <strong>{client.email}</strong> · <strong>{client.phone}</strong>
 </p>
 
 <h2>2. Scope of Work</h2>
@@ -20,7 +23,7 @@
 <p>
   A deposit of <strong>50%</strong> of the agreed project total is due before work begins. The remaining balance
   is due upon project completion and before final delivery of files or site launch, whichever comes first.
-  Invoices unpaid after 14 days may incur a 1.5% monthly late fee.
+  Invoices unpaid after <strong>14 days</strong> may incur a <strong>1.5% monthly late fee</strong>.
 </p>
 
 <h2>4. Revisions</h2>
@@ -39,8 +42,9 @@
 
 <h2>6. Client Responsibilities</h2>
 <p>
-  Client is responsible for providing all content (text, images, logos) in a timely manner. Delays caused
-  by Client may push project timelines and do not entitle Client to a refund of any deposit paid.
+  Client <strong>{client.name}</strong> is responsible for providing all content (text, images, logos) in a
+  timely manner. Delays caused by Client may push project timelines and do not entitle Client to a refund of
+  any deposit paid.
 </p>
 
 <h2>7. Limitation of Liability</h2>
@@ -59,12 +63,13 @@
 
 <h2>9. Governing Law</h2>
 <p>
-  This Agreement shall be governed by the laws of the jurisdiction in which Company operates.
-  Any disputes shall be resolved through binding arbitration before litigation is pursued.
+  This Agreement shall be governed by the laws of the jurisdiction in which Company operates, effective
+  <strong>{year}</strong>. Any disputes shall be resolved through binding arbitration before litigation.
 </p>
 
 <h2>10. Entire Agreement</h2>
 <p>
-  This document constitutes the entire agreement between the parties regarding its subject matter and supersedes
-  all prior discussions. Modifications must be in writing and signed by both parties.
+  This document constitutes the entire agreement between <strong>Reave</strong> and
+  <strong>{client.name}</strong> and supersedes all prior discussions. Modifications must be in writing
+  and signed by both parties.
 </p>

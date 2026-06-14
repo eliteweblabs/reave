@@ -1,6 +1,6 @@
 <!-- title: Non-Disclosure Agreement -->
 <h1>Non-Disclosure Agreement</h1>
-<p class="doc-meta">Between <strong>Reave</strong> and <strong>{client.name}</strong>{client.company_str} &nbsp;·&nbsp; {date}</p>
+<p class="doc-meta">Between <strong>Reave</strong> and <strong>{client.name}</strong>{client.company_str} &nbsp;·&nbsp; <strong>{date}</strong></p>
 
 <h2>1. Parties</h2>
 <p>
@@ -8,17 +8,20 @@
   <strong>Reave</strong> ("<strong>Disclosing Party</strong>") and <strong>{client.name}</strong>{client.company_str}
   ("<strong>Receiving Party</strong>"). Together referred to as the "Parties."
 </p>
+<p>
+  Receiving Party contact: <strong>{client.email}</strong>
+</p>
 
 <h2>2. Definition of Confidential Information</h2>
 <p>
-  "<strong>Confidential Information</strong>" means any non-public information disclosed by Disclosing Party,
-  including but not limited to: business strategies, pricing, client lists, source code, design files,
-  trade secrets, and any information marked as confidential or that a reasonable person would understand
-  to be confidential given the context of disclosure.
+  "<strong>Confidential Information</strong>" means any non-public information disclosed by Disclosing Party
+  to <strong>{client.first_name}</strong>, including but not limited to: business strategies, pricing,
+  client lists, source code, design files, trade secrets, and any information marked as confidential or
+  that a reasonable person would understand to be confidential given the context of disclosure.
 </p>
 
 <h2>3. Obligations of the Receiving Party</h2>
-<p>Receiving Party agrees to:</p>
+<p><strong>{client.name}</strong> agrees to:</p>
 <ul>
   <li>Hold all Confidential Information in strict confidence.</li>
   <li>Not disclose any Confidential Information to any third party without prior written consent.</li>
@@ -30,33 +33,34 @@
 <h2>4. Exclusions</h2>
 <p>These obligations do not apply to information that:</p>
 <ul>
-  <li>Is or becomes publicly known through no breach of this Agreement by Receiving Party.</li>
+  <li>Is or becomes publicly known through no breach of this Agreement by <strong>{client.name}</strong>.</li>
   <li>Was already known to Receiving Party prior to disclosure.</li>
-  <li>Is independently developed by Receiving Party without use of Confidential Information.</li>
+  <li>Is independently developed by <strong>{client.name}</strong> without use of Confidential Information.</li>
   <li>Is required to be disclosed by law, regulation, or court order (with prompt notice to Disclosing Party).</li>
 </ul>
 
 <h2>5. Term</h2>
 <p>
-  This Agreement shall remain in effect for a period of <strong>three (3) years</strong> from the date
-  of signing, unless earlier terminated in writing by both Parties.
+  This Agreement shall remain in effect for a period of <strong>three (3) years</strong> from
+  <strong>{date}</strong>, unless earlier terminated in writing by both Parties.
 </p>
 
 <h2>6. Return of Information</h2>
 <p>
-  Upon request or termination, Receiving Party shall promptly return or certify destruction of all materials
-  containing Confidential Information.
+  Upon request or termination, <strong>{client.name}</strong> shall promptly return or certify destruction
+  of all materials containing Confidential Information.
 </p>
 
 <h2>7. No License</h2>
 <p>
-  Nothing in this Agreement grants Receiving Party any rights, title, or license in or to any Confidential
-  Information, intellectual property, or technology of Disclosing Party.
+  Nothing in this Agreement grants <strong>{client.name}</strong> any rights, title, or license in or to
+  any Confidential Information, intellectual property, or technology of Disclosing Party.
 </p>
 
 <h2>8. Governing Law</h2>
 <p>
   This Agreement shall be governed by and construed in accordance with the laws of the jurisdiction in which
-  Disclosing Party operates. Breach of this Agreement may result in irreparable harm for which monetary
-  damages may be inadequate, entitling Disclosing Party to seek injunctive relief.
+  Disclosing Party operates, effective <strong>{year}</strong>. Breach of this Agreement may result in
+  irreparable harm for which monetary damages may be inadequate, entitling Disclosing Party to seek
+  injunctive relief.
 </p>

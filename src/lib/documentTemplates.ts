@@ -66,16 +66,24 @@ export function fillTemplate(html: string, contact: ContactRecord): string {
     day: 'numeric',
   });
 
-  return html
+  let result = html
     .replace(/{client\.name}/g, escHtml(contact.name ?? ''))
     .replace(/{client\.first_name}/g, escHtml(firstName))
     .replace(/{client\.last_name}/g, escHtml(lastName))
     .replace(/{client\.email}/g, escHtml(contact.email ?? ''))
     .replace(/{client\.phone}/g, escHtml(contact.phone ?? ''))
     .replace(/{client\.company}/g, escHtml(company))
-    .replace(/{client\.company_str}/g, company ? ` · ${escHtml(company)}` : '')
+    .replace(/{client\.company_str}/g, company ? ` · <strong>${escHtml(company)}</strong>` : '')
     .replace(/{date}/g, today)
     .replace(/{year}/g, String(new Date().getFullYear()));
+
+  // Clean up empty <strong></strong> or <strong> · </strong> artifacts left by missing optional fields.
+  result = result
+    .replace(/<strong><\/strong>/g, '')
+    .replace(/·\s*<strong><\/strong>/g, '')
+    .replace(/<strong>\s*·\s*<\/strong>/g, '');
+
+  return result;
 }
 
 function escHtml(s: string): string {
