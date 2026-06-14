@@ -5,7 +5,6 @@ import { telegramSendMessage } from './telegramClient';
 import { isContactApiConfigured, resolveContact, formatResolveForTelegram } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
 import { isCraterConfigured, craterCreateInvoice, formatCreatedInvoice } from './craterClient';
-import { buildTools } from './telegramToolDefs';
 import { serverEnv } from './serverEnv';
 
 function parseAllowedUserIds(raw: string | undefined): Set<number> | null {
@@ -109,21 +108,38 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   }
 
   if (t === '/help') {
-    const tools = buildTools().map((t) => t.function.name);
+    const hasContacts = isContactApiConfigured();
+    const hasCrater = isCraterConfigured();
     const lines = [
-      'Commands:',
-      '/list — knowledge slugs',
-      '/get <slug> — read a knowledge file',
-      '/invoice <customer> | <amount> [| description] — create a Crater invoice',
-      '/resolve <name> or /who <name> — fuzzy match against contact-api',
+      'COMMANDS (type these):',
+      '/list — knowledge docs',
+      '/get <slug> — read a knowledge doc',
+      ...(hasContacts ? ['/resolve <name> (or /who) — find a client'] : []),
+      ...(hasCrater ? ['/invoice <customer> | <amount> [| description] — new invoice'] : []),
       '/railway project <name> — new empty Railway project',
-      '/railway help — Railway commands',
-      'Dev status (freeform): “is the latest code deployed?”, “show recent commits”, “git status”, “list branches”',
-      '/clear — forget this chat’s conversation history',
-      '/help',
+      '/clear — forget this chat’s history',
+      '/help — this menu',
       '',
-      `Freeform: needs ANTHROPIC_API_KEY (tools: ${tools.join(', ')}). Keeps recent chat history for follow-ups.`,
+      'OR JUST SAY IT (plain English):',
     ];
+    if (hasContacts) {
+      lines.push(
+        '• Clients: “list my contacts”, “add a client named …”, “what’s <name>’s portal link?”',
+        '• Portal: “set <name>’s page headline … body …”, “add Data to <name>: WordPress login …”, “hide <name>’s page”',
+        '• Send: “send <name> their link” (emails or texts them their portal)'
+      );
+    }
+    if (hasCrater) {
+      lines.push(
+        '• Billing: “invoice <name> $100 for website work”, “who has an unpaid invoice?”, “record a $50 payment from <name>”'
+      );
+    }
+    lines.push(
+      '• Dev/deploy: “is the latest code live?”, “show recent commits”, “git status”, “list branches”',
+      '• Knowledge: “what’s our email triage rule?” (reads bundled docs)',
+      '',
+      'Freeform needs ANTHROPIC_API_KEY. I keep recent chat history for follow-ups.'
+    );
     return lines.join('\n');
   }
   return null;

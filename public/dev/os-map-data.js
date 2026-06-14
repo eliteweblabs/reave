@@ -177,23 +177,24 @@ const TG_NODES = [
   // Entry
   { id: 'tc_you',     title: 'You',            sub: 'Telegram message',           icon: '📱', brand: 'telegram', hue: 205, group: 'tc_entry',  x: 60,   y: 540 },
   { id: 'tc_handler', title: 'Bot handler',     sub: 'auth · history · route',     icon: '⚙️', hue: 185,          group: 'tc_entry',  x: 360,  y: 540 },
+  { id: 'tc_cheat',   title: 'Cheat sheet',     sub: '/dev/telegram · plain list', icon: '📋', hue: 95,           group: 'tc_entry',  x: 60,   y: 700 },
 
   // Routing nodes
   { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
   { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · up to 5 rounds',  icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
 
   // Slash commands (one node per command or tight group)
-  { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'list tools · wipe chat history',            icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
-  { id: 'tc_cmd_knowledge', title: '/list · /get',            sub: 'list & read knowledge docs',                icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
+  { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'menu · wipe history (/reset alias)',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
+  { id: 'tc_cmd_knowledge', title: '/list · /get',            sub: 'list & read knowledge docs (/start=/list)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
   { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
   { id: 'tc_cmd_invoice',   title: '/invoice',                sub: 'customer | amount [| description]',         icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
-  { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'create empty Railway project',              icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
+  { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'new project (/railway help)',               icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
 
   // LLM tool categories (what Claude can call)
   { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list_knowledge · read_knowledge · run_dev_task',                        icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
   { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · check_deployment · branches · run_terminal_command',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
   { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
-  { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send · get_submit_link',                                    icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
+  { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
   { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
 
   // External services reached
@@ -238,7 +239,7 @@ const TG_EDGES = [
 ];
 
 const TG_GROUPS = [
-  { id: 'tc_entry',     title: 'Entry',              hue: 185, members: ['tc_you', 'tc_handler'] },
+  { id: 'tc_entry',     title: 'Entry',              hue: 185, members: ['tc_you', 'tc_handler', 'tc_cheat'] },
   { id: 'tc_routing',   title: 'Routing',             hue: 55,  members: ['tc_slash', 'tc_claude'] },
   { id: 'tc_slash_grp', title: 'Slash commands',      hue: 55,  members: ['tc_cmd_util', 'tc_cmd_knowledge', 'tc_cmd_resolve', 'tc_cmd_invoice', 'tc_cmd_railway'] },
   { id: 'tc_tools',     title: 'Claude tool catalog', hue: 265, members: ['tc_tool_knowledge', 'tc_tool_devops', 'tc_tool_contacts', 'tc_tool_portal', 'tc_tool_billing'] },
