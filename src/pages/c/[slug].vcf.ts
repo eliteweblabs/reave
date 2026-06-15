@@ -20,7 +20,13 @@ function esc(v: string): string {
     .replace(/;/g, '\\;');
 }
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, locals }) => {
+  // Saving a contact card is a staff action (it carries the contact's phone /
+  // email). Clients viewing their own portal shouldn't be able to "save
+  // themselves", so require an authenticated staff session.
+  const { userId } = locals.auth?.() ?? {};
+  if (!userId) return new Response('Not found', { status: 404 });
+
   const uid = (params.slug ?? '').trim();
   if (!uid) return new Response('Not found', { status: 404 });
 

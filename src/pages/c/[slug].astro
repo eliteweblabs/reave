@@ -18,6 +18,13 @@ import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
 
+// Staff vs client. The portal link is shared with the client, so by default a
+// viewer is the client. Quick-contact actions (call/text/email/save vCard) all
+// target the contact's OWN details — useful for staff reaching out, nonsensical
+// for the client viewing their own page — so they are gated behind Clerk auth.
+const { userId } = Astro.locals.auth?.() ?? {};
+const isStaff = Boolean(userId);
+
 let contact: ContactRecord | null = null;
 let portal: ClientPortal = {};
 let notFound = false;
@@ -182,26 +189,28 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             {company && <p class="company">{company}</p>}
           </header>
 
-          <nav class="actions" aria-label="Quick contact">
-            {telHref && (
-              <a class="action" href={`tel:${telHref}`}>
-                <span class="ico">📞</span><span>Call</span>
+          {isStaff && (
+            <nav class="actions" aria-label="Quick contact">
+              {telHref && (
+                <a class="action" href={`tel:${telHref}`}>
+                  <span class="ico">📞</span><span>Call</span>
+                </a>
+              )}
+              {telHref && (
+                <a class="action" href={`sms:${telHref}`}>
+                  <span class="ico">💬</span><span>Text</span>
+                </a>
+              )}
+              {email && (
+                <a class="action" href={`mailto:${email}`}>
+                  <span class="ico">✉️</span><span>Email</span>
+                </a>
+              )}
+              <a class="action" href={`/c/${encodeURIComponent(uid)}.vcf`}>
+                <span class="ico">👤</span><span>Save</span>
               </a>
-            )}
-            {telHref && (
-              <a class="action" href={`sms:${telHref}`}>
-                <span class="ico">💬</span><span>Text</span>
-              </a>
-            )}
-            {email && (
-              <a class="action" href={`mailto:${email}`}>
-                <span class="ico">✉️</span><span>Email</span>
-              </a>
-            )}
-            <a class="action" href={`/c/${encodeURIComponent(uid)}.vcf`}>
-              <span class="ico">👤</span><span>Save</span>
-            </a>
-          </nav>
+            </nav>
+          )}
 
           {showTabs && (
             <div class="tabbar" role="tablist">
