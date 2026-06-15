@@ -11,7 +11,7 @@ type Section = { title: string; note?: string; items: Cmd[] };
 
 const slash: Cmd[] = [
   { say: '/help', does: 'Show the in-chat menu of commands + examples' },
-  { say: '/list', does: 'List bundled knowledge docs (slugs)' },
+  { say: '/knowledge', does: 'List bundled knowledge docs (slugs)' },
   { say: '/get <slug>', does: 'Read a knowledge doc' },
   { say: '/resolve <name>  (or /who)', does: 'Fuzzy-find a client in contact-api' },
   { say: '/invoice <customer> | <amount> | <description>', does: 'Create a Crater invoice (description optional)' },

@@ -335,8 +335,8 @@ function buildContactActionMenu(
 async function handleSlashCommand(text: string): Promise<string | null> {
   const t = text.trim();
 
-  // ── /list ──────────────────────────────────────────────────────────────────
-  if (t === '/list' || t === '/start') {
+  // ── /knowledge ───────────────────────────────────────────────────────────────
+  if (t === '/knowledge' || t === '/start') {
     const slugs = listKnowledgeSlugs();
     return slugs.length ? `Knowledge slugs:\n${slugs.map((s) => `- ${s}`).join('\n')}` : 'No knowledge files bundled.';
   }
@@ -346,7 +346,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   if (getMatch) {
     const slug = getMatch[1].toLowerCase();
     const doc = readKnowledgeMarkdown(slug);
-    if (!doc) return `Unknown slug "${slug}". Use /list.`;
+    if (!doc) return `Unknown slug "${slug}". Use /knowledge.`;
     const cap = 3500;
     return doc.content.length > cap ? `${doc.content.slice(0, cap)}\n...(truncated)` : doc.content;
   }
@@ -606,7 +606,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/status  — deployment health',
       '/commits [n]  — recent git commits',
       '/railway project <name>  — create project',
-      '/list   /get <slug>  — knowledge docs',
+      '/knowledge   /get <slug>  — knowledge docs',
       '/clear  — clear chat history',
       ...(hasTelnyx ? [
         '',

@@ -46,7 +46,7 @@ export function buildCommandList(): BotCommand[] {
 
   // ── Knowledge ─────────────────────────────────────────────────────────────
   commands.push(
-    { command: 'list', description: 'List knowledge docs' },
+    { command: 'knowledge', description: 'List knowledge docs' },
     { command: 'get', description: 'Read a knowledge doc by slug' },
   );
 

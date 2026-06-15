@@ -88,7 +88,7 @@ const SECTION_DEFS: SectionDef[] = [
     label: 'Knowledge',
     icon: 'Knowledge',
     examples: [
-      '"/list" — see all knowledge docs',
+      '"/knowledge" — see all knowledge docs',
       '"/get client-portal" — read a doc',
       '"What\'s the contact API reference?"',
       '"How does the portal data tab work?"',
@@ -103,7 +103,7 @@ const SLASH_COMMANDS = [
   { cmd: '/resolve <name>  (or /who)',              desc: 'Instant fuzzy contact lookup, no LLM wait' },
   { cmd: '/invoice <customer> | <amount> [| desc]', desc: 'Create invoice instantly' },
   { cmd: '/railway project <name>',                 desc: 'Create a new empty Railway project' },
-  { cmd: '/list',                                   desc: 'List bundled knowledge doc slugs' },
+  { cmd: '/knowledge',                              desc: 'List bundled knowledge doc slugs' },
   { cmd: '/get <slug>',                             desc: 'Read a knowledge doc by slug' },
   { cmd: '/clear  (or /reset)',                     desc: 'Wipe this chat\'s history' },
 ];

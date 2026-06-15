@@ -39,7 +39,7 @@ export async function runTelegramKnowledgeAgent(opts: {
   const { userText, priorTurns = [] } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
-    return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /list, /get, /invoice, /resolve.';
+    return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /knowledge, /get, /invoice, /resolve.';
   }
 
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';

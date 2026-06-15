@@ -187,7 +187,7 @@ const TG_NODES = [
 
   // Slash commands (one node per command or tight group)
   { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'menu · wipe history (/reset alias)',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
-  { id: 'tc_cmd_knowledge', title: '/list · /get',            sub: 'list & read knowledge docs (/start=/list)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
+  { id: 'tc_cmd_knowledge', title: '/knowledge · /get',       sub: 'list & read knowledge docs (/start=/knowledge)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
   { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
   { id: 'tc_cmd_invoice',   title: '/invoice',                sub: 'customer | amount [| description]',         icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
   { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'new project (/railway help)',               icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },

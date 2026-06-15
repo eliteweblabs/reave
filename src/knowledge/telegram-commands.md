@@ -6,7 +6,7 @@ the bot in plain English (freeform needs `ANTHROPIC_API_KEY`).
 ## Slash commands (instant, no LLM)
 
 - `/help` — in-chat menu of commands + examples
-- `/list` (or `/start`) — list bundled knowledge docs (slugs)
+- `/knowledge` (or `/start`) — list bundled knowledge docs (slugs)
 - `/get <slug>` — read a knowledge doc
 - `/resolve <name>` (or `/who`) — fuzzy-find a client in contact-api
 - `/invoice <customer> | <amount> [| description]` — create a Crater invoice
