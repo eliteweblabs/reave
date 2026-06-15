@@ -101,10 +101,17 @@ function buildContactActionMenu(
   uid: string
 ): { text: string; rows: Array<Array<{ text: string; data: string }>> } {
   const infoLines = [c.name ?? uid];
+  if (c.company) infoLines.push(c.company);
   if (c.email) infoLines.push(c.email);
   if (c.phone) infoLines.push(c.phone);
-  if (c.company) infoLines.push(c.company);
-  infoLines.push('', clientPortalUrl(uid));
+  if (c.notes?.trim()) infoLines.push('', c.notes.trim());
+  if (c.links?.length) {
+    infoLines.push('', ...c.links.map((l) => `${l.system}: ${l.externalId}`));
+  }
+  const stamps: string[] = [];
+  if (c.createdAt) stamps.push(`added ${timeAgo(c.createdAt)}`);
+  if (c.updatedAt) stamps.push(`updated ${timeAgo(c.updatedAt)}`);
+  if (stamps.length) infoLines.push('', stamps.join(' · '));
   const hasDoc = listTemplates().length > 0;
   const rows: Array<Array<{ text: string; data: string }>> = [
     [
