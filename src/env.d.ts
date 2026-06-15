@@ -21,7 +21,7 @@ interface ImportMetaEnv {
   CONTACT_API_KEY?: string;
   /** Crater custom API base URL (e.g. https://ap.reave.app) */
   CRATER_API_BASE_URL?: string;
-  /** Mirror of Crater's OPENCLAW_API_TOKEN; sent as X-OpenClaw-Token */
+  /** Mirror of Crater's CRATER_API_TOKEN; sent as X-Crater-Api-Token */
   CRATER_API_TOKEN?: string;
   /** Railway public API (GraphQL). Create at railway.com/account/tokens — needs permission to create projects. */
   RAILWAY_API_TOKEN?: string;
