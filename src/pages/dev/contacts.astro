@@ -197,15 +197,25 @@ const fmtMoney = (n: number) =>
       }
 
       /* ── contact cards ──────────────────────────────────────────────────── */
-      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+      .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
       .card {
         background: #11151d; border: 1px solid #232c3a; border-radius: 14px; padding: 14px 16px;
-        display: flex; flex-direction: column; gap: 6px;
+        display: flex; flex-direction: column; gap: 6px; min-width: 0;
       }
-      .card .name { font-size: 16px; font-weight: 600; }
-      .card .company { font-size: 13px; color: #8b97a8; }
-      .card .meta { font-size: 13px; color: #c7d0dc; word-break: break-word; }
+      .card .name {
+        font-size: 16px; font-weight: 600;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .card .company {
+        font-size: 13px; color: #8b97a8;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .card .meta {
+        font-size: 13px; color: #c7d0dc;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
       .card .meta a { text-decoration: none; }
+      @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
       .card .when { font-size: 11px; color: #6e7681; margin-top: 2px; }
       .card .links { display: flex; gap: 8px; flex-wrap: wrap; }
       .card .links a {
@@ -235,6 +245,7 @@ const fmtMoney = (n: number) =>
       .sync-badge.ok { background: #0f2c1e; color: #4ade80; }
       .sync-badge.missing { background: #2a1000; color: #fb923c; }
       .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+      .card-header .name { flex: 1; min-width: 0; }
       .btn-import {
         margin-top: 4px; padding: 7px 14px; border-radius: 9px; border: none; cursor: pointer;
         background: linear-gradient(135deg, #f59e0b, #ea580c); color: #0a0d14;
