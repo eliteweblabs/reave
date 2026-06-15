@@ -150,10 +150,34 @@ export async function craterSearchCustomers(
   q: string,
   companyId?: number
 ): Promise<CraterResult<{ count: number; customers: CraterCustomer[] }>> {
-  return craterFetch<{ count: number; customers: CraterCustomer[] }>('/api/custom/customers', {
+  const res = await craterFetch<unknown>('/api/custom/customers', {
     method: 'GET',
     query: { q: q.trim() || undefined, company_id: companyId },
   });
+  if (!res.ok) return res;
+  // Crater's customers route returns `{ data: [...] }`, while the other custom
+  // routes use `{ count, customers: [...] }`. Accept both shapes (and a bare
+  // array) so backend schema drift can't silently zero out the customer list.
+  const raw = res.data as
+    | { customers?: unknown; data?: unknown }
+    | unknown[]
+    | null;
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as { customers?: unknown })?.customers)
+      ? (raw as { customers: unknown[] }).customers
+      : Array.isArray((raw as { data?: unknown })?.data)
+        ? (raw as { data: unknown[] }).data
+        : [];
+  const customers: CraterCustomer[] = (list as Array<Record<string, unknown>>).map((c) => ({
+    id: Number(c.id),
+    name: String(c.name ?? ''),
+    contact_name: (c.contact_name as string | undefined) ?? undefined,
+    email: (c.email as string | null | undefined) ?? null,
+    phone: (c.phone as string | null | undefined) ?? null,
+    invoice_summary: c.invoice_summary as CraterCustomer['invoice_summary'],
+  }));
+  return { ok: true, data: { count: customers.length, customers } };
 }
 
 export type CraterInvoiceSummary = {
@@ -464,8 +488,6 @@ export async function craterGetClientBilling(input: {
   const matchesCustomer = (n?: string | null) =>
     (n ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase();
 
-  const totalDue = Number(customer.invoice_summary?.total_due ?? 0);
-
   const list = await craterListInvoices();
   const mine = list.ok ? (list.data.invoices ?? []).filter((inv) => matchesCustomer(inv.customer_name)) : [];
   const toInvoice = (inv: CraterInvoiceSummary): BillingInvoice => ({
@@ -480,6 +502,13 @@ export async function craterGetClientBilling(input: {
   });
   const outstanding = mine.filter((inv) => Number(inv.due) > 0).map(toInvoice);
   const previous = mine.filter((inv) => Number(inv.due) <= 0).map(toInvoice);
+
+  // Prefer the customer summary's total_due, but fall back to summing the
+  // outstanding invoices (the customers route no longer returns invoice_summary).
+  const totalDue =
+    customer.invoice_summary?.total_due != null
+      ? Number(customer.invoice_summary.total_due)
+      : outstanding.reduce((sum, inv) => sum + inv.due, 0);
 
   const recurring = await craterListRecurringInvoices();
   const upcoming = recurring.ok
