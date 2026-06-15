@@ -785,7 +785,10 @@ export async function handleTelegramTextMessage(opts: {
     // One tappable button per client (name only) → opens the action card,
     // exactly as if you'd run /contacts <name>. Telegram caps inline keyboards,
     // so show the first 100 and tell the user to search if there are more.
-    const shown = contacts.slice(0, 100);
+    const sorted = [...contacts].sort((a, b) =>
+      (a.name ?? a.uid ?? '').localeCompare(b.name ?? b.uid ?? '', undefined, { sensitivity: 'base' })
+    );
+    const shown = sorted.slice(0, 100);
     const rows = shown.map((c) => [
       { text: (c.name ?? c.uid ?? '?').slice(0, 64), data: `qcmd:open:${c.uid}` },
     ]);
