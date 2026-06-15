@@ -902,9 +902,26 @@ export async function handleTelegramTextMessage(opts: {
       (a.name ?? a.uid ?? '').localeCompare(b.name ?? b.uid ?? '', undefined, { sensitivity: 'base' })
     );
     const shown = sorted.slice(0, 100);
-    const rows = shown.map((c) => [
-      { text: (c.name ?? c.uid ?? '?').slice(0, 64), data: `qcmd:open:${c.uid}` },
-    ]);
+    // Pack contacts into a flowing, inline-block-style cascade: short names
+    // share a row, longer names take more room. Telegram keyboards are a fixed
+    // grid, so we approximate "wrap to fit" by a per-row character budget.
+    const ROW_CHAR_BUDGET = 28; // ~chars that read comfortably across a mobile row
+    const MAX_COLS = 4;
+    const rows: Array<Array<MenuButton>> = [];
+    let current: Array<MenuButton> = [];
+    let used = 0;
+    for (const c of shown) {
+      const label = (c.name ?? c.uid ?? '?').slice(0, 64);
+      const weight = label.length + 3; // allow for button padding
+      if (current.length > 0 && (used + weight > ROW_CHAR_BUDGET || current.length >= MAX_COLS)) {
+        rows.push(current);
+        current = [];
+        used = 0;
+      }
+      current.push({ text: label, data: `qcmd:open:${c.uid}` });
+      used += weight;
+    }
+    if (current.length) rows.push(current);
     const header =
       shown.length < total
         ? `Contacts (showing ${shown.length} of ${total}) — tap a client, or /contacts <name> to search:`
