@@ -354,17 +354,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   // ── /contacts [query] ──────────────────────────────────────────────────────
   if (t === '/contacts') {
     if (!isContactApiConfigured()) return noApi();
-    const res = await listContacts({ limit: 200 });
-    if (!res.ok) return `contacts failed: ${res.error}`;
-    const { total, contacts } = res.data;
-    if (!contacts.length) return 'No contacts found.';
-    const lines = [`Contacts (${total} total):`];
-    for (const c of contacts) {
-      const detail = c.company || c.email || c.phone || '';
-      lines.push(`- ${c.name}${detail ? ` — ${detail}` : ''}`);
-    }
-    lines.push('', 'Type /contacts <name> to find a client and act on them.');
-    return lines.join('\n');
+    return '__CONTACTS_LIST__';
   }
   const contactsSearch = t.match(/^\/contacts\s+(.+)$/i);
   if (contactsSearch) {
@@ -778,6 +768,32 @@ export async function handleTelegramTextMessage(opts: {
         { text: 'View', data: `qcmd:notesview:${uid}` },
       ]]
     );
+    return;
+  }
+
+  if (slash === '__CONTACTS_LIST__') {
+    const res = await listContacts({ limit: 200 });
+    if (!res.ok) {
+      await telegramSendMessage(token, chatId, `contacts failed: ${res.error}`);
+      return;
+    }
+    const { total, contacts } = res.data;
+    if (!contacts.length) {
+      await telegramSendMessage(token, chatId, 'No contacts found.');
+      return;
+    }
+    // One tappable button per client (name only) → opens the action card,
+    // exactly as if you'd run /contacts <name>. Telegram caps inline keyboards,
+    // so show the first 100 and tell the user to search if there are more.
+    const shown = contacts.slice(0, 100);
+    const rows = shown.map((c) => [
+      { text: (c.name ?? c.uid ?? '?').slice(0, 64), data: `qcmd:open:${c.uid}` },
+    ]);
+    const header =
+      shown.length < total
+        ? `Contacts (showing ${shown.length} of ${total}) — tap a client, or /contacts <name> to search:`
+        : `Contacts (${total} total) — tap a client:`;
+    await telegramSendMenu(token, chatId, header, rows);
     return;
   }
 
