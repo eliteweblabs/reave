@@ -3,11 +3,20 @@ import { isContactApiConfigured } from './contactApi';
 import { isCraterConfigured } from './craterClient';
 
 /**
+ * Claude icon prefixed to every Claude-powered command in the picker. The
+ * eight-spoked asterisk renders as an orange sunburst, mirroring Anthropic's
+ * Claude logo, so the Claude group reads as visibly distinct from the
+ * unprefixed custom commands above it.
+ */
+const CLAUDE_ICON = '✳️';
+
+/**
  * Build the ordered command list for Telegram's setMyCommands.
  *
  * Ordering: business commands first → dev/ops → knowledge → meta → Claude (last).
- * The /ai command is prefixed with 🤖 to distinguish it as Claude-powered.
- * All other commands have no prefix to maximise description space.
+ * Claude-powered commands are grouped at the very bottom and each prefixed with
+ * the Claude icon (✳️) so they stand out from the custom commands. All other
+ * commands have no prefix to maximise description space.
  *
  * Commands are conditionally included based on configured APIs so the picker
  * only shows commands that will actually work.
@@ -55,9 +64,11 @@ export function buildCommandList(): BotCommand[] {
     { command: 'help', description: 'Command reference' },
   );
 
-  // ── Claude AI (last) ──────────────────────────────────────────────────────
+  // ── Claude (last) ─────────────────────────────────────────────────────────
+  // Claude-powered commands sit at the bottom, each prefixed with the Claude
+  // icon so the group is visibly distinct from the custom commands above.
   commands.push(
-    { command: 'ai', description: '🤖 Ask Claude anything (freeform)' },
+    { command: 'ai', description: `${CLAUDE_ICON} Ask Claude anything (freeform)` },
   );
 
   return commands;
