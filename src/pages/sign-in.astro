@@ -1,5 +1,6 @@
 ---
 import { SignIn } from "@clerk/astro/components";
+import Header from "../components/Header.astro";
 ---
 
 <!doctype html>
@@ -13,6 +14,7 @@ import { SignIn } from "@clerk/astro/components";
     <title>Sign In — Reave</title>
   </head>
   <body>
+    <Header isIndex={false} />
     <div class="page">
       <div class="card">
         <SignIn />

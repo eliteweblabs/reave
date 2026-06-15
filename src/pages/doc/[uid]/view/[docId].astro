@@ -11,6 +11,7 @@
  * "Save as PDF" natively. Print CSS hides UI chrome so only the document prints.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
+import Header from '../../../../components/Header.astro';
 
 const { uid, docId } = Astro.params;
 
@@ -78,16 +79,15 @@ const fmtDate = (iso: string) => {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <Header isIndex={false} />
     {error ? (
       <main class="error-wrap">
-        <div class="logo">/\V</div>
         <h1>Document not found</h1>
         <p>{error}</p>
       </main>
     ) : (
       <main>
         <div class="toolbar no-print">
-          <div class="logo">/\V</div>
           <button class="print-btn" type="button" onclick="window.print()">
             ⬇ Download as PDF
           </button>
@@ -166,12 +166,12 @@ const fmtDate = (iso: string) => {
         font-size: 16px;
         line-height: 1.7;
       }
-      main { max-width: 780px; margin: 0 auto; padding: 24px 32px 80px; }
+      main { max-width: 780px; margin: 0 auto; padding: calc(64px + 16px) 32px 80px; }
 
       /* ── Toolbar ── */
       .toolbar {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
         margin-bottom: 24px;
       }

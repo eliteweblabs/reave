@@ -84,6 +84,8 @@ const sections: Section[] = [
     ],
   },
 ];
+
+import Header from '../../components/Header.astro';
 ---
 
 <!doctype html>
@@ -101,7 +103,7 @@ const sections: Section[] = [
         font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       }
       a { color: #93c5fd; }
-      .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px calc(env(safe-area-inset-bottom) + 64px); }
+      .wrap { max-width: 760px; margin: 0 auto; padding: calc(64px + 24px) 20px calc(env(safe-area-inset-bottom) + 64px); }
       .head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
       h1 { font-size: 22px; margin: 0; }
       .sub { color: #8b97a8; font-size: 13px; margin-top: 4px; }
@@ -118,6 +120,7 @@ const sections: Section[] = [
     </style>
   </head>
   <body>
+    <Header isIndex={false} />
     <main class="wrap">
       <div class="head">
         <div>

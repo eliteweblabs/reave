@@ -14,6 +14,7 @@
  */
 import { getContact, extractPortal, type ContactRecord, type ClientPortal, type PortalDocument } from '../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
+import Header from '../../components/Header.astro';
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -142,11 +143,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     />
   </head>
   <body>
+    <Header isIndex={false} />
     {
       notFound ? (
         <main class="wrap empty">
           <div class="card">
-            <div class="logo">/\V</div>
             <h1>This page isn’t available</h1>
             <p>The link may be expired or incorrect. Please reach out and we’ll send you a fresh one.</p>
           </div>
@@ -154,7 +155,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       ) : submitMode ? (
         <main class="wrap">
           <header class="hero">
-            <div class="logo">/\V</div>
             <h1>{displayName}</h1>
             {company && <p class="company">{company}</p>}
           </header>
@@ -184,7 +184,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       ) : (
         <main class="wrap">
           <header class="hero">
-            <div class="logo">/\V</div>
             <h1>{displayName}</h1>
             {company && <p class="company">{company}</p>}
           </header>
@@ -505,7 +504,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .wrap {
         max-width: 560px;
         margin: 0 auto;
-        padding: calc(env(safe-area-inset-top) + 40px) 20px calc(env(safe-area-inset-bottom) + 56px);
+        padding: calc(env(safe-area-inset-top) + 64px + 24px) 20px calc(env(safe-area-inset-bottom) + 56px);
       }
       .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
       .hero { text-align: center; margin-bottom: 24px; }

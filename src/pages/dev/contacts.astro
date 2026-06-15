@@ -12,6 +12,7 @@ export const prerender = false;
 import { listContacts, clientPortalUrl, type ContactRecord } from '../../lib/contactApi';
 import { craterSearchCustomers, isCraterConfigured, type CraterCustomer } from '../../lib/craterClient';
 import { serverEnv } from '../../lib/serverEnv';
+import Header from '../../components/Header.astro';
 
 const COOKIE = 'dev_contacts_key';
 const expectedKey = serverEnv('DASHBOARD_KEY')?.trim() || '';
@@ -144,7 +145,7 @@ const fmtMoney = (n: number) =>
         font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       }
       a { color: #93c5fd; }
-      .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: calc(64px + 24px) 20px 80px; }
       .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
       h1 { font-size: 22px; margin: 0; }
       .sub { color: #8b97a8; font-size: 13px; }
@@ -308,6 +309,7 @@ const fmtMoney = (n: number) =>
     </style>
   </head>
   <body>
+    <Header isIndex={false} />
     {
       !authorized ? (
         <main class="wrap">

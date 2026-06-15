@@ -26,15 +26,9 @@ if (userId) {
 }
 ---
 
-{
-  isIndex ? (
-    <header class="header">
-      {/* <div class="header-logo-mask">
-    <div class="header-gradient-layer"></div>
-  </div> */}
-    </header>
-  ) : (
-    <a href="/" class="small-logo">
+<header class="site-header">
+  {!isIndex && (
+    <a href="/" class="site-logo" aria-label="Home">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="80 205 368 118"
@@ -64,126 +58,70 @@ if (userId) {
         />
       </svg>
     </a>
-  )
-}
+  )}
 
-{userId && (
-  <div class="profile-dock">
-    <div class="profile-menu-wrapper">
-      <button class="profile-btn" id="profile-toggle" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Avatar" class="profile-avatar" />
-        ) : (
-          <span class="profile-initials">{userInitials}</span>
-        )}
-      </button>
-      <div class="profile-dropdown" id="profile-dropdown" role="menu">
-        <a href="/admin/profile" class="dropdown-item" role="menuitem">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-          Profile
-        </a>
-        <div class="dropdown-divider"></div>
-        <a href="/sign-out" class="dropdown-item dropdown-item--danger" role="menuitem" id="sign-out-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sign Out
-        </a>
+  {userId && (
+    <div class="profile-dock">
+      <div class="profile-menu-wrapper">
+        <button class="profile-btn" id="profile-toggle" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" class="profile-avatar" />
+          ) : (
+            <span class="profile-initials">{userInitials}</span>
+          )}
+        </button>
+        <div class="profile-dropdown" id="profile-dropdown" role="menu">
+          <a href="/admin/profile" class="dropdown-item" role="menuitem">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Profile
+          </a>
+          <div class="dropdown-divider"></div>
+          <a href="/sign-out" class="dropdown-item dropdown-item--danger" role="menuitem" id="sign-out-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </a>
+        </div>
       </div>
     </div>
-  </div>
-)}
+  )}
+</header>
 
 <style>
-  .header {
+  /* ── Global header bar (transparent overlay, all pages) ── */
+  .site-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    height: 320px;
-    z-index: 100;
+    height: 64px;
+    z-index: 2000;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: space-between;
+    padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
+    /* Let page content/canvas underneath stay interactive; children opt back in. */
     pointer-events: none;
   }
 
-  .header-logo-mask {
-    position: relative;
-    width: 800px;
-    height: 320px;
-    mask-image: url("/logo-mask.svg");
-    -webkit-mask-image: url("/logo-mask.svg");
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-position: center center;
-    -webkit-mask-position: center center;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5))
-      drop-shadow(0 0 20px rgba(255, 100, 200, 0.3));
-    pointer-events: none;
+  .site-header > * {
+    pointer-events: auto;
   }
 
-  .header-gradient-layer {
-    position: absolute;
-    width: 1200px;
-    height: 480px;
-    left: -200px;
-    top: -80px;
-    transform: translate3d(0, 0, 0);
-    background:
-      radial-gradient(circle at 30% 30%, #ff0000 0%, transparent 40%),
-      radial-gradient(circle at 70% 30%, #ff00ff 0%, transparent 40%),
-      radial-gradient(circle at 50% 50%, #00ffff 0%, transparent 40%),
-      radial-gradient(circle at 30% 70%, #00ff00 0%, transparent 40%),
-      radial-gradient(circle at 70% 70%, #ffff00 0%, transparent 40%),
-      radial-gradient(
-        ellipse at center,
-        #ff0000 0%,
-        #ffff00 25%,
-        #00ffff 50%,
-        #ff00ff 75%,
-        #ff0000 100%
-      );
-    background-size: 600px 240px;
-    background-repeat: repeat;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    contain: layout style paint;
-    animation: headerGradientMove 20s linear infinite;
-  }
-
-  @keyframes headerGradientMove {
-    0% {
-      background-position: 0% 0%;
-    }
-    50% {
-      background-position: 100% 100%;
-    }
-    100% {
-      background-position: 0% 0%;
-    }
-  }
-
-  /* Logo for non-index pages */
-  .small-logo {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    display: block;
+  /* Logo (left) — hidden on the index page via `isIndex`. */
+  .site-logo {
+    display: flex;
+    align-items: center;
     text-decoration: none;
   }
 
-  .small-logo .logo-svg {
-    width: max(50vw, 280px);
+  .site-logo .logo-svg {
+    width: 92px;
     height: auto;
-    animation: none;
     filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
   }
 
-  .small-logo path,
-  .small-logo polygon {
+  .site-logo path,
+  .site-logo polygon {
     animation: colorShift 5s ease infinite;
   }
 
@@ -200,50 +138,16 @@ if (userId) {
     }
   }
 
-  /* @media screen and (min-width: 768px) {
-    .header {
-      height: 400px;
-    }
-    .header-logo-mask {
-      width: 1000px;
-      height: 400px;
-    }
-    .header-gradient-layer {
-      width: 1600px;
-      height: 640px;
-      left: -300px;
-      top: -120px;
-      background-size: 800px 320px;
-    }
-    .small-logo .logo-svg {
-      width: 56px;
-      height: 56px;
-    }
-  } */
-
-  @media screen and (min-width: 1024px) {
-    .header {
-      height: 480px;
-    }
-    .header-logo-mask {
-      width: 1200px;
-      height: 480px;
-    }
-    .header-gradient-layer {
-      width: 2000px;
-      height: 800px;
-      left: -400px;
-      top: -160px;
-      background-size: 1000px 400px;
+  /* Never print the site chrome. */
+  @media print {
+    .site-header {
+      display: none !important;
     }
   }
 
-  /* ── Profile dock (top-right, all pages) ── */
+  /* Profile dock pinned to the right even when the logo is hidden (index). */
   .profile-dock {
-    position: fixed;
-    top: 16px;
-    right: 20px;
-    z-index: 2000;
+    margin-left: auto;
   }
 
   .profile-menu-wrapper {
