@@ -1,5 +1,17 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
+/**
+ * An inline keyboard button. Either fires a callback (`data`) or, when `copy`
+ * is set, copies that text to the user's clipboard on tap (Telegram Bot API
+ * 8.0+ `copy_text` button — no callback round-trip needed).
+ */
+export type MenuButton = { text: string; data?: string; copy?: string };
+
+function toInlineButton(btn: MenuButton): Record<string, unknown> {
+  if (btn.copy != null) return { text: btn.text, copy_text: { text: btn.copy } };
+  return { text: btn.text, callback_data: btn.data };
+}
+
 export async function telegramSendMessage(
   token: string,
   chatId: number,
@@ -37,7 +49,7 @@ export async function telegramSendMenu(
   token: string,
   chatId: number,
   text: string,
-  buttons: Array<Array<{ text: string; data: string }>>
+  buttons: Array<Array<MenuButton>>
 ): Promise<void> {
   const res = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
     method: 'POST',
@@ -47,9 +59,7 @@ export async function telegramSendMenu(
       text,
       disable_web_page_preview: true,
       reply_markup: {
-        inline_keyboard: buttons.map((row) =>
-          row.map((btn) => ({ text: btn.text, callback_data: btn.data }))
-        ),
+        inline_keyboard: buttons.map((row) => row.map(toInlineButton)),
       },
     }),
   });
@@ -69,7 +79,7 @@ export async function telegramEditMessage(
   chatId: number,
   messageId: number,
   text: string,
-  buttons?: Array<Array<{ text: string; data: string }>>
+  buttons?: Array<Array<MenuButton>>
 ): Promise<void> {
   const body: Record<string, unknown> = {
     chat_id: chatId,
@@ -79,9 +89,7 @@ export async function telegramEditMessage(
   };
   if (buttons) {
     body.reply_markup = {
-      inline_keyboard: buttons.map((row) =>
-        row.map((btn) => ({ text: btn.text, callback_data: btn.data }))
-      ),
+      inline_keyboard: buttons.map((row) => row.map(toInlineButton)),
     };
   }
   const res = await fetch(`${TELEGRAM_API}/bot${token}/editMessageText`, {

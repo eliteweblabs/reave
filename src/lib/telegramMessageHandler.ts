@@ -1,7 +1,7 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, telegramEditMessage } from './telegramClient';
+import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, telegramEditMessage, type MenuButton } from './telegramClient';
 import { buildCommandList } from './telegramCommandList';
 import { listTemplates } from './documentTemplates';
 import { siteBaseUrl } from './contactApi';
@@ -165,7 +165,7 @@ async function applyMetaEdit(
 function buildContactActionMenu(
   c: ContactRecord,
   uid: string
-): { text: string; rows: Array<Array<{ text: string; data: string }>> } {
+): { text: string; rows: Array<Array<MenuButton>> } {
   const infoLines = [c.name ?? uid];
   if (c.company) infoLines.push(c.company);
   if (c.email) infoLines.push(c.email);
@@ -176,9 +176,9 @@ function buildContactActionMenu(
   if (c.updatedAt) stamps.push(`updated ${timeAgo(c.updatedAt)}`);
   if (stamps.length) infoLines.push('', stamps.join(' · '));
   const hasDoc = listTemplates().length > 0;
-  const rows: Array<Array<{ text: string; data: string }>> = [
+  const rows: Array<Array<MenuButton>> = [
     [
-      { text: 'Portal Link', data: `qcmd:portal:${uid}` },
+      { text: 'Copy Portal Link', copy: clientPortalUrl(uid) },
       { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
     ],
     [
