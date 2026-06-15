@@ -291,8 +291,8 @@ async function sendResultWithBack(
 /** Portal-send buttons for a contact, gated on configured channel + contact field. */
 function portalSendButtons(c: ContactRecord, uid: string): MenuButton[] {
   const btns: MenuButton[] = [];
-  if (isEmailSendConfigured() && c.email) btns.push({ text: '📧 Portal', data: `qcmd:portalemail:${uid}` });
-  if (isSmsSendConfigured() && c.phone) btns.push({ text: '💬 Portal', data: `qcmd:portalsms:${uid}` });
+  if (isEmailSendConfigured() && c.email) btns.push({ text: '✉︎ Portal', data: `qcmd:portalemail:${uid}` });
+  if (isSmsSendConfigured() && c.phone) btns.push({ text: '🗨︎ Portal', data: `qcmd:portalsms:${uid}` });
   return btns;
 }
 
@@ -318,7 +318,7 @@ function buildContactActionMenu(
   const hasDoc = listTemplates().length > 0;
   const rows: Array<Array<MenuButton>> = [
     [
-      { text: '🔗 Portal', copy: clientPortalUrl(uid) },
+      { text: '⧉ Portal', copy: clientPortalUrl(uid) },
       ...portalSendButtons(c, uid),
     ],
     [
