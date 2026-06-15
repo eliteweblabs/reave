@@ -19,13 +19,13 @@ export function buildCommandList(): BotCommand[] {
   const commands: BotCommand[] = [];
 
   // ── Business: contacts & portal ───────────────────────────────────────────
+  // /contacts is the single entry point — once a client is found, every action
+  // (portal, send, notes, document) is offered as an inline button. The
+  // per-client commands still work if typed, but are kept out of the autosuggest
+  // to avoid the "fires before I can add the client name" confusion.
   if (hasContacts) {
     commands.push(
-      { command: 'contacts', description: 'List or search all clients' },
-      { command: 'portal', description: 'Get portal link for a client' },
-      { command: 'portalsend', description: 'Send portal link to a client (email/SMS)' },
-      { command: 'notes', description: 'Add or view a client\'s data/notes' },
-      { command: 'document', description: 'Send a document to sign (contract, NDA…)' },
+      { command: 'contacts', description: 'Find a client, then act with buttons' },
     );
   }
 

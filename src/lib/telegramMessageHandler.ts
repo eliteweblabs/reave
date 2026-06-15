@@ -13,6 +13,7 @@ import {
   extractPortal,
   clientPortalUrl,
   formatResolveForTelegram,
+  type ContactRecord,
 } from './contactApi';
 import { createRailwayEmptyProject } from './railwayClient';
 import { isCraterConfigured, craterCreateInvoice, craterListInvoices, formatCreatedInvoice } from './craterClient';
@@ -89,6 +90,35 @@ function timeAgo(iso: string | null | undefined): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+/**
+ * Build the contact "card" text + action-button rows shown once a client is
+ * found. Every per-client action lives here as a button (no slash command
+ * needed), so this is the single source for both the /contacts result and the
+ * qcmd:open callback.
+ */
+function buildContactActionMenu(
+  c: ContactRecord,
+  uid: string
+): { text: string; rows: Array<Array<{ text: string; data: string }>> } {
+  const infoLines = [c.name ?? uid];
+  if (c.email) infoLines.push(c.email);
+  if (c.phone) infoLines.push(c.phone);
+  if (c.company) infoLines.push(c.company);
+  infoLines.push('', clientPortalUrl(uid));
+  const hasDoc = listTemplates().length > 0;
+  const rows: Array<Array<{ text: string; data: string }>> = [
+    [
+      { text: 'Portal Link', data: `qcmd:portal:${uid}` },
+      { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
+    ],
+    [
+      { text: 'Notes', data: `qcmd:notes:${uid}` },
+      ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
+    ],
+  ];
+  return { text: infoLines.join('\n'), rows };
+}
+
 // ─── slash command handler ────────────────────────────────────────────────────
 
 async function handleSlashCommand(text: string): Promise<string | null> {
@@ -122,7 +152,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       const detail = c.company || c.email || c.phone || '';
       lines.push(`- ${c.name}${detail ? ` — ${detail}` : ''}`);
     }
-    lines.push('', '/contacts <name> to search   /portal <name> for a link');
+    lines.push('', 'Type /contacts <name> to find a client and act on them.');
     return lines.join('\n');
   }
   const contactsSearch = t.match(/^\/contacts\s+(.+)$/i);
@@ -136,13 +166,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     if (contacts.length === 1) {
       return `__CONTACTS_SINGLE__:${contacts[0].uid}`;
     }
-    const lines = [`${contacts.length} matches for "${q}":`];
-    for (const c of contacts) {
-      const detail = c.email || c.phone || '';
-      lines.push(`- ${c.name}${detail ? ` (${detail})` : ''}`);
-    }
-    lines.push('', 'Be more specific: /contacts john smith');
-    return lines.join('\n');
+    return `__CONTACTS_PICK__:${q}`;
   }
 
   // ── /portal <name> ─────────────────────────────────────────────────────────
@@ -525,24 +549,29 @@ export async function handleTelegramTextMessage(opts: {
       await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
       return;
     }
-    const c = full.data;
-    const infoLines = [c.name];
-    if (c.email) infoLines.push(c.email);
-    if (c.phone) infoLines.push(c.phone);
-    if (c.company) infoLines.push(c.company);
-    infoLines.push('', clientPortalUrl(uid));
-    const hasDoc = listTemplates().length > 0;
-    const rows: Array<Array<{ text: string; data: string }>> = [
-      [
-        { text: 'Portal Link', data: `qcmd:portal:${uid}` },
-        { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
-      ],
-      [
-        { text: 'Notes', data: `qcmd:notes:${uid}` },
-        ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
-      ],
-    ];
-    await telegramSendMenu(token, chatId, infoLines.join('\n'), rows);
+    const menu = buildContactActionMenu(full.data, uid);
+    await telegramSendMenu(token, chatId, menu.text, menu.rows);
+    return;
+  }
+
+  if (slash?.startsWith('__CONTACTS_PICK__:')) {
+    const q = slash.slice('__CONTACTS_PICK__:'.length);
+    const res = await listContacts({ q, limit: 10 });
+    if (!res.ok) {
+      await telegramSendMessage(token, chatId, `contacts failed: ${res.error}`);
+      return;
+    }
+    const { contacts } = res.data;
+    if (!contacts.length) {
+      await telegramSendMessage(token, chatId, `No contacts found for "${q}".`);
+      return;
+    }
+    const rows = contacts.map((c) => {
+      const detail = c.company || c.email || c.phone || '';
+      const label = detail ? `${c.name} — ${detail}` : c.name;
+      return [{ text: label.slice(0, 60), data: `qcmd:open:${c.uid}` }];
+    });
+    await telegramSendMenu(token, chatId, `${contacts.length} matches for "${q}" — pick one:`, rows);
     return;
   }
 
@@ -702,6 +731,16 @@ export async function handleTelegramCallbackQuery(opts: {
       return;
     }
     const c = full.data;
+
+    if (cmd === 'open') {
+      const menu = buildContactActionMenu(c, uid);
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, menu.text, menu.rows);
+      } else {
+        await telegramSendMenu(token, chatId, menu.text, menu.rows);
+      }
+      return;
+    }
 
     if (cmd === 'portal') {
       const portal = extractPortal(c);
