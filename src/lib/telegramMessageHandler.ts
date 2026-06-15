@@ -202,22 +202,21 @@ async function handleSlashCommand(text: string): Promise<string | null> {
     return `${c.name} has no email or phone on file. Add one first.`;
   }
 
-  // ── /submitlink <name> ─────────────────────────────────────────────────────
-  if (t === '/submitlink') return 'Usage: /submitlink <name>\nExample: /submitlink John Smith';
-  const submitMatch = t.match(/^\/submitlink\s+(.+)$/i);
-  if (submitMatch) {
+  // ── /notes <name> ──────────────────────────────────────────────────────────
+  if (t === '/notes') return 'Usage: /notes <name>\nExample: /notes John Smith';
+  const notesMatch = t.match(/^\/notes\s+(.+)$/i);
+  if (notesMatch) {
     if (!isContactApiConfigured()) return noApi();
-    const name = submitMatch[1].trim();
+    const name = notesMatch[1].trim();
     const resolved = await resolveContact({ name });
     if (!resolved.ok) return `resolve failed: ${resolved.error}`;
     const d = resolved.data as { match?: string; contact?: { uid?: string; name?: string }; candidates?: Array<{ name?: string }> };
     if ((d.match === 'exact' || d.match === 'likely') && d.contact?.uid) {
-      const submitUrl = `${clientPortalUrl(d.contact.uid)}?submit`;
-      return `${d.contact.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`;
+      return `__NOTES_MENU__:${d.contact.uid}`;
     }
     const slCands = (d.candidates ?? []) as Array<{ uid?: string; name?: string }>;
-    if (slCands.length === 1 && slCands[0].uid) return `__CONFIRM__:submitlink:${slCands[0].uid}`;
-    return fmtNoMatch('submitlink', name, slCands);
+    if (slCands.length === 1 && slCands[0].uid) return `__CONFIRM__:notes:${slCands[0].uid}`;
+    return fmtNoMatch('notes', name, slCands);
   }
 
   // ── /invoices ──────────────────────────────────────────────────────────────
@@ -370,7 +369,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
         '/contacts [query]  — list or search clients',
         '/portal <name>  — portal link + summary',
         '/portalsend <name>  — email/SMS the link',
-        '/submitlink <name>  — data collection link',
+        '/notes <name>  — add or view client data',
         '/document <name>  — send a document to sign',
       ] : []),
       ...(hasB ? [
@@ -498,6 +497,27 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
 
+  if (slash?.startsWith('__NOTES_MENU__:')) {
+    const uid = slash.slice('__NOTES_MENU__:'.length);
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    const c = full.data;
+    const count = extractPortal(c)?.data?.length ?? 0;
+    await telegramSendMenu(
+      token,
+      chatId,
+      `Notes — ${c.name}\n${count > 0 ? `${count} entr${count === 1 ? 'y' : 'ies'} on file` : 'No entries yet'}`,
+      [[
+        { text: 'Add', data: `qcmd:notesadd:${uid}` },
+        { text: 'View', data: `qcmd:notesview:${uid}` },
+      ]]
+    );
+    return;
+  }
+
   if (slash?.startsWith('__CONTACTS_SINGLE__:')) {
     const uid = slash.slice('__CONTACTS_SINGLE__:'.length);
     const full = await getContact(uid);
@@ -518,7 +538,7 @@ export async function handleTelegramTextMessage(opts: {
         { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
       ],
       [
-        { text: 'Submit Link', data: `qcmd:submitlink:${uid}` },
+        { text: 'Notes', data: `qcmd:notes:${uid}` },
         ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
       ],
     ];
@@ -551,7 +571,7 @@ export async function handleTelegramTextMessage(opts: {
     const portalRows: Array<Array<{ text: string; data: string }>> = [
       [
         { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
-        { text: 'Submit Link', data: `qcmd:submitlink:${uid}` },
+        { text: 'Notes', data: `qcmd:notes:${uid}` },
         ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
       ],
     ];
@@ -730,9 +750,53 @@ export async function handleTelegramCallbackQuery(opts: {
       return;
     }
 
-    if (cmd === 'submitlink') {
+    if (cmd === 'notes') {
+      const count = extractPortal(c)?.data?.length ?? 0;
+      const menuText = `Notes — ${c.name}\n${count > 0 ? `${count} entr${count === 1 ? 'y' : 'ies'} on file` : 'No entries yet'}`;
+      const menuRows = [[
+        { text: 'Add', data: `qcmd:notesadd:${uid}` },
+        { text: 'View', data: `qcmd:notesview:${uid}` },
+      ]];
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, menuText, menuRows);
+      } else {
+        await telegramSendMenu(token, chatId, menuText, menuRows);
+      }
+      return;
+    }
+
+    if (cmd === 'notesadd') {
       const submitUrl = `${clientPortalUrl(uid)}?submit`;
-      await telegramSendMessage(token, chatId, `${c.name} - submit link:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser.`);
+      const addMsg = `Add notes for ${c.name}:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser. Entries appear in the portal Data tab.`;
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, addMsg);
+      } else {
+        await telegramSendMessage(token, chatId, addMsg);
+      }
+      return;
+    }
+
+    if (cmd === 'notesview') {
+      const entries = extractPortal(c)?.data ?? [];
+      let viewMsg: string;
+      if (!entries.length) {
+        viewMsg = `No notes yet for ${c.name}.\n\nTap Add to send them a collection link.`;
+      } else {
+        const blocks = entries.map((e) => {
+          const parts = [`• ${e.label || '(untitled)'}`];
+          if (e.username) parts.push(`  user: ${e.username}`);
+          if (e.password) parts.push(`  pass: ${e.password}`);
+          if (e.url) parts.push(`  url: ${e.url}`);
+          if (e.value) parts.push(`  ${e.value}`);
+          return parts.join('\n');
+        });
+        viewMsg = `Notes — ${c.name} (${entries.length} entr${entries.length === 1 ? 'y' : 'ies'})\n\n${blocks.join('\n\n')}`;
+      }
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, viewMsg);
+      } else {
+        await telegramSendMessage(token, chatId, viewMsg);
+      }
       return;
     }
 
