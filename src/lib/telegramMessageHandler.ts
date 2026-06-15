@@ -157,6 +157,70 @@ async function applyMetaEdit(
 }
 
 /**
+ * Send a client their portal link over a specific channel and report the
+ * outcome back to the Telegram chat. Per-channel config + contact-field checks
+ * live here so callers just pick 'email' or 'sms'.
+ */
+async function deliverPortal(
+  token: string,
+  chatId: number,
+  c: ContactRecord,
+  uid: string,
+  channel: 'email' | 'sms'
+): Promise<void> {
+  const portal = extractPortal(c);
+  if (portal?.enabled === false) {
+    await telegramSendMessage(token, chatId, `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`);
+    return;
+  }
+  const url = clientPortalUrl(uid);
+  const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
+
+  if (channel === 'email') {
+    if (!isEmailSendConfigured()) {
+      await telegramSendMessage(token, chatId, 'Email not configured. Set RESEND_API_KEY.');
+      return;
+    }
+    if (!c.email) {
+      await telegramSendMessage(token, chatId, `${c.name} has no email on file. Add one first.`);
+      return;
+    }
+    const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
+    const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
+    const r = await sendEmail({ to: c.email, subject, text: bodyText });
+    if (!r.ok) {
+      await telegramSendMessage(token, chatId, `Email failed: ${r.error}`);
+      return;
+    }
+    await telegramSendMessage(token, chatId, `Emailed to ${c.email}\n${url}`);
+    return;
+  }
+
+  if (!isSmsSendConfigured()) {
+    await telegramSendMessage(token, chatId, 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.');
+    return;
+  }
+  if (!c.phone) {
+    await telegramSendMessage(token, chatId, `${c.name} has no phone on file. Add one first.`);
+    return;
+  }
+  const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, here's your client page: ${url}` });
+  if (!r.ok) {
+    await telegramSendMessage(token, chatId, `SMS failed: ${r.error}`);
+    return;
+  }
+  await telegramSendMessage(token, chatId, `Texted to ${c.phone}\n${url}`);
+}
+
+/** Portal-send buttons for a contact, gated on configured channel + contact field. */
+function portalSendButtons(c: ContactRecord, uid: string): MenuButton[] {
+  const btns: MenuButton[] = [];
+  if (isEmailSendConfigured() && c.email) btns.push({ text: 'Email Portal', data: `qcmd:portalemail:${uid}` });
+  if (isSmsSendConfigured() && c.phone) btns.push({ text: 'SMS Portal', data: `qcmd:portalsms:${uid}` });
+  return btns;
+}
+
+/**
  * Build the contact "card" text + action-button rows shown once a client is
  * found. Every per-client action lives here as a button (no slash command
  * needed), so this is the single source for both the /contacts result and the
@@ -179,7 +243,7 @@ function buildContactActionMenu(
   const rows: Array<Array<MenuButton>> = [
     [
       { text: 'Copy Portal Link', copy: clientPortalUrl(uid) },
-      { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
+      ...portalSendButtons(c, uid),
     ],
     [
       { text: 'Notes', data: `qcmd:notes:${uid}` },
@@ -696,9 +760,9 @@ export async function handleTelegramTextMessage(opts: {
       `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
     ].filter(Boolean).join('\n');
     const hasDoc = listTemplates().length > 0;
-    const portalRows: Array<Array<{ text: string; data: string }>> = [
+    const portalRows: Array<Array<MenuButton>> = [
       [
-        { text: 'Send Portal', data: `qcmd:portalsend:${uid}` },
+        ...portalSendButtons(c, uid),
         { text: 'Notes', data: `qcmd:notes:${uid}` },
         ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
       ],
@@ -887,33 +951,17 @@ export async function handleTelegramCallbackQuery(opts: {
       return;
     }
 
-    if (cmd === 'portalsend') {
-      if (!isEmailSendConfigured() && !isSmsSendConfigured()) {
-        await telegramSendMessage(token, chatId, 'No outbound channel configured. Set RESEND_API_KEY (email) or TELNYX_API_KEY + TELNYX_FROM_NUMBER (SMS).');
-        return;
-      }
-      const portal = extractPortal(c);
-      if (portal?.enabled === false) {
-        await telegramSendMessage(token, chatId, `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`);
-        return;
-      }
-      const url = clientPortalUrl(uid);
-      const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
-      if (isEmailSendConfigured() && c.email) {
-        const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
-        const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
-        const r = await sendEmail({ to: c.email, subject, text: bodyText });
-        if (!r.ok) { await telegramSendMessage(token, chatId, `Email failed: ${r.error}`); return; }
-        await telegramSendMessage(token, chatId, `Sent to ${c.email}\n${url}`);
-        return;
-      }
-      if (isSmsSendConfigured() && c.phone) {
-        const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, here's your client page: ${url}` });
-        if (!r.ok) { await telegramSendMessage(token, chatId, `SMS failed: ${r.error}`); return; }
-        await telegramSendMessage(token, chatId, `Sent to ${c.phone}\n${url}`);
-        return;
-      }
-      await telegramSendMessage(token, chatId, `${c.name} has no email or phone on file. Add one first.`);
+    if (cmd === 'portalemail' || cmd === 'portalsms' || cmd === 'portalsend') {
+      // portalsend (legacy/auto) prefers email when available, else SMS.
+      const channel: 'email' | 'sms' =
+        cmd === 'portalsms'
+          ? 'sms'
+          : cmd === 'portalemail'
+            ? 'email'
+            : isEmailSendConfigured() && c.email
+              ? 'email'
+              : 'sms';
+      await deliverPortal(token, chatId, c, uid, channel);
       return;
     }
 
