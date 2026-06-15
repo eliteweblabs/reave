@@ -1,30 +1,47 @@
 /**
  * Tracks a single "waiting for the next chat message" intent per Telegram chat.
  *
- * Used by the /contacts → Meta edit flow: the user taps a field button (e.g.
- * "Email"), we stash what they're editing here, then the next plain-text message
- * they send is consumed as the new value. In-memory only (resets on restart),
- * matching telegramChatHistory.
+ * Used by the /contacts → Meta edit flow (tap a field button, the next plain-text
+ * message is the new value) and the Notes → Add flow (a two-step capture: first
+ * the note title, then its content). In-memory only (resets on restart), matching
+ * telegramChatHistory.
  */
 
 export type MetaField = 'firstname' | 'lastname' | 'company' | 'phone' | 'email';
 
-export type PendingEdit = {
+type BasePending = {
   uid: string;
-  /** Which contact field the next message should set. */
-  field: MetaField;
   /** Display name, for friendly prompts/confirmations. */
   name: string;
   createdAt: number;
 };
+
+/** Editing one contact meta field — the next message is the new value. */
+export type MetaPending = BasePending & { kind: 'meta'; field: MetaField };
+
+/** Adding a portal note — collect a title, then the content, over two messages. */
+export type NotePending = BasePending & {
+  kind: 'note';
+  step: 'title' | 'content';
+  /** Captured title, present once step advances to 'content'. */
+  title?: string;
+};
+
+export type PendingEdit = MetaPending | NotePending;
 
 /** How long a pending edit stays valid before it's ignored (avoids stale captures). */
 const TTL_MS = 10 * 60 * 1000;
 
 const byChat = new Map<number, PendingEdit>();
 
-export function setPendingEdit(chatId: number, edit: Omit<PendingEdit, 'createdAt'>): void {
-  byChat.set(chatId, { ...edit, createdAt: Date.now() });
+/** Distributive Omit so each union member keeps its own discriminant fields. */
+type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
+
+export function setPendingEdit(
+  chatId: number,
+  edit: DistributiveOmit<PendingEdit, 'createdAt'>
+): void {
+  byChat.set(chatId, { ...edit, createdAt: Date.now() } as PendingEdit);
 }
 
 /** Look without consuming. Returns null if absent or expired. */

@@ -12,9 +12,11 @@ import {
   getContact,
   updateContact,
   extractPortal,
+  setContactPortal,
   clientPortalUrl,
   formatResolveForTelegram,
   type ContactRecord,
+  type ClientDataEntry,
 } from './contactApi';
 import {
   setPendingEdit,
@@ -154,6 +156,37 @@ async function applyMetaEdit(
     return updateContact(uid, { name });
   }
   return updateContact(uid, { [field]: v });
+}
+
+/**
+ * Append a note to a contact's portal Data tab. Merges with the existing portal
+ * payload (setContactPortal replaces metadata wholesale) and returns the new
+ * entry count for a friendly confirmation.
+ */
+async function addClientNote(
+  uid: string,
+  title: string,
+  content: string
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  const full = await getContact(uid);
+  if (!full.ok) return { ok: false, error: full.error };
+  const portal = extractPortal(full.data) ?? {};
+  const entry: ClientDataEntry = { label: title.trim() || '(untitled)', value: content.trim() };
+  const data = [...(portal.data ?? []), entry];
+  const res = await setContactPortal(uid, { ...portal, data });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, count: data.length };
+}
+
+/** The Notes menu (Add / View) + Back, shared by the notes view and post-add. */
+function notesMenuRows(uid: string): Array<Array<MenuButton>> {
+  return [
+    [
+      { text: 'Add', data: `qcmd:notesadd:${uid}` },
+      { text: 'View', data: `qcmd:notesview:${uid}` },
+    ],
+    [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
+  ];
 }
 
 /**
@@ -686,6 +719,31 @@ export async function handleTelegramTextMessage(opts: {
     }
   } else {
     const pending = peekPendingEdit(chatId);
+    // ── Notes → Add: two-step capture (title, then content) ──────────────────
+    if (pending && pending.kind === 'note') {
+      if (pending.step === 'title') {
+        const title = text.trim();
+        setPendingEdit(chatId, { kind: 'note', step: 'content', uid: pending.uid, name: pending.name, title });
+        await telegramSendMessage(
+          token,
+          chatId,
+          `Title: ${title}\n\nWhat's the content of the note?\n\n(Send /cancel to stop.)`
+        );
+        return;
+      }
+      // step === 'content' → save the note
+      takePendingEdit(chatId);
+      const title = pending.title || '(untitled)';
+      const res = await addClientNote(pending.uid, title, text);
+      if (!res.ok) {
+        await telegramSendMessage(token, chatId, `Couldn't save note: ${res.error}`);
+        return;
+      }
+      const menuText = `Note added to ${pending.name}: “${title}”\n\nNotes — ${pending.name}\n${res.count} entr${res.count === 1 ? 'y' : 'ies'} on file`;
+      await telegramSendMenu(token, chatId, menuText, notesMenuRows(pending.uid));
+      return;
+    }
+    // ── Meta edit: next message is the new field value ───────────────────────
     if (pending) {
       takePendingEdit(chatId);
       const label = metaFieldLabel(pending.field);
@@ -986,7 +1044,7 @@ export async function handleTelegramCallbackQuery(opts: {
       await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
       return;
     }
-    setPendingEdit(chatId, { uid, field, name: full.data.name });
+    setPendingEdit(chatId, { kind: 'meta', uid, field, name: full.data.name });
     const label = metaFieldLabel(field);
     const promptMsg = `Send the new ${label} for ${full.data.name} in the chat.\n\n(Send /cancel to abort.)`;
     if (messageId != null) {
@@ -1081,9 +1139,13 @@ export async function handleTelegramCallbackQuery(opts: {
     }
 
     if (cmd === 'notesadd') {
-      const submitUrl = `${clientPortalUrl(uid)}?submit`;
-      const addMsg = `Add notes for ${c.name}:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser. Entries appear in the portal Data tab.`;
-      await sendResultWithBack(token, chatId, addMsg, uid, messageId);
+      setPendingEdit(chatId, { kind: 'note', step: 'title', uid, name: c.name });
+      const prompt = `New note for ${c.name}\n\nWhat's the title of the note?\n\n(Send /cancel to stop.)`;
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, prompt);
+      } else {
+        await telegramSendMessage(token, chatId, prompt);
+      }
       return;
     }
 
@@ -1091,7 +1153,7 @@ export async function handleTelegramCallbackQuery(opts: {
       const entries = extractPortal(c)?.data ?? [];
       let viewMsg: string;
       if (!entries.length) {
-        viewMsg = `No notes yet for ${c.name}.\n\nTap Add to send them a collection link.`;
+        viewMsg = `No notes yet for ${c.name}.\n\nTap Add to write one here in chat.`;
       } else {
         const blocks = entries.map((e) => {
           const parts = [`• ${e.label || '(untitled)'}`];
