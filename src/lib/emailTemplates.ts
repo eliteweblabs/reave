@@ -1,7 +1,10 @@
 /**
  * Branded HTML email templates for all outbound Reave emails.
  * Uses table-based layout for maximum email-client compatibility
- * (Gmail, Apple Mail, Outlook).
+ * (Gmail, Apple Mail, Outlook). Supports prefers-color-scheme so
+ * Apple Mail and modern mobile clients render in dark or light mode
+ * automatically; inline styles provide the light-mode fallback for
+ * clients that strip <style> blocks (Gmail, older Outlook).
  */
 import { siteBaseUrl } from './contactApi';
 
@@ -39,7 +42,7 @@ export function reaveEmailHtml(opts: {
   const bodyRows = opts.paragraphs
     .map(
       (p) =>
-        `<tr><td style="padding:0 0 16px"><p style="margin:0;color:#1a1a1a;font-size:15px;line-height:1.65">${esc(p)}</p></td></tr>`,
+        `<tr><td style="padding:0 0 16px"><p class="email-text" style="margin:0;color:#1a1a1a;font-size:15px;line-height:1.65">${esc(p)}</p></td></tr>`,
     )
     .join('\n');
 
@@ -55,7 +58,7 @@ export function reaveEmailHtml(opts: {
       </tr>
       <tr>
         <td style="padding:6px 0 20px" align="center">
-          <a href="${esc(opts.cta.url)}" style="color:#a855f7;font-size:12px;word-break:break-all;text-decoration:none">${esc(opts.cta.url)}</a>
+          <a href="${esc(opts.cta.url)}" class="email-link" style="color:#a855f7;font-size:12px;word-break:break-all;text-decoration:none">${esc(opts.cta.url)}</a>
         </td>
       </tr>`
     : '';
@@ -64,13 +67,13 @@ export function reaveEmailHtml(opts: {
     opts.metaRows && opts.metaRows.length > 0
       ? `<tr><td style="padding:16px 0 0">
           <table cellpadding="0" cellspacing="0" width="100%"
-                 style="border-top:1px solid #e5e5e5;border-collapse:collapse">
+                 class="email-meta-table" style="border-top:1px solid #e5e5e5;border-collapse:collapse">
             ${opts.metaRows
               .map(
                 ([label, value]) =>
                   `<tr>
-                    <td style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
-                    <td style="padding:8px 0;font-size:13px;color:#1a1a1a;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</td>
+                    <td class="email-meta-label" style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
+                    <td class="email-meta-value" style="padding:8px 0;font-size:13px;color:#1a1a1a;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</td>
                   </tr>`,
               )
               .join('\n')}
@@ -79,7 +82,7 @@ export function reaveEmailHtml(opts: {
       : '';
 
   const noteHtml = opts.note
-    ? `<tr><td style="padding:20px 0 0"><p style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
+    ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
     : '';
 
   return `<!DOCTYPE html>
@@ -90,16 +93,31 @@ export function reaveEmailHtml(opts: {
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <title>Reave</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <style>
+    /* ── Dark mode overrides (Apple Mail, Samsung Mail, Outlook iOS/Android) ── */
+    @media (prefers-color-scheme: dark) {
+      body, .email-outer          { background-color: #000000 !important; }
+      .email-card-body            { background-color: #1c1c1e !important; }
+      .email-greeting,
+      .email-text,
+      .email-meta-value           { color: #f2f2f7 !important; }
+      .email-meta-label           { color: #8e8e93 !important; }
+      .email-meta-table           { border-top-color: #38383a !important; }
+      .email-note                 { color: #636366 !important; }
+      .email-footer-text          { color: #636366 !important; }
+      /* CTA button and link keep the purple — stays readable in both modes */
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5">
+<body class="email-outer" style="margin:0;padding:0;background-color:#f4f4f5;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-outer" style="background-color:#f4f4f5">
     <tr>
       <td align="center" style="padding:40px 16px 48px">
 
         <!-- Card wrapper -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
 
-          <!-- ── Logo header ──────────────────────────────────────── -->
+          <!-- ── Logo header (always dark) ──────────────────────────── -->
           <tr>
             <td style="background-color:#09090b;padding:22px 32px;border-radius:12px 12px 0 0" align="center">
               <a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
@@ -110,15 +128,15 @@ export function reaveEmailHtml(opts: {
             </td>
           </tr>
 
-          <!-- ── Body ────────────────────────────────────────────── -->
+          <!-- ── Body ────────────────────────────────────────────────── -->
           <tr>
-            <td style="background-color:#ffffff;padding:32px 32px 28px;border-radius:0 0 12px 12px">
+            <td class="email-card-body" style="background-color:#ffffff;padding:32px 32px 28px;border-radius:0 0 12px 12px">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
 
                 <!-- Greeting -->
                 <tr>
                   <td style="padding:0 0 20px">
-                    <p style="margin:0;color:#1a1a1a;font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
+                    <p class="email-greeting" style="margin:0;color:#1a1a1a;font-size:16px;font-weight:600;line-height:1.4">Hi ${esc(opts.firstName)},</p>
                   </td>
                 </tr>
 
@@ -138,10 +156,10 @@ export function reaveEmailHtml(opts: {
             </td>
           </tr>
 
-          <!-- ── Footer ──────────────────────────────────────────── -->
+          <!-- ── Footer ────────────────────────────────────────────── -->
           <tr>
             <td style="padding:20px 32px;text-align:center">
-              <p style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
+              <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
                 Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">Reave</a>
               </p>
             </td>
