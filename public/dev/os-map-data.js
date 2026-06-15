@@ -61,7 +61,7 @@ const SYSTEM_EDGES = [
   { from: 'contacts_dash', to: 'contact_api', label: 'list contacts' },
   { from: 'contact_api', to: 'contact_pg' },
   { from: 'astro', to: 'railway_gql', label: '/railway project' },
-  { from: 'astro', to: 'crater', label: '/invoice' },
+  { from: 'astro', to: 'crater', label: 'billing API' },
   { from: 'astro', to: 'resend', label: 'inbound webhook · send link' },
   { from: 'astro', to: 'app_pg', label: 'future', ghost: true, dashed: true },
   { from: 'astro', to: 'github', label: 'status / commits' },
@@ -189,7 +189,7 @@ const TG_NODES = [
   { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'menu · wipe history (/reset alias)',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
   { id: 'tc_cmd_knowledge', title: '/knowledge · /get',       sub: 'list & read knowledge docs (/start=/knowledge)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
   { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
-  { id: 'tc_cmd_invoice',   title: '/invoice',                sub: 'customer | amount [| description]',         icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
+  { id: 'tc_cmd_invoice',   title: '/invoices',               sub: 'list recent invoices',                      icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
   { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'new project (/railway help)',               icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
 
   // LLM tool categories (what Claude can call)

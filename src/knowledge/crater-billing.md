@@ -17,8 +17,10 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 ## Telegram usage
 
-- **Deterministic (no LLM):** `/invoice <customer> | <amount> [| description]` — e.g. `/invoice Tony Vello | 100 | Website work`. Creates a one-line DRAFT invoice.
-- **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/telegramToolDefs.ts`.
+- **Read-only:** `/invoices` lists recent invoices.
+- **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/telegramToolDefs.ts` (still includes invoice creation).
+
+> The deterministic `/invoice <customer> | <amount>` slash command was removed for now; create_invoice remains available via the freeform LLM path.
 
 ## Custom API endpoints (all wired as assistant tools)
 

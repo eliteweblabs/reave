@@ -33,7 +33,6 @@ export function buildCommandList(): BotCommand[] {
   if (hasBilling) {
     commands.push(
       { command: 'invoices', description: 'List recent invoices' },
-      { command: 'invoice', description: 'Create invoice — customer | amount' },
     );
   }
 

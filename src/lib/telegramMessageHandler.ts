@@ -26,7 +26,7 @@ import {
   type MetaField,
 } from './telegramPendingEdits';
 import { createRailwayEmptyProject } from './railwayClient';
-import { isCraterConfigured, craterCreateInvoice, craterListInvoices, formatCreatedInvoice } from './craterClient';
+import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
 import { checkDeploymentStatus, getRecentCommits } from './devStatus';
 import { serverEnv } from './serverEnv';
@@ -531,23 +531,6 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   }
   if (t === '/resolve' || t === '/who') return 'Usage: /resolve <name>  or  /who <name>';
 
-  // ── /invoice ───────────────────────────────────────────────────────────────
-  const invoiceMatch = t.match(/^\/invoice\s+(.+)$/is);
-  if (invoiceMatch) {
-    if (!isCraterConfigured()) return noApi('Crater');
-    const parts = invoiceMatch[1].split('|').map((s) => s.trim());
-    const customer = parts[0] ?? '';
-    const amount = Number((parts[1] ?? '').replace(/[$,]/g, ''));
-    const description = parts[2]?.trim() || 'Services rendered';
-    if (!customer || !Number.isFinite(amount) || amount <= 0) {
-      return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
-    }
-    const out = await craterCreateInvoice({ customerName: customer, items: [{ name: description, quantity: 1, price: amount }] });
-    if (!out.ok) return `Invoice failed: ${out.error}`;
-    return formatCreatedInvoice(out.data);
-  }
-  if (t === '/invoice') return 'Usage: /invoice <customer> | <amount> [| description]\nExample: /invoice Tony Vello | 100 | Website work';
-
   // ── /railway ───────────────────────────────────────────────────────────────
   if (t === '/railway' || t === '/railway help') {
     return '/railway project <name> - create a new empty Railway project\nNeeds RAILWAY_API_TOKEN on Astro.';
@@ -629,7 +612,6 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       ] : []),
       ...(hasB ? [
         '/invoices  — recent invoices',
-        '/invoice <customer> | <amount>  — create invoice',
       ] : []),
       '',
       'DEV / OPS:',

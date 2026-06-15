@@ -61,7 +61,6 @@ const SECTION_DEFS: SectionDef[] = [
     icon: 'Billing',
     examples: [
       '"Invoice John for $500 for web design"',
-      '"/invoice John | 500 | Monthly hosting"',
       '"Show me recent invoices"',
       '"Record a $200 cash payment from John"',
       '"Create a recurring invoice for John starting April 1"',
@@ -101,7 +100,6 @@ const SLASH_COMMANDS = [
   { cmd: '/commands',                               desc: 'Browse all commands with this picker' },
   { cmd: '/help',                                   desc: 'List slash commands + all tool names' },
   { cmd: '/resolve <name>  (or /who)',              desc: 'Instant fuzzy contact lookup, no LLM wait' },
-  { cmd: '/invoice <customer> | <amount> [| desc]', desc: 'Create invoice instantly' },
   { cmd: '/railway project <name>',                 desc: 'Create a new empty Railway project' },
   { cmd: '/knowledge',                              desc: 'List bundled knowledge doc slugs' },
   { cmd: '/get <slug>',                             desc: 'Read a knowledge doc by slug' },

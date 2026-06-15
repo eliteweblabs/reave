@@ -9,7 +9,6 @@ the bot in plain English (freeform needs `ANTHROPIC_API_KEY`).
 - `/knowledge` (or `/start`) — list bundled knowledge docs (slugs)
 - `/get <slug>` — read a knowledge doc
 - `/resolve <name>` (or `/who`) — fuzzy-find a client in contact-api
-- `/invoice <customer> | <amount> [| description]` — create a Crater invoice
 - `/railway project <name>` (and `/railway help`) — new empty Railway project
 - `/clear` (or `/reset`) — forget this chat's conversation history
 

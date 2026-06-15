@@ -202,7 +202,7 @@ With `npm run dev`, open **http://localhost:4321/dashboard** (redirects to **`/d
 
 1. Copy `.env.example` → `.env` and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_IDS` (your numeric user id).
 2. Deploy or tunnel a **public** HTTPS URL (Telegram cannot call `localhost` directly). Point the bot webhook at `https://<host>/api/telegram/webhook` with the same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`.
-3. In Telegram: `/knowledge`, `/get business-os-overview`, `/help`, `/invoice <customer> | <amount>`, `/resolve <name>` (or `/who`). With `ANTHROPIC_API_KEY` set, freeform messages use Claude tools — see `src/lib/telegramToolDefs.ts` (knowledge, contact resolve, Crater billing, sandboxed `run_dev_task`).
+3. In Telegram: `/knowledge`, `/get business-os-overview`, `/help`, `/invoices`, `/resolve <name>` (or `/who`). With `ANTHROPIC_API_KEY` set, freeform messages use Claude tools — see `src/lib/telegramToolDefs.ts` (knowledge, contact resolve, Crater billing, sandboxed `run_dev_task`).
 
 4. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**.
 
