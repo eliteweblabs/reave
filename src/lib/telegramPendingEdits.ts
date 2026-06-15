@@ -19,6 +19,22 @@ type BasePending = {
 /** Editing one contact meta field — the next message is the new value. */
 export type MetaPending = BasePending & { kind: 'meta'; field: MetaField };
 
+/**
+ * Disambiguating a risky first/last-name edit. Raised when the user sets a
+ * person-name part on a contact whose `name` looks like a *business* (and has no
+ * Company set) — applying it would rewrite the business name. We stash the typed
+ * value and wait for the user to tap how to resolve it (see qcmd:metafix:*).
+ */
+export type MetaConfirmPending = BasePending & {
+  kind: 'metaconfirm';
+  /** Which name part the user was setting. */
+  field: 'firstname' | 'lastname';
+  /** The value the user typed (their intended first/last name). */
+  value: string;
+  /** The contact's current `name` — the value that looks like a business. */
+  currentName: string;
+};
+
 /** Adding a portal note — collect a title, then the content, over two messages. */
 export type NotePending = BasePending & {
   kind: 'note';
@@ -36,7 +52,7 @@ export type InvoicePending = BasePending & {
   customerName: string;
 };
 
-export type PendingEdit = MetaPending | NotePending | InvoicePending;
+export type PendingEdit = MetaPending | MetaConfirmPending | NotePending | InvoicePending;
 
 /** How long a pending edit stays valid before it's ignored (avoids stale captures). */
 const TTL_MS = 10 * 60 * 1000;

@@ -1,7 +1,7 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
-import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, telegramEditMessage, type MenuButton } from './telegramClient';
+import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, type MenuButton } from './telegramClient';
 import { buildCommandList } from './telegramCommandList';
 import { listTemplates } from './documentTemplates';
 import { siteBaseUrl } from './contactApi';
@@ -32,6 +32,8 @@ import {
   craterSearchCustomers,
   craterCreateInvoice,
   craterAddInvoiceItems,
+  craterGetInvoice,
+  craterUpdateInvoice,
   formatCreatedInvoice,
   type CraterCustomer,
   type CraterInvoiceSummary,
@@ -145,6 +147,33 @@ function buildMetaMenu(
 }
 
 /**
+ * Tokens that strongly suggest a `name` actually holds a *business* name rather
+ * than a person. The first/last-name editors rebuild the whole `name` from its
+ * tokens (contact-api derives first/last by splitting `name`), so editing one
+ * part of a business name silently corrupts it — e.g. setting first name
+ * "Jayson" on "CAPCO Design Group" yields "Jayson Design Group". When this
+ * matches and no Company is set, we ask the user what they meant instead.
+ */
+const BUSINESS_NAME_HINT =
+  /\b(?:group|llc|l\.l\.c\.?|inc|incorporated|corp|corporation|co|company|ltd|limited|studios?|agency|labs?|designs?|solutions|services|systems|partners|associates|consulting|holdings|enterprises|media|digital|creative|ventures|capital|realty|properties|construction|builders|brands?|works|collective|industries|technologies|software|consultants?)\b/i;
+
+function looksLikeBusinessName(name: string | null | undefined): boolean {
+  return !!name && BUSINESS_NAME_HINT.test(name);
+}
+
+/**
+ * Reconstruct the full `name` after editing one name part. contact-api has no
+ * separate first/last write fields, so we rebuild `name` from the current
+ * first/last and the new value.
+ */
+function reconstructName(c: ContactRecord, field: 'firstname' | 'lastname', value: string): string {
+  const v = value.trim();
+  const first = (c.firstName || c.name?.split(/\s+/)[0] || '').trim();
+  const last = (c.lastName || c.name?.split(/\s+/).slice(1).join(' ') || '').trim();
+  return field === 'firstname' ? [v, last].filter(Boolean).join(' ') : [first, v].filter(Boolean).join(' ');
+}
+
+/**
  * Apply a single Meta-field edit. First/last name are reconstructed into the
  * full `name` (the API derives first/last from it); other fields map directly.
  */
@@ -157,14 +186,37 @@ async function applyMetaEdit(
   if (field === 'firstname' || field === 'lastname') {
     const full = await getContact(uid);
     if (!full.ok) return { ok: false, error: full.error };
-    const c = full.data;
-    const first = (c.firstName || c.name?.split(/\s+/)[0] || '').trim();
-    const last = (c.lastName || c.name?.split(/\s+/).slice(1).join(' ') || '').trim();
-    const name = field === 'firstname' ? [v, last].filter(Boolean).join(' ') : [first, v].filter(Boolean).join(' ');
+    const name = reconstructName(full.data, field, v);
     if (!name.trim()) return { ok: false, error: 'Name cannot be empty.' };
     return updateContact(uid, { name });
   }
   return updateContact(uid, { [field]: v });
+}
+
+/**
+ * Stash a pending first/last-name edit and ask the user to disambiguate: is the
+ * existing `name` actually a business (→ move it to Company, keep the typed
+ * value as the person's name), or do they really want to rename the contact?
+ */
+async function promptBusinessNameConfirm(
+  token: string,
+  chatId: number,
+  c: ContactRecord,
+  field: 'firstname' | 'lastname',
+  value: string
+): Promise<void> {
+  const v = value.trim();
+  setPendingEdit(chatId, { kind: 'metaconfirm', uid: c.uid, name: c.name, field, value: v, currentName: c.name });
+  const reconstructed = reconstructName(c, field, v);
+  const label = metaFieldLabel(field).toLowerCase();
+  const msg =
+    `“${c.name}” looks like a business name, and no Company is set.\n\n` +
+    `You set the ${label} to “${v}”. What did you mean?`;
+  await telegramSendMenu(token, chatId, msg, [
+    [{ text: `“${c.name}” is the company`, data: `qcmd:metafix:company:${c.uid}` }],
+    [{ text: `Rename contact → “${reconstructed}”`, data: `qcmd:metafix:rename:${c.uid}` }],
+    [{ text: 'Cancel', data: `qcmd:metafix:cancel:${c.uid}` }],
+  ]);
 }
 
 /**
@@ -187,15 +239,27 @@ async function addClientNote(
   return { ok: true, count: data.length };
 }
 
-/** The Notes menu (Add / View) + Back, shared by the notes view and post-add. */
+/** Notes action rows: Add Note + Back, shown below the inline notes list. */
 function notesMenuRows(uid: string): Array<Array<MenuButton>> {
   return [
-    [
-      { text: 'Add', data: `qcmd:notesadd:${uid}` },
-      { text: 'View', data: `qcmd:notesview:${uid}` },
-    ],
+    [{ text: 'Add Note', data: `qcmd:notesadd:${uid}` }],
     [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
   ];
+}
+
+/** Build the inline notes list text for a contact's portal data entries. */
+function buildNotesText(c: ContactRecord): string {
+  const entries = extractPortal(c)?.data ?? [];
+  if (!entries.length) return `Notes — ${c.name}\n\nNo notes yet.`;
+  const blocks = entries.map((e) => {
+    const parts = [`• ${e.label || '(untitled)'}`];
+    if (e.username) parts.push(`  user: ${e.username}`);
+    if (e.password) parts.push(`  pass: ${e.password}`);
+    if (e.url) parts.push(`  url: ${e.url}`);
+    if (e.value) parts.push(`  ${e.value}`);
+    return parts.join('\n');
+  });
+  return `Notes — ${c.name} (${entries.length} entr${entries.length === 1 ? 'y' : 'ies'})\n\n${blocks.join('\n\n')}`;
 }
 
 /** Prompt text for the "add to invoice" line-item capture. */
@@ -338,27 +402,92 @@ async function deliverDocument(
   await sendResultWithBack(token, chatId, `${docTitle} texted to ${c.phone}\n${docUrl}`, uid, messageId);
 }
 
+/**
+ * Send a customer their invoice link over email/SMS and mark it SENT in Crater.
+ * Mirrors deliverPortal/deliverDocument; pulls the recipient + public link from
+ * the live invoice (so it works whether the invoice was just created or edited).
+ */
+async function deliverInvoice(
+  token: string,
+  chatId: number,
+  invoiceId: number,
+  uid: string,
+  messageId?: number | null
+): Promise<void> {
+  const det = await craterGetInvoice(invoiceId);
+  if (!det.ok) {
+    await sendResultWithBack(token, chatId, `Couldn't load invoice: ${det.error}`, uid, messageId);
+    return;
+  }
+  const inv = det.data;
+  const link = inv.public_url || inv.payment_url || inv.pdf_url || '';
+  if (!link) {
+    await sendResultWithBack(token, chatId, `${inv.invoice_number} has no shareable link yet.`, uid, messageId);
+    return;
+  }
+  const email = inv.customer?.email?.trim();
+  const phone = inv.customer?.phone?.trim();
+  const firstName = (inv.customer?.name || '').split(/\s+/)[0] || 'there';
+  const amount = fmtMoney(Number(inv.total || 0));
+  const useEmail = isEmailSendConfigured() && !!email;
+  const useSms = !useEmail && isSmsSendConfigured() && !!phone;
+
+  if (!useEmail && !useSms) {
+    // No channel/recipient — surface the link so the user can share it manually.
+    const why = !isEmailSendConfigured() && !isSmsSendConfigured()
+      ? 'No send channel configured (set RESEND_API_KEY or TELNYX_API_KEY).'
+      : `${inv.customer?.name || 'Customer'} has no email or phone on file.`;
+    await sendResultWithBack(token, chatId, `${why}\n\n${inv.invoice_number} · ${amount}\n${link}`, uid, messageId);
+    return;
+  }
+
+  if (useEmail) {
+    const subject = `Invoice ${inv.invoice_number}`;
+    const bodyText = `Hi ${firstName},\n\nHere's your invoice ${inv.invoice_number} for ${amount}:\n\n${link}\n\nThank you!`;
+    const r = await sendEmail({ to: email!, subject, text: bodyText });
+    if (!r.ok) {
+      await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid, messageId);
+      return;
+    }
+  } else {
+    const r = await sendSms({ to: phone!, body: `Hi ${firstName}, here's your invoice ${inv.invoice_number} for ${amount}: ${link}` });
+    if (!r.ok) {
+      await sendResultWithBack(token, chatId, `SMS failed: ${r.error}`, uid, messageId);
+      return;
+    }
+  }
+
+  // Best-effort: flip DRAFT → SENT so the invoice isn't re-treated as unsent.
+  let statusNote = '';
+  if (String(inv.status).toUpperCase() === 'DRAFT') {
+    const upd = await craterUpdateInvoice(invoiceId, { status: 'SENT' });
+    if (!upd.ok) statusNote = `\n(Note: couldn't mark as SENT: ${upd.error})`;
+  }
+
+  const dest = useEmail ? email : phone;
+  const verb = useEmail ? 'Emailed' : 'Texted';
+  await sendResultWithBack(token, chatId, `${verb} ${inv.invoice_number} to ${dest}\n${link}${statusNote}`, uid, messageId);
+}
+
 /** A single "‹ Back" row that reopens the contact's action card (qcmd:open). */
 function backRows(uid: string): Array<Array<MenuButton>> {
   return [[{ text: '‹ Back', data: `qcmd:open:${uid}` }]];
 }
 
 /**
- * Send (or edit) a terminal action result with a trailing "‹ Back" button so
- * the user can jump straight back to the contact card instead of starting over.
+ * Send a terminal action result with a trailing "‹ Back" button so the user
+ * can jump straight back to the contact card. Always sends a new message so
+ * Telegram mobile auto-scrolls to the response instead of silently editing a
+ * message that may be far above the fold.
  */
 async function sendResultWithBack(
   token: string,
   chatId: number,
   text: string,
   uid: string,
-  messageId?: number | null
+  _messageId?: number | null
 ): Promise<void> {
-  if (messageId != null) {
-    await telegramEditMessage(token, chatId, messageId, text, backRows(uid));
-  } else {
-    await telegramSendMenu(token, chatId, text, backRows(uid));
-  }
+  await telegramSendMenu(token, chatId, text, backRows(uid));
 }
 
 /** Portal-send buttons for a contact, gated on configured channel + contact field. */
@@ -762,8 +891,13 @@ export async function handleTelegramTextMessage(opts: {
         await telegramSendMessage(token, chatId, `Couldn't save note: ${res.error}`);
         return;
       }
-      const menuText = `Note added to ${pending.name}: “${title}”\n\nNotes — ${pending.name}\n${res.count} entr${res.count === 1 ? 'y' : 'ies'} on file`;
-      await telegramSendMenu(token, chatId, menuText, notesMenuRows(pending.uid));
+      // Reload so buildNotesText shows the just-added entry.
+      const refreshed = await getContact(pending.uid);
+      const savedHeader = `Note saved: "${title}"\n\n`;
+      const notesBody = refreshed.ok
+        ? buildNotesText(refreshed.data)
+        : `Notes — ${pending.name}\n${res.count} entr${res.count === 1 ? 'y' : 'ies'} on file`;
+      await telegramSendMenu(token, chatId, savedHeader + notesBody, notesMenuRows(pending.uid));
       return;
     }
     // ── Add to invoice: next message is "description | amount | qty" ─────────
@@ -785,6 +919,7 @@ export async function handleTelegramTextMessage(opts: {
         const msg = `Added to ${d.invoice_number}:\n${item.name} ×${item.quantity} @ ${fmtMoney(item.price)}\n\nNew total: ${fmtMoney(Number(d.new_total))}`;
         await telegramSendMenu(token, chatId, msg, [
           [{ text: '+ Add another', data: `inv:more:${pending.invoiceId}:${pending.uid}` }],
+          [{ text: '➤ Send invoice', data: `inv:send:${pending.invoiceId}:${pending.uid}` }],
           [{ text: '‹ Back', data: `qcmd:open:${pending.uid}` }],
         ]);
         return;
@@ -797,12 +932,34 @@ export async function handleTelegramTextMessage(opts: {
       const inv = res.data;
       await telegramSendMenu(token, chatId, formatCreatedInvoice(inv), [
         [{ text: '+ Add another', data: `inv:more:${inv.invoice_id}:${pending.uid}` }],
+        [{ text: '➤ Send invoice', data: `inv:send:${inv.invoice_id}:${pending.uid}` }],
         [{ text: '‹ Back', data: `qcmd:open:${pending.uid}` }],
       ]);
       return;
     }
+    // ── Meta confirm: user typed again instead of tapping a choice ───────────
+    if (pending && pending.kind === 'metaconfirm') {
+      const full = await getContact(pending.uid);
+      if (!full.ok) {
+        clearPendingEdit(chatId);
+        await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+        return;
+      }
+      await promptBusinessNameConfirm(token, chatId, full.data, pending.field, text);
+      return;
+    }
     // ── Meta edit: next message is the new field value ───────────────────────
-    if (pending) {
+    if (pending && pending.kind === 'meta') {
+      // Guard: setting a first/last name on a business-looking contact (with no
+      // Company) would rewrite the business name — confirm intent first.
+      if (pending.field === 'firstname' || pending.field === 'lastname') {
+        const full = await getContact(pending.uid);
+        if (full.ok && !(full.data.company || '').trim() && looksLikeBusinessName(full.data.name)) {
+          takePendingEdit(chatId);
+          await promptBusinessNameConfirm(token, chatId, full.data, pending.field, text);
+          return;
+        }
+      }
       takePendingEdit(chatId);
       const label = metaFieldLabel(pending.field);
       const result = await applyMetaEdit(pending.uid, pending.field, text);
@@ -870,17 +1027,7 @@ export async function handleTelegramTextMessage(opts: {
       await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
       return;
     }
-    const c = full.data;
-    const count = extractPortal(c)?.data?.length ?? 0;
-    await telegramSendMenu(
-      token,
-      chatId,
-      `Notes — ${c.name}\n${count > 0 ? `${count} entr${count === 1 ? 'y' : 'ies'} on file` : 'No entries yet'}`,
-      [[
-        { text: 'Add', data: `qcmd:notesadd:${uid}` },
-        { text: 'View', data: `qcmd:notesview:${uid}` },
-      ]]
-    );
+    await telegramSendMenu(token, chatId, buildNotesText(full.data), notesMenuRows(uid));
     return;
   }
 
@@ -1095,9 +1242,7 @@ export async function handleTelegramCallbackQuery(opts: {
   }
 
   if (data.startsWith('cancel:') || data === 'cancel:') {
-    if (messageId != null) {
-      await telegramEditMessage(token, chatId, messageId, 'OK.');
-    }
+    await telegramSendMessage(token, chatId, 'OK.');
     return;
   }
 
@@ -1122,11 +1267,40 @@ export async function handleTelegramCallbackQuery(opts: {
     setPendingEdit(chatId, { kind: 'meta', uid, field, name: full.data.name });
     const label = metaFieldLabel(field);
     const promptMsg = `Send the new ${label} for ${full.data.name} in the chat.\n\n(Send /cancel to abort.)`;
-    if (messageId != null) {
-      await telegramEditMessage(token, chatId, messageId, promptMsg);
-    } else {
-      await telegramSendMessage(token, chatId, promptMsg);
+    await telegramSendMessage(token, chatId, promptMsg);
+    return;
+  }
+
+  // qcmd:metafix:{action}:{uid} — resolve a risky first/last-name edit flagged
+  // as a likely business name. The typed value lives in the stashed metaconfirm.
+  // Parsed before the generic qcmd handler (uid is the LAST segment here).
+  if (data.startsWith('qcmd:metafix:')) {
+    const rest = data.slice('qcmd:metafix:'.length);
+    const sep = rest.indexOf(':');
+    const action = sep >= 0 ? rest.slice(0, sep) : rest; // company | rename | cancel
+    const uid = sep >= 0 ? rest.slice(sep + 1) : '';
+    const pending = takePendingEdit(chatId);
+    if (action === 'cancel') {
+      await telegramSendMessage(token, chatId, 'Edit cancelled.');
+      return;
     }
+    if (!pending || pending.kind !== 'metaconfirm' || pending.uid !== uid) {
+      await telegramSendMessage(token, chatId, 'That edit expired. Open the contact and try again.');
+      return;
+    }
+    const result =
+      action === 'company'
+        ? // Treat the existing name as the business: keep it as Company and set
+          // `name` to the person value the user typed.
+          await updateContact(uid, { company: pending.currentName, name: pending.value })
+        : await applyMetaEdit(uid, pending.field, pending.value);
+    if (!result.ok) {
+      await telegramSendMessage(token, chatId, `Update failed: ${result.error}`);
+      return;
+    }
+    const note = action === 'company' ? 'Company set; contact name updated.' : 'Contact name updated.';
+    const menu = buildContactActionMenu(result.data, uid);
+    await telegramSendMenu(token, chatId, `${note}\n\n${menu.text}`, menu.rows);
     return;
   }
 
@@ -1194,24 +1368,13 @@ export async function handleTelegramCallbackQuery(opts: {
     }
 
     if (cmd === 'notes') {
-      const count = extractPortal(c)?.data?.length ?? 0;
-      const menuText = `Notes — ${c.name}\n${count > 0 ? `${count} entr${count === 1 ? 'y' : 'ies'} on file` : 'No entries yet'}`;
-      const menuRows = [[
-        { text: 'Add', data: `qcmd:notesadd:${uid}` },
-        { text: 'View', data: `qcmd:notesview:${uid}` },
-      ]];
-      await telegramSendMenu(token, chatId, menuText, menuRows);
+      await telegramSendMenu(token, chatId, buildNotesText(c), notesMenuRows(uid));
       return;
     }
 
     if (cmd === 'notesadd') {
       setPendingEdit(chatId, { kind: 'note', step: 'title', uid, name: c.name });
-      const prompt = `New note for ${c.name}\n\nWhat's the title of the note?\n\n(Send /cancel to stop.)`;
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, prompt);
-      } else {
-        await telegramSendMessage(token, chatId, prompt);
-      }
+      await telegramSendMessage(token, chatId, `New note for ${c.name}\n\nWhat's the title of the note?\n\n(Send /cancel to stop.)`);
       return;
     }
 
@@ -1286,7 +1449,7 @@ export async function handleTelegramCallbackQuery(opts: {
   }
 
   if (data.startsWith('inv:')) {
-    // inv:new:<uid> | inv:add:<invoiceId>:<uid> | inv:more:<invoiceId>:<uid>
+    // inv:new:<uid> | inv:add:<invoiceId>:<uid> | inv:more:<invoiceId>:<uid> | inv:send:<invoiceId>:<uid>
     const parts = data.split(':');
     const action = parts[1] ?? '';
     let invoiceId: number | undefined;
@@ -1299,6 +1462,11 @@ export async function handleTelegramCallbackQuery(opts: {
     }
     if (!uid || (action !== 'new' && !Number.isFinite(invoiceId))) {
       await telegramSendMessage(token, chatId, 'Invalid invoice action.');
+      return;
+    }
+    // Send the invoice to the customer (email/SMS) and mark it SENT.
+    if (action === 'send') {
+      await deliverInvoice(token, chatId, invoiceId as number, uid, messageId);
       return;
     }
     const full = await getContact(uid);
@@ -1314,12 +1482,7 @@ export async function handleTelegramCallbackQuery(opts: {
     }
     setPendingEdit(chatId, { kind: 'invoice', uid, name: c.name, customerName, invoiceId });
     const target = action === 'new' ? 'a new invoice' : `invoice #${invoiceId}`;
-    const prompt = `Add a line item to ${target} for ${c.name}.\n\n${LINE_ITEM_PROMPT}`;
-    if (messageId != null) {
-      await telegramEditMessage(token, chatId, messageId, prompt);
-    } else {
-      await telegramSendMessage(token, chatId, prompt);
-    }
+    await telegramSendMessage(token, chatId, `Add a line item to ${target} for ${c.name}.\n\n${LINE_ITEM_PROMPT}`);
     return;
   }
 
