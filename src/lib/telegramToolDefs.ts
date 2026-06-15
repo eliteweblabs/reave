@@ -42,6 +42,7 @@ import {
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
+import { reaveEmailHtml } from './emailTemplates';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -616,14 +617,6 @@ function parseLineItems(raw: unknown): Array<{ name: string; description?: strin
     });
 }
 
-function escapeForHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
 function parsePortalFields(raw: unknown): ClientPortalField[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const fields = raw
@@ -910,15 +903,20 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const sent: Record<string, unknown> = {};
       if (useEmail) {
         const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
+        const introLines = intro ? [intro.trim()] : [];
         const text =
           `${intro}Hi ${firstName},\n\n` +
           `Here's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\n` +
           `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-        const html =
-          `<p>${intro ? `${escapeForHtml(intro.trim())}<br/><br/>` : ''}Hi ${escapeForHtml(firstName)},</p>` +
-          `<p>Here's your personal client page — your details and any outstanding invoices live here:</p>` +
-          `<p><a href="${url}">${url}</a></p>` +
-          `<p style="color:#666;font-size:13px">Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.</p>`;
+        const html = reaveEmailHtml({
+          firstName,
+          paragraphs: [
+            ...introLines,
+            "Here's your personal client page — your details and any outstanding invoices live here:",
+          ],
+          cta: { label: 'Open your client page', url },
+          note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
+        });
         const r = await sendEmail({ to: c.email as string, subject, text, html });
         sent.email = r.ok ? { ok: true, to: c.email, id: r.id } : { ok: false, error: r.error };
       }

@@ -1,4 +1,5 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
+import { reaveEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
 import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, type MenuButton } from './telegramClient';
@@ -322,9 +323,15 @@ async function deliverPortal(
       await sendResultWithBack(token, chatId, `${c.name} has no email on file. Add one first.`, uid);
       return;
     }
-    const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
-    const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
-    const r = await sendEmail({ to: c.email, subject, text: bodyText });
+    const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
+    const bodyText = `Hi ${firstName},\n\nHere's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\nTip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
+    const html = reaveEmailHtml({
+      firstName,
+      paragraphs: ["Here's your personal client page — your details and any outstanding invoices live here:"],
+      cta: { label: 'Open your client page', url },
+      note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
+    });
+    const r = await sendEmail({ to: c.email, subject, text: bodyText, html });
     if (!r.ok) {
       await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid);
       return;
@@ -377,7 +384,16 @@ async function deliverDocument(
     }
     const subject = `Please review and sign: ${docTitle}`;
     const bodyText = `Hi ${firstName},\n\nPlease review and sign this document:\n\n${docUrl}\n\nYou can read and sign it from any device. Once signed, it appears in your portal under Documents.`;
-    const r = await sendEmail({ to: c.email, subject, text: bodyText });
+    const html = reaveEmailHtml({
+      firstName,
+      paragraphs: [
+        `Please review and sign the following document:`,
+        `"${docTitle}"`,
+      ],
+      cta: { label: 'Review & sign document', url: docUrl },
+      note: 'You can read and sign from any device. Once signed, it appears in your portal under Documents.',
+    });
+    const r = await sendEmail({ to: c.email, subject, text: bodyText, html });
     if (!r.ok) {
       await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid, messageId);
       return;
@@ -444,7 +460,12 @@ async function deliverInvoice(
   if (useEmail) {
     const subject = `Invoice ${inv.invoice_number}`;
     const bodyText = `Hi ${firstName},\n\nHere's your invoice ${inv.invoice_number} for ${amount}:\n\n${link}\n\nThank you!`;
-    const r = await sendEmail({ to: email!, subject, text: bodyText });
+    const html = reaveEmailHtml({
+      firstName,
+      paragraphs: [`Here's your invoice ${inv.invoice_number} for ${amount}:`],
+      cta: { label: `View invoice — ${amount}`, url: link },
+    });
+    const r = await sendEmail({ to: email!, subject, text: bodyText, html });
     if (!r.ok) {
       await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid, messageId);
       return;
@@ -520,7 +541,7 @@ function buildContactActionMenu(
   const hasDoc = listTemplates().length > 0;
   // One button per row (full width) — easier to tap one-handed on mobile.
   const rows: Array<Array<MenuButton>> = [
-    [{ text: '⧉ Portal', copy: clientPortalUrl(uid) }],
+    [{ text: '🔗 Portal', copy: clientPortalUrl(uid) }],
     ...portalSendButtons(c, uid).map((b) => [b]),
     ...(isCraterConfigured() ? [[{ text: 'Add to invoice', data: `qcmd:invoice:${uid}` }]] : []),
     [{ text: 'Notes', data: `qcmd:notes:${uid}` }],

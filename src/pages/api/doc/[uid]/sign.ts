@@ -20,6 +20,7 @@ import {
 } from '../../../../lib/contactApi';
 import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
 import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
+import { reaveEmailHtml } from '../../../../lib/emailTemplates';
 import { telegramSendMessage } from '../../../../lib/telegramClient';
 import { serverEnv } from '../../../../lib/serverEnv';
 
@@ -214,6 +215,7 @@ export const POST: APIRoute = async ({ params, request }) => {
 
   // ── Post-sign email to signer (fire and forget) ────────────────────────────
   if (contact.email && isEmailSendConfigured()) {
+    const signerFirstName = (contact.name || signerName || '').split(/\s+/)[0] || 'there';
     sendEmail({
       to: contact.email,
       subject: `Your signed copy: ${tmpl.title}`,
@@ -231,17 +233,16 @@ export const POST: APIRoute = async ({ params, request }) => {
         '',
         'Powered by Reave',
       ].join('\n'),
-      html: `
-        <p>Hi ${escHtml(contact.name)},</p>
-        <p>You have electronically signed <strong>${escHtml(tmpl.title)}</strong>.</p>
-        <p><a href="${viewUrl}">View &amp; download your signed copy →</a></p>
-        <table style="font-size:13px;color:#555;border-collapse:collapse;margin-top:16px">
-          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Signed by</td><td>${escHtml(signerName)}</td></tr>
-          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Date</td><td>${escHtml(fmtDateLong(signedAt))}</td></tr>
-          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Document ID</td><td style="font-family:monospace">${escHtml(docId)}</td></tr>
-        </table>
-        <p style="margin-top:24px;color:#aaa;font-size:12px">Powered by Reave</p>
-      `,
+      html: reaveEmailHtml({
+        firstName: signerFirstName,
+        paragraphs: [`You have electronically signed "${tmpl.title}".`],
+        cta: { label: 'View & download your signed copy', url: viewUrl },
+        metaRows: [
+          ['Signed by', signerName],
+          ['Date', fmtDateLong(signedAt)],
+          ['Document ID', docId],
+        ],
+      }),
     }).catch(() => {});
   }
 
