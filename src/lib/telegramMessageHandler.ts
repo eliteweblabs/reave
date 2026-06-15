@@ -170,7 +170,7 @@ async function deliverPortal(
 ): Promise<void> {
   const portal = extractPortal(c);
   if (portal?.enabled === false) {
-    await telegramSendMessage(token, chatId, `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`);
+    await sendResultWithBack(token, chatId, `${c.name}'s portal is hidden (revoked). Re-enable it before sending.`, uid);
     return;
   }
   const url = clientPortalUrl(uid);
@@ -178,38 +178,61 @@ async function deliverPortal(
 
   if (channel === 'email') {
     if (!isEmailSendConfigured()) {
-      await telegramSendMessage(token, chatId, 'Email not configured. Set RESEND_API_KEY.');
+      await sendResultWithBack(token, chatId, 'Email not configured. Set RESEND_API_KEY.', uid);
       return;
     }
     if (!c.email) {
-      await telegramSendMessage(token, chatId, `${c.name} has no email on file. Add one first.`);
+      await sendResultWithBack(token, chatId, `${c.name} has no email on file. Add one first.`, uid);
       return;
     }
     const subject = c.company ? `Your client page - ${c.company}` : 'Your client page';
     const bodyText = `Hi ${firstName},\n\nHere's your client page:\n\n${url}\n\nTip: open on iPhone and tap Share -> Add to Home Screen.`;
     const r = await sendEmail({ to: c.email, subject, text: bodyText });
     if (!r.ok) {
-      await telegramSendMessage(token, chatId, `Email failed: ${r.error}`);
+      await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid);
       return;
     }
-    await telegramSendMessage(token, chatId, `Emailed to ${c.email}\n${url}`);
+    await sendResultWithBack(token, chatId, `Emailed to ${c.email}\n${url}`, uid);
     return;
   }
 
   if (!isSmsSendConfigured()) {
-    await telegramSendMessage(token, chatId, 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.');
+    await sendResultWithBack(token, chatId, 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.', uid);
     return;
   }
   if (!c.phone) {
-    await telegramSendMessage(token, chatId, `${c.name} has no phone on file. Add one first.`);
+    await sendResultWithBack(token, chatId, `${c.name} has no phone on file. Add one first.`, uid);
     return;
   }
   const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, here's your client page: ${url}` });
   if (!r.ok) {
-    await telegramSendMessage(token, chatId, `SMS failed: ${r.error}`);
+    await sendResultWithBack(token, chatId, `SMS failed: ${r.error}`, uid);
     return;
   }
-  await telegramSendMessage(token, chatId, `Texted to ${c.phone}\n${url}`);
+  await sendResultWithBack(token, chatId, `Texted to ${c.phone}\n${url}`, uid);
+}
+
+/** A single "‹ Back" row that reopens the contact's action card (qcmd:open). */
+function backRows(uid: string): Array<Array<MenuButton>> {
+  return [[{ text: '‹ Back', data: `qcmd:open:${uid}` }]];
+}
+
+/**
+ * Send (or edit) a terminal action result with a trailing "‹ Back" button so
+ * the user can jump straight back to the contact card instead of starting over.
+ */
+async function sendResultWithBack(
+  token: string,
+  chatId: number,
+  text: string,
+  uid: string,
+  messageId?: number | null
+): Promise<void> {
+  if (messageId != null) {
+    await telegramEditMessage(token, chatId, messageId, text, backRows(uid));
+  } else {
+    await telegramSendMenu(token, chatId, text, backRows(uid));
+  }
 }
 
 /** Portal-send buttons for a contact, gated on configured channel + contact field. */
@@ -938,7 +961,7 @@ export async function handleTelegramCallbackQuery(opts: {
       const portal = extractPortal(c);
       const dataCount = portal?.data?.length ?? 0;
       const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
-      await telegramSendMessage(token, chatId, [
+      await sendResultWithBack(token, chatId, [
         `${c.name}${c.company ? ` - ${c.company}` : ''}`,
         c.email ?? '',
         '',
@@ -947,7 +970,7 @@ export async function handleTelegramCallbackQuery(opts: {
         `Overview: ${hasOverview ? 'has content' : 'empty'}`,
         `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
         `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
-      ].filter(Boolean).join('\n'));
+      ].filter(Boolean).join('\n'), uid);
       return;
     }
 
@@ -993,11 +1016,7 @@ export async function handleTelegramCallbackQuery(opts: {
     if (cmd === 'notesadd') {
       const submitUrl = `${clientPortalUrl(uid)}?submit`;
       const addMsg = `Add notes for ${c.name}:\n${submitUrl}\n\nSend this so they can paste credentials or handoff info from their browser. Entries appear in the portal Data tab.`;
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, addMsg);
-      } else {
-        await telegramSendMessage(token, chatId, addMsg);
-      }
+      await sendResultWithBack(token, chatId, addMsg, uid, messageId);
       return;
     }
 
@@ -1017,11 +1036,7 @@ export async function handleTelegramCallbackQuery(opts: {
         });
         viewMsg = `Notes — ${c.name} (${entries.length} entr${entries.length === 1 ? 'y' : 'ies'})\n\n${blocks.join('\n\n')}`;
       }
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, viewMsg);
-      } else {
-        await telegramSendMessage(token, chatId, viewMsg);
-      }
+      await sendResultWithBack(token, chatId, viewMsg, uid, messageId);
       return;
     }
 
@@ -1031,9 +1046,10 @@ export async function handleTelegramCallbackQuery(opts: {
         await telegramSendMessage(token, chatId, 'No document templates found. Add HTML files to src/content/documents/.');
         return;
       }
-      const btnRows: Array<Array<{ text: string; data: string }>> = [];
+      const btnRows: Array<Array<MenuButton>> = [];
       const docBtns = templates.map((tmpl) => ({ text: tmpl.title, data: `doc:${uid}:${tmpl.slug}` }));
       for (let i = 0; i < docBtns.length; i += 2) btnRows.push(docBtns.slice(i, i + 2));
+      btnRows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
       const pickerText = `Send a document to ${c.name} — choose a template:`;
       if (messageId != null) {
         await telegramEditMessage(token, chatId, messageId, pickerText, btnRows);
@@ -1063,11 +1079,7 @@ export async function handleTelegramCallbackQuery(opts: {
     const tmpl = listTemplates().find((t) => t.slug === templateSlug);
     const docTitle = tmpl?.title ?? templateSlug;
     const linkMsg = `${docTitle} — ${contactName}\n\nSend this link to the client:\n${docUrl}\n\nThey can read and sign it from any device. Once signed, it appears in their portal under Documents.`;
-    if (messageId != null) {
-      await telegramEditMessage(token, chatId, messageId, linkMsg);
-    } else {
-      await telegramSendMessage(token, chatId, linkMsg);
-    }
+    await sendResultWithBack(token, chatId, linkMsg, uid, messageId);
     return;
   }
 
