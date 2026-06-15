@@ -34,7 +34,7 @@ export function buildCommandList(): BotCommand[] {
   // to avoid the "fires before I can add the client name" confusion.
   if (hasContacts) {
     commands.push(
-      { command: 'contacts', description: 'Find a client, then act with buttons' },
+      { command: 'contacts', description: 'List / find clients' },
     );
   }
 
