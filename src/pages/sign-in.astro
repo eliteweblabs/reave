@@ -11,13 +11,13 @@ import Header from "../components/Header.astro";
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <title>Sign In — Reave</title>
+    <title>Sign In — Reave Automatic</title>
   </head>
   <body>
     <Header isIndex={false} />
     <div class="page">
       <div class="card">
-        <SignIn />
+        <SignIn signUpUrl="/sign-in" fallbackRedirectUrl="/dev/os-map" />
       </div>
     </div>
   </body>

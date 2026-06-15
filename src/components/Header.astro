@@ -29,34 +29,13 @@ if (userId) {
 <header class="site-header">
   {!isIndex && (
     <a href="/" class="site-logo" aria-label="Home">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="80 205 368 118"
-        class="logo-svg"
-      >
-        <path
-          d="M84.7,313.4h-.5v-99.3h47.6c10.1,0,18.3,2.7,24.3,8.2,6,5.5,9.2,13.3,9.2,22.9s-1.4,11.4-3.7,15.1-5.5,6.9-9.2,8.7-7.3,3.2-11,4.1l26.1,40.3h-82.9Z"
-          fill="currentColor"
-        />
-        <path d="M241.2,313.4l42.1-99.3,42.6,99.3" fill="currentColor" />
-        <path d="M298.5,214.1h79.7l-40.3,99.3" fill="currentColor" />
-        <polygon
-          points="251 258 175.9 258 175.9 224.7 264.7 224.7 251 258"
-          fill="currentColor"
-        />
-        <polygon
-          points="232.7 303.8 175.9 303.8 175.9 270.5 246.4 270.5 232.7 303.8"
-          fill="currentColor"
-        />
-        <polygon
-          points="368.2 270.5 443.3 270.5 443.3 303.8 354.4 303.8 368.2 270.5"
-          fill="currentColor"
-        />
-        <polygon
-          points="386.5 224.7 443.3 224.7 443.3 258 372.7 258 386.5 224.7"
-          fill="currentColor"
-        />
-      </svg>
+      <img src="/reave-logo.png" alt="Reave" class="logo-img" />
+    </a>
+  )}
+
+  {!userId && (
+    <a href="/sign-in" class="login-btn" aria-label="Sign in" title="Sign in">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
     </a>
   )}
 
@@ -114,28 +93,10 @@ if (userId) {
     text-decoration: none;
   }
 
-  .site-logo .logo-svg {
-    width: 92px;
-    height: auto;
-    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
-  }
-
-  .site-logo path,
-  .site-logo polygon {
-    animation: colorShift 5s ease infinite;
-  }
-
-  @keyframes colorShift {
-    0%,
-    100% {
-      color: #a855f7;
-    }
-    33% {
-      color: #ec4899;
-    }
-    66% {
-      color: #06b6d4;
-    }
+  .site-logo .logo-img {
+    height: 28px;
+    width: auto;
+    display: block;
   }
 
   /* Never print the site chrome. */
@@ -145,9 +106,30 @@ if (userId) {
     }
   }
 
-  /* Profile dock pinned to the right even when the logo is hidden (index). */
-  .profile-dock {
+  /* Profile dock / login button pinned right even when the logo is hidden (index). */
+  .profile-dock,
+  .login-btn {
     margin-left: auto;
+  }
+
+  /* Logged-out sign-in icon (matches the profile button shape). */
+  .login-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(168, 85, 247, 0.5);
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+
+  .login-btn:hover {
+    border-color: rgba(168, 85, 247, 0.9);
+    box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
   }
 
   .profile-menu-wrapper {

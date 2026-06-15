@@ -80,7 +80,7 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   lines.push('');
-  lines.push(`Updated ${new Date().toLocaleString('en-US')} · via Reave`);
+  lines.push(`Updated ${new Date().toLocaleString('en-US')} · via Reave Automatic`);
 
   return new Response(lines.join('\n') + '\n', {
     headers: {
