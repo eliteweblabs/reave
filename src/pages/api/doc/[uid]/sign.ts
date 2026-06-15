@@ -1,9 +1,138 @@
+/**
+ * POST /api/doc/:uid/sign
+ *
+ * Compliance checklist (US ESIGN Act / UETA):
+ *  ✓ Intent to sign        — affirmative "Sign & Agree" button click
+ *  ✓ Consent to e-records  — consentChecked flag required in body (checkbox on sign page)
+ *  ✓ Association           — content hash ties the artifact to the signature event
+ *  ✓ Attribution           — signerName + IP + userAgent + timestamp stored
+ *  ✓ Retention             — full signed artifact (body + sig block + audit table)
+ *                            baked inline into `content` at signing time
+ */
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal, setContactPortal, type PortalDocument } from '../../../../lib/contactApi';
+import { createHash } from 'node:crypto';
+import {
+  getContact,
+  extractPortal,
+  setContactPortal,
+  siteBaseUrl,
+  type PortalDocument,
+} from '../../../../lib/contactApi';
 import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
-import { siteBaseUrl } from '../../../../lib/contactApi';
+import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
+import { telegramSendMessage } from '../../../../lib/telegramClient';
+import { serverEnv } from '../../../../lib/serverEnv';
 
 export const prerender = false;
+
+// ── helpers ────────────────────────────────────────────────────────────────
+
+function getIp(req: Request): string {
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip')?.trim() ||
+    'unknown'
+  );
+}
+
+function fmtDateLong(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? iso
+    : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
+}
+
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Build the inline-styled signature block + audit table that gets permanently baked
+ *  into `content`. Uses only inline styles — self-contained for any renderer. */
+function buildSignatureBlock(opts: {
+  docId: string;
+  signerName: string;
+  signedAt: string;
+  consentAt: string;
+  ip: string;
+  userAgent: string;
+  contentHash: string;
+}): string {
+  const { docId, signerName, signedAt, consentAt, ip, userAgent, contentHash } = opts;
+  const dateStr = fmtDateLong(signedAt);
+
+  const row = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:3px 16px 3px 0;font-weight:600;white-space:nowrap;width:1%;vertical-align:top">${escHtml(label)}</td>
+      <td style="padding:3px 0;word-break:break-all">${escHtml(value)}</td>
+    </tr>`;
+
+  return `
+<!-- begin:esignature -->
+<div style="margin-top:48px;page-break-inside:avoid;font-family:'Inter',-apple-system,BlinkMacSystemFont,Georgia,serif">
+  <div style="height:1px;background:#1a1a1a;margin-bottom:28px"></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:#888;margin-bottom:6px">Electronically signed by</div>
+      <div style="font-size:21px;font-style:italic;font-weight:600;border-bottom:1px solid #ccc;padding-bottom:6px;margin-bottom:8px;font-family:Georgia,'Times New Roman',serif">${escHtml(signerName)}</div>
+      <div style="font-size:13px;color:#555">${escHtml(dateStr)}</div>
+    </div>
+    <div style="width:100px;height:100px;border:2.5px solid #166534;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transform:rotate(-12deg)">
+      <div style="text-align:center;line-height:1.4">
+        <div style="font-weight:800;font-size:13px;color:#166534;letter-spacing:2px">SIGNED</div>
+        <div style="font-size:10px;color:#166534;letter-spacing:1px">via Reave</div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:32px;padding-top:16px;border-top:1px solid #eee">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.8px;color:#aaa;margin-bottom:10px;font-weight:600">Electronic Signature Audit Record</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;color:#777;font-family:ui-monospace,'Cascadia Code',monospace">
+      ${row('Document ID', docId)}
+      ${row('Signed at (UTC)', fmtDateLong(signedAt))}
+      ${row('Consent at (UTC)', fmtDateLong(consentAt))}
+      ${row('IP address', ip)}
+      ${row('User agent', userAgent.slice(0, 200))}
+      ${row('Content hash (SHA-256)', contentHash)}
+    </table>
+  </div>
+</div>
+<!-- end:esignature -->`.trim();
+}
+
+/** Fire-and-forget Telegram notification to the operator. */
+async function notifyTelegram(opts: {
+  signerName: string;
+  title: string;
+  viewUrl: string;
+  contactName: string;
+}): Promise<void> {
+  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
+  const rawId =
+    serverEnv('DOC_SIGN_NOTIFY_CHAT_ID')?.trim() ||
+    serverEnv('EMAIL_NOTIFY_CHAT_ID')?.trim();
+  const chatId = rawId ? Number(rawId) : NaN;
+  if (!token || !Number.isFinite(chatId)) return;
+  const msg = [
+    '✍️ Document signed',
+    `Contact: ${opts.contactName}`,
+    `Signed by: ${opts.signerName}`,
+    `Document: ${opts.title}`,
+    opts.viewUrl,
+  ].join('\n');
+  await telegramSendMessage(token, chatId, msg).catch(() => {});
+}
+
+function err(status: number, error: string): Response {
+  return new Response(JSON.stringify({ ok: false, error }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+// ── route handler ──────────────────────────────────────────────────────────
 
 export const POST: APIRoute = async ({ params, request }) => {
   const uid = (params.uid ?? '').trim();
@@ -18,33 +147,58 @@ export const POST: APIRoute = async ({ params, request }) => {
 
   const raw = body as Record<string, unknown>;
   const templateSlug = typeof raw.template === 'string' ? raw.template.trim() : '';
-  const signerName = typeof raw.signerName === 'string' ? raw.signerName.trim() : '';
+  const signerName   = typeof raw.signerName === 'string' ? raw.signerName.trim() : '';
+  const consentChecked = raw.consentChecked === true;
 
-  if (!templateSlug) return err(400, 'Missing template');
+  if (!templateSlug)        return err(400, 'Missing template');
   if (signerName.length < 2) return err(400, 'signerName must be at least 2 characters');
+  if (!consentChecked)       return err(400, 'Electronic-records consent is required');
 
   const tmpl = getTemplate(templateSlug);
   if (!tmpl) return err(400, `Unknown template "${templateSlug}"`);
 
   const contactRes = await getContact(uid);
-  if (!contactRes.ok) return err(404, 'Contact not found');
-  if (contactRes.data.archived) return err(404, 'Contact not found');
+  if (!contactRes.ok || contactRes.data.archived) return err(404, 'Contact not found');
 
   const portal = extractPortal(contactRes.data) ?? {};
   if (portal.enabled === false) return err(404, 'Contact not found');
 
-  const filledHtml = fillTemplate(tmpl.html, contactRes.data);
+  // ── Re-sign guard ──────────────────────────────────────────────────────────
+  const existingDoc = (portal.documents ?? []).find((d) => d.template === templateSlug);
+  if (existingDoc) {
+    const viewUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/view/${existingDoc.id}`;
+    return new Response(
+      JSON.stringify({ ok: false, alreadySigned: true, docId: existingDoc.id, viewUrl }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
 
+  // ── Capture audit metadata ─────────────────────────────────────────────────
+  const ip        = getIp(request);
+  const userAgent = request.headers.get('user-agent')?.trim() ?? 'unknown';
+  const signedAt  = new Date().toISOString();
+  const consentAt = signedAt; // consent was recorded in the same request
+
+  // ── Fill template + hash ───────────────────────────────────────────────────
+  const filledHtml  = fillTemplate(tmpl.html, contactRes.data);
+  const contentHash = createHash('sha256').update(filledHtml, 'utf8').digest('hex');
+
+  // ── Bake in signature block + audit table ──────────────────────────────────
   const docId = crypto.randomUUID();
-  const signedAt = new Date().toISOString();
+  const sigBlock = buildSignatureBlock({ docId, signerName, signedAt, consentAt, ip, userAgent, contentHash });
+  const fullContent = filledHtml + '\n' + sigBlock;
 
   const doc: PortalDocument = {
-    id: docId,
-    template: templateSlug,
-    title: tmpl.title,
+    id:          docId,
+    template:    templateSlug,
+    title:       tmpl.title,
     signedAt,
     signerName,
-    content: filledHtml,
+    content:     fullContent,
+    ip,
+    userAgent,
+    consentAt,
+    contentHash,
   };
 
   const merged = {
@@ -56,16 +210,51 @@ export const POST: APIRoute = async ({ params, request }) => {
   if (!saveRes.ok) return err(502, saveRes.error);
 
   const viewUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/view/${docId}`;
+  const contact = contactRes.data;
+
+  // ── Post-sign email to signer (fire and forget) ────────────────────────────
+  if (contact.email && isEmailSendConfigured()) {
+    sendEmail({
+      to: contact.email,
+      subject: `Your signed copy: ${tmpl.title}`,
+      text: [
+        `Hi ${contact.name},`,
+        '',
+        `You have electronically signed "${tmpl.title}".`,
+        '',
+        `View and download your signed copy here:`,
+        viewUrl,
+        '',
+        `Signed by: ${signerName}`,
+        `Date: ${fmtDateLong(signedAt)}`,
+        `Document ID: ${docId}`,
+        '',
+        'Powered by Reave',
+      ].join('\n'),
+      html: `
+        <p>Hi ${escHtml(contact.name)},</p>
+        <p>You have electronically signed <strong>${escHtml(tmpl.title)}</strong>.</p>
+        <p><a href="${viewUrl}">View &amp; download your signed copy →</a></p>
+        <table style="font-size:13px;color:#555;border-collapse:collapse;margin-top:16px">
+          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Signed by</td><td>${escHtml(signerName)}</td></tr>
+          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Date</td><td>${escHtml(fmtDateLong(signedAt))}</td></tr>
+          <tr><td style="padding:2px 12px 2px 0;font-weight:600">Document ID</td><td style="font-family:monospace">${escHtml(docId)}</td></tr>
+        </table>
+        <p style="margin-top:24px;color:#aaa;font-size:12px">Powered by Reave</p>
+      `,
+    }).catch(() => {});
+  }
+
+  // ── Telegram notification to operator ─────────────────────────────────────
+  notifyTelegram({
+    signerName,
+    title: tmpl.title,
+    viewUrl,
+    contactName: contact.name,
+  }).catch(() => {});
 
   return new Response(
     JSON.stringify({ ok: true, docId, viewUrl }),
     { headers: { 'Content-Type': 'application/json' } }
   );
 };
-
-function err(status: number, error: string): Response {
-  return new Response(JSON.stringify({ ok: false, error }), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}

@@ -707,9 +707,11 @@ async function loadAndBuildTodoNodes() {
 // ---- documents tab ----
 
 let docState = {
-  templates: [],   // [{ slug, title }]
+  templates: [],    // [{ slug, title }]
+  shortcodes: [],   // [{ code, token, label, description, category }]
   activeSlug: null,
   dirty: false,
+  paneMode: 'edit', // 'edit' | 'view'
 };
 
 function getDocEditor() { return document.getElementById('doc-editor'); }
@@ -718,16 +720,18 @@ async function loadDocumentsTab() {
   const root = getDocEditor();
   if (!root) return;
   root.innerHTML = '<div class="de-loading">Loading templates…</div>';
-  let templates;
   try {
-    const res = await fetch('/api/documents', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    templates = await res.json();
+    const [templatesRes, shortcodesRes] = await Promise.all([
+      fetch('/api/documents', { cache: 'no-store' }),
+      fetch('/api/documents/shortcodes', { cache: 'no-store' }),
+    ]);
+    if (!templatesRes.ok) throw new Error(`HTTP ${templatesRes.status}`);
+    docState.templates = await templatesRes.json();
+    docState.shortcodes = shortcodesRes.ok ? await shortcodesRes.json() : [];
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load templates: ${e.message}</div>`;
     return;
   }
-  docState.templates = templates;
   docState.activeSlug = null;
   docState.dirty = false;
   getDocEditor()?.classList.remove('de-pane-active');
@@ -768,6 +772,47 @@ function renderDocEditor() {
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
+
+  // ── Shortcodes directory ──
+  const shortcodes = docState.shortcodes || [];
+  if (shortcodes.length > 0) {
+    const scDir = document.createElement('div');
+    scDir.className = 'de-sc-dir';
+
+    const scHdr = document.createElement('div');
+    scHdr.className = 'de-sc-dir-hdr';
+    scHdr.innerHTML = '<span>Shortcodes</span><span class="de-sc-dir-hint">type { to insert</span>';
+    scDir.appendChild(scHdr);
+
+    const scBody = document.createElement('div');
+    scBody.className = 'de-sc-dir-body';
+
+    const categories = [...new Set(shortcodes.map((s) => s.category))];
+    for (const cat of categories) {
+      const catLabel = document.createElement('div');
+      catLabel.className = 'de-sc-dir-cat';
+      catLabel.textContent = cat;
+      scBody.appendChild(catLabel);
+
+      for (const sc of shortcodes.filter((s) => s.category === cat)) {
+        const item = document.createElement('div');
+        item.className = 'de-sc-dir-item';
+        item.title = sc.description;
+        item.innerHTML = `<code class="de-sc-token">${escHtml(sc.token)}</code><span class="de-sc-lbl">${escHtml(sc.label)}</span>`;
+        // Click-to-copy
+        item.addEventListener('click', () => {
+          navigator.clipboard?.writeText(sc.token).catch(() => {});
+          item.classList.add('de-sc-copied');
+          setTimeout(() => item.classList.remove('de-sc-copied'), 1200);
+        });
+        scBody.appendChild(item);
+      }
+    }
+
+    scDir.appendChild(scBody);
+    sidebar.appendChild(scDir);
+  }
+
   root.appendChild(sidebar);
 
   // ── Editor pane ──
@@ -824,6 +869,7 @@ function renderNewForm(pane) {
   ta.id = 'de-new-html';
   ta.spellcheck = false;
   ta.placeholder = '<!-- title: My Document -->\n<h1>Title</h1>\n<p>Content…</p>';
+  attachShortcodePopover(ta);
   pane.appendChild(ta);
 
   const actions = document.createElement('div');
@@ -858,33 +904,76 @@ function renderEditForm(pane) {
     .then(({ html }) => {
       pane.innerHTML = '';
 
+      // ── Header ──
       const header = document.createElement('div');
       header.className = 'de-header';
+
       const backBtn2 = document.createElement('button');
       backBtn2.className = 'de-back-btn';
       backBtn2.innerHTML = '‹ Back';
       backBtn2.addEventListener('click', () => backToList());
       header.appendChild(backBtn2);
+
       const nameEl2 = document.createElement('span');
       nameEl2.className = 'de-doc-name';
       nameEl2.textContent = tpl?.title ?? slug;
       header.appendChild(nameEl2);
+
       const slugEl = document.createElement('span');
       slugEl.className = 'de-doc-slug';
       slugEl.textContent = `${slug}.html`;
       header.appendChild(slugEl);
+
+      // Edit / View toggle
+      const headerSpacer = document.createElement('span');
+      headerSpacer.style.flex = '1';
+      header.appendChild(headerSpacer);
+
+      const modeTabs = document.createElement('div');
+      modeTabs.className = 'de-mode-tabs';
+
+      const editTab = document.createElement('button');
+      editTab.className = 'de-mode-tab' + (docState.paneMode !== 'view' ? ' active' : '');
+      editTab.textContent = 'Edit';
+
+      const viewTab = document.createElement('button');
+      viewTab.className = 'de-mode-tab' + (docState.paneMode === 'view' ? ' active' : '');
+      viewTab.textContent = 'View';
+
+      modeTabs.appendChild(editTab);
+      modeTabs.appendChild(viewTab);
+      header.appendChild(modeTabs);
       pane.appendChild(header);
 
+      // ── Textarea (edit mode) ──
       const ta = document.createElement('textarea');
       ta.className = 'de-textarea';
       ta.id = `de-edit-${slug}`;
       ta.spellcheck = false;
       ta.value = html;
       ta.addEventListener('input', () => { docState.dirty = true; updateSaveBtn(); });
-      pane.appendChild(ta);
+      attachShortcodePopover(ta);
 
+      // ── Preview iframe (view mode, sandboxed — no scripts) ──
+      const preview = document.createElement('iframe');
+      preview.className = 'de-preview';
+      preview.setAttribute('sandbox', 'allow-same-origin');
+      preview.srcdoc = html;
+      preview.title = 'Document preview';
+
+      if (docState.paneMode === 'view') {
+        ta.style.display = 'none';
+      } else {
+        preview.style.display = 'none';
+      }
+
+      pane.appendChild(ta);
+      pane.appendChild(preview);
+
+      // ── Actions bar (hidden in view mode) ──
       const actions = document.createElement('div');
       actions.className = 'de-actions';
+      if (docState.paneMode === 'view') actions.style.display = 'none';
 
       const delBtn = document.createElement('button');
       delBtn.className = 'de-btn de-btn-danger';
@@ -905,6 +994,26 @@ function renderEditForm(pane) {
       actions.appendChild(spacer);
       actions.appendChild(saveBtn);
       pane.appendChild(actions);
+
+      // ── Tab switching ──
+      editTab.addEventListener('click', () => {
+        docState.paneMode = 'edit';
+        editTab.classList.add('active');
+        viewTab.classList.remove('active');
+        ta.style.display = '';
+        preview.style.display = 'none';
+        actions.style.display = '';
+      });
+
+      viewTab.addEventListener('click', () => {
+        docState.paneMode = 'view';
+        viewTab.classList.add('active');
+        editTab.classList.remove('active');
+        preview.srcdoc = ta.value;
+        ta.style.display = 'none';
+        preview.style.display = '';
+        actions.style.display = 'none';
+      });
     })
     .catch((e) => {
       pane.innerHTML = `<div class="de-loading de-error">Failed to load: ${e.message}</div>`;
@@ -920,6 +1029,7 @@ async function openDocument(slug) {
   if (docState.dirty && !confirm('Discard unsaved changes?')) return;
   docState.activeSlug = slug;
   docState.dirty = false;
+  docState.paneMode = 'edit';
   renderDocEditor();
   getDocEditor()?.classList.add('de-pane-active');
 }
@@ -1001,6 +1111,153 @@ async function deleteDocument(slug) {
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
   }
+}
+
+// ---- shortcode popover ----
+
+let _scPop = null;          // singleton popover element
+let _scTriggerIdx = -1;     // textarea index where { or [ was typed
+let _scTa = null;           // active textarea
+let _scItems = [];          // currently shown shortcodes
+let _scSel = 0;             // selected row index
+
+function _getScPop() {
+  if (!_scPop) {
+    _scPop = document.createElement('div');
+    _scPop.className = 'de-sc-pop';
+    _scPop.setAttribute('role', 'listbox');
+    document.body.appendChild(_scPop);
+  }
+  return _scPop;
+}
+
+// Canvas-based monospace cursor X measurement.
+let _scCanvas = null;
+function _caretPixelPos(ta) {
+  const computed = window.getComputedStyle(ta);
+  const rect = ta.getBoundingClientRect();
+  const lh = parseFloat(computed.lineHeight) || parseFloat(computed.fontSize) * 1.5;
+  const pt = parseFloat(computed.paddingTop) || 0;
+  const pl = parseFloat(computed.paddingLeft) || 0;
+
+  const textBefore = ta.value.slice(0, ta.selectionStart);
+  const lines = textBefore.split('\n');
+  const lineIdx = lines.length - 1;
+  const col = lines[lineIdx];
+
+  if (!_scCanvas) _scCanvas = document.createElement('canvas');
+  const ctx = _scCanvas.getContext('2d');
+  ctx.font = `${computed.fontWeight} ${computed.fontSize} ${computed.fontFamily}`;
+  const colW = ctx.measureText(col).width;
+
+  const rawX = rect.left + pl + colW - ta.scrollLeft;
+  const rawY = rect.top + pt + lineIdx * lh - ta.scrollTop + lh + 4;
+
+  // Clamp so popover stays in viewport
+  const popW = 280;
+  const popMaxH = 260;
+  const x = Math.min(Math.max(rawX, 8), window.innerWidth - popW - 8);
+  const y = rawY + popMaxH > window.innerHeight
+    ? rawY - popMaxH - lh - 8
+    : rawY;
+
+  return { x, y };
+}
+
+function _renderScPop(ta, query) {
+  const all = docState.shortcodes || [];
+  const q = (query || '').toLowerCase();
+  _scItems = q
+    ? all.filter((sc) => sc.code.toLowerCase().includes(q) || sc.label.toLowerCase().includes(q))
+    : all;
+  _scSel = 0;
+
+  const pop = _getScPop();
+
+  if (_scItems.length === 0) { pop.style.display = 'none'; return; }
+
+  pop.innerHTML = '';
+  for (let i = 0; i < _scItems.length; i++) {
+    const sc = _scItems[i];
+    const row = document.createElement('div');
+    row.className = 'de-sc-pop-row' + (i === 0 ? ' active' : '');
+    row.setAttribute('role', 'option');
+    row.innerHTML = `<code class="de-sc-pop-token">${escHtml(sc.token)}</code><span class="de-sc-pop-lbl">${escHtml(sc.label)}</span>`;
+    row.addEventListener('mousedown', (e) => { e.preventDefault(); _insertSc(ta, sc.token); });
+    pop.appendChild(row);
+  }
+
+  const { x, y } = _caretPixelPos(ta);
+  pop.style.left = `${x}px`;
+  pop.style.top = `${y}px`;
+  pop.style.display = 'block';
+}
+
+function _hideScPop() {
+  if (_scPop) _scPop.style.display = 'none';
+  _scTriggerIdx = -1;
+  _scTa = null;
+}
+
+function _moveSc(delta) {
+  if (!_scItems.length) return;
+  _scSel = (_scSel + delta + _scItems.length) % _scItems.length;
+  const rows = _scPop?.querySelectorAll('.de-sc-pop-row') || [];
+  rows.forEach((r, i) => r.classList.toggle('active', i === _scSel));
+  rows[_scSel]?.scrollIntoView({ block: 'nearest' });
+}
+
+function _insertSc(ta, token) {
+  const start = _scTriggerIdx;
+  const end = ta.selectionStart;
+  const before = ta.value.slice(0, start);
+  const after = ta.value.slice(end);
+  ta.value = before + token + after;
+  ta.selectionStart = ta.selectionEnd = start + token.length;
+  ta.dispatchEvent(new Event('input'));
+  _hideScPop();
+  ta.focus();
+}
+
+function attachShortcodePopover(ta) {
+  ta.addEventListener('keydown', (e) => {
+    if (_scTriggerIdx < 0 || _scPop?.style.display === 'none') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); _moveSc(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); _moveSc(-1); }
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      const sc = _scItems[_scSel];
+      if (sc) { e.preventDefault(); _insertSc(ta, sc.token); }
+    } else if (e.key === 'Escape') { _hideScPop(); }
+  });
+
+  ta.addEventListener('input', () => {
+    const pos = ta.selectionStart;
+    const text = ta.value;
+
+    // Walk backwards from cursor to find an open { or [ with no closing bracket/newline between
+    let trigIdx = -1;
+    for (let i = pos - 1; i >= Math.max(0, pos - 80); i--) {
+      const ch = text[i];
+      if (ch === '{' || ch === '[') { trigIdx = i; break; }
+      if (ch === '}' || ch === ']' || ch === '\n') break;
+    }
+
+    if (trigIdx >= 0) {
+      _scTriggerIdx = trigIdx;
+      _scTa = ta;
+      _renderScPop(ta, text.slice(trigIdx + 1, pos));
+    } else {
+      _hideScPop();
+    }
+  });
+
+  ta.addEventListener('blur', () => setTimeout(_hideScPop, 160));
+  ta.addEventListener('scroll', () => {
+    if (_scTriggerIdx >= 0 && _scPop?.style.display !== 'none') {
+      const { x, y } = _caretPixelPos(ta);
+      if (_scPop) { _scPop.style.left = `${x}px`; _scPop.style.top = `${y}px`; }
+    }
+  });
 }
 
 function escHtml(str) {

@@ -3,9 +3,9 @@
  * /doc/:uid/:template  — Client-facing document signing page.
  *
  * The contact's info is filled into the template placeholders server-side.
- * The client types their name and clicks "Sign" — that POSTs to the sign API
- * which appends the document to their portal and returns the docId.
- * On success we redirect to /doc/:uid/view/:docId for a print-ready view.
+ * The client checks the consent checkbox, types their name, and clicks "Sign & Agree"
+ * — that POSTs to the sign API which creates the signed artifact and returns the docId.
+ * On success the page shows a confirmation and "View & Download PDF" link.
  */
 import { getContact, extractPortal } from '../../../lib/contactApi';
 import { getTemplate, fillTemplate } from '../../../lib/documentTemplates';
@@ -16,6 +16,8 @@ let error: string | null = null;
 let filled = '';
 let title = '';
 let contactName = '';
+// If the document has already been signed, surface the view link directly.
+let alreadySignedUrl: string | null = null;
 
 if (!uid || !templateSlug) {
   error = 'Invalid link.';
@@ -34,6 +36,11 @@ if (!uid || !templateSlug) {
       if (portal?.enabled === false) {
         error = 'This link is no longer valid.';
       } else {
+        // Check if already signed
+        const existing = (portal?.documents ?? []).find((d) => d.template === templateSlug);
+        if (existing) {
+          alreadySignedUrl = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/view/${existing.id}`;
+        }
         filled = fillTemplate(tmpl.html, contactRes.data);
         title = tmpl.title;
         contactName = contactRes.data.name;
@@ -79,37 +86,58 @@ const siteBase = Astro.url.origin;
 
         <div class="doc-body" set:html={filled} />
 
-        <div class="sign-section" id="sign-section">
-          <div class="sign-divider"></div>
-          <h2 class="sign-heading">Sign this document</h2>
-          <p class="sign-sub">
-            By typing your full name and clicking <strong>Sign &amp; Agree</strong>, you confirm that you
-            have read and agree to the terms above. This constitutes a legally binding electronic signature.
-          </p>
+        {alreadySignedUrl ? (
+          <div class="already-signed-section">
+            <div class="sign-divider"></div>
+            <div class="already-signed-icon">✓</div>
+            <h2>Already signed</h2>
+            <p>This document has already been signed. Your signed copy is available below.</p>
+            <a class="view-btn" href={alreadySignedUrl}>View &amp; Download PDF →</a>
+          </div>
+        ) : (
+          <div class="sign-section" id="sign-section">
+            <div class="sign-divider"></div>
+            <h2 class="sign-heading">Sign this document</h2>
 
-          <label class="sign-label" for="signer-name">Full name</label>
-          <input
-            id="signer-name"
-            class="sign-input"
-            type="text"
-            placeholder="e.g. John Smith"
-            autocomplete="name"
-            autocorrect="off"
-          />
+            <div class="consent-row" id="consent-row">
+              <input
+                id="consent-check"
+                class="consent-check"
+                type="checkbox"
+                aria-required="true"
+              />
+              <label for="consent-check" class="consent-label">
+                I agree to conduct this transaction electronically and use an electronic signature
+                in place of a handwritten signature. I understand this is legally binding.
+              </label>
+            </div>
 
-          <div class="sign-date" id="sign-date-display"></div>
+            <label class="sign-label" for="signer-name">Full name</label>
+            <input
+              id="signer-name"
+              class="sign-input"
+              type="text"
+              placeholder="e.g. John Smith"
+              autocomplete="name"
+              autocorrect="off"
+            />
 
-          <button class="sign-btn" id="sign-btn" type="button" disabled>Sign &amp; Agree</button>
+            <div class="sign-date" id="sign-date-display"></div>
 
-          <p class="sign-legal">
-            Signed electronically via Reave · {siteBase}
-          </p>
-        </div>
+            <button class="sign-btn" id="sign-btn" type="button" disabled>Sign &amp; Agree</button>
+
+            <p class="sign-legal">
+              Signed electronically via Reave · {siteBase}
+            </p>
+          </div>
+        )}
 
         <div class="success-section" id="success-section" style="display:none">
           <div class="success-icon">✓</div>
           <h2>Document signed</h2>
-          <p>Thank you, <strong id="signer-display"></strong>. Your signed copy has been saved.</p>
+          <p>Thank you, <strong id="signer-display"></strong>. Your signed copy has been saved.{' '}
+            {/* If contact has email, they'll receive a copy automatically */}
+          </p>
           <a class="view-btn" id="view-link" href="#">View &amp; Download PDF →</a>
         </div>
 
@@ -120,13 +148,14 @@ const siteBase = Astro.url.origin;
     )}
 
     <script define:vars={{ signEndpoint, templateSlug }}>
-      const nameInput = document.getElementById('signer-name');
-      const signBtn = document.getElementById('sign-btn');
-      const signSection = document.getElementById('sign-section');
+      const nameInput    = document.getElementById('signer-name');
+      const consentCheck = document.getElementById('consent-check');
+      const signBtn      = document.getElementById('sign-btn');
+      const signSection  = document.getElementById('sign-section');
       const successSection = document.getElementById('success-section');
-      const signerDisplay = document.getElementById('signer-display');
-      const viewLink = document.getElementById('view-link');
-      const dateDisplay = document.getElementById('sign-date-display');
+      const signerDisplay  = document.getElementById('signer-display');
+      const viewLink       = document.getElementById('view-link');
+      const dateDisplay    = document.getElementById('sign-date-display');
 
       if (dateDisplay) {
         dateDisplay.textContent = new Date().toLocaleString('en-US', {
@@ -134,38 +163,56 @@ const siteBase = Astro.url.origin;
         });
       }
 
-      if (nameInput && signBtn) {
-        nameInput.addEventListener('input', () => {
-          signBtn.disabled = nameInput.value.trim().length < 2;
-        });
-
-        signBtn.addEventListener('click', async () => {
-          const name = nameInput.value.trim();
-          if (name.length < 2) return;
-
-          signBtn.disabled = true;
-          signBtn.textContent = 'Saving…';
-
-          try {
-            const res = await fetch(signEndpoint, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ template: templateSlug, signerName: name }),
-            });
-            const json = await res.json();
-            if (!res.ok || !json.ok) throw new Error(json.error || 'Sign failed');
-
-            if (signerDisplay) signerDisplay.textContent = name;
-            if (viewLink) viewLink.href = json.viewUrl;
-            if (signSection) signSection.style.display = 'none';
-            if (successSection) successSection.style.display = '';
-          } catch (err) {
-            signBtn.disabled = false;
-            signBtn.textContent = 'Sign & Agree';
-            alert('Something went wrong. Please try again.');
-          }
-        });
+      function updateBtn() {
+        if (!signBtn || !nameInput) return;
+        const nameOk    = nameInput.value.trim().length >= 2;
+        const consentOk = consentCheck ? consentCheck.checked : false;
+        signBtn.disabled = !(nameOk && consentOk);
       }
+
+      nameInput?.addEventListener('input', updateBtn);
+      consentCheck?.addEventListener('change', updateBtn);
+
+      signBtn?.addEventListener('click', async () => {
+        const name = nameInput?.value.trim() ?? '';
+        if (name.length < 2 || !consentCheck?.checked) return;
+
+        signBtn.disabled = true;
+        signBtn.textContent = 'Saving…';
+
+        try {
+          const res = await fetch(signEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              template: templateSlug,
+              signerName: name,
+              consentChecked: true,
+            }),
+          });
+          const json = await res.json();
+
+          // Handle "already signed" case from server
+          if (res.status === 409 && json.alreadySigned) {
+            if (signSection) signSection.style.display = 'none';
+            if (viewLink) viewLink.href = json.viewUrl;
+            if (signerDisplay) signerDisplay.textContent = name;
+            if (successSection) successSection.style.display = '';
+            return;
+          }
+
+          if (!res.ok || !json.ok) throw new Error(json.error || 'Sign failed');
+
+          if (signerDisplay) signerDisplay.textContent = name;
+          if (viewLink) viewLink.href = json.viewUrl;
+          if (signSection) signSection.style.display = 'none';
+          if (successSection) successSection.style.display = '';
+        } catch (err) {
+          signBtn.disabled = false;
+          signBtn.textContent = 'Sign & Agree';
+          alert('Something went wrong. Please try again.');
+        }
+      });
     </script>
 
     <style is:global>
@@ -234,6 +281,26 @@ const siteBase = Astro.url.origin;
         border-bottom: 1px solid #eee;
       }
 
+      /* ── Already signed ── */
+      .already-signed-section {
+        text-align: center;
+        padding: 48px 24px 56px;
+      }
+      .already-signed-icon {
+        font-size: 28px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #1a1a1a;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+      }
+      .already-signed-section h2 { margin: 0 0 10px; font-size: 22px; }
+      .already-signed-section p { color: #555; margin: 0 0 24px; }
+
       /* ── Sign section ── */
       .sign-divider {
         height: 2px;
@@ -243,13 +310,34 @@ const siteBase = Astro.url.origin;
       .sign-heading {
         font-size: 22px;
         font-weight: 700;
-        margin: 0 0 10px;
+        margin: 0 0 20px;
       }
-      .sign-sub {
+
+      /* ── Consent checkbox ── */
+      .consent-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background: #f8f8f6;
+        border: 1px solid #d8d8d0;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 28px;
+        cursor: pointer;
+      }
+      .consent-check {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        margin-top: 2px;
+        cursor: pointer;
+        accent-color: #1a1a1a;
+      }
+      .consent-label {
         font-size: 14px;
-        color: #555;
-        margin: 0 0 28px;
+        color: #333;
         line-height: 1.6;
+        cursor: pointer;
       }
       .sign-label {
         display: block;

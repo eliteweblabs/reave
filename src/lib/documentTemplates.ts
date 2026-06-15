@@ -7,6 +7,31 @@ const RAW: Record<string, string> = import.meta.glob(
   { as: 'raw', eager: true }
 ) as Record<string, string>;
 
+// ── Shortcode registry ──────────────────────────────────────────────────────
+// Single source of truth for what tokens fillTemplate() resolves.
+// The /api/documents/shortcodes endpoint returns this list, optionally enriched
+// with extra fields discovered from a live contact record.
+
+export type Shortcode = {
+  code: string;        // e.g. 'client.name'
+  token: string;       // e.g. '{client.name}'
+  label: string;       // e.g. 'Full name'
+  description: string;
+  category: 'Client' | 'Date';
+};
+
+export const SHORTCODES: Shortcode[] = [
+  { code: 'client.name',        token: '{client.name}',        label: 'Full name',        description: "Contact's full name",                  category: 'Client' },
+  { code: 'client.first_name',  token: '{client.first_name}',  label: 'First name',       description: "Contact's first name",                 category: 'Client' },
+  { code: 'client.last_name',   token: '{client.last_name}',   label: 'Last name',        description: "Contact's last name",                  category: 'Client' },
+  { code: 'client.email',       token: '{client.email}',       label: 'Email',            description: "Contact's email address",              category: 'Client' },
+  { code: 'client.phone',       token: '{client.phone}',       label: 'Phone',            description: "Contact's phone number",               category: 'Client' },
+  { code: 'client.company',     token: '{client.company}',     label: 'Company',          description: "Contact's company name",               category: 'Client' },
+  { code: 'client.company_str', token: '{client.company_str}', label: 'Company (inline)', description: '" · Company" or empty if none',        category: 'Client' },
+  { code: 'date',               token: '{date}',               label: "Today's date",     description: 'Long date format, e.g. "June 15, 2026"', category: 'Date'   },
+  { code: 'year',               token: '{year}',               label: 'Current year',     description: '4-digit year, e.g. "2026"',            category: 'Date'   },
+];
+
 export type DocumentTemplate = {
   slug: string;
   title: string;
@@ -76,6 +101,13 @@ export function fillTemplate(html: string, contact: ContactRecord): string {
     .replace(/{client\.company_str}/g, company ? ` · <strong>${escHtml(company)}</strong>` : '')
     .replace(/{date}/g, today)
     .replace(/{year}/g, String(new Date().getFullYear()));
+
+  // Generic fallback: any remaining {client.xxx} tokens — look up contact[xxx] directly.
+  // This means extra fields added to the contact-api schema work automatically.
+  result = result.replace(/{client\.([a-z_][a-z0-9_]*)}/gi, (_, field) => {
+    const val = (contact as Record<string, unknown>)[field];
+    return typeof val === 'string' ? escHtml(val) : '';
+  });
 
   // Clean up empty <strong></strong> or <strong> · </strong> artifacts left by missing optional fields.
   result = result

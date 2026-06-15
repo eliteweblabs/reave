@@ -2,7 +2,11 @@
 /**
  * /doc/:uid/view/:docId  — View a signed document.
  *
- * Renders the stored HTML content with a "SIGNED" banner and a print button.
+ * For documents signed after the compliance upgrade (identified by contentHash),
+ * the signature block and audit table are already baked into `content` and render
+ * automatically. For older documents (no contentHash) the signature block is still
+ * rendered dynamically for backward compatibility.
+ *
  * Clicking "Download as PDF" triggers window.print(); modern browsers offer
  * "Save as PDF" natively. Print CSS hides UI chrome so only the document prints.
  */
@@ -16,6 +20,11 @@ let title = '';
 let signerName = '';
 let signedAt = '';
 let contactName = '';
+// Compliance fields (present on documents signed after the upgrade)
+let ip: string | undefined;
+let userAgent: string | undefined;
+let consentAt: string | undefined;
+let contentHash: string | undefined;
 
 if (!uid || !docId) {
   error = 'Invalid link.';
@@ -32,11 +41,15 @@ if (!uid || !docId) {
       if (!doc) {
         error = 'Document not found.';
       } else {
-        content = doc.content;
-        title = doc.title;
-        signerName = doc.signerName;
-        signedAt = doc.signedAt;
+        content     = doc.content;
+        title       = doc.title;
+        signerName  = doc.signerName;
+        signedAt    = doc.signedAt;
         contactName = contactRes.data.name;
+        ip          = doc.ip;
+        userAgent   = doc.userAgent;
+        consentAt   = doc.consentAt;
+        contentHash = doc.contentHash;
       }
     }
   }
@@ -100,22 +113,40 @@ const fmtDate = (iso: string) => {
 
         <div class="doc-body" set:html={content} />
 
-        <div class="signature-block">
-          <div class="sig-divider"></div>
-          <div class="sig-row">
-            <div class="sig-col">
-              <div class="sig-label">Electronically signed by</div>
-              <div class="sig-name">{signerName}</div>
-              <div class="sig-date">{fmtDate(signedAt)}</div>
-            </div>
-            <div class="sig-stamp">
-              <div class="stamp-inner">
-                <div class="stamp-signed">SIGNED</div>
-                <div class="stamp-via">via Reave</div>
+        {/* Legacy signature block for documents signed before the compliance upgrade */}
+        {!contentHash && (
+          <div class="signature-block">
+            <div class="sig-divider"></div>
+            <div class="sig-row">
+              <div class="sig-col">
+                <div class="sig-label">Electronically signed by</div>
+                <div class="sig-name">{signerName}</div>
+                <div class="sig-date">{fmtDate(signedAt)}</div>
+              </div>
+              <div class="sig-stamp">
+                <div class="stamp-inner">
+                  <div class="stamp-signed">SIGNED</div>
+                  <div class="stamp-via">via Reave</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* On-screen audit panel — shown to viewer, excluded from print */}
+        {contentHash && (
+          <div class="audit-panel no-print">
+            <div class="audit-title">Audit record</div>
+            <table class="audit-table">
+              <tr><td>Document ID</td><td>{docId}</td></tr>
+              <tr><td>Signed at</td><td>{fmtDate(signedAt)}</td></tr>
+              {consentAt && <tr><td>Consent at</td><td>{fmtDate(consentAt)}</td></tr>}
+              {ip && <tr><td>IP address</td><td>{ip}</td></tr>}
+              {userAgent && <tr><td>User agent</td><td>{userAgent}</td></tr>}
+              <tr><td>Content hash (SHA-256)</td><td class="hash">{contentHash}</td></tr>
+            </table>
+          </div>
+        )}
 
         <footer class="doc-foot">
           <span>Document ID: {docId}</span>
@@ -240,6 +271,43 @@ const fmtDate = (iso: string) => {
       .stamp-inner { text-align: center; }
       .stamp-signed { font-weight: 800; font-size: 16px; color: #166534; letter-spacing: 2px; }
       .stamp-via { font-size: 11px; color: #166534; letter-spacing: 1px; }
+
+      /* ── On-screen audit panel ── */
+      .audit-panel {
+        margin-top: 40px;
+        border: 1px solid #d1fae5;
+        border-radius: 12px;
+        background: #f0fdf4;
+        padding: 18px 20px;
+      }
+      .audit-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 700;
+        color: #166534;
+        margin-bottom: 12px;
+      }
+      .audit-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #555;
+      }
+      .audit-table td { padding: 3px 0; vertical-align: top; }
+      .audit-table td:first-child {
+        font-weight: 600;
+        color: #166534;
+        white-space: nowrap;
+        padding-right: 16px;
+        width: 1%;
+      }
+      .audit-table .hash {
+        font-family: ui-monospace, 'Cascadia Code', monospace;
+        font-size: 11px;
+        word-break: break-all;
+        color: #333;
+      }
 
       /* ── Footer ── */
       .doc-foot {

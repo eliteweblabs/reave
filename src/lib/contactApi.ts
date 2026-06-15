@@ -174,8 +174,21 @@ export type PortalDocument = {
   signedAt: string;
   /** Full name typed by signer. */
   signerName: string;
-  /** Rendered HTML content (post-placeholder fill) — used for re-display and print-to-PDF. */
+  /**
+   * Complete signed artifact: filled template HTML + inline-styled signature block
+   * + audit table, all baked in at signing time. Self-contained for print/PDF.
+   */
   content: string;
+
+  // ── Compliance / audit fields (added for ESIGN / UETA validity) ────────────
+  /** Signer's IP address at signing time (from x-forwarded-for / x-real-ip). */
+  ip?: string;
+  /** Raw User-Agent string at signing time. */
+  userAgent?: string;
+  /** ISO timestamp when the "I agree to sign electronically" checkbox was confirmed. */
+  consentAt?: string;
+  /** SHA-256 hex digest of the filled HTML presented to the signer (pre-signature-block). */
+  contentHash?: string;
 };
 
 export type ClientPortal = {
