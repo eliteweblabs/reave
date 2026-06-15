@@ -10,11 +10,19 @@ import {
   resolveContact,
   listContacts,
   getContact,
+  updateContact,
   extractPortal,
   clientPortalUrl,
   formatResolveForTelegram,
   type ContactRecord,
 } from './contactApi';
+import {
+  setPendingEdit,
+  peekPendingEdit,
+  takePendingEdit,
+  clearPendingEdit,
+  type MetaField,
+} from './telegramPendingEdits';
 import { createRailwayEmptyProject } from './railwayClient';
 import { isCraterConfigured, craterCreateInvoice, craterListInvoices, formatCreatedInvoice } from './craterClient';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
@@ -91,6 +99,64 @@ function timeAgo(iso: string | null | undefined): string {
 }
 
 /**
+ * The editable "Meta" fields for a contact, shown as buttons under the Meta
+ * action. `current` reads the value off a loaded contact for display.
+ */
+const META_FIELDS: Array<{ key: MetaField; label: string; current: (c: ContactRecord) => string }> = [
+  { key: 'firstname', label: 'First name', current: (c) => (c.firstName || c.name?.split(/\s+/)[0] || '').trim() },
+  { key: 'lastname', label: 'Last name', current: (c) => (c.lastName || c.name?.split(/\s+/).slice(1).join(' ') || '').trim() },
+  { key: 'company', label: 'Company', current: (c) => (c.company || '').trim() },
+  { key: 'phone', label: 'Phone', current: (c) => (c.phone || '').trim() },
+  { key: 'email', label: 'Email', current: (c) => (c.email || '').trim() },
+];
+
+function metaFieldLabel(key: MetaField): string {
+  return META_FIELDS.find((f) => f.key === key)?.label ?? key;
+}
+
+/** Build the "pick a field to edit" menu shown after the Meta button. */
+function buildMetaMenu(
+  c: ContactRecord,
+  uid: string
+): { text: string; rows: Array<Array<{ text: string; data: string }>> } {
+  const lines = [`Edit info — ${c.name}`, ''];
+  for (const f of META_FIELDS) {
+    const v = f.current(c);
+    lines.push(`${f.label}: ${v || '—'}`);
+  }
+  lines.push('', 'Tap a field, then send the new value in the chat.');
+  const rows: Array<Array<{ text: string; data: string }>> = [];
+  for (let i = 0; i < META_FIELDS.length; i += 2) {
+    rows.push(META_FIELDS.slice(i, i + 2).map((f) => ({ text: f.label, data: `qcmd:metaset:${f.key}:${uid}` })));
+  }
+  rows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
+  return { text: lines.join('\n'), rows };
+}
+
+/**
+ * Apply a single Meta-field edit. First/last name are reconstructed into the
+ * full `name` (the API derives first/last from it); other fields map directly.
+ */
+async function applyMetaEdit(
+  uid: string,
+  field: MetaField,
+  value: string
+): Promise<{ ok: true; data: ContactRecord } | { ok: false; error: string }> {
+  const v = value.trim();
+  if (field === 'firstname' || field === 'lastname') {
+    const full = await getContact(uid);
+    if (!full.ok) return { ok: false, error: full.error };
+    const c = full.data;
+    const first = (c.firstName || c.name?.split(/\s+/)[0] || '').trim();
+    const last = (c.lastName || c.name?.split(/\s+/).slice(1).join(' ') || '').trim();
+    const name = field === 'firstname' ? [v, last].filter(Boolean).join(' ') : [first, v].filter(Boolean).join(' ');
+    if (!name.trim()) return { ok: false, error: 'Name cannot be empty.' };
+    return updateContact(uid, { name });
+  }
+  return updateContact(uid, { [field]: v });
+}
+
+/**
  * Build the contact "card" text + action-button rows shown once a client is
  * found. Every per-client action lives here as a button (no slash command
  * needed), so this is the single source for both the /contacts result and the
@@ -120,6 +186,7 @@ function buildContactActionMenu(
     ],
     [
       { text: 'Notes', data: `qcmd:notes:${uid}` },
+      { text: 'Meta', data: `qcmd:meta:${uid}` },
       ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
     ],
   ];
@@ -481,6 +548,34 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
 
+  // ── Meta edit capture ──────────────────────────────────────────────────────
+  // If a Meta field button was just tapped, the next plain message is the value.
+  // Slash commands abort the edit (so a stray command isn't captured as a value).
+  if (text.startsWith('/')) {
+    const aborted = peekPendingEdit(chatId);
+    if (aborted) {
+      clearPendingEdit(chatId);
+      if (text === '/cancel') {
+        await telegramSendMessage(token, chatId, 'Edit cancelled.');
+        return;
+      }
+    }
+  } else {
+    const pending = peekPendingEdit(chatId);
+    if (pending) {
+      takePendingEdit(chatId);
+      const label = metaFieldLabel(pending.field);
+      const result = await applyMetaEdit(pending.uid, pending.field, text);
+      if (!result.ok) {
+        await telegramSendMessage(token, chatId, `Update failed: ${result.error}`);
+        return;
+      }
+      const menu = buildContactActionMenu(result.data, pending.uid);
+      await telegramSendMenu(token, chatId, `${label} updated.\n\n${menu.text}`, menu.rows);
+      return;
+    }
+  }
+
   // /ai <query> — explicit Claude route; strip prefix and treat as freeform
   const aiMatch = text.match(/^\/ai\s+(.+)$/is);
   if (aiMatch) {
@@ -722,6 +817,35 @@ export async function handleTelegramCallbackQuery(opts: {
     return;
   }
 
+  // qcmd:metaset:{field}:{uid} — user picked a Meta field to edit. Stash the
+  // intent and ask them to type the value. Parsed first because the uid is the
+  // LAST segment here (unlike the generic qcmd:{cmd}:{uid} shape below).
+  if (data.startsWith('qcmd:metaset:')) {
+    const rest = data.slice('qcmd:metaset:'.length);
+    const sep = rest.indexOf(':');
+    const field = (sep >= 0 ? rest.slice(0, sep) : rest) as MetaField;
+    const uid = sep >= 0 ? rest.slice(sep + 1) : '';
+    const valid: MetaField[] = ['firstname', 'lastname', 'company', 'phone', 'email'];
+    if (!uid || !valid.includes(field)) {
+      await telegramSendMessage(token, chatId, 'Invalid field.');
+      return;
+    }
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    setPendingEdit(chatId, { uid, field, name: full.data.name });
+    const label = metaFieldLabel(field);
+    const promptMsg = `Send the new ${label} for ${full.data.name} in the chat.\n\n(Send /cancel to abort.)`;
+    if (messageId != null) {
+      await telegramEditMessage(token, chatId, messageId, promptMsg);
+    } else {
+      await telegramSendMessage(token, chatId, promptMsg);
+    }
+    return;
+  }
+
   if (data.startsWith('qcmd:')) {
     // Format: qcmd:{cmd}:{uid}  e.g. qcmd:portal:53b12d12-...
     const rest = data.slice(5);
@@ -793,6 +917,16 @@ export async function handleTelegramCallbackQuery(opts: {
         return;
       }
       await telegramSendMessage(token, chatId, `${c.name} has no email or phone on file. Add one first.`);
+      return;
+    }
+
+    if (cmd === 'meta') {
+      const menu = buildMetaMenu(c, uid);
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, menu.text, menu.rows);
+      } else {
+        await telegramSendMenu(token, chatId, menu.text, menu.rows);
+      }
       return;
     }
 

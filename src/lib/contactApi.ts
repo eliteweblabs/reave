@@ -285,6 +285,69 @@ export async function createContact(input: {
   }
 }
 
+/**
+ * Update a contact's core "Meta" fields (PATCH /api/contacts/:uid).
+ *
+ * Only the keys you pass are changed; omitted keys keep their current value.
+ * NOTE: contact-api has no separate first/last write fields — it derives them
+ * from `name` via splitName(). To change first or last name, pass the full
+ * reconstructed `name`. Old values are auto-saved as aliases upstream.
+ */
+export async function updateContact(
+  uid: string,
+  patch: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    notes?: string;
+  }
+): Promise<{ ok: true; data: ContactRecord } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+
+  const body: Record<string, string> = {};
+  if (patch.name !== undefined) body.name = patch.name.trim();
+  if (patch.email !== undefined) body.email = patch.email.trim();
+  if (patch.phone !== undefined) body.phone = patch.phone.trim();
+  if (patch.company !== undefined) body.company = patch.company.trim();
+  if (patch.notes !== undefined) body.notes = patch.notes.trim();
+  if (!Object.keys(body).length) return { ok: false, error: 'nothing to update' };
+
+  try {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const err =
+        json && typeof json === 'object' && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : text.slice(0, 200) || res.statusText;
+      return { ok: false, error: err, status: res.status };
+    }
+    const contact =
+      json && typeof json === 'object' && 'contact' in json
+        ? ((json as { contact: ContactRecord }).contact)
+        : (json as ContactRecord);
+    if (!contact || typeof contact !== 'object' || !contact.uid) {
+      return { ok: false, error: 'Unexpected contact-api response' };
+    }
+    return { ok: true, data: contact };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 /** List/search contacts (GET /api/contacts). Optional fuzzy text `q`. */
 export async function listContacts(opts: {
   q?: string;
