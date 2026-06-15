@@ -159,8 +159,8 @@ function syncCanvasVisibility() {
 
 // ---- health polling ----
 function syncHealthLifecycle() {
-  if (activeKey === 'system') startHealth();
-  else stopHealth();
+  startHealth();
+  updateChecked();
 }
 
 function startHealth() {
@@ -181,7 +181,6 @@ function stopHealth() {
 }
 
 async function pollHealth() {
-  if (activeKey !== 'system') return;
   try {
     healthAbort = new AbortController();
     const res = await fetch(HEALTH_URL, { cache: 'no-store', signal: healthAbort.signal });
@@ -217,12 +216,13 @@ function applyHealth(services) {
 function updateChecked() {
   const el = document.getElementById('health-checked');
   if (!el) return;
-  if (activeKey !== 'system' || !lastChecked) {
-    el.innerHTML = '';
+  if (!lastChecked) {
+    el.style.opacity = '0.35';
+    el.dataset.tooltip = '';
     return;
   }
-  const time = lastChecked.toLocaleTimeString();
-  el.innerHTML = `🕐<span class="clock-tip">Health checked at ${time}</span>`;
+  el.style.opacity = '1';
+  el.dataset.tooltip = `Health checked at ${lastChecked.toLocaleTimeString()}`;
 }
 
 // ---- rendering ----

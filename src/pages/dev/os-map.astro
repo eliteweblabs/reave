@@ -201,65 +201,113 @@ export const prerender = true;
         50% { opacity: 1; }
       }
 
-      /* Top bar */
+      /* ── Top bar ── */
       #topbar {
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
+        top: 0; left: 0; right: 0;
+        height: var(--topbar-h);
         display: flex;
         align-items: center;
-        gap: 0.6rem;
-        padding: 0.7rem 0.7rem;
+        gap: 0.5rem;
+        padding: 0 0.75rem;
         pointer-events: none;
         z-index: 20;
-        background: rgba(10, 13, 20, 0.6);
+        background: rgba(10, 13, 20, 0.72);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border-bottom: 1px solid rgba(35, 44, 58, 0.5);
+        border-bottom: 1px solid rgba(35, 44, 58, 0.6);
       }
+
+      /* Every direct child that needs clicks opts in */
+      #topbar > * { pointer-events: auto; }
+      #topbar .spacer { flex: 1; pointer-events: none; }
+
       #topbar .brand {
-        pointer-events: auto;
         display: inline-flex;
         align-items: center;
-        flex: 0 0 auto;
+        flex-shrink: 0;
         line-height: 0;
       }
       #topbar .brand-img { height: 1.4rem; width: auto; display: block; }
-      #topbar .note {
-        position: relative;
+
+      /* Right-side icon cluster */
+      .topbar-end {
         display: flex;
         align-items: center;
-        pointer-events: auto;
-        cursor: default;
-        color: var(--muted);
-        font-size: 1rem;
-        line-height: 1;
+        gap: 0.5rem;
+        flex-shrink: 0;
       }
-      #topbar .note-tip {
-        visibility: hidden;
-        opacity: 0;
+
+      /* Shared style for the small icon/emoji items */
+      .tb-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        line-height: 1;
+        color: var(--muted);
+        cursor: default;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #health-checked {
+        opacity: 0.35;
+        transition: opacity 0.2s ease;
+        padding-right: 0.5rem;
+        border-right: 1px solid var(--panel-border);
+      }
+
+      /* Profile button */
+      .topbar-profile {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        background: rgba(168, 85, 247, 0.1);
+        color: rgba(168, 85, 247, 0.75);
+        text-decoration: none;
+        flex-shrink: 0;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
+      }
+      .topbar-profile:hover {
+        border-color: rgba(168, 85, 247, 0.9);
+        background: rgba(168, 85, 247, 0.22);
+        color: #a855f7;
+      }
+
+      /* ── Tooltips ──
+         Default: centered below the trigger.
+         .tt-left anchors to left edge (for items near right edge of screen). */
+      [data-tooltip] { position: relative; }
+      [data-tooltip]::after {
+        content: attr(data-tooltip);
         position: absolute;
-        left: 0;
         top: calc(100% + 6px);
+        left: 50%;
+        transform: translateX(-50%);
         white-space: nowrap;
         background: #1a2030;
         border: 1px solid #2d3a4f;
         color: #c8d4e3;
-        font-size: 0.7rem;
-        padding: 4px 9px;
-        border-radius: 6px;
+        font-size: 0.68rem;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-variant-numeric: tabular-nums;
+        padding: 3px 8px;
+        border-radius: 5px;
         pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
         transition: opacity 0.12s;
-        z-index: 200;
+        z-index: 9999;
       }
-      #topbar .note:hover .note-tip,
-      #topbar .note:focus .note-tip {
-        visibility: visible;
-        opacity: 1;
-      }
-      @media (max-width: 639px) {
-      }
+      [data-tooltip]:hover::after { opacity: 1; visibility: visible; }
+      /* Items near the right edge: right-align the tooltip */
+      [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
+
+      @media (max-width: 639px) {}
 
       /* Tabs */
       #tabs {
@@ -296,8 +344,6 @@ export const prerender = true;
         .tab-label { display: none; }
         #tabs button { padding: 0.28rem 0.5rem; }
       }
-      #topbar .note-tip code { background: var(--panel); padding: 0.06rem 0.3rem; border-radius: 4px; }
-      #topbar .spacer { flex: 1; }
       #topbar button {
         pointer-events: auto;
         font: inherit;
@@ -368,45 +414,6 @@ export const prerender = true;
       #legend .st-key .st-dot {
         background: var(--sc, #6e7681);
         box-shadow: 0 0 5px var(--sc, transparent);
-      }
-      #health-checked {
-        position: relative;
-        display: flex;
-        align-items: center;
-        pointer-events: auto;
-        cursor: default;
-        color: var(--muted);
-        font-size: 1rem;
-        line-height: 1;
-        padding-right: 0.6rem;
-        border-right: 1px solid var(--panel-border);
-      }
-      #health-checked:empty {
-        padding-right: 0;
-        border-right: none;
-      }
-      #health-checked .clock-tip {
-        visibility: hidden;
-        opacity: 0;
-        position: absolute;
-        left: 0;
-        top: calc(100% + 6px);
-        white-space: nowrap;
-        background: #1a2030;
-        border: 1px solid #2d3a4f;
-        color: #c8d4e3;
-        font-size: 0.7rem;
-        font-variant-numeric: tabular-nums;
-        padding: 4px 9px;
-        border-radius: 6px;
-        pointer-events: none;
-        transition: opacity 0.12s;
-        z-index: 200;
-      }
-      #health-checked:hover .clock-tip,
-      #health-checked:focus .clock-tip {
-        visibility: visible;
-        opacity: 1;
       }
 
       /* ── Documents editor tab ── */
@@ -810,8 +817,13 @@ export const prerender = true;
       </a>
       <div id="tabs"></div>
       <span class="spacer"></span>
-      <span id="health-checked"></span>
-      <span class="note">⚠️<span class="note-tip">Keep current — edit <code>public/dev/os-map-data.js</code> when the system changes.</span></span>
+      <div class="topbar-end">
+        <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
+        <span class="tb-icon tt-left" data-tooltip="Keep current — edit public/dev/os-map-data.js when the system changes.">⚠️</span>
+        <a href="/admin/profile" class="topbar-profile tt-left" data-tooltip="Profile" aria-label="Profile">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        </a>
+      </div>
     </div>
 
     <div id="tools">

@@ -3,8 +3,8 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "dev:poll": "VITE_USE_POLLING=1 astro dev",
+    "dev": "VITE_USE_POLLING=1 astro dev",
+    "dev:nopoll": "astro dev",
     "dev:railway": "railway run -- npm run dev",
     "railway:vars": "railway variable list -k > .env.railway",
     "build": "astro build",
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.5",
+    "@clerk/astro": "^3.4.2",
     "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8",
     "conversational-form": "^1.0.2",

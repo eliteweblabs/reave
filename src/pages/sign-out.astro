@@ -1,0 +1,31 @@
+---
+export const prerender = false;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Signing out…</title>
+    <style>
+      body { background: #050505; color: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <p>Signing out…</p>
+    <script>
+      async function go() {
+        // Wait for Clerk to load then sign out
+        const interval = setInterval(async () => {
+          const { Clerk } = window as any;
+          if (Clerk?.loaded) {
+            clearInterval(interval);
+            await Clerk.signOut();
+            window.location.href = "/";
+          }
+        }, 100);
+      }
+      go();
+    </script>
+  </body>
+</html>
