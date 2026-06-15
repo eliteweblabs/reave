@@ -1132,11 +1132,10 @@ export async function handleTelegramCallbackQuery(opts: {
 
     if (cmd === 'open') {
       const menu = buildContactActionMenu(c, uid);
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, menu.text, menu.rows);
-      } else {
-        await telegramSendMenu(token, chatId, menu.text, menu.rows);
-      }
+      // Send a new message (don't edit in place): Telegram mobile auto-scrolls
+      // to new messages but not to edits, so a tall full-width keyboard added
+      // via edit lands below the fold.
+      await telegramSendMenu(token, chatId, menu.text, menu.rows);
       return;
     }
 
@@ -1173,11 +1172,7 @@ export async function handleTelegramCallbackQuery(opts: {
 
     if (cmd === 'meta') {
       const menu = buildMetaMenu(c, uid);
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, menu.text, menu.rows);
-      } else {
-        await telegramSendMenu(token, chatId, menu.text, menu.rows);
-      }
+      await telegramSendMenu(token, chatId, menu.text, menu.rows);
       return;
     }
 
@@ -1188,11 +1183,7 @@ export async function handleTelegramCallbackQuery(opts: {
         { text: 'Add', data: `qcmd:notesadd:${uid}` },
         { text: 'View', data: `qcmd:notesview:${uid}` },
       ]];
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, menuText, menuRows);
-      } else {
-        await telegramSendMenu(token, chatId, menuText, menuRows);
-      }
+      await telegramSendMenu(token, chatId, menuText, menuRows);
       return;
     }
 
@@ -1238,11 +1229,7 @@ export async function handleTelegramCallbackQuery(opts: {
       for (let i = 0; i < docBtns.length; i += 2) btnRows.push(docBtns.slice(i, i + 2));
       btnRows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
       const pickerText = `Send a document to ${c.name} — choose a template:`;
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, pickerText, btnRows);
-      } else {
-        await telegramSendMenu(token, chatId, pickerText, btnRows);
-      }
+      await telegramSendMenu(token, chatId, pickerText, btnRows);
       return;
     }
 
@@ -1273,11 +1260,7 @@ export async function handleTelegramCallbackQuery(opts: {
       const head = drafts.length
         ? `Add to invoice — ${customerName}\nPick an unsent (DRAFT) invoice, or start new:`
         : `Add to invoice — ${customerName}\nNo unsent invoices. Start a new one:`;
-      if (messageId != null) {
-        await telegramEditMessage(token, chatId, messageId, head, rows);
-      } else {
-        await telegramSendMenu(token, chatId, head, rows);
-      }
+      await telegramSendMenu(token, chatId, head, rows);
       return;
     }
 
