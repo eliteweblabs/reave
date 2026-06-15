@@ -26,7 +26,16 @@ import {
   type MetaField,
 } from './telegramPendingEdits';
 import { createRailwayEmptyProject } from './railwayClient';
-import { isCraterConfigured, craterListInvoices } from './craterClient';
+import {
+  isCraterConfigured,
+  craterListInvoices,
+  craterSearchCustomers,
+  craterCreateInvoice,
+  craterAddInvoiceItems,
+  formatCreatedInvoice,
+  type CraterCustomer,
+  type CraterInvoiceSummary,
+} from './craterClient';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
 import { checkDeploymentStatus, getRecentCommits } from './devStatus';
 import { serverEnv } from './serverEnv';
@@ -187,6 +196,37 @@ function notesMenuRows(uid: string): Array<Array<MenuButton>> {
     ],
     [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
   ];
+}
+
+/** Prompt text for the "add to invoice" line-item capture. */
+const LINE_ITEM_PROMPT =
+  'Send the line item:\n\ndescription | amount | qty\n\n(amount in dollars; qty optional, defaults to 1. /cancel to stop.)';
+
+/** Parse a "description | amount | qty" line into a Crater item. */
+function parseLineItem(text: string): { name: string; quantity: number; price: number } | null {
+  const parts = text.split('|').map((s) => s.trim());
+  const name = parts[0] || '';
+  const price = Number((parts[1] ?? '').replace(/[$,]/g, ''));
+  const quantity = parts[2] ? Number(parts[2]) : 1;
+  if (!name || !Number.isFinite(price) || price <= 0 || !Number.isFinite(quantity) || quantity <= 0) return null;
+  return { name, quantity, price };
+}
+
+/** Best-effort resolve a contact to its Crater customer (email match, then name). */
+async function resolveCraterCustomer(c: ContactRecord): Promise<CraterCustomer | null> {
+  const q = (c.email || c.name || '').trim();
+  if (!q) return null;
+  const res = await craterSearchCustomers(q);
+  if (!res.ok) return null;
+  const customers = res.data.customers ?? [];
+  const email = (c.email || '').trim().toLowerCase();
+  const name = (c.name || '').trim().toLowerCase();
+  return (
+    (email ? customers.find((x) => (x.email ?? '').trim().toLowerCase() === email) : undefined) ||
+    customers.find((x) => x.name.trim().toLowerCase() === name) ||
+    customers[0] ||
+    null
+  );
 }
 
 /**
@@ -353,6 +393,7 @@ function buildContactActionMenu(
   const rows: Array<Array<MenuButton>> = [
     [{ text: '⧉ Portal', copy: clientPortalUrl(uid) }],
     ...portalSendButtons(c, uid).map((b) => [b]),
+    ...(isCraterConfigured() ? [[{ text: 'Add to invoice', data: `qcmd:invoice:${uid}` }]] : []),
     [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
     [{ text: 'Meta', data: `qcmd:meta:${uid}` }],
     ...(hasDoc ? [[{ text: '✎ Send Document', data: `qcmd:document:${uid}` }]] : []),
@@ -723,6 +764,41 @@ export async function handleTelegramTextMessage(opts: {
       }
       const menuText = `Note added to ${pending.name}: “${title}”\n\nNotes — ${pending.name}\n${res.count} entr${res.count === 1 ? 'y' : 'ies'} on file`;
       await telegramSendMenu(token, chatId, menuText, notesMenuRows(pending.uid));
+      return;
+    }
+    // ── Add to invoice: next message is "description | amount | qty" ─────────
+    if (pending && pending.kind === 'invoice') {
+      const item = parseLineItem(text);
+      if (!item) {
+        // Leave the pending intent armed so they can just retry.
+        await telegramSendMessage(token, chatId, `Couldn't parse that. ${LINE_ITEM_PROMPT}`);
+        return;
+      }
+      takePendingEdit(chatId);
+      if (pending.invoiceId != null) {
+        const res = await craterAddInvoiceItems(pending.invoiceId, [item]);
+        if (!res.ok) {
+          await telegramSendMessage(token, chatId, `Couldn't add item: ${res.error}`);
+          return;
+        }
+        const d = res.data;
+        const msg = `Added to ${d.invoice_number}:\n${item.name} ×${item.quantity} @ ${fmtMoney(item.price)}\n\nNew total: ${fmtMoney(Number(d.new_total))}`;
+        await telegramSendMenu(token, chatId, msg, [
+          [{ text: '+ Add another', data: `inv:more:${pending.invoiceId}:${pending.uid}` }],
+          [{ text: '‹ Back', data: `qcmd:open:${pending.uid}` }],
+        ]);
+        return;
+      }
+      const res = await craterCreateInvoice({ customerName: pending.customerName, items: [item] });
+      if (!res.ok) {
+        await telegramSendMessage(token, chatId, `Couldn't create invoice: ${res.error}`);
+        return;
+      }
+      const inv = res.data;
+      await telegramSendMenu(token, chatId, formatCreatedInvoice(inv), [
+        [{ text: '+ Add another', data: `inv:more:${inv.invoice_id}:${pending.uid}` }],
+        [{ text: '‹ Back', data: `qcmd:open:${pending.uid}` }],
+      ]);
       return;
     }
     // ── Meta edit: next message is the new field value ───────────────────────
@@ -1170,7 +1246,80 @@ export async function handleTelegramCallbackQuery(opts: {
       return;
     }
 
+    if (cmd === 'invoice') {
+      if (!isCraterConfigured()) {
+        await sendResultWithBack(token, chatId, 'Crater billing is not configured.', uid, messageId);
+        return;
+      }
+      const customer = await resolveCraterCustomer(c);
+      const customerName = customer?.name || c.name || '';
+      let drafts: CraterInvoiceSummary[] = [];
+      if (customer) {
+        const list = await craterListInvoices();
+        if (list.ok) {
+          const cn = customer.name.trim().toLowerCase();
+          drafts = (list.data.invoices ?? []).filter(
+            (inv) =>
+              (inv.customer_name ?? '').trim().toLowerCase() === cn &&
+              String(inv.status).toUpperCase() === 'DRAFT'
+          );
+        }
+      }
+      const rows: Array<Array<MenuButton>> = drafts.slice(0, 10).map((d) => [
+        { text: `${d.invoice_number || '#' + d.id} · ${fmtMoney(Number(d.total || 0))}`, data: `inv:add:${d.id}:${uid}` },
+      ]);
+      rows.push([{ text: '+ New invoice', data: `inv:new:${uid}` }]);
+      rows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
+      const head = drafts.length
+        ? `Add to invoice — ${customerName}\nPick an unsent (DRAFT) invoice, or start new:`
+        : `Add to invoice — ${customerName}\nNo unsent invoices. Start a new one:`;
+      if (messageId != null) {
+        await telegramEditMessage(token, chatId, messageId, head, rows);
+      } else {
+        await telegramSendMenu(token, chatId, head, rows);
+      }
+      return;
+    }
+
     await telegramSendMessage(token, chatId, 'Unknown quick command.');
+    return;
+  }
+
+  if (data.startsWith('inv:')) {
+    // inv:new:<uid> | inv:add:<invoiceId>:<uid> | inv:more:<invoiceId>:<uid>
+    const parts = data.split(':');
+    const action = parts[1] ?? '';
+    let invoiceId: number | undefined;
+    let uid: string;
+    if (action === 'new') {
+      uid = parts[2] ?? '';
+    } else {
+      invoiceId = Number(parts[2]);
+      uid = parts[3] ?? '';
+    }
+    if (!uid || (action !== 'new' && !Number.isFinite(invoiceId))) {
+      await telegramSendMessage(token, chatId, 'Invalid invoice action.');
+      return;
+    }
+    const full = await getContact(uid);
+    if (!full.ok) {
+      await telegramSendMessage(token, chatId, `Could not load contact: ${full.error}`);
+      return;
+    }
+    const c = full.data;
+    let customerName = c.name ?? '';
+    if (action === 'new') {
+      const customer = await resolveCraterCustomer(c);
+      if (customer) customerName = customer.name;
+    }
+    setPendingEdit(chatId, { kind: 'invoice', uid, name: c.name, customerName, invoiceId });
+    const target = action === 'new' ? 'a new invoice' : `invoice #${invoiceId}`;
+    const prompt = `Add a line item to ${target} for ${c.name}.\n\n${LINE_ITEM_PROMPT}`;
+    if (messageId != null) {
+      await telegramEditMessage(token, chatId, messageId, prompt);
+    } else {
+      await telegramSendMessage(token, chatId, prompt);
+    }
     return;
   }
 

@@ -27,7 +27,16 @@ export type NotePending = BasePending & {
   title?: string;
 };
 
-export type PendingEdit = MetaPending | NotePending;
+/** Adding a line item to an invoice — the next message is the item. */
+export type InvoicePending = BasePending & {
+  kind: 'invoice';
+  /** Existing draft invoice id to append to, or undefined to create a new one. */
+  invoiceId?: number;
+  /** Crater customer name (used when creating a new invoice). */
+  customerName: string;
+};
+
+export type PendingEdit = MetaPending | NotePending | InvoicePending;
 
 /** How long a pending edit stays valid before it's ignored (avoids stale captures). */
 const TTL_MS = 10 * 60 * 1000;

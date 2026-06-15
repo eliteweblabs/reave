@@ -18,6 +18,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 ## Telegram usage
 
 - **Read-only:** `/invoices` lists recent invoices.
+- **Add to invoice (buttons):** in a `/contacts` action card, tap **Add to invoice** → pick an existing unsent (DRAFT) invoice or **+ New invoice** → send a line item as `description | amount | qty` (qty optional). Adds to the draft (or creates one), then offers **+ Add another**.
 - **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/telegramToolDefs.ts` (still includes invoice creation).
 
 > The deterministic `/invoice <customer> | <amount>` slash command was removed for now; create_invoice remains available via the freeform LLM path.
