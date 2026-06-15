@@ -541,7 +541,7 @@ function buildContactActionMenu(
   const hasDoc = listTemplates().length > 0;
   // One button per row (full width) — easier to tap one-handed on mobile.
   const rows: Array<Array<MenuButton>> = [
-    [{ text: '🔗 Portal', copy: clientPortalUrl(uid) }],
+    [{ text: '📋 Portal', copy: clientPortalUrl(uid) }],
     ...portalSendButtons(c, uid).map((b) => [b]),
     ...(isCraterConfigured() ? [[{ text: 'Add to invoice', data: `qcmd:invoice:${uid}` }]] : []),
     [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
