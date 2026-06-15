@@ -107,6 +107,45 @@ export async function telegramAnswerCallback(
   });
 }
 
+/**
+ * (Re)register the webhook so Telegram delivers the update types we handle.
+ * Crucially includes `callback_query` so inline-keyboard button taps reach us.
+ */
+export async function telegramSetWebhook(
+  token: string,
+  url: string,
+  secretToken: string
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/setWebhook`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url,
+      secret_token: secretToken,
+      allowed_updates: ['message', 'callback_query'],
+      drop_pending_updates: false,
+    }),
+  });
+  const text = await res.text().catch(() => '');
+  if (!res.ok) return { ok: false, error: `${res.status} ${text}` };
+  return { ok: true };
+}
+
+/** Fetch the current webhook configuration (url, allowed_updates, pending count, last error). */
+export async function telegramGetWebhookInfo(
+  token: string
+): Promise<{ ok: boolean; info?: unknown; error?: string }> {
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/getWebhookInfo`);
+  const text = await res.text().catch(() => '');
+  if (!res.ok) return { ok: false, error: `${res.status} ${text}` };
+  try {
+    const json = JSON.parse(text) as { result?: unknown };
+    return { ok: true, info: json.result };
+  } catch {
+    return { ok: false, error: 'could not parse getWebhookInfo response' };
+  }
+}
+
 export type BotCommand = { command: string; description: string };
 
 /**
