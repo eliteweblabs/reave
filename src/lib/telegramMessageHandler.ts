@@ -212,6 +212,59 @@ async function deliverPortal(
   await sendResultWithBack(token, chatId, `Texted to ${c.phone}\n${url}`, uid);
 }
 
+/**
+ * Send a client a document-signing link over a specific channel and report the
+ * outcome back to the Telegram chat. Mirrors deliverPortal so "Send Document"
+ * actually delivers (email/SMS) instead of just printing the link.
+ */
+async function deliverDocument(
+  token: string,
+  chatId: number,
+  c: ContactRecord,
+  uid: string,
+  docUrl: string,
+  docTitle: string,
+  channel: 'email' | 'sms',
+  messageId?: number | null
+): Promise<void> {
+  const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
+
+  if (channel === 'email') {
+    if (!isEmailSendConfigured()) {
+      await sendResultWithBack(token, chatId, 'Email not configured. Set RESEND_API_KEY.', uid, messageId);
+      return;
+    }
+    if (!c.email) {
+      await sendResultWithBack(token, chatId, `${c.name} has no email on file. Add one first.`, uid, messageId);
+      return;
+    }
+    const subject = `Please review and sign: ${docTitle}`;
+    const bodyText = `Hi ${firstName},\n\nPlease review and sign this document:\n\n${docUrl}\n\nYou can read and sign it from any device. Once signed, it appears in your portal under Documents.`;
+    const r = await sendEmail({ to: c.email, subject, text: bodyText });
+    if (!r.ok) {
+      await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid, messageId);
+      return;
+    }
+    await sendResultWithBack(token, chatId, `${docTitle} emailed to ${c.email}\n${docUrl}`, uid, messageId);
+    return;
+  }
+
+  if (!isSmsSendConfigured()) {
+    await sendResultWithBack(token, chatId, 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.', uid, messageId);
+    return;
+  }
+  if (!c.phone) {
+    await sendResultWithBack(token, chatId, `${c.name} has no phone on file. Add one first.`, uid, messageId);
+    return;
+  }
+  const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, please review and sign "${docTitle}": ${docUrl}` });
+  if (!r.ok) {
+    await sendResultWithBack(token, chatId, `SMS failed: ${r.error}`, uid, messageId);
+    return;
+  }
+  await sendResultWithBack(token, chatId, `${docTitle} texted to ${c.phone}\n${docUrl}`, uid, messageId);
+}
+
 /** A single "‹ Back" row that reopens the contact's action card (qcmd:open). */
 function backRows(uid: string): Array<Array<MenuButton>> {
   return [[{ text: '‹ Back', data: `qcmd:open:${uid}` }]];
@@ -238,8 +291,8 @@ async function sendResultWithBack(
 /** Portal-send buttons for a contact, gated on configured channel + contact field. */
 function portalSendButtons(c: ContactRecord, uid: string): MenuButton[] {
   const btns: MenuButton[] = [];
-  if (isEmailSendConfigured() && c.email) btns.push({ text: 'Email Portal', data: `qcmd:portalemail:${uid}` });
-  if (isSmsSendConfigured() && c.phone) btns.push({ text: 'SMS Portal', data: `qcmd:portalsms:${uid}` });
+  if (isEmailSendConfigured() && c.email) btns.push({ text: '📧 Portal', data: `qcmd:portalemail:${uid}` });
+  if (isSmsSendConfigured() && c.phone) btns.push({ text: '💬 Portal', data: `qcmd:portalsms:${uid}` });
   return btns;
 }
 
@@ -265,7 +318,7 @@ function buildContactActionMenu(
   const hasDoc = listTemplates().length > 0;
   const rows: Array<Array<MenuButton>> = [
     [
-      { text: 'Copy Portal Link', copy: clientPortalUrl(uid) },
+      { text: '🔗 Portal', copy: clientPortalUrl(uid) },
       ...portalSendButtons(c, uid),
     ],
     [
@@ -1075,11 +1128,16 @@ export async function handleTelegramCallbackQuery(opts: {
     }
     const docUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
     const contactRes = await getContact(uid);
-    const contactName = contactRes.ok ? contactRes.data.name : uid;
+    if (!contactRes.ok) {
+      await sendResultWithBack(token, chatId, `Could not load contact: ${contactRes.error}`, uid, messageId);
+      return;
+    }
+    const c = contactRes.data;
     const tmpl = listTemplates().find((t) => t.slug === templateSlug);
     const docTitle = tmpl?.title ?? templateSlug;
-    const linkMsg = `${docTitle} — ${contactName}\n\nSend this link to the client:\n${docUrl}\n\nThey can read and sign it from any device. Once signed, it appears in their portal under Documents.`;
-    await sendResultWithBack(token, chatId, linkMsg, uid, messageId);
+    // Auto-pick like Portal: email when available, else SMS.
+    const channel: 'email' | 'sms' = isEmailSendConfigured() && c.email ? 'email' : 'sms';
+    await deliverDocument(token, chatId, c, uid, docUrl, docTitle, channel, messageId);
     return;
   }
 
