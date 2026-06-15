@@ -316,16 +316,13 @@ function buildContactActionMenu(
   if (c.updatedAt) stamps.push(`updated ${timeAgo(c.updatedAt)}`);
   if (stamps.length) infoLines.push('', stamps.join(' · '));
   const hasDoc = listTemplates().length > 0;
+  // One button per row (full width) — easier to tap one-handed on mobile.
   const rows: Array<Array<MenuButton>> = [
-    [
-      { text: '⧉ Portal', copy: clientPortalUrl(uid) },
-      ...portalSendButtons(c, uid),
-    ],
-    [
-      { text: 'Notes', data: `qcmd:notes:${uid}` },
-      { text: 'Meta', data: `qcmd:meta:${uid}` },
-      ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
-    ],
+    [{ text: '⧉ Portal', copy: clientPortalUrl(uid) }],
+    ...portalSendButtons(c, uid).map((b) => [b]),
+    [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
+    [{ text: 'Meta', data: `qcmd:meta:${uid}` }],
+    ...(hasDoc ? [[{ text: '✎ Send Document', data: `qcmd:document:${uid}` }]] : []),
   ];
   return { text: infoLines.join('\n'), rows };
 }
@@ -856,11 +853,9 @@ export async function handleTelegramTextMessage(opts: {
     ].filter(Boolean).join('\n');
     const hasDoc = listTemplates().length > 0;
     const portalRows: Array<Array<MenuButton>> = [
-      [
-        ...portalSendButtons(c, uid),
-        { text: 'Notes', data: `qcmd:notes:${uid}` },
-        ...(hasDoc ? [{ text: 'Send Document', data: `qcmd:document:${uid}` }] : []),
-      ],
+      ...portalSendButtons(c, uid).map((b) => [b]),
+      [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
+      ...(hasDoc ? [[{ text: '✎ Send Document', data: `qcmd:document:${uid}` }]] : []),
     ];
     await telegramSendMenu(token, chatId, summaryLines, portalRows);
     return;
