@@ -1,5 +1,6 @@
 ---
 import Header from "../components/Header.astro";
+import { SITE } from "../config/site";
 
 export interface Props {
   /** Page-specific title. Rendered as "Page | /\V". Omit to show just "/\V". */
@@ -8,7 +9,7 @@ export interface Props {
   description?: string;
   /**
    * Absolute or root-relative path to the OG / social-share image.
-   * Defaults to /reave-logo.png.
+   * Defaults to SITE.ogImage (/reave-logo.png).
    */
   ogImage?: string;
   /** OG type. Defaults to "website". */
@@ -24,15 +25,14 @@ export interface Props {
 
 const {
   title,
-  description = "Reave Automatic",
-  ogImage = "/reave-logo.png",
-  ogType = "website",
+  description = SITE.description,
+  ogImage = SITE.ogImage,
+  ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
 } = Astro.props;
 
-const SITE_NAME = "/\\V";
-const pageTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
+const pageTitle = title ? `${title} | ${SITE.name}` : SITE.name;
 const canonical = canonicalUrl ?? Astro.url.href;
 const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
@@ -50,10 +50,11 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta name="generator" content={Astro.generator} />
 
 		<!-- Favicons -->
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" type="image/png" href="/favicon-1.png" />
-		<link rel="shortcut icon" href="/favicon.ico" />
-		<link rel="apple-touch-icon" href="/favicon-1.png" />
+		<link rel="icon" type="image/svg+xml" href={SITE.favicons.svg} />
+		<link rel="icon" type="image/png" sizes="32x32" href={SITE.favicons.png32} />
+		<link rel="icon" type="image/png" sizes="16x16" href={SITE.favicons.png16} />
+		<link rel="apple-touch-icon" sizes="180x180" href={SITE.favicons.appleTouchIcon} />
+		<link rel="shortcut icon" href={SITE.favicons.ico} />
 
 		<!-- Fonts -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -71,7 +72,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageAbsolute} />
-		<meta property="og:site_name" content={SITE_NAME} />
+		<meta property="og:site_name" content={SITE.name} />
 
 		<!-- Twitter Card -->
 		<meta name="twitter:card" content="summary_large_image" />
