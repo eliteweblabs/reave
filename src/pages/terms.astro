@@ -1,0 +1,227 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="Terms of Service"
+  description="Terms of Service for Reave Automated — the rules and conditions for using our platform."
+>
+  <div class="page">
+    <div class="doc">
+      <div class="doc-header">
+        <p class="doc-label">Legal</p>
+        <h1>Terms of Service</h1>
+        <p class="doc-meta">Reave Automated &mdash; Last updated June 16, 2025</p>
+      </div>
+
+      <div class="doc-body">
+        <section>
+          <h2>1. Acceptance of Terms</h2>
+          <p>
+            By accessing or using the Reave Automated platform ("Reave," "we," "us," or "our")
+            at reave.app, you agree to be bound by these Terms of Service. If you do not agree,
+            do not use the platform.
+          </p>
+        </section>
+
+        <section>
+          <h2>2. Description of Service</h2>
+          <p>
+            Reave is an automated client communication platform that delivers requested information
+            to clients via SMS, voice, and web interfaces. Features may change or be discontinued
+            at any time without notice.
+          </p>
+        </section>
+
+        <section>
+          <h2>3. Eligibility</h2>
+          <p>
+            You must be at least 18 years old and legally capable of entering a binding agreement
+            to use Reave. By using the platform you represent that you meet these requirements.
+          </p>
+        </section>
+
+        <section>
+          <h2>4. SMS Communications</h2>
+          <p>
+            By providing your phone number and requesting information through the platform, you
+            consent to receive transactional SMS messages from Reave Automated. These messages
+            are sent solely in response to your explicit requests — no marketing or promotional
+            messages will be sent.
+          </p>
+          <p>
+            Reply <strong>STOP</strong> at any time to opt out. Reply <strong>HELP</strong> for
+            assistance. Message and data rates may apply. Opt-out requests are processed immediately.
+          </p>
+        </section>
+
+        <section>
+          <h2>5. Acceptable Use</h2>
+          <p>You agree not to:</p>
+          <ul>
+            <li>Use the platform for any unlawful purpose or in violation of any applicable law.</li>
+            <li>Attempt to gain unauthorized access to any part of the platform or its infrastructure.</li>
+            <li>Submit false or misleading information.</li>
+            <li>Interfere with or disrupt the platform's operation or servers.</li>
+            <li>Use the platform to harass, spam, or harm others.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>6. Intellectual Property</h2>
+          <p>
+            All content, design, code, and materials on the platform are the property of Reave
+            Automated or its licensors. You may not reproduce, distribute, or create derivative
+            works without express written permission.
+          </p>
+        </section>
+
+        <section>
+          <h2>7. Disclaimer of Warranties</h2>
+          <p>
+            The platform is provided "as is" and "as available" without warranties of any kind,
+            express or implied. We do not guarantee that the platform will be uninterrupted,
+            error-free, or free of harmful components.
+          </p>
+        </section>
+
+        <section>
+          <h2>8. Limitation of Liability</h2>
+          <p>
+            To the fullest extent permitted by law, Reave Automated shall not be liable for any
+            indirect, incidental, special, consequential, or punitive damages arising from your
+            use of or inability to use the platform.
+          </p>
+        </section>
+
+        <section>
+          <h2>9. Changes to These Terms</h2>
+          <p>
+            We may update these Terms at any time. Changes take effect when posted. Continued use
+            of the platform after changes are posted constitutes your acceptance of the revised Terms.
+          </p>
+        </section>
+
+        <section>
+          <h2>10. Governing Law</h2>
+          <p>
+            These Terms are governed by the laws of the Commonwealth of Massachusetts, without
+            regard to its conflict of law provisions.
+          </p>
+        </section>
+
+        <section>
+          <h2>11. Contact</h2>
+          <p>
+            Questions about these Terms? Reach us at
+            <a href="mailto:support@reave.app">support@reave.app</a> or visit
+            <a href="https://reave.app">reave.app</a>.
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  html,
+  body {
+    background: #050505;
+  }
+
+  .page {
+    min-height: 100vh;
+    background: #050505;
+    padding: 80px 24px 120px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .doc {
+    width: 100%;
+    max-width: 720px;
+  }
+
+  .doc-header {
+    margin-bottom: 56px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 40px;
+  }
+
+  .doc-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+    margin: 0 0 16px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .doc-meta {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0;
+  }
+
+  .doc-body {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+
+  p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  li {
+    font-size: 15px;
+    line-height: 1.75;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.25);
+    text-underline-offset: 3px;
+    transition: color 0.15s, text-decoration-color 0.15s;
+  }
+
+  a:hover {
+    color: #fff;
+    text-decoration-color: rgba(255, 255, 255, 0.6);
+  }
+</style>
