@@ -2,7 +2,7 @@
 // VoiceChatButton component for Vapi integration
 // Users need to set their VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID
 // These can be set as environment variables or passed as props
-import { Fingerprint, MessageCircle } from "lucide-astro";
+import { Fingerprint, MessageCircle, X } from "lucide-astro";
 
 interface Props {
   publicKey?: string;
@@ -100,6 +100,14 @@ const positionClasses = {
       size={60}
       stroke-width={1.75}
       style="display: none;"
+    />
+
+    <!-- Stop icon: shown when call is active -->
+    <X
+      id="stop-icon"
+      class="vapi-stop-icon"
+      size={36}
+      stroke-width={1.5}
     />
 
     <!-- Loading spinner (connecting state) -->
@@ -1695,17 +1703,31 @@ const positionClasses = {
 
   /* Active (in-call): icon pulses gently */
   .vapi-voice-button.active .vapi-btn-icon {
-    color: #fff;
-    animation: icon-active-pulse 1.6s ease-in-out infinite;
+    display: none;
   }
 
-  @keyframes icon-active-pulse {
-    0%, 100% { transform: scale(1);    opacity: 0.85; }
-    50%       { transform: scale(1.12); opacity: 1;    }
+  /* Stop (X) icon — hidden until active */
+  .vapi-stop-icon {
+    display: none;
+    position: relative;
+    z-index: 2;
+    color: rgba(255, 255, 255, 0.55);
+    pointer-events: none;
+    transition: color 0.2s ease, transform 0.2s ease;
+  }
+
+  .vapi-voice-button.active .vapi-stop-icon {
+    display: block;
+  }
+
+  .vapi-voice-button.active:hover .vapi-stop-icon {
+    color: rgba(255, 255, 255, 0.9);
+    transform: scale(1.1);
   }
 
   /* Connecting: hide icon so the spinner reads cleanly */
-  .vapi-voice-button.connecting .vapi-btn-icon {
+  .vapi-voice-button.connecting .vapi-btn-icon,
+  .vapi-voice-button.connecting .vapi-stop-icon {
     opacity: 0;
   }
 
