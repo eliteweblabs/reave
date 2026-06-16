@@ -267,6 +267,18 @@ import TextFallback from "../components/TextFallback.astro";
     }
   }
 
+  /* On phones the logo edges fall in the vignette's dark band, killing the
+     effect. Push the falloff outward and lighten it so the tint stays visible. */
+  @media screen and (max-width: 768px) {
+    .quantum-vignette {
+      background: radial-gradient(
+        circle at center,
+        transparent 55%,
+        rgba(0, 0, 0, 0.6) 120%
+      );
+    }
+  }
+
   @media screen and (min-width: 1024px) {
     .quantum-logo-stack {
       mask-size: min(88vmin, 94vw, 880px);

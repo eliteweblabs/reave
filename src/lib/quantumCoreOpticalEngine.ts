@@ -79,6 +79,24 @@ function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+/**
+ * Even out perceived brightness across the rainbow. At a fixed HSL lightness,
+ * purple/blue/red have far lower Rec.709 luminance than cyan/green/yellow, so
+ * those frames look dim (worst on mobile). We scale low-luminance hues up toward
+ * a target; additive blending + tone mapping absorb the resulting HDR values,
+ * and bright hues (gain ≤ 1) are left untouched so they never dim.
+ */
+function normalizeTintLuminance(
+  c: THREE.Color,
+  target: number,
+  maxGain: number,
+): void {
+  const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  if (lum <= 1e-4) return;
+  const gain = Math.min(target / lum, maxGain);
+  if (gain > 1) c.multiplyScalar(gain);
+}
+
 export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
@@ -102,10 +120,21 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     typeof navigator !== "undefined" &&
     /iP(ad|hone|od)/.test(navigator.userAgent);
 
+  /**
+   * Mobile "gain" profile: coarse pointer or narrow viewport. On phones the mask
+   * only reveals the thin letter strokes, the screen is dimmer, and ambient glare
+   * is higher — so dim hues (purple/blue/red) wash out. We compensate with more
+   * exposure, lower bloom threshold, denser/larger particles, and lighter fog.
+   */
+  const isMobileLike =
+    typeof matchMedia !== "undefined" &&
+    (matchMedia("(pointer: coarse)").matches ||
+      matchMedia("(max-width: 768px)").matches);
+
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
-  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. */
-  scene.fog = new THREE.FogExp2(0x030308, 0.0095);
+  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. Lighter fog on mobile so edge particles don’t fade to black. */
+  scene.fog = new THREE.FogExp2(0x030308, isMobileLike ? 0.006 : 0.0095);
 
   const camera = new THREE.PerspectiveCamera(
     VIEW_FOV,
@@ -182,7 +211,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = isMobileLike ? 1.42 : 1.12;
   host.appendChild(renderer.domElement);
 
   const noiseVertex = `
@@ -291,10 +320,11 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const particleSprite = createSoftParticleSpriteTexture();
   const particlesMat = new THREE.PointsMaterial({
     map: particleSprite,
-    size: 0.082,
+    /* Larger / more opaque on mobile so the thin letter strokes actually catch glow. */
+    size: isMobileLike ? 0.11 : 0.082,
     color: 0x00f3ff,
     transparent: true,
-    opacity: 0.78,
+    opacity: isMobileLike ? 0.92 : 0.78,
     depthWrite: false,
     fog: false,
     blending: THREE.AdditiveBlending,
@@ -362,8 +392,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     0.4,
     0.85,
   );
-  /* More generous bloom so points read as luminous haze, not isolated dots. */
-  bloomPass.threshold = 0.065;
+  /* More generous bloom so points read as luminous haze, not isolated dots.
+     Lower threshold on mobile so dim hues (purple/blue) still cross into bloom. */
+  bloomPass.threshold = isMobileLike ? 0.025 : 0.065;
   bloomPass.strength = 1.05;
   bloomPass.radius = 0.48;
   const hpUniforms = bloomPass.highPassUniforms as Record<
@@ -570,6 +601,8 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     const sat = prefersReduced ? 0.68 : 0.74;
     const light = prefersReduced ? 0.51 : 0.53;
     rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, sat, light);
+    /* Equal-brightness rainbow: lift dim hues (purple/blue/red), harder on mobile. */
+    normalizeTintLuminance(rainbowTint, isMobileLike ? 0.46 : 0.4, 2.6);
     liveTint.copy(rainbowTint);
     /* While someone is speaking, flash the field toward the speaker's color. */
     if (speakerBlend > 0.001) {
