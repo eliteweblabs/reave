@@ -423,10 +423,7 @@ const positionClasses = {
   let audioContext = null;
   let analyser = null;
   let microphone = null;
-  let dataArray = null;
-  let timeDataArray = null;
   let animationFrameId = null;
-  let audioStream = null;
   let analyzerActive = false;
   let remoteAudioSourceNode = null;
   let remoteAttachPollId = null;
@@ -497,71 +494,10 @@ const positionClasses = {
   let greetingAudioChunks = [];
   let greetingPlayed = false;
 
-  function startAudioAnalyzer(stream) {
-    try {
-      analyzerActive = true;
-      audioStream = stream;
-      detachRemoteAudioFromAnalyzer();
-      stopRemoteAttachPolling();
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-      // Mobile Chrome requires AudioContext to be resumed after user interaction
-      if (audioContext.state === "suspended") {
-        audioContext.resume().catch((err) => {
-          console.warn("Failed to resume audio context:", err);
-        });
-      }
-
-      analyser = audioContext.createAnalyser();
-      microphone = audioContext.createMediaStreamSource(stream);
-      microphone.connect(analyser);
-
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.35;
-      const bufferLength = analyser.frequencyBinCount;
-      dataArray = new Uint8Array(bufferLength);
-      timeDataArray = new Uint8Array(analyser.fftSize);
-
-      function updateLevelMeter() {
-        if (!analyser || !analyzerActive) {
-          return;
-        }
-
-        analyser.getByteFrequencyData(dataArray);
-        analyser.getByteTimeDomainData(timeDataArray);
-
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
-        }
-        const freqAvg = sum / dataArray.length;
-
-        let peak = 0;
-        for (let i = 0; i < timeDataArray.length; i++) {
-          const dev = (timeDataArray[i] - 128) / 128;
-          const a = Math.abs(dev);
-          if (a > peak) peak = a;
-        }
-
-        /* Frequency + envelope: assistant TTS often reads clearer on time-domain peak. */
-        const freqNorm = Math.min(freqAvg / 96, 1);
-        const envNorm = Math.min(peak * 1.45, 1);
-        const merged = Math.min(Math.max(freqNorm, envNorm * 0.95) * 1.2, 1);
-
-        const audioLevelEvent = new CustomEvent("audioLevel", {
-          detail: { level: merged, raw: freqAvg },
-        });
-        window.dispatchEvent(audioLevelEvent);
-
-        animationFrameId = requestAnimationFrame(updateLevelMeter);
-      }
-
-      updateLevelMeter();
-    } catch (error) {
-      console.error("Error starting audio analyzer:", error);
-    }
-  }
-
+  // Mic capture lives entirely inside Vapi now (see handleStart). The visualizer
+  // is fed by Vapi's `volume-level` event, so the page no longer opens its own
+  // AudioContext / getUserMedia. stopAudioAnalyzer just resets the visualizer and
+  // tears down any remote-stream analyser nodes that may have been attached.
   function stopAudioAnalyzer() {
     analyzerActive = false;
     stopRemoteAttachPolling();
@@ -595,10 +531,6 @@ const positionClasses = {
     window.dispatchEvent(
       new CustomEvent("audioLevel", { detail: { level: 0, raw: 0 } }),
     );
-
-    // Note: Don't stop the stream tracks here - Vapi needs them
-    // The stream will be managed by Vapi
-    audioStream = null;
   }
 
   // Load cached greeting from localStorage
@@ -825,43 +757,18 @@ const positionClasses = {
             );
           }
 
-          // Request microphone permission and initialize Vapi in parallel for speed
-          const [stream] = await Promise.all([
-            navigator.mediaDevices.getUserMedia({
-              audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-              },
-            }),
-            // Small delay to ensure SDK is ready
-            Promise.resolve(),
-          ]);
+          // IMPORTANT: do NOT call getUserMedia here. Vapi/Daily must acquire the
+          // microphone itself. If we capture the mic first, the input device is
+          // left busy, so when Daily joins the call it can't get audio — the call
+          // then dies at the join stage with "no-room" ("the meeting you're
+          // trying to join does not exist") and the user hears nothing after
+          // granting permission. Vapi shows its own permission prompt on start().
+          //
+          // Stay in the "Connecting…" state (spinner shown) until the call-start
+          // event fires; the event handlers below flip the UI to "Listening…".
 
-          // Hide loading spinner, show microphone icon after permission granted
-          const loadingSpinnerEl2 = document.getElementById("loading-spinner");
-          const micIconEl = document.getElementById("mic-icon");
-          if (loadingSpinnerEl2) loadingSpinnerEl2.style.display = "none";
-          if (micIconEl) micIconEl.style.display = "block";
-
-          // Activate toggle immediately after microphone permission granted
-          button.classList.add("active");
-          isActive = true;
-          setStatusLabel("Listening…", "active");
-
-          // Play cached greeting immediately if available
+          // Play the cached greeting (if any) for perceived latency.
           playCachedGreeting();
-
-          // Start audio level analyzer (non-blocking)
-          try {
-            startAudioAnalyzer(stream);
-          } catch (analyzerError) {
-            console.warn(
-              "Audio analyzer failed (non-critical):",
-              analyzerError
-            );
-            // Continue even if analyzer fails
-          }
 
           // Validate credentials (already done above, but keeping for clarity)
           console.log("=== Vapi Initialization Debug ===");
@@ -1093,11 +1000,30 @@ const positionClasses = {
             // Use event listeners instead of callbacks to avoid cloning issues
             // Daily.co tries to clone functions in callbacks, causing DataCloneError
             if (vapiInstance && typeof vapiInstance.on === "function") {
+              // Drive the homepage quantum visualizer from Vapi's own audio
+              // (we no longer capture the mic ourselves). volume-level is 0..1.
+              vapiInstance.on("volume-level", function (v) {
+                const level =
+                  typeof v === "number"
+                    ? v
+                    : v && typeof v.volume === "number"
+                      ? v.volume
+                      : 0;
+                window.dispatchEvent(
+                  new CustomEvent("audioLevel", {
+                    detail: { level: Math.max(0, Math.min(1, level)) },
+                  })
+                );
+              });
+
               // Call start success event (fires when call actually starts)
               vapiInstance.on("call-start-success", function () {
                 console.log("Vapi call started successfully");
                 isActive = true;
                 button.classList.add("active");
+                button.classList.remove("connecting");
+                const spinner = document.getElementById("loading-spinner");
+                if (spinner) spinner.style.display = "none";
                 button.setAttribute("aria-label", "End voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
@@ -1118,6 +1044,9 @@ const positionClasses = {
                 console.log("Vapi call starting...");
                 isActive = true;
                 button.classList.add("active");
+                button.classList.remove("connecting");
+                const spinner = document.getElementById("loading-spinner");
+                if (spinner) spinner.style.display = "none";
                 button.setAttribute("aria-label", "End voice chat");
                 button.disabled = false;
                 button.style.opacity = "1";
@@ -1641,7 +1570,7 @@ const positionClasses = {
   }
 
   .vapi-widget-container.center-bottom {
-    bottom: calc(5vh + 10px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -1684,42 +1613,28 @@ const positionClasses = {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: rgba(8, 8, 10, 0.45);
-    border: 2px solid rgba(255, 255, 255, 0.85);
+    background: transparent;
+    border: none;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0;
-    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+    box-shadow: none;
     transition:
       transform 0.25s ease,
-      box-shadow 0.3s ease,
-      border-color 0.3s ease,
-      background 0.3s ease;
-    overflow: visible; /* let the pulse ring extend beyond the border */
+      opacity 0.3s ease;
+    overflow: visible;
     -webkit-tap-highlight-color: transparent;
-    /* Idle pulse: slow ring breath to draw attention */
-    animation: btn-idle-pulse 3s ease-in-out infinite;
   }
 
   @keyframes btn-idle-pulse {
-    0%, 100% {
-      box-shadow:
-        0 2px 14px rgba(0, 0, 0, 0.45),
-        0 0 0 0 rgba(255, 255, 255, 0);
-    }
-    50% {
-      box-shadow:
-        0 2px 14px rgba(0, 0, 0, 0.45),
-        0 0 0 8px rgba(255, 255, 255, 0.12);
-    }
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.7; }
   }
 
   .vapi-widget-container.center-bottom .vapi-voice-button:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-    border-color: #fff;
   }
 
   .vapi-widget-container.center-bottom .vapi-voice-button:active {
@@ -1730,7 +1645,7 @@ const positionClasses = {
   .vapi-btn-icon {
     position: relative;
     z-index: 2;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.2);
     pointer-events: none;
     transition:
       color 0.3s ease,
@@ -1739,7 +1654,7 @@ const positionClasses = {
   }
 
   .vapi-voice-button:hover .vapi-btn-icon {
-    color: #fff;
+    color: rgba(255, 255, 255, 0.35);
   }
 
   /* Active (in-call): icon pulses gently */
@@ -1763,11 +1678,7 @@ const positionClasses = {
   }
 
   .vapi-voice-button.active {
-    border-color: #fff;
-    background: rgba(12, 12, 16, 0.6);
-    /* Active overrides idle pulse with a steady glow */
     animation: none;
-    box-shadow: 0 0 22px rgba(255, 255, 255, 0.35);
   }
 
   /* Loading spinner */
@@ -1809,7 +1720,7 @@ const positionClasses = {
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .vapi-widget-container.center-bottom {
-      bottom: calc(5vh + 10px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
     }
 
     .vapi-voice-button {
