@@ -90,7 +90,7 @@ const positionClasses = {
       id="fingerprint-icon"
       class="vapi-btn-icon"
       size={68}
-      stroke-width={1.5}
+      stroke-width={0.85}
     />
 
     <!-- Desktop (pointer): chat bubble icon — swapped in by JS -->
@@ -1665,16 +1665,17 @@ const positionClasses = {
 
   /* Per-ridge color cycling — target each path inside the Fingerprint SVG */
   @keyframes fp-hue-shift {
-    0%   { stroke: hsla(210, 90%, 70%, 0.28); }
-    20%  { stroke: hsla(270, 90%, 70%, 0.28); }
-    40%  { stroke: hsla(320, 90%, 70%, 0.28); }
-    60%  { stroke: hsla(180, 90%, 65%, 0.28); }
-    80%  { stroke: hsla(150, 90%, 65%, 0.28); }
-    100% { stroke: hsla(210, 90%, 70%, 0.28); }
+    0%   { stroke: hsla(210, 90%, 70%, 0.38); }
+    20%  { stroke: hsla(270, 90%, 70%, 0.38); }
+    40%  { stroke: hsla(320, 90%, 70%, 0.38); }
+    60%  { stroke: hsla(180, 90%, 65%, 0.38); }
+    80%  { stroke: hsla(150, 90%, 65%, 0.38); }
+    100% { stroke: hsla(210, 90%, 70%, 0.38); }
   }
 
   #fingerprint-icon path {
     animation: fp-hue-shift 10s ease-in-out infinite;
+    stroke-width: 0.85;
   }
 
   #fingerprint-icon path:nth-child(1) { animation-delay:    0s; }
