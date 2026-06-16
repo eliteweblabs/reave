@@ -445,8 +445,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
   const onCallStart: EventListener = () => {
     callEnergyTarget = 1;
-    burst = Math.min(burst + 0.9, 1.6);
-    triggerShake(0.55);
+    callEnergySmoothed = Math.max(callEnergySmoothed, 0.28); // warm-start so visuals react immediately
+    burst = Math.min(burst + 0.6, 1.2);
+    triggerShake(0.35);
   };
   const onCallEnd: EventListener = () => {
     callEnergyTarget = 0;
@@ -612,47 +613,49 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.uniforms.uColorB.value.copy(liveTint);
     particlesMat.color.copy(liveTint);
 
-    const micLerp = prefersReduced ? 0.04 : 0.07;
+    const micLerp = prefersReduced ? 0.04 : 0.08;
     micLevelSmoothed +=
       (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
     const mic = micLevelSmoothed;
 
     /* Smooth the "in a call" baseline and decay transient bursts / speaker flash. */
-    callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.04;
+    callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.06;
     burst *= 0.87;
     speakerBlend *= 0.93;
     const wild = callEnergySmoothed;
-    const energy = THREE.MathUtils.clamp(mic + burst + wild * 0.10, 0, 1.0);
+    const energy = THREE.MathUtils.clamp(mic + burst * 0.5 + wild * 0.10, 0, 1.0);
 
     const spinBoost =
       1 +
       energy *
-        (prefersReduced ? 0.28 : 0.75 + wild * 1.1) *
+        (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
     particles.rotation.y = -rawT * 0.1 * particleSpeedMult * spinBoost;
 
-    const sizeBoost = 1 + energy * (prefersReduced ? 0.22 : 0.42 + wild * 0.45);
-    const opacityBoost =
-      1 + energy * (prefersReduced ? 0.15 : 0.3 + wild * 0.22);
-    particlesMat.size = particleBaseSize * sizeBoost;
+    /* Scatter: particle cloud expands radially outward with audio.
+       Opacity thins as they spread so the cloud disperses rather than amplifies. */
+    const scatterScale = 1 + mic * 0.6 + burst * 0.18;
+    particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
+    particlesMat.size = particleBaseSize * (1 + energy * 0.12);
     particlesMat.opacity = THREE.MathUtils.clamp(
-      particleBaseOpacity * opacityBoost,
-      0.22,
-      1,
+      particleBaseOpacity * (1 - mic * 0.3),
+      0.2,
+      particleBaseOpacity,
     );
 
+    /* Gentle overall pulse — just a breath, not an amplifier. */
     const scaleBreath =
       1 +
-      energy *
-        (prefersReduced ? 0.03 : 0.07 + wild * 0.09) *
+      wild *
+        (prefersReduced ? 0.02 : 0.04) *
         Math.max(motionScale, 0.35);
     pulseGroup.scale.setScalar(scaleBreath);
 
-    /* Bloom rises gently with voice energy — restrained so it glows rather than blows. */
+    /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     bloomPass.strength = THREE.MathUtils.clamp(
-      0.95 + wild * 0.22 + energy * 0.8,
+      0.95 + wild * 0.18 + energy * 0.55,
       0.85,
-      2.2,
+      1.8,
     );
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
@@ -690,13 +693,13 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
-    const warpTarget = THREE.MathUtils.clamp(energy * 0.22, 0, 0.35) * motionScale;
+    const warpTarget = THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
     const aberrTarget =
-      THREE.MathUtils.clamp(energy * 0.016, 0, 0.03) * motionScale;
+      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
     lensPass.uniforms.uDistortion.value +=
-      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.12;
+      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
     lensPass.uniforms.uAberration.value +=
-      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.12;
+      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
 
     composer.render();
   }
