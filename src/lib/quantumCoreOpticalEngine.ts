@@ -612,28 +612,28 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.uniforms.uColorB.value.copy(liveTint);
     particlesMat.color.copy(liveTint);
 
-    const micLerp = prefersReduced ? 0.06 : 0.14;
+    const micLerp = prefersReduced ? 0.04 : 0.07;
     micLevelSmoothed +=
       (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
     const mic = micLevelSmoothed;
 
     /* Smooth the "in a call" baseline and decay transient bursts / speaker flash. */
-    callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.05;
-    burst *= 0.92;
-    speakerBlend *= 0.94;
+    callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.04;
+    burst *= 0.87;
+    speakerBlend *= 0.93;
     const wild = callEnergySmoothed;
-    const energy = THREE.MathUtils.clamp(mic + burst + wild * 0.12, 0, 1.8);
+    const energy = THREE.MathUtils.clamp(mic + burst + wild * 0.10, 0, 1.0);
 
     const spinBoost =
       1 +
       energy *
-        (prefersReduced ? 0.42 : 1.55 + wild * 2.4) *
+        (prefersReduced ? 0.28 : 0.75 + wild * 1.1) *
         Math.max(motionScale, 0.35);
     particles.rotation.y = -rawT * 0.1 * particleSpeedMult * spinBoost;
 
-    const sizeBoost = 1 + energy * (prefersReduced ? 0.32 : 0.72 + wild * 0.9);
+    const sizeBoost = 1 + energy * (prefersReduced ? 0.22 : 0.42 + wild * 0.45);
     const opacityBoost =
-      1 + energy * (prefersReduced ? 0.22 : 0.52 + wild * 0.4);
+      1 + energy * (prefersReduced ? 0.15 : 0.3 + wild * 0.22);
     particlesMat.size = particleBaseSize * sizeBoost;
     particlesMat.opacity = THREE.MathUtils.clamp(
       particleBaseOpacity * opacityBoost,
@@ -644,15 +644,15 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     const scaleBreath =
       1 +
       energy *
-        (prefersReduced ? 0.045 : 0.12 + wild * 0.16) *
+        (prefersReduced ? 0.03 : 0.07 + wild * 0.09) *
         Math.max(motionScale, 0.35);
     pulseGroup.scale.setScalar(scaleBreath);
 
-    /* Bloom surges with voice energy → the logo "lights up" as you speak. */
+    /* Bloom rises gently with voice energy — restrained so it glows rather than blows. */
     bloomPass.strength = THREE.MathUtils.clamp(
-      0.95 + wild * 0.35 + energy * 1.6,
+      0.95 + wild * 0.22 + energy * 0.8,
       0.85,
-      3.2,
+      2.2,
     );
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
@@ -690,13 +690,13 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
-    const warpTarget = THREE.MathUtils.clamp(energy * 0.42, 0, 0.6) * motionScale;
+    const warpTarget = THREE.MathUtils.clamp(energy * 0.22, 0, 0.35) * motionScale;
     const aberrTarget =
-      THREE.MathUtils.clamp(energy * 0.028, 0, 0.05) * motionScale;
+      THREE.MathUtils.clamp(energy * 0.016, 0, 0.03) * motionScale;
     lensPass.uniforms.uDistortion.value +=
-      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.2;
+      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.12;
     lensPass.uniforms.uAberration.value +=
-      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.2;
+      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.12;
 
     composer.render();
   }

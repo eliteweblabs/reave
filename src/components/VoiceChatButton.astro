@@ -2,7 +2,7 @@
 // VoiceChatButton component for Vapi integration
 // Users need to set their VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID
 // These can be set as environment variables or passed as props
-import { Fingerprint, MessageCircle } from "lucide-astro";
+import { MessageCircle } from "lucide-astro";
 
 interface Props {
   publicKey?: string;
@@ -79,27 +79,29 @@ const positionClasses = {
   id="vapi-widget-container"
   class={`vapi-widget-container ${positionClasses[position]}`}
 >
-  <div id="vapi-status-label" class="vapi-status-label">Touch to speak</div>
-
   <button
     id="vapi-voice-button"
     class="vapi-voice-button"
     aria-label="Start voice chat"
     title="Touch to speak with our AI assistant"
   >
-    <!-- Mobile (touch): fingerprint icon -->
-    <Fingerprint
-      id="fingerprint-icon"
-      class="vapi-btn-icon"
-      size={34}
-      stroke-width={1.75}
-    />
+    <!-- Mobile (touch): fingerprint icon — inline so each ridge can be colored -->
+    <svg id="fingerprint-icon" class="vapi-btn-icon" width="68" height="68" viewBox="0 0 24 24" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path class="fp-ridge fp-r1" d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+      <path class="fp-ridge fp-r2" d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+      <path class="fp-ridge fp-r3" d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+      <path class="fp-ridge fp-r4" d="M2 12a10 10 0 0 1 18-6"/>
+      <path class="fp-ridge fp-r5" d="M2 17c2.63-1.44 6.94-1.74 10 0"/>
+      <path class="fp-ridge fp-r6" d="M3.46 14.12C5 13.5 6.83 13 9 13"/>
+      <path class="fp-ridge fp-r7" d="M5.18 8a10.26 10.26 0 0 0-1.18 4"/>
+      <path class="fp-ridge fp-r8" d="M12 2a10 10 0 0 1 7.09 2.99"/>
+    </svg>
 
     <!-- Desktop (pointer): chat bubble icon — swapped in by JS -->
     <MessageCircle
       id="chat-icon"
       class="vapi-btn-icon"
-      size={30}
+      size={60}
       stroke-width={1.75}
       style="display: none;"
     />
@@ -1610,8 +1612,8 @@ const positionClasses = {
 
   .vapi-voice-button {
     position: relative;
-    width: 64px;
-    height: 64px;
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -1655,6 +1657,44 @@ const positionClasses = {
 
   .vapi-voice-button:hover .vapi-btn-icon {
     color: rgba(255, 255, 255, 0.35);
+  }
+
+  /* Per-ridge color cycling — each path slowly drifts through hues */
+  @keyframes fp-hue-shift {
+    0%   { stroke: hsla(210, 90%, 70%, 0.28); }
+    20%  { stroke: hsla(270, 90%, 70%, 0.28); }
+    40%  { stroke: hsla(320, 90%, 70%, 0.28); }
+    60%  { stroke: hsla(180, 90%, 65%, 0.28); }
+    80%  { stroke: hsla(150, 90%, 65%, 0.28); }
+    100% { stroke: hsla(210, 90%, 70%, 0.28); }
+  }
+
+  .fp-ridge {
+    animation: fp-hue-shift 10s ease-in-out infinite;
+  }
+
+  .fp-r1 { animation-delay:    0s; }
+  .fp-r2 { animation-delay: -1.25s; }
+  .fp-r3 { animation-delay: -2.5s; }
+  .fp-r4 { animation-delay: -3.75s; }
+  .fp-r5 { animation-delay:   -5s; }
+  .fp-r6 { animation-delay: -6.25s; }
+  .fp-r7 { animation-delay: -7.5s; }
+  .fp-r8 { animation-delay: -8.75s; }
+
+  /* Active call: ridges brighten and cycle faster */
+  .vapi-voice-button.active .fp-ridge {
+    animation-duration: 4s;
+    animation-name: fp-hue-shift-active;
+  }
+
+  @keyframes fp-hue-shift-active {
+    0%   { stroke: hsla(210, 100%, 75%, 0.6); }
+    20%  { stroke: hsla(270, 100%, 75%, 0.6); }
+    40%  { stroke: hsla(320, 100%, 75%, 0.6); }
+    60%  { stroke: hsla(180, 100%, 70%, 0.6); }
+    80%  { stroke: hsla(150, 100%, 70%, 0.6); }
+    100% { stroke: hsla(210, 100%, 75%, 0.6); }
   }
 
   /* Active (in-call): icon pulses gently */
@@ -1724,13 +1764,13 @@ const positionClasses = {
     }
 
     .vapi-voice-button {
-      width: 58px;
-      height: 58px;
+      width: 72px;
+      height: 72px;
     }
 
     .vapi-btn-icon {
-      width: 28px;
-      height: 28px;
+      width: 60px;
+      height: 60px;
     }
   }
 </style>
