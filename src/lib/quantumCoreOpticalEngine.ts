@@ -308,13 +308,26 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const particleCount = 4000;
   const particlesGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
+  /**
+   * Even glow: a flat cloud, symmetric about (and rotating around) the Y axis,
+   * whose 2D screen projection has uniform density — no bright vertical center
+   * stripe. The old "uniform r + uniform theta" equatorial band over-packed the
+   * middle (per-area density ∝ 1/r) and folded the ring's front/back onto x≈0.
+   *
+   * Sampling the horizontal radius ρ with an Abel-uniform profile (area density
+   * ∝ 1/√(R²−ρ²)) makes the depth-integrated projection perfectly flat across
+   * the whole disc: inverting that CDF gives ρ = R·√(u(2−u)) for u in [0,1).
+   * An independent uniform vertical band keeps it even top-to-bottom.
+   */
+  const CLOUD_RADIUS = 11.0;
+  const CLOUD_HALF_HEIGHT = 3.9;
   for (let i = 0; i < particleCount; i++) {
-    const r = 2.65 + Math.random() * 8.45;
+    const u = Math.random();
+    const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
     const theta = Math.random() * Math.PI * 2;
-    const phi = (Math.random() - 0.5) * 0.72;
-    positions[i * 3] = r * Math.cos(theta);
-    positions[i * 3 + 1] = r * Math.sin(phi);
-    positions[i * 3 + 2] = r * Math.sin(theta);
+    positions[i * 3] = rho * Math.cos(theta);
+    positions[i * 3 + 1] = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
+    positions[i * 3 + 2] = rho * Math.sin(theta);
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const particleSprite = createSoftParticleSpriteTexture();
@@ -414,7 +427,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   /** Mirrored from the live rainbow each frame (for any logic that reads the current tint). */
   const targetColor = new THREE.Color(0xff0000);
   const rainbowTint = new THREE.Color(0xff0000);
-  /** Reused per-frame so the speaker color flash doesn't allocate. */
+  /** Reused per-frame. */
   const liveTint = new THREE.Color(0xff0000);
   let particleSpeedMult = 1.0;
   /** Smoothed 0–1 from `window` `audioLevel` events (voice reactive). */
@@ -438,10 +451,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   let callEnergyTarget = 0;
   let callEnergySmoothed = 0;
   let burst = 0;
-  let speakerBlend = 0;
-  const speakerColor = new THREE.Color(0x00f3ff);
-  const USER_COLOR = new THREE.Color(0x00f3ff);
-  const ASSISTANT_COLOR = new THREE.Color(0xff2bd6);
 
   const onCallStart: EventListener = () => {
     callEnergyTarget = 1;
@@ -454,10 +463,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     burst = Math.min(burst + 0.35, 1.6);
     triggerShake(0.25);
   };
-  const onTranscript: EventListener = (ev: Event) => {
-    const e = ev as CustomEvent<{ type?: string }>;
-    speakerColor.copy(e.detail?.type === "user" ? USER_COLOR : ASSISTANT_COLOR);
-    speakerBlend = 1;
+  const onTranscript: EventListener = () => {
     burst = Math.min(burst + 0.5, 1.6);
     triggerShake(0.28);
   };
@@ -605,10 +611,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     /* Equal-brightness rainbow: lift dim hues (purple/blue/red), harder on mobile. */
     normalizeTintLuminance(rainbowTint, isMobileLike ? 0.46 : 0.4, 2.6);
     liveTint.copy(rainbowTint);
-    /* While someone is speaking, flash the field toward the speaker's color. */
-    if (speakerBlend > 0.001) {
-      liveTint.lerp(speakerColor, Math.min(speakerBlend, 1) * 0.85);
-    }
     targetColor.copy(liveTint);
     sphereMat.uniforms.uColorB.value.copy(liveTint);
     particlesMat.color.copy(liveTint);
@@ -621,7 +623,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     /* Smooth the "in a call" baseline and decay transient bursts / speaker flash. */
     callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.06;
     burst *= 0.87;
-    speakerBlend *= 0.93;
     const wild = callEnergySmoothed;
     const energy = THREE.MathUtils.clamp(mic + burst * 0.5 + wild * 0.10, 0, 1.0);
 
