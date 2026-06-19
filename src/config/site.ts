@@ -7,10 +7,10 @@
  */
 export const SITE = {
   /** Short display name used in <title> and og:site_name. */
-  name: "/\\V",
+  name: "Reave Automated",
 
   /** Default meta description for pages that don't supply their own. */
-  description: "Reave Automatic",
+  description: "Reave Automated",
 
   /** Default OG / Twitter card image — animated GIF, 600×315, 3.1 MB. */
   ogImage: "/og-image.gif",
