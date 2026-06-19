@@ -19,16 +19,18 @@ export const SITE = {
   ogType: "website" as const,
 
   favicons: {
-    /** Modern browsers — inline SVG, no external fetches. */
-    svg: "/favicon.svg",
-    /** 32×32 PNG — Chrome, Firefox fallback. */
+    /** Multi-resolution .ico (16/32/48) — the file browsers auto-request at /favicon.ico. */
+    ico: "/favicon.ico",
+    /** 32×32 PNG — primary tab icon for modern browsers. */
     png32: "/favicon-32x32.png",
-    /** 16×16 PNG — older browser fallback. */
+    /** 16×16 PNG — smaller fallback. */
     png16: "/favicon-16x16.png",
     /** 180×180 — Apple touch icon (Home Screen bookmark). */
     appleTouchIcon: "/apple-touch-icon.png",
-    /** Legacy shortcut icon — kept for IE / very old crawlers. */
-    ico: "/favicon.ico",
+    /** 192×192 PNG — Android / PWA install icon. */
+    png192: "/favicon-192.png",
+    /** 512×512 PNG — PWA splash / maskable. */
+    png512: "/favicon-512.png",
   },
 } as const;
 

@@ -1,14 +1,15 @@
 ---
 /**
  * Universal favicon links — single source of truth for every page.
- * Reads paths from SITE.favicons so the icon is consistent app-wide.
+ * Raster-only (PNG + multi-res .ico) for maximum browser compatibility;
+ * we intentionally avoid an SVG favicon because the brand mark is a raster
+ * image and embedded-image SVG favicons render inconsistently across browsers.
  * Include inside any page's <head>.
  */
 import { SITE } from "../config/site";
 ---
 
-<link rel="icon" type="image/svg+xml" href={SITE.favicons.svg} />
+<link rel="icon" href={SITE.favicons.ico} sizes="48x48" />
 <link rel="icon" type="image/png" sizes="32x32" href={SITE.favicons.png32} />
 <link rel="icon" type="image/png" sizes="16x16" href={SITE.favicons.png16} />
 <link rel="apple-touch-icon" sizes="180x180" href={SITE.favicons.appleTouchIcon} />
-<link rel="shortcut icon" href={SITE.favicons.ico} />
