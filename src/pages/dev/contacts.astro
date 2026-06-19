@@ -7,6 +7,8 @@
  * it is gated behind DASHBOARD_KEY. Provide the key once via ?key=… (stored in
  * an httpOnly cookie) or it stays locked. noindex; never prerendered.
  */
+import Favicon from "../../components/Favicon.astro";
+
 export const prerender = false;
 
 import { listContacts, clientPortalUrl, type ContactRecord } from '../../lib/contactApi';
@@ -137,6 +139,7 @@ const fmtMoney = (n: number) =>
     <meta name="robots" content="noindex, nofollow" />
     {authorized && <meta name="dashboard-key" content={expectedKey} />}
     <title>Master contacts</title>
+    <Favicon />
     <style is:global>
       :root { color-scheme: dark; }
       * { box-sizing: border-box; }

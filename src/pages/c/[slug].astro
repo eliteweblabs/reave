@@ -15,6 +15,7 @@
 import { getContact, extractPortal, type ContactRecord, type ClientPortal, type PortalDocument } from '../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 import Header from '../../components/Header.astro';
+import Favicon from '../../components/Favicon.astro';
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -127,14 +128,13 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{notFound ? 'Not found' : pageTitle}</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <Favicon />
     {!notFound && manifestHref && <link rel="manifest" href={manifestHref} />}
     <meta name="theme-color" content={themeColor} />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     {!notFound && <meta name="apple-mobile-web-app-title" content={appTitle} />}
-    <link rel="apple-touch-icon" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -178,7 +178,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           </div>
 
           <footer class="foot">
-            <span class="brand">Powered by Reave Automatic</span>
+            <span class="brand">Powered by Reave Automated</span>
           </footer>
         </main>
       ) : (
@@ -361,7 +361,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           <footer class="foot">
             {updatedAt && <span>Updated {updatedAt}</span>}
-            <span class="brand">Powered by Reave Automatic</span>
+            <span class="brand">Powered by Reave Automated</span>
           </footer>
         </main>
       )

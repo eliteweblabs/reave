@@ -5,6 +5,8 @@
  * Tabs switch between the "System" runtime map and the "MCP & CLI" tooling map.
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
+import Favicon from "../../components/Favicon.astro";
+
 export const prerender = false;
 ---
 
@@ -15,6 +17,7 @@ export const prerender = false;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Business OS — map</title>
+    <Favicon />
     <style is:global>
       :root {
         color-scheme: dark;

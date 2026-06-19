@@ -4,6 +4,8 @@
  * A simpler companion to the os-map "Telegram" tab: just the commands and
  * example phrases, no node graph. noindex.
  */
+import Favicon from "../../components/Favicon.astro";
+
 export const prerender = true;
 
 type Cmd = { say: string; does: string };
@@ -95,6 +97,7 @@ import Header from '../../components/Header.astro';
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>Telegram bot — cheat sheet</title>
+    <Favicon />
     <style is:global>
       :root { color-scheme: dark; }
       * { box-sizing: border-box; }
