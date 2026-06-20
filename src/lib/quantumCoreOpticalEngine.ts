@@ -333,11 +333,12 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const particleSprite = createSoftParticleSpriteTexture();
   const particlesMat = new THREE.PointsMaterial({
     map: particleSprite,
-    /* Larger / more opaque on mobile so the thin letter strokes actually catch glow. */
-    size: isMobileLike ? 0.11 : 0.082,
+    /* Larger / more opaque on mobile so the thin letter strokes actually catch glow.
+       Bumped a touch on desktop so each dot reads as a small glow, not a pinprick. */
+    size: isMobileLike ? 0.12 : 0.098,
     color: 0x00f3ff,
     transparent: true,
-    opacity: isMobileLike ? 0.92 : 0.78,
+    opacity: isMobileLike ? 0.94 : 0.86,
     depthWrite: false,
     fog: false,
     blending: THREE.AdditiveBlending,
@@ -407,9 +408,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   );
   /* More generous bloom so points read as luminous haze, not isolated dots.
      Lower threshold on mobile so dim hues (purple/blue) still cross into bloom. */
-  bloomPass.threshold = isMobileLike ? 0.025 : 0.065;
+  bloomPass.threshold = isMobileLike ? 0.025 : 0.05;
   bloomPass.strength = 1.05;
-  bloomPass.radius = 0.48;
+  bloomPass.radius = 0.56;
   const hpUniforms = bloomPass.highPassUniforms as Record<
     string,
     { value: number }
@@ -654,9 +655,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     bloomPass.strength = THREE.MathUtils.clamp(
-      0.95 + wild * 0.18 + energy * 0.55,
-      0.85,
-      1.8,
+      1.05 + wild * 0.18 + energy * 0.55,
+      0.95,
+      1.85,
     );
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
