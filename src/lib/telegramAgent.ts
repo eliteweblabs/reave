@@ -76,7 +76,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     { role: 'user', content: userText },
   ];
 
-  const maxRounds = 5;
+  const maxRounds = 25;
 
   for (let round = 0; round < maxRounds; round++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {

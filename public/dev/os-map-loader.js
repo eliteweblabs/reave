@@ -139,22 +139,29 @@ function setActiveMap(key) {
   saveActiveKey();
   updateTabs();
   syncCanvasVisibility();
-  if (MAP.type !== 'documents') {
+  if (MAP.type === 'documents') {
+    loadDocumentsTab();
+  } else if (MAP.type === 'chats') {
+    loadChatsTab();
+  } else {
     buildMap();
     requestAnimationFrame(() => { redraw(); fit(); });
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
-  } else {
-    loadDocumentsTab();
   }
   syncHealthLifecycle();
 }
 
+function isPanelTab() {
+  return MAP.type === 'documents' || MAP.type === 'chats';
+}
+
 function syncCanvasVisibility() {
-  const isDoc = MAP.type === 'documents';
-  wrap.style.display = isDoc ? 'none' : '';
-  document.getElementById('tools').style.display = isDoc ? 'none' : '';
-  document.getElementById('legend').style.display = isDoc ? 'none' : '';
-  document.getElementById('doc-editor').style.display = isDoc ? 'flex' : 'none';
+  const isPanel = isPanelTab();
+  wrap.style.display = isPanel ? 'none' : '';
+  document.getElementById('tools').style.display = isPanel ? 'none' : '';
+  document.getElementById('legend').style.display = isPanel ? 'none' : '';
+  document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
+  document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
 }
 
 // ---- health polling ----
@@ -1264,6 +1271,243 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ---- chats tab ----
+
+let chatState = {
+  threads: [],
+  activeId: null,
+  messages: [],
+  title: '',
+  sending: false,
+};
+
+function getChatPanel() { return document.getElementById('chat-panel'); }
+
+function formatChatDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay
+      ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+async function loadChatsTab() {
+  const root = getChatPanel();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading chats…</div>';
+  try {
+    const res = await fetch('/api/chats', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    chatState.threads = data.threads || [];
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    return;
+  }
+  chatState.activeId = null;
+  chatState.messages = [];
+  chatState.title = '';
+  getChatPanel()?.classList.remove('ch-pane-active');
+  renderChatPanel();
+}
+
+function renderChatSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn';
+  newBtn.textContent = '+ New Chat';
+  newBtn.addEventListener('click', () => startNewChat());
+  sidebar.appendChild(newBtn);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  for (const t of chatState.threads) {
+    const item = document.createElement('button');
+    item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
+    item.dataset.id = t.id;
+    item.innerHTML =
+      `<span class="ch-item-title">${escHtml(t.title)}</span>` +
+      `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>`;
+    item.addEventListener('click', () => openChat(t.id));
+    list.appendChild(item);
+  }
+  if (chatState.threads.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No chats yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  return sidebar;
+}
+
+function renderChatMessages(container) {
+  container.innerHTML = '';
+  if (chatState.messages.length === 0 && !chatState.sending) {
+    const ph = document.createElement('div');
+    ph.className = 'de-placeholder';
+    ph.innerHTML = '<div class="de-placeholder-icon">💬</div>Send a message to start.';
+    container.appendChild(ph);
+    return;
+  }
+  for (const m of chatState.messages) {
+    const el = document.createElement('div');
+    el.className = 'ch-msg ' + (m.role === 'user' ? 'ch-msg-user' : 'ch-msg-assistant');
+    el.textContent = m.content;
+    container.appendChild(el);
+  }
+  if (chatState.sending) {
+    const thinking = document.createElement('div');
+    thinking.className = 'ch-thinking';
+    thinking.textContent = 'Thinking…';
+    container.appendChild(thinking);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function renderChatPanel() {
+  const root = getChatPanel();
+  if (!root) return;
+  root.innerHTML = '';
+
+  root.appendChild(renderChatSidebar());
+
+  const pane = document.createElement('div');
+  pane.className = 'ch-pane';
+
+  if (!chatState.activeId) {
+    const ph = document.createElement('div');
+    ph.className = 'de-placeholder';
+    ph.innerHTML = '<div class="de-placeholder-icon">💬</div>Select a chat or start a new one.';
+    pane.appendChild(ph);
+    root.appendChild(pane);
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Chats';
+  backBtn.addEventListener('click', () => {
+    chatState.activeId = null;
+    getChatPanel()?.classList.remove('ch-pane-active');
+    renderChatPanel();
+  });
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = chatState.title || 'Chat';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const messagesEl = document.createElement('div');
+  messagesEl.className = 'ch-messages';
+  renderChatMessages(messagesEl);
+  pane.appendChild(messagesEl);
+
+  const compose = document.createElement('div');
+  compose.className = 'ch-compose';
+  const input = document.createElement('textarea');
+  input.className = 'ch-input';
+  input.placeholder = 'Message the agent…';
+  input.rows = 1;
+  input.disabled = chatState.sending;
+  const sendBtn = document.createElement('button');
+  sendBtn.className = 'ch-send';
+  sendBtn.textContent = 'Send';
+  sendBtn.disabled = chatState.sending;
+
+  async function doSend() {
+    const text = input.value.trim();
+    if (!text || chatState.sending || !chatState.activeId) return;
+    chatState.sending = true;
+    input.value = '';
+    input.disabled = true;
+    sendBtn.disabled = true;
+    chatState.messages.push({ role: 'user', content: text });
+    renderChatMessages(messagesEl);
+
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
+      if (data.title) {
+        chatState.title = data.title;
+        const thread = chatState.threads.find((t) => t.id === chatState.activeId);
+        if (thread) thread.title = data.title;
+      }
+    } catch (e) {
+      chatState.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+    } finally {
+      chatState.sending = false;
+      input.disabled = false;
+      sendBtn.disabled = false;
+      renderChatPanel();
+      const newInput = getChatPanel()?.querySelector('.ch-input');
+      newInput?.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', doSend);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      doSend();
+    }
+  });
+  compose.appendChild(input);
+  compose.appendChild(sendBtn);
+  pane.appendChild(compose);
+
+  root.appendChild(pane);
+  getChatPanel()?.classList.add('ch-pane-active');
+  input.focus();
+}
+
+async function startNewChat() {
+  try {
+    const res = await fetch('/api/chats', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const thread = data.thread;
+    chatState.threads.unshift(thread);
+    chatState.activeId = thread.id;
+    chatState.title = thread.title;
+    chatState.messages = [];
+    renderChatPanel();
+  } catch (e) {
+    alert(`Could not create chat: ${e.message}`);
+  }
+}
+
+async function openChat(id) {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    chatState.activeId = id;
+    chatState.title = data.thread.title;
+    chatState.messages = data.thread.messages || [];
+    renderChatPanel();
+  } catch (e) {
+    alert(`Could not load chat: ${e.message}`);
+  }
+}
+
 // ---- persistence ----
 function savePositions() {
   const pos = {};
@@ -1305,12 +1549,14 @@ function saveActiveKey() {
 // ---- init ----
 buildTabs();
 syncCanvasVisibility();
-if (MAP.type !== 'documents') {
+if (MAP.type === 'documents') {
+  loadDocumentsTab();
+} else if (MAP.type === 'chats') {
+  loadChatsTab();
+} else {
   buildMap();
   requestAnimationFrame(() => { redraw(); fit(); });
   if (MAP.type === 'todo') loadAndBuildTodoNodes();
-} else {
-  loadDocumentsTab();
 }
 syncHealthLifecycle();
 

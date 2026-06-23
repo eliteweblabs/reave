@@ -183,7 +183,7 @@ const TG_NODES = [
 
   // Routing nodes
   { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
-  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · up to 5 rounds',  icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
+  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · up to 25 rounds', icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
 
   // Slash commands (one node per command or tight group)
   { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'menu · wipe history (/reset alias)',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
@@ -255,6 +255,7 @@ export const MAPS = {
   telegram:  { id: 'telegram',  title: 'Telegram',   icon: '✈️',  nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },
   todo:      { id: 'todo',      title: 'To-do',      icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
+  chats:     { id: 'chats',     title: 'Chats',      icon: '💬',  type: 'chats',         nodes: [],             edges: [],             groups: [] },
 };
 
 // Back-compat: the "System" map is still the default export surface.
