@@ -1480,7 +1480,11 @@ function renderChatPanel() {
 
 async function startNewChat() {
   try {
-    const res = await fetch('/api/chats', { method: 'POST' });
+    const res = await fetch('/api/chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const thread = data.thread;
