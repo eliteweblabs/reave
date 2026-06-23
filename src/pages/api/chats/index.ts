@@ -4,11 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import {
-  dbCreateChatThread,
-  dbListChatThreads,
-  isSupabaseChatsConfigured,
-} from '../../../lib/supabaseChats';
+import { chatStorageBackend, storeCreateChatThread, storeListChatThreads } from '../../../lib/chatStore';
 
 export const prerender = false;
 
@@ -22,23 +18,16 @@ function json(body: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isSupabaseChatsConfigured()) {
-    return json({ ok: false, error: 'Supabase not configured — add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY' }, 503);
-  }
 
-  const threads = await dbListChatThreads(userId);
-  if (!threads) return json({ ok: false, error: 'Failed to load chats' }, 500);
-  return json({ ok: true, threads });
+  const threads = await storeListChatThreads(userId);
+  return json({ ok: true, threads, storage: chatStorageBackend() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isSupabaseChatsConfigured()) {
-    return json({ ok: false, error: 'Supabase not configured — add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY' }, 503);
-  }
 
-  const thread = await dbCreateChatThread(userId);
+  const thread = await storeCreateChatThread(userId);
   if (!thread) return json({ ok: false, error: 'Failed to create chat' }, 500);
-  return json({ ok: true, thread });
+  return json({ ok: true, thread, storage: chatStorageBackend() });
 }

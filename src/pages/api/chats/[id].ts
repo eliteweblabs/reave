@@ -4,15 +4,14 @@
  */
 
 import type { APIContext } from 'astro';
+import {
+  storeAppendChatMessages,
+  storeGetChatThread,
+  storeUpdateChatTitle,
+  titleFromMessage,
+} from '../../../lib/chatStore';
 import { runTelegramKnowledgeAgent } from '../../../lib/telegramAgent';
 import type { TelegramChatTurn } from '../../../lib/telegramChatHistory';
-import {
-  dbAppendChatMessages,
-  dbGetChatThread,
-  dbUpdateChatTitle,
-  isSupabaseChatsConfigured,
-  titleFromMessage,
-} from '../../../lib/supabaseChats';
 
 export const prerender = false;
 
@@ -45,11 +44,8 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
-  if (!isSupabaseChatsConfigured()) {
-    return json({ ok: false, error: 'Supabase not configured' }, 503);
-  }
 
-  const thread = await dbGetChatThread(userId, id);
+  const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
   return json({ ok: true, thread });
 }
@@ -60,9 +56,6 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
-  if (!isSupabaseChatsConfigured()) {
-    return json({ ok: false, error: 'Supabase not configured' }, 503);
-  }
 
   let body: Record<string, unknown>;
   try {
@@ -74,7 +67,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const message = String(body.message ?? '').trim();
   if (!message) return json({ ok: false, error: 'message is required' }, 400);
 
-  const thread = await dbGetChatThread(userId, id);
+  const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
 
   const isFirstMessage = thread.messages.length === 0;
@@ -83,7 +76,7 @@ export async function POST(context: APIContext): Promise<Response> {
     priorTurns: priorTurns(thread.messages),
   });
 
-  const saved = await dbAppendChatMessages(id, [
+  const saved = await storeAppendChatMessages(userId, id, [
     { role: 'user', content: message },
     { role: 'assistant', content: reply },
   ]);
@@ -92,7 +85,7 @@ export async function POST(context: APIContext): Promise<Response> {
   let title = thread.title;
   if (isFirstMessage || title === 'New chat') {
     title = titleFromMessage(message);
-    await dbUpdateChatTitle(id, title);
+    await storeUpdateChatTitle(userId, id, title);
   }
 
   return json({
