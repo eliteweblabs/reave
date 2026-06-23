@@ -812,6 +812,22 @@ export const prerender = false;
         min-height: 0;
       }
 
+      /* ── Knowledge tab (reuses Documents editor classes) ── */
+      #knowledge-editor {
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        display: flex;
+        flex-direction: row;
+        background: var(--bg);
+        z-index: 10;
+      }
+      @media (max-width: 639px) {
+        #knowledge-editor { flex-direction: column; }
+        #knowledge-editor.de-pane-active .de-sidebar { display: none; }
+        #knowledge-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+      }
+
       /* ── Chats tab ── */
       #chat-panel {
         position: fixed;
@@ -988,6 +1004,9 @@ export const prerender = false;
 
     <!-- Chats tab panel (hidden unless chats tab is active) -->
     <div id="chat-panel" style="display:none"></div>
+
+    <!-- Knowledge tab panel (hidden unless knowledge tab is active) -->
+    <div id="knowledge-editor" style="display:none"></div>
 
     <script is:inline type="module" src="/dev/os-map-loader.js"></script>
   </body>

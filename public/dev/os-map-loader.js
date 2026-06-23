@@ -141,6 +141,8 @@ function setActiveMap(key) {
   syncCanvasVisibility();
   if (MAP.type === 'documents') {
     loadDocumentsTab();
+  } else if (MAP.type === 'knowledge') {
+    loadKnowledgeTab();
   } else if (MAP.type === 'chats') {
     loadChatsTab();
   } else {
@@ -152,7 +154,7 @@ function setActiveMap(key) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'documents' || MAP.type === 'chats';
+  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'chats';
 }
 
 function syncCanvasVisibility() {
@@ -161,6 +163,7 @@ function syncCanvasVisibility() {
   document.getElementById('tools').style.display = isPanel ? 'none' : '';
   document.getElementById('legend').style.display = isPanel ? 'none' : '';
   document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
+  document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
 }
 
@@ -1271,6 +1274,286 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ---- knowledge tab ----
+
+let knowledgeState = {
+  entries: [],
+  activeSlug: null,
+  dirty: false,
+  content: '',
+};
+
+function getKnowledgeEditor() { return document.getElementById('knowledge-editor'); }
+
+async function loadKnowledgeTab() {
+  const root = getKnowledgeEditor();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading knowledge…</div>';
+  try {
+    const res = await fetch('/api/knowledge', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    knowledgeState.entries = data.entries || [];
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
+    return;
+  }
+  knowledgeState.activeSlug = null;
+  knowledgeState.dirty = false;
+  knowledgeState.content = '';
+  getKnowledgeEditor()?.classList.remove('de-pane-active');
+  renderKnowledgeEditor();
+}
+
+function renderKnowledgeEditor() {
+  const root = getKnowledgeEditor();
+  if (!root) return;
+  const { entries, activeSlug, dirty } = knowledgeState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'de-sidebar';
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn';
+  newBtn.textContent = '+ New Doc';
+  newBtn.addEventListener('click', () => {
+    knowledgeState.activeSlug = '__new__';
+    knowledgeState.dirty = false;
+    renderKnowledgeEditor();
+  });
+  sidebar.appendChild(newBtn);
+
+  const hint = document.createElement('div');
+  hint.className = 'de-empty';
+  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.textContent = 'Markdown in src/knowledge/ · bot reads on deploy';
+  sidebar.appendChild(hint);
+
+  const list = document.createElement('div');
+  list.className = 'de-list';
+  for (const entry of entries) {
+    const item = document.createElement('button');
+    item.className = 'de-list-item' + (entry.slug === activeSlug ? ' active' : '');
+    item.innerHTML =
+      `<span class="de-item-title">${escHtml(entry.title)}</span>` +
+      `<span class="de-item-slug">${escHtml(entry.slug)}</span>`;
+    item.addEventListener('click', () => openKnowledge(entry.slug));
+    list.appendChild(item);
+  }
+  if (entries.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No knowledge files yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+
+  if (activeSlug === '__new__') {
+    renderNewKnowledgeForm(pane);
+  } else if (activeSlug) {
+    renderEditKnowledgeForm(pane);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = '<div class="de-placeholder-icon">📚</div><p>Select a doc to edit, or create a new one.</p>';
+    pane.appendChild(placeholder);
+  }
+
+  root.appendChild(pane);
+}
+
+function renderNewKnowledgeForm(pane) {
+  pane.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Docs';
+  backBtn.addEventListener('click', () => {
+    knowledgeState.activeSlug = null;
+    getKnowledgeEditor()?.classList.remove('de-pane-active');
+    renderKnowledgeEditor();
+  });
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = 'New knowledge doc';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+  const slugLabel = document.createElement('label');
+  slugLabel.className = 'de-label';
+  slugLabel.textContent = 'Slug (filename)';
+  const slugInput = document.createElement('input');
+  slugInput.className = 'de-input';
+  slugInput.placeholder = 'e.g. billing-notes';
+  slugLabel.appendChild(slugInput);
+  fields.appendChild(slugLabel);
+  pane.appendChild(fields);
+
+  const ta = document.createElement('textarea');
+  ta.className = 'de-textarea';
+  ta.spellcheck = false;
+  ta.placeholder = '# Title\n\nMarkdown content for the Telegram agent…';
+  pane.appendChild(ta);
+
+  const actions = document.createElement('div');
+  actions.className = 'de-actions';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'de-btn de-btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => {
+    knowledgeState.activeSlug = null;
+    renderKnowledgeEditor();
+  });
+  const createBtn = document.createElement('button');
+  createBtn.className = 'de-btn de-btn-primary';
+  createBtn.textContent = 'Create';
+  createBtn.addEventListener('click', () => createKnowledge(slugInput.value.trim(), ta.value));
+  actions.appendChild(cancelBtn);
+  actions.appendChild(createBtn);
+  pane.appendChild(actions);
+  getKnowledgeEditor()?.classList.add('de-pane-active');
+}
+
+function renderEditKnowledgeForm(pane) {
+  const slug = knowledgeState.activeSlug;
+  const entry = knowledgeState.entries.find((e) => e.slug === slug);
+  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+
+  fetch(`/api/knowledge/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.error || 'Failed to load');
+      knowledgeState.content = data.content;
+      knowledgeState.dirty = false;
+      pane.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'de-header';
+      const backBtn = document.createElement('button');
+      backBtn.className = 'de-back-btn';
+      backBtn.textContent = '← Docs';
+      backBtn.addEventListener('click', () => {
+        if (knowledgeState.dirty && !confirm('Discard unsaved changes?')) return;
+        knowledgeState.activeSlug = null;
+        knowledgeState.dirty = false;
+        getKnowledgeEditor()?.classList.remove('de-pane-active');
+        renderKnowledgeEditor();
+      });
+      header.appendChild(backBtn);
+      const titleEl = document.createElement('span');
+      titleEl.className = 'de-doc-name';
+      titleEl.textContent = data.title || entry?.title || slug;
+      header.appendChild(titleEl);
+      const slugEl = document.createElement('span');
+      slugEl.className = 'de-doc-slug';
+      slugEl.textContent = slug;
+      header.appendChild(slugEl);
+      pane.appendChild(header);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'de-textarea';
+      ta.spellcheck = false;
+      ta.value = data.content;
+      ta.addEventListener('input', () => {
+        knowledgeState.dirty = ta.value !== knowledgeState.content;
+      });
+      pane.appendChild(ta);
+
+      const actions = document.createElement('div');
+      actions.className = 'de-actions';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'de-btn de-btn-danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteKnowledge(slug));
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'de-btn de-btn-primary';
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('click', () => saveKnowledge(slug, ta.value));
+      actions.appendChild(delBtn);
+      actions.appendChild(saveBtn);
+      pane.appendChild(actions);
+      getKnowledgeEditor()?.classList.add('de-pane-active');
+    })
+    .catch((e) => {
+      pane.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    });
+}
+
+async function openKnowledge(slug) {
+  if (knowledgeState.dirty && knowledgeState.activeSlug && !confirm('Discard unsaved changes?')) return;
+  knowledgeState.activeSlug = slug;
+  knowledgeState.dirty = false;
+  renderKnowledgeEditor();
+}
+
+async function createKnowledge(slug, content) {
+  if (!slug) { alert('Enter a slug.'); return; }
+  if (!/^[a-z0-9._-]+$/i.test(slug)) { alert('Slug may only contain letters, numbers, dots, hyphens, and underscores.'); return; }
+  if (!content.trim()) { alert('Content cannot be empty.'); return; }
+  try {
+    const res = await fetch('/api/knowledge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, content }),
+    });
+    const data = await res.json();
+    if (res.status === 409) { alert('That slug already exists.'); return; }
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await loadKnowledgeTab();
+    knowledgeState.activeSlug = slug;
+    renderKnowledgeEditor();
+  } catch (e) {
+    alert(`Failed to create: ${e.message}`);
+  }
+}
+
+async function saveKnowledge(slug, content) {
+  if (!content.trim()) { alert('Content cannot be empty.'); return; }
+  try {
+    const res = await fetch(`/api/knowledge/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    knowledgeState.content = content;
+    knowledgeState.dirty = false;
+    await loadKnowledgeTab();
+    knowledgeState.activeSlug = slug;
+    renderKnowledgeEditor();
+  } catch (e) {
+    alert(`Failed to save: ${e.message}`);
+  }
+}
+
+async function deleteKnowledge(slug) {
+  if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/knowledge/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    knowledgeState.activeSlug = null;
+    knowledgeState.dirty = false;
+    await loadKnowledgeTab();
+  } catch (e) {
+    alert(`Failed to delete: ${e.message}`);
+  }
+}
+
 // ---- chats tab ----
 
 let chatState = {
@@ -1555,6 +1838,8 @@ buildTabs();
 syncCanvasVisibility();
 if (MAP.type === 'documents') {
   loadDocumentsTab();
+} else if (MAP.type === 'knowledge') {
+  loadKnowledgeTab();
 } else if (MAP.type === 'chats') {
   loadChatsTab();
 } else {
