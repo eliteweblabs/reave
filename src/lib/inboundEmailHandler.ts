@@ -1,6 +1,7 @@
 import { serverEnv } from './serverEnv';
 import { telegramSendMessage } from './telegramClient';
 import { classifyEmail, type InboundEmail } from './emailRules';
+import { loadActiveEmailRules } from './emailRuleStore';
 
 export interface InboundEmailResult {
   ok: boolean;
@@ -65,7 +66,8 @@ export async function handleInboundEmail(email: InboundEmail): Promise<InboundEm
     return { ok: true, action: 'rejected', status: 'REJECTED', from };
   }
 
-  const { status, notify } = classifyEmail(email);
+  const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
+  const { status, notify } = classifyEmail(email, rules, notifyOnUnmatched);
   console.info('[email] classified', { from, subject: email.subject, status, notify });
 
   if (!notify) {

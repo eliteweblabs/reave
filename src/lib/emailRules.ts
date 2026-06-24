@@ -116,12 +116,13 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
  */
 export function classifyEmail(
   email: InboundEmail,
-  rules: EmailRule[] = DEFAULT_RULES
+  rules: EmailRule[] = DEFAULT_RULES,
+  notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED
 ): Classification {
   for (const rule of rules) {
     if (ruleMatches(rule, email)) {
       return { status: rule.status, matched: rule, notify: rule.notify };
     }
   }
-  return { status: 'UNMATCHED', matched: null, notify: NOTIFY_ON_UNMATCHED };
+  return { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
 }

@@ -1,18 +1,18 @@
 /**
- * GET  /api/email/rules — list rules + triage settings
- * POST /api/email/rules — create a rule
- * PATCH /api/email/rules — update notifyOnUnmatched { notifyOnUnmatched: boolean }
+ * GET    /api/email/rules/[id]
+ * PUT    /api/email/rules/[id]
+ * DELETE /api/email/rules/[id]
  */
 
 import type { APIContext } from 'astro';
 import {
   emailRulesStorageBackend,
-  storeCreateEmailRule,
-  storeListEmailRules,
-  storeSetNotifyOnUnmatched,
+  storeDeleteEmailRule,
+  storeGetEmailRule,
+  storeUpdateEmailRule,
   type RuleInput,
-} from '../../../lib/emailRuleStore';
-import type { MatchMode, RuleField } from '../../../lib/emailRules';
+} from '../../../../lib/emailRuleStore';
+import type { MatchMode, RuleField } from '../../../../lib/emailRules';
 
 export const prerender = false;
 
@@ -52,21 +52,20 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const config = await storeListEmailRules();
-  return json({
-    ok: true,
-    ...config,
-    storage: emailRulesStorageBackend(),
-    pipeline: {
-      inbound: 'POST /api/email/inbound (Resend webhook)',
-      handler: 'classifyEmail() → handleInboundEmail()',
-    },
-  });
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+
+  const rule = await storeGetEmailRule(id);
+  if (!rule) return json({ ok: false, error: 'Not found' }, 404);
+  return json({ ok: true, rule });
 }
 
-export async function POST(context: APIContext): Promise<Response> {
+export async function PUT(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
 
   let body: Record<string, unknown>;
   try {
@@ -78,27 +77,19 @@ export async function POST(context: APIContext): Promise<Response> {
   const input = parseRuleInput(body);
   if (!input) return json({ ok: false, error: 'title and status are required' }, 400);
 
-  const rule = await storeCreateEmailRule(input);
-  if (!rule) return json({ ok: false, error: 'Failed to create rule' }, 500);
+  const rule = await storeUpdateEmailRule(id, input);
+  if (!rule) return json({ ok: false, error: 'Not found or save failed' }, 404);
   return json({ ok: true, rule, storage: emailRulesStorageBackend() });
 }
 
-export async function PATCH(context: APIContext): Promise<Response> {
+export async function DELETE(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
 
-  if (typeof body.notifyOnUnmatched !== 'boolean') {
-    return json({ ok: false, error: 'notifyOnUnmatched boolean required' }, 400);
-  }
-
-  const ok = await storeSetNotifyOnUnmatched(body.notifyOnUnmatched);
-  if (!ok) return json({ ok: false, error: 'Failed to save settings' }, 500);
-  return json({ ok: true, notifyOnUnmatched: body.notifyOnUnmatched });
+  const ok = await storeDeleteEmailRule(id);
+  if (!ok) return json({ ok: false, error: 'Not found or delete failed' }, 404);
+  return json({ ok: true });
 }

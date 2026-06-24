@@ -151,7 +151,7 @@ function setActiveMap(key) {
     buildMap();
     requestAnimationFrame(() => { redraw(); fit(); });
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
-    if (MAP.type === 'rules') loadAndBuildRulesFlow();
+    if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
   syncHealthLifecycle();
 }
@@ -168,8 +168,30 @@ function syncCanvasVisibility() {
   document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
   document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
-  const insp = document.getElementById('rule-inspector');
-  if (insp) insp.style.display = MAP.type === 'rules' ? 'block' : 'none';
+  document.getElementById('rule-editor').style.display = MAP.type === 'rules' ? 'flex' : 'none';
+  syncRulesToolbar();
+}
+
+function syncRulesToolbar() {
+  const tools = document.getElementById('tools');
+  if (!tools) return;
+  let addBtn = document.getElementById('rules-add-btn');
+  if (MAP.type !== 'rules') {
+    addBtn?.remove();
+    return;
+  }
+  if (!addBtn) {
+    addBtn = document.createElement('button');
+    addBtn.id = 'rules-add-btn';
+    addBtn.dataset.act = 'rules-add';
+    addBtn.textContent = '+';
+    addBtn.title = 'Add email rule';
+    tools.insertBefore(addBtn, tools.firstChild);
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startNewRule();
+    });
+  }
 }
 
 // ---- health polling ----
@@ -582,18 +604,10 @@ function buildLegend() {
   }
 
   if (activeKey === 'rules') {
-    const chips = [
-      ['Trigger', 165],
-      ['When (IF)', 45],
-      ['Then (action)', 210],
-      ['Planned', 280],
-    ];
-    for (const [label, hue] of chips) {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.innerHTML = `<span class="dot" style="background:hsl(${hue} 75% 58%)"></span>${label}`;
-      legend.appendChild(chip);
-    }
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.innerHTML = '<span class="dot" style="background:hsl(165 75% 58%)"></span>First match wins · click a card to edit';
+    legend.appendChild(chip);
   }
 
   // Status key (only meaningful on the live System map).
@@ -614,49 +628,30 @@ function buildLegend() {
   }
 }
 
-// ---- rules tab (n8n-style flow) ----
+// ---- rules tab (todo-style cards + editor) ----
 
-let rulesState = { rules: [], planned: [], notifyOnUnmatched: true, pipeline: null };
+let ruleState = {
+  rules: [],
+  notifyOnUnmatched: true,
+  storage: 'files',
+  activeId: null,
+  dirty: false,
+};
 
-function phraseSummary(phrases, max = 3) {
-  if (!phrases?.length) return '(any)';
-  const shown = phrases.slice(0, max);
-  const tail = phrases.length > max ? ` +${phrases.length - max}` : '';
-  return shown.map((p) => `"${p}"`).join(' · ') + tail;
+function getRuleEditor() {
+  return document.getElementById('rule-editor');
 }
 
-function fieldsSummary(fields) {
-  return (fields || ['subject', 'body']).join(', ');
+function ruleSubline(rule) {
+  const bits = [];
+  if (rule.status) bits.push(rule.status);
+  bits.push(rule.notify ? 'Telegram' : 'Silent');
+  if (!rule.enabled) bits.push('Off');
+  return bits.join(' · ');
 }
 
-function showRuleInspector(html) {
-  const el = document.getElementById('rule-inspector');
-  if (!el) return;
-  el.innerHTML = html;
-}
-
-function ruleInspectorHtml(rule, extra) {
-  if (!rule) {
-    return `<div class="ri-title">${extra?.title || 'Rule flow'}</div><div class="ri-body">${extra?.body || 'Click a node to inspect.'}</div>`;
-  }
-  const lines = [
-    `<div class="ri-title">${rule.status}${rule.enabled === false ? ' (disabled)' : ''}</div>`,
-    rule.description ? `<div class="ri-desc">${rule.description}</div>` : '',
-    '<dl class="ri-dl">',
-    `<dt>Phrases</dt><dd>${(rule.phrases || []).map((p) => `<code>${p}</code>`).join(' ') || '—'}</dd>`,
-    `<dt>Match</dt><dd>${rule.matchMode || 'any'} on ${fieldsSummary(rule.fields)}</dd>`,
-    `<dt>Notify</dt><dd>${rule.notify ? 'Telegram alert' : 'Silent (classify only)'}</dd>`,
-    `<dt>Edit</dt><dd><code>src/lib/emailRules.ts</code> → deploy</dd>`,
-    '</dl>',
-    extra?.planned ? `<div class="ri-planned">🔮 Planned: ${extra.planned}</div>` : '',
-  ];
-  return lines.filter(Boolean).join('');
-}
-
-/**
- * Fetch /api/email/rules and lay out trigger → IF → THEN nodes (n8n-style).
- */
-async function loadAndBuildRulesFlow() {
+async function loadAndBuildRuleNodes() {
+  closeRuleEditor(false);
   let data;
   try {
     const res = await fetch('/api/email/rules', { cache: 'no-store' });
@@ -664,168 +659,346 @@ async function loadAndBuildRulesFlow() {
     data = await res.json();
   } catch (e) {
     console.error('[rules] fetch failed:', e);
-    showRuleInspector(`<div class="ri-body ri-err">Could not load rules: ${e.message}</div>`);
     return;
   }
 
-  rulesState = {
-    rules: data.rules || [],
-    planned: data.planned || [],
-    notifyOnUnmatched: !!data.notifyOnUnmatched,
-    pipeline: data.pipeline,
-  };
+  ruleState.rules = data.rules || [];
+  ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
+  ruleState.storage = data.storage || 'files';
 
   const nodes = [];
-  const edges = [];
   const groups = [];
+  const COL_W = 240;
+  const ROW_H = 108;
+  const MARGIN = 60;
+  let colX = MARGIN;
+  let rowY = MARGIN;
+  const perCol = 6;
 
-  const COL = { trigger: 60, if: 340, then: 680, planned: 1020 };
-  const ROW_H = 132;
-  const MARGIN_Y = 80;
+  const ordered = [...ruleState.rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-  const triggerId = 'rule_trigger';
-  nodes.push({
-    id: triggerId,
-    title: 'Inbound email',
-    sub: 'Resend webhook · /api/email/inbound',
-    icon: '📥',
-    badge: 'Trigger',
-    cls: 'rule-node rule-trigger',
-    hue: 165,
-    x: COL.trigger,
-    y: MARGIN_Y + 40,
-    _rule: null,
-    _kind: 'trigger',
-  });
-
-  const enabledRules = rulesState.rules.filter((r) => r.enabled !== false);
-  enabledRules.forEach((rule, i) => {
-    const y = MARGIN_Y + i * ROW_H;
-    const ifId = `rule_if_${i}`;
-    const thenId = `rule_then_${i}`;
-    const grpId = `grp_rule_${i}`;
-
-    nodes.push({
-      id: ifId,
-      title: `IF · ${rule.status}`,
-      sub: phraseSummary(rule.phrases),
-      subMultiline: true,
-      icon: '◇',
-      badge: `#${i + 1} When`,
-      cls: 'rule-node rule-if',
-      hue: 45,
-      wide: 280,
-      x: COL.if,
-      y,
-      _rule: rule,
-      _kind: 'if',
-    });
-
-    const actionLabel = rule.notify ? 'Telegram alert' : 'Silent classify';
-    const actionIcon = rule.notify ? '🔔' : '📁';
-    nodes.push({
-      id: thenId,
-      title: `THEN · ${actionLabel}`,
-      sub: `status → ${rule.status}`,
-      icon: actionIcon,
-      badge: 'Action',
-      cls: `rule-node rule-then${rule.notify ? ' rule-then-alert' : ' rule-then-quiet'}`,
-      hue: rule.notify ? 0 : 210,
-      x: COL.then,
-      y,
-      _rule: rule,
-      _kind: 'then',
-    });
-
-    groups.push({ id: grpId, title: rule.status, hue: rule.notify ? 0 : 210, members: [ifId, thenId] });
-
-    edges.push({ from: triggerId, to: ifId, label: i === 0 ? 'rules (first match wins)' : '' });
-    edges.push({ from: ifId, to: thenId, label: 'match' });
-
-    const planned = rulesState.planned.find((p) => p.afterStatus === rule.status);
-    if (planned) {
-      const planId = `rule_plan_${i}`;
-      nodes.push({
-        id: planId,
-        title: planned.title,
-        sub: planned.description,
-        subMultiline: true,
-        icon: '🔮',
-        badge: 'Planned',
-        cls: 'rule-node rule-planned',
-        hue: 280,
-        ghost: true,
-        wide: 260,
-        x: COL.planned,
-        y,
-        _rule: rule,
-        _kind: 'planned',
-        _planned: planned,
-      });
-      edges.push({ from: thenId, to: planId, label: 'next', dashed: true, ghost: true });
+  ordered.forEach((rule, i) => {
+    if (i > 0 && i % perCol === 0) {
+      colX += COL_W;
+      rowY = MARGIN;
     }
+    const id = `er_${rule.id}`;
+    nodes.push({
+      id,
+      title: rule.title || rule.status,
+      sub: ruleSubline(rule),
+      icon: rule.notify ? '🔔' : '📧',
+      hue: rule.enabled === false ? 115 : rule.notify ? 0 : 210,
+      ghost: rule.enabled === false,
+      cls: 'rule-card',
+      x: colX,
+      y: rowY,
+      _ruleId: rule.id,
+    });
+    rowY += ROW_H;
   });
 
-  const elseY = MARGIN_Y + enabledRules.length * ROW_H + 20;
-  const elseIfId = 'rule_else_if';
-  const elseThenId = 'rule_else_then';
-  nodes.push({
-    id: elseIfId,
-    title: 'ELSE · no rule matched',
-    sub: rulesState.notifyOnUnmatched ? 'Notify by default' : 'Stay silent',
-    icon: '⋯',
-    badge: 'Fallback',
-    cls: 'rule-node rule-if rule-else',
-    hue: 45,
-    wide: 280,
-    x: COL.if,
-    y: elseY,
-    _rule: { status: 'UNMATCHED', notify: rulesState.notifyOnUnmatched },
-    _kind: 'else',
-  });
-  nodes.push({
-    id: elseThenId,
-    title: rulesState.notifyOnUnmatched ? 'THEN · Telegram alert' : 'THEN · Silent',
-    sub: 'status → UNMATCHED',
-    icon: rulesState.notifyOnUnmatched ? '🔔' : '🔇',
-    badge: 'Action',
-    cls: 'rule-node rule-then',
-    hue: rulesState.notifyOnUnmatched ? 0 : 210,
-    x: COL.then,
-    y: elseY,
-    _rule: { status: 'UNMATCHED' },
-    _kind: 'then',
-  });
-  groups.push({ id: 'grp_rule_else', title: 'Fallback', hue: 45, members: [elseIfId, elseThenId] });
-  edges.push({ from: triggerId, to: elseIfId, label: 'else', dashed: true });
-  edges.push({ from: elseIfId, to: elseThenId, label: 'default' });
+  if (nodes.length) {
+    groups.push({
+      id: 'grp_email_rules',
+      title: 'Email rules',
+      hue: 165,
+      members: nodes.map((n) => n.id),
+    });
+  }
 
   MAP.nodes = nodes;
   MAP.groups = groups;
-  MAP.edges = edges;
+  MAP.edges = [];
 
   buildMap();
   requestAnimationFrame(() => { redraw(); fit(); });
   buildLegend();
-
-  showRuleInspector(
-    ruleInspectorHtml(null, {
-      title: 'Email rule flows',
-      body: `${enabledRules.length} active rule(s). First match wins. Edit <code>src/lib/emailRules.ts</code> and redeploy. Legacy Gmail IMAP rules live in openclaw-email-tools separately.`,
-    })
-  );
+  renderRuleEditorShell();
 
   for (const n of nodes) {
     const el = nodeEls.get(n.id);
     if (!el) continue;
-    el.style.cursor = 'pointer';
-    el.addEventListener('click', (e) => {
-      if (e.target.closest('.chip')) return;
-      document.querySelectorAll('.node.rule-selected').forEach((x) => x.classList.remove('rule-selected'));
-      el.classList.add('rule-selected');
-      const planned = n._planned?.description;
-      showRuleInspector(ruleInspectorHtml(n._rule, planned ? { planned } : undefined));
+    attachRuleNodeOpen(n, el);
+  }
+}
+
+function attachRuleNodeOpen(n, el) {
+  let downX = 0;
+  let downY = 0;
+  let moved = false;
+  el.addEventListener('pointerdown', (ev) => {
+    downX = ev.clientX;
+    downY = ev.clientY;
+    moved = false;
+  });
+  el.addEventListener('pointermove', (ev) => {
+    if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 6) moved = true;
+  });
+  el.addEventListener('click', (ev) => {
+    if (moved) return;
+    ev.stopPropagation();
+    openRuleEditor(n._ruleId);
+  });
+}
+
+function renderRuleEditorShell() {
+  const root = getRuleEditor();
+  if (!root) return;
+  if (ruleState.activeId) return;
+  root.classList.remove('re-pane-active');
+  root.innerHTML = `
+    <div class="re-idle">
+      <p>Click a rule card to edit, or use <strong>+</strong> to add one.</p>
+      <label class="re-check">
+        <input type="checkbox" id="re-notify-unmatched" ${ruleState.notifyOnUnmatched ? 'checked' : ''} />
+        Notify Telegram when no rule matches
+      </label>
+      ${ruleState.storage === 'files' ? '<p class="re-warn">Using local file storage — set DATABASE_URL on Railway for production.</p>' : ''}
+    </div>`;
+  root.querySelector('#re-notify-unmatched')?.addEventListener('change', async (e) => {
+    const notifyOnUnmatched = e.target.checked;
+    try {
+      const res = await fetch('/api/email/rules', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifyOnUnmatched }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      ruleState.notifyOnUnmatched = notifyOnUnmatched;
+    } catch (err) {
+      e.target.checked = !notifyOnUnmatched;
+      alert(`Could not save setting: ${err.message}`);
+    }
+  });
+}
+
+function openRuleEditor(id) {
+  if (ruleState.dirty && ruleState.activeId && ruleState.activeId !== id) {
+    if (!confirm('Discard unsaved changes?')) return;
+  }
+  ruleState.activeId = id;
+  ruleState.dirty = false;
+  renderRuleEditorForm();
+  getRuleEditor()?.classList.add('re-pane-active');
+}
+
+function closeRuleEditor(checkDirty = true) {
+  if (checkDirty && ruleState.dirty && !confirm('Discard unsaved changes?')) return;
+  ruleState.activeId = null;
+  ruleState.dirty = false;
+  getRuleEditor()?.classList.remove('re-pane-active');
+  renderRuleEditorShell();
+}
+
+function renderRuleEditorForm() {
+  const root = getRuleEditor();
+  const rule = ruleState.rules.find((r) => r.id === ruleState.activeId);
+  if (!root || !rule) return;
+
+  root.innerHTML = '';
+  root.classList.add('re-pane-active');
+
+  const head = document.createElement('div');
+  head.className = 're-head';
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'de-btn de-btn-ghost';
+  back.textContent = '← Rules';
+  back.addEventListener('click', () => closeRuleEditor());
+  head.appendChild(back);
+  root.appendChild(head);
+
+  const form = document.createElement('div');
+  form.className = 're-form';
+
+  const mkField = (label, el) => {
+    const wrap = document.createElement('label');
+    wrap.className = 're-field';
+    wrap.innerHTML = `<span class="re-label">${label}</span>`;
+    wrap.appendChild(el);
+    return wrap;
+  };
+
+  const titleIn = document.createElement('input');
+  titleIn.type = 'text';
+  titleIn.value = rule.title || '';
+  titleIn.addEventListener('input', () => { ruleState.dirty = true; });
+
+  const statusIn = document.createElement('input');
+  statusIn.type = 'text';
+  statusIn.value = rule.status || '';
+  statusIn.placeholder = 'DOWN, RECEIPT, …';
+  statusIn.addEventListener('input', () => { ruleState.dirty = true; });
+
+  const descIn = document.createElement('textarea');
+  descIn.rows = 2;
+  descIn.value = rule.description || '';
+  descIn.addEventListener('input', () => { ruleState.dirty = true; });
+
+  const phrasesIn = document.createElement('textarea');
+  phrasesIn.rows = 5;
+  phrasesIn.placeholder = 'One keyword or phrase per line';
+  phrasesIn.value = (rule.phrases || []).join('\n');
+  phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });
+
+  const matchSel = document.createElement('select');
+  matchSel.innerHTML = '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
+  matchSel.value = rule.matchMode === 'all' ? 'all' : 'any';
+  matchSel.addEventListener('change', () => { ruleState.dirty = true; });
+
+  const fieldsWrap = document.createElement('div');
+  fieldsWrap.className = 're-checks';
+  const fieldSet = new Set(rule.fields || ['subject', 'body']);
+  for (const [val, lab] of [['subject', 'Subject'], ['body', 'Body'], ['from', 'From']]) {
+    const lb = document.createElement('label');
+    lb.className = 're-check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = val;
+    cb.checked = fieldSet.has(val);
+    cb.addEventListener('change', () => { ruleState.dirty = true; });
+    lb.append(cb, document.createTextNode(` ${lab}`));
+    fieldsWrap.appendChild(lb);
+  }
+
+  const notifyLb = document.createElement('label');
+  notifyLb.className = 're-check';
+  const notifyCb = document.createElement('input');
+  notifyCb.type = 'checkbox';
+  notifyCb.checked = !!rule.notify;
+  notifyCb.addEventListener('change', () => { ruleState.dirty = true; });
+  notifyLb.append(notifyCb, document.createTextNode(' Send Telegram alert'));
+
+  const enabledLb = document.createElement('label');
+  enabledLb.className = 're-check';
+  const enabledCb = document.createElement('input');
+  enabledCb.type = 'checkbox';
+  enabledCb.checked = rule.enabled !== false;
+  enabledCb.addEventListener('change', () => { ruleState.dirty = true; });
+  enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
+
+  form.append(
+    mkField('Title', titleIn),
+    mkField('Status tag', statusIn),
+    mkField('Description', descIn),
+    mkField('Keywords / phrases', phrasesIn),
+    mkField('Match mode', matchSel),
+    mkField('Search in', fieldsWrap),
+    notifyLb,
+    enabledLb
+  );
+  root.appendChild(form);
+
+  const actions = document.createElement('div');
+  actions.className = 're-actions';
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'de-btn de-btn-primary';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', () =>
+    saveRule(rule.id, {
+      titleIn,
+      statusIn,
+      descIn,
+      phrasesIn,
+      matchSel,
+      fieldsWrap,
+      notifyCb,
+      enabledCb,
+      saveBtn,
+    })
+  );
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'de-btn de-btn-danger';
+  delBtn.textContent = 'Delete';
+  delBtn.addEventListener('click', () => deleteRule(rule.id));
+  actions.append(saveBtn, delBtn);
+  root.appendChild(actions);
+}
+
+function collectRulePayload(inputs) {
+  const fields = [];
+  inputs.fieldsWrap.querySelectorAll('input[type=checkbox]').forEach((cb) => {
+    if (cb.checked) fields.push(cb.value);
+  });
+  return {
+    title: inputs.titleIn.value.trim(),
+    status: inputs.statusIn.value.trim(),
+    description: inputs.descIn.value.trim(),
+    phrases: inputs.phrasesIn.value.split('\n').map((s) => s.trim()).filter(Boolean),
+    matchMode: inputs.matchSel.value,
+    fields: fields.length ? fields : ['subject', 'body'],
+    notify: inputs.notifyCb.checked,
+    enabled: inputs.enabledCb.checked,
+  };
+}
+
+async function saveRule(id, inputs) {
+  const payload = collectRulePayload(inputs);
+  if (!payload.title || !payload.status) {
+    alert('Title and status tag are required.');
+    return;
+  }
+  inputs.saveBtn.disabled = true;
+  inputs.saveBtn.textContent = 'Saving…';
+  try {
+    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    ruleState.dirty = false;
+    await loadAndBuildRuleNodes();
+    openRuleEditor(id);
+    inputs.saveBtn.textContent = 'Saved ✓';
+  } catch (e) {
+    inputs.saveBtn.textContent = 'Save';
+    inputs.saveBtn.disabled = false;
+    alert(`Save failed: ${e.message}`);
+  }
+}
+
+async function deleteRule(id) {
+  const rule = ruleState.rules.find((r) => r.id === id);
+  if (!confirm(`Delete "${rule?.title || 'this rule'}"?`)) return;
+  try {
+    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    ruleState.dirty = false;
+    closeRuleEditor(false);
+    await loadAndBuildRuleNodes();
+  } catch (e) {
+    alert(`Delete failed: ${e.message}`);
+  }
+}
+
+async function startNewRule() {
+  if (ruleState.dirty && !confirm('Discard unsaved changes?')) return;
+  try {
+    const res = await fetch('/api/email/rules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'New rule',
+        status: 'CUSTOM',
+        description: '',
+        phrases: [],
+        matchMode: 'any',
+        fields: ['subject', 'body'],
+        notify: true,
+        enabled: true,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await loadAndBuildRuleNodes();
+    openRuleEditor(data.rule.id);
+  } catch (e) {
+    alert(`Could not create rule: ${e.message}`);
   }
 }
 
@@ -2081,7 +2254,7 @@ if (MAP.type === 'documents') {
   buildMap();
   requestAnimationFrame(() => { redraw(); fit(); });
   if (MAP.type === 'todo') loadAndBuildTodoNodes();
-  if (MAP.type === 'rules') loadAndBuildRulesFlow();
+  if (MAP.type === 'rules') loadAndBuildRuleNodes();
 }
 syncHealthLifecycle();
 

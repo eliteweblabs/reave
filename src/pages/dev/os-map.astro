@@ -182,82 +182,76 @@ export const prerender = false;
         overflow: hidden;
       }
 
-      /* Rules tab — n8n-style flow nodes */
-      .node.rule-node { padding-top: 0.45rem; }
-      .node.rule-node .rule-badge {
-        font-size: 0.58rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: hsl(var(--h) 75% 72%);
-        margin-bottom: 0.25rem;
-        opacity: 0.9;
-      }
-      .node.rule-trigger { border-left-color: hsl(165 75% 52%); }
-      .node.rule-if { border-left-color: hsl(45 85% 55%); }
-      .node.rule-then-alert { border-left-color: hsl(0 75% 58%); }
-      .node.rule-then-quiet { border-left-color: hsl(210 70% 58%); }
-      .node.rule-planned { border-left-color: hsl(280 65% 62%); }
-      .node.rule-selected {
-        outline: 2px solid hsl(165 80% 55% / 0.85);
-        outline-offset: 2px;
-      }
+      .node.rule-card { cursor: pointer; }
 
-      #rule-inspector {
+      #rule-editor {
         display: none;
+        flex-direction: column;
         position: fixed;
-        right: 1rem;
-        bottom: 1rem;
-        z-index: 40;
-        width: min(22rem, calc(100vw - 2rem));
-        max-height: min(40vh, 320px);
+        top: var(--topbar-h);
+        right: 0;
+        bottom: 0;
+        width: min(400px, 100vw);
+        z-index: 35;
+        background: var(--panel);
+        border-left: 1px solid var(--panel-border);
+        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.35);
+      }
+      #rule-editor.re-pane-active { display: flex; }
+      #rule-editor .re-idle {
+        padding: 1rem 1.1rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+      #rule-editor .re-idle strong { color: var(--fg); }
+      #rule-editor .re-warn { color: #f85149; margin-top: 0.75rem; font-size: 0.75rem; }
+      #rule-editor .re-head {
+        padding: 0.65rem 0.85rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+      #rule-editor .re-form {
+        flex: 1 1 auto;
         overflow: auto;
-        background: rgba(18, 23, 34, 0.96);
-        border: 1px solid var(--panel-border);
-        border-radius: 12px;
         padding: 0.85rem 1rem;
-        font-size: 0.78rem;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(8px);
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
       }
-      #rule-inspector .ri-title {
-        font-weight: 700;
-        font-size: 0.92rem;
-        margin-bottom: 0.35rem;
-        color: var(--fg);
-      }
-      #rule-inspector .ri-desc {
-        color: var(--muted);
-        margin-bottom: 0.5rem;
-        line-height: 1.4;
-      }
-      #rule-inspector .ri-body { color: var(--muted); line-height: 1.45; }
-      #rule-inspector .ri-body code { font-size: 0.72rem; color: hsl(165 70% 72%); }
-      #rule-inspector .ri-err { color: #f85149; }
-      #rule-inspector .ri-dl { margin: 0; }
-      #rule-inspector .ri-dl dt {
-        font-size: 0.62rem;
+      #rule-editor .re-field { display: flex; flex-direction: column; gap: 0.3rem; }
+      #rule-editor .re-label {
+        font-size: 0.68rem;
+        font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         color: var(--muted);
-        margin-top: 0.45rem;
       }
-      #rule-inspector .ri-dl dd { margin: 0.15rem 0 0; color: var(--fg); line-height: 1.4; }
-      #rule-inspector .ri-dl code {
-        display: inline-block;
-        margin: 0.1rem 0.15rem 0.1rem 0;
-        padding: 0.05rem 0.3rem;
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 4px;
-        font-size: 0.7rem;
+      #rule-editor .re-field input,
+      #rule-editor .re-field textarea,
+      #rule-editor .re-field select {
+        font: inherit;
+        font-size: 0.82rem;
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        padding: 0.45rem 0.55rem;
+        resize: vertical;
       }
-      #rule-inspector .ri-planned {
-        margin-top: 0.65rem;
-        padding-top: 0.55rem;
-        border-top: 1px dashed var(--panel-border);
-        color: hsl(280 70% 78%);
-        font-size: 0.72rem;
-        line-height: 1.4;
+      #rule-editor .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+      #rule-editor .re-check {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.8rem;
+        color: var(--fg);
+        cursor: pointer;
+      }
+      #rule-editor .re-actions {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border-top: 1px solid var(--panel-border);
       }
       .node .status {
         margin-top: 0.4rem;
@@ -1094,7 +1088,7 @@ export const prerender = false;
     <!-- Knowledge tab panel (hidden unless knowledge tab is active) -->
     <div id="knowledge-editor" style="display:none"></div>
 
-    <div id="rule-inspector" style="display:none" aria-live="polite"></div>
+    <div id="rule-editor" style="display:none"></div>
 
     <script is:inline type="module" src="/dev/os-map-loader.js"></script>
   </body>
