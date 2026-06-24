@@ -207,6 +207,20 @@ export type ClientPortal = {
 
 const PORTAL_SYSTEM = 'portal';
 
+/** Summary shape for list views — no notes or full metadata. */
+export function contactSummary(c: ContactRecord) {
+  return {
+    uid: c.uid,
+    name: c.name,
+    email: c.email ?? '',
+    phone: c.phone ?? '',
+    company: c.company ?? '',
+    archived: !!c.archived,
+    updatedAt: c.updatedAt ?? c.createdAt ?? '',
+    portal_url: clientPortalUrl(c.uid),
+  };
+}
+
 /** Fetch a single contact (with aliases + links) by uid. */
 export async function getContact(
   uid: string

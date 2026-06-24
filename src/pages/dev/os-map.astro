@@ -892,9 +892,10 @@ export const prerender = false;
         min-height: 0;
       }
 
-      /* ── Knowledge / Work tabs (reuse Documents editor classes) ── */
+      /* ── Knowledge / Work / Clients tabs (reuse Documents editor classes) ── */
       #knowledge-editor,
-      #work-editor {
+      #work-editor,
+      #clients-editor {
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
@@ -905,11 +906,14 @@ export const prerender = false;
       }
       @media (max-width: 639px) {
         #knowledge-editor,
-        #work-editor { flex-direction: column; }
+        #work-editor,
+        #clients-editor { flex-direction: column; }
         #knowledge-editor.de-pane-active .de-sidebar,
-        #work-editor.de-pane-active .de-sidebar { display: none; }
+        #work-editor.de-pane-active .de-sidebar,
+        #clients-editor.de-pane-active .de-sidebar { display: none; }
         #knowledge-editor.de-pane-active .de-pane,
-        #work-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+        #work-editor.de-pane-active .de-pane,
+        #clients-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
       }
       .wk-status {
         font-size: 0.62rem;
@@ -927,6 +931,33 @@ export const prerender = false;
       .wk-status-archived { color: #d29922; background: rgba(210, 153, 34, 0.12); }
       .wk-meta-row { display: flex; align-items: center; gap: 0.35rem; width: 100%; }
       .wk-contact { font-size: 0.68rem; color: var(--muted); }
+      .cl-search {
+        margin: 0 0.7rem 0.5rem;
+        padding: 0.45rem 0.55rem;
+        border-radius: 7px;
+        border: 1px solid var(--panel-border);
+        background: var(--card);
+        color: var(--fg);
+        font-size: 0.82rem;
+        width: calc(100% - 1.4rem);
+      }
+      .cl-archived {
+        font-size: 0.62rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.08rem 0.35rem;
+        border-radius: 4px;
+        margin-left: auto;
+        color: #8b97a8;
+        background: rgba(139, 151, 168, 0.12);
+      }
+      .cl-readonly {
+        font-size: 0.75rem;
+        color: var(--muted);
+        word-break: break-all;
+      }
+      .cl-readonly a { color: #79c0ff; }
 
       /* ── Chats tab ── */
       #chat-panel {
@@ -1110,6 +1141,9 @@ export const prerender = false;
 
     <!-- Work tab panel (hidden unless work tab is active) -->
     <div id="work-editor" style="display:none"></div>
+
+    <!-- Clients tab panel (hidden unless clients tab is active) -->
+    <div id="clients-editor" style="display:none"></div>
 
     <div id="rule-editor" style="display:none"></div>
 

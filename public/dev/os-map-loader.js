@@ -147,6 +147,8 @@ function setActiveMap(key) {
     loadKnowledgeTab();
   } else if (MAP.type === 'work') {
     loadWorkTab();
+  } else if (MAP.type === 'clients') {
+    loadClientsTab();
   } else if (MAP.type === 'chats') {
     loadChatsTab();
   } else {
@@ -159,7 +161,7 @@ function setActiveMap(key) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'chats';
+  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats';
 }
 
 function syncCanvasVisibility() {
@@ -170,6 +172,7 @@ function syncCanvasVisibility() {
   document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
   document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
   document.getElementById('work-editor').style.display = MAP.type === 'work' ? 'flex' : 'none';
+  document.getElementById('clients-editor').style.display = MAP.type === 'clients' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
   document.getElementById('rule-editor').style.display = MAP.type === 'rules' ? 'flex' : 'none';
   syncRulesToolbar();
@@ -2371,6 +2374,428 @@ async function deleteWork(slug) {
   }
 }
 
+// ---- clients tab ----
+
+let clientState = {
+  clients: [],
+  total: 0,
+  search: '',
+  activeUid: null,
+  dirty: false,
+  draft: null,
+};
+let clientSearchTimer = null;
+
+function getClientsEditor() { return document.getElementById('clients-editor'); }
+
+function clientSubline(c) {
+  return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
+}
+
+async function fetchClientsList() {
+  const params = new URLSearchParams();
+  if (clientState.search.trim()) params.set('q', clientState.search.trim());
+  const qs = params.toString();
+  const res = await fetch(`/api/clients${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  clientState.clients = data.clients || [];
+  clientState.total = data.total ?? clientState.clients.length;
+}
+
+async function loadClientsTab() {
+  const root = getClientsEditor();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading clients…</div>';
+  try {
+    await fetchClientsList();
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
+    return;
+  }
+  clientState.activeUid = null;
+  clientState.dirty = false;
+  clientState.draft = null;
+  getClientsEditor()?.classList.remove('de-pane-active');
+  renderClientsEditor();
+}
+
+function scheduleClientSearch() {
+  clearTimeout(clientSearchTimer);
+  clientSearchTimer = setTimeout(async () => {
+    try {
+      await fetchClientsList();
+      renderClientsEditor();
+    } catch (e) {
+      alert(`Search failed: ${e.message}`);
+    }
+  }, 300);
+}
+
+function renderClientsEditor() {
+  const root = getClientsEditor();
+  if (!root) return;
+  const { clients, activeUid, total } = clientState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'de-sidebar';
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn';
+  newBtn.textContent = '+ New Client';
+  newBtn.addEventListener('click', () => {
+    clientState.activeUid = '__new__';
+    clientState.dirty = false;
+    clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };
+    renderClientsEditor();
+  });
+  sidebar.appendChild(newBtn);
+
+  const search = document.createElement('input');
+  search.className = 'cl-search';
+  search.type = 'search';
+  search.placeholder = 'Search clients…';
+  search.value = clientState.search;
+  search.addEventListener('input', (e) => {
+    clientState.search = e.target.value;
+    scheduleClientSearch();
+  });
+  sidebar.appendChild(search);
+
+  const hint = document.createElement('div');
+  hint.className = 'de-empty';
+  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.textContent = `contact-api · ${total} total`;
+  sidebar.appendChild(hint);
+
+  const list = document.createElement('div');
+  list.className = 'de-list';
+  for (const c of clients) {
+    const item = document.createElement('button');
+    item.className = 'de-list-item' + (c.uid === activeUid ? ' active' : '');
+    item.innerHTML =
+      `<span class="de-item-title">${escHtml(c.name)}</span>` +
+      `<span class="wk-meta-row">` +
+      `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
+      (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
+      `</span>`;
+    item.addEventListener('click', () => openClient(c.uid));
+    list.appendChild(item);
+  }
+  if (clients.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = clientState.search.trim() ? 'No matches.' : 'No clients yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+
+  if (activeUid === '__new__') {
+    renderNewClientForm(pane);
+  } else if (activeUid) {
+    renderEditClientForm(pane);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = '<div class="de-placeholder-icon">👥</div><p>Select a client to edit, or add a new one.</p>';
+    pane.appendChild(placeholder);
+  }
+
+  root.appendChild(pane);
+}
+
+function appendClientField(parent, label, input) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = label;
+  wrap.appendChild(input);
+  parent.appendChild(wrap);
+}
+
+function renderNewClientForm(pane) {
+  pane.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Clients';
+  backBtn.addEventListener('click', () => {
+    clientState.activeUid = null;
+    clientState.draft = null;
+    getClientsEditor()?.classList.remove('de-pane-active');
+    renderClientsEditor();
+  });
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = 'New client';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+
+  const nameInput = document.createElement('input');
+  nameInput.className = 'de-input';
+  nameInput.placeholder = 'Full name';
+  nameInput.value = clientState.draft?.name || '';
+  appendClientField(fields, 'Name', nameInput);
+
+  const emailInput = document.createElement('input');
+  emailInput.className = 'de-input';
+  emailInput.type = 'email';
+  emailInput.placeholder = 'email@example.com';
+  emailInput.value = clientState.draft?.email || '';
+  appendClientField(fields, 'Email', emailInput);
+
+  const phoneInput = document.createElement('input');
+  phoneInput.className = 'de-input';
+  phoneInput.placeholder = '+1 …';
+  phoneInput.value = clientState.draft?.phone || '';
+  appendClientField(fields, 'Phone', phoneInput);
+
+  const companyInput = document.createElement('input');
+  companyInput.className = 'de-input';
+  companyInput.placeholder = 'Company';
+  companyInput.value = clientState.draft?.company || '';
+  appendClientField(fields, 'Company', companyInput);
+
+  pane.appendChild(fields);
+
+  const notesLabel = document.createElement('label');
+  notesLabel.className = 'de-label';
+  notesLabel.textContent = 'Notes (internal)';
+  const notesTa = document.createElement('textarea');
+  notesTa.className = 'de-textarea';
+  notesTa.spellcheck = false;
+  notesTa.placeholder = 'Private notes — never shown on client portal';
+  notesTa.value = clientState.draft?.notes || '';
+  notesLabel.appendChild(notesTa);
+  pane.appendChild(notesLabel);
+
+  const actions = document.createElement('div');
+  actions.className = 'de-actions';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'de-btn de-btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => {
+    clientState.activeUid = null;
+    clientState.draft = null;
+    renderClientsEditor();
+  });
+  const createBtn = document.createElement('button');
+  createBtn.className = 'de-btn de-btn-primary';
+  createBtn.textContent = 'Create';
+  createBtn.addEventListener('click', () =>
+    createClient({
+      name: nameInput.value.trim(),
+      email: emailInput.value.trim(),
+      phone: phoneInput.value.trim(),
+      company: companyInput.value.trim(),
+      notes: notesTa.value.trim(),
+    }),
+  );
+  actions.appendChild(cancelBtn);
+  actions.appendChild(createBtn);
+  pane.appendChild(actions);
+  getClientsEditor()?.classList.add('de-pane-active');
+}
+
+function renderEditClientForm(pane) {
+  const uid = clientState.activeUid;
+  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+
+  fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' })
+    .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.error || 'Failed to load');
+      clientState.draft = {
+        name: data.name,
+        email: data.email || '',
+        phone: data.phone || '',
+        company: data.company || '',
+        notes: data.notes || '',
+        portal_url: data.portal_url,
+        createdAt: data.createdAt,
+        archived: data.archived,
+      };
+      clientState.dirty = false;
+      pane.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'de-header';
+      const backBtn = document.createElement('button');
+      backBtn.className = 'de-back-btn';
+      backBtn.textContent = '← Clients';
+      backBtn.addEventListener('click', () => {
+        if (clientState.dirty && !confirm('Discard unsaved changes?')) return;
+        clientState.activeUid = null;
+        clientState.draft = null;
+        getClientsEditor()?.classList.remove('de-pane-active');
+        renderClientsEditor();
+      });
+      header.appendChild(backBtn);
+      const titleEl = document.createElement('span');
+      titleEl.className = 'de-doc-name';
+      titleEl.textContent = data.name;
+      header.appendChild(titleEl);
+      pane.appendChild(header);
+
+      const meta = document.createElement('div');
+      meta.className = 'cl-readonly';
+      meta.style.padding = '0 1rem 0.5rem';
+      meta.innerHTML =
+        `UID: ${escHtml(uid)}` +
+        (data.portal_url ? `<br>Portal: <a href="${escHtml(data.portal_url)}" target="_blank" rel="noopener">${escHtml(data.portal_url)}</a>` : '') +
+        (data.createdAt ? `<br>Created: ${escHtml(new Date(data.createdAt).toLocaleString())}` : '');
+      pane.appendChild(meta);
+
+      const fields = document.createElement('div');
+      fields.className = 'de-fields';
+
+      const nameInput = document.createElement('input');
+      nameInput.className = 'de-input';
+      nameInput.value = clientState.draft.name;
+      appendClientField(fields, 'Name', nameInput);
+
+      const emailInput = document.createElement('input');
+      emailInput.className = 'de-input';
+      emailInput.type = 'email';
+      emailInput.value = clientState.draft.email;
+      appendClientField(fields, 'Email', emailInput);
+
+      const phoneInput = document.createElement('input');
+      phoneInput.className = 'de-input';
+      phoneInput.value = clientState.draft.phone;
+      appendClientField(fields, 'Phone', phoneInput);
+
+      const companyInput = document.createElement('input');
+      companyInput.className = 'de-input';
+      companyInput.value = clientState.draft.company;
+      appendClientField(fields, 'Company', companyInput);
+
+      pane.appendChild(fields);
+
+      const notesLabel = document.createElement('label');
+      notesLabel.className = 'de-label';
+      notesLabel.textContent = 'Notes (internal)';
+      const notesTa = document.createElement('textarea');
+      notesTa.className = 'de-textarea';
+      notesTa.spellcheck = false;
+      notesTa.value = clientState.draft.notes;
+      notesLabel.appendChild(notesTa);
+      pane.appendChild(notesLabel);
+
+      const markDirty = () => {
+        clientState.dirty =
+          nameInput.value !== clientState.draft.name ||
+          emailInput.value !== clientState.draft.email ||
+          phoneInput.value !== clientState.draft.phone ||
+          companyInput.value !== clientState.draft.company ||
+          notesTa.value !== clientState.draft.notes;
+      };
+      nameInput.addEventListener('input', markDirty);
+      emailInput.addEventListener('input', markDirty);
+      phoneInput.addEventListener('input', markDirty);
+      companyInput.addEventListener('input', markDirty);
+      notesTa.addEventListener('input', markDirty);
+
+      const actions = document.createElement('div');
+      actions.className = 'de-actions';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'de-btn de-btn-danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteClient(uid, data.name));
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'de-btn de-btn-primary';
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('click', () =>
+        saveClient(uid, {
+          name: nameInput.value.trim(),
+          email: emailInput.value.trim(),
+          phone: phoneInput.value.trim(),
+          company: companyInput.value.trim(),
+          notes: notesTa.value.trim(),
+        }),
+      );
+      actions.appendChild(delBtn);
+      actions.appendChild(saveBtn);
+      pane.appendChild(actions);
+      getClientsEditor()?.classList.add('de-pane-active');
+    })
+    .catch((e) => {
+      pane.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    });
+}
+
+async function openClient(uid) {
+  if (clientState.dirty && clientState.activeUid && !confirm('Discard unsaved changes?')) return;
+  clientState.activeUid = uid;
+  clientState.dirty = false;
+  renderClientsEditor();
+}
+
+async function createClient(payload) {
+  if (!payload.name) { alert('Enter a name.'); return; }
+  try {
+    const res = await fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await loadClientsTab();
+    clientState.activeUid = data.uid;
+    renderClientsEditor();
+  } catch (e) {
+    alert(`Failed to create: ${e.message}`);
+  }
+}
+
+async function saveClient(uid, payload) {
+  if (!payload.name) { alert('Name is required.'); return; }
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    clientState.dirty = false;
+    await loadClientsTab();
+    clientState.activeUid = uid;
+    renderClientsEditor();
+  } catch (e) {
+    alert(`Failed to save: ${e.message}`);
+  }
+}
+
+async function deleteClient(uid, name) {
+  if (!confirm(`Delete client "${name}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    clientState.activeUid = null;
+    clientState.dirty = false;
+    clientState.draft = null;
+    await loadClientsTab();
+  } catch (e) {
+    alert(`Failed to delete: ${e.message}`);
+  }
+}
+
 // ---- chats tab ----
 
 let chatState = {
@@ -2659,6 +3084,8 @@ if (MAP.type === 'documents') {
   loadKnowledgeTab();
 } else if (MAP.type === 'work') {
   loadWorkTab();
+} else if (MAP.type === 'clients') {
+  loadClientsTab();
 } else if (MAP.type === 'chats') {
   loadChatsTab();
 } else {
