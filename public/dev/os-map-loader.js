@@ -2035,7 +2035,7 @@ function renderWorkEditor() {
   newBtn.addEventListener('click', () => {
     workState.activeSlug = '__new__';
     workState.dirty = false;
-    workState.draft = { title: '', client: '', status: 'inquiry', body: '' };
+    workState.draft = { title: '', contact_uid: '', contact_name: '', status: 'inquiry', body: '' };
     renderWorkEditor();
   });
   sidebar.appendChild(newBtn);
@@ -2043,7 +2043,7 @@ function renderWorkEditor() {
   const hint = document.createElement('div');
   hint.className = 'de-empty';
   hint.style.padding = '0 0.7rem 0.5rem';
-  hint.textContent = 'Jobs in src/knowledge/jobs/ · client resolves via contact-api';
+  hint.textContent = 'Jobs in src/knowledge/jobs/ · pick or add a client';
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
@@ -2099,6 +2099,205 @@ function buildStatusSelect(value) {
   return select;
 }
 
+let workClientSearchTimer = null;
+
+function workClientSubline(c) {
+  return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
+}
+
+/**
+ * Client combobox: search existing contacts, pick one, or add new inline.
+ * Returns { getPayload, isValid } — save uses contact_uid (no resolve on save).
+ */
+function mountWorkClientPicker(parent, initial, onChange) {
+  let selected = initial?.contact_uid
+    ? { uid: initial.contact_uid, name: initial.contact_name || initial.client || '' }
+    : null;
+  let showingNew = false;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-client-picker';
+
+  const label = document.createElement('span');
+  label.className = 'de-label';
+  label.textContent = 'Client';
+  wrap.appendChild(label);
+
+  const selectedEl = document.createElement('div');
+  selectedEl.className = 'wk-client-selected';
+  const selectedName = document.createElement('span');
+  const changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'de-btn de-btn-ghost';
+  changeBtn.textContent = 'Change';
+  selectedEl.appendChild(selectedName);
+  selectedEl.appendChild(changeBtn);
+  wrap.appendChild(selectedEl);
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'wk-client-search-wrap';
+  const searchInput = document.createElement('input');
+  searchInput.className = 'de-input';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search clients…';
+  searchInput.autocomplete = 'off';
+  searchWrap.appendChild(searchInput);
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.style.display = 'none';
+  searchWrap.appendChild(dropdown);
+  wrap.appendChild(searchWrap);
+
+  const newForm = document.createElement('div');
+  newForm.className = 'wk-client-new';
+  newForm.style.display = 'none';
+  newForm.innerHTML = '<span class="de-label">New client</span>';
+  const newName = document.createElement('input');
+  newName.className = 'de-input';
+  newName.placeholder = 'Full name (required)';
+  const newEmail = document.createElement('input');
+  newEmail.className = 'de-input';
+  newEmail.type = 'email';
+  newEmail.placeholder = 'Email (optional)';
+  const newActions = document.createElement('div');
+  newActions.className = 'wk-client-new-actions';
+  const newCancel = document.createElement('button');
+  newCancel.type = 'button';
+  newCancel.className = 'de-btn de-btn-ghost';
+  newCancel.textContent = 'Cancel';
+  const newSave = document.createElement('button');
+  newSave.type = 'button';
+  newSave.className = 'de-btn de-btn-primary';
+  newSave.textContent = 'Create client';
+  newActions.appendChild(newCancel);
+  newActions.appendChild(newSave);
+  newForm.appendChild(newName);
+  newForm.appendChild(newEmail);
+  newForm.appendChild(newActions);
+  wrap.appendChild(newForm);
+
+  parent.appendChild(wrap);
+
+  function syncView() {
+    const has = !!selected?.uid;
+    selectedEl.style.display = has && !showingNew ? 'flex' : 'none';
+    searchWrap.style.display = has && !showingNew ? 'none' : showingNew ? 'none' : 'block';
+    newForm.style.display = showingNew ? 'flex' : 'none';
+    if (has) selectedName.textContent = selected.name;
+  }
+
+  function pick(client) {
+    selected = { uid: client.uid, name: client.name };
+    showingNew = false;
+    dropdown.style.display = 'none';
+    searchInput.value = '';
+    syncView();
+    onChange?.();
+  }
+
+  function renderDropdown(clients, query) {
+    dropdown.innerHTML = '';
+    for (const c of clients) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.innerHTML = `${escHtml(c.name)}<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+      btn.addEventListener('click', () => pick(c));
+      dropdown.appendChild(btn);
+    }
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'wk-client-option wk-client-add';
+    addBtn.textContent = query.trim() ? `+ Add "${query.trim()}" as new client` : '+ Add new client';
+    addBtn.addEventListener('click', () => {
+      showingNew = true;
+      newName.value = query.trim();
+      newEmail.value = '';
+      dropdown.style.display = 'none';
+      syncView();
+      newName.focus();
+    });
+    dropdown.appendChild(addBtn);
+    dropdown.style.display = 'block';
+  }
+
+  async function fetchClients(q) {
+    const params = new URLSearchParams();
+    if (q?.trim()) params.set('q', q.trim());
+    params.set('limit', '20');
+    const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data.clients || [];
+  }
+
+  function scheduleSearch() {
+    clearTimeout(workClientSearchTimer);
+    workClientSearchTimer = setTimeout(async () => {
+      try {
+        const clients = await fetchClients(searchInput.value);
+        renderDropdown(clients, searchInput.value);
+      } catch (e) {
+        dropdown.innerHTML = `<div class="de-empty">${escHtml(e.message)}</div>`;
+        dropdown.style.display = 'block';
+      }
+    }, 250);
+  }
+
+  changeBtn.addEventListener('click', () => {
+    selected = null;
+    showingNew = false;
+    syncView();
+    searchInput.focus();
+    scheduleSearch();
+    onChange?.();
+  });
+
+  searchInput.addEventListener('focus', () => scheduleSearch());
+  searchInput.addEventListener('input', () => scheduleSearch());
+
+  newCancel.addEventListener('click', () => {
+    showingNew = false;
+    syncView();
+    searchInput.focus();
+  });
+
+  newSave.addEventListener('click', async () => {
+    const name = newName.value.trim();
+    if (!name) { alert('Enter a client name.'); return; }
+    newSave.disabled = true;
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email: newEmail.value.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      pick({ uid: data.uid, name: data.name });
+    } catch (e) {
+      alert(`Failed to create client: ${e.message}`);
+    } finally {
+      newSave.disabled = false;
+    }
+  });
+
+  document.addEventListener('click', (ev) => {
+    if (!wrap.contains(ev.target)) dropdown.style.display = 'none';
+  });
+
+  syncView();
+
+  return {
+    getPayload() {
+      if (!selected?.uid) return null;
+      return { contact_uid: selected.uid, contact_name: selected.name };
+    },
+    isValid: () => !!selected?.uid,
+    getSelectedUid: () => selected?.uid || '',
+  };
+}
+
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
@@ -2132,15 +2331,8 @@ function renderNewWorkForm(pane) {
   titleLabel.appendChild(titleInput);
   fields.appendChild(titleLabel);
 
-  const clientLabel = document.createElement('label');
-  clientLabel.className = 'de-label';
-  clientLabel.textContent = 'Client (resolved via contact-api on save)';
-  const clientInput = document.createElement('input');
-  clientInput.className = 'de-input';
-  clientInput.placeholder = 'e.g. Acme Corp';
-  clientInput.value = workState.draft?.client || '';
-  clientLabel.appendChild(clientInput);
-  fields.appendChild(clientLabel);
+  let clientPicker;
+  clientPicker = mountWorkClientPicker(fields, workState.draft, () => { workState.dirty = true; });
 
   const statusLabel = document.createElement('label');
   statusLabel.className = 'de-label';
@@ -2174,9 +2366,11 @@ function renderNewWorkForm(pane) {
   createBtn.addEventListener('click', () => {
     const title = titleInput.value.trim();
     const slug = slugifyTitle(title);
+    const client = clientPicker.getPayload();
+    if (!client) { alert('Select a client, or add a new one.'); return; }
     createWork(slug, {
       title,
-      client: clientInput.value.trim(),
+      ...client,
       status: statusSelect.value,
       body: ta.value,
     });
@@ -2197,11 +2391,10 @@ function renderEditWorkForm(pane) {
       if (!ok) throw new Error(data.error || 'Failed to load');
       workState.draft = {
         title: data.title,
-        client: data.client || data.contact_name,
         status: data.status || 'inquiry',
         body: data.body || '',
         contact_uid: data.contact_uid,
-        contact_name: data.contact_name,
+        contact_name: data.contact_name || data.client,
       };
       workState.dirty = false;
       pane.innerHTML = '';
@@ -2237,22 +2430,23 @@ function renderEditWorkForm(pane) {
       titleLabel.appendChild(titleInput);
       fields.appendChild(titleLabel);
 
-      const clientLabel = document.createElement('label');
-      clientLabel.className = 'de-label';
-      clientLabel.textContent = 'Client';
-      const clientInput = document.createElement('input');
-      clientInput.className = 'de-input';
-      clientInput.value = workState.draft.client;
-      clientLabel.appendChild(clientInput);
-      fields.appendChild(clientLabel);
+      pane.appendChild(fields);
 
-      if (data.contact_uid) {
-        const uidHint = document.createElement('div');
-        uidHint.className = 'de-empty';
-        uidHint.style.padding = '0 0 0.5rem';
-        uidHint.textContent = `Linked: ${data.contact_name || data.client} (${data.contact_uid})`;
-        fields.appendChild(uidHint);
-      }
+      const ta = document.createElement('textarea');
+      ta.className = 'de-textarea';
+      ta.spellcheck = false;
+      ta.value = workState.draft.body;
+
+      let clientPicker;
+      const markDirty = () => {
+        const client = clientPicker.getPayload();
+        workState.dirty =
+          titleInput.value !== workState.draft.title ||
+          (client?.contact_uid || '') !== (workState.draft.contact_uid || '') ||
+          statusSelect.value !== workState.draft.status ||
+          ta.value !== workState.draft.body;
+      };
+      clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty);
 
       const statusLabel = document.createElement('label');
       statusLabel.className = 'de-label';
@@ -2261,21 +2455,7 @@ function renderEditWorkForm(pane) {
       statusLabel.appendChild(statusSelect);
       fields.appendChild(statusLabel);
 
-      pane.appendChild(fields);
-
-      const ta = document.createElement('textarea');
-      ta.className = 'de-textarea';
-      ta.spellcheck = false;
-      ta.value = workState.draft.body;
-      const markDirty = () => {
-        workState.dirty =
-          titleInput.value !== workState.draft.title ||
-          clientInput.value !== workState.draft.client ||
-          statusSelect.value !== workState.draft.status ||
-          ta.value !== workState.draft.body;
-      };
       titleInput.addEventListener('input', markDirty);
-      clientInput.addEventListener('input', markDirty);
       statusSelect.addEventListener('change', markDirty);
       ta.addEventListener('input', markDirty);
       pane.appendChild(ta);
@@ -2289,14 +2469,16 @@ function renderEditWorkForm(pane) {
       const saveBtn = document.createElement('button');
       saveBtn.className = 'de-btn de-btn-primary';
       saveBtn.textContent = 'Save';
-      saveBtn.addEventListener('click', () =>
+      saveBtn.addEventListener('click', () => {
+        const client = clientPicker.getPayload();
+        if (!client) { alert('Select a client, or add a new one.'); return; }
         saveWork(slug, {
           title: titleInput.value.trim(),
-          client: clientInput.value.trim(),
+          ...client,
           status: statusSelect.value,
           body: ta.value,
-        }),
-      );
+        });
+      });
       actions.appendChild(delBtn);
       actions.appendChild(saveBtn);
       pane.appendChild(actions);
@@ -2316,7 +2498,7 @@ async function openWork(slug) {
 
 async function createWork(slug, payload) {
   if (!payload.title) { alert('Enter a title.'); return; }
-  if (!payload.client) { alert('Enter a client name.'); return; }
+  if (!payload.contact_uid) { alert('Select a client.'); return; }
   if (!slug) { alert('Could not derive a slug from the title.'); return; }
   try {
     const res = await fetch('/api/work', {
@@ -2337,7 +2519,7 @@ async function createWork(slug, payload) {
 
 async function saveWork(slug, payload) {
   if (!payload.title) { alert('Title is required.'); return; }
-  if (!payload.client) { alert('Client is required.'); return; }
+  if (!payload.contact_uid) { alert('Select a client.'); return; }
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
       method: 'PUT',

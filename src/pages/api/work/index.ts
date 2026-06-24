@@ -11,8 +11,8 @@ import {
   isSafeWorkSlug,
   slugFromTitle,
   WORK_STATUSES,
-  type WorkStatus,
 } from '../../../lib/workStore';
+import { parseWorkJobInput } from '../../../lib/workJobInput';
 
 export const prerender = false;
 
@@ -21,11 +21,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function parseStatus(raw: unknown): WorkStatus | undefined {
-  const s = String(raw ?? '').trim().toLowerCase();
-  return WORK_STATUSES.includes(s as WorkStatus) ? (s as WorkStatus) : undefined;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -46,9 +41,8 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const title = String(body.title ?? '').trim();
-  const client = String(body.client ?? '').trim();
-  const jobBody = String(body.body ?? '').trim();
-  const status = parseStatus(body.status);
+  const parsed = parseWorkJobInput(body);
+  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
 
   let slug = String(body.slug ?? '')
     .trim()
@@ -59,11 +53,9 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!slug || !isSafeWorkSlug(slug)) {
     return json({ ok: false, error: 'Invalid slug' }, 400);
   }
-  if (!title) return json({ ok: false, error: 'title is required' }, 400);
-  if (!client) return json({ ok: false, error: 'client is required' }, 400);
   if (fileReadWork(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
 
-  const result = await fileWriteWork(slug, { title, client, status, body: jobBody });
+  const result = await fileWriteWork(slug, parsed);
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }

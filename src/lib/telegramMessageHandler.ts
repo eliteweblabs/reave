@@ -2,8 +2,9 @@ import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { reaveEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { storeListKnowledge, storeReadKnowledge } from './knowledgeStore';
-import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, type MenuButton } from './telegramClient';
-import { buildCommandList } from './telegramCommandList';
+import { telegramSendMessage, telegramAnswerCallback, telegramSendMenu, type MenuButton } from './telegramClient';
+import { registerTelegramCommands } from './telegramCommandRegistry';
+import { getCommandMenuButtons, formatSectionForTelegram } from './telegramCommandDocs';
 import { listTemplates } from './documentTemplates';
 import { siteBaseUrl } from './contactApi';
 import {
@@ -759,6 +760,8 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   if (t === '/clear' || t === '/reset') return '__CLEAR_HISTORY__';
 
   // ── /help ──────────────────────────────────────────────────────────────────
+  if (t === '/commands') return '__COMMANDS_MENU__';
+
   if (t === '/help') {
     const hasC = isContactApiConfigured();
     const hasB = isCraterConfigured();
@@ -782,6 +785,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/railway project <name>  — create project',
       '/knowledge   /get <slug>  — knowledge docs',
       '/clear  — clear chat history',
+      '/commands  — browse commands with buttons',
       ...(hasTelnyx ? [
         '',
         'VOICE & SMS (Telnyx):',
@@ -1014,15 +1018,19 @@ export async function handleTelegramTextMessage(opts: {
     return;
   }
   if (slash === '__REGISTER_COMMANDS__') {
-    const commands = buildCommandList();
-    const res = await telegramSetMyCommands(token, commands);
+    const res = await registerTelegramCommands(token);
     await telegramSendMessage(
       token,
       chatId,
       res.ok
-        ? `Registered ${commands.length} commands with Telegram.`
-        : `setMyCommands failed: ${res.error}`
+        ? `Registered ${res.count} commands with Telegram.`
+        : `setMyCommands failed: ${res.error}`,
     );
+    return;
+  }
+
+  if (slash === '__COMMANDS_MENU__') {
+    await telegramSendMenu(token, chatId, 'Pick a section:', getCommandMenuButtons());
     return;
   }
 
@@ -1557,6 +1565,15 @@ export async function handleTelegramCallbackQuery(opts: {
   }
 
   if (data.startsWith('cmd:')) {
-    await telegramSendMessage(token, chatId, 'Use /help to see all commands.');
+    const sectionId = data.slice('cmd:'.length);
+    if (sectionId === 'menu') {
+      await telegramSendMenu(token, chatId, 'Pick a section:', getCommandMenuButtons());
+      return;
+    }
+    const text = formatSectionForTelegram(sectionId);
+    await telegramSendMenu(token, chatId, text, [
+      [{ text: '‹ All sections', data: 'cmd:menu' }],
+    ]);
+    return;
   }
 }

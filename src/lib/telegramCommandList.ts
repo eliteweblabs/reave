@@ -59,7 +59,7 @@ export function buildCommandList(): BotCommand[] {
   commands.push(
     { command: 'status', description: `${DEVOPS_ICON} Deployment health check` },
     { command: 'commits', description: `${DEVOPS_ICON} Recent git commits` },
-    { command: 'railway', description: `${DEVOPS_ICON} Create a new Railway project` },
+    { command: 'railway', description: `${DEVOPS_ICON} New Railway project.` },
   );
 
   // ── Knowledge ─────────────────────────────────────────────────────────────
@@ -70,6 +70,7 @@ export function buildCommandList(): BotCommand[] {
 
   // ── Meta ──────────────────────────────────────────────────────────────────
   commands.push(
+    { command: 'commands', description: `${META_ICON} Browse commands (button menu)` },
     { command: 'clear', description: `${META_ICON} Clear chat history` },
     { command: 'help', description: `${META_ICON} Command reference` },
   );

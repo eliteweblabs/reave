@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
-import { telegramSetWebhook, telegramGetWebhookInfo, telegramSetMyCommands } from '../../../lib/telegramClient';
+import { telegramSetWebhook, telegramGetWebhookInfo } from '../../../lib/telegramClient';
 import { siteBaseUrl } from '../../../lib/contactApi';
 import { serverEnv } from '../../../lib/serverEnv';
-import { buildCommandList } from '../../../lib/telegramCommandList';
+import { registerTelegramCommands } from '../../../lib/telegramCommandRegistry';
 
 export const prerender = false;
 
@@ -50,15 +50,14 @@ export const POST: APIRoute = async ({ url }) => {
 
   // Register the command list in the same step so the / picker is always
   // current after a deploy — no separate /registercommands needed.
-  const commands = buildCommandList();
-  const cmdRes = await telegramSetMyCommands(token, commands);
+  const cmdRes = await registerTelegramCommands(token);
 
   const info = await telegramGetWebhookInfo(token);
   return json({
     ok: true,
     url: webhookUrl,
     allowed_updates: ['message', 'callback_query'],
-    commands_registered: cmdRes.ok ? commands.length : 0,
+    commands_registered: cmdRes.ok ? cmdRes.count : 0,
     commands_error: cmdRes.ok ? undefined : cmdRes.error,
     info: info.info,
   });

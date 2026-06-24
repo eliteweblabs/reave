@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
-import { telegramSetMyCommands } from '../../../lib/telegramClient';
 import { buildCommandList } from '../../../lib/telegramCommandList';
+import { registerTelegramCommands } from '../../../lib/telegramCommandRegistry';
 import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
@@ -28,14 +28,12 @@ export const GET: APIRoute = async ({ url }) => {
     return json({ ok: false, error: 'invalid secret' }, 401);
   }
 
-  const commands = buildCommandList();
-  const res = await telegramSetMyCommands(token, commands);
-
+  const res = await registerTelegramCommands(token);
   if (!res.ok) {
     return json({ ok: false, error: res.error }, 502);
   }
 
-  return json({ ok: true, registered: commands.length, commands });
+  return json({ ok: true, registered: res.count, commands: buildCommandList() });
 };
 
 function json(body: unknown, status = 200): Response {

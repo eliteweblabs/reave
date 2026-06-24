@@ -171,9 +171,18 @@ export async function telegramSetMyCommands(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ commands }),
   });
+  const text = await res.text().catch(() => '');
+  let json: { ok?: boolean; description?: string } | null = null;
+  try {
+    json = text ? (JSON.parse(text) as { ok?: boolean; description?: string }) : null;
+  } catch {
+    json = null;
+  }
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    return { ok: false, error: `${res.status} ${errText}` };
+    return { ok: false, error: `${res.status} ${json?.description ?? text}`.trim() };
+  }
+  if (json && json.ok === false) {
+    return { ok: false, error: json.description ?? text ?? 'setMyCommands rejected' };
   }
   return { ok: true };
 }

@@ -1,6 +1,6 @@
 /**
  * GET    /api/work/[slug] — read one job file
- * PUT    /api/work/[slug] — update { title, client, status?, body? }
+ * PUT    /api/work/[slug] — update { title, contact_uid, status?, body? }
  * DELETE /api/work/[slug] — remove file
  */
 
@@ -10,9 +10,8 @@ import {
   fileReadWork,
   fileWriteWork,
   isSafeWorkSlug,
-  WORK_STATUSES,
-  type WorkStatus,
 } from '../../../lib/workStore';
+import { parseWorkJobInput } from '../../../lib/workJobInput';
 
 export const prerender = false;
 
@@ -21,11 +20,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function parseStatus(raw: unknown): WorkStatus | undefined {
-  const s = String(raw ?? '').trim().toLowerCase();
-  return WORK_STATUSES.includes(s as WorkStatus) ? (s as WorkStatus) : undefined;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -55,15 +49,11 @@ export async function PUT(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const title = String(body.title ?? '').trim();
-  const client = String(body.client ?? '').trim();
-  const jobBody = String(body.body ?? '').trim();
-  const status = parseStatus(body.status);
+  const parsed = parseWorkJobInput(body);
+  if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
 
-  if (!title) return json({ ok: false, error: 'title is required' }, 400);
-  if (!client) return json({ ok: false, error: 'client is required' }, 400);
-
-  const result = await fileWriteWork(slug, { title, client, status, body: jobBody });
+  const existing = fileReadWork(slug)!;
+  const result = await fileWriteWork(slug, { ...parsed, source: existing.source });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { handleTelegramTextMessage, handleTelegramCallbackQuery, type TelegramUpdate } from '../../../lib/telegramMessageHandler';
+import { ensureTelegramCommandsRegistered } from '../../../lib/telegramCommandRegistry';
 import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
@@ -47,6 +48,7 @@ export const POST: APIRoute = async ({ request }) => {
   const update = body as TelegramUpdate;
 
   try {
+    await ensureTelegramCommandsRegistered(token);
     if (update.callback_query) {
       await handleTelegramCallbackQuery({ token, update });
     } else {

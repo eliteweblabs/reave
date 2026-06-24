@@ -931,6 +931,64 @@ export const prerender = false;
       .wk-status-archived { color: #d29922; background: rgba(210, 153, 34, 0.12); }
       .wk-meta-row { display: flex; align-items: center; gap: 0.35rem; width: 100%; }
       .wk-contact { font-size: 0.68rem; color: var(--muted); }
+      .wk-client-picker { position: relative; margin-bottom: 0.5rem; }
+      .wk-client-picker .de-label { display: block; margin-bottom: 0.35rem; }
+      .wk-client-selected {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.55rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 7px;
+        background: var(--card);
+      }
+      .wk-client-selected span { flex: 1; font-size: 0.88rem; }
+      .wk-client-selected button {
+        font-size: 0.72rem;
+        padding: 0.2rem 0.45rem;
+      }
+      .wk-client-dropdown {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 2px);
+        z-index: 40;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 7px;
+        background: var(--panel);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+      .wk-client-option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border: none;
+        background: transparent;
+        color: var(--fg);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      .wk-client-option:hover { background: rgba(255, 255, 255, 0.06); }
+      .wk-client-option .sub { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
+      .wk-client-option.wk-client-add {
+        color: #79c0ff;
+        border-top: 1px solid var(--panel-border);
+        font-weight: 600;
+      }
+      .wk-client-new {
+        margin-top: 0.5rem;
+        padding: 0.6rem;
+        border: 1px dashed var(--panel-border);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .wk-client-new .de-input { width: 100%; }
+      .wk-client-new-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
       .cl-search {
         margin: 0 0.7rem 0.5rem;
         padding: 0.45rem 0.55rem;

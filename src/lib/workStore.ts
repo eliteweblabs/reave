@@ -16,7 +16,7 @@ import {
   readSync,
   closeSync,
 } from 'fs';
-import { resolveContact } from './contactApi';
+import { getContact, resolveContact } from './contactApi';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
@@ -40,7 +40,11 @@ export interface WorkJobDoc extends WorkJobSummary {
 
 export interface WorkJobInput {
   title: string;
-  client: string;
+  /** Preferred: uid from client picker (no fuzzy resolve on save). */
+  contact_uid?: string;
+  contact_name?: string;
+  /** Legacy / bot: fuzzy-resolve by name when contact_uid is omitted. */
+  client?: string;
   status?: WorkStatus;
   body?: string;
   source?: string;
@@ -177,7 +181,7 @@ function buildMarkdown(
   const lines = [
     '---',
     yamlLine('title', title),
-    yamlLine('client', input.client.trim()),
+    yamlLine('client', contact.name),
     yamlLine('contact_uid', contact.uid),
     yamlLine('contact_name', contact.name),
     yamlLine('status', status),
@@ -191,6 +195,21 @@ function buildMarkdown(
   ];
 
   return lines.join('\n');
+}
+
+export async function resolveWorkContact(
+  input: WorkJobInput,
+): Promise<{ ok: true; uid: string; name: string } | { ok: false; error: string }> {
+  const uid = input.contact_uid?.trim();
+  const name = input.contact_name?.trim();
+  // UI picker sends uid + name — trust them (no contact-api round trip on save).
+  if (uid && name) return { ok: true, uid, name };
+  if (uid) {
+    const result = await getContact(uid);
+    if (!result.ok) return { ok: false, error: result.error };
+    return { ok: true, uid: result.data.uid, name: result.data.name };
+  }
+  return resolveWorkClient(input.client?.trim() || name || '');
 }
 
 export async function resolveWorkClient(
@@ -274,7 +293,7 @@ export async function fileWriteWork(
   if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
   if (!input.title.trim()) return { ok: false, error: 'title is required' };
 
-  const contact = await resolveWorkClient(input.client);
+  const contact = await resolveWorkContact(input);
   if (!contact.ok) return { ok: false, error: contact.error };
 
   const existing = fileReadWork(slug);
