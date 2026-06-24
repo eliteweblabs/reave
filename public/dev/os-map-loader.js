@@ -109,16 +109,18 @@ function buildMap() {
   // nodes
   for (const n of byId.values()) {
     const el = document.createElement('div');
-    el.className = `node${n.ghost ? ' ghost' : ''}`;
+    el.className = `node${n.ghost ? ' ghost' : ''}${n.cls ? ` ${n.cls}` : ''}`;
     el.style.setProperty('--h', n.hue);
+    if (n.wide) el.style.width = `${n.wide}px`;
     el.style.left = `${n.x}px`;
     el.style.top = `${n.y}px`;
     el.innerHTML = `
+      ${n.badge ? `<div class="rule-badge">${n.badge}</div>` : ''}
       <div class="row">
         ${chipHtml(n)}
         <span class="ttl">${n.title}</span>
       </div>
-      ${n.sub ? `<div class="sub">${n.sub}</div>` : ''}
+      ${n.sub ? `<div class="sub${n.subMultiline ? ' sub-multi' : ''}">${n.sub}</div>` : ''}
       ${n.status ? `<div class="status st-checking" data-st="${n.id}">Checking…</div>` : ''}
     `;
     world.appendChild(el);
@@ -149,6 +151,7 @@ function setActiveMap(key) {
     buildMap();
     requestAnimationFrame(() => { redraw(); fit(); });
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
+    if (MAP.type === 'rules') loadAndBuildRulesFlow();
   }
   syncHealthLifecycle();
 }
@@ -165,6 +168,8 @@ function syncCanvasVisibility() {
   document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
   document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
+  const insp = document.getElementById('rule-inspector');
+  if (insp) insp.style.display = MAP.type === 'rules' ? 'block' : 'none';
 }
 
 // ---- health polling ----
@@ -576,6 +581,21 @@ function buildLegend() {
     legend.appendChild(chip);
   }
 
+  if (activeKey === 'rules') {
+    const chips = [
+      ['Trigger', 165],
+      ['When (IF)', 45],
+      ['Then (action)', 210],
+      ['Planned', 280],
+    ];
+    for (const [label, hue] of chips) {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.innerHTML = `<span class="dot" style="background:hsl(${hue} 75% 58%)"></span>${label}`;
+      legend.appendChild(chip);
+    }
+  }
+
   // Status key (only meaningful on the live System map).
   if (activeKey === 'system') {
     const states = [
@@ -591,6 +611,221 @@ function buildLegend() {
       chip.innerHTML = `<span class="dot st-dot"></span>${label}`;
       legend.appendChild(chip);
     }
+  }
+}
+
+// ---- rules tab (n8n-style flow) ----
+
+let rulesState = { rules: [], planned: [], notifyOnUnmatched: true, pipeline: null };
+
+function phraseSummary(phrases, max = 3) {
+  if (!phrases?.length) return '(any)';
+  const shown = phrases.slice(0, max);
+  const tail = phrases.length > max ? ` +${phrases.length - max}` : '';
+  return shown.map((p) => `"${p}"`).join(' · ') + tail;
+}
+
+function fieldsSummary(fields) {
+  return (fields || ['subject', 'body']).join(', ');
+}
+
+function showRuleInspector(html) {
+  const el = document.getElementById('rule-inspector');
+  if (!el) return;
+  el.innerHTML = html;
+}
+
+function ruleInspectorHtml(rule, extra) {
+  if (!rule) {
+    return `<div class="ri-title">${extra?.title || 'Rule flow'}</div><div class="ri-body">${extra?.body || 'Click a node to inspect.'}</div>`;
+  }
+  const lines = [
+    `<div class="ri-title">${rule.status}${rule.enabled === false ? ' (disabled)' : ''}</div>`,
+    rule.description ? `<div class="ri-desc">${rule.description}</div>` : '',
+    '<dl class="ri-dl">',
+    `<dt>Phrases</dt><dd>${(rule.phrases || []).map((p) => `<code>${p}</code>`).join(' ') || '—'}</dd>`,
+    `<dt>Match</dt><dd>${rule.matchMode || 'any'} on ${fieldsSummary(rule.fields)}</dd>`,
+    `<dt>Notify</dt><dd>${rule.notify ? 'Telegram alert' : 'Silent (classify only)'}</dd>`,
+    `<dt>Edit</dt><dd><code>src/lib/emailRules.ts</code> → deploy</dd>`,
+    '</dl>',
+    extra?.planned ? `<div class="ri-planned">🔮 Planned: ${extra.planned}</div>` : '',
+  ];
+  return lines.filter(Boolean).join('');
+}
+
+/**
+ * Fetch /api/email/rules and lay out trigger → IF → THEN nodes (n8n-style).
+ */
+async function loadAndBuildRulesFlow() {
+  let data;
+  try {
+    const res = await fetch('/api/email/rules', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    data = await res.json();
+  } catch (e) {
+    console.error('[rules] fetch failed:', e);
+    showRuleInspector(`<div class="ri-body ri-err">Could not load rules: ${e.message}</div>`);
+    return;
+  }
+
+  rulesState = {
+    rules: data.rules || [],
+    planned: data.planned || [],
+    notifyOnUnmatched: !!data.notifyOnUnmatched,
+    pipeline: data.pipeline,
+  };
+
+  const nodes = [];
+  const edges = [];
+  const groups = [];
+
+  const COL = { trigger: 60, if: 340, then: 680, planned: 1020 };
+  const ROW_H = 132;
+  const MARGIN_Y = 80;
+
+  const triggerId = 'rule_trigger';
+  nodes.push({
+    id: triggerId,
+    title: 'Inbound email',
+    sub: 'Resend webhook · /api/email/inbound',
+    icon: '📥',
+    badge: 'Trigger',
+    cls: 'rule-node rule-trigger',
+    hue: 165,
+    x: COL.trigger,
+    y: MARGIN_Y + 40,
+    _rule: null,
+    _kind: 'trigger',
+  });
+
+  const enabledRules = rulesState.rules.filter((r) => r.enabled !== false);
+  enabledRules.forEach((rule, i) => {
+    const y = MARGIN_Y + i * ROW_H;
+    const ifId = `rule_if_${i}`;
+    const thenId = `rule_then_${i}`;
+    const grpId = `grp_rule_${i}`;
+
+    nodes.push({
+      id: ifId,
+      title: `IF · ${rule.status}`,
+      sub: phraseSummary(rule.phrases),
+      subMultiline: true,
+      icon: '◇',
+      badge: `#${i + 1} When`,
+      cls: 'rule-node rule-if',
+      hue: 45,
+      wide: 280,
+      x: COL.if,
+      y,
+      _rule: rule,
+      _kind: 'if',
+    });
+
+    const actionLabel = rule.notify ? 'Telegram alert' : 'Silent classify';
+    const actionIcon = rule.notify ? '🔔' : '📁';
+    nodes.push({
+      id: thenId,
+      title: `THEN · ${actionLabel}`,
+      sub: `status → ${rule.status}`,
+      icon: actionIcon,
+      badge: 'Action',
+      cls: `rule-node rule-then${rule.notify ? ' rule-then-alert' : ' rule-then-quiet'}`,
+      hue: rule.notify ? 0 : 210,
+      x: COL.then,
+      y,
+      _rule: rule,
+      _kind: 'then',
+    });
+
+    groups.push({ id: grpId, title: rule.status, hue: rule.notify ? 0 : 210, members: [ifId, thenId] });
+
+    edges.push({ from: triggerId, to: ifId, label: i === 0 ? 'rules (first match wins)' : '' });
+    edges.push({ from: ifId, to: thenId, label: 'match' });
+
+    const planned = rulesState.planned.find((p) => p.afterStatus === rule.status);
+    if (planned) {
+      const planId = `rule_plan_${i}`;
+      nodes.push({
+        id: planId,
+        title: planned.title,
+        sub: planned.description,
+        subMultiline: true,
+        icon: '🔮',
+        badge: 'Planned',
+        cls: 'rule-node rule-planned',
+        hue: 280,
+        ghost: true,
+        wide: 260,
+        x: COL.planned,
+        y,
+        _rule: rule,
+        _kind: 'planned',
+        _planned: planned,
+      });
+      edges.push({ from: thenId, to: planId, label: 'next', dashed: true, ghost: true });
+    }
+  });
+
+  const elseY = MARGIN_Y + enabledRules.length * ROW_H + 20;
+  const elseIfId = 'rule_else_if';
+  const elseThenId = 'rule_else_then';
+  nodes.push({
+    id: elseIfId,
+    title: 'ELSE · no rule matched',
+    sub: rulesState.notifyOnUnmatched ? 'Notify by default' : 'Stay silent',
+    icon: '⋯',
+    badge: 'Fallback',
+    cls: 'rule-node rule-if rule-else',
+    hue: 45,
+    wide: 280,
+    x: COL.if,
+    y: elseY,
+    _rule: { status: 'UNMATCHED', notify: rulesState.notifyOnUnmatched },
+    _kind: 'else',
+  });
+  nodes.push({
+    id: elseThenId,
+    title: rulesState.notifyOnUnmatched ? 'THEN · Telegram alert' : 'THEN · Silent',
+    sub: 'status → UNMATCHED',
+    icon: rulesState.notifyOnUnmatched ? '🔔' : '🔇',
+    badge: 'Action',
+    cls: 'rule-node rule-then',
+    hue: rulesState.notifyOnUnmatched ? 0 : 210,
+    x: COL.then,
+    y: elseY,
+    _rule: { status: 'UNMATCHED' },
+    _kind: 'then',
+  });
+  groups.push({ id: 'grp_rule_else', title: 'Fallback', hue: 45, members: [elseIfId, elseThenId] });
+  edges.push({ from: triggerId, to: elseIfId, label: 'else', dashed: true });
+  edges.push({ from: elseIfId, to: elseThenId, label: 'default' });
+
+  MAP.nodes = nodes;
+  MAP.groups = groups;
+  MAP.edges = edges;
+
+  buildMap();
+  requestAnimationFrame(() => { redraw(); fit(); });
+  buildLegend();
+
+  showRuleInspector(
+    ruleInspectorHtml(null, {
+      title: 'Email rule flows',
+      body: `${enabledRules.length} active rule(s). First match wins. Edit <code>src/lib/emailRules.ts</code> and redeploy. Legacy Gmail IMAP rules live in openclaw-email-tools separately.`,
+    })
+  );
+
+  for (const n of nodes) {
+    const el = nodeEls.get(n.id);
+    if (!el) continue;
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.chip')) return;
+      document.querySelectorAll('.node.rule-selected').forEach((x) => x.classList.remove('rule-selected'));
+      el.classList.add('rule-selected');
+      const planned = n._planned?.description;
+      showRuleInspector(ruleInspectorHtml(n._rule, planned ? { planned } : undefined));
+    });
   }
 }
 
@@ -1846,6 +2081,7 @@ if (MAP.type === 'documents') {
   buildMap();
   requestAnimationFrame(() => { redraw(); fit(); });
   if (MAP.type === 'todo') loadAndBuildTodoNodes();
+  if (MAP.type === 'rules') loadAndBuildRulesFlow();
 }
 syncHealthLifecycle();
 
