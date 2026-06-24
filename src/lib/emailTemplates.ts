@@ -91,7 +91,7 @@ export function reaveEmailHtml(opts: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Reave Automatic</title>
+  <title>Reave Automated</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <style>
     /* ── Dark mode overrides (Apple Mail, Samsung Mail, Outlook iOS/Android) ── */
@@ -160,7 +160,7 @@ export function reaveEmailHtml(opts: {
           <tr>
             <td style="padding:20px 32px;text-align:center">
               <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">Reave Automatic</a>
+                Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">Reave Automated</a>
               </p>
             </td>
           </tr>

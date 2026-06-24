@@ -2,7 +2,14 @@
  * Telegram assistant tool definitions (JSON schema) and dispatch.
  * Single source of truth for buildTools / runTool.
  */
-import { listKnowledgeSlugs, readKnowledgeMarkdown, summarizeKnowledgeIndex } from './localKnowledge';
+import { summarizeKnowledgeIndex } from './localKnowledge';
+import {
+  storeListKnowledge,
+  storeReadKnowledge,
+  storeSearchKnowledge,
+  storeWriteKnowledge,
+  isSupabaseKnowledgeConfigured,
+} from './knowledgeStore';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -71,7 +78,8 @@ export function buildTools(): TelegramToolDef[] {
       type: 'function',
       function: {
         name: 'list_knowledge',
-        description: 'List bundled knowledge markdown slugs with one-line previews.',
+        description:
+          'List all knowledge entries (live DB + bundled fallback) with one-line previews. Use this to discover what internal docs exist before calling read_knowledge.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
       },
     },
@@ -79,11 +87,60 @@ export function buildTools(): TelegramToolDef[] {
       type: 'function',
       function: {
         name: 'read_knowledge',
-        description: 'Read full bundled markdown for a slug (filename without .md).',
+        description:
+          'Read the full content of a knowledge entry by slug. Checks the live database first, then bundled docs.',
         parameters: {
           type: 'object',
-          properties: { slug: { type: 'string' } },
+          properties: { slug: { type: 'string', description: 'Entry slug (no .md extension)' } },
           required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'search_knowledge',
+        description:
+          'Search knowledge entries by keyword or topic. Returns matching titles + previews from both the live DB and bundled docs. Use instead of list_knowledge when you have a specific topic in mind.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search terms — keywords, topic names, or a short natural-language phrase',
+            },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'write_knowledge',
+        description:
+          'Create or update a knowledge entry in the live database. Use this to save new context, notes, playbooks, or corrections so they persist across restarts without a redeploy. Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to be set.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: {
+              type: 'string',
+              description: 'URL-safe identifier, e.g. "stripe-billing" or "client-onboarding"',
+            },
+            title: { type: 'string', description: 'Short human-readable title' },
+            content: {
+              type: 'string',
+              description: 'Full markdown content (playbook, notes, reference, etc.)',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Topic tags for search, e.g. ["billing", "stripe"]',
+            },
+          },
+          required: ['slug', 'title', 'content'],
           additionalProperties: false,
         },
       },
@@ -700,16 +757,45 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     const args = JSON.parse(argsJson) as Record<string, unknown>;
 
     if (name === 'list_knowledge') {
-      return JSON.stringify({ files: summarizeKnowledgeIndex() });
+      const entries = await storeListKnowledge();
+      return JSON.stringify({
+        files: entries.map((e) => ({
+          slug: e.slug,
+          title: e.title,
+          preview: e.preview,
+          source: e.source,
+          ...(e.tags?.length ? { tags: e.tags } : {}),
+          ...(e.updated_at ? { updated_at: e.updated_at } : {}),
+        })),
+      });
     }
     if (name === 'read_knowledge') {
       const slug = String(args.slug ?? '').trim();
       if (!slug) return JSON.stringify({ error: 'missing slug' });
-      const doc = readKnowledgeMarkdown(slug);
-      if (!doc) return JSON.stringify({ error: 'unknown slug', known: listKnowledgeSlugs() });
+      const doc = await storeReadKnowledge(slug);
+      if (!doc) {
+        const all = await storeListKnowledge();
+        return JSON.stringify({ error: 'unknown slug', known: all.map((e) => e.slug) });
+      }
       const cap = 14_000;
       const content = doc.content.length > cap ? `${doc.content.slice(0, cap)}\n\n…(truncated)` : doc.content;
-      return JSON.stringify({ slug: doc.slug, content });
+      return JSON.stringify({ slug: doc.slug, title: doc.title, content, source: doc.source });
+    }
+    if (name === 'search_knowledge') {
+      const query = String(args.query ?? '').trim();
+      if (!query) return JSON.stringify({ error: 'missing query' });
+      const results = await storeSearchKnowledge(query);
+      return JSON.stringify({ results, count: results.length });
+    }
+    if (name === 'write_knowledge') {
+      const slug = String(args.slug ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '-');
+      const title = String(args.title ?? '').trim();
+      const content = String(args.content ?? '').trim();
+      const tags = Array.isArray(args.tags) ? (args.tags as unknown[]).map(String) : [];
+      if (!slug || !title || !content) return JSON.stringify({ error: 'slug, title, and content are required' });
+      const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'bot' });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ok: true, slug, title, db: isSupabaseKnowledgeConfigured() });
     }
     if (name === 'run_dev_task') {
       const task = String(args.task ?? '').trim();

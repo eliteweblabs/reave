@@ -84,7 +84,7 @@ function buildSignatureBlock(opts: {
     <div style="width:100px;height:100px;border:2.5px solid #166534;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transform:rotate(-12deg)">
       <div style="text-align:center;line-height:1.4">
         <div style="font-weight:800;font-size:13px;color:#166534;letter-spacing:2px">SIGNED</div>
-        <div style="font-size:10px;color:#166534;letter-spacing:1px">via Reave Automatic</div>
+        <div style="font-size:10px;color:#166534;letter-spacing:1px">via Reave Automated</div>
       </div>
     </div>
   </div>
@@ -231,7 +231,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         `Date: ${fmtDateLong(signedAt)}`,
         `Document ID: ${docId}`,
         '',
-        'Powered by Reave Automatic',
+        'Powered by Reave Automated',
       ].join('\n'),
       html: reaveEmailHtml({
         firstName: signerFirstName,

@@ -11,5 +11,5 @@ You are helping the owner of a solo web/app studio (~25 clients).
 
 ## What to do when asked vague questions
 
-1. Ask which **client** or **brand** (Elite Web Labs vs Reave Automatic) if it matters.
+1. Ask which **client** or **brand** (Elite Web Labs vs Reave Automated) if it matters.
 2. Prefer **facts from tools** (knowledge files, future CRM APIs) over guessing.

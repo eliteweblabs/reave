@@ -1,7 +1,7 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
 import { reaveEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
-import { listKnowledgeSlugs, readKnowledgeMarkdown } from './localKnowledge';
+import { storeListKnowledge, storeReadKnowledge } from './knowledgeStore';
 import { telegramSendMessage, telegramAnswerCallback, telegramSetMyCommands, telegramSendMenu, type MenuButton } from './telegramClient';
 import { buildCommandList } from './telegramCommandList';
 import { listTemplates } from './documentTemplates';
@@ -11,6 +11,7 @@ import {
   resolveContact,
   listContacts,
   getContact,
+  createContact,
   updateContact,
   extractPortal,
   setContactPortal,
@@ -357,68 +358,6 @@ async function deliverPortal(
 }
 
 /**
- * Send a client a document-signing link over a specific channel and report the
- * outcome back to the Telegram chat. Mirrors deliverPortal so "Send Document"
- * actually delivers (email/SMS) instead of just printing the link.
- */
-async function deliverDocument(
-  token: string,
-  chatId: number,
-  c: ContactRecord,
-  uid: string,
-  docUrl: string,
-  docTitle: string,
-  channel: 'email' | 'sms',
-  messageId?: number | null
-): Promise<void> {
-  const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
-
-  if (channel === 'email') {
-    if (!isEmailSendConfigured()) {
-      await sendResultWithBack(token, chatId, 'Email not configured. Set RESEND_API_KEY.', uid, messageId);
-      return;
-    }
-    if (!c.email) {
-      await sendResultWithBack(token, chatId, `${c.name} has no email on file. Add one first.`, uid, messageId);
-      return;
-    }
-    const subject = `Please review and sign: ${docTitle}`;
-    const bodyText = `Hi ${firstName},\n\nPlease review and sign this document:\n\n${docUrl}\n\nYou can read and sign it from any device. Once signed, it appears in your portal under Documents.`;
-    const html = reaveEmailHtml({
-      firstName,
-      paragraphs: [
-        `Please review and sign the following document:`,
-        `"${docTitle}"`,
-      ],
-      cta: { label: 'Review & sign document', url: docUrl },
-      note: 'You can read and sign from any device. Once signed, it appears in your portal under Documents.',
-    });
-    const r = await sendEmail({ to: c.email, subject, text: bodyText, html });
-    if (!r.ok) {
-      await sendResultWithBack(token, chatId, `Email failed: ${r.error}`, uid, messageId);
-      return;
-    }
-    await sendResultWithBack(token, chatId, `${docTitle} emailed to ${c.email}\n${docUrl}`, uid, messageId);
-    return;
-  }
-
-  if (!isSmsSendConfigured()) {
-    await sendResultWithBack(token, chatId, 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.', uid, messageId);
-    return;
-  }
-  if (!c.phone) {
-    await sendResultWithBack(token, chatId, `${c.name} has no phone on file. Add one first.`, uid, messageId);
-    return;
-  }
-  const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, please review and sign "${docTitle}": ${docUrl}` });
-  if (!r.ok) {
-    await sendResultWithBack(token, chatId, `SMS failed: ${r.error}`, uid, messageId);
-    return;
-  }
-  await sendResultWithBack(token, chatId, `${docTitle} texted to ${c.phone}\n${docUrl}`, uid, messageId);
-}
-
-/**
  * Send a customer their invoice link over email/SMS and mark it SENT in Crater.
  * Mirrors deliverPortal/deliverDocument; pulls the recipient + public link from
  * the live invoice (so it works whether the invoice was just created or edited).
@@ -519,6 +458,34 @@ function portalSendButtons(c: ContactRecord, uid: string): MenuButton[] {
   return btns;
 }
 
+/** Portal sub-menu: SMS / Email / Copy link, gated on channel config + field. */
+function portalMenuRows(c: ContactRecord, uid: string): Array<Array<MenuButton>> {
+  const rows: Array<Array<MenuButton>> = [];
+  if (isSmsSendConfigured() && c.phone) rows.push([{ text: '🗨︎ SMS', data: `qcmd:portalsms:${uid}` }]);
+  if (isEmailSendConfigured() && c.email) rows.push([{ text: '✉︎ Email', data: `qcmd:portalemail:${uid}` }]);
+  rows.push([{ text: '📋 Copy link', copy: clientPortalUrl(uid) }]);
+  rows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
+  return rows;
+}
+
+/** Billing sub-menu: start a New invoice or Add a line item to an existing one. */
+function billingMenuRows(uid: string): Array<Array<MenuButton>> {
+  return [
+    [{ text: '+ New invoice', data: `inv:new:${uid}` }],
+    [{ text: 'Add to existing', data: `qcmd:billingadd:${uid}` }],
+    [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
+  ];
+}
+
+/** Notes sub-menu: View existing notes or Add a new one. */
+function notesSubmenuRows(uid: string): Array<Array<MenuButton>> {
+  return [
+    [{ text: 'View', data: `qcmd:notesview:${uid}` }],
+    [{ text: 'Add', data: `qcmd:notesadd:${uid}` }],
+    [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
+  ];
+}
+
 /**
  * Build the contact "card" text + action-button rows shown once a client is
  * found. Every per-client action lives here as a button (no slash command
@@ -539,14 +506,15 @@ function buildContactActionMenu(
   if (c.updatedAt) stamps.push(`updated ${timeAgo(c.updatedAt)}`);
   if (stamps.length) infoLines.push('', stamps.join(' · '));
   const hasDoc = listTemplates().length > 0;
-  // One button per row (full width) — easier to tap one-handed on mobile.
+  // One category per row (full width) — each opens a sub-menu of actions so the
+  // card stays short and one-handed-tappable. Sub-menus are built on demand in
+  // the qcmd callback handlers below.
   const rows: Array<Array<MenuButton>> = [
-    [{ text: '📋 Portal', copy: clientPortalUrl(uid) }],
-    ...portalSendButtons(c, uid).map((b) => [b]),
-    ...(isCraterConfigured() ? [[{ text: 'Add to invoice', data: `qcmd:invoice:${uid}` }]] : []),
-    [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
-    [{ text: 'Meta', data: `qcmd:meta:${uid}` }],
-    ...(hasDoc ? [[{ text: '✎ Send Document', data: `qcmd:document:${uid}` }]] : []),
+    [{ text: '📋 Portal', data: `qcmd:portal:${uid}` }],
+    ...(isCraterConfigured() ? [[{ text: '💵 Billing', data: `qcmd:billing:${uid}` }]] : []),
+    [{ text: '🗒 Notes', data: `qcmd:notes:${uid}` }],
+    [{ text: '⚙︎ Meta', data: `qcmd:meta:${uid}` }],
+    ...(hasDoc ? [[{ text: '✎ Documents', data: `qcmd:document:${uid}` }]] : []),
   ];
   return { text: infoLines.join('\n'), rows };
 }
@@ -558,18 +526,21 @@ async function handleSlashCommand(text: string): Promise<string | null> {
 
   // ── /knowledge ───────────────────────────────────────────────────────────────
   if (t === '/knowledge' || t === '/start') {
-    const slugs = listKnowledgeSlugs();
-    return slugs.length ? `Knowledge slugs:\n${slugs.map((s) => `- ${s}`).join('\n')}` : 'No knowledge files bundled.';
+    const entries = await storeListKnowledge();
+    if (!entries.length) return 'No knowledge entries found.';
+    const lines = entries.map((e) => `- ${e.slug}${e.source === 'db' ? ' ✎' : ''}`);
+    return `Knowledge entries (✎ = live DB):\n${lines.join('\n')}`;
   }
 
   // ── /get <slug> ────────────────────────────────────────────────────────────
   const getMatch = t.match(/^\/get\s+([a-z0-9._-]+)\s*$/i);
   if (getMatch) {
     const slug = getMatch[1].toLowerCase();
-    const doc = readKnowledgeMarkdown(slug);
-    if (!doc) return `Unknown slug "${slug}". Use /knowledge.`;
+    const doc = await storeReadKnowledge(slug);
+    if (!doc) return `Unknown slug "${slug}". Use /knowledge to list all.`;
     const cap = 3500;
-    return doc.content.length > cap ? `${doc.content.slice(0, cap)}\n...(truncated)` : doc.content;
+    const content = doc.content.length > cap ? `${doc.content.slice(0, cap)}\n...(truncated)` : doc.content;
+    return doc.source === 'db' ? `[DB] ${content}` : content;
   }
 
   // ── /contacts [query] ──────────────────────────────────────────────────────
@@ -958,6 +929,34 @@ export async function handleTelegramTextMessage(opts: {
       ]);
       return;
     }
+    // ── Add New: next message is "Name | email | phone | company" ────────────
+    if (pending && pending.kind === 'newcontact') {
+      const [namePart, emailPart, phonePart, companyPart] = text
+        .split('|')
+        .map((s) => s.trim());
+      if (!namePart) {
+        await telegramSendMessage(
+          token,
+          chatId,
+          'A name is required. Send: Name | email | phone | company\n\n(Send /cancel to abort.)'
+        );
+        return;
+      }
+      takePendingEdit(chatId);
+      const res = await createContact({
+        name: namePart,
+        email: emailPart || undefined,
+        phone: phonePart || undefined,
+        company: companyPart || undefined,
+      });
+      if (!res.ok) {
+        await telegramSendMessage(token, chatId, `Couldn't create contact: ${res.error}`);
+        return;
+      }
+      const menu = buildContactActionMenu(res.data, res.data.uid);
+      await telegramSendMenu(token, chatId, `Contact added.\n\n${menu.text}`, menu.rows);
+      return;
+    }
     // ── Meta confirm: user typed again instead of tapping a choice ───────────
     if (pending && pending.kind === 'metaconfirm') {
       const full = await getContact(pending.uid);
@@ -1090,6 +1089,9 @@ export async function handleTelegramTextMessage(opts: {
       used += weight;
     }
     if (current.length) rows.push(current);
+    // "Add New" sits at the very top so it's reachable without scrolling past a
+    // long client list.
+    rows.unshift([{ text: '➕ Add New', data: 'qcmd:newcontact' }]);
     const header =
       shown.length < total
         ? `Contacts (showing ${shown.length} of ${total}) — tap a client, or /contacts <name> to search:`
@@ -1155,8 +1157,8 @@ export async function handleTelegramTextMessage(opts: {
     const hasDoc = listTemplates().length > 0;
     const portalRows: Array<Array<MenuButton>> = [
       ...portalSendButtons(c, uid).map((b) => [b]),
-      [{ text: 'Notes', data: `qcmd:notes:${uid}` }],
-      ...(hasDoc ? [[{ text: '✎ Send Document', data: `qcmd:document:${uid}` }]] : []),
+      [{ text: '🗒 Notes', data: `qcmd:notes:${uid}` }],
+      ...(hasDoc ? [[{ text: '✎ Documents', data: `qcmd:document:${uid}` }]] : []),
     ];
     await telegramSendMenu(token, chatId, summaryLines, portalRows);
     return;
@@ -1208,7 +1210,7 @@ export async function handleTelegramTextMessage(opts: {
     // 2 per row
     const rows: Array<Array<{ text: string; data: string }>> = [];
     for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
-    await telegramSendMenu(token, chatId, `Send a document to ${cName} — choose a template:`, rows);
+    await telegramSendMenu(token, chatId, `Documents for ${cName} — pick one to review & send:`, rows);
     return;
   }
   if (slash) {
@@ -1325,6 +1327,21 @@ export async function handleTelegramCallbackQuery(opts: {
     return;
   }
 
+  // qcmd:newcontact — "Add New" from the /contacts list. No uid yet: arm a
+  // capture so the next plain message holds the new contact's details.
+  if (data === 'qcmd:newcontact') {
+    setPendingEdit(chatId, { kind: 'newcontact' });
+    await telegramSendMessage(
+      token,
+      chatId,
+      'Adding a new contact. Send the details in one message:\n\n' +
+        'Name | email | phone | company\n\n' +
+        'Only the name is required — leave the rest blank (e.g. "Jane Doe" or "Jane Doe | jane@acme.com").\n\n' +
+        '(Send /cancel to abort.)'
+    );
+    return;
+  }
+
   if (data.startsWith('qcmd:')) {
     // Format: qcmd:{cmd}:{uid}  e.g. qcmd:portal:53b12d12-...
     const rest = data.slice(5);
@@ -1352,19 +1369,7 @@ export async function handleTelegramCallbackQuery(opts: {
     }
 
     if (cmd === 'portal') {
-      const portal = extractPortal(c);
-      const dataCount = portal?.data?.length ?? 0;
-      const hasOverview = Boolean(portal?.headline || portal?.body || (portal?.fields?.length ?? 0) > 0);
-      await sendResultWithBack(token, chatId, [
-        `${c.name}${c.company ? ` - ${c.company}` : ''}`,
-        c.email ?? '',
-        '',
-        clientPortalUrl(uid),
-        '',
-        `Overview: ${hasOverview ? 'has content' : 'empty'}`,
-        `Data tab: ${dataCount > 0 ? `${dataCount} entr${dataCount === 1 ? 'y' : 'ies'}` : 'empty'}`,
-        `Live: ${portal?.enabled === false ? 'hidden (revoked)' : 'yes'}`,
-      ].filter(Boolean).join('\n'), uid);
+      await telegramSendMenu(token, chatId, `Portal — ${c.name}\nSend the link or copy it:`, portalMenuRows(c, uid));
       return;
     }
 
@@ -1389,7 +1394,7 @@ export async function handleTelegramCallbackQuery(opts: {
     }
 
     if (cmd === 'notes') {
-      await telegramSendMenu(token, chatId, buildNotesText(c), notesMenuRows(uid));
+      await telegramSendMenu(token, chatId, `Notes — ${c.name}`, notesSubmenuRows(uid));
       return;
     }
 
@@ -1429,12 +1434,21 @@ export async function handleTelegramCallbackQuery(opts: {
       const docBtns = templates.map((tmpl) => ({ text: tmpl.title, data: `doc:${uid}:${tmpl.slug}` }));
       for (let i = 0; i < docBtns.length; i += 2) btnRows.push(docBtns.slice(i, i + 2));
       btnRows.push([{ text: '‹ Back', data: `qcmd:open:${uid}` }]);
-      const pickerText = `Send a document to ${c.name} — choose a template:`;
+      const pickerText = `Documents — ${c.name}\nPick one to review & send:`;
       await telegramSendMenu(token, chatId, pickerText, btnRows);
       return;
     }
 
-    if (cmd === 'invoice') {
+    if (cmd === 'billing') {
+      if (!isCraterConfigured()) {
+        await sendResultWithBack(token, chatId, 'Crater billing is not configured.', uid, messageId);
+        return;
+      }
+      await telegramSendMenu(token, chatId, `Billing — ${c.name}`, billingMenuRows(uid));
+      return;
+    }
+
+    if (cmd === 'billingadd') {
       if (!isCraterConfigured()) {
         await sendResultWithBack(token, chatId, 'Crater billing is not configured.', uid, messageId);
         return;
@@ -1517,7 +1531,6 @@ export async function handleTelegramCallbackQuery(opts: {
       await telegramSendMessage(token, chatId, 'Invalid document callback.');
       return;
     }
-    const docUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
     const contactRes = await getContact(uid);
     if (!contactRes.ok) {
       await sendResultWithBack(token, chatId, `Could not load contact: ${contactRes.error}`, uid, messageId);
@@ -1526,9 +1539,20 @@ export async function handleTelegramCallbackQuery(opts: {
     const c = contactRes.data;
     const tmpl = listTemplates().find((t) => t.slug === templateSlug);
     const docTitle = tmpl?.title ?? templateSlug;
-    // Auto-pick like Portal: email when available, else SMS.
-    const channel: 'email' | 'sms' = isEmailSendConfigured() && c.email ? 'email' : 'sms';
-    await deliverDocument(token, chatId, c, uid, docUrl, docTitle, channel, messageId);
+    // Hand off to the admin review-and-send page: the operator reviews the
+    // rendered document there and sends it (email/SMS) from that page, so the
+    // whole "review → send" loop happens in one place instead of bouncing back
+    // to Telegram to pick a channel.
+    const reviewUrl = `${siteBaseUrl()}/admin/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
+    await telegramSendMenu(
+      token,
+      chatId,
+      `${docTitle} — ${c.name}\n\nReview the document and send it (Email/SMS) from this page:\n${reviewUrl}`,
+      [
+        [{ text: '📄 Review & send', url: reviewUrl }],
+        [{ text: '‹ Back', data: `qcmd:open:${uid}` }],
+      ]
+    );
     return;
   }
 

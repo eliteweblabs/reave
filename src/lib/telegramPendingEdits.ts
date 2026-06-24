@@ -52,7 +52,22 @@ export type InvoicePending = BasePending & {
   customerName: string;
 };
 
-export type PendingEdit = MetaPending | MetaConfirmPending | NotePending | InvoicePending;
+/**
+ * Creating a brand-new contact from the /contacts list "Add New" button. There's
+ * no uid yet, so this stands apart from BasePending — the next message holds the
+ * new contact's details ("Name | email | phone | company").
+ */
+export type NewContactPending = {
+  kind: 'newcontact';
+  createdAt: number;
+};
+
+export type PendingEdit =
+  | MetaPending
+  | MetaConfirmPending
+  | NotePending
+  | InvoicePending
+  | NewContactPending;
 
 /** How long a pending edit stays valid before it's ignored (avoids stale captures). */
 const TTL_MS = 10 * 60 * 1000;

@@ -1,0 +1,269 @@
+---
+/**
+ * /admin/doc/:uid/:template — admin-only "review & send" page.
+ *
+ * Renders the filled document exactly as the client will see it, then lets the
+ * operator send the signing link (Email/SMS) straight from this page. This is
+ * the hand-off target from the Telegram Documents flow: review → send in one
+ * place, no bouncing back to Telegram to pick a channel. Gated by Clerk via
+ * middleware (the /admin(.*) matcher) plus a belt-and-suspenders check here.
+ */
+import { getContact, extractPortal } from '../../../../lib/contactApi';
+import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
+import Favicon from '../../../../components/Favicon.astro';
+
+export const prerender = false;
+
+const { userId } = Astro.locals.auth();
+if (!userId) return Astro.redirect('/sign-in');
+
+const { uid, template: templateSlug } = Astro.params;
+
+let error: string | null = null;
+let filled = '';
+let title = '';
+let contactName = '';
+let contactEmail = '';
+let contactPhone = '';
+let signLink = '';
+let alreadySignedUrl: string | null = null;
+
+if (!uid || !templateSlug) {
+  error = 'Invalid link.';
+} else {
+  const tmpl = getTemplate(templateSlug);
+  if (!tmpl) {
+    error = 'Document template not found.';
+  } else {
+    const contactRes = await getContact(uid);
+    if (!contactRes.ok) {
+      error = `Could not load contact: ${contactRes.error}`;
+    } else {
+      const c = contactRes.data;
+      const portal = extractPortal(c);
+      const existing = (portal?.documents ?? []).find((d) => d.template === templateSlug);
+      if (existing) alreadySignedUrl = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/view/${existing.id}`;
+      filled = fillTemplate(tmpl.html, c);
+      title = tmpl.title;
+      contactName = c.name;
+      contactEmail = c.email ?? '';
+      contactPhone = c.phone ?? '';
+      signLink = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(templateSlug)}`;
+    }
+  }
+}
+
+const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>{error ? 'Not found' : `Review — ${title}`}</title>
+    <Favicon />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    {error ? (
+      <main class="error-wrap">
+        <div class="logo">Reave Automated</div>
+        <h1>Can't open this document</h1>
+        <p>{error}</p>
+      </main>
+    ) : (
+      <main>
+        <div class="admin-bar">
+          <div class="admin-bar-top">
+            <span class="badge">Admin preview</span>
+            <a class="ghost-link" href={signLink} target="_blank" rel="noopener">Open as client ↗</a>
+          </div>
+          <div class="admin-bar-title">{title}</div>
+          <div class="admin-bar-sub">For {contactName}</div>
+
+          {alreadySignedUrl && (
+            <div class="signed-note">
+              ✓ Already signed — <a href={alreadySignedUrl} target="_blank" rel="noopener">view signed copy</a>
+            </div>
+          )}
+
+          <div class="send-row">
+            <button
+              class="send-btn"
+              id="send-email"
+              type="button"
+              data-channel="email"
+              disabled={!contactEmail}
+              title={contactEmail ? `Email ${contactEmail}` : 'No email on file'}
+            >
+              ✉︎ Send via Email
+            </button>
+            <button
+              class="send-btn"
+              id="send-sms"
+              type="button"
+              data-channel="sms"
+              disabled={!contactPhone}
+              title={contactPhone ? `Text ${contactPhone}` : 'No phone on file'}
+            >
+              🗨︎ Send via SMS
+            </button>
+          </div>
+          <div id="send-status" class="send-status" style="display:none"></div>
+        </div>
+
+        <div class="doc-header">
+          <div class="logo">Reave Automated</div>
+          <div class="doc-header-text">
+            <div class="doc-title">{title}</div>
+            <div class="doc-for">Prepared for {contactName}</div>
+          </div>
+        </div>
+
+        <div class="doc-body" set:html={filled} />
+
+        <footer class="doc-foot"><span>Powered by Reave Automated</span></footer>
+      </main>
+    )}
+
+    <script define:vars={{ sendEndpoint, templateSlug }}>
+      const statusEl = document.getElementById('send-status');
+      const buttons = Array.from(document.querySelectorAll('.send-btn'));
+      // Buttons disabled at load have no recipient on file — keep them disabled.
+      const hadRecipient = new Map(buttons.map((b) => [b, !b.disabled]));
+
+      function setStatus(msg, kind) {
+        if (!statusEl) return;
+        statusEl.textContent = msg;
+        statusEl.className = `send-status ${kind}`;
+        statusEl.style.display = '';
+      }
+
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const channel = btn.getAttribute('data-channel');
+          const original = btn.textContent;
+          buttons.forEach((b) => (b.disabled = true));
+          btn.textContent = 'Sending…';
+          setStatus('Sending…', 'pending');
+          try {
+            const res = await fetch(sendEndpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ template: templateSlug, channel }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.ok) throw new Error(json.error || 'Send failed');
+            setStatus(`Sent via ${json.channel} to ${json.dest}`, 'ok');
+          } catch (err) {
+            setStatus(err && err.message ? err.message : 'Send failed', 'err');
+          } finally {
+            btn.textContent = original;
+            buttons.forEach((b) => { b.disabled = !hadRecipient.get(b); });
+          }
+        });
+      });
+    </script>
+
+    <style is:global>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #f3f4f1;
+        color: #1a1a1a;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, Georgia, serif;
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.7;
+      }
+      main { max-width: 820px; margin: 0 auto; padding: 24px 20px 80px; }
+
+      /* ── Admin action bar ── */
+      .admin-bar {
+        background: #fff;
+        border: 1px solid #e2e2dc;
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 28px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        position: sticky;
+        top: 12px;
+        z-index: 5;
+      }
+      .admin-bar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      .badge {
+        font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+        color: #7a5cff; background: #efeaff; padding: 3px 9px; border-radius: 999px;
+      }
+      .ghost-link { font-size: 13px; color: #555; text-decoration: none; }
+      .ghost-link:hover { color: #111; text-decoration: underline; }
+      .admin-bar-title { font-size: 18px; font-weight: 700; margin-top: 10px; }
+      .admin-bar-sub { font-size: 13px; color: #777; }
+      .signed-note {
+        margin-top: 12px; font-size: 13px; color: #167c3e;
+        background: #e9f7ee; border: 1px solid #c7ecd4; border-radius: 8px; padding: 8px 12px;
+      }
+      .signed-note a { color: #0f5e2e; }
+
+      .send-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+      .send-btn {
+        flex: 1 1 180px;
+        padding: 13px 16px;
+        background: #1a1a1a; color: #fff; border: none; border-radius: 10px;
+        font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+        transition: opacity 0.2s, transform 0.15s;
+      }
+      .send-btn:active { transform: scale(0.99); }
+      .send-btn:disabled { opacity: 0.35; cursor: default; }
+      .send-status { margin-top: 12px; font-size: 14px; padding: 10px 12px; border-radius: 8px; }
+      .send-status.pending { color: #555; background: #f1f1ee; }
+      .send-status.ok { color: #167c3e; background: #e9f7ee; border: 1px solid #c7ecd4; }
+      .send-status.err { color: #b42318; background: #fdeceb; border: 1px solid #f6c9c4; }
+
+      /* ── Document (mirrors the client signing page) ── */
+      .doc-header {
+        display: flex; align-items: center; gap: 16px;
+        margin-bottom: 40px; padding: 28px 24px 24px;
+        border-bottom: 2px solid #1a1a1a; background: #fff;
+        border-radius: 14px 14px 0 0;
+      }
+      .logo { font-weight: 800; letter-spacing: 2px; font-size: 20px; color: #1a1a1a; flex: none; }
+      .doc-header-text { flex: 1; }
+      .doc-title { font-size: 18px; font-weight: 700; }
+      .doc-for { font-size: 14px; color: #666; }
+
+      .doc-body {
+        background: #fff; padding: 0 24px 40px; margin-top: -40px;
+        border-radius: 0 0 14px 14px; margin-bottom: 32px;
+      }
+      .doc-body h1 { font-size: 28px; font-weight: 800; margin: 0 0 6px; padding-top: 8px; color: #0a0a0a; }
+      .doc-body h2 {
+        font-size: 16px; font-weight: 700; margin: 32px 0 8px; color: #0a0a0a;
+        text-transform: uppercase; letter-spacing: 0.5px;
+      }
+      .doc-body p { margin: 0 0 14px; color: #333; }
+      .doc-body ul { margin: 0 0 14px; padding-left: 24px; color: #333; }
+      .doc-body li { margin-bottom: 6px; }
+      .doc-body .doc-meta {
+        font-size: 14px; color: #888; margin-bottom: 32px; padding-bottom: 24px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .doc-foot {
+        margin-top: 32px; padding-top: 20px; font-size: 12px; color: #bbb; text-align: center;
+      }
+
+      .error-wrap { max-width: 400px; margin: 80px auto; text-align: center; padding: 0 20px; }
+      .error-wrap .logo { font-size: 22px; margin-bottom: 24px; display: block; }
+      .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
+      .error-wrap p { color: #666; }
+
+      @media (max-width: 600px) {
+        .doc-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+      }
+    </style>
+  </body>
+</html>

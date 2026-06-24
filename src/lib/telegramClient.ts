@@ -1,14 +1,15 @@
 const TELEGRAM_API = 'https://api.telegram.org';
 
 /**
- * An inline keyboard button. Either fires a callback (`data`) or, when `copy`
- * is set, copies that text to the user's clipboard on tap (Telegram Bot API
- * 8.0+ `copy_text` button — no callback round-trip needed).
+ * An inline keyboard button. Fires a callback (`data`), opens a link (`url`),
+ * or, when `copy` is set, copies that text to the user's clipboard on tap
+ * (Telegram Bot API 8.0+ `copy_text` button — no callback round-trip needed).
  */
-export type MenuButton = { text: string; data?: string; copy?: string };
+export type MenuButton = { text: string; data?: string; copy?: string; url?: string };
 
 function toInlineButton(btn: MenuButton): Record<string, unknown> {
   if (btn.copy != null) return { text: btn.text, copy_text: { text: btn.copy } };
+  if (btn.url != null) return { text: btn.text, url: btn.url };
   return { text: btn.text, callback_data: btn.data };
 }
 

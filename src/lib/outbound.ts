@@ -15,9 +15,9 @@ export function isSmsSendConfigured(): boolean {
   return Boolean(serverEnv('TELNYX_API_KEY') && serverEnv('TELNYX_FROM_NUMBER'));
 }
 
-/** Default verified sender; override with RESEND_FROM (e.g. "Reave Automatic <hi@reave.app>"). */
+/** Default verified sender; override with RESEND_FROM (e.g. "Reave Automated <hi@reave.app>"). */
 function emailFrom(): string {
-  return serverEnv('RESEND_FROM')?.trim() || 'Reave Automatic <noreply@reave.app>';
+  return serverEnv('RESEND_FROM')?.trim() || 'Reave Automated <noreply@reave.app>';
 }
 
 export async function sendEmail(opts: {

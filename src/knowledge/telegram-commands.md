@@ -21,6 +21,7 @@ the bot in plain English (freeform needs `ANTHROPIC_API_KEY`).
 ## Plain English (Claude tool loop)
 
 - **Clients:** "list my contacts", "add a client named …", "what's <name>'s portal link?", "who is t. smith?"
+- **Add new:** run `/contacts`, tap **➕ Add New** at the top, then send the details in one message (`Name | email | phone | company` — only the name is required).
 - **Edit info:** run `/contacts <name>`, tap **Meta**, pick a field (first name, last name, company, phone, email), then send the new value in the chat. Old values are kept as aliases.
 - **Portal:** "set <name>'s page headline … body …", "add a field Plan → Annual", "add Data to <name>: WordPress login …", "hide/re-enable <name>'s page"
 - **Send:** "send <name> their link" (emails, or texts if no email on file via Telnyx)
