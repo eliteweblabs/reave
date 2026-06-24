@@ -145,6 +145,8 @@ function setActiveMap(key) {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
     loadKnowledgeTab();
+  } else if (MAP.type === 'work') {
+    loadWorkTab();
   } else if (MAP.type === 'chats') {
     loadChatsTab();
   } else {
@@ -157,7 +159,7 @@ function setActiveMap(key) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'chats';
+  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'chats';
 }
 
 function syncCanvasVisibility() {
@@ -167,6 +169,7 @@ function syncCanvasVisibility() {
   document.getElementById('legend').style.display = isPanel ? 'none' : '';
   document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
   document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
+  document.getElementById('work-editor').style.display = MAP.type === 'work' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
   document.getElementById('rule-editor').style.display = MAP.type === 'rules' ? 'flex' : 'none';
   syncRulesToolbar();
@@ -1962,6 +1965,412 @@ async function deleteKnowledge(slug) {
   }
 }
 
+// ---- work tab ----
+
+const WORK_STATUS_LABELS = {
+  inquiry: 'Inquiry',
+  active: 'Active',
+  done: 'Done',
+  archived: 'Archived',
+};
+
+let workState = {
+  jobs: [],
+  statuses: ['inquiry', 'active', 'done', 'archived'],
+  activeSlug: null,
+  dirty: false,
+  draft: null,
+};
+
+function getWorkEditor() { return document.getElementById('work-editor'); }
+
+function workStatusClass(status) {
+  return `wk-status wk-status-${status || 'inquiry'}`;
+}
+
+function slugifyTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+async function loadWorkTab() {
+  const root = getWorkEditor();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading work…</div>';
+  try {
+    const res = await fetch('/api/work', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    workState.jobs = data.jobs || [];
+    workState.statuses = data.statuses || workState.statuses;
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
+    return;
+  }
+  workState.activeSlug = null;
+  workState.dirty = false;
+  workState.draft = null;
+  getWorkEditor()?.classList.remove('de-pane-active');
+  renderWorkEditor();
+}
+
+function renderWorkEditor() {
+  const root = getWorkEditor();
+  if (!root) return;
+  const { jobs, activeSlug } = workState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'de-sidebar';
+
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn';
+  newBtn.textContent = '+ New Job';
+  newBtn.addEventListener('click', () => {
+    workState.activeSlug = '__new__';
+    workState.dirty = false;
+    workState.draft = { title: '', client: '', status: 'inquiry', body: '' };
+    renderWorkEditor();
+  });
+  sidebar.appendChild(newBtn);
+
+  const hint = document.createElement('div');
+  hint.className = 'de-empty';
+  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.textContent = 'Jobs in src/knowledge/jobs/ · client resolves via contact-api';
+  sidebar.appendChild(hint);
+
+  const list = document.createElement('div');
+  list.className = 'de-list';
+  for (const job of jobs) {
+    const item = document.createElement('button');
+    item.className = 'de-list-item' + (job.slug === activeSlug ? ' active' : '');
+    item.innerHTML =
+      `<span class="de-item-title">${escHtml(job.title)}</span>` +
+      `<span class="wk-meta-row">` +
+      `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
+      `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
+      `</span>`;
+    item.addEventListener('click', () => openWork(job.slug));
+    list.appendChild(item);
+  }
+  if (jobs.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No jobs yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+
+  if (activeSlug === '__new__') {
+    renderNewWorkForm(pane);
+  } else if (activeSlug) {
+    renderEditWorkForm(pane);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = '<div class="de-placeholder-icon">💼</div><p>Select a job to edit, or create a new one.</p>';
+    pane.appendChild(placeholder);
+  }
+
+  root.appendChild(pane);
+}
+
+function buildStatusSelect(value) {
+  const select = document.createElement('select');
+  select.className = 'de-input';
+  for (const s of workState.statuses) {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = WORK_STATUS_LABELS[s] || s;
+    if (s === value) opt.selected = true;
+    select.appendChild(opt);
+  }
+  return select;
+}
+
+function renderNewWorkForm(pane) {
+  pane.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Jobs';
+  backBtn.addEventListener('click', () => {
+    workState.activeSlug = null;
+    workState.draft = null;
+    getWorkEditor()?.classList.remove('de-pane-active');
+    renderWorkEditor();
+  });
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = 'New job';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+
+  const titleLabel = document.createElement('label');
+  titleLabel.className = 'de-label';
+  titleLabel.textContent = 'Title';
+  const titleInput = document.createElement('input');
+  titleInput.className = 'de-input';
+  titleInput.placeholder = 'e.g. New website for Acme';
+  titleInput.value = workState.draft?.title || '';
+  titleLabel.appendChild(titleInput);
+  fields.appendChild(titleLabel);
+
+  const clientLabel = document.createElement('label');
+  clientLabel.className = 'de-label';
+  clientLabel.textContent = 'Client (resolved via contact-api on save)';
+  const clientInput = document.createElement('input');
+  clientInput.className = 'de-input';
+  clientInput.placeholder = 'e.g. Acme Corp';
+  clientInput.value = workState.draft?.client || '';
+  clientLabel.appendChild(clientInput);
+  fields.appendChild(clientLabel);
+
+  const statusLabel = document.createElement('label');
+  statusLabel.className = 'de-label';
+  statusLabel.textContent = 'Status';
+  const statusSelect = buildStatusSelect(workState.draft?.status || 'inquiry');
+  statusLabel.appendChild(statusSelect);
+  fields.appendChild(statusLabel);
+
+  pane.appendChild(fields);
+
+  const ta = document.createElement('textarea');
+  ta.className = 'de-textarea';
+  ta.spellcheck = false;
+  ta.placeholder = '# Job details\n\nScope, notes, links…';
+  ta.value = workState.draft?.body || '';
+  pane.appendChild(ta);
+
+  const actions = document.createElement('div');
+  actions.className = 'de-actions';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'de-btn de-btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => {
+    workState.activeSlug = null;
+    workState.draft = null;
+    renderWorkEditor();
+  });
+  const createBtn = document.createElement('button');
+  createBtn.className = 'de-btn de-btn-primary';
+  createBtn.textContent = 'Create';
+  createBtn.addEventListener('click', () => {
+    const title = titleInput.value.trim();
+    const slug = slugifyTitle(title);
+    createWork(slug, {
+      title,
+      client: clientInput.value.trim(),
+      status: statusSelect.value,
+      body: ta.value,
+    });
+  });
+  actions.appendChild(cancelBtn);
+  actions.appendChild(createBtn);
+  pane.appendChild(actions);
+  getWorkEditor()?.classList.add('de-pane-active');
+}
+
+function renderEditWorkForm(pane) {
+  const slug = workState.activeSlug;
+  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+
+  fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+    .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      if (!ok) throw new Error(data.error || 'Failed to load');
+      workState.draft = {
+        title: data.title,
+        client: data.client || data.contact_name,
+        status: data.status || 'inquiry',
+        body: data.body || '',
+        contact_uid: data.contact_uid,
+        contact_name: data.contact_name,
+      };
+      workState.dirty = false;
+      pane.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'de-header';
+      const backBtn = document.createElement('button');
+      backBtn.className = 'de-back-btn';
+      backBtn.textContent = '← Jobs';
+      backBtn.addEventListener('click', () => {
+        if (workState.dirty && !confirm('Discard unsaved changes?')) return;
+        workState.activeSlug = null;
+        workState.draft = null;
+        getWorkEditor()?.classList.remove('de-pane-active');
+        renderWorkEditor();
+      });
+      header.appendChild(backBtn);
+      const titleEl = document.createElement('span');
+      titleEl.className = 'de-doc-name';
+      titleEl.textContent = data.title;
+      header.appendChild(titleEl);
+      pane.appendChild(header);
+
+      const fields = document.createElement('div');
+      fields.className = 'de-fields';
+
+      const titleLabel = document.createElement('label');
+      titleLabel.className = 'de-label';
+      titleLabel.textContent = 'Title';
+      const titleInput = document.createElement('input');
+      titleInput.className = 'de-input';
+      titleInput.value = workState.draft.title;
+      titleLabel.appendChild(titleInput);
+      fields.appendChild(titleLabel);
+
+      const clientLabel = document.createElement('label');
+      clientLabel.className = 'de-label';
+      clientLabel.textContent = 'Client';
+      const clientInput = document.createElement('input');
+      clientInput.className = 'de-input';
+      clientInput.value = workState.draft.client;
+      clientLabel.appendChild(clientInput);
+      fields.appendChild(clientLabel);
+
+      if (data.contact_uid) {
+        const uidHint = document.createElement('div');
+        uidHint.className = 'de-empty';
+        uidHint.style.padding = '0 0 0.5rem';
+        uidHint.textContent = `Linked: ${data.contact_name || data.client} (${data.contact_uid})`;
+        fields.appendChild(uidHint);
+      }
+
+      const statusLabel = document.createElement('label');
+      statusLabel.className = 'de-label';
+      statusLabel.textContent = 'Status';
+      const statusSelect = buildStatusSelect(workState.draft.status);
+      statusLabel.appendChild(statusSelect);
+      fields.appendChild(statusLabel);
+
+      pane.appendChild(fields);
+
+      const ta = document.createElement('textarea');
+      ta.className = 'de-textarea';
+      ta.spellcheck = false;
+      ta.value = workState.draft.body;
+      const markDirty = () => {
+        workState.dirty =
+          titleInput.value !== workState.draft.title ||
+          clientInput.value !== workState.draft.client ||
+          statusSelect.value !== workState.draft.status ||
+          ta.value !== workState.draft.body;
+      };
+      titleInput.addEventListener('input', markDirty);
+      clientInput.addEventListener('input', markDirty);
+      statusSelect.addEventListener('change', markDirty);
+      ta.addEventListener('input', markDirty);
+      pane.appendChild(ta);
+
+      const actions = document.createElement('div');
+      actions.className = 'de-actions';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'de-btn de-btn-danger';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', () => deleteWork(slug));
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'de-btn de-btn-primary';
+      saveBtn.textContent = 'Save';
+      saveBtn.addEventListener('click', () =>
+        saveWork(slug, {
+          title: titleInput.value.trim(),
+          client: clientInput.value.trim(),
+          status: statusSelect.value,
+          body: ta.value,
+        }),
+      );
+      actions.appendChild(delBtn);
+      actions.appendChild(saveBtn);
+      pane.appendChild(actions);
+      getWorkEditor()?.classList.add('de-pane-active');
+    })
+    .catch((e) => {
+      pane.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    });
+}
+
+async function openWork(slug) {
+  if (workState.dirty && workState.activeSlug && !confirm('Discard unsaved changes?')) return;
+  workState.activeSlug = slug;
+  workState.dirty = false;
+  renderWorkEditor();
+}
+
+async function createWork(slug, payload) {
+  if (!payload.title) { alert('Enter a title.'); return; }
+  if (!payload.client) { alert('Enter a client name.'); return; }
+  if (!slug) { alert('Could not derive a slug from the title.'); return; }
+  try {
+    const res = await fetch('/api/work', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, ...payload }),
+    });
+    const data = await res.json();
+    if (res.status === 409) { alert('A job with that slug already exists.'); return; }
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await loadWorkTab();
+    workState.activeSlug = slug;
+    renderWorkEditor();
+  } catch (e) {
+    alert(`Failed to create: ${e.message}`);
+  }
+}
+
+async function saveWork(slug, payload) {
+  if (!payload.title) { alert('Title is required.'); return; }
+  if (!payload.client) { alert('Client is required.'); return; }
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    workState.dirty = false;
+    await loadWorkTab();
+    workState.activeSlug = slug;
+    renderWorkEditor();
+  } catch (e) {
+    alert(`Failed to save: ${e.message}`);
+  }
+}
+
+async function deleteWork(slug) {
+  if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    workState.activeSlug = null;
+    workState.dirty = false;
+    workState.draft = null;
+    await loadWorkTab();
+  } catch (e) {
+    alert(`Failed to delete: ${e.message}`);
+  }
+}
+
 // ---- chats tab ----
 
 let chatState = {
@@ -2248,6 +2657,8 @@ if (MAP.type === 'documents') {
   loadDocumentsTab();
 } else if (MAP.type === 'knowledge') {
   loadKnowledgeTab();
+} else if (MAP.type === 'work') {
+  loadWorkTab();
 } else if (MAP.type === 'chats') {
   loadChatsTab();
 } else {

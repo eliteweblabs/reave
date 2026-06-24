@@ -1,6 +1,7 @@
 /**
  * Markdown knowledge files shipped with the server bundle (Vite eager ?raw).
- * Slug = filename without `.md` under `src/knowledge/`.
+ * Slug = filename without `.md` under `src/knowledge/` (top-level only).
+ * Job files in `src/knowledge/jobs/` are excluded — loaded on demand via workStore.
  */
 
 const rawByPath = import.meta.glob<string>('../knowledge/*.md', {

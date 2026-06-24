@@ -11,6 +11,16 @@ import {
   isSupabaseKnowledgeConfigured,
 } from './knowledgeStore';
 import {
+  fileListWork,
+  fileReadWork,
+  fileWriteWork,
+  fileDeleteWork,
+  isSafeWorkSlug,
+  slugFromTitle,
+  WORK_STATUSES,
+  type WorkStatus,
+} from './workStore';
+import {
   isContactApiConfigured,
   resolveContact,
   listContacts,
@@ -112,6 +122,122 @@ export function buildTools(): TelegramToolDef[] {
             },
           },
           required: ['query'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_work',
+        description:
+          'List work/job records (metadata only — no full notes). Jobs live in src/knowledge/jobs/ and are tied to a contact. Use to discover open jobs; call read_work for full details when a job is referenced.',
+        parameters: {
+          type: 'object',
+          properties: {
+            contact_uid: {
+              type: 'string',
+              description: 'Optional contact-api uid — list jobs for one client only',
+            },
+            status: {
+              type: 'string',
+              enum: [...WORK_STATUSES],
+              description: 'Optional status filter',
+            },
+            q: {
+              type: 'string',
+              description: 'Optional search on title, client name, or slug',
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'read_work',
+        description:
+          'Read the full markdown for one work/job by slug. Loads on demand — use after list_work or when the user asks about a specific job.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug (filename without .md)' },
+          },
+          required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_work',
+        description:
+          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job.',
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Job title, e.g. "New website for Acme"' },
+            client: {
+              type: 'string',
+              description: 'Client name — fuzzy-matched against contact-api on save',
+            },
+            body: {
+              type: 'string',
+              description: 'Optional markdown notes (scope, request details, links). Omit for a blank stub.',
+            },
+            status: {
+              type: 'string',
+              enum: [...WORK_STATUSES],
+              description: 'Defaults to inquiry',
+            },
+            slug: {
+              type: 'string',
+              description: 'Optional filename slug; derived from title if omitted',
+            },
+          },
+          required: ['title', 'client'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'update_work',
+        description:
+          'Update an existing work/job by slug. Omitted fields are left unchanged. Re-resolves client via contact-api if client is provided.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug to update' },
+            title: { type: 'string', description: 'New title' },
+            client: { type: 'string', description: 'New client name (re-resolved via contact-api)' },
+            body: { type: 'string', description: 'Replacement markdown notes (full body, not a patch)' },
+            status: {
+              type: 'string',
+              enum: [...WORK_STATUSES],
+              description: 'New status',
+            },
+          },
+          required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'delete_work',
+        description:
+          'Permanently delete a work/job markdown file by slug. Use only when the user explicitly asks to delete/remove a job.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug to delete' },
+          },
+          required: ['slug'],
           additionalProperties: false,
         },
       },
@@ -787,6 +913,125 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const results = await storeSearchKnowledge(query);
       return JSON.stringify({ results, count: results.length });
     }
+    if (name === 'list_work') {
+      const statusRaw = String(args.status ?? '').trim().toLowerCase();
+      const status = WORK_STATUSES.includes(statusRaw as WorkStatus)
+        ? (statusRaw as WorkStatus)
+        : undefined;
+      const jobs = fileListWork({
+        contact_uid: typeof args.contact_uid === 'string' ? args.contact_uid : undefined,
+        status,
+        q: typeof args.q === 'string' ? args.q : undefined,
+      });
+      return JSON.stringify({ jobs, count: jobs.length });
+    }
+    if (name === 'read_work') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug) return JSON.stringify({ error: 'missing slug' });
+      const doc = fileReadWork(slug);
+      if (!doc) {
+        const known = fileListWork().map((j) => j.slug);
+        return JSON.stringify({ error: 'unknown slug', known });
+      }
+      const cap = 14_000;
+      const body = doc.body.length > cap ? `${doc.body.slice(0, cap)}\n\n…(truncated)` : doc.body;
+      return JSON.stringify({
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.client,
+        contact_uid: doc.contact_uid,
+        contact_name: doc.contact_name,
+        status: doc.status,
+        source: doc.source,
+        created: doc.created,
+        updated: doc.updated,
+        body,
+      });
+    }
+    if (name === 'create_work') {
+      const title = String(args.title ?? '').trim();
+      const client = String(args.client ?? '').trim();
+      const body = String(args.body ?? '').trim();
+      const statusRaw = String(args.status ?? '').trim().toLowerCase();
+      const status = WORK_STATUSES.includes(statusRaw as WorkStatus)
+        ? (statusRaw as WorkStatus)
+        : undefined;
+
+      let slug = String(args.slug ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, '-');
+      if (!slug && title) slug = slugFromTitle(title);
+
+      if (!title) return JSON.stringify({ error: 'title is required' });
+      if (!client) return JSON.stringify({ error: 'client is required' });
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+      if (fileReadWork(slug)) return JSON.stringify({ error: 'slug already exists', slug });
+
+      const result = await fileWriteWork(slug, {
+        title,
+        client,
+        status,
+        body,
+        source: 'telegram',
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      const doc = result.doc;
+      return JSON.stringify({
+        ok: true,
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.client,
+        contact_uid: doc.contact_uid,
+        contact_name: doc.contact_name,
+        status: doc.status,
+      });
+    }
+    if (name === 'update_work') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+
+      const existing = fileReadWork(slug);
+      if (!existing) {
+        const known = fileListWork().map((j) => j.slug);
+        return JSON.stringify({ error: 'not found', known });
+      }
+
+      const title = args.title != null ? String(args.title).trim() : existing.title;
+      const client =
+        args.client != null ? String(args.client).trim() : existing.client || existing.contact_name;
+      const body = args.body != null ? String(args.body).trim() : existing.body;
+      const statusRaw = args.status != null ? String(args.status).trim().toLowerCase() : existing.status;
+      const status = WORK_STATUSES.includes(statusRaw as WorkStatus)
+        ? (statusRaw as WorkStatus)
+        : existing.status;
+
+      if (!title) return JSON.stringify({ error: 'title is required' });
+      if (!client) return JSON.stringify({ error: 'client is required' });
+
+      const result = await fileWriteWork(slug, { title, client, status, body, source: existing.source });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      const doc = result.doc;
+      return JSON.stringify({
+        ok: true,
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.client,
+        contact_uid: doc.contact_uid,
+        contact_name: doc.contact_name,
+        status: doc.status,
+        updated: doc.updated,
+      });
+    }
+    if (name === 'delete_work') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+      if (!fileDeleteWork(slug)) {
+        const known = fileListWork().map((j) => j.slug);
+        return JSON.stringify({ error: 'not found', known });
+      }
+      return JSON.stringify({ ok: true, slug, deleted: true });
+    }
     if (name === 'write_knowledge') {
       const slug = String(args.slug ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '-');
       const title = String(args.title ?? '').trim();
@@ -847,7 +1092,11 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         phone: args.phone as string | undefined,
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-      return JSON.stringify(result.data);
+      const payload = result.data as Record<string, unknown>;
+      const contact = payload.contact as Record<string, unknown> | undefined;
+      const uid = contact?.uid != null ? String(contact.uid) : '';
+      const work_jobs = uid ? fileListWork({ contact_uid: uid }) : [];
+      return JSON.stringify({ ...payload, work_jobs });
     }
     if (name === 'list_contacts') {
       const result = await listContacts({

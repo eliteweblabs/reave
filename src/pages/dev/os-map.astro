@@ -892,8 +892,9 @@ export const prerender = false;
         min-height: 0;
       }
 
-      /* ── Knowledge tab (reuses Documents editor classes) ── */
-      #knowledge-editor {
+      /* ── Knowledge / Work tabs (reuse Documents editor classes) ── */
+      #knowledge-editor,
+      #work-editor {
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
@@ -903,10 +904,29 @@ export const prerender = false;
         z-index: 10;
       }
       @media (max-width: 639px) {
-        #knowledge-editor { flex-direction: column; }
-        #knowledge-editor.de-pane-active .de-sidebar { display: none; }
-        #knowledge-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+        #knowledge-editor,
+        #work-editor { flex-direction: column; }
+        #knowledge-editor.de-pane-active .de-sidebar,
+        #work-editor.de-pane-active .de-sidebar { display: none; }
+        #knowledge-editor.de-pane-active .de-pane,
+        #work-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
       }
+      .wk-status {
+        font-size: 0.62rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.08rem 0.35rem;
+        border-radius: 4px;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .wk-status-inquiry { color: #79c0ff; background: rgba(121, 192, 255, 0.12); }
+      .wk-status-active { color: #3fb950; background: rgba(63, 185, 80, 0.12); }
+      .wk-status-done { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
+      .wk-status-archived { color: #d29922; background: rgba(210, 153, 34, 0.12); }
+      .wk-meta-row { display: flex; align-items: center; gap: 0.35rem; width: 100%; }
+      .wk-contact { font-size: 0.68rem; color: var(--muted); }
 
       /* ── Chats tab ── */
       #chat-panel {
@@ -1087,6 +1107,9 @@ export const prerender = false;
 
     <!-- Knowledge tab panel (hidden unless knowledge tab is active) -->
     <div id="knowledge-editor" style="display:none"></div>
+
+    <!-- Work tab panel (hidden unless work tab is active) -->
+    <div id="work-editor" style="display:none"></div>
 
     <div id="rule-editor" style="display:none"></div>
 

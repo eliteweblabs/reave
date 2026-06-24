@@ -193,7 +193,7 @@ const TG_NODES = [
   { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'new project (/railway help)',               icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
 
   // LLM tool categories (what Claude can call)
-  { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list_knowledge · read_knowledge · run_dev_task',                        icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
+  { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list/read/create/update/delete work · knowledge tools', icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
   { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · check_deployment · branches · run_terminal_command',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
   { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
   { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
@@ -258,6 +258,7 @@ export const MAPS = {
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },
   chats:     { id: 'chats',     title: 'Chats',      icon: '💬',  type: 'chats',         nodes: [],             edges: [],             groups: [] },
   rules:     { id: 'rules',     title: 'Rules',      icon: '⚡',  type: 'rules',         nodes: [],             edges: [],             groups: [] },
+  work:      { id: 'work',      title: 'Work',       icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
 };
 
 // Back-compat: the "System" map is still the default export surface.

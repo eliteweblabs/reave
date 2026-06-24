@@ -1,6 +1,9 @@
 /**
  * Unified knowledge store: Supabase DB entries (live) + bundled markdown (fallback).
  *
+ * Job/work files under src/knowledge/jobs/ are intentionally excluded — they are
+ * loaded on demand via workStore (list_work / read_work), not this index.
+ *
  * Priority rules:
  *   - If Supabase is configured, DB entries take precedence over bundled docs with the same slug.
  *   - Bundled docs that aren't in the DB are still accessible (read-only).
