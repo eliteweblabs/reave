@@ -57,6 +57,11 @@ import {
   sendSms,
 } from './outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
+import {
+  formatRailwayNetworkingForTelegram,
+  isRailwayConfigured,
+  railwayListProjectNetworking,
+} from './railwayClient';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
@@ -285,10 +290,33 @@ export function buildTools(): TelegramToolDef[] {
               type: 'string',
               enum: [...DEV_TASK_NAMES],
               description:
-                'service_status = which integrations are configured; ping_crater / ping_contact_api = connectivity check; list_knowledge_slugs = bundled docs.',
+                'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains.',
             },
           },
           required: ['task'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_railway_domains',
+        description:
+          'Read Railway networking for a project: *.up.railway.app domains, custom domains, CNAME targets (requiredValue), and verification TXT tokens. Use when the user asks for a CNAME target, custom domain DNS, or what domain a service is on. Requires RAILWAY_API_TOKEN. Defaults to project "Reave App" / environment production.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project: {
+              type: 'string',
+              description: 'Project name or UUID (default: RAILWAY_PROJECT_ID env or "Reave App")',
+            },
+            environment: { type: 'string', description: 'Environment name (default: production)' },
+            service: {
+              type: 'string',
+              description: 'Optional service name filter, e.g. "reave" or "contact-api"',
+            },
+          },
           additionalProperties: false,
         },
       },
@@ -1124,6 +1152,22 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const out = await runDevTask(task);
       if (!out.ok) return JSON.stringify({ error: out.error });
       return JSON.stringify(out);
+    }
+    if (name === 'list_railway_domains') {
+      if (!isRailwayConfigured()) {
+        return JSON.stringify({ error: 'RAILWAY_API_TOKEN is not set on this service' });
+      }
+      const result = await railwayListProjectNetworking({
+        project: typeof args.project === 'string' ? args.project : undefined,
+        environment: typeof args.environment === 'string' ? args.environment : undefined,
+        service: typeof args.service === 'string' ? args.service : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        summary: formatRailwayNetworkingForTelegram(result.data),
+        data: result.data,
+      });
     }
     if (name === 'get_git_status') {
       const result = await getGitStatus({

@@ -86,6 +86,10 @@ are set. CardDAV also needs contact-api reachable.
 
 ## Notes for the assistant
 
+When a user asks how to sync contacts to iPhone, reply with the iOS setup tables above
+(including **Advanced** — required, not optional). Point credentials to Railway → reave
+→ Variables. Never paste `CARDDAV_PASSWORD` in Telegram.
+
 - **Do not paste** `CARDDAV_PASSWORD` or API keys in Telegram — point the owner to
   Railway → Reave service → Variables.
 - CardDAV is for **staff** syncing the master client list on a personal device — not

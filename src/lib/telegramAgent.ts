@@ -3,6 +3,7 @@ import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
 import { isGithubConfigured } from './githubClient';
+import { isRailwayConfigured } from './railwayClient';
 import { serverEnv } from './serverEnv';
 import type { TelegramChatTurn } from './telegramChatHistory';
 
@@ -54,8 +55,19 @@ export async function runTelegramKnowledgeAgent(opts: {
     'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. Use create_work when a client request should become a tracked job (client must exist in contact-api). Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
     'After tools, answer in plain text for Telegram (short paragraphs, avoid huge markdown tables).',
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
-    'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
   ];
+  if (isRailwayConfigured()) {
+    sysParts.push(
+      'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Note: email DNS (mail.reave.app MX/TXT for Resend) is NOT Railway — see read_knowledge email-rules.',
+    );
+  } else {
+    sysParts.push(
+      'Railway reads unavailable (RAILWAY_API_TOKEN not set). /railway project still works only if token is added later.',
+    );
+  }
+  sysParts.push(
+    'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
+  );
   if (isGithubConfigured()) {
     sysParts.push(
       'GitHub edits: for file commits and PRs call read_knowledge slug "github-dev-tools" first if unsure of the workflow. Typical flow: create_github_branch → write_github_file (one or more commits) → create_pull_request (base defaults to main). Report branch URL, commit SHA/URL, and PR link. Do not claim code was pushed unless tools succeed. The bot cannot merge PRs or deploy.',
@@ -80,7 +92,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     );
     if (isCardDavConfigured()) {
       sysParts.push(
-        `CardDAV (iOS Contacts sync): The master contact list syncs natively to iPhone/iPad via CardDAV at ${siteBaseUrl()}/carddav/ — no Google account required. Setup: Settings → Contacts → Add Account → Other → CardDAV; server = hostname only (e.g. reave.app), user/password = CARDDAV_USERNAME / CARDDAV_PASSWORD. **Advanced (required):** Use SSL On, port 443, path /carddav. Changes on the phone sync back to contact-api. For full setup call read_knowledge slug "carddav". Never paste CardDAV passwords in chat.`
+        `CardDAV (iOS Contacts sync): When the user asks to sync contacts to iPhone, give step-by-step setup (Settings → Contacts → Accounts → Add Account → Other → CardDAV). Server = hostname only (reave.app), not a URL with path. Credentials = CARDDAV_USERNAME / CARDDAV_PASSWORD from Railway Variables — never paste values in chat. Always include a required Advanced block: Use SSL On, Port 443, Account URL / Path /carddav — do not say "if it asks for a path"; Advanced is mandatory on iOS. Sync is bidirectional with contact-api. Troubleshooting: https://reave.app/carddav/ should return 401 (not 404); "verification failed" usually means Advanced path missing. For full playbook call read_knowledge slug "carddav".`
       );
     } else {
       sysParts.push(

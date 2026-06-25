@@ -7,12 +7,15 @@ import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
+import { isRailwayConfigured, railwayListProjectNetworking, railwayPing } from './railwayClient';
 import { serverEnv } from './serverEnv';
 
 export const DEV_TASK_NAMES = [
   'service_status',
   'ping_crater',
   'ping_contact_api',
+  'ping_railway',
+  'list_railway_domains',
   'list_knowledge_slugs',
 ] as const;
 
@@ -36,7 +39,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           contact_api: isContactApiConfigured(),
           carddav: isCardDavConfigured(),
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
-          railway: Boolean(serverEnv('RAILWAY_API_TOKEN')?.trim()),
+          railway: isRailwayConfigured(),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
           github_token: isGithubConfigured(),
           github_repo: githubRepoSlug(),
@@ -75,6 +78,18 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           body: text.slice(0, 500) || null,
         },
       };
+    }
+
+    case 'ping_railway': {
+      const out = await railwayPing();
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: out };
+    }
+
+    case 'list_railway_domains': {
+      const out = await railwayListProjectNetworking();
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: out.data };
     }
 
     case 'list_knowledge_slugs':

@@ -107,3 +107,286 @@ export async function createRailwayEmptyProject(name: string): Promise<
   }
   return { ok: true, id: row.id, name: row.name };
 }
+
+export function isRailwayConfigured(): boolean {
+  return Boolean(serverEnv('RAILWAY_API_TOKEN')?.trim());
+}
+
+function defaultProjectRef(): string {
+  return serverEnv('RAILWAY_PROJECT_ID')?.trim() || 'Reave App';
+}
+
+type GqlEdge<T> = { node: T };
+type GqlConnection<T> = { edges: GqlEdge<T>[] };
+
+type RailwayService = { id: string; name: string; icon?: string | null };
+type RailwayEnvironment = { id: string; name: string };
+
+type ServiceDomain = {
+  id: string;
+  domain: string;
+  suffix?: string | null;
+  targetPort?: number | null;
+};
+
+type CustomDomainDnsRecord = {
+  hostlabel?: string | null;
+  requiredValue?: string | null;
+  currentValue?: string | null;
+  status?: string | null;
+};
+
+type CustomDomain = {
+  id: string;
+  domain: string;
+  status?: {
+    verificationToken?: string | null;
+    certificateStatus?: string | null;
+    dnsRecords?: CustomDomainDnsRecord[] | null;
+  } | null;
+};
+
+export type RailwayServiceNetworking = {
+  service_id: string;
+  service_name: string;
+  railway_domains: ServiceDomain[];
+  custom_domains: CustomDomain[];
+};
+
+export type RailwayProjectNetworking = {
+  project_id: string;
+  project_name: string;
+  environment_id: string;
+  environment_name: string;
+  services: RailwayServiceNetworking[];
+};
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function railwayListProjectNames(): Promise<
+  { ok: true; projects: { id: string; name: string }[] } | { ok: false; error: string }
+> {
+  const result = await railwayGraphql<{
+    projects?: GqlConnection<{ id: string; name: string }>;
+  }>({
+    query: `query {
+      projects {
+        edges {
+          node { id name }
+        }
+      }
+    }`,
+  });
+  if (!result.ok) {
+    return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
+  }
+  const projects = (result.data.projects?.edges ?? []).map((e) => e.node);
+  return { ok: true, projects };
+}
+
+async function railwayResolveProject(projectRef: string): Promise<
+  | {
+      ok: true;
+      project: { id: string; name: string };
+      services: RailwayService[];
+      environments: RailwayEnvironment[];
+    }
+  | { ok: false; error: string }
+> {
+  const ref = projectRef.trim();
+  if (!ref) return { ok: false, error: 'project is required' };
+
+  if (isUuid(ref)) {
+    const result = await railwayGraphql<{
+      project?: {
+        id: string;
+        name: string;
+        services?: GqlConnection<RailwayService>;
+        environments?: GqlConnection<RailwayEnvironment>;
+      } | null;
+    }>({
+      query: `query project($id: String!) {
+        project(id: $id) {
+          id name
+          services { edges { node { id name icon } } }
+          environments { edges { node { id name } } }
+        }
+      }`,
+      variables: { id: ref },
+    });
+    if (!result.ok) return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
+    const p = result.data.project;
+    if (!p) return { ok: false, error: `Project not found: ${ref}` };
+    return {
+      ok: true,
+      project: { id: p.id, name: p.name },
+      services: (p.services?.edges ?? []).map((e) => e.node),
+      environments: (p.environments?.edges ?? []).map((e) => e.node),
+    };
+  }
+
+  const listed = await railwayListProjectNames();
+  if (!listed.ok) return { ok: false, error: listed.error };
+  const needle = ref.toLowerCase();
+  const match =
+    listed.projects.find((p) => p.name.toLowerCase() === needle) ??
+    listed.projects.find((p) => p.name.toLowerCase().includes(needle));
+  if (!match) {
+    const names = listed.projects.map((p) => p.name).slice(0, 12);
+    return {
+      ok: false,
+      error: `No project matching "${ref}". Available: ${names.join(', ') || '(none)'}`,
+    };
+  }
+  return railwayResolveProject(match.id);
+}
+
+async function railwayGetServiceDomains(opts: {
+  projectId: string;
+  environmentId: string;
+  serviceId: string;
+}): Promise<
+  | { ok: true; serviceDomains: ServiceDomain[]; customDomains: CustomDomain[] }
+  | { ok: false; error: string }
+> {
+  const result = await railwayGraphql<{
+    domains?: {
+      serviceDomains?: ServiceDomain[] | null;
+      customDomains?: CustomDomain[] | null;
+    } | null;
+  }>({
+    query: `query domains($projectId: String!, $environmentId: String!, $serviceId: String!) {
+      domains(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId) {
+        serviceDomains { id domain suffix targetPort }
+        customDomains {
+          id domain
+          status {
+            verificationToken
+            certificateStatus
+            dnsRecords { hostlabel requiredValue currentValue status }
+          }
+        }
+      }
+    }`,
+    variables: opts,
+  });
+  if (!result.ok) return { ok: false, error: result.errors.map((e) => e.message).join('; ') };
+  const d = result.data.domains;
+  return {
+    ok: true,
+    serviceDomains: d?.serviceDomains ?? [],
+    customDomains: d?.customDomains ?? [],
+  };
+}
+
+/** List Railway *.up.railway.app domains + custom domains / CNAME targets for a project. */
+export async function railwayListProjectNetworking(opts: {
+  project?: string;
+  environment?: string;
+  service?: string;
+} = {}): Promise<{ ok: true; data: RailwayProjectNetworking } | { ok: false; error: string }> {
+  if (!isRailwayConfigured()) {
+    return { ok: false, error: 'RAILWAY_API_TOKEN is not set on this service' };
+  }
+
+  const projectRef = opts.project?.trim() || defaultProjectRef();
+  const resolved = await railwayResolveProject(projectRef);
+  if (!resolved.ok) return resolved;
+
+  const envName = (opts.environment?.trim() || 'production').toLowerCase();
+  const environment =
+    resolved.environments.find((e) => e.name.toLowerCase() === envName) ??
+    resolved.environments.find((e) => e.name.toLowerCase().includes(envName));
+  if (!environment) {
+    const names = resolved.environments.map((e) => e.name).join(', ') || '(none)';
+    return { ok: false, error: `Environment "${opts.environment ?? 'production'}" not found. Available: ${names}` };
+  }
+
+  const serviceFilter = opts.service?.trim().toLowerCase();
+  const services = serviceFilter
+    ? resolved.services.filter((s) => s.name.toLowerCase().includes(serviceFilter))
+    : resolved.services;
+
+  if (serviceFilter && !services.length) {
+    const names = resolved.services.map((s) => s.name).join(', ') || '(none)';
+    return { ok: false, error: `No service matching "${opts.service}". Available: ${names}` };
+  }
+
+  const networking: RailwayServiceNetworking[] = [];
+  for (const svc of services) {
+    const domains = await railwayGetServiceDomains({
+      projectId: resolved.project.id,
+      environmentId: environment.id,
+      serviceId: svc.id,
+    });
+    if (!domains.ok) {
+      return { ok: false, error: `${svc.name}: ${domains.error}` };
+    }
+    networking.push({
+      service_id: svc.id,
+      service_name: svc.name,
+      railway_domains: domains.serviceDomains,
+      custom_domains: domains.customDomains,
+    });
+  }
+
+  return {
+    ok: true,
+    data: {
+      project_id: resolved.project.id,
+      project_name: resolved.project.name,
+      environment_id: environment.id,
+      environment_name: environment.name,
+      services: networking,
+    },
+  };
+}
+
+/** Connectivity check — lists project names the token can read. */
+export async function railwayPing(): Promise<
+  { ok: true; project_count: number; projects: { id: string; name: string }[] } | { ok: false; error: string }
+> {
+  if (!isRailwayConfigured()) {
+    return { ok: false, error: 'RAILWAY_API_TOKEN is not set on this service' };
+  }
+  const listed = await railwayListProjectNames();
+  if (!listed.ok) return { ok: false, error: listed.error };
+  return { ok: true, project_count: listed.projects.length, projects: listed.projects };
+}
+
+/** Compact text for Telegram from railwayListProjectNetworking(). */
+export function formatRailwayNetworkingForTelegram(data: RailwayProjectNetworking): string {
+  const lines: string[] = [
+    `Project: ${data.project_name} (${data.project_id})`,
+    `Environment: ${data.environment_name}`,
+    '',
+  ];
+
+  for (const svc of data.services) {
+    lines.push(`▸ ${svc.service_name}`);
+    for (const rd of svc.railway_domains) {
+      lines.push(`  railway: ${rd.domain}`);
+    }
+    if (!svc.railway_domains.length) lines.push('  railway: (none)');
+    for (const cd of svc.custom_domains) {
+      lines.push(`  custom: ${cd.domain}`);
+      for (const rec of cd.status?.dnsRecords ?? []) {
+        if (rec.requiredValue) {
+          lines.push(`    CNAME ${rec.hostlabel ?? cd.domain} → ${rec.requiredValue} (${rec.status ?? '?'})`);
+        }
+      }
+      if (cd.status?.verificationToken) {
+        lines.push(`    TXT _railway-verify → ${cd.status.verificationToken}`);
+      }
+      if (cd.status?.certificateStatus) {
+        lines.push(`    cert: ${cd.status.certificateStatus}`);
+      }
+    }
+    if (!svc.custom_domains.length) lines.push('  custom: (none)');
+    lines.push('');
+  }
+
+  return lines.join('\n').trim();
+}

@@ -31,6 +31,8 @@ interface ImportMetaEnv {
   CRATER_API_TOKEN?: string;
   /** Railway public API (GraphQL). Create at railway.com/account/tokens — needs permission to create projects. */
   RAILWAY_API_TOKEN?: string;
+  /** Optional default Railway project UUID for list_railway_domains (else match by name "Reave App") */
+  RAILWAY_PROJECT_ID?: string;
   /** Optional: Cmd+K → Copy Active Workspace ID if projectCreate requires it */
   RAILWAY_WORKSPACE_ID?: string;
   /** If "1", /railway project … does not call Railway (safe rehearsal) */

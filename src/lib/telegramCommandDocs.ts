@@ -81,9 +81,11 @@ const SECTION_DEFS: SectionDef[] = [
       '"List open branches"',
       '"Update src/lib/foo.ts on branch fix/thing and open a PR to main"',
       '"What services are configured?"',
+      '"What CNAME does reave.app use on Railway?"',
+      '"List Railway domains for the reave service"',
       '"Run: git log --oneline -5"',
     ],
-    toolPattern: /^(get_git_status|get_recent_commits|check_deployment_status|list_open_branches|run_terminal_command|run_dev_task|create_github_branch|write_github_file|create_pull_request)$/,
+    toolPattern: /^(get_git_status|get_recent_commits|check_deployment_status|list_open_branches|run_terminal_command|run_dev_task|list_railway_domains|create_github_branch|write_github_file|create_pull_request)$/,
   },
   {
     id: 'knowledge',
