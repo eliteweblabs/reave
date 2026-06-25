@@ -65,6 +65,7 @@ const sections: Section[] = [
       { say: '“Is the latest code live?”', does: 'Compare deployed commit vs GitHub + health ping' },
       { say: '“Show recent commits.” / “git status”', does: 'Repo state from GitHub' },
       { say: '“List open branches.”', does: 'In-progress work' },
+      { say: '“Update src/lib/foo.ts on branch fix/thing and open a PR to main.”', does: 'Commit via GitHub API + open PR (branch must exist)' },
       { say: '“Run a service status check.”', does: 'Which integrations are configured/reachable' },
     ],
   },

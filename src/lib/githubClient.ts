@@ -1,11 +1,12 @@
 /**
- * Minimal GitHub REST API client (read-only) for the Telegram dev/status tools.
+ * GitHub REST API client for the Telegram dev/status and file-write tools.
  *
  * The deployed assistant runs on Railway from a built `dist/` with no local git
  * repo, so "is this committed / pushed?" must be answered against GitHub — the
  * source of truth (eliteweblabs/reave). Auth is a personal access token
- * (`GITHUB_TOKEN`); a fine-grained read-only "Contents" + "Metadata" token is
- * enough. Public repos work token-less but are heavily rate limited.
+ * (`GITHUB_TOKEN`). Read-only status tools need Contents + Metadata; write tools
+ * also need Contents: write and Pull requests: write. Public repos work
+ * token-less for reads but are heavily rate limited.
  */
 import { serverEnv } from './serverEnv';
 
@@ -15,14 +16,52 @@ export type GithubResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status?: number };
 
+const REPO_SLUG_RE = /^[\w.-]+\/[\w.-]+$/;
+
+/** Normalize owner/repo from env, URL, or bare slug. */
+export function normalizeRepoSlug(raw: string): string | null {
+  const slug = raw
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, '')
+    .replace(/\.git$/i, '')
+    .replace(/^\/+|\/+$/g, '');
+  return REPO_SLUG_RE.test(slug) ? slug : null;
+}
+
 /** owner/repo, in priority: GITHUB_REPO → Railway-injected git vars → default. */
 export function githubRepoSlug(): string {
   const explicit = serverEnv('GITHUB_REPO')?.trim();
-  if (explicit) return explicit.replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '');
+  if (explicit) return normalizeRepoSlug(explicit) ?? 'eliteweblabs/reave';
   const owner = serverEnv('RAILWAY_GIT_REPO_OWNER')?.trim();
   const name = serverEnv('RAILWAY_GIT_REPO_NAME')?.trim();
   if (owner && name) return `${owner}/${name}`;
   return 'eliteweblabs/reave';
+}
+
+/** Default branch for new branches and PRs when not specified. */
+export function githubDefaultBranch(): string {
+  return serverEnv('GITHUB_DEFAULT_BRANCH')?.trim() || 'main';
+}
+
+function resolveRepo(repo?: string): GithubResult<string> {
+  const slug = repo?.trim() ? normalizeRepoSlug(repo) : githubRepoSlug();
+  if (!slug) return { ok: false, error: 'invalid repo (expected owner/name)' };
+  return { ok: true, data: slug };
+}
+
+function encodeRepoPath(path: string): string {
+  return path
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter(Boolean)
+    .map(encodeURIComponent)
+    .join('/');
+}
+
+function isSafeRepoPath(path: string): boolean {
+  const normalized = path.replace(/^\/+/, '');
+  if (!normalized || normalized.includes('..')) return false;
+  return true;
 }
 
 function token(): string | null {
@@ -34,8 +73,16 @@ export function isGithubConfigured(): boolean {
   return Boolean(token());
 }
 
-async function ghFetch<T>(path: string, query?: Record<string, string | number | undefined>): Promise<GithubResult<T>> {
+async function ghFetch<T>(
+  path: string,
+  opts?: {
+    method?: string;
+    query?: Record<string, string | number | undefined>;
+    body?: unknown;
+  }
+): Promise<GithubResult<T>> {
   let url = `${GITHUB_API}${path}`;
+  const query = opts?.query;
   if (query) {
     const params = new URLSearchParams();
     for (const [k, v] of Object.entries(query)) {
@@ -53,10 +100,15 @@ async function ghFetch<T>(path: string, query?: Record<string, string | number |
   };
   const tok = token();
   if (tok) headers.Authorization = `Bearer ${tok}`;
+  if (opts?.body !== undefined) headers['Content-Type'] = 'application/json';
 
   let res: Response;
   try {
-    res = await fetch(url, { headers });
+    res = await fetch(url, {
+      method: opts?.method ?? 'GET',
+      headers,
+      body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    });
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -123,8 +175,7 @@ export async function githubListCommits(opts: {
 }): Promise<GithubResult<GithubCommit[]>> {
   const perPage = Math.min(Math.max(opts.perPage ?? 5, 1), 30);
   const res = await ghFetch<RawCommit[]>(`/repos/${githubRepoSlug()}/commits`, {
-    sha: opts.branch,
-    per_page: perPage,
+    query: { sha: opts.branch, per_page: perPage },
   });
   if (!res.ok) return res;
   return { ok: true, data: (res.data ?? []).map(normalizeCommit) };
@@ -169,7 +220,7 @@ export async function githubListBranches(opts: { perPage?: number } = {}): Promi
   const perPage = Math.min(Math.max(opts.perPage ?? 30, 1), 100);
   const res = await ghFetch<Array<{ name: string; protected?: boolean; commit: { sha: string } }>>(
     `/repos/${githubRepoSlug()}/branches`,
-    { per_page: perPage }
+    { query: { per_page: perPage } }
   );
   if (!res.ok) return res;
   return {
@@ -201,6 +252,290 @@ export async function githubCompare(base: string, head: string): Promise<GithubR
       status: res.data.status ?? 'unknown',
       ahead_by: res.data.ahead_by ?? 0,
       behind_by: res.data.behind_by ?? 0,
+    },
+  };
+}
+
+export type GithubFileWriteResult = {
+  repo: string;
+  branch: string;
+  path: string;
+  sha: string;
+  commit_sha: string;
+  commit_url: string;
+  created: boolean;
+};
+
+/** Create or update a file via the GitHub Contents API. */
+export async function githubWriteFile(opts: {
+  repo?: string;
+  branch: string;
+  path: string;
+  content: string;
+  message: string;
+}): Promise<GithubResult<GithubFileWriteResult>> {
+  if (!token()) {
+    return { ok: false, error: 'GITHUB_TOKEN is required for write_github_file' };
+  }
+
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const branch = opts.branch.trim();
+  const path = opts.path.trim();
+  const message = opts.message.trim();
+  if (!branch) return { ok: false, error: 'branch is required' };
+  if (!path || !isSafeRepoPath(path)) return { ok: false, error: 'invalid path' };
+  if (!message) return { ok: false, error: 'commit message is required' };
+
+  const repo = repoRes.data;
+  const encodedPath = encodeRepoPath(path);
+
+  const existing = await ghFetch<{ sha?: string }>(`/repos/${repo}/contents/${encodedPath}`, {
+    query: { ref: branch },
+  });
+  const existingSha = existing.ok ? existing.data.sha : undefined;
+  if (!existing.ok && existing.status !== 404) return existing;
+
+  const body: Record<string, string> = {
+    message,
+    content: Buffer.from(opts.content, 'utf8').toString('base64'),
+    branch,
+  };
+  if (existingSha) body.sha = existingSha;
+
+  const res = await ghFetch<{
+    commit?: { sha?: string; html_url?: string };
+    content?: { sha?: string; path?: string };
+  }>(`/repos/${repo}/contents/${encodedPath}`, { method: 'PUT', body });
+
+  if (!res.ok) return res;
+
+  const commitSha = res.data.commit?.sha;
+  if (!commitSha) return { ok: false, error: 'GitHub did not return a commit SHA' };
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      branch,
+      path: res.data.content?.path ?? path.replace(/^\/+/, ''),
+      sha: res.data.content?.sha ?? commitSha,
+      commit_sha: commitSha,
+      commit_url: res.data.commit?.html_url ?? `https://github.com/${repo}/commit/${commitSha}`,
+      created: !existingSha,
+    },
+  };
+}
+
+export type GithubPullRequestResult = {
+  repo: string;
+  number: number;
+  title: string;
+  state: string;
+  head: string;
+  base: string;
+  url: string;
+};
+
+/** Open a pull request on GitHub. */
+export async function githubCreatePullRequest(opts: {
+  repo?: string;
+  head: string;
+  base?: string;
+  title: string;
+  body?: string;
+}): Promise<GithubResult<GithubPullRequestResult>> {
+  if (!token()) {
+    return { ok: false, error: 'GITHUB_TOKEN is required for create_pull_request' };
+  }
+
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const head = opts.head.trim();
+  const base = (opts.base?.trim() || githubDefaultBranch());
+  const title = opts.title.trim();
+  if (!head) return { ok: false, error: 'head branch is required' };
+  if (!title) return { ok: false, error: 'title is required' };
+
+  const repo = repoRes.data;
+  const res = await ghFetch<{ number?: number; title?: string; state?: string; html_url?: string; head?: { ref?: string }; base?: { ref?: string } }>(
+    `/repos/${repo}/pulls`,
+    {
+      method: 'POST',
+      body: {
+        title,
+        head,
+        base,
+        body: opts.body?.trim() || '',
+      },
+    }
+  );
+
+  if (!res.ok) return res;
+  if (typeof res.data.number !== 'number') {
+    return { ok: false, error: 'GitHub did not return a pull request number' };
+  }
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      number: res.data.number,
+      title: res.data.title ?? title,
+      state: res.data.state ?? 'open',
+      head: res.data.head?.ref ?? head,
+      base: res.data.base?.ref ?? base,
+      url: res.data.html_url ?? `https://github.com/${repo}/pull/${res.data.number}`,
+    },
+  };
+}
+
+const BRANCH_NAME_RE = /^[A-Za-z0-9._/-]+$/;
+
+function isSafeBranchName(name: string): boolean {
+  const branch = name.trim();
+  if (!branch || branch.includes('..') || branch.startsWith('/') || branch.endsWith('/')) return false;
+  return BRANCH_NAME_RE.test(branch);
+}
+
+export type GithubRepoAccess = {
+  repo: string;
+  authenticated: boolean;
+  permissions: { pull: boolean; push: boolean; admin: boolean } | null;
+  can_write_files: boolean;
+  can_open_prs: boolean;
+  note: string | null;
+};
+
+/** Inspect token access to the configured repo (for service_status / troubleshooting). */
+export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<GithubRepoAccess>> {
+  const repoRes = resolveRepo(repo);
+  if (!repoRes.ok) return repoRes;
+  const slug = repoRes.data;
+  const tok = token();
+
+  if (!tok) {
+    return {
+      ok: true,
+      data: {
+        repo: slug,
+        authenticated: false,
+        permissions: null,
+        can_write_files: false,
+        can_open_prs: false,
+        note: 'No GITHUB_TOKEN — public read only, writes disabled.',
+      },
+    };
+  }
+
+  const userRes = await ghFetch<{ login?: string }>('/user');
+  if (!userRes.ok) {
+    return {
+      ok: true,
+      data: {
+        repo: slug,
+        authenticated: false,
+        permissions: null,
+        can_write_files: false,
+        can_open_prs: false,
+        note: userRes.error,
+      },
+    };
+  }
+
+  const repoRes2 = await ghFetch<{ permissions?: { pull?: boolean; push?: boolean; admin?: boolean } }>(
+    `/repos/${slug}`
+  );
+  if (!repoRes2.ok) {
+    return {
+      ok: true,
+      data: {
+        repo: slug,
+        authenticated: true,
+        permissions: null,
+        can_write_files: false,
+        can_open_prs: false,
+        note: repoRes2.error,
+      },
+    };
+  }
+
+  const perms = repoRes2.data.permissions;
+  const push = Boolean(perms?.push || perms?.admin);
+  const pull = Boolean(perms?.pull || push);
+
+  return {
+    ok: true,
+    data: {
+      repo: slug,
+      authenticated: true,
+      permissions: perms
+        ? { pull, push, admin: Boolean(perms.admin) }
+        : null,
+      can_write_files: push,
+      can_open_prs: push,
+      note: push
+        ? 'Token can push — write_github_file and create_pull_request should work.'
+        : 'Token is read-only on this repo — upgrade to Contents write + Pull requests write.',
+    },
+  };
+}
+
+export type GithubBranchCreateResult = {
+  repo: string;
+  branch: string;
+  from_branch: string;
+  sha: string;
+  url: string;
+};
+
+/** Create a new branch pointing at the tip of from_branch (default: main). */
+export async function githubCreateBranch(opts: {
+  repo?: string;
+  branch: string;
+  from_branch?: string;
+}): Promise<GithubResult<GithubBranchCreateResult>> {
+  if (!token()) {
+    return { ok: false, error: 'GITHUB_TOKEN is required for create_github_branch' };
+  }
+
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
+
+  const branch = opts.branch.trim();
+  const fromBranch = (opts.from_branch?.trim() || githubDefaultBranch());
+  if (!branch || !isSafeBranchName(branch)) return { ok: false, error: 'invalid branch name' };
+  if (!isSafeBranchName(fromBranch)) return { ok: false, error: 'invalid from_branch name' };
+
+  const repo = repoRes.data;
+  const baseRef = await ghFetch<{ object?: { sha?: string } }>(
+    `/repos/${repo}/git/ref/heads/${encodeURIComponent(fromBranch)}`
+  );
+  if (!baseRef.ok) return baseRef;
+  const sha = baseRef.data.object?.sha;
+  if (!sha) return { ok: false, error: `could not resolve tip of ${fromBranch}` };
+
+  const created = await ghFetch<{ object?: { sha?: string } }>(`/repos/${repo}/git/refs`, {
+    method: 'POST',
+    body: { ref: `refs/heads/${branch}`, sha },
+  });
+  if (!created.ok) {
+    if (created.status === 422) {
+      return { ok: false, error: `branch "${branch}" may already exist` };
+    }
+    return created;
+  }
+
+  return {
+    ok: true,
+    data: {
+      repo,
+      branch,
+      from_branch: fromBranch,
+      sha: created.data.object?.sha ?? sha,
+      url: `https://github.com/${repo}/tree/${encodeURIComponent(branch)}`,
     },
   };
 }

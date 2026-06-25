@@ -58,6 +58,7 @@ import {
 } from './outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
+import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
 import { reaveEmailHtml } from './emailTemplates';
 
@@ -355,6 +356,79 @@ export function buildTools(): TelegramToolDef[] {
             command: { type: 'string', description: 'e.g. "git log --oneline -10", "git status", "git branch -a", "ls".' },
           },
           required: ['command'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_github_branch',
+        description:
+          `Create a new branch from an existing branch (default from_branch: ${githubDefaultBranch()}). Use before write_github_file when no feature branch exists yet. Requires GITHUB_TOKEN with Contents write.`,
+        parameters: {
+          type: 'object',
+          properties: {
+            repo: {
+              type: 'string',
+              description: `owner/repo (defaults to ${githubRepoSlug()} when omitted)`,
+            },
+            branch: { type: 'string', description: 'New branch name, e.g. telegram/fix-typo' },
+            from_branch: {
+              type: 'string',
+              description: `Existing branch to branch from (defaults to ${githubDefaultBranch()})`,
+            },
+          },
+          required: ['branch'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'write_github_file',
+        description:
+          'Create or update a file in a GitHub repo via the Contents API. Commits directly to the given branch (branch must already exist). Requires GITHUB_TOKEN with Contents write. Returns commit SHA and URL.',
+        parameters: {
+          type: 'object',
+          properties: {
+            repo: {
+              type: 'string',
+              description: `owner/repo (defaults to ${githubRepoSlug()} when omitted)`,
+            },
+            branch: { type: 'string', description: 'Target branch to commit to' },
+            path: { type: 'string', description: 'File path in the repo, e.g. src/lib/example.ts' },
+            content: { type: 'string', description: 'Full new file contents (UTF-8 text)' },
+            message: { type: 'string', description: 'Git commit message' },
+          },
+          required: ['branch', 'path', 'content', 'message'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_pull_request',
+        description:
+          'Open a pull request on GitHub. Use after write_github_file commits on a feature branch. Requires GITHUB_TOKEN with Pull requests write.',
+        parameters: {
+          type: 'object',
+          properties: {
+            repo: {
+              type: 'string',
+              description: `owner/repo (defaults to ${githubRepoSlug()} when omitted)`,
+            },
+            head: { type: 'string', description: 'Head branch (the branch with your changes)' },
+            base: {
+              type: 'string',
+              description: `Base branch to merge into (defaults to ${githubDefaultBranch()})`,
+            },
+            title: { type: 'string', description: 'PR title' },
+            body: { type: 'string', description: 'PR description (markdown ok)' },
+          },
+          required: ['head', 'title'],
           additionalProperties: false,
         },
       },
@@ -1084,6 +1158,37 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await runSafeShellCommand(command);
       if (!result.ok) return JSON.stringify({ error: result.error, allowed: describeSafeShell() });
       return JSON.stringify(result);
+    }
+    if (name === 'create_github_branch') {
+      const result = await githubCreateBranch({
+        repo: typeof args.repo === 'string' ? args.repo : undefined,
+        branch: String(args.branch ?? '').trim(),
+        from_branch: typeof args.from_branch === 'string' ? args.from_branch : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'write_github_file') {
+      const result = await githubWriteFile({
+        repo: typeof args.repo === 'string' ? args.repo : undefined,
+        branch: String(args.branch ?? '').trim(),
+        path: String(args.path ?? '').trim(),
+        content: String(args.content ?? ''),
+        message: String(args.message ?? '').trim(),
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'create_pull_request') {
+      const result = await githubCreatePullRequest({
+        repo: typeof args.repo === 'string' ? args.repo : undefined,
+        head: String(args.head ?? '').trim(),
+        base: typeof args.base === 'string' && args.base.trim() ? args.base.trim() : undefined,
+        title: String(args.title ?? '').trim(),
+        body: typeof args.body === 'string' ? args.body : undefined,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
     }
     if (name === 'resolve_contact') {
       const result = await resolveContact({

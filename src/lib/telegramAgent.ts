@@ -2,6 +2,7 @@ import { buildTools, runTool } from './telegramToolDefs';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
+import { isGithubConfigured } from './githubClient';
 import { serverEnv } from './serverEnv';
 import type { TelegramChatTurn } from './telegramChatHistory';
 
@@ -55,6 +56,15 @@ export async function runTelegramKnowledgeAgent(opts: {
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
     'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
   ];
+  if (isGithubConfigured()) {
+    sysParts.push(
+      'GitHub edits: for file commits and PRs call read_knowledge slug "github-dev-tools" first if unsure of the workflow. Typical flow: create_github_branch → write_github_file (one or more commits) → create_pull_request (base defaults to main). Report branch URL, commit SHA/URL, and PR link. Do not claim code was pushed unless tools succeed. The bot cannot merge PRs or deploy.',
+    );
+  } else {
+    sysParts.push(
+      'GitHub writes unavailable (GITHUB_TOKEN not set). Status tools may still work on public repos with heavy rate limits.',
+    );
+  }
   if (isCraterConfigured()) {
     sysParts.push(
       'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.',

@@ -27,6 +27,7 @@ the bot in plain English (freeform needs `ANTHROPIC_API_KEY`).
 - **Send:** "send <name> their link" (emails, or texts if no email on file via Telnyx)
 - **Billing:** "invoice <name> $100 for …", "who has an unpaid invoice?", "record a $50 payment from <name>", "list recent invoices"
 - **Dev/deploy:** "is the latest code live?", "show recent commits", "git status", "list branches", "run a service status check"
+- **GitHub edits:** "update `src/foo.ts` on branch `fix/thing` and open a PR to main", "commit this file to GitHub" (see bundled slug **`github-dev-tools`**)
 - **Knowledge:** "what's our email triage rule?" (reads bundled docs)
 
 Names are fuzzy-matched; if ambiguous, the bot lists candidates to confirm.
