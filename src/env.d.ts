@@ -19,6 +19,12 @@ interface ImportMetaEnv {
   CONTACT_API_BASE_URL?: string;
   /** Optional X-API-Key when contact-api has API_KEY set */
   CONTACT_API_KEY?: string;
+  /** CardDAV HTTP Basic username (iOS Contacts → Add Account → CardDAV) */
+  CARDDAV_USERNAME?: string;
+  /** CardDAV HTTP Basic password */
+  CARDDAV_PASSWORD?: string;
+  /** Optional bearer / header token (also accepts X-CardDAV-Token). Falls back to CONTACT_API_KEY. */
+  CARDDAV_TOKEN?: string;
   /** Crater custom API base URL (e.g. https://ap.reave.app) */
   CRATER_API_BASE_URL?: string;
   /** Mirror of Crater's CRATER_API_TOKEN; sent as X-Crater-Api-Token */
@@ -39,6 +45,8 @@ interface ImportMetaEnv {
   GH_TOKEN?: string;
   /** Optional owner/repo override for status tools (default: eliteweblabs/reave). */
   GITHUB_REPO?: string;
+  /** Default branch for create_github_branch from_branch and create_pull_request base (default: main). */
+  GITHUB_DEFAULT_BRANCH?: string;
   /** Optional explicit health-check URL for check_deployment_status (default: RAILWAY_PUBLIC_DOMAIN or reave.app). */
   DEPLOY_HEALTH_URL?: string;
   /** Injected by Railway at deploy time — the live commit SHA (used to verify deploy is current). */

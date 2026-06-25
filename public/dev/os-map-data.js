@@ -23,12 +23,13 @@ const SYSTEM_NODES = [
   { id: 'dev', title: 'Dev / dashboard', sub: '/dev/os-map', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 520 },
 
   // Reave App (Railway) — the hub
-  { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/*', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
+  { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
   { id: 'app_pg', title: 'App Postgres', sub: 'future · TG chat history', icon: '🗃️', brand: 'postgresql', hue: 215, ghost: true, group: 'reave', x: 430, y: 470 },
   { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · shareable PWA', icon: '📇', hue: 320, status: true, group: 'reave', x: 600, y: 560 },
+  { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS Contacts sync', icon: '📲', hue: 275, status: true, group: 'reave', x: 600, y: 430 },
   { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/dev/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 430, y: 160 },
 
   // External APIs
@@ -36,7 +37,7 @@ const SYSTEM_NODES = [
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'projectCreate', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 260 },
   { id: 'resend', title: 'Resend', sub: 'inbound · marketing', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 400 },
   { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage', icon: '💬', brand: 'telegram', hue: 200, status: true, group: 'external', x: 1160, y: 540 },
-  { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 680 },
+  { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 680 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · voice · Call Control', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
 
   // Separate Railway service
@@ -52,6 +53,8 @@ const SYSTEM_EDGES = [
   { from: 'tg_api', to: 'tg_user', dashed: true, label: 'reply' },
   { from: 'astro', to: 'anthropic', label: 'freeform LLM' },
   { from: 'astro', to: 'contact_api', label: 'resolve' },
+  { from: 'astro', to: 'carddav', label: 'CardDAV' },
+  { from: 'carddav', to: 'contact_api', label: 'vCard CRUD' },
   { from: 'astro', to: 'portal', label: 'serves /c/:uid' },
   { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
   { from: 'portal', to: 'crater', label: 'billing (due/upcoming/paid)', dashed: true },
@@ -64,7 +67,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'crater', label: 'billing API' },
   { from: 'astro', to: 'resend', label: 'inbound webhook · send link' },
   { from: 'astro', to: 'app_pg', label: 'future', ghost: true, dashed: true },
-  { from: 'astro', to: 'github', label: 'status / commits' },
+  { from: 'astro', to: 'github', label: 'status / commits / write / PR' },
   { from: 'telnyx', to: 'astro', label: 'SMS webhook · call events', dashed: true },
   { from: 'railway_gql', to: 'astro', label: 'deploy webhook', dashed: true },
   { from: 'imap', to: 'tg_api', label: 'trigger:telegram' },
@@ -72,7 +75,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'sms_caller', 'dev'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater', 'portal', 'contacts_dash'] },
+  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github', 'telnyx'] },
   { id: 'openclaw', title: 'Railway — openclaw-email-tools', hue: 100, members: ['imap'] },
 ];
@@ -194,7 +197,7 @@ const TG_NODES = [
 
   // LLM tool categories (what Claude can call)
   { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list/read/create/update/delete work · knowledge tools', icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
-  { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · check_deployment · branches · run_terminal_command',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
+  { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · create_github_branch · write · PR',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
   { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
   { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
   { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
@@ -204,7 +207,7 @@ const TG_NODES = [
   { id: 'tc_svc_anthropic',  title: 'Anthropic',      sub: 'Claude Messages API',        icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_svc', x: 1260, y: 300  },
   { id: 'tc_svc_capi',       title: 'contact-api',    sub: 'contacts + portal data',     icon: '🧩', hue: 30,            group: 'tc_svc', x: 1260, y: 580  },
   { id: 'tc_svc_crater',     title: 'Crater',         sub: 'invoicing',                  icon: '🧾', hue: 0,             group: 'tc_svc', x: 1260, y: 820  },
-  { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · status',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },
+  { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · write · PRs',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },
 ];
 
 const TG_EDGES = [

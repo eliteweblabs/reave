@@ -47,3 +47,9 @@ For HTTP **inside** the Railway private network you can reference private hostna
 Response `match`: `exact` | `likely` | `possible` | `none` (see upstream README).
 
 Telegram shortcuts in this app: `/resolve <name>` and `/who <name>`.
+
+## CardDAV (iOS sync)
+
+The Reave Astro app exposes **CardDAV** at `/carddav` for native iPhone/iPad Contacts sync
+(same data as this API). See bundled knowledge slug **`carddav`** for iOS setup and env vars
+(`CARDDAV_USERNAME`, `CARDDAV_PASSWORD` on the Reave service).

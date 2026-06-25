@@ -1,5 +1,6 @@
 import { buildTools, runTool } from './telegramToolDefs';
-import { isContactApiConfigured } from './contactApi';
+import { isContactApiConfigured, siteBaseUrl } from './contactApi';
+import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
 import { serverEnv } from './serverEnv';
 import type { TelegramChatTurn } from './telegramChatHistory';
@@ -67,6 +68,15 @@ export async function runTelegramKnowledgeAgent(opts: {
     sysParts.push(
       'Client portals: EVERY client automatically has a shareable mobile page at /c/<uid> (a link they open on iPhone and can "Add to Home Screen") — you never need to "create" one. The page shows the client\'s details plus any outstanding Crater invoices (with pay links). list_contacts returns each portal_url, and get_client_portal fetches a single link. The page is tabbed: Overview (headline/body/fields), Billing (automatic from Crater: outstanding, upcoming, previous), and Data (web-design handoff items like passwords/DNS/hosting). Use set_client_portal to CUSTOMIZE Overview content or populate the Data tab (its `data` param: each item has a label plus any of value/username/password/url), or to hide a page (enabled:false). Treat Data items as sensitive credentials. To actually deliver the link to a client ("send the client link to <name>"), use send_client_portal, which emails or texts it to them. These are CLIENT-FACING — never put private/internal notes there. If a name is ambiguous, the tool returns candidates; confirm before sending. Always report the share URL.'
     );
+    if (isCardDavConfigured()) {
+      sysParts.push(
+        `CardDAV (iOS Contacts sync): The master contact list syncs natively to iPhone/iPad via CardDAV at ${siteBaseUrl()}/carddav/ — no Google account required. Setup: Settings → Contacts → Add Account → Other → CardDAV; server = site host, path /carddav, username/password = CARDDAV_USERNAME / CARDDAV_PASSWORD on Railway. Changes on the phone sync back to contact-api (PUT/DELETE). This is for staff syncing their device, not for client-facing links. For full setup/troubleshooting call read_knowledge slug "carddav". Never paste CardDAV passwords in chat — point the owner to Railway Variables.`
+      );
+    } else {
+      sysParts.push(
+        'CardDAV: Native iOS Contacts sync can be enabled on the Reave app by setting CARDDAV_USERNAME + CARDDAV_PASSWORD (requires CONTACT_API_BASE_URL). Call read_knowledge slug "carddav" for iOS setup steps.'
+      );
+    }
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
   }

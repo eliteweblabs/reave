@@ -3,8 +3,9 @@
  * Only allowlisted tasks run — no arbitrary shell commands.
  */
 import { isContactApiConfigured } from './contactApi';
+import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
-import { isGithubConfigured, githubRepoSlug } from './githubClient';
+import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
 import { serverEnv } from './serverEnv';
 
@@ -25,20 +26,24 @@ export type DevTaskResult = { ok: true; task: DevTaskName; result: unknown } | {
 
 export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
   switch (task) {
-    case 'service_status':
+    case 'service_status': {
+      const githubAccess = isGithubConfigured() ? await githubGetRepoAccess() : null;
       return {
         ok: true,
         task,
         result: {
           crater: isCraterConfigured(),
           contact_api: isContactApiConfigured(),
+          carddav: isCardDavConfigured(),
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
           railway: Boolean(serverEnv('RAILWAY_API_TOKEN')?.trim()),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
           github_token: isGithubConfigured(),
           github_repo: githubRepoSlug(),
+          github_write: githubAccess?.ok ? githubAccess.data : null,
         },
       };
+    }
 
     case 'ping_crater': {
       if (!isCraterConfigured()) {
