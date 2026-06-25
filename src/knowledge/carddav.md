@@ -28,7 +28,12 @@ or iCloud for that account. The Reave Astro app exposes a CardDAV server at `/ca
 | **Password** | `CARDDAV_PASSWORD` |
 | **Description** | Reave Contacts (optional) |
 
-If Advanced asks for a path, use `/carddav`. SSL must be on (443).
+If Advanced asks for a path, use `/carddav`. SSL must be on (443) unless you turn
+**Use SSL** off in Advanced (plain HTTP only if your host supports it).
+
+**SSL error on iPhone?** Usually a bad redirect or missing `/carddav` route — not the
+cert. A healthy deploy returns **401 Unauthorized** at `https://reave.app/carddav/`
+(not 404). Discovery must redirect to `https://reave.app/carddav/`, never `localhost`.
 
 After saving, iOS runs PROPFIND/REPORT against the server and imports vCards. Edits on
 the phone sync back via PUT/DELETE.

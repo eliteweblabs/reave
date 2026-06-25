@@ -7,24 +7,15 @@ import { wellKnownCardDavLocation } from '../../lib/carddav/server';
 
 export const prerender = false;
 
-export const GET: APIRoute = ({ request }) => {
-  const origin = new URL(request.url).origin;
+function redirect(): Response {
   return new Response(null, {
     status: 301,
     headers: {
-      Location: wellKnownCardDavLocation(origin),
+      Location: wellKnownCardDavLocation(),
       'Cache-Control': 'no-store',
     },
   });
-};
+}
 
-export const PROPFIND: APIRoute = ({ request }) => {
-  const origin = new URL(request.url).origin;
-  return new Response(null, {
-    status: 301,
-    headers: {
-      Location: wellKnownCardDavLocation(origin),
-      'Cache-Control': 'no-store',
-    },
-  });
-};
+export const GET: APIRoute = () => redirect();
+export const PROPFIND: APIRoute = () => redirect();

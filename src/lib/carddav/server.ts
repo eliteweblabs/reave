@@ -4,10 +4,12 @@ import {
   getContact,
   isContactApiConfigured,
   listContacts,
+  siteBaseUrl,
   updateContact,
   type ContactRecord,
 } from '../contactApi';
 import type { CardDavAuth } from './auth';
+import { requestOrigin } from './requestOrigin';
 import { collectionCtag, contactEtag, contactToVCard, parseVCard } from './vcard';
 import { addressDataProp, collectionType, multistatus, principalType, xmlResponse } from './xml';
 
@@ -462,8 +464,7 @@ export async function handleCardDav(
     });
   }
 
-  const url = new URL(request.url);
-  const origin = url.origin;
+  const origin = requestOrigin(request);
   const segments = (pathSegments ?? []).filter(Boolean);
   const method = request.method.toUpperCase();
 
@@ -487,8 +488,8 @@ export async function handleCardDav(
 }
 
 /** Redirect target for /.well-known/carddav (RFC 6764). */
-export function wellKnownCardDavLocation(origin: string): string {
-  return `${origin}${CARDDAV_PREFIX}/`;
+export function wellKnownCardDavLocation(): string {
+  return `${siteBaseUrl()}${CARDDAV_PREFIX}/`;
 }
 
 export { CARDDAV_PREFIX };
