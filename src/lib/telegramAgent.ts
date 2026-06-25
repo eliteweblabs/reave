@@ -80,7 +80,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     );
     if (isCardDavConfigured()) {
       sysParts.push(
-        `CardDAV (iOS Contacts sync): The master contact list syncs natively to iPhone/iPad via CardDAV at ${siteBaseUrl()}/carddav/ — no Google account required. Setup: Settings → Contacts → Add Account → Other → CardDAV; server = site host, path /carddav, username/password = CARDDAV_USERNAME / CARDDAV_PASSWORD on Railway. Changes on the phone sync back to contact-api (PUT/DELETE). This is for staff syncing their device, not for client-facing links. For full setup/troubleshooting call read_knowledge slug "carddav". Never paste CardDAV passwords in chat — point the owner to Railway Variables.`
+        `CardDAV (iOS Contacts sync): The master contact list syncs natively to iPhone/iPad via CardDAV at ${siteBaseUrl()}/carddav/ — no Google account required. Setup: Settings → Contacts → Add Account → Other → CardDAV; server = hostname only (e.g. reave.app), user/password = CARDDAV_USERNAME / CARDDAV_PASSWORD. **Advanced (required):** Use SSL On, port 443, path /carddav. Changes on the phone sync back to contact-api. For full setup call read_knowledge slug "carddav". Never paste CardDAV passwords in chat.`
       );
     } else {
       sysParts.push(
