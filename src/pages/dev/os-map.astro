@@ -397,12 +397,9 @@ export const prerender = false;
         display: flex;
         gap: 0.25rem;
         pointer-events: auto;
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 9px;
-        padding: 0.18rem;
       }
-      #tabs button {
+      #tabs button,
+      #tabs a {
         pointer-events: auto;
         font: inherit;
         font-size: 0.76rem;
@@ -415,8 +412,10 @@ export const prerender = false;
         display: flex;
         align-items: center;
         gap: 0.35rem;
+        text-decoration: none;
       }
-      #tabs button:hover { color: var(--fg); }
+      #tabs button:hover,
+      #tabs a:hover { color: var(--fg); }
       #tabs button.active {
         color: var(--fg);
         background: #1b2230;
@@ -425,7 +424,8 @@ export const prerender = false;
       .tab-icon { font-size: 0.9rem; line-height: 1; flex: 0 0 auto; }
       @media (max-width: 600px) {
         .tab-label { display: none; }
-        #tabs button { padding: 0.28rem 0.5rem; }
+        #tabs button,
+        #tabs a { padding: 0.28rem 0.5rem; }
       }
       #topbar button {
         pointer-events: auto;

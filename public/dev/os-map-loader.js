@@ -580,15 +580,26 @@ function buildTabs() {
   if (!tabs) return;
   tabs.innerHTML = '';
   for (const key of Object.keys(MAPS)) {
-    const btn = document.createElement('button');
-    btn.dataset.map = key;
     const m = MAPS[key];
-    btn.innerHTML = m.icon
+    const inner = m.icon
       ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
       : m.title;
-    btn.title = m.title;
-    btn.addEventListener('click', () => setActiveMap(key));
-    tabs.appendChild(btn);
+    if (m.link) {
+      const a = document.createElement('a');
+      a.href = m.link;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = inner;
+      a.title = m.title;
+      tabs.appendChild(a);
+    } else {
+      const btn = document.createElement('button');
+      btn.dataset.map = key;
+      btn.innerHTML = inner;
+      btn.title = m.title;
+      btn.addEventListener('click', () => setActiveMap(key));
+      tabs.appendChild(btn);
+    }
   }
   updateTabs();
 }
