@@ -19,6 +19,7 @@
     "@supabase/supabase-js": "^2.108.2",
     "@vapi-ai/web": "^2.5.2",
     "astro": "^5.14.8",
+    "cheerio": "^1.2.0",
     "conversational-form": "^1.0.2",
     "lucide-astro": "^0.556.0",
     "pg": "^8.20.0",

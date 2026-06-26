@@ -67,6 +67,8 @@ import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githu
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
 import { reaveEmailHtml } from './emailTemplates';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
+import { fetchUrl } from './fetchUrlClient';
+import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -371,6 +373,52 @@ export function buildTools(): TelegramToolDef[] {
         description:
           'List active branches on GitHub with how far each is ahead/behind the default branch. Use to track in-progress work.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'fetch_url',
+        description:
+          'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance/SEO scores use lighthouse_audit instead.',
+        parameters: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'Full URL or domain, e.g. https://example.com' },
+            raw: {
+              type: 'boolean',
+              description: 'If true, return raw HTML body instead of cleaned text. Default false.',
+            },
+          },
+          required: ['url'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'lighthouse_audit',
+        description:
+          'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default.',
+        parameters: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'Full URL or domain to audit' },
+            category: {
+              type: 'string',
+              enum: ['performance', 'accessibility', 'best-practices', 'seo'],
+              description: 'Optional — audit one category only; default runs all four.',
+            },
+            strategy: {
+              type: 'string',
+              enum: ['mobile', 'desktop', 'both'],
+              description: 'Device strategy. Default both (mobile + desktop).',
+            },
+          },
+          required: ['url'],
+          additionalProperties: false,
+        },
       },
     },
     {
@@ -1550,6 +1598,33 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await braveSearch(query);
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return formatBraveResults(result);
+    }
+    if (name === 'fetch_url') {
+      const url = String(args.url ?? '').trim();
+      if (!url) return JSON.stringify({ error: 'url is required' });
+      const result = await fetchUrl(url, args.raw === true);
+      if (!result.ok) {
+        return JSON.stringify({ error: result.error, ...(result.status_code ? { status_code: result.status_code } : {}) });
+      }
+      return JSON.stringify(result.data);
+    }
+    if (name === 'lighthouse_audit') {
+      const url = String(args.url ?? '').trim();
+      if (!url) return JSON.stringify({ error: 'url is required' });
+      const categoryRaw = String(args.category ?? '').trim();
+      const strategyRaw = String(args.strategy ?? 'both').trim();
+      const result = await lighthouseAudit({
+        url,
+        category: ['performance', 'accessibility', 'best-practices', 'seo'].includes(categoryRaw)
+          ? (categoryRaw as 'performance' | 'accessibility' | 'best-practices' | 'seo')
+          : undefined,
+        strategy:
+          strategyRaw === 'mobile' || strategyRaw === 'desktop' || strategyRaw === 'both'
+            ? strategyRaw
+            : 'both',
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({ summary: formatLighthouseResults(result), ...result });
     }
 
     return JSON.stringify({ error: `unknown tool ${name}` });

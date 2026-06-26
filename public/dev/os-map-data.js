@@ -201,6 +201,7 @@ const TG_NODES = [
   { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
   { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
   { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
+  { id: 'tc_tool_web',       title: 'Web tools',        sub: 'fetch_url · lighthouse_audit · brave_search',                           icon: '🌐', hue: 210, group: 'tc_tools', x: 960, y: 1300 },
 
   // External services reached
   { id: 'tc_svc_tg',        title: 'Telegram API',   sub: 'sendMessage · replies',      icon: '💬', brand: 'telegram',  hue: 200, group: 'tc_svc', x: 1260, y: 60   },
@@ -208,6 +209,7 @@ const TG_NODES = [
   { id: 'tc_svc_capi',       title: 'contact-api',    sub: 'contacts + portal data',     icon: '🧩', hue: 30,            group: 'tc_svc', x: 1260, y: 580  },
   { id: 'tc_svc_crater',     title: 'Crater',         sub: 'invoicing',                  icon: '🧾', hue: 0,             group: 'tc_svc', x: 1260, y: 820  },
   { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · write · PRs',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },
+  { id: 'tc_svc_psi',        title: 'PageSpeed API',  sub: 'Lighthouse audits',               icon: '⚡', brand: 'google',    hue: 45,  group: 'tc_svc', x: 1260, y: 1180 },
 ];
 
 const TG_EDGES = [
@@ -235,20 +237,22 @@ const TG_EDGES = [
   { from: 'tc_claude', to: 'tc_tool_contacts' },
   { from: 'tc_claude', to: 'tc_tool_portal' },
   { from: 'tc_claude', to: 'tc_tool_billing' },
+  { from: 'tc_claude', to: 'tc_tool_web' },
 
   // Tool categories → services
   { from: 'tc_tool_contacts', to: 'tc_svc_capi',   dashed: true },
   { from: 'tc_tool_portal',   to: 'tc_svc_capi',   dashed: true },
   { from: 'tc_tool_billing',  to: 'tc_svc_crater',  dashed: true },
   { from: 'tc_tool_devops',   to: 'tc_svc_github',  dashed: true },
+  { from: 'tc_tool_web',      to: 'tc_svc_psi',     dashed: true, label: 'lighthouse' },
 ];
 
 const TG_GROUPS = [
   { id: 'tc_entry',     title: 'Entry',              hue: 185, members: ['tc_you', 'tc_handler', 'tc_cheat'] },
   { id: 'tc_routing',   title: 'Routing',             hue: 55,  members: ['tc_slash', 'tc_claude'] },
   { id: 'tc_slash_grp', title: 'Slash commands',      hue: 55,  members: ['tc_cmd_util', 'tc_cmd_knowledge', 'tc_cmd_resolve', 'tc_cmd_invoice', 'tc_cmd_railway'] },
-  { id: 'tc_tools',     title: 'Claude tool catalog', hue: 265, members: ['tc_tool_knowledge', 'tc_tool_devops', 'tc_tool_contacts', 'tc_tool_portal', 'tc_tool_billing'] },
-  { id: 'tc_svc',       title: 'External services',   hue: 240, members: ['tc_svc_tg', 'tc_svc_anthropic', 'tc_svc_capi', 'tc_svc_crater', 'tc_svc_github'] },
+  { id: 'tc_tools',     title: 'Claude tool catalog', hue: 265, members: ['tc_tool_knowledge', 'tc_tool_devops', 'tc_tool_contacts', 'tc_tool_portal', 'tc_tool_billing', 'tc_tool_web'] },
+  { id: 'tc_svc',       title: 'External services',   hue: 240, members: ['tc_svc_tg', 'tc_svc_anthropic', 'tc_svc_capi', 'tc_svc_crater', 'tc_svc_github', 'tc_svc_psi'] },
 ];
 
 // ───────────────────────── exports ─────────────────────────

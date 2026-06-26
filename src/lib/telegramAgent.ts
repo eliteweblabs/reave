@@ -110,6 +110,9 @@ export async function runTelegramKnowledgeAgent(opts: {
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
     );
   }
+  sysParts.push(
+    'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO) — runs mobile + desktop by default. Call these yourself when the user asks to review, audit, or check a URL; do not ask them to paste page content.',
+  );
 
   const system = sysParts.join('\n');
   const messages: AnthropicMessage[] = [
