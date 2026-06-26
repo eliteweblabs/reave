@@ -3211,7 +3211,24 @@ function renderChatMessages(container) {
     thinking.textContent = 'Thinking…';
     container.appendChild(thinking);
   }
-  container.scrollTop = container.scrollHeight;
+  const bottom = document.createElement('div');
+  bottom.className = 'ch-scroll-anchor';
+  bottom.setAttribute('aria-hidden', 'true');
+  container.appendChild(bottom);
+  scrollChatToBottom(container);
+}
+
+function scrollChatToBottom(container, smooth = true) {
+  if (!container) return;
+  const run = () => {
+    const anchor = container.querySelector('.ch-scroll-anchor');
+    if (anchor) {
+      anchor.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+    } else {
+      container.scrollTop = container.scrollHeight;
+    }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(run));
 }
 
 function renderChatPanel() {
