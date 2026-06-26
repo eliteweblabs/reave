@@ -2,6 +2,7 @@
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
 import { SITE } from "../config/site";
+import { requestOrigin } from "../lib/requestOrigin";
 
 export interface Props {
   /** Page-specific title. Rendered as "Page | Reave Automated". Omit to show just "Reave Automated". */
@@ -34,10 +35,12 @@ const {
 } = Astro.props;
 
 const pageTitle = title ? `${title} | ${SITE.name}` : SITE.name;
-const canonical = canonicalUrl ?? Astro.url.href;
+const origin = requestOrigin(Astro.request);
+const canonical =
+  canonicalUrl ?? `${origin}${Astro.url.pathname}${Astro.url.search}`;
 const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
-  : `${Astro.url.origin}${ogImage}`;
+  : `${origin}${ogImage}`;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";

@@ -167,7 +167,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   // ── Re-sign guard ──────────────────────────────────────────────────────────
   const existingDoc = (portal.documents ?? []).find((d) => d.template === templateSlug);
   if (existingDoc) {
-    const viewUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/view/${existingDoc.id}`;
+    const viewUrl = `${siteBaseUrl(request)}/doc/${encodeURIComponent(uid)}/view/${existingDoc.id}`;
     return new Response(
       JSON.stringify({ ok: false, alreadySigned: true, docId: existingDoc.id, viewUrl }),
       { status: 409, headers: { 'Content-Type': 'application/json' } }
@@ -210,7 +210,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   const saveRes = await setContactPortal(uid, merged);
   if (!saveRes.ok) return err(502, saveRes.error);
 
-  const viewUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/view/${docId}`;
+  const viewUrl = `${siteBaseUrl(request)}/doc/${encodeURIComponent(uid)}/view/${docId}`;
   const contact = contactRes.data;
 
   // ── Post-sign email to signer (fire and forget) ────────────────────────────

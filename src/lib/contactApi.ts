@@ -3,6 +3,9 @@
  * @see https://github.com/eliteweblabs/contact-api
  */
 import { serverEnv } from './serverEnv';
+import { siteBaseUrl } from './requestOrigin';
+
+export { siteBaseUrl } from './requestOrigin';
 
 function baseUrl(): string | null {
   const raw = serverEnv('CONTACT_API_BASE_URL')?.trim();
@@ -19,18 +22,6 @@ function authHeaders(): Record<string, string> {
 
 export function isContactApiConfigured(): boolean {
   return Boolean(baseUrl());
-}
-
-/**
- * Public origin used to build shareable client-portal links. Prefer an explicit
- * PUBLIC_SITE_URL; otherwise fall back to Railway's injected domain, then reave.app.
- */
-export function siteBaseUrl(): string {
-  const explicit = serverEnv('PUBLIC_SITE_URL')?.trim();
-  if (explicit) return explicit.replace(/\/+$/, '');
-  const railway = serverEnv('RAILWAY_PUBLIC_DOMAIN')?.trim();
-  if (railway) return `https://${railway.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
-  return 'https://reave.app';
 }
 
 /** Shareable, iOS-friendly portal URL for a contact uid. */

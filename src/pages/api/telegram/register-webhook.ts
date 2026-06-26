@@ -34,7 +34,7 @@ export const GET: APIRoute = async ({ url }) => {
   return json({ ok: true, info: res.info });
 };
 
-export const POST: APIRoute = async ({ url }) => {
+export const POST: APIRoute = async ({ url, request }) => {
   const secret = serverEnv('TELEGRAM_WEBHOOK_SECRET');
   const token = serverEnv('TELEGRAM_BOT_TOKEN');
 
@@ -44,7 +44,7 @@ export const POST: APIRoute = async ({ url }) => {
     return json({ ok: false, error: 'invalid secret' }, 401);
   }
 
-  const webhookUrl = `${siteBaseUrl()}/api/telegram/webhook`;
+  const webhookUrl = `${siteBaseUrl(request)}/api/telegram/webhook`;
   const res = await telegramSetWebhook(token, webhookUrl, secret);
   if (!res.ok) return json({ ok: false, error: res.error }, 502);
 

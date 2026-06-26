@@ -2,6 +2,7 @@ import { serverEnv } from './serverEnv';
 import { telegramSendMessage } from './telegramClient';
 import { classifyEmail, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
+import { storeRecordEmailInbox } from './emailInboxStore';
 
 export interface InboundEmailResult {
   ok: boolean;
@@ -61,9 +62,25 @@ function formatEmailAlert(email: InboundEmail, status: string): string {
 export async function handleInboundEmail(email: InboundEmail): Promise<InboundEmailResult> {
   const from = email.from ?? '';
 
+  async function logEvent(
+    status: string,
+    action: string,
+    notified: boolean
+  ): Promise<InboundEmailResult> {
+    await storeRecordEmailInbox({
+      from,
+      subject: email.subject ?? '',
+      bodySnippet: snippet(email.text ?? ''),
+      status,
+      action,
+      notified,
+    }).catch((e) => console.warn('[email] inbox log failed', e));
+    return { ok: true, action, status, from };
+  }
+
   if (!isAllowedSender(from)) {
     console.warn('[email] rejected sender', { from, subject: email.subject });
-    return { ok: true, action: 'rejected', status: 'REJECTED', from };
+    return logEvent('REJECTED', 'rejected', false);
   }
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
@@ -71,7 +88,7 @@ export async function handleInboundEmail(email: InboundEmail): Promise<InboundEm
   console.info('[email] classified', { from, subject: email.subject, status, notify });
 
   if (!notify) {
-    return { ok: true, action: 'classified', status, from };
+    return logEvent(status, 'classified', false);
   }
 
   const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
@@ -82,9 +99,9 @@ export async function handleInboundEmail(email: InboundEmail): Promise<InboundEm
 
   if (!token || !Number.isFinite(chatId)) {
     console.warn('[email] notify wanted but TELEGRAM_BOT_TOKEN or EMAIL_NOTIFY_CHAT_ID missing');
-    return { ok: true, action: 'no-target', status, from };
+    return logEvent(status, 'no-target', false);
   }
 
   await telegramSendMessage(token, chatId, formatEmailAlert(email, status));
-  return { ok: true, action: 'notified', status, from };
+  return logEvent(status, 'notified', true);
 }

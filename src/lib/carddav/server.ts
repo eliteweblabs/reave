@@ -9,7 +9,7 @@ import {
   type ContactRecord,
 } from '../contactApi';
 import type { CardDavAuth } from './auth';
-import { requestOrigin } from './requestOrigin';
+import { requestOrigin } from '../requestOrigin';
 import { collectionCtag, contactEtag, contactToVCard, parseVCard } from './vcard';
 import { addressDataProp, collectionType, multistatus, principalType, xmlResponse } from './xml';
 

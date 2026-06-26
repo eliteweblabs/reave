@@ -42,7 +42,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const contactRes = await getContact(uid);
   if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, 404);
 
-  const docUrl = `${siteBaseUrl()}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(template)}`;
+  const docUrl = `${siteBaseUrl(context.request)}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(template)}`;
   const result = await sendDocumentLink({
     contact: contactRes.data,
     docUrl,
