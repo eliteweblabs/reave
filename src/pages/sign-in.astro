@@ -1,5 +1,6 @@
 ---
 import { SignIn } from "@clerk/astro/components";
+import { dark } from "@clerk/ui/themes";
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
 ---
@@ -19,7 +20,11 @@ import Favicon from "../components/Favicon.astro";
     <Header isIndex={false} />
     <div class="page">
       <div class="card">
-        <SignIn signUpUrl="/sign-in" fallbackRedirectUrl="/dev/os-map" />
+        <SignIn
+          signUpUrl="/sign-in"
+          fallbackRedirectUrl="/dev/os-map"
+          appearance={{ theme: dark }}
+        />
       </div>
     </div>
   </body>
@@ -35,6 +40,7 @@ import Favicon from "../components/Favicon.astro";
     margin: 0;
     width: 100%;
     min-height: 100%;
+    color-scheme: dark;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     background: #050505;
