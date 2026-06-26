@@ -172,18 +172,23 @@ function isPanelTab() {
   return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email';
 }
 
+function setPanelDisplay(id, display) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = display;
+}
+
 function syncCanvasVisibility() {
   const isPanel = isPanelTab();
   wrap.style.display = isPanel ? 'none' : '';
-  document.getElementById('tools').style.display = isPanel ? 'none' : '';
-  document.getElementById('legend').style.display = isPanel ? 'none' : '';
-  document.getElementById('doc-editor').style.display = MAP.type === 'documents' ? 'flex' : 'none';
-  document.getElementById('knowledge-editor').style.display = MAP.type === 'knowledge' ? 'flex' : 'none';
-  document.getElementById('work-editor').style.display = MAP.type === 'work' ? 'flex' : 'none';
-  document.getElementById('clients-editor').style.display = MAP.type === 'clients' ? 'flex' : 'none';
-  document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
-  document.getElementById('email-panel').style.display = MAP.type === 'email' ? 'flex' : 'none';
-  document.getElementById('rule-editor').style.display = MAP.type === 'rules' ? 'flex' : 'none';
+  setPanelDisplay('tools', isPanel ? 'none' : '');
+  setPanelDisplay('legend', isPanel ? 'none' : '');
+  setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
+  setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
+  setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
+  setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
+  setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
+  setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
+  setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
   syncRulesToolbar();
 }
 
