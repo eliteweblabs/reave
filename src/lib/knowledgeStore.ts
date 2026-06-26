@@ -1,34 +1,34 @@
 /**
- * Unified knowledge store: Supabase DB entries (live) + bundled markdown (fallback).
+ * Unified knowledge store: Postgres DB entries (live) + bundled markdown (fallback).
  *
  * Job/work files under src/knowledge/jobs/ are intentionally excluded — they are
  * loaded on demand via workStore (list_work / read_work), not this index.
  *
  * Priority rules:
- *   - If Supabase is configured, DB entries take precedence over bundled docs with the same slug.
+ *   - If DATABASE_URL is set, DB entries take precedence over bundled docs with the same slug.
  *   - Bundled docs that aren't in the DB are still accessible (read-only).
- *   - If Supabase is not configured, only bundled docs are available.
+ *   - If DATABASE_URL is not set, only bundled docs are available.
  *
- * Write operations always target Supabase (bot/admin-created entries).
+ * Write operations always target Postgres (bot/admin-created entries).
  */
 
 import {
-  listKnowledgeSlugs,
+  parseKnowledgeMarkdown,
   readKnowledgeMarkdown,
   summarizeKnowledgeIndex,
 } from './localKnowledge';
 import {
-  isSupabaseKnowledgeConfigured,
+  isKnowledgeDbConfigured,
   dbListKnowledge,
   dbReadKnowledge,
   dbSearchKnowledge,
   dbWriteKnowledge,
   dbDeleteKnowledge,
+  dbSeedBundled,
   type KnowledgeEntry,
-} from './supabaseKnowledge';
+} from './pgKnowledge';
 
-// Re-export for consumers that only need the config check or types
-export { isSupabaseKnowledgeConfigured, type KnowledgeEntry };
+export { isKnowledgeDbConfigured, type KnowledgeEntry };
 
 export interface KnowledgePreview {
   slug: string;
@@ -66,7 +66,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   const dbPreviews: KnowledgePreview[] = dbRows.map((r) => ({
     slug: r.slug,
     title: r.title,
-    preview: r.title,
+    preview: r.preview,
     source: 'db' as const,
     tags: r.tags,
     updated_at: r.updated_at,
@@ -81,7 +81,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
       source: 'bundled' as const,
     }));
 
-  return [...dbPreviews, ...bundledOnly].sort((a, b) => a.slug.localeCompare(b.slug));
+  return [...dbPreviews, ...bundledOnly];
 }
 
 /** Read one knowledge entry: DB first, then bundled fallback. */
@@ -100,12 +100,17 @@ export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | n
 
   const bundled = readKnowledgeMarkdown(slug);
   if (bundled) {
-    const firstLine = bundled.content.split('\n').find((l) => l.trim().length > 0) ?? '';
+    const parsed = parseKnowledgeMarkdown(bundled.content);
+    const title =
+      parsed.title ||
+      parsed.body.split('\n').find((l) => l.trim().length > 0)?.replace(/^#\s*/, '').slice(0, 120) ||
+      slug;
     return {
       slug: bundled.slug,
-      title: firstLine.replace(/^#\s*/, '').slice(0, 120),
-      content: bundled.content,
+      title,
+      content: parsed.body,
       source: 'bundled',
+      tags: parsed.tags.length ? parsed.tags : undefined,
     };
   }
 
@@ -141,26 +146,28 @@ export async function storeSearchKnowledge(
 
 /**
  * Write a knowledge entry to the DB.
- * Source is set to 'bot' when called from the assistant, 'manual' from admin UI.
+ * Source is accepted for API compatibility but is not persisted in Postgres.
  */
 export async function storeWriteKnowledge(
   entry: Omit<KnowledgeEntry, 'id' | 'created_at' | 'updated_at'>,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!isSupabaseKnowledgeConfigured()) {
-    return {
-      ok: false,
-      error: 'Knowledge DB not configured (add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to Railway vars)',
-    };
+  if (!isKnowledgeDbConfigured()) {
+    return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
   }
-  return dbWriteKnowledge({ ...entry, source: entry.source ?? 'manual' });
+  return dbWriteKnowledge({
+    slug: entry.slug,
+    title: entry.title,
+    content: entry.content,
+    tags: entry.tags ?? [],
+  });
 }
 
 /** Delete a DB entry. Bundled docs cannot be deleted via this function. */
 export async function storeDeleteKnowledge(
   slug: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  if (!isSupabaseKnowledgeConfigured()) {
-    return { ok: false, error: 'Knowledge DB not configured' };
+  if (!isKnowledgeDbConfigured()) {
+    return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
   }
   return dbDeleteKnowledge(slug);
 }
@@ -177,37 +184,12 @@ export async function storeSeedBundled(): Promise<{
   skipped: string[];
   errors: { slug: string; error: string }[];
 }> {
-  const slugs = listKnowledgeSlugs();
-  const seeded: string[] = [];
-  const skipped: string[] = [];
-  const errors: { slug: string; error: string }[] = [];
-
-  for (const slug of slugs) {
-    const existing = await dbReadKnowledge(slug);
-    if (existing) {
-      skipped.push(slug);
-      continue;
-    }
-    const bundled = readKnowledgeMarkdown(slug);
-    if (!bundled) {
-      errors.push({ slug, error: 'bundled file missing' });
-      continue;
-    }
-    const firstLine = bundled.content.split('\n').find((l) => l.trim().length > 0) ?? '';
-    const title = firstLine.replace(/^#\s*/, '').slice(0, 200) || slug;
-    const result = await storeWriteKnowledge({
-      slug,
-      title,
-      content: bundled.content,
-      tags: [],
-      source: 'bundled',
-    });
-    if (result.ok) {
-      seeded.push(slug);
-    } else {
-      errors.push({ slug, error: result.error ?? 'unknown error' });
-    }
+  if (!isKnowledgeDbConfigured()) {
+    return {
+      seeded: [],
+      skipped: [],
+      errors: [{ slug: '*', error: 'Knowledge DB not configured' }],
+    };
   }
-
-  return { seeded, skipped, errors };
+  return dbSeedBundled();
 }

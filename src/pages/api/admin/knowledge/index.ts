@@ -9,7 +9,7 @@ import {
   storeListKnowledge,
   storeWriteKnowledge,
   storeSeedBundled,
-  isSupabaseKnowledgeConfigured,
+  isKnowledgeDbConfigured,
 } from '../../../../lib/knowledgeStore';
 
 export const prerender = false;
@@ -26,7 +26,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   const entries = await storeListKnowledge();
-  return json({ ok: true, entries, db: isSupabaseKnowledgeConfigured() });
+  return json({ ok: true, entries, db: isKnowledgeDbConfigured() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -36,8 +36,8 @@ export async function POST(context: APIContext): Promise<Response> {
   const url = new URL(context.request.url);
 
   if (url.searchParams.get('seed') === '1') {
-    if (!isSupabaseKnowledgeConfigured()) {
-      return json({ ok: false, error: 'Supabase not configured — add SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY' }, 503);
+    if (!isKnowledgeDbConfigured()) {
+      return json({ ok: false, error: 'Knowledge DB not configured — set DATABASE_URL on Railway' }, 503);
     }
     const result = await storeSeedBundled();
     return json({ ok: true, ...result });

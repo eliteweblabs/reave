@@ -1,8 +1,11 @@
-import { MAPS } from '/dev/os-map-data.js';
+import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT } from '/dev/os-map-data.js';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
 const MAP_STORE = 'os-map-active-v1';
+const TAB_ORDER_STORE = 'os-map-tab-order-v1';
+const SYSTEM_MAP_SET = new Set(SYSTEM_MAP_KEYS);
+const userId = document.body?.dataset?.userId?.trim() || '';
 const SVGNS = 'http://www.w3.org/2000/svg';
 const PINCH_ZOOM = true;
 
@@ -140,6 +143,7 @@ function setActiveMap(key) {
   activeKey = key;
   MAP = MAPS[key];
   saveActiveKey();
+  closeTabDropdowns();
   updateTabs();
   syncCanvasVisibility();
   syncModelSelectorVisibility();
@@ -153,6 +157,8 @@ function setActiveMap(key) {
     loadClientsTab();
   } else if (MAP.type === 'chats') {
     loadChatsTab();
+  } else if (MAP.type === 'email') {
+    loadEmailTab();
   } else {
     buildMap();
     requestAnimationFrame(() => { redraw(); fit(); });
@@ -163,7 +169,7 @@ function setActiveMap(key) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats';
+  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email';
 }
 
 function syncCanvasVisibility() {
@@ -176,6 +182,7 @@ function syncCanvasVisibility() {
   document.getElementById('work-editor').style.display = MAP.type === 'work' ? 'flex' : 'none';
   document.getElementById('clients-editor').style.display = MAP.type === 'clients' ? 'flex' : 'none';
   document.getElementById('chat-panel').style.display = MAP.type === 'chats' ? 'flex' : 'none';
+  document.getElementById('email-panel').style.display = MAP.type === 'email' ? 'flex' : 'none';
   document.getElementById('rule-editor').style.display = MAP.type === 'rules' ? 'flex' : 'none';
   syncRulesToolbar();
 }
@@ -698,39 +705,294 @@ document.getElementById('reset')?.addEventListener('click', () => {
 });
 
 // ---- tabs ----
-function buildTabs() {
+let tabDragMoved = false;
+let tabOrderSaveTimer = null;
+
+function tabOrderStoreKey() {
+  return userId ? `${TAB_ORDER_STORE}:${userId}` : TAB_ORDER_STORE;
+}
+
+function defaultTabKeys() {
+  const keys = Object.keys(MAPS).filter((k) => !SYSTEM_MAP_SET.has(k));
+  return [SYSTEM_TAB_SLOT, ...keys];
+}
+
+function normalizeTabOrderKeys(saved) {
+  if (!Array.isArray(saved)) return defaultTabKeys();
+
+  const result = [];
+  let systemSlot = false;
+
+  for (const raw of saved) {
+    if (typeof raw !== 'string') continue;
+    if (SYSTEM_MAP_SET.has(raw) || raw === SYSTEM_TAB_SLOT) {
+      if (!systemSlot) {
+        result.push(SYSTEM_TAB_SLOT);
+        systemSlot = true;
+      }
+      continue;
+    }
+    if (MAPS[raw] && !result.includes(raw)) result.push(raw);
+  }
+
+  if (!systemSlot) result.unshift(SYSTEM_TAB_SLOT);
+  for (const k of defaultTabKeys()) {
+    if (!result.includes(k)) result.push(k);
+  }
+  return result;
+}
+
+function loadTabOrderFromLocal() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(tabOrderStoreKey()) || 'null');
+    return normalizeTabOrderKeys(saved);
+  } catch {
+    return defaultTabKeys();
+  }
+}
+
+async function fetchTabOrderFromServer() {
+  if (!userId) return null;
+  try {
+    const res = await fetch('/api/os-map/tab-order', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data.tabOrder) ? normalizeTabOrderKeys(data.tabOrder) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTabOrder() {
+  const server = await fetchTabOrderFromServer();
+  if (server) {
+    try {
+      localStorage.setItem(tabOrderStoreKey(), JSON.stringify(server));
+    } catch {}
+    return server;
+  }
+  return loadTabOrderFromLocal();
+}
+
+function saveTabOrder(keys) {
+  const normalized = normalizeTabOrderKeys(keys);
+  try {
+    localStorage.setItem(tabOrderStoreKey(), JSON.stringify(normalized));
+  } catch {}
+  if (!userId) return;
+  clearTimeout(tabOrderSaveTimer);
+  tabOrderSaveTimer = setTimeout(() => {
+    fetch('/api/os-map/tab-order', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tabOrder: normalized }),
+    }).catch(() => {});
+  }, 500);
+}
+
+function currentTabOrderFromDom() {
+  const tabs = document.getElementById('tabs');
+  if (!tabs) return defaultTabKeys();
+  return [...tabs.querySelectorAll(':scope > [data-tab-key]')]
+    .map((el) => el.dataset.tabKey)
+    .filter(Boolean);
+}
+
+function clearTabDropHints() {
+  document.querySelectorAll('#tabs .tab-drop-before, #tabs .tab-drop-after').forEach((el) => {
+    el.classList.remove('tab-drop-before', 'tab-drop-after');
+  });
+}
+
+function tabSiblings(tabs, el) {
+  return [...tabs.querySelectorAll(':scope > [data-tab-key]')].filter((node) => node !== el);
+}
+
+function repositionTabByPointer(el, pointerX) {
+  const tabs = document.getElementById('tabs');
+  if (!tabs) return;
+
+  clearTabDropHints();
+  const siblings = tabSiblings(tabs, el);
+  if (!siblings.length) return;
+
+  for (const sib of siblings) {
+    const rect = sib.getBoundingClientRect();
+    const mid = rect.left + rect.width / 2;
+    if (pointerX < mid) {
+      tabs.insertBefore(el, sib);
+      sib.classList.add('tab-drop-before');
+      return;
+    }
+  }
+
+  tabs.appendChild(el);
+  siblings[siblings.length - 1]?.classList.add('tab-drop-after');
+}
+
+function attachTabPointerReorder(el) {
+  const grip = el.querySelector('.tab-grip');
+  if (!grip) return;
+
+  grip.addEventListener('mousedown', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    tabDragMoved = false;
+    el.classList.add('tab-dragging');
+
+    function onMove(moveEv) {
+      tabDragMoved = true;
+      repositionTabByPointer(el, moveEv.clientX);
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      el.classList.remove('tab-dragging');
+      clearTabDropHints();
+      if (tabDragMoved) saveTabOrder(currentTabOrderFromDom());
+      setTimeout(() => { tabDragMoved = false; }, 0);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+function tabInnerHtml(m) {
+  const label = m.icon
+    ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
+    : m.title;
+  return `<span class="tab-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>${label}`;
+}
+
+function closeTabDropdowns(except) {
+  document.querySelectorAll('.tab-dropdown.open').forEach((dd) => {
+    if (dd !== except) dd.classList.remove('open');
+  });
+}
+
+function buildSystemDropdownTab() {
+  const wrap = document.createElement('div');
+  wrap.className = 'tab-item tab-dropdown';
+  wrap.dataset.tabKey = SYSTEM_TAB_SLOT;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'tab-dropdown-trigger';
+  trigger.innerHTML = `${tabInnerHtml(MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+  trigger.title = 'System — runtime, MCP & CLI, Telegram';
+
+  const menu = document.createElement('div');
+  menu.className = 'tab-dropdown-menu';
+  menu.setAttribute('role', 'menu');
+
+  for (const key of SYSTEM_MAP_KEYS) {
+    const m = MAPS[key];
+    if (!m) continue;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'tab-dropdown-item';
+    item.dataset.map = key;
+    item.setAttribute('role', 'menuitem');
+    item.innerHTML = m.icon
+      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
+      : m.title;
+    item.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setActiveMap(key);
+      closeTabDropdowns();
+    });
+    menu.appendChild(item);
+  }
+
+  trigger.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (tabDragMoved) return;
+    const willOpen = !wrap.classList.contains('open');
+    closeTabDropdowns(willOpen ? wrap : null);
+    wrap.classList.toggle('open', willOpen);
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(menu);
+  attachTabPointerReorder(wrap);
+  return wrap;
+}
+
+function buildMapTab(key, m) {
+  const item = document.createElement('div');
+  item.className = 'tab-item';
+  item.dataset.tabKey = key;
+  item.dataset.map = key;
+  item.innerHTML = tabInnerHtml(m);
+  item.title = `${m.title} — drag ⋮⋮ to reorder`;
+  item.addEventListener('click', (ev) => {
+    if (tabDragMoved || ev.target.closest('.tab-grip')) return;
+    setActiveMap(key);
+  });
+  attachTabPointerReorder(item);
+  return item;
+}
+
+function buildLinkTab(key, m) {
+  const item = document.createElement('div');
+  item.className = 'tab-item tab-link';
+  item.dataset.tabKey = key;
+
+  const a = document.createElement('a');
+  a.href = m.link;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.innerHTML = tabInnerHtml(m);
+  a.title = `${m.title} — drag ⋮⋮ to reorder`;
+  a.addEventListener('click', (ev) => {
+    if (tabDragMoved) ev.preventDefault();
+  });
+
+  item.appendChild(a);
+  attachTabPointerReorder(item);
+  return item;
+}
+
+function buildTabs(order) {
   const tabs = document.getElementById('tabs');
   if (!tabs) return;
   tabs.innerHTML = '';
-  for (const key of Object.keys(MAPS)) {
-    const m = MAPS[key];
-    const inner = m.icon
-      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
-      : m.title;
-    if (m.link) {
-      const a = document.createElement('a');
-      a.href = m.link;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.innerHTML = inner;
-      a.title = m.title;
-      tabs.appendChild(a);
-    } else {
-      const btn = document.createElement('button');
-      btn.dataset.map = key;
-      btn.innerHTML = inner;
-      btn.title = m.title;
-      btn.addEventListener('click', () => setActiveMap(key));
-      tabs.appendChild(btn);
+  tabs.title = 'Drag ⋮⋮ on a tab to reorder';
+
+  for (const key of order) {
+    if (key === SYSTEM_TAB_SLOT) {
+      tabs.appendChild(buildSystemDropdownTab());
+      continue;
     }
+    const m = MAPS[key];
+    if (!m) continue;
+    tabs.appendChild(m.link ? buildLinkTab(key, m) : buildMapTab(key, m));
   }
   updateTabs();
 }
+
 function updateTabs() {
-  document.querySelectorAll('#tabs button').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.map === activeKey);
+  document.querySelectorAll('#tabs .tab-item[data-map]').forEach((el) => {
+    el.classList.toggle('active', el.dataset.map === activeKey);
   });
+
+  const dropdown = document.querySelector('.tab-dropdown');
+  if (dropdown) {
+    const isSystem = SYSTEM_MAP_SET.has(activeKey);
+    dropdown.classList.toggle('active', isSystem);
+    dropdown.querySelectorAll('.tab-dropdown-item').forEach((item) => {
+      item.classList.toggle('active', item.dataset.map === activeKey);
+    });
+    const trigger = dropdown.querySelector('.tab-dropdown-trigger');
+    if (trigger) {
+      trigger.innerHTML = `${tabInnerHtml(MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+    }
+  }
 }
+
+document.addEventListener('click', () => closeTabDropdowns());
 
 // ---- legend ----
 function buildLegend() {
@@ -2930,15 +3192,16 @@ function renderEditClientForm(pane) {
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
     .then(({ ok, data }) => {
       if (!ok) throw new Error(data.error || 'Failed to load');
+      const contact = data.contact ?? data;
       clientState.draft = {
-        name: data.name,
-        email: data.email || '',
-        phone: data.phone || '',
-        company: data.company || '',
-        notes: data.notes || '',
-        portal_url: data.portal_url,
-        createdAt: data.createdAt,
-        archived: data.archived,
+        name: contact.name || '',
+        email: contact.email || '',
+        phone: contact.phone || '',
+        company: contact.company || '',
+        notes: contact.notes || '',
+        portal_url: contact.portal_url ?? data.portal_url,
+        createdAt: contact.createdAt ?? data.createdAt,
+        archived: contact.archived ?? data.archived,
       };
       clientState.dirty = false;
       pane.innerHTML = '';
@@ -2958,7 +3221,7 @@ function renderEditClientForm(pane) {
       header.appendChild(backBtn);
       const titleEl = document.createElement('span');
       titleEl.className = 'de-doc-name';
-      titleEl.textContent = data.name;
+      titleEl.textContent = clientState.draft.name || 'Client';
       header.appendChild(titleEl);
       pane.appendChild(header);
 
@@ -2976,23 +3239,23 @@ function renderEditClientForm(pane) {
 
       const nameInput = document.createElement('input');
       nameInput.className = 'de-input';
-      nameInput.value = clientState.draft.name;
+      nameInput.value = clientState.draft.name || '';
       appendClientField(fields, 'Name', nameInput);
 
       const emailInput = document.createElement('input');
       emailInput.className = 'de-input';
       emailInput.type = 'email';
-      emailInput.value = clientState.draft.email;
+      emailInput.value = clientState.draft.email || '';
       appendClientField(fields, 'Email', emailInput);
 
       const phoneInput = document.createElement('input');
       phoneInput.className = 'de-input';
-      phoneInput.value = clientState.draft.phone;
+      phoneInput.value = clientState.draft.phone || '';
       appendClientField(fields, 'Phone', phoneInput);
 
       const companyInput = document.createElement('input');
       companyInput.className = 'de-input';
-      companyInput.value = clientState.draft.company;
+      companyInput.value = clientState.draft.company || '';
       appendClientField(fields, 'Company', companyInput);
 
       pane.appendChild(fields);
@@ -3003,7 +3266,7 @@ function renderEditClientForm(pane) {
       const notesTa = document.createElement('textarea');
       notesTa.className = 'de-textarea';
       notesTa.spellcheck = false;
-      notesTa.value = clientState.draft.notes;
+      notesTa.value = clientState.draft.notes || '';
       notesLabel.appendChild(notesTa);
       pane.appendChild(notesLabel);
 
@@ -3026,7 +3289,7 @@ function renderEditClientForm(pane) {
       const delBtn = document.createElement('button');
       delBtn.className = 'de-btn de-btn-danger';
       delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', () => deleteClient(uid, data.name));
+      delBtn.addEventListener('click', () => deleteClient(uid, clientState.draft?.name || 'Client'));
       const saveBtn = document.createElement('button');
       saveBtn.className = 'de-btn de-btn-primary';
       saveBtn.textContent = 'Save';
@@ -3114,6 +3377,173 @@ async function deleteClient(uid, name) {
 
 // ---- chats tab ----
 
+const CH_MSG_ICONS = {
+  copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  share: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
+  paste: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+  edit: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+};
+
+let _chToastTimer = null;
+
+function showChatToast(message, nearEl) {
+  let toast = document.getElementById('ch-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'ch-toast';
+    toast.className = 'ch-toast';
+    toast.setAttribute('role', 'status');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('ch-toast-visible');
+  if (nearEl) {
+    const r = nearEl.getBoundingClientRect();
+    toast.style.left = `${Math.min(window.innerWidth - 120, Math.max(12, r.left))}px`;
+    toast.style.top = `${Math.max(12, r.top - 36)}px`;
+  } else {
+    toast.style.left = '';
+    toast.style.top = '';
+  }
+  clearTimeout(_chToastTimer);
+  _chToastTimer = setTimeout(() => toast.classList.remove('ch-toast-visible'), 1800);
+}
+
+async function copyChatText(text, btn) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showChatToast('Copied', btn);
+    if (btn) {
+      const prev = btn.getAttribute('aria-label');
+      btn.setAttribute('aria-label', 'Copied');
+      setTimeout(() => btn.setAttribute('aria-label', prev || 'Copy'), 1500);
+    }
+    return true;
+  } catch {
+    showChatToast('Copy failed — check browser permissions');
+    return false;
+  }
+}
+
+async function shareChatText(text, role, btn) {
+  const label = role === 'user' ? 'You' : 'Assistant';
+  const payload = { text, title: `${label} — Reave chat` };
+  if (navigator.share) {
+    try {
+      await navigator.share(payload);
+      return true;
+    } catch (e) {
+      if (e?.name === 'AbortError') return false;
+    }
+  }
+  const ok = await copyChatText(text, btn);
+  if (ok) showChatToast('Copied — paste to share');
+  return ok;
+}
+
+function pasteIntoChatInput(input) {
+  if (!input || input.disabled) return;
+  const insert = (text) => {
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
+    input.value = input.value.slice(0, start) + text + input.value.slice(end);
+    const pos = start + text.length;
+    input.selectionStart = input.selectionEnd = pos;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.focus();
+  };
+  if (navigator.clipboard?.readText) {
+    navigator.clipboard.readText().then(insert).catch(() => {
+      showChatToast('Paste blocked — use ⌘V / Ctrl+V');
+    });
+  } else {
+    showChatToast('Paste with ⌘V / Ctrl+V');
+    input.focus();
+  }
+}
+
+function insertChatDraft(input, text) {
+  if (!input || input.disabled) return;
+  input.value = text;
+  input.selectionStart = input.selectionEnd = text.length;
+  input.focus();
+  showChatToast('Message loaded — edit and send');
+}
+
+function createChatMsgAction(label, iconKey, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ch-msg-action';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.innerHTML = CH_MSG_ICONS[iconKey] || '';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onClick(btn);
+  });
+  return btn;
+}
+
+function bindChatMessageContextMenu(row, message, composeInput, onEdit) {
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const items = [
+      { label: 'Copy', action: () => copyChatText(message.content) },
+      { label: 'Share', action: () => shareChatText(message.content, message.role) },
+    ];
+    if (message.role === 'user' && onEdit) {
+      items.push({ label: 'Edit message', action: onEdit });
+    }
+    if (composeInput) {
+      items.push({ label: 'Paste into message', action: () => pasteIntoChatInput(composeInput) });
+    }
+    showChatContextMenu(e.clientX, e.clientY, items);
+  });
+}
+
+let _chCtxMenu = null;
+
+function showChatContextMenu(x, y, items) {
+  _chCtxMenu?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'ch-context-menu';
+  menu.setAttribute('role', 'menu');
+  for (const item of items) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ch-context-item';
+    btn.textContent = item.label;
+    btn.setAttribute('role', 'menuitem');
+    btn.addEventListener('click', () => {
+      menu.remove();
+      _chCtxMenu = null;
+      item.action();
+    });
+    menu.appendChild(btn);
+  }
+  document.body.appendChild(menu);
+  _chCtxMenu = menu;
+  const rect = menu.getBoundingClientRect();
+  const left = Math.min(x, window.innerWidth - rect.width - 8);
+  const top = Math.min(y, window.innerHeight - rect.height - 8);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  const close = (ev) => {
+    if (menu.contains(ev.target)) return;
+    menu.remove();
+    _chCtxMenu = null;
+    document.removeEventListener('pointerdown', close, true);
+    document.removeEventListener('keydown', onKey, true);
+  };
+  const onKey = (ev) => {
+    if (ev.key === 'Escape') close({ target: document.body });
+  };
+  setTimeout(() => {
+    document.addEventListener('pointerdown', close, true);
+    document.addEventListener('keydown', onKey, true);
+  }, 0);
+}
+
 let chatState = {
   threads: [],
   activeId: null,
@@ -3158,6 +3588,95 @@ async function loadChatsTab() {
   renderChatPanel();
 }
 
+function createChatTitleEl(threadId, title) {
+  const titleEl = document.createElement('span');
+  titleEl.className = 'ch-item-title';
+  titleEl.textContent = title;
+  titleEl.title = 'Click to rename';
+  titleEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startChatTitleEdit(titleEl, threadId, titleEl.textContent);
+  });
+  return titleEl;
+}
+
+async function readApiJson(res) {
+  const text = await res.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(res.ok ? 'Invalid server response' : `HTTP ${res.status}`);
+    }
+  }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+async function saveChatTitle(threadId, title) {
+  const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title }),
+  });
+  const data = await readApiJson(res);
+  return data.title || title;
+}
+
+function startChatTitleEdit(titleEl, threadId, originalTitle) {
+  if (titleEl.dataset.editing === '1') return;
+  titleEl.dataset.editing = '1';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'ch-item-title-input';
+  input.value = originalTitle;
+  titleEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let cancelled = false;
+
+  const finish = async (save) => {
+    if (input.dataset.finishing === '1') return;
+    input.dataset.finishing = '1';
+
+    const nextTitle = input.value.trim() || 'New chat';
+    const span = createChatTitleEl(threadId, originalTitle);
+
+    if (save && nextTitle !== originalTitle) {
+      try {
+        const savedTitle = await saveChatTitle(threadId, nextTitle);
+        const thread = chatState.threads.find((t) => t.id === threadId);
+        if (thread) thread.title = savedTitle;
+        span.textContent = savedTitle;
+        if (chatState.activeId === threadId) {
+          chatState.title = savedTitle;
+          const headerTitle = getChatPanel()?.querySelector('.de-doc-name');
+          if (headerTitle) headerTitle.textContent = savedTitle;
+        }
+      } catch (e) {
+        alert(`Could not rename chat: ${e.message}`);
+      }
+    }
+
+    input.replaceWith(span);
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelled = true;
+      input.blur();
+    }
+  });
+  input.addEventListener('blur', () => finish(!cancelled));
+}
+
 function renderChatSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
@@ -3174,13 +3693,27 @@ function renderChatSidebar() {
     const row = document.createElement('div');
     row.className = 'ch-list-row';
 
-    const item = document.createElement('button');
+    const item = document.createElement('div');
     item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
     item.dataset.id = t.id;
-    item.innerHTML =
-      `<span class="ch-item-title">${escHtml(t.title)}</span>` +
-      `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>`;
-    item.addEventListener('click', () => openChat(t.id));
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.appendChild(createChatTitleEl(t.id, t.title));
+    const dateEl = document.createElement('span');
+    dateEl.className = 'ch-item-date';
+    dateEl.textContent = formatChatDate(t.updated_at);
+    item.appendChild(dateEl);
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.ch-item-title-input')) return;
+      openChat(t.id);
+    });
+    item.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        if (e.target.closest('.ch-item-title-input')) return;
+        e.preventDefault();
+        openChat(t.id);
+      }
+    });
 
     const delBtn = document.createElement('button');
     delBtn.className = 'ch-list-delete';
@@ -3206,7 +3739,7 @@ function renderChatSidebar() {
   return sidebar;
 }
 
-function renderChatMessages(container) {
+function renderChatMessages(container, composeInput) {
   container.innerHTML = '';
   if (chatState.messages.length === 0 && !chatState.sending) {
     const ph = document.createElement('div');
@@ -3216,10 +3749,41 @@ function renderChatMessages(container) {
     return;
   }
   for (const m of chatState.messages) {
-    const el = document.createElement('div');
-    el.className = 'ch-msg ' + (m.role === 'user' ? 'ch-msg-user' : 'ch-msg-assistant');
-    el.textContent = m.content;
-    container.appendChild(el);
+    const row = document.createElement('div');
+    row.className = 'ch-msg-row ' + (m.role === 'user' ? 'ch-msg-row-user' : 'ch-msg-row-assistant');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'ch-msg ' + (m.role === 'user' ? 'ch-msg-user' : 'ch-msg-assistant');
+
+    const body = document.createElement('div');
+    body.className = 'ch-msg-body';
+    body.textContent = m.content;
+    bubble.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'ch-msg-actions';
+    actions.appendChild(
+      createChatMsgAction('Copy', 'copy', (btn) => copyChatText(m.content, btn)),
+    );
+    actions.appendChild(
+      createChatMsgAction('Share', 'share', (btn) => shareChatText(m.content, m.role, btn)),
+    );
+    if (m.role === 'user' && composeInput) {
+      actions.appendChild(
+        createChatMsgAction('Edit message', 'edit', () => insertChatDraft(composeInput, m.content)),
+      );
+    }
+    bubble.appendChild(actions);
+    row.appendChild(bubble);
+
+    bindChatMessageContextMenu(
+      row,
+      m,
+      composeInput,
+      composeInput ? () => insertChatDraft(composeInput, m.content) : null,
+    );
+
+    container.appendChild(row);
   }
   if (chatState.sending) {
     const thinking = document.createElement('div');
@@ -3240,31 +3804,11 @@ function scrollChatToBottom(container, smooth = true) {
     const anchor = container.querySelector('.ch-scroll-anchor');
     if (anchor) {
       anchor.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
-      return;
-    }
-    const msgs = container.querySelectorAll('.ch-msg, .ch-thinking');
-    const last = msgs[msgs.length - 1];
-    if (last) {
-      last.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
     } else {
       container.scrollTop = container.scrollHeight;
     }
   };
   requestAnimationFrame(() => requestAnimationFrame(run));
-}
-
-/** Keep latest messages visible and return focus to the compose box. */
-function focusChatCompose(smoothScroll = false) {
-  const panel = getChatPanel();
-  if (!panel) return;
-  const messages = panel.querySelector('.ch-messages');
-  const input = panel.querySelector('.ch-input');
-  scrollChatToBottom(messages, smoothScroll);
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      input?.focus({ preventScroll: true });
-    });
-  });
 }
 
 function renderChatPanel() {
@@ -3314,12 +3858,34 @@ function renderChatPanel() {
   deleteBtn.textContent = 'Delete';
   deleteBtn.addEventListener('click', () => deleteChat(chatState.activeId, chatState.title));
   header.appendChild(deleteBtn);
+  const copyChatBtn = document.createElement('button');
+  copyChatBtn.type = 'button';
+  copyChatBtn.className = 'ch-copy-chat-btn';
+  copyChatBtn.textContent = 'Copy chat';
+  copyChatBtn.title = 'Copy entire conversation';
+  copyChatBtn.addEventListener('click', () => {
+    const text = chatState.messages
+      .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`)
+      .join('\n\n');
+    copyChatText(text, copyChatBtn);
+  });
+  const shareChatBtn = document.createElement('button');
+  shareChatBtn.type = 'button';
+  shareChatBtn.className = 'ch-share-chat-btn';
+  shareChatBtn.textContent = 'Share';
+  shareChatBtn.title = 'Share entire conversation';
+  shareChatBtn.addEventListener('click', () => {
+    const text = chatState.messages
+      .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`)
+      .join('\n\n');
+    shareChatText(text, 'assistant', shareChatBtn);
+  });
+  header.insertBefore(shareChatBtn, deleteBtn);
+  header.insertBefore(copyChatBtn, shareChatBtn);
   pane.appendChild(header);
 
   const messagesEl = document.createElement('div');
   messagesEl.className = 'ch-messages';
-  renderChatMessages(messagesEl);
-  pane.appendChild(messagesEl);
 
   const compose = document.createElement('div');
   compose.className = 'ch-compose';
@@ -3328,6 +3894,19 @@ function renderChatPanel() {
   input.placeholder = 'Message the agent…';
   input.rows = 1;
   input.disabled = chatState.sending;
+
+  renderChatMessages(messagesEl, input);
+  pane.appendChild(messagesEl);
+
+  const pasteBtn = document.createElement('button');
+  pasteBtn.type = 'button';
+  pasteBtn.className = 'ch-paste';
+  pasteBtn.setAttribute('aria-label', 'Paste from clipboard');
+  pasteBtn.title = 'Paste';
+  pasteBtn.innerHTML = CH_MSG_ICONS.paste;
+  pasteBtn.disabled = chatState.sending;
+  pasteBtn.addEventListener('click', () => pasteIntoChatInput(input));
+
   const sendBtn = document.createElement('button');
   sendBtn.className = 'ch-send';
   sendBtn.textContent = 'Send';
@@ -3340,22 +3919,19 @@ function renderChatPanel() {
     input.value = '';
     input.disabled = true;
     sendBtn.disabled = true;
+    pasteBtn.disabled = true;
     chatState.messages.push({ role: 'user', content: text });
-    renderChatMessages(messagesEl);
-    focusChatCompose(false);
+    renderChatMessages(messagesEl, input);
 
-    let newTitle = null;
     try {
       const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const data = await readApiJson(res);
       chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
       if (data.title) {
-        newTitle = data.title;
         chatState.title = data.title;
         const thread = chatState.threads.find((t) => t.id === chatState.activeId);
         if (thread) thread.title = data.title;
@@ -3366,13 +3942,10 @@ function renderChatPanel() {
       chatState.sending = false;
       input.disabled = false;
       sendBtn.disabled = false;
-      renderChatMessages(messagesEl);
-      if (newTitle) {
-        titleEl.textContent = newTitle;
-        const activeTitle = root.querySelector('.ch-list-item.active .ch-item-title');
-        if (activeTitle) activeTitle.textContent = newTitle;
-      }
-      focusChatCompose(false);
+      pasteBtn.disabled = false;
+      renderChatPanel();
+      const newInput = getChatPanel()?.querySelector('.ch-input');
+      newInput?.focus();
     }
   }
 
@@ -3384,12 +3957,13 @@ function renderChatPanel() {
     }
   });
   compose.appendChild(input);
+  compose.appendChild(pasteBtn);
   compose.appendChild(sendBtn);
   pane.appendChild(compose);
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
-  focusChatCompose(false);
+  input.focus();
 }
 
 async function startNewChat() {
@@ -3399,8 +3973,7 @@ async function startNewChat() {
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const data = await readApiJson(res);
     const thread = data.thread;
     chatState.threads.unshift(thread);
     chatState.activeId = thread.id;
@@ -3415,8 +3988,7 @@ async function startNewChat() {
 async function openChat(id) {
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const data = await readApiJson(res);
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];
@@ -3432,8 +4004,7 @@ async function deleteChat(id, title) {
   if (!confirm(`Delete "${label}"? This permanently removes the chat and all messages.`)) return;
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    await readApiJson(res);
     chatState.threads = chatState.threads.filter((t) => t.id !== id);
     if (chatState.activeId === id) {
       chatState.activeId = null;
@@ -3445,6 +4016,153 @@ async function deleteChat(id, title) {
   } catch (e) {
     alert(`Delete failed: ${e.message}`);
   }
+}
+
+// ---- email tab ----
+let emailState = {
+  events: [],
+  activeId: null,
+  storage: 'files',
+};
+
+function getEmailPanel() { return document.getElementById('email-panel'); }
+
+function emailStatusClass(status) {
+  const key = String(status || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const known = new Set(['rejected', 'delete', 'auto_archived', 'down', 'needs_check', 'unmatched']);
+  return known.has(key) ? `em-status-${key}` : 'em-status-default';
+}
+
+function formatEmailAction(ev) {
+  const bits = [ev.action];
+  if (ev.notified) bits.push('Telegram');
+  return bits.join(' · ');
+}
+
+async function loadEmailTab() {
+  const root = getEmailPanel();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading email log…</div>';
+  try {
+    const res = await fetch('/api/email/inbox', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.events = data.events || [];
+    emailState.storage = data.storage || 'files';
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    return;
+  }
+  if (emailState.activeId && !emailState.events.some((ev) => ev.id === emailState.activeId)) {
+    emailState.activeId = null;
+  }
+  getEmailPanel()?.classList.remove('em-pane-active');
+  renderEmailPanel();
+}
+
+function renderEmailSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'em-toolbar';
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'em-refresh';
+  refreshBtn.textContent = '↻ Refresh';
+  refreshBtn.addEventListener('click', () => loadEmailTab());
+  toolbar.appendChild(refreshBtn);
+  const storageHint = document.createElement('span');
+  storageHint.className = 'em-storage';
+  storageHint.textContent = emailState.storage === 'files'
+    ? 'Local file log'
+    : 'Postgres';
+  toolbar.appendChild(storageHint);
+  sidebar.appendChild(toolbar);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  for (const ev of emailState.events) {
+    const item = document.createElement('button');
+    item.className = 'em-list-item' + (ev.id === emailState.activeId ? ' active' : '');
+    item.dataset.id = ev.id;
+    item.innerHTML =
+      `<span class="em-item-row">` +
+        `<span class="em-status ${emailStatusClass(ev.status)}">${escHtml(ev.status)}</span>` +
+        `<span class="em-item-subject">${escHtml(ev.subject || '(no subject)')}</span>` +
+        `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
+      `</span>` +
+      `<span class="em-item-from">${escHtml(ev.from || '(unknown sender)')}</span>`;
+    item.addEventListener('click', () => openEmailEvent(ev.id));
+    list.appendChild(item);
+  }
+  if (emailState.events.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No inbound email yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  return sidebar;
+}
+
+function openEmailEvent(id) {
+  emailState.activeId = id;
+  renderEmailPanel();
+}
+
+function renderEmailPanel() {
+  const root = getEmailPanel();
+  if (!root) return;
+  root.innerHTML = '';
+  root.appendChild(renderEmailSidebar());
+
+  const pane = document.createElement('div');
+  pane.className = 'ch-pane';
+
+  const ev = emailState.events.find((e) => e.id === emailState.activeId);
+  if (!ev) {
+    const ph = document.createElement('div');
+    ph.className = 'de-placeholder';
+    ph.innerHTML = '<div class="de-placeholder-icon">📬</div>Select an email to view triage details.';
+    pane.appendChild(ph);
+    root.appendChild(pane);
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Email';
+  backBtn.addEventListener('click', () => {
+    emailState.activeId = null;
+    getEmailPanel()?.classList.remove('em-pane-active');
+    renderEmailPanel();
+  });
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = ev.subject || '(no subject)';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const detail = document.createElement('div');
+  detail.className = 'em-detail';
+  detail.innerHTML =
+    `<div class="em-item-row"><span class="em-status ${emailStatusClass(ev.status)}">${escHtml(ev.status)}</span></div>` +
+    `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
+    `<div class="em-detail-meta">` +
+      `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
+      `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
+      `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
+    `</div>` +
+    (ev.bodySnippet
+      ? `<div class="em-detail-body">${escHtml(ev.bodySnippet)}</div>`
+      : '<div class="de-empty">No body preview stored.</div>');
+  pane.appendChild(detail);
+
+  root.appendChild(pane);
+  getEmailPanel()?.classList.add('em-pane-active');
 }
 
 // ---- persistence ----
@@ -3486,26 +4204,33 @@ function saveActiveKey() {
 }
 
 // ---- init ----
-buildTabs();
-initModelSelector();
-syncCanvasVisibility();
-if (MAP.type === 'documents') {
-  loadDocumentsTab();
-} else if (MAP.type === 'knowledge') {
-  loadKnowledgeTab();
-} else if (MAP.type === 'work') {
-  loadWorkTab();
-} else if (MAP.type === 'clients') {
-  loadClientsTab();
-} else if (MAP.type === 'chats') {
-  loadChatsTab();
-} else {
-  buildMap();
-  requestAnimationFrame(() => { redraw(); fit(); });
-  if (MAP.type === 'todo') loadAndBuildTodoNodes();
-  if (MAP.type === 'rules') loadAndBuildRuleNodes();
+async function boot() {
+  const tabOrder = await resolveTabOrder();
+  buildTabs(tabOrder);
+  initModelSelector();
+  syncCanvasVisibility();
+  if (MAP.type === 'documents') {
+    loadDocumentsTab();
+  } else if (MAP.type === 'knowledge') {
+    loadKnowledgeTab();
+  } else if (MAP.type === 'work') {
+    loadWorkTab();
+  } else if (MAP.type === 'clients') {
+    loadClientsTab();
+  } else if (MAP.type === 'chats') {
+    loadChatsTab();
+  } else if (MAP.type === 'email') {
+    loadEmailTab();
+  } else {
+    buildMap();
+    requestAnimationFrame(() => { redraw(); fit(); });
+    if (MAP.type === 'todo') loadAndBuildTodoNodes();
+    if (MAP.type === 'rules') loadAndBuildRuleNodes();
+  }
+  syncHealthLifecycle();
 }
-syncHealthLifecycle();
+
+boot();
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopHealth();

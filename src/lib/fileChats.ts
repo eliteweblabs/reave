@@ -10,8 +10,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import type { TelegramChatTurn } from './telegramChatHistory';
-import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './supabaseChats';
-import { titleFromMessage } from './supabaseChats';
+import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTypes';
+import { titleFromMessage } from './chatTypes';
 
 export { titleFromMessage };
 

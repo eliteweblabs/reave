@@ -8,7 +8,7 @@ import {
   storeReadKnowledge,
   storeSearchKnowledge,
   storeWriteKnowledge,
-  isSupabaseKnowledgeConfigured,
+  isKnowledgeDbConfigured,
 } from './knowledgeStore';
 import {
   fileListWork,
@@ -256,7 +256,7 @@ export function buildTools(): TelegramToolDef[] {
       function: {
         name: 'write_knowledge',
         description:
-          'Create or update a knowledge entry in the live database. Use this to save new context, notes, playbooks, or corrections so they persist across restarts without a redeploy. Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to be set.',
+          'Create or update a knowledge entry in the live database. Use this to save new context, notes, playbooks, or corrections so they persist across restarts without a redeploy. Requires DATABASE_URL (Railway Postgres) to be set.',
         parameters: {
           type: 'object',
           properties: {
@@ -1210,7 +1210,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!slug || !title || !content) return JSON.stringify({ error: 'slug, title, and content are required' });
       const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'bot' });
       if (!result.ok) return JSON.stringify({ error: result.error });
-      return JSON.stringify({ ok: true, slug, title, db: isSupabaseKnowledgeConfigured() });
+      return JSON.stringify({ ok: true, slug, title, db: isKnowledgeDbConfigured() });
     }
     if (name === 'run_dev_task') {
       const task = String(args.task ?? '').trim();

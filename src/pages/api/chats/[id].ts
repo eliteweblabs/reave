@@ -1,6 +1,7 @@
 /**
  * GET    /api/chats/:id — thread + messages
  * POST   /api/chats/:id — send a message { message } → runs Claude agent, persists reply
+ * PATCH  /api/chats/:id — rename thread { title }
  * DELETE /api/chats/:id — delete thread and all messages
  */
 
@@ -99,6 +100,32 @@ export async function POST(context: APIContext): Promise<Response> {
     userMessage: { role: 'user', content: message },
     assistantMessage: { role: 'assistant', content: reply },
   });
+}
+
+export async function PATCH(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+
+  let body: Record<string, unknown>;
+  try {
+    body = await context.request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON' }, 400);
+  }
+
+  const title = String(body.title ?? '').trim();
+  if (!title) return json({ ok: false, error: 'title is required' }, 400);
+
+  const thread = await storeGetChatThread(userId, id);
+  if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+
+  const updated = await storeUpdateChatTitle(userId, id, title);
+  if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);
+
+  return json({ ok: true, id, title });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {

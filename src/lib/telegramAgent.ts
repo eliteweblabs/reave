@@ -32,6 +32,18 @@ function buildAnthropicTools(): Array<{
   }));
 }
 
+function currentDateTimeLine(): string {
+  return `Current date and time: ${new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+  })}`;
+}
+
 /**
  * Minimal agent loop (Anthropic Messages API): the model may call
  * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
@@ -114,7 +126,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO) — runs mobile + desktop by default. Call these yourself when the user asks to review, audit, or check a URL; do not ask them to paste page content.',
   );
 
-  const system = sysParts.join('\n');
+  const system = `${currentDateTimeLine()}\n\n${sysParts.join('\n')}`;
   const messages: AnthropicMessage[] = [
     ...priorTurns.map((turn) => ({ role: turn.role, content: turn.content })),
     { role: 'user', content: userText },

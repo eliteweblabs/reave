@@ -24,7 +24,7 @@ const SYSTEM_NODES = [
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'future · TG chat history', icon: '🗃️', brand: 'postgresql', hue: 215, ghost: true, group: 'reave', x: 430, y: 470 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'knowledge · chats · agent config · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 430, y: 470 },
   { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
@@ -66,7 +66,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'railway_gql', label: '/railway project' },
   { from: 'astro', to: 'crater', label: 'billing API' },
   { from: 'astro', to: 'resend', label: 'inbound webhook · send link' },
-  { from: 'astro', to: 'app_pg', label: 'future', ghost: true, dashed: true },
+  { from: 'astro', to: 'app_pg', label: 'DATABASE_URL' },
   { from: 'astro', to: 'github', label: 'status / commits / write / PR' },
   { from: 'telnyx', to: 'astro', label: 'SMS webhook · call events', dashed: true },
   { from: 'railway_gql', to: 'astro', label: 'deploy webhook', dashed: true },
@@ -269,6 +269,11 @@ export const MAPS = {
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
 };
+
+/** Canvas maps grouped under the header "System" dropdown. */
+export const SYSTEM_MAP_KEYS = ['system', 'tooling', 'telegram'];
+/** Placeholder key in saved tab order for the System dropdown slot. */
+export const SYSTEM_TAB_SLOT = '__system__';
 
 // Back-compat: the "System" map is still the default export surface.
 export const NODES = SYSTEM_NODES;

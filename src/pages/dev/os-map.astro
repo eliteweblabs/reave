@@ -8,6 +8,8 @@
 import Favicon from "../../components/Favicon.astro";
 
 export const prerender = false;
+
+const { userId } = Astro.locals.auth();
 ---
 
 <!doctype html>
@@ -420,9 +422,9 @@ export const prerender = false;
         display: flex;
         gap: 0.25rem;
         pointer-events: auto;
+        align-items: center;
       }
-      #tabs button,
-      #tabs a {
+      .tab-item {
         pointer-events: auto;
         font: inherit;
         font-size: 0.76rem;
@@ -436,19 +438,91 @@ export const prerender = false;
         align-items: center;
         gap: 0.35rem;
         text-decoration: none;
+        user-select: none;
       }
-      #tabs button:hover,
-      #tabs a:hover { color: var(--fg); }
-      #tabs button.active {
+      .tab-item:hover { color: var(--fg); }
+      .tab-item.active {
         color: var(--fg);
         background: #1b2230;
         border-color: var(--panel-border);
       }
+      .tab-item.tab-dragging { opacity: 0.55; }
+      .tab-item.tab-drop-before { box-shadow: inset 2px 0 0 #58a6ff; }
+      .tab-item.tab-drop-after { box-shadow: inset -2px 0 0 #58a6ff; }
+      .tab-item.tab-link { padding: 0; border: none; background: none; }
+      .tab-item.tab-link > a {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.7rem;
+        color: inherit;
+        text-decoration: none;
+        border-radius: 7px;
+      }
+      .tab-grip {
+        cursor: grab;
+        opacity: 0.4;
+        font-size: 0.62rem;
+        letter-spacing: -0.12em;
+        line-height: 1;
+        flex: 0 0 auto;
+      }
+      .tab-grip:active { cursor: grabbing; }
       .tab-icon { font-size: 0.9rem; line-height: 1; flex: 0 0 auto; }
+      .tab-caret { font-size: 0.55rem; opacity: 0.65; margin-left: -0.1rem; }
+      .tab-dropdown { position: relative; }
+      .tab-dropdown-trigger {
+        font: inherit;
+        font-size: inherit;
+        color: inherit;
+        background: transparent;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .tab-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 10.5rem;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.3rem;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 9px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+        z-index: 30;
+      }
+      .tab-dropdown.open .tab-dropdown-menu { display: flex; }
+      .tab-dropdown-item {
+        font: inherit;
+        font-size: 0.76rem;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 0.35rem 0.55rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-align: left;
+      }
+      .tab-dropdown-item:hover { color: var(--fg); background: #1b2230; }
+      .tab-dropdown-item.active {
+        color: var(--fg);
+        background: #1b2230;
+        border-color: var(--panel-border);
+      }
       @media (max-width: 600px) {
         .tab-label { display: none; }
-        #tabs button,
-        #tabs a { padding: 0.28rem 0.5rem; }
+        .tab-item { padding: 0.28rem 0.5rem; }
+        .tab-item.tab-link > a { padding: 0.28rem 0.5rem; }
       }
       #topbar button {
         pointer-events: auto;
@@ -1115,7 +1189,26 @@ export const prerender = false;
       }
       .ch-list-item:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
       .ch-list-item.active { color: var(--fg); background: #11253d; border-color: #2d5a94; }
-      .ch-item-title { font-weight: 600; font-size: 0.82rem; color: inherit; }
+      .ch-item-title {
+        font-weight: 600;
+        font-size: 0.82rem;
+        color: inherit;
+        width: 100%;
+        cursor: text;
+      }
+      .ch-item-title-input {
+        width: 100%;
+        box-sizing: border-box;
+        font: inherit;
+        font-weight: 600;
+        font-size: 0.82rem;
+        color: inherit;
+        background: var(--card);
+        border: 1px solid #3b82f6;
+        border-radius: 4px;
+        padding: 0.1rem 0.35rem;
+        outline: none;
+      }
       .ch-item-date { font-size: 0.69rem; color: var(--muted); }
       .ch-pane {
         flex: 1;
@@ -1132,31 +1225,75 @@ export const prerender = false;
         flex-direction: column;
         gap: 0.75rem;
       }
+      .ch-msg-row {
+        display: flex;
+        width: 100%;
+      }
+      .ch-msg-row-user { justify-content: flex-end; }
+      .ch-msg-row-assistant { justify-content: flex-start; }
       .ch-msg {
         max-width: min(720px, 92%);
-        padding: 0.65rem 0.85rem;
+        padding: 0.65rem 0.85rem 0.45rem;
         border-radius: 10px;
         font-size: 0.84rem;
         line-height: 1.55;
+        position: relative;
+      }
+      .ch-msg-body {
         white-space: pre-wrap;
         word-break: break-word;
+        user-select: text;
       }
       .ch-msg-user {
-        align-self: flex-end;
         background: #1e3a5f;
         border: 1px solid #2d5a94;
         color: var(--fg);
       }
       .ch-msg-assistant {
-        align-self: flex-start;
         background: var(--card);
         border: 1px solid var(--card-border);
         color: var(--fg);
+      }
+      .ch-msg-actions {
+        display: flex;
+        gap: 0.15rem;
+        margin-top: 0.35rem;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      .ch-msg-row:hover .ch-msg-actions,
+      .ch-msg-row:focus-within .ch-msg-actions {
+        opacity: 1;
+      }
+      .ch-msg-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition: color 0.12s, background 0.12s;
+      }
+      .ch-msg-action:hover {
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .ch-msg-user .ch-msg-action:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      @media (hover: none) {
+        .ch-msg-actions { opacity: 1; }
       }
       .ch-compose {
         flex: 0 0 auto;
         display: flex;
         gap: 0.55rem;
+        align-items: flex-end;
         padding: 0.75rem 1rem;
         border-top: 1px solid var(--panel-border);
         background: var(--panel);
@@ -1177,6 +1314,27 @@ export const prerender = false;
         outline: none;
       }
       .ch-input:focus { border-color: #3b82f6; }
+      .ch-paste {
+        flex: 0 0 auto;
+        align-self: flex-end;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.35rem;
+        height: 2.35rem;
+        padding: 0;
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--muted);
+        cursor: pointer;
+        transition: color 0.12s, border-color 0.12s, background 0.12s;
+      }
+      .ch-paste:hover:not(:disabled) {
+        color: var(--fg);
+        border-color: #3b82f6;
+      }
+      .ch-paste:disabled { opacity: 0.45; cursor: default; }
       .ch-send {
         align-self: flex-end;
         font: inherit;
@@ -1225,6 +1383,71 @@ export const prerender = false;
         cursor: pointer;
       }
       .ch-delete-btn:hover { background: rgba(239, 68, 68, 0.16); }
+      .ch-copy-chat-btn,
+      .ch-share-chat-btn {
+        margin-left: 0.35rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid var(--panel-border);
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .ch-copy-chat-btn:hover,
+      .ch-share-chat-btn:hover {
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .ch-toast {
+        position: fixed;
+        bottom: 1.25rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(0.5rem);
+        z-index: 9999;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--fg);
+        background: #1a2332;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s, transform 0.18s;
+      }
+      .ch-toast.ch-toast-visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      .ch-context-menu {
+        position: fixed;
+        z-index: 10000;
+        min-width: 9rem;
+        padding: 0.25rem;
+        background: #1a2332;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+      .ch-context-item {
+        display: block;
+        width: 100%;
+        padding: 0.45rem 0.65rem;
+        font: inherit;
+        font-size: 0.8rem;
+        text-align: left;
+        color: var(--fg);
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      .ch-context-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
         .ch-sidebar {
@@ -1239,7 +1462,7 @@ export const prerender = false;
       }
     </style>
   </head>
-  <body>
+  <body data-user-id={userId ?? ""}>
     <div id="topbar">
       <a href="/" class="brand" aria-label="Reave">
         <img class="brand-img" src="/reave-logo.png" alt="Reave" />

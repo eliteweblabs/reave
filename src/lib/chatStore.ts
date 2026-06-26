@@ -1,5 +1,5 @@
 /**
- * Chat storage: Postgres (DATABASE_URL) → Supabase → ephemeral files (dev only).
+ * Chat storage: Postgres (DATABASE_URL) → ephemeral files (dev only).
  */
 
 import type { TelegramChatTurn } from './telegramChatHistory';
@@ -20,39 +20,23 @@ import {
   pgListChatThreads,
   pgUpdateChatTitle,
 } from './pgChats';
-import {
-  dbAppendChatMessages,
-  dbCreateChatThread,
-  dbDeleteChatThread,
-  dbGetChatThread,
-  dbListChatThreads,
-  dbUpdateChatTitle,
-  isSupabaseChatsConfigured,
-  titleFromMessage,
-  type ChatThreadDetail,
-  type ChatThreadSummary,
-} from './supabaseChats';
+import { titleFromMessage, type ChatThreadDetail, type ChatThreadSummary } from './chatTypes';
 
-export { isPgChatsConfigured, isSupabaseChatsConfigured, titleFromMessage };
+export { isPgChatsConfigured, titleFromMessage };
 export type { ChatThreadDetail, ChatThreadSummary };
 
-export function chatStorageBackend(): 'postgres' | 'supabase' | 'files' {
+export function chatStorageBackend(): 'postgres' | 'files' {
   if (isPgChatsConfigured()) return 'postgres';
-  if (isSupabaseChatsConfigured()) return 'supabase';
   return 'files';
 }
 
 export async function storeListChatThreads(userId: string): Promise<ChatThreadSummary[]> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return (await pgListChatThreads(userId)) ?? [];
-  if (backend === 'supabase') return (await dbListChatThreads(userId)) ?? [];
+  if (chatStorageBackend() === 'postgres') return (await pgListChatThreads(userId)) ?? [];
   return fileListChatThreads(userId);
 }
 
 export async function storeCreateChatThread(userId: string): Promise<ChatThreadSummary | null> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return pgCreateChatThread(userId);
-  if (backend === 'supabase') return dbCreateChatThread(userId);
+  if (chatStorageBackend() === 'postgres') return pgCreateChatThread(userId);
   return fileCreateChatThread(userId);
 }
 
@@ -60,9 +44,7 @@ export async function storeGetChatThread(
   userId: string,
   threadId: string
 ): Promise<ChatThreadDetail | null> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return pgGetChatThread(userId, threadId);
-  if (backend === 'supabase') return dbGetChatThread(userId, threadId);
+  if (chatStorageBackend() === 'postgres') return pgGetChatThread(userId, threadId);
   return fileGetChatThread(userId, threadId);
 }
 
@@ -71,9 +53,7 @@ export async function storeAppendChatMessages(
   threadId: string,
   turns: TelegramChatTurn[]
 ): Promise<boolean> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return pgAppendChatMessages(threadId, turns);
-  if (backend === 'supabase') return dbAppendChatMessages(threadId, turns);
+  if (chatStorageBackend() === 'postgres') return pgAppendChatMessages(threadId, turns);
   return fileAppendChatMessages(userId, threadId, turns);
 }
 
@@ -82,15 +62,11 @@ export async function storeUpdateChatTitle(
   threadId: string,
   title: string
 ): Promise<boolean> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return pgUpdateChatTitle(threadId, title);
-  if (backend === 'supabase') return dbUpdateChatTitle(threadId, title);
+  if (chatStorageBackend() === 'postgres') return pgUpdateChatTitle(threadId, title);
   return fileUpdateChatTitle(userId, threadId, title);
 }
 
 export async function storeDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
-  const backend = chatStorageBackend();
-  if (backend === 'postgres') return pgDeleteChatThread(userId, threadId);
-  if (backend === 'supabase') return dbDeleteChatThread(userId, threadId);
+  if (chatStorageBackend() === 'postgres') return pgDeleteChatThread(userId, threadId);
   return fileDeleteChatThread(userId, threadId);
 }

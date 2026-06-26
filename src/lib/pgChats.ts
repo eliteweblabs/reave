@@ -6,7 +6,7 @@
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
 import type { TelegramChatTurn } from './telegramChatHistory';
-import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './supabaseChats';
+import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTypes';
 
 export type { ChatMessage, ChatThreadDetail, ChatThreadSummary };
 
