@@ -6,6 +6,7 @@ import type { TelegramChatTurn } from './telegramChatHistory';
 import {
   fileAppendChatMessages,
   fileCreateChatThread,
+  fileDeleteChatThread,
   fileGetChatThread,
   fileListChatThreads,
   fileUpdateChatTitle,
@@ -14,6 +15,7 @@ import {
   isPgChatsConfigured,
   pgAppendChatMessages,
   pgCreateChatThread,
+  pgDeleteChatThread,
   pgGetChatThread,
   pgListChatThreads,
   pgUpdateChatTitle,
@@ -21,6 +23,7 @@ import {
 import {
   dbAppendChatMessages,
   dbCreateChatThread,
+  dbDeleteChatThread,
   dbGetChatThread,
   dbListChatThreads,
   dbUpdateChatTitle,
@@ -83,4 +86,11 @@ export async function storeUpdateChatTitle(
   if (backend === 'postgres') return pgUpdateChatTitle(threadId, title);
   if (backend === 'supabase') return dbUpdateChatTitle(threadId, title);
   return fileUpdateChatTitle(userId, threadId, title);
+}
+
+export async function storeDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
+  const backend = chatStorageBackend();
+  if (backend === 'postgres') return pgDeleteChatThread(userId, threadId);
+  if (backend === 'supabase') return dbDeleteChatThread(userId, threadId);
+  return fileDeleteChatThread(userId, threadId);
 }

@@ -3171,6 +3171,9 @@ function renderChatSidebar() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   for (const t of chatState.threads) {
+    const row = document.createElement('div');
+    row.className = 'ch-list-row';
+
     const item = document.createElement('button');
     item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
     item.dataset.id = t.id;
@@ -3178,7 +3181,20 @@ function renderChatSidebar() {
       `<span class="ch-item-title">${escHtml(t.title)}</span>` +
       `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>`;
     item.addEventListener('click', () => openChat(t.id));
-    list.appendChild(item);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'ch-list-delete';
+    delBtn.type = 'button';
+    delBtn.setAttribute('aria-label', `Delete ${t.title}`);
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteChat(t.id, t.title);
+    });
+
+    row.appendChild(item);
+    row.appendChild(delBtn);
+    list.appendChild(row);
   }
   if (chatState.threads.length === 0) {
     const empty = document.createElement('div');
@@ -3292,6 +3308,12 @@ function renderChatPanel() {
   );
   modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
   header.appendChild(modelBadge);
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'ch-delete-btn';
+  deleteBtn.type = 'button';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', () => deleteChat(chatState.activeId, chatState.title));
+  header.appendChild(deleteBtn);
   pane.appendChild(header);
 
   const messagesEl = document.createElement('div');
@@ -3401,6 +3423,27 @@ async function openChat(id) {
     renderChatPanel();
   } catch (e) {
     alert(`Could not load chat: ${e.message}`);
+  }
+}
+
+async function deleteChat(id, title) {
+  if (!id) return;
+  const label = (title || 'this chat').trim() || 'this chat';
+  if (!confirm(`Delete "${label}"? This permanently removes the chat and all messages.`)) return;
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    chatState.threads = chatState.threads.filter((t) => t.id !== id);
+    if (chatState.activeId === id) {
+      chatState.activeId = null;
+      chatState.messages = [];
+      chatState.title = '';
+      getChatPanel()?.classList.remove('ch-pane-active');
+    }
+    renderChatPanel();
+  } catch (e) {
+    alert(`Delete failed: ${e.message}`);
   }
 }
 

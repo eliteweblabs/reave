@@ -8,7 +8,7 @@
 import { randomUUID } from 'crypto';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import type { TelegramChatTurn } from './telegramChatHistory';
 import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './supabaseChats';
 import { titleFromMessage } from './supabaseChats';
@@ -208,5 +208,14 @@ export function fileUpdateChatTitle(userId: string, threadId: string, title: str
     updated: new Date().toISOString(),
   };
   writeFileSync(threadPath(threadId), serializeThread(meta, title, thread.messages), 'utf8');
+  return true;
+}
+
+export function fileDeleteChatThread(userId: string, threadId: string): boolean {
+  const thread = fileGetChatThread(userId, threadId);
+  if (!thread) return false;
+  const path = threadPath(threadId);
+  if (!existsSync(path)) return false;
+  unlinkSync(path);
   return true;
 }

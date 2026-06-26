@@ -1,11 +1,13 @@
 /**
- * GET  /api/chats/:id — thread + messages
- * POST /api/chats/:id — send a message { message } → runs Claude agent, persists reply
+ * GET    /api/chats/:id — thread + messages
+ * POST   /api/chats/:id — send a message { message } → runs Claude agent, persists reply
+ * DELETE /api/chats/:id — delete thread and all messages
  */
 
 import type { APIContext } from 'astro';
 import {
   storeAppendChatMessages,
+  storeDeleteChatThread,
   storeGetChatThread,
   storeUpdateChatTitle,
   titleFromMessage,
@@ -97,4 +99,16 @@ export async function POST(context: APIContext): Promise<Response> {
     userMessage: { role: 'user', content: message },
     assistantMessage: { role: 'assistant', content: reply },
   });
+}
+
+export async function DELETE(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+
+  const deleted = await storeDeleteChatThread(userId, id);
+  if (!deleted) return json({ ok: false, error: 'Chat not found' }, 404);
+  return json({ ok: true, id });
 }

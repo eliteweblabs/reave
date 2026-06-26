@@ -1064,6 +1064,38 @@ export const prerender = false;
         overflow-y: auto;
         padding: 0 0.5rem 0.5rem;
       }
+      .ch-list-row {
+        display: flex;
+        align-items: stretch;
+        gap: 0.25rem;
+        margin-bottom: 0.15rem;
+      }
+      .ch-list-row .ch-list-item {
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .ch-list-delete {
+        flex: none;
+        width: 2rem;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: rgba(248, 113, 113, 0.55);
+        font: inherit;
+        font-size: 0.95rem;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s, background 0.15s, color 0.15s;
+      }
+      .ch-list-row:hover .ch-list-delete,
+      .ch-list-row:focus-within .ch-list-delete {
+        opacity: 1;
+      }
+      .ch-list-delete:hover {
+        color: #f87171;
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.25);
+      }
       .ch-list-item {
         width: 100%;
         display: flex;
@@ -1181,6 +1213,18 @@ export const prerender = false;
         padding: 0.12rem 0.5rem;
         white-space: nowrap;
       }
+      .ch-delete-btn {
+        margin-left: 0.45rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid rgba(239, 68, 68, 0.35);
+        background: rgba(239, 68, 68, 0.08);
+        color: #f87171;
+        font: inherit;
+        font-size: 0.75rem;
+        cursor: pointer;
+      }
+      .ch-delete-btn:hover { background: rgba(239, 68, 68, 0.16); }
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
         .ch-sidebar {

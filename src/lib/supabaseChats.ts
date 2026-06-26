@@ -161,3 +161,22 @@ export async function dbUpdateChatTitle(threadId: string, title: string): Promis
   }
   return true;
 }
+
+export async function dbDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
+  const client = getClient();
+  if (!client) return false;
+
+  const { data, error } = await client
+    .from('chat_threads')
+    .delete()
+    .eq('id', threadId)
+    .eq('user_id', userId)
+    .select('id')
+    .maybeSingle();
+
+  if (error) {
+    console.error('[chats:db] delete error:', error.message);
+    return false;
+  }
+  return !!data;
+}

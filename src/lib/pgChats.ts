@@ -183,3 +183,18 @@ export async function pgUpdateChatTitle(threadId: string, title: string): Promis
     return false;
   }
 }
+
+export async function pgDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return false;
+    const { rowCount } = await pool.query(
+      `DELETE FROM chat_threads WHERE id = $1 AND user_id = $2`,
+      [threadId, userId]
+    );
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error('[chats:pg] delete error:', e);
+    return false;
+  }
+}
