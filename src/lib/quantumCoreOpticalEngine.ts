@@ -330,13 +330,16 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     positions[i * 3 + 2] = rho * Math.sin(theta);
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const particleColors = new Float32Array(particleCount * 3);
+  particlesGeo.setAttribute("color", new THREE.BufferAttribute(particleColors, 3));
   const particleSprite = createSoftParticleSpriteTexture();
   const particlesMat = new THREE.PointsMaterial({
     map: particleSprite,
     /* Larger / more opaque on mobile so the thin letter strokes actually catch glow.
        Bumped a touch on desktop so each dot reads as a small glow, not a pinprick. */
     size: isMobileLike ? 0.133 : 0.118,
-    color: 0x00f3ff,
+    color: 0xffffff,
+    vertexColors: true,
     transparent: true,
     opacity: isMobileLike ? 0.97 : 0.96,
     depthWrite: false,
@@ -425,11 +428,30 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
-  /** Mirrored from the live rainbow each frame (for any logic that reads the current tint). */
-  const targetColor = new THREE.Color(0xff0000);
-  const rainbowTint = new THREE.Color(0xff0000);
-  /** Reused per-frame. */
-  const liveTint = new THREE.Color(0xff0000);
+  /** Reused when building the horizontal particle gradient each frame. */
+  const gradientTint = new THREE.Color(0xff0000);
+  const GRADIENT_SPAN = CLOUD_RADIUS * 2.4;
+
+  function updateHorizontalParticleGradient(time: number, rotY: number): void {
+    const sat = prefersReduced ? 0.68 : 0.74;
+    const light = prefersReduced ? 0.51 : 0.53;
+    const shift = time * (prefersReduced ? 0.045 : 0.09);
+    const cosR = Math.cos(rotY);
+    const sinR = Math.sin(rotY);
+
+    for (let i = 0; i < particleCount; i++) {
+      const lx = positions[i * 3]!;
+      const lz = positions[i * 3 + 2]!;
+      const worldX = lx * cosR + lz * sinR;
+      const hue = (((worldX / GRADIENT_SPAN) + 0.5 + shift) % 1 + 1) % 1;
+      gradientTint.setHSL(hue, sat, light);
+      normalizeTintLuminance(gradientTint, isMobileLike ? 0.46 : 0.4, 2.6);
+      particleColors[i * 3] = gradientTint.r;
+      particleColors[i * 3 + 1] = gradientTint.g;
+      particleColors[i * 3 + 2] = gradientTint.b;
+    }
+    particlesGeo.attributes.color!.needsUpdate = true;
+  }
   let particleSpeedMult = 1.0;
   /** Smoothed 0–1 from `window` `audioLevel` events (voice reactive). */
   let micLevelTarget = 0;
@@ -604,18 +626,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     sphereMat.uniforms.uSpike.value +=
       (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
 
-    /* Rainbow hue, softened saturation / lightness (less “neon solid” Monday feel). */
-    const rainbowCyclesPerSec = prefersReduced ? 0.045 : 0.09;
-    const sat = prefersReduced ? 0.68 : 0.74;
-    const light = prefersReduced ? 0.51 : 0.53;
-    rainbowTint.setHSL((rawT * rainbowCyclesPerSec) % 1, sat, light);
-    /* Equal-brightness rainbow: lift dim hues (purple/blue/red), harder on mobile. */
-    normalizeTintLuminance(rainbowTint, isMobileLike ? 0.46 : 0.4, 2.6);
-    liveTint.copy(rainbowTint);
-    targetColor.copy(liveTint);
-    sphereMat.uniforms.uColorB.value.copy(liveTint);
-    particlesMat.color.copy(liveTint);
-
     const micLerp = prefersReduced ? 0.04 : 0.08;
     micLevelSmoothed +=
       (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
@@ -632,7 +642,13 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
       energy *
         (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
-    particles.rotation.y = -rawT * 0.1 * particleSpeedMult * spinBoost;
+    const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
+    particles.rotation.y = rotY;
+
+    /* Horizontal rainbow: hue from left→right across the logo, drifting over time. */
+    updateHorizontalParticleGradient(rawT, rotY);
+    gradientTint.setHSL((rawT * (prefersReduced ? 0.045 : 0.09)) % 1, 0.74, 0.53);
+    sphereMat.uniforms.uColorB.value.copy(gradientTint);
 
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
