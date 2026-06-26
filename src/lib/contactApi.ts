@@ -339,7 +339,7 @@ export async function createContact(input: {
     if (!contact || typeof contact !== 'object' || !contact.uid) {
       return { ok: false, error: 'Unexpected contact-api response' };
     }
-    return { ok: true, data: contact };
+    return { ok: true, data: normalizeContactRecord(contact) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -368,11 +368,11 @@ export async function updateContact(
   if (!uid?.trim()) return { ok: false, error: 'uid is required' };
 
   const body: Record<string, string> = {};
-  if (patch.name !== undefined) body.name = patch.name.trim();
-  if (patch.email !== undefined) body.email = patch.email.trim();
-  if (patch.phone !== undefined) body.phone = patch.phone.trim();
-  if (patch.company !== undefined) body.company = patch.company.trim();
-  if (patch.notes !== undefined) body.notes = patch.notes.trim();
+  if (patch.name !== undefined) body.name = contactStringField(patch.name);
+  if (patch.email !== undefined) body.email = contactStringField(patch.email);
+  if (patch.phone !== undefined) body.phone = contactStringField(patch.phone);
+  if (patch.company !== undefined) body.company = contactStringField(patch.company);
+  if (patch.notes !== undefined) body.notes = contactStringField(patch.notes);
   if (!Object.keys(body).length) return { ok: false, error: 'nothing to update' };
 
   try {
@@ -402,7 +402,7 @@ export async function updateContact(
     if (!contact || typeof contact !== 'object' || !contact.uid) {
       return { ok: false, error: 'Unexpected contact-api response' };
     }
-    return { ok: true, data: contact };
+    return { ok: true, data: normalizeContactRecord(contact) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -484,7 +484,33 @@ export async function deleteContact(
 export function extractPortal(contact: ContactRecord): ClientPortal | null {
   const link = (contact.links ?? []).find((l) => l.system === PORTAL_SYSTEM);
   if (!link || !link.metadata || typeof link.metadata !== 'object') return null;
-  return link.metadata as ClientPortal;
+  const raw = link.metadata as ClientPortal;
+  return {
+    ...raw,
+    headline: contactStringField(raw.headline) || undefined,
+    body: contactStringField(raw.body) || undefined,
+    updatedAt: contactStringField(raw.updatedAt) || undefined,
+    fields: Array.isArray(raw.fields)
+      ? raw.fields
+          .filter((f) => f && contactStringField(f.label) && contactStringField(f.value))
+          .map((f) => ({
+            label: contactStringField(f.label),
+            value: contactStringField(f.value),
+          }))
+      : raw.fields,
+    data: Array.isArray(raw.data)
+      ? raw.data
+          .filter((e) => e && contactStringField(e.label))
+          .map((e) => ({
+            ...e,
+            label: contactStringField(e.label),
+            value: contactStringField(e.value) || undefined,
+            username: contactStringField(e.username) || undefined,
+            password: contactStringField(e.password) || undefined,
+            url: contactStringField(e.url) || undefined,
+          }))
+      : raw.data,
+  };
 }
 
 /**

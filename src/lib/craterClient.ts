@@ -474,7 +474,7 @@ export async function craterGetClientBilling(input: {
   const search = await craterSearchCustomers(email || name);
   if (!search.ok) return { ok: false, error: search.error, status: search.status };
 
-  const customers = search.data.customers ?? [];
+  const customers = search.data?.customers ?? [];
   let customer: CraterCustomer | undefined;
   if (email) {
     customer = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
@@ -489,7 +489,7 @@ export async function craterGetClientBilling(input: {
     (n ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase();
 
   const list = await craterListInvoices();
-  const mine = list.ok ? (list.data.invoices ?? []).filter((inv) => matchesCustomer(inv.customer_name)) : [];
+  const mine = list.ok ? (list.data?.invoices ?? []).filter((inv) => matchesCustomer(inv.customer_name)) : [];
   const toInvoice = (inv: CraterInvoiceSummary): BillingInvoice => ({
     id: inv.id,
     number: inv.invoice_number,
@@ -512,7 +512,7 @@ export async function craterGetClientBilling(input: {
 
   const recurring = await craterListRecurringInvoices();
   const upcoming = recurring.ok
-    ? (recurring.data.recurring_invoices ?? [])
+    ? (recurring.data?.recurring_invoices ?? [])
         .filter((r) => matchesCustomer(r.customer?.name))
         .map((r) => ({
           id: r.id,

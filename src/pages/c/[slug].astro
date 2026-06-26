@@ -57,12 +57,16 @@ if (notFound) Astro.response.status = 404;
 // Billing from Crater (best-effort; skipped if not configured/matched).
 let billing: ClientBilling | null = null;
 if (contact && isCraterConfigured()) {
-  const b = await craterGetClientBilling({
-    email: contactStringField(contact.email) || undefined,
-    name: contactStringField(contact.name) || undefined,
-  });
-  if (b.ok && b.data && (b.data.outstanding.length > 0 || b.data.previous.length > 0 || b.data.upcoming.length > 0)) {
-    billing = b.data;
+  try {
+    const b = await craterGetClientBilling({
+      email: contactStringField(contact.email) || undefined,
+      name: contactStringField(contact.name) || undefined,
+    });
+    if (b.ok && b.data && (b.data.outstanding.length > 0 || b.data.previous.length > 0 || b.data.upcoming.length > 0)) {
+      billing = b.data;
+    }
+  } catch {
+    // Crater is optional on the portal — never take down the page for billing drift.
   }
 }
 
@@ -92,8 +96,9 @@ function richText(s: string): string {
 
 const displayName = contactStringField(contact?.name) || 'Client';
 const company = contactStringField(contact?.company);
-const headline = portal?.headline?.trim() || '';
-const bodyHtml = portal?.body?.trim() ? richText(portal.body.trim()) : '';
+const headline = contactStringField(portal?.headline);
+const bodyRaw = contactStringField(portal?.body);
+const bodyHtml = bodyRaw ? richText(bodyRaw) : '';
 const fields = (portal?.fields ?? []).filter((f) => f && f.label && f.value);
 
 const dataEntries = (portal?.data ?? []).filter(
@@ -102,7 +107,11 @@ const dataEntries = (portal?.data ?? []).filter(
 
 const portalDocs = (portal?.documents ?? [])
   .slice()
-  .sort((a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime());
+  .sort((a, b) => {
+    const bt = Date.parse(contactStringField(b.signedAt));
+    const at = Date.parse(contactStringField(a.signedAt));
+    return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
+  });
 
 const email = contactStringField(contact?.email);
 const phone = contactStringField(contact?.phone);

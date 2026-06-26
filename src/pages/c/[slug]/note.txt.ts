@@ -47,10 +47,12 @@ export const GET: APIRoute = async ({ params }) => {
   if (email) lines.push(`Email: ${email}`);
   lines.push(`Portal: ${clientPortalUrl(uid)}`);
 
-  if (portal?.headline?.trim() || portal?.body?.trim()) {
+  if (portal?.headline || portal?.body) {
     lines.push('');
-    if (portal.headline?.trim()) lines.push(`— ${portal.headline.trim()} —`);
-    if (portal.body?.trim()) lines.push(portal.body.trim());
+    const headline = contactStringField(portal.headline);
+    const body = contactStringField(portal.body);
+    if (headline) lines.push(`— ${headline} —`);
+    if (body) lines.push(body);
   }
 
   const fields = (portal?.fields ?? []).filter((f) => f && f.label && f.value);
