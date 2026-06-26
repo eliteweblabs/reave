@@ -66,6 +66,7 @@ import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
 import { reaveEmailHtml } from './emailTemplates';
+import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -879,6 +880,25 @@ export function buildTools(): TelegramToolDef[] {
     );
   }
 
+  if (isBraveConfigured()) {
+    base.push({
+      type: 'function',
+      function: {
+        name: 'brave_search',
+        description:
+          'Search the web via Brave. Use to look up businesses, websites, people, or any public info.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Search query' },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
+    });
+  }
+
   return base;
 }
 
@@ -1520,6 +1540,16 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return JSON.stringify(result.data);
+    }
+    if (name === 'brave_search') {
+      if (!isBraveConfigured()) {
+        return JSON.stringify({ error: 'BRAVE_API_KEY is not set on this service' });
+      }
+      const query = String(args.query ?? '').trim();
+      if (!query) return JSON.stringify({ error: 'missing query' });
+      const result = await braveSearch(query);
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return formatBraveResults(result);
     }
 
     return JSON.stringify({ error: `unknown tool ${name}` });

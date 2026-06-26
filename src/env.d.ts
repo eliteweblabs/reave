@@ -15,6 +15,8 @@ interface ImportMetaEnv {
   ANTHROPIC_MODEL?: string;
   /** Optional override path for persisted runtime model choice */
   AGENT_MODEL_FILE?: string;
+  /** Brave Search API key (web search tool for Telegram agent) */
+  BRAVE_API_KEY?: string;
   /** Optional: max user+assistant turns kept per Telegram chat (default 20) */
   TELEGRAM_CHAT_HISTORY_TURNS?: string;
   /** eliteweblabs/contact-api base URL (no trailing slash), e.g. Railway public URL */

@@ -1,4 +1,5 @@
 import { resolveAgentModel } from './agentModel';
+import { isBraveConfigured } from './braveClient';
 import { buildTools, runTool } from './telegramToolDefs';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
@@ -103,6 +104,11 @@ export async function runTelegramKnowledgeAgent(opts: {
     }
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
+  }
+  if (isBraveConfigured()) {
+    sysParts.push(
+      'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
+    );
   }
 
   const system = sysParts.join('\n');
