@@ -1,105 +1,60 @@
-/**
- * GET    /api/clients/[uid] — read one contact (full metadata on demand)
- * PATCH  /api/clients/[uid] — update { name?, email?, phone?, company?, notes? }
- * DELETE /api/clients/[uid] — remove contact
- */
+import type { APIRoute } from "astro";
 
-import type { APIContext } from 'astro';
-import {
-  contactSummary,
-  deleteContact,
-  getContact,
-  isContactApiConfigured,
-  updateContact,
-} from '../../../lib/contactApi';
+const CONTACT_API_BASE_URL = import.meta.env.CONTACT_API_BASE_URL;
+const CONTACT_API_KEY = import.meta.env.CONTACT_API_KEY;
 
-export const prerender = false;
+function contactHeaders() {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  if (CONTACT_API_KEY) h["X-API-Key"] = CONTACT_API_KEY;
+  return h;
+}
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+export const GET: APIRoute = async ({ params }) => {
+  const { uid } = params;
+  const res = await fetch(`${CONTACT_API_BASE_URL}/api/contacts/${uid}`, {
+    headers: contactHeaders(),
   });
-}
-
-export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
-  }
-
-  const uid = context.params.uid?.trim() ?? '';
-  if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
-
-  const result = await getContact(uid);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 404);
-
-  const c = result.data;
-  return json({
-    ok: true,
-    ...contactSummary(c),
-    notes: c.notes ?? '',
-    createdAt: c.createdAt ?? '',
-    firstName: c.firstName ?? '',
-    lastName: c.lastName ?? '',
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { "Content-Type": "application/json" },
   });
-}
+};
 
-export async function PATCH(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
-  }
-
-  const uid = context.params.uid?.trim() ?? '';
-  if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
-
-  let body: Record<string, unknown>;
-  try {
-    body = await context.request.json();
-  } catch {
-    return json({ ok: false, error: 'Invalid JSON' }, 400);
-  }
-
-  const patch: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    company?: string;
-    notes?: string;
-  } = {};
-
-  if (body.name != null) patch.name = String(body.name).trim();
-  if (body.email != null) patch.email = String(body.email).trim();
-  if (body.phone != null) patch.phone = String(body.phone).trim();
-  if (body.company != null) patch.company = String(body.company).trim();
-  if (body.notes != null) patch.notes = String(body.notes).trim();
-
-  const result = await updateContact(uid, patch);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-
-  const c = result.data;
-  return json({
-    ok: true,
-    ...contactSummary(c),
-    notes: c.notes ?? '',
-    createdAt: c.createdAt ?? '',
+export const PUT: APIRoute = async ({ params, request }) => {
+  const { uid } = params;
+  const body = await request.json();
+  const res = await fetch(`${CONTACT_API_BASE_URL}/api/contacts/${uid}`, {
+    method: "PUT",
+    headers: contactHeaders(),
+    body: JSON.stringify(body),
   });
-}
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { "Content-Type": "application/json" },
+  });
+};
 
-export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isContactApiConfigured()) {
-    return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+export const DELETE: APIRoute = async ({ params }) => {
+  const { uid } = params;
+  const res = await fetch(`${CONTACT_API_BASE_URL}/api/contacts/${uid}`, {
+    method: "DELETE",
+    headers: contactHeaders(),
+  });
+
+  // contact-api may return 204 No Content on success
+  if (res.status === 204 || res.status === 200) {
+    const body = res.status === 204 ? { ok: true } : await res.json();
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
-  const uid = context.params.uid?.trim() ?? '';
-  if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
-
-  const result = await deleteContact(uid);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true, uid, deleted: true });
-}
+  const data = await res.json().catch(() => ({ error: "Unknown error" }));
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { "Content-Type": "application/json" },
+  });
+};
