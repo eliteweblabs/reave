@@ -24,7 +24,7 @@ const SYSTEM_NODES = [
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'knowledge · chats · agent config · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 430, y: 470 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'knowledge · jobs · chats · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 430, y: 470 },
   { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },

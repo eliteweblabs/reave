@@ -17,6 +17,7 @@ import {
   closeSync,
 } from 'fs';
 import { getContact, resolveContact } from './contactApi';
+import { serverEnv } from './serverEnv';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
@@ -145,6 +146,12 @@ function yamlLine(key: string, value: string): string {
 function normalizeStatus(raw: string | undefined): WorkStatus {
   const s = (raw ?? 'inquiry').toLowerCase();
   return WORK_STATUSES.includes(s as WorkStatus) ? (s as WorkStatus) : 'inquiry';
+}
+
+export const normalizeWorkStatus = normalizeStatus;
+
+export function listWorkFileSlugs(): string[] {
+  return listWorkFiles();
 }
 
 function summaryFromMeta(slug: string, meta: Record<string, string>, body: string): WorkJobSummary {
@@ -314,6 +321,81 @@ export function fileDeleteWork(slug: string): boolean {
   if (!existsSync(path)) return false;
   unlinkSync(path);
   return true;
+}
+
+/** True when Railway Postgres (DATABASE_URL) backs work/jobs storage. */
+export function isWorkDbConfigured(): boolean {
+  return !!serverEnv('DATABASE_URL')?.trim();
+}
+
+export async function storeListWork(opts?: {
+  contact_uid?: string;
+  status?: WorkStatus;
+  q?: string;
+}): Promise<WorkJobSummary[]> {
+  if (isWorkDbConfigured()) {
+    const { dbListWork } = await import('./pgJobs');
+    const rows = await dbListWork(opts);
+    if (rows) return rows;
+  }
+  return fileListWork(opts);
+}
+
+export async function storeReadWork(slug: string): Promise<WorkJobDoc | null> {
+  if (isWorkDbConfigured()) {
+    const { dbReadWork } = await import('./pgJobs');
+    const doc = await dbReadWork(slug);
+    if (doc) return doc;
+  }
+  return fileReadWork(slug);
+}
+
+export async function storeWriteWork(
+  slug: string,
+  input: WorkJobInput,
+): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
+  if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
+  if (!input.title.trim()) return { ok: false, error: 'title is required' };
+
+  const contact = await resolveWorkContact(input);
+  if (!contact.ok) return { ok: false, error: contact.error };
+
+  if (isWorkDbConfigured()) {
+    const { dbReadWork, dbCreateWork, dbUpdateWork } = await import('./pgJobs');
+    const existing = await dbReadWork(slug);
+    if (existing) {
+      return dbUpdateWork(slug, {
+        title: input.title.trim(),
+        client: contact.name,
+        client_uid: contact.uid,
+        status: input.status != null ? normalizeStatus(input.status) : undefined,
+        body: input.body != null ? input.body.trim() : undefined,
+      });
+    }
+    return dbCreateWork({
+      slug,
+      title: input.title.trim(),
+      client: contact.name,
+      client_uid: contact.uid,
+      status: normalizeStatus(input.status),
+      body: (input.body ?? '').trim(),
+    });
+  }
+
+  return fileWriteWork(slug, input);
+}
+
+export async function storeDeleteWork(slug: string): Promise<boolean> {
+  if (isWorkDbConfigured()) {
+    const { dbDeleteWork } = await import('./pgJobs');
+    const result = await dbDeleteWork(slug);
+    return result.ok;
+  }
+  return fileDeleteWork(slug);
+}
+
+export async function storeListWorkForContact(contactUid: string): Promise<WorkJobSummary[]> {
+  return storeListWork({ contact_uid: contactUid });
 }
 
 export function slugFromTitle(title: string): string {

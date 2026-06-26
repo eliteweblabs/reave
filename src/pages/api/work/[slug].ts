@@ -6,10 +6,13 @@
 
 import type { APIContext } from 'astro';
 import {
-  fileDeleteWork,
-  fileReadWork,
-  fileWriteWork,
   isSafeWorkSlug,
+  slugFromTitle,
+  storeDeleteWork,
+  storeListWork,
+  storeReadWork,
+  storeWriteWork,
+  WORK_STATUSES,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 
@@ -29,7 +32,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
 
-  const doc = fileReadWork(slug);
+  const doc = await storeReadWork(slug);
   if (!doc) return json({ ok: false, error: 'Not found' }, 404);
   return json({ ok: true, ...doc });
 }
@@ -40,7 +43,7 @@ export async function PUT(context: APIContext): Promise<Response> {
 
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
-  if (!fileReadWork(slug)) return json({ ok: false, error: 'Not found' }, 404);
+  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
@@ -52,8 +55,8 @@ export async function PUT(context: APIContext): Promise<Response> {
   const parsed = parseWorkJobInput(body);
   if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
 
-  const existing = fileReadWork(slug)!;
-  const result = await fileWriteWork(slug, { ...parsed, source: existing.source });
+  const existing = (await storeReadWork(slug))!;
+  const result = await storeWriteWork(slug, { ...parsed, source: existing.source });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }
@@ -65,6 +68,6 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
 
-  if (!fileDeleteWork(slug)) return json({ ok: false, error: 'Not found' }, 404);
+  if (!(await storeDeleteWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
   return json({ ok: true, slug, deleted: true });
 }

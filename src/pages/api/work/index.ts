@@ -5,11 +5,11 @@
 
 import type { APIContext } from 'astro';
 import {
-  fileListWork,
-  fileReadWork,
-  fileWriteWork,
   isSafeWorkSlug,
   slugFromTitle,
+  storeListWork,
+  storeReadWork,
+  storeWriteWork,
   WORK_STATUSES,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
@@ -26,7 +26,7 @@ function json(body: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  return json({ ok: true, jobs: fileListWork(), statuses: WORK_STATUSES });
+  return json({ ok: true, jobs: await storeListWork(), statuses: WORK_STATUSES });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -53,9 +53,9 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!slug || !isSafeWorkSlug(slug)) {
     return json({ ok: false, error: 'Invalid slug' }, 400);
   }
-  if (fileReadWork(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
+  if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
 
-  const result = await fileWriteWork(slug, parsed);
+  const result = await storeWriteWork(slug, parsed);
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }

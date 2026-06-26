@@ -11,12 +11,12 @@ import {
   isKnowledgeDbConfigured,
 } from './knowledgeStore';
 import {
-  fileListWork,
-  fileReadWork,
-  fileWriteWork,
-  fileDeleteWork,
   isSafeWorkSlug,
   slugFromTitle,
+  storeDeleteWork,
+  storeListWork,
+  storeReadWork,
+  storeWriteWork,
   WORK_STATUSES,
   type WorkStatus,
 } from './workStore';
@@ -1088,7 +1088,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const status = WORK_STATUSES.includes(statusRaw as WorkStatus)
         ? (statusRaw as WorkStatus)
         : undefined;
-      const jobs = fileListWork({
+      const jobs = await storeListWork({
         contact_uid: typeof args.contact_uid === 'string' ? args.contact_uid : undefined,
         status,
         q: typeof args.q === 'string' ? args.q : undefined,
@@ -1098,9 +1098,9 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     if (name === 'read_work') {
       const slug = String(args.slug ?? '').trim();
       if (!slug) return JSON.stringify({ error: 'missing slug' });
-      const doc = fileReadWork(slug);
+      const doc = await storeReadWork(slug);
       if (!doc) {
-        const known = fileListWork().map((j) => j.slug);
+        const known = (await storeListWork()).map((j) => j.slug);
         return JSON.stringify({ error: 'unknown slug', known });
       }
       const cap = 14_000;
@@ -1136,9 +1136,9 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!title) return JSON.stringify({ error: 'title is required' });
       if (!client) return JSON.stringify({ error: 'client is required' });
       if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
-      if (fileReadWork(slug)) return JSON.stringify({ error: 'slug already exists', slug });
+      if (await storeReadWork(slug)) return JSON.stringify({ error: 'slug already exists', slug });
 
-      const result = await fileWriteWork(slug, {
+      const result = await storeWriteWork(slug, {
         title,
         client,
         status,
@@ -1161,9 +1161,9 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const slug = String(args.slug ?? '').trim();
       if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
 
-      const existing = fileReadWork(slug);
+      const existing = await storeReadWork(slug);
       if (!existing) {
-        const known = fileListWork().map((j) => j.slug);
+        const known = (await storeListWork()).map((j) => j.slug);
         return JSON.stringify({ error: 'not found', known });
       }
 
@@ -1179,7 +1179,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!title) return JSON.stringify({ error: 'title is required' });
       if (!client) return JSON.stringify({ error: 'client is required' });
 
-      const result = await fileWriteWork(slug, { title, client, status, body, source: existing.source });
+      const result = await storeWriteWork(slug, { title, client, status, body, source: existing.source });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const doc = result.doc;
       return JSON.stringify({
@@ -1196,8 +1196,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     if (name === 'delete_work') {
       const slug = String(args.slug ?? '').trim();
       if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
-      if (!fileDeleteWork(slug)) {
-        const known = fileListWork().map((j) => j.slug);
+      if (!(await storeDeleteWork(slug))) {
+        const known = (await storeListWork()).map((j) => j.slug);
         return JSON.stringify({ error: 'not found', known });
       }
       return JSON.stringify({ ok: true, slug, deleted: true });
@@ -1312,7 +1312,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const payload = result.data as Record<string, unknown>;
       const contact = payload.contact as Record<string, unknown> | undefined;
       const uid = contact?.uid != null ? String(contact.uid) : '';
-      const work_jobs = uid ? fileListWork({ contact_uid: uid }) : [];
+      const work_jobs = uid ? await storeListWork({ contact_uid: uid }) : [];
       return JSON.stringify({ ...payload, work_jobs });
     }
     if (name === 'list_contacts') {
