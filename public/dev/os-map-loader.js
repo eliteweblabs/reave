@@ -3224,11 +3224,31 @@ function scrollChatToBottom(container, smooth = true) {
     const anchor = container.querySelector('.ch-scroll-anchor');
     if (anchor) {
       anchor.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+      return;
+    }
+    const msgs = container.querySelectorAll('.ch-msg, .ch-thinking');
+    const last = msgs[msgs.length - 1];
+    if (last) {
+      last.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
     } else {
       container.scrollTop = container.scrollHeight;
     }
   };
   requestAnimationFrame(() => requestAnimationFrame(run));
+}
+
+/** Keep latest messages visible and return focus to the compose box. */
+function focusChatCompose(smoothScroll = false) {
+  const panel = getChatPanel();
+  if (!panel) return;
+  const messages = panel.querySelector('.ch-messages');
+  const input = panel.querySelector('.ch-input');
+  scrollChatToBottom(messages, smoothScroll);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      input?.focus({ preventScroll: true });
+    });
+  });
 }
 
 function renderChatPanel() {
@@ -3300,7 +3320,9 @@ function renderChatPanel() {
     sendBtn.disabled = true;
     chatState.messages.push({ role: 'user', content: text });
     renderChatMessages(messagesEl);
+    focusChatCompose(false);
 
+    let newTitle = null;
     try {
       const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
         method: 'POST',
@@ -3311,6 +3333,7 @@ function renderChatPanel() {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
       if (data.title) {
+        newTitle = data.title;
         chatState.title = data.title;
         const thread = chatState.threads.find((t) => t.id === chatState.activeId);
         if (thread) thread.title = data.title;
@@ -3321,9 +3344,13 @@ function renderChatPanel() {
       chatState.sending = false;
       input.disabled = false;
       sendBtn.disabled = false;
-      renderChatPanel();
-      const newInput = getChatPanel()?.querySelector('.ch-input');
-      newInput?.focus();
+      renderChatMessages(messagesEl);
+      if (newTitle) {
+        titleEl.textContent = newTitle;
+        const activeTitle = root.querySelector('.ch-list-item.active .ch-item-title');
+        if (activeTitle) activeTitle.textContent = newTitle;
+      }
+      focusChatCompose(false);
     }
   }
 
@@ -3340,7 +3367,7 @@ function renderChatPanel() {
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
-  input.focus();
+  focusChatCompose(false);
 }
 
 async function startNewChat() {
