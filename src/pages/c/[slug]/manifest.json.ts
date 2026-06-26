@@ -3,7 +3,7 @@
  * Enables "Add to Home Screen" with the client's name as the app title.
  */
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal } from '../../../lib/contactApi';
+import { getContact, extractPortal, contactStringField } from '../../../lib/contactApi';
 
 export const prerender = false;
 
@@ -16,7 +16,7 @@ export const GET: APIRoute = async ({ params }) => {
     if (res.ok && !res.data.archived) {
       const portal = extractPortal(res.data);
       if (!portal || portal.enabled !== false) {
-        name = res.data.name || name;
+        name = contactStringField(res.data.name) || name;
       }
     }
   }

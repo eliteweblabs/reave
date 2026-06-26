@@ -10,7 +10,7 @@
  * Only client-safe data is included — never the private internal `notes` field.
  */
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal, clientPortalUrl } from '../../../lib/contactApi';
+import { getContact, extractPortal, clientPortalUrl, contactStringField } from '../../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling } from '../../../lib/craterClient';
 
 export const prerender = false;
@@ -36,12 +36,15 @@ export const GET: APIRoute = async ({ params }) => {
   const c = res.data;
   const lines: string[] = [];
 
-  lines.push(c.name || 'Client');
-  if (c.company?.trim()) lines.push(c.company.trim());
+  lines.push(contactStringField(c.name) || 'Client');
+  const company = contactStringField(c.company);
+  if (company) lines.push(company);
   lines.push('');
 
-  if (c.phone?.trim()) lines.push(`Phone: ${c.phone.trim()}`);
-  if (c.email?.trim()) lines.push(`Email: ${c.email.trim()}`);
+  const phone = contactStringField(c.phone);
+  const email = contactStringField(c.email);
+  if (phone) lines.push(`Phone: ${phone}`);
+  if (email) lines.push(`Email: ${email}`);
   lines.push(`Portal: ${clientPortalUrl(uid)}`);
 
   if (portal?.headline?.trim() || portal?.body?.trim()) {
@@ -57,7 +60,10 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   if (isCraterConfigured()) {
-    const b = await craterGetClientBilling({ email: c.email ?? undefined, name: c.name });
+    const b = await craterGetClientBilling({
+      email: contactStringField(c.email) || undefined,
+      name: contactStringField(c.name) || undefined,
+    });
     if (b.ok && b.data) {
       const bill = b.data;
       if (bill.outstanding.length > 0) {

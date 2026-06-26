@@ -7,7 +7,7 @@
  * non-archived contact unless the portal has been explicitly revoked.
  */
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal, clientPortalUrl } from '../../lib/contactApi';
+import { getContact, extractPortal, clientPortalUrl, contactStringField } from '../../lib/contactApi';
 
 export const prerender = false;
 
@@ -37,16 +37,19 @@ export const GET: APIRoute = async ({ params, locals }) => {
   if (portal && portal.enabled === false) return new Response('Not found', { status: 404 });
 
   const c = res.data;
-  const first = (c.firstName ?? '').trim();
-  const last = (c.lastName ?? '').trim();
-  const full = (c.name ?? '').trim() || [first, last].filter(Boolean).join(' ') || 'Client';
+  const first = contactStringField(c.firstName);
+  const last = contactStringField(c.lastName);
+  const full = contactStringField(c.name) || [first, last].filter(Boolean).join(' ') || 'Client';
 
   const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
   lines.push(`N:${esc(last)};${esc(first)};;;`);
   lines.push(`FN:${esc(full)}`);
-  if (c.company?.trim()) lines.push(`ORG:${esc(c.company.trim())}`);
-  if (c.phone?.trim()) lines.push(`TEL;TYPE=CELL:${esc(c.phone.trim())}`);
-  if (c.email?.trim()) lines.push(`EMAIL;TYPE=INTERNET:${esc(c.email.trim())}`);
+  const company = contactStringField(c.company);
+  const phone = contactStringField(c.phone);
+  const email = contactStringField(c.email);
+  if (company) lines.push(`ORG:${esc(company)}`);
+  if (phone) lines.push(`TEL;TYPE=CELL:${esc(phone)}`);
+  if (email) lines.push(`EMAIL;TYPE=INTERNET:${esc(email)}`);
   lines.push(`URL:${esc(clientPortalUrl(uid))}`);
   lines.push('END:VCARD');
 

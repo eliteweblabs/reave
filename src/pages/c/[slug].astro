@@ -12,7 +12,15 @@
  * Tabs: Overview (headline/body/fields), Billing (Crater invoices), Data
  * (web-design handoff: passwords/DNS/hosting). Tabs only appear when populated.
  */
-import { getContact, extractPortal, type ContactRecord, type ClientPortal, type PortalDocument } from '../../lib/contactApi';
+import {
+  getContact,
+  extractPortal,
+  contactStringField,
+  contactTelHref,
+  type ContactRecord,
+  type ClientPortal,
+  type PortalDocument,
+} from '../../lib/contactApi';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -49,7 +57,10 @@ if (notFound) Astro.response.status = 404;
 // Billing from Crater (best-effort; skipped if not configured/matched).
 let billing: ClientBilling | null = null;
 if (contact && isCraterConfigured()) {
-  const b = await craterGetClientBilling({ email: contact.email ?? undefined, name: contact.name });
+  const b = await craterGetClientBilling({
+    email: contactStringField(contact.email) || undefined,
+    name: contactStringField(contact.name) || undefined,
+  });
   if (b.ok && b.data && (b.data.outstanding.length > 0 || b.data.previous.length > 0 || b.data.upcoming.length > 0)) {
     billing = b.data;
   }
@@ -79,8 +90,8 @@ function richText(s: string): string {
   return linked.replace(/\n/g, '<br />');
 }
 
-const displayName = contact?.name ?? 'Client';
-const company = contact?.company?.trim() || '';
+const displayName = contactStringField(contact?.name) || 'Client';
+const company = contactStringField(contact?.company);
 const headline = portal?.headline?.trim() || '';
 const bodyHtml = portal?.body?.trim() ? richText(portal.body.trim()) : '';
 const fields = (portal?.fields ?? []).filter((f) => f && f.label && f.value);
@@ -93,9 +104,9 @@ const portalDocs = (portal?.documents ?? [])
   .slice()
   .sort((a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime());
 
-const email = contact?.email?.trim() || '';
-const phone = contact?.phone?.trim() || '';
-const telHref = phone ? phone.replace(/[^\d+]/g, '') : '';
+const email = contactStringField(contact?.email);
+const phone = contactStringField(contact?.phone);
+const telHref = contactTelHref(contact?.phone);
 
 const updatedAt = fmtDate(portal?.updatedAt);
 

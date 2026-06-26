@@ -148,6 +148,39 @@ export type ContactRecord = {
   links?: ContactLink[];
 };
 
+/** Safe trim for contact-api fields (null/undefined/non-string → ''). */
+export function contactStringField(value: unknown): string {
+  if (value == null) return '';
+  return typeof value === 'string' ? value.trim() : String(value).trim();
+}
+
+/** Build a tel: href only when there are enough digits to dial. */
+export function contactTelHref(phone: unknown): string {
+  const stripped = contactStringField(phone).replace(/[^\d+]/g, '');
+  if (stripped.replace(/\D/g, '').length < 3) return '';
+  return stripped;
+}
+
+function nullableContactField(value: unknown): string | null {
+  if (value == null) return null;
+  const trimmed = contactStringField(value);
+  return trimmed || null;
+}
+
+/** Normalize contact-api string fields so null/non-string values never reach .trim() or regex. */
+export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
+  return {
+    ...contact,
+    name: contactStringField(contact.name) || contact.uid,
+    firstName: nullableContactField(contact.firstName),
+    lastName: nullableContactField(contact.lastName),
+    email: nullableContactField(contact.email),
+    phone: nullableContactField(contact.phone),
+    company: nullableContactField(contact.company),
+    notes: nullableContactField(contact.notes),
+  };
+}
+
 export type ClientPortalField = { label: string; value: string };
 
 /**
@@ -212,9 +245,9 @@ export function contactSummary(c: ContactRecord) {
   return {
     uid: c.uid,
     name: c.name,
-    email: c.email ?? '',
-    phone: c.phone ?? '',
-    company: c.company ?? '',
+    email: contactStringField(c.email),
+    phone: contactStringField(c.phone),
+    company: contactStringField(c.company),
     archived: !!c.archived,
     updatedAt: c.updatedAt ?? c.createdAt ?? '',
     portal_url: clientPortalUrl(c.uid),
@@ -255,7 +288,7 @@ export async function getContact(
     if (!contact || typeof contact !== 'object' || !contact.uid) {
       return { ok: false, error: 'Unexpected contact-api response' };
     }
-    return { ok: true, data: contact };
+    return { ok: true, data: normalizeContactRecord(contact) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
