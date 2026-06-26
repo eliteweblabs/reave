@@ -340,6 +340,29 @@ export const prerender = false;
         border-right: 1px solid var(--panel-border);
       }
 
+      #model-select {
+        font: inherit;
+        font-size: 0.72rem;
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--panel-border);
+        border-radius: 7px;
+        padding: 0.28rem 1.6rem 0.28rem 0.55rem;
+        max-width: 9.5rem;
+        cursor: pointer;
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+          linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+        background-position:
+          calc(100% - 12px) calc(50% + 1px),
+          calc(100% - 7px) calc(50% + 1px);
+        background-size: 5px 5px, 5px 5px;
+        background-repeat: no-repeat;
+      }
+      #model-select:hover:not(:disabled) { border-color: #3b82f6; }
+      #model-select:disabled { opacity: 0.55; cursor: default; }
+
       /* Profile button */
       .topbar-profile {
         display: inline-flex;
@@ -1143,6 +1166,15 @@ export const prerender = false;
         font-style: italic;
         padding: 0.25rem 0;
       }
+      .ch-model-badge {
+        margin-left: auto;
+        font-size: 0.68rem;
+        color: var(--muted);
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        white-space: nowrap;
+      }
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
         .ch-sidebar {
@@ -1165,6 +1197,9 @@ export const prerender = false;
       <div id="tabs"></div>
       <span class="spacer"></span>
       <div class="topbar-end">
+        <select id="model-select" style="display:none" aria-label="Agent model">
+          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+        </select>
         <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
         <span class="tb-icon tt-left" data-tooltip="Keep current — edit public/dev/os-map-data.js when the system changes.">⚠️</span>
         <a href="/admin/profile" class="topbar-profile tt-left" data-tooltip="Profile" aria-label="Profile">

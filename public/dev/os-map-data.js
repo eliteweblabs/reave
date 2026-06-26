@@ -33,7 +33,7 @@ const SYSTEM_NODES = [
   { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/dev/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 430, y: 160 },
 
   // External APIs
-  { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 120 },
+  { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages · /model or dashboard picker', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 120 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'projectCreate', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 260 },
   { id: 'resend', title: 'Resend', sub: 'inbound · marketing', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 400 },
   { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage', icon: '💬', brand: 'telegram', hue: 200, status: true, group: 'external', x: 1160, y: 540 },
@@ -186,10 +186,10 @@ const TG_NODES = [
 
   // Routing nodes
   { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
-  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · up to 25 rounds', icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
+  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · /model · up to 25 rounds', icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
 
   // Slash commands (one node per command or tight group)
-  { id: 'tc_cmd_util',      title: '/help · /clear',          sub: 'menu · wipe history (/reset alias)',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
+  { id: 'tc_cmd_util',      title: '/help · /clear · /model', sub: 'menu · wipe history · switch model',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
   { id: 'tc_cmd_knowledge', title: '/knowledge · /get',       sub: 'list & read knowledge docs (/start=/knowledge)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
   { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
   { id: 'tc_cmd_invoice',   title: '/invoices',               sub: 'list recent invoices',                      icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
@@ -204,7 +204,7 @@ const TG_NODES = [
 
   // External services reached
   { id: 'tc_svc_tg',        title: 'Telegram API',   sub: 'sendMessage · replies',      icon: '💬', brand: 'telegram',  hue: 200, group: 'tc_svc', x: 1260, y: 60   },
-  { id: 'tc_svc_anthropic',  title: 'Anthropic',      sub: 'Claude Messages API',        icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_svc', x: 1260, y: 300  },
+  { id: 'tc_svc_anthropic',  title: 'Anthropic',      sub: 'Claude Messages · runtime model',        icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_svc', x: 1260, y: 300  },
   { id: 'tc_svc_capi',       title: 'contact-api',    sub: 'contacts + portal data',     icon: '🧩', hue: 30,            group: 'tc_svc', x: 1260, y: 580  },
   { id: 'tc_svc_crater',     title: 'Crater',         sub: 'invoicing',                  icon: '🧾', hue: 0,             group: 'tc_svc', x: 1260, y: 820  },
   { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · write · PRs',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },

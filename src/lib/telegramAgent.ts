@@ -1,3 +1,4 @@
+import { resolveAgentModel } from './agentModel';
 import { buildTools, runTool } from './telegramToolDefs';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
@@ -38,14 +39,15 @@ function buildAnthropicTools(): Array<{
 export async function runTelegramKnowledgeAgent(opts: {
   userText: string;
   priorTurns?: TelegramChatTurn[];
+  model?: string | null;
 }): Promise<string> {
-  const { userText, priorTurns = [] } = opts;
+  const { userText, priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
     return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /knowledge, /get, /invoices, /resolve.';
   }
 
-  const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
+  const model = await resolveAgentModel(modelOverride);
   const tools = buildAnthropicTools();
 
   const sysParts = [

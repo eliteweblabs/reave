@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { getAgentModelSettings } from '../../lib/agentModel';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
@@ -145,6 +146,11 @@ export const GET: APIRoute = async () => {
     contactPg = { status: 'unknown', mode: 'derived', detail: 'contact-api unreachable' };
   }
 
+  const agentModel = await getAgentModelSettings();
+  const anthropicDetail = serverEnv('ANTHROPIC_API_KEY')
+    ? `model ${agentModel.model} (${agentModel.source})`
+    : undefined;
+
   const services: Record<string, Probe> = {
     astro: { status: 'up', mode: 'self', detail: 'serving this endpoint' },
     contact_api: contactProbe,
@@ -152,7 +158,7 @@ export const GET: APIRoute = async () => {
     crater: craterProbe,
     tg_api: tgProbe,
     anthropic: serverEnv('ANTHROPIC_API_KEY')
-      ? configured('ANTHROPIC_API_KEY set')
+      ? configured(anthropicDetail ?? 'ANTHROPIC_API_KEY set')
       : unconfigured('ANTHROPIC_API_KEY not set'),
     railway_gql: serverEnv('RAILWAY_API_TOKEN')
       ? configured('RAILWAY_API_TOKEN set')

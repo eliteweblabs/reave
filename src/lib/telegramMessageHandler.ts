@@ -1,4 +1,11 @@
 import { runTelegramKnowledgeAgent } from './telegramAgent';
+import {
+  formatAgentModelHelp,
+  getAgentModelSettings,
+  labelForAgentModel,
+  normalizeAgentModelInput,
+} from './agentModel';
+import { setStoredAgentModel } from './agentModelStore';
 import { reaveEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { storeListKnowledge, storeReadKnowledge } from './knowledgeStore';
@@ -756,6 +763,28 @@ async function handleSlashCommand(text: string): Promise<string | null> {
   // ── /registercommands (hidden admin) ───────────────────────────────────────
   if (t === '/registercommands') return '__REGISTER_COMMANDS__';
 
+  // ── /model [sonnet|opus|haiku|reset] ───────────────────────────────────────
+  if (t === '/model') {
+    return formatAgentModelHelp(await getAgentModelSettings());
+  }
+  const modelMatch = t.match(/^\/model\s+(.+)$/i);
+  if (modelMatch) {
+    const arg = modelMatch[1].trim();
+    if (/^reset$/i.test(arg)) {
+      const ok = await setStoredAgentModel(null);
+      if (!ok) return 'Could not reset model preference.';
+      const settings = await getAgentModelSettings();
+      return `Model reset. Now using ${settings.model} (${settings.source}).`;
+    }
+    const model = normalizeAgentModelInput(arg);
+    if (!model) {
+      return `Unknown model "${arg}". Try /model for options (sonnet, opus, haiku).`;
+    }
+    const ok = await setStoredAgentModel(model);
+    if (!ok) return 'Could not save model preference.';
+    return `Model set to ${model} (${labelForAgentModel(model)}).`;
+  }
+
   // ── /clear ─────────────────────────────────────────────────────────────────
   if (t === '/clear' || t === '/reset') return '__CLEAR_HISTORY__';
 
@@ -785,6 +814,7 @@ async function handleSlashCommand(text: string): Promise<string | null> {
       '/railway project <name>  — create project',
       '/knowledge   /get <slug>  — knowledge docs',
       '/clear  — clear chat history',
+      '/model  — switch Claude model (sonnet/opus/haiku)',
       '/commands  — browse commands with buttons',
       ...(hasTelnyx ? [
         '',

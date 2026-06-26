@@ -66,6 +66,8 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const message = String(body.message ?? '').trim();
   if (!message) return json({ ok: false, error: 'message is required' }, 400);
+  const modelOverride =
+    body.model == null || body.model === '' ? undefined : String(body.model);
 
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
@@ -74,6 +76,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const reply = await runTelegramKnowledgeAgent({
     userText: message,
     priorTurns: priorTurns(thread.messages),
+    model: modelOverride,
   });
 
   const saved = await storeAppendChatMessages(userId, id, [

@@ -111,6 +111,7 @@ const SLASH_COMMANDS = [
   { cmd: '/knowledge',                              desc: 'List bundled knowledge doc slugs' },
   { cmd: '/get <slug>',                             desc: 'Read a knowledge doc by slug' },
   { cmd: '/clear  (or /reset)',                     desc: 'Wipe this chat\'s history' },
+  { cmd: '/model [sonnet|opus|haiku|reset]',         desc: 'Show or switch the Claude model' },
 ];
 
 // ---------------------------------------------------------------------------

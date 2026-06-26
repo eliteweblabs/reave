@@ -129,6 +129,7 @@ function buildMap() {
   }
 
   buildLegend();
+  syncModelNodeLabels();
 }
 
 function setActiveMap(key) {
@@ -141,6 +142,7 @@ function setActiveMap(key) {
   saveActiveKey();
   updateTabs();
   syncCanvasVisibility();
+  syncModelSelectorVisibility();
   if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -266,6 +268,127 @@ function updateChecked() {
   }
   el.style.opacity = '1';
   el.dataset.tooltip = `Health checked at ${lastChecked.toLocaleTimeString()}`;
+}
+
+// ---- agent model picker (System / Chats / Telegram) ----
+const MODEL_TABS = new Set(['system', 'chats', 'telegram']);
+const MODEL_NODE_IDS = ['anthropic', 'tc_claude', 'tc_svc_anthropic'];
+
+let agentModelState = {
+  model: 'claude-sonnet-4-6',
+  source: 'default',
+  options: [],
+  loading: true,
+  saving: false,
+};
+
+function modelSelectEl() {
+  return document.getElementById('model-select');
+}
+
+function syncModelSelectorVisibility() {
+  const el = modelSelectEl();
+  if (!el) return;
+  el.style.display = MODEL_TABS.has(activeKey) ? '' : 'none';
+}
+
+function modelOptionLabel(opt) {
+  return opt.label || opt.id;
+}
+
+function renderModelSelectOptions() {
+  const el = modelSelectEl();
+  if (!el) return;
+  el.innerHTML = '';
+  for (const opt of agentModelState.options) {
+    const option = document.createElement('option');
+    option.value = opt.id;
+    option.textContent = modelOptionLabel(opt);
+    el.appendChild(option);
+  }
+  if (agentModelState.model && !agentModelState.options.some((o) => o.id === agentModelState.model)) {
+    const option = document.createElement('option');
+    option.value = agentModelState.model;
+    option.textContent = agentModelState.model;
+    el.appendChild(option);
+  }
+  el.value = agentModelState.model;
+  el.disabled = agentModelState.loading || agentModelState.saving;
+  el.title = agentModelState.loading
+    ? 'Loading model…'
+    : `Claude model (${agentModelState.source}) — chat, Telegram, dashboard agent`;
+}
+
+function syncModelNodeLabels() {
+  if (!agentModelState.model) return;
+  const label = modelOptionLabel(
+    agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
+  );
+  const bits = [`${label}`, agentModelState.source];
+  const sub = bits.join(' · ');
+  for (const id of MODEL_NODE_IDS) {
+    const node = byId.get(id);
+    if (node) node.sub = sub;
+    const el = nodeEls.get(id);
+    const subEl = el?.querySelector('.sub');
+    if (subEl) subEl.textContent = sub;
+  }
+}
+
+async function loadAgentModel() {
+  agentModelState.loading = true;
+  renderModelSelectOptions();
+  try {
+    const res = await fetch('/api/agent/model', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    agentModelState.model = data.model || agentModelState.model;
+    agentModelState.source = data.source || 'default';
+    agentModelState.options = data.options || [];
+  } catch (e) {
+    console.warn('[model] load failed:', e);
+  } finally {
+    agentModelState.loading = false;
+    renderModelSelectOptions();
+    syncModelNodeLabels();
+  }
+}
+
+async function saveAgentModel(model) {
+  if (!model || agentModelState.saving) return;
+  agentModelState.saving = true;
+  renderModelSelectOptions();
+  try {
+    const res = await fetch('/api/agent/model', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    agentModelState.model = data.model;
+    agentModelState.source = data.source || 'stored';
+    agentModelState.options = data.options || agentModelState.options;
+    syncModelNodeLabels();
+    if (activeKey === 'system') pollHealth();
+  } catch (e) {
+    alert(`Could not save model: ${e.message}`);
+    renderModelSelectOptions();
+  } finally {
+    agentModelState.saving = false;
+    renderModelSelectOptions();
+  }
+}
+
+function initModelSelector() {
+  const el = modelSelectEl();
+  if (!el || el.dataset.bound) return;
+  el.dataset.bound = '1';
+  el.addEventListener('change', () => {
+    if (el.value && el.value !== agentModelState.model) saveAgentModel(el.value);
+  });
+  loadAgentModel();
+  syncModelSelectorVisibility();
 }
 
 // ---- rendering ----
@@ -3125,6 +3248,13 @@ function renderChatPanel() {
   titleEl.className = 'de-doc-name';
   titleEl.textContent = chatState.title || 'Chat';
   header.appendChild(titleEl);
+  const modelBadge = document.createElement('span');
+  modelBadge.className = 'ch-model-badge';
+  modelBadge.textContent = modelOptionLabel(
+    agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
+  );
+  modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
+  header.appendChild(modelBadge);
   pane.appendChild(header);
 
   const messagesEl = document.createElement('div');
@@ -3270,6 +3400,7 @@ function saveActiveKey() {
 
 // ---- init ----
 buildTabs();
+initModelSelector();
 syncCanvasVisibility();
 if (MAP.type === 'documents') {
   loadDocumentsTab();
