@@ -45,6 +45,31 @@ export async function createContact(data: {
   return res.json();
 }
 
+export async function getContact(uid: string) {
+  const res = await fetch(`${BASE}/api/contacts/${uid}`, {
+    headers: headers(),
+  });
+  return res.json();
+}
+
+export async function updateContact(
+  uid: string,
+  data: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    notes?: string;
+  }
+) {
+  const res = await fetch(`${BASE}/api/contacts/${uid}`, {
+    method: "PUT",
+    headers: headers(),
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
 export async function deleteContact(uid: string) {
   const res = await fetch(`${BASE}/api/contacts/${uid}`, {
     method: "DELETE",
