@@ -1,6 +1,10 @@
 import type { APIRoute } from 'astro';
-import { deleteContact, isContactApiConfigured, updateContact } from '../../../lib/contactApi';
-import { getContactDeleteBlockers } from '../../../lib/contactDeleteGuard';
+import { isContactApiConfigured, updateContact } from '../../../lib/contactApi';
+import {
+  executeContactDelete,
+  getContactDeleteBlockers,
+  blockersToJson,
+} from '../../../lib/contactDeleteGuard';
 import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
@@ -13,6 +17,22 @@ function isDashboardAuthed(request: Request): boolean {
 
 const json = (body: object, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+export const GET: APIRoute = async ({ request, params, url }) => {
+  if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!isContactApiConfigured()) return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
+
+  const uid = params.uid?.trim();
+  if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
+
+  if (url.searchParams.get('preview') === 'delete') {
+    const blockers = await getContactDeleteBlockers(uid);
+    if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
+    return json({ ok: true, ...blockersToJson(blockers.data) });
+  }
+
+  return json({ ok: false, error: 'Not found' }, 404);
+};
 
 export const PATCH: APIRoute = async ({ request, params }) => {
   if (!isDashboardAuthed(request)) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -47,25 +67,17 @@ export const DELETE: APIRoute = async ({ request, params, url }) => {
   if (!uid) return json({ ok: false, error: 'uid is required' }, 400);
 
   const force = url.searchParams.get('force') === 'true';
-  const blockers = await getContactDeleteBlockers(uid);
-  if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
-
-  const { job_count, invoice_count, name } = blockers.data;
-  if ((job_count > 0 || invoice_count > 0) && !force) {
-    return json(
-      {
-        ok: false,
-        error: 'Contact has linked jobs or invoices',
-        job_count,
-        invoice_count,
-        contact_name: name,
-        hint: 'Re-send DELETE with ?force=true to confirm.',
-      },
-      409,
-    );
+  const result = await executeContactDelete(uid, { force, permanent: force });
+  if (!result.ok) {
+    const body: Record<string, unknown> = { ok: false, error: result.error };
+    if (result.blockers) Object.assign(body, blockersToJson(result.blockers));
+    return json(body, result.status ?? 502);
   }
-
-  const result = await deleteContact(uid);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true, contact_name: name });
+  return json({
+    ok: true,
+    contact_name: result.contact_name,
+    deleted_projects: result.deleted_projects,
+    already_archived: result.already_archived ?? false,
+    permanent: result.permanent ?? false,
+  });
 };

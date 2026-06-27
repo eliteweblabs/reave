@@ -18,6 +18,15 @@ export async function telegramSendMessage(
   chatId: number,
   text: string
 ): Promise<void> {
+  await telegramSendMessageReturningId(token, chatId, text);
+}
+
+/** Send a message; returns the message_id of the first chunk (for pinning/editing). */
+export async function telegramSendMessageReturningId(
+  token: string,
+  chatId: number,
+  text: string,
+): Promise<number | null> {
   const max = 3900;
   const chunks: string[] = [];
   for (let i = 0; i < text.length; i += max) {
@@ -25,6 +34,7 @@ export async function telegramSendMessage(
   }
   if (chunks.length === 0) chunks.push('(empty)');
 
+  let firstMessageId: number | null = null;
   for (const chunk of chunks) {
     const res = await fetch(`${TELEGRAM_API}/bot${token}/sendMessage`, {
       method: 'POST',
@@ -35,10 +45,41 @@ export async function telegramSendMessage(
         disable_web_page_preview: true,
       }),
     });
+    const errText = await res.text().catch(() => '');
     if (!res.ok) {
-      const errText = await res.text().catch(() => '');
       throw new Error(`Telegram sendMessage failed: ${res.status} ${errText}`);
     }
+    if (firstMessageId == null) {
+      try {
+        const json = JSON.parse(errText) as { result?: { message_id?: number } };
+        firstMessageId = json.result?.message_id ?? null;
+      } catch {
+        firstMessageId = null;
+      }
+    }
+  }
+  return firstMessageId;
+}
+
+/** Pin a message in a chat (requires bot admin with pin permission). */
+export async function telegramPinChatMessage(
+  token: string,
+  chatId: number,
+  messageId: number,
+  disableNotification = true,
+): Promise<void> {
+  const res = await fetch(`${TELEGRAM_API}/bot${token}/pinChatMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      disable_notification: disableNotification,
+    }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Telegram pinChatMessage failed: ${res.status} ${errText}`);
   }
 }
 

@@ -10,6 +10,8 @@ import { reaveEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { storeListKnowledge, storeReadKnowledge } from './knowledgeStore';
 import { telegramSendMessage, telegramAnswerCallback, telegramSendMenu, type MenuButton } from './telegramClient';
+import { prependDeployBanner } from './deployStatus';
+import { syncDeployStatusPin } from './telegramDeployPin';
 import { registerTelegramCommands } from './telegramCommandRegistry';
 import { getCommandMenuButtons, formatSectionForTelegram } from './telegramCommandDocs';
 import { listTemplates } from './documentTemplates';
@@ -456,6 +458,15 @@ async function sendResultWithBack(
   _messageId?: number | null
 ): Promise<void> {
   await telegramSendMenu(token, chatId, text, backRows(uid));
+}
+
+/** LLM agent reply with deploy banner (Option A) + pinned status sync (Option C). */
+async function sendAgentReply(token: string, chatId: number, reply: string): Promise<void> {
+  const text = await prependDeployBanner(reply);
+  await telegramSendMessage(token, chatId, text);
+  syncDeployStatusPin(token).catch((e) => {
+    console.warn('[telegram] deploy pin sync failed:', e instanceof Error ? e.message : e);
+  });
 }
 
 /** Portal-send buttons for a contact, gated on configured channel + contact field. */
@@ -1037,7 +1048,7 @@ export async function handleTelegramTextMessage(opts: {
       { role: 'user', content: userText },
       { role: 'assistant', content: reply },
     ]);
-    await telegramSendMessage(token, chatId, reply);
+    await sendAgentReply(token, chatId, reply);
     return;
   }
 
@@ -1269,7 +1280,7 @@ export async function handleTelegramTextMessage(opts: {
     { role: 'user', content: userText },
     { role: 'assistant', content: reply },
   ]);
-  await telegramSendMessage(token, chatId, reply);
+  await sendAgentReply(token, chatId, reply);
 }
 
 /** Handle Telegram inline keyboard button presses (callback_query). */

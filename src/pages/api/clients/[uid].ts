@@ -1,12 +1,11 @@
 import type { APIRoute } from 'astro';
 import {
   contactSummary,
-  deleteContact,
   getContact,
   isContactApiConfigured,
   updateContact,
 } from '../../../lib/contactApi';
-import { getContactDeleteBlockers } from '../../../lib/contactDeleteGuard';
+import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
 
@@ -17,7 +16,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async ({ params, locals, url }) => {
   const { userId } = locals.auth?.() ?? {};
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
   if (!isContactApiConfigured()) {
@@ -26,6 +25,12 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
+
+  if (url.searchParams.get('preview') === 'delete') {
+    const blockers = await getContactDeleteBlockers(uid);
+    if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
+    return json({ ok: true, ...blockersToJson(blockers.data) });
+  }
 
   const res = await getContact(uid);
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 404);
@@ -120,25 +125,17 @@ export const DELETE: APIRoute = async ({ params, locals, url }) => {
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   const force = url.searchParams.get('force') === 'true';
-  const blockers = await getContactDeleteBlockers(uid);
-  if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
-
-  const { job_count, invoice_count, name } = blockers.data;
-  if ((job_count > 0 || invoice_count > 0) && !force) {
-    return json(
-      {
-        ok: false,
-        error: 'Contact has linked jobs or invoices',
-        job_count,
-        invoice_count,
-        contact_name: name,
-        hint: 'Re-send DELETE with ?force=true to confirm.',
-      },
-      409,
-    );
+  const result = await executeContactDelete(uid, { force, permanent: force });
+  if (!result.ok) {
+    const body: Record<string, unknown> = { ok: false, error: result.error };
+    if (result.blockers) Object.assign(body, blockersToJson(result.blockers));
+    return json(body, result.status ?? 502);
   }
-
-  const result = await deleteContact(uid);
-  if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true, contact_name: name });
+  return json({
+    ok: true,
+    contact_name: result.contact_name,
+    deleted_projects: result.deleted_projects,
+    already_archived: result.already_archived ?? false,
+    permanent: result.permanent ?? false,
+  });
 };

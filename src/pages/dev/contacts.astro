@@ -107,6 +107,7 @@ const craterNames = new Set([
   ...craterCustomers.map((c) => (c.contact_name ?? '').trim().toLowerCase()).filter(Boolean),
 ]);
 const orphanedContacts = contacts.filter((c) => {
+  if (c.archived) return false;
   const email = (c.email ?? '').trim().toLowerCase();
   if (email && craterEmails.has(email)) return false;
   if (craterNames.has(c.name.trim().toLowerCase())) return false;
@@ -681,30 +682,88 @@ const fmtMoney = (n: number) =>
         btn.addEventListener('click', async () => {
           const uid = btn.dataset.uid || '';
           const name = btn.dataset.name || 'this contact';
-          if (!confirm(`Delete "${name}" from the master DB? This cannot be undone.`)) return;
-
           const card = btn.closest('.card') as HTMLElement | null;
           const msgEl = card?.querySelector<HTMLElement>('.import-msg');
 
-          btn.disabled = true;
-          if (msgEl) { msgEl.textContent = 'Deleting…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+          async function fetchDeletePreview(): Promise<Record<string, unknown>> {
+            const res = await fetch(`/api/contacts/${encodeURIComponent(uid)}?preview=delete`, {
+              headers: { 'x-dashboard-key': dashKey },
+            });
+            const data = (await res.json()) as Record<string, unknown> & { ok?: boolean; error?: string };
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            return data;
+          }
 
-          try {
-            const res = await fetch(`/api/contacts/${encodeURIComponent(uid)}`, {
+          function buildDeleteConfirmMessage(preview: Record<string, unknown>): string {
+            const lines: string[] = [];
+            const projectCount = Number(preview.project_count ?? preview.job_count ?? 0);
+            if (projectCount > 0) {
+              const projects = (preview.projects as Array<{ title?: string }> | undefined) ?? [];
+              const titles = projects.map((p) => p.title).filter(Boolean).slice(0, 8);
+              const list =
+                titles.join(', ') +
+                (projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '');
+              lines.push(`"${name}" has ${projectCount} attached project(s): ${list}.`);
+              lines.push('');
+              lines.push('Deleting this client will permanently delete all attached projects.');
+            } else {
+              lines.push(`Delete "${name}" from the master DB? This cannot be undone.`);
+            }
+            const invoiceCount = Number(preview.invoice_count ?? 0);
+            if (invoiceCount > 0) {
+              lines.push('');
+              lines.push(
+                `Note: ${invoiceCount} Crater invoice(s) will remain in billing (not deleted with the client).`,
+              );
+            }
+            return lines.join('\n');
+          }
+
+          async function tryDelete(force: boolean): Promise<boolean> {
+            if (!force) {
+              let preview: Record<string, unknown>;
+              try {
+                preview = await fetchDeletePreview();
+              } catch (e) {
+                alert(`Could not check linked projects: ${e instanceof Error ? e.message : String(e)}`);
+                return false;
+              }
+              if (!confirm(buildDeleteConfirmMessage(preview))) return false;
+              const needsForce =
+                Number(preview.project_count ?? preview.job_count ?? 0) > 0 ||
+                Number(preview.invoice_count ?? 0) > 0;
+              if (needsForce) return tryDelete(true);
+            }
+            btn.disabled = true;
+            if (msgEl) { msgEl.textContent = 'Deleting…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+            const qs = force ? '?force=true' : '';
+            const res = await fetch(`/api/contacts/${encodeURIComponent(uid)}${qs}`, {
               method: 'DELETE',
               headers: { 'x-dashboard-key': dashKey },
             });
-            const data = await res.json() as { ok: boolean; error?: string };
+            const data = await res.json() as {
+              ok: boolean;
+              error?: string;
+              warning?: string;
+            };
             if (data.ok) {
               if (card) {
                 card.style.opacity = '0.4';
                 card.style.pointerEvents = 'none';
               }
               if (msgEl) { msgEl.textContent = 'Deleted.'; msgEl.className = 'import-msg ok'; }
-            } else {
-              btn.disabled = false;
-              if (msgEl) { msgEl.textContent = data.error || 'Delete failed.'; msgEl.className = 'import-msg err'; }
+              return true;
             }
+            btn.disabled = false;
+            if (msgEl) {
+              msgEl.textContent = data.error || data.warning || 'Delete failed.';
+              msgEl.className = 'import-msg err';
+            }
+            return false;
+          }
+
+          try {
+            await tryDelete(false);
           } catch (e) {
             btn.disabled = false;
             if (msgEl) { msgEl.textContent = `Error: ${e instanceof Error ? e.message : String(e)}`; msgEl.className = 'import-msg err'; }

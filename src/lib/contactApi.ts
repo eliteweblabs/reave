@@ -443,27 +443,36 @@ export async function listContacts(opts: {
   }
 }
 
-/** Delete a contact by uid (DELETE /api/contacts/:uid). */
+/** Delete a contact by uid (DELETE /api/contacts/:uid). Soft-archives by default; ?permanent=true hard-deletes. */
 export async function deleteContact(
-  uid: string
-): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  uid: string,
+  opts?: { permanent?: boolean },
+): Promise<{ ok: true; already_archived?: boolean } | { ok: false; error: string; status?: number }> {
   const base = baseUrl();
   if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
   if (!uid?.trim()) return { ok: false, error: 'uid is required' };
 
+  const trimmed = uid.trim();
+  const qs = opts?.permanent ? '?permanent=true' : '';
+
   try {
-    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}`, {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(trimmed)}${qs}`, {
       method: 'DELETE',
       headers: authHeaders(),
     });
-    if (res.ok) return { ok: true };
     const text = await res.text().catch(() => '');
-    let msg: string;
+    let json: { error?: string; message?: string; already_archived?: boolean } = {};
     try {
-      const j = text ? (JSON.parse(text) as { error?: string; message?: string }) : {};
-      msg = j.error ?? j.message ?? text.slice(0, 200) ?? res.statusText;
+      json = text ? (JSON.parse(text) as typeof json) : {};
     } catch {
-      msg = text.slice(0, 200) || res.statusText;
+      json = {};
+    }
+    if (res.ok) {
+      return { ok: true, already_archived: json?.already_archived };
+    }
+    const msg = json?.error ?? json?.message ?? text.slice(0, 200) ?? res.statusText;
+    if (!opts?.permanent && res.status === 404 && /already archived/i.test(msg)) {
+      return { ok: true, already_archived: true };
     }
     return { ok: false, error: msg, status: res.status };
   } catch (e) {

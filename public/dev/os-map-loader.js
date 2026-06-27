@@ -3499,16 +3499,54 @@ async function saveClient(uid, payload) {
   }
 }
 
-async function deleteClient(uid, name) {
-  if (!confirm(`Delete client "${name}"? This cannot be undone.`)) return;
+async function fetchClientDeletePreview(uid) {
+  const res = await fetch(`/api/clients/${encodeURIComponent(uid)}?preview=delete`, { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+function buildClientDeleteConfirmMessage(name, preview) {
+  const lines = [];
+  const projectCount = preview.project_count ?? preview.job_count ?? 0;
+  if (projectCount > 0) {
+    const titles = (preview.projects || []).map((p) => p.title).slice(0, 8);
+    const list = titles.join(', ') + (projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '');
+    lines.push(`"${name}" has ${projectCount} attached project(s): ${list}.`);
+    lines.push('');
+    lines.push('Deleting this client will permanently delete all attached projects.');
+  } else {
+    lines.push(`Delete client "${name}"? This cannot be undone.`);
+  }
+  if ((preview.invoice_count ?? 0) > 0) {
+    lines.push('');
+    lines.push(`Note: ${preview.invoice_count} Crater invoice(s) will remain in billing (not deleted with the client).`);
+  }
+  return lines.join('\n');
+}
+
+async function deleteClient(uid, name, force = false) {
+  if (!force) {
+    let preview;
+    try {
+      preview = await fetchClientDeletePreview(uid);
+    } catch (e) {
+      alert(`Could not check linked projects: ${e.message}`);
+      return;
+    }
+    if (!confirm(buildClientDeleteConfirmMessage(name, preview))) return;
+    const needsForce = (preview.project_count ?? preview.job_count ?? 0) > 0 || (preview.invoice_count ?? 0) > 0;
+    if (needsForce) return deleteClient(uid, name, true);
+  }
   try {
-    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+    const qs = force ? '?force=true' : '';
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}${qs}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
     clientState.activeUid = null;
     clientState.dirty = false;
     clientState.draft = null;

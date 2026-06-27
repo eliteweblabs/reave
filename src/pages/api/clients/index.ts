@@ -38,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
   return json({
     ok: true,
     total: result.data.total,
-    clients: result.data.contacts.map(contactSummary),
+    clients: result.data.contacts.filter((c) => !c.archived).map(contactSummary),
   });
 }
 

@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   TELEGRAM_ALLOWED_USER_IDS?: string;
   /** Numeric chat id for Railway deploy-failure webhooks (often your Telegram user id for DMs) */
   TELEGRAM_DEPLOY_NOTIFY_CHAT_ID?: string;
+  /** Optional pinned deploy-status message id in TELEGRAM_DEPLOY_NOTIFY_CHAT_ID chat */
+  TELEGRAM_DEPLOY_PIN_MESSAGE_ID?: string;
   /** Optional: Anthropic (Claude) key for freeform tool-using replies */
   ANTHROPIC_API_KEY?: string;
   /** Optional: defaults to claude-sonnet-4-6 */

@@ -1,4 +1,6 @@
 import { telegramSendMessage } from './telegramClient';
+import { markDeployFailed } from './deployStatus';
+import { syncDeployStatusPin } from './telegramDeployPin';
 import { serverEnv } from './serverEnv';
 
 type RailwayWebhookBody = {
@@ -84,6 +86,12 @@ export async function handleRailwayWebhook(opts: {
   }
 
   const text = formatRailwayDeployAlert(body);
+  const svc = body.resource?.service?.name ?? 'service';
+  const proj = body.resource?.project?.name ?? 'project';
+  markDeployFailed(`Deploy failed — ${svc} (${proj})`);
   await telegramSendMessage(token, chatId, text);
+  syncDeployStatusPin(token).catch((e) => {
+    console.warn('[railway-webhook] deploy pin sync failed:', e instanceof Error ? e.message : e);
+  });
   return { ok: true, status: 200, message: 'sent' };
 }

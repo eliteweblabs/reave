@@ -22,14 +22,13 @@ import {
   type WorkPriority,
   type WorkStatus,
 } from './workStore';
-import { getContactDeleteBlockers } from './contactDeleteGuard';
+import { getContactDeleteBlockers, executeContactDelete } from './contactDeleteGuard';
 import {
   isContactApiConfigured,
   resolveContact,
   listContacts,
   createContact,
   updateContact,
-  deleteContact,
   getContact,
   setContactPortal,
   extractPortal,
@@ -1547,26 +1546,38 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!blockers.ok) return JSON.stringify({ error: blockers.error });
 
       const force = args.force === true;
-      const { name: contactName, job_count, invoice_count } = blockers.data;
-      if ((job_count > 0 || invoice_count > 0) && !force) {
+      const { name: contactName, project_count, invoice_count, projects } = blockers.data;
+      if ((project_count > 0 || invoice_count > 0) && !force) {
+        const projectWarn = project_count > 0
+          ? `"${contactName}" has ${project_count} attached project(s). Deleting this client will permanently delete all attached projects.`
+          : null;
         return JSON.stringify({
           blocked: true,
-          reason: 'linked_records',
+          reason: project_count > 0 ? 'linked_projects' : 'linked_invoices',
           uid,
           contact_name: contactName,
-          job_count,
+          project_count,
+          job_count: project_count,
           invoice_count,
-          hint: 'Warn the user, then re-call delete_contact with the same uid and force:true to confirm.',
+          projects,
+          warning: projectWarn,
+          hint: project_count > 0
+            ? 'Warn the user that all attached projects will be deleted, then re-call delete_contact with force:true to confirm.'
+            : 'Warn the user about linked invoices, then re-call delete_contact with force:true to confirm.',
         });
       }
 
-      const result = await deleteContact(uid);
+      const result = await executeContactDelete(uid, { force, permanent: force });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      const verb = force ? 'Permanently deleted' : result.already_archived ? 'Already removed' : 'Archived';
       return JSON.stringify({
         success: true,
-        message: `Deleted contact "${contactName}" (archived in master DB).`,
+        message: `${verb} contact "${contactName}"${result.deleted_projects ? ` and ${result.deleted_projects} attached project(s)` : ''}.`,
         uid,
         contact_name: contactName,
+        deleted_projects: result.deleted_projects,
+        permanent: force,
+        already_archived: result.already_archived ?? false,
       });
     }
     if (name === 'set_client_portal') {
