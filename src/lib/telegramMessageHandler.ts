@@ -6,7 +6,7 @@ import {
   normalizeAgentModelInput,
 } from './agentModel';
 import { setStoredAgentModel } from './agentModelStore';
-import { reaveEmailHtml } from './emailTemplates';
+import { brandedEmailHtml } from './emailTemplates';
 import { appendChatTurns, clearChatHistory, getChatHistory } from './telegramChatHistory';
 import { storeListKnowledge, storeReadKnowledge } from './knowledgeStore';
 import { telegramSendMessage, telegramAnswerCallback, telegramSendMenu, type MenuButton } from './telegramClient';
@@ -336,7 +336,7 @@ async function deliverPortal(
     }
     const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
     const bodyText = `Hi ${firstName},\n\nHere's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\nTip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-    const html = reaveEmailHtml({
+    const html = await brandedEmailHtml({
       firstName,
       paragraphs: ["Here's your personal client page — your details and any outstanding invoices live here:"],
       cta: { label: 'Open your client page', url },
@@ -409,7 +409,7 @@ async function deliverInvoice(
   if (useEmail) {
     const subject = `Invoice ${inv.invoice_number}`;
     const bodyText = `Hi ${firstName},\n\nHere's your invoice ${inv.invoice_number} for ${amount}:\n\n${link}\n\nThank you!`;
-    const html = reaveEmailHtml({
+    const html = await brandedEmailHtml({
       firstName,
       paragraphs: [`Here's your invoice ${inv.invoice_number} for ${amount}:`],
       cta: { label: `View invoice — ${amount}`, url: link },

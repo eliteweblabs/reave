@@ -73,11 +73,13 @@ export function requireCardDavAuth(request: Request): CardDavAuth | Response {
     return { username: creds.username, method: 'token' };
   }
 
+  const realmName = serverEnv('COMPANY_NAME')?.trim() || 'CardDAV';
+
   return new Response('Unauthorized', {
     status: 401,
     headers: {
       'Content-Type': 'text/plain',
-      'WWW-Authenticate': 'Basic realm="Reave CardDAV"',
+      'WWW-Authenticate': `Basic realm="${realmName} CardDAV"`,
     },
   });
 }

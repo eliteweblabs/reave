@@ -6,10 +6,12 @@
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
 import Favicon from "../../components/Favicon.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
 
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
+const company = await getCompanyConfig(Astro.request);
 ---
 
 <!doctype html>
@@ -1830,8 +1832,8 @@ const { userId } = Astro.locals.auth();
   </head>
   <body data-user-id={userId ?? ""}>
     <div id="topbar">
-      <a href="/" class="brand" aria-label="Reave">
-        <img class="brand-img" src="/reave-logo.png" alt="Reave" />
+      <a href="/" class="brand" aria-label={company.name}>
+        <img class="brand-img" src={company.logoPath} alt={company.name} />
       </a>
       <div id="tabs-scroll"><div id="tabs"></div></div>
       <span class="spacer"></span>

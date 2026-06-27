@@ -19,8 +19,9 @@ import {
   type PortalDocument,
 } from '../../../../lib/contactApi';
 import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
+import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
-import { reaveEmailHtml } from '../../../../lib/emailTemplates';
+import { brandedEmailHtml } from '../../../../lib/emailTemplates';
 import { telegramSendMessage } from '../../../../lib/telegramClient';
 import { serverEnv } from '../../../../lib/serverEnv';
 
@@ -61,8 +62,9 @@ function buildSignatureBlock(opts: {
   ip: string;
   userAgent: string;
   contentHash: string;
+  companyName: string;
 }): string {
-  const { docId, signerName, signedAt, consentAt, ip, userAgent, contentHash } = opts;
+  const { docId, signerName, signedAt, consentAt, ip, userAgent, contentHash, companyName } = opts;
   const dateStr = fmtDateLong(signedAt);
 
   const row = (label: string, value: string) =>
@@ -84,7 +86,7 @@ function buildSignatureBlock(opts: {
     <div style="width:100px;height:100px;border:2.5px solid #166534;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;transform:rotate(-12deg)">
       <div style="text-align:center;line-height:1.4">
         <div style="font-weight:800;font-size:13px;color:#166534;letter-spacing:2px">SIGNED</div>
-        <div style="font-size:10px;color:#166534;letter-spacing:1px">via Reave Automated</div>
+        <div style="font-size:10px;color:#166534;letter-spacing:1px">via ${escHtml(companyName)}</div>
       </div>
     </div>
   </div>
@@ -180,13 +182,24 @@ export const POST: APIRoute = async ({ params, request }) => {
   const signedAt  = new Date().toISOString();
   const consentAt = signedAt; // consent was recorded in the same request
 
+  const company = await getCompanyConfig(request);
+
   // ── Fill template + hash ───────────────────────────────────────────────────
-  const filledHtml  = fillTemplate(tmpl.html, contactRes.data);
+  const filledHtml  = fillTemplate(tmpl.html, contactRes.data, company);
   const contentHash = createHash('sha256').update(filledHtml, 'utf8').digest('hex');
 
   // ── Bake in signature block + audit table ──────────────────────────────────
   const docId = crypto.randomUUID();
-  const sigBlock = buildSignatureBlock({ docId, signerName, signedAt, consentAt, ip, userAgent, contentHash });
+  const sigBlock = buildSignatureBlock({
+    docId,
+    signerName,
+    signedAt,
+    consentAt,
+    ip,
+    userAgent,
+    contentHash,
+    companyName: company.name,
+  });
   const fullContent = filledHtml + '\n' + sigBlock;
 
   const doc: PortalDocument = {
@@ -231,9 +244,9 @@ export const POST: APIRoute = async ({ params, request }) => {
         `Date: ${fmtDateLong(signedAt)}`,
         `Document ID: ${docId}`,
         '',
-        'Powered by Reave Automated',
+        poweredByLabel(company),
       ].join('\n'),
-      html: reaveEmailHtml({
+      html: await brandedEmailHtml({
         firstName: signerFirstName,
         paragraphs: [`You have electronically signed "${tmpl.title}".`],
         cta: { label: 'View & download your signed copy', url: viewUrl },

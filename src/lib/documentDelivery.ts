@@ -7,7 +7,7 @@
  */
 import type { ContactRecord } from './contactApi';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
-import { reaveEmailHtml } from './emailTemplates';
+import { brandedEmailHtml } from './emailTemplates';
 
 export type SendDocumentResult =
   | { ok: true; channel: 'email' | 'sms'; dest: string }
@@ -27,7 +27,7 @@ export async function sendDocumentLink(opts: {
     if (!c.email) return { ok: false, error: `${c.name} has no email on file. Add one first.` };
     const subject = `Please review and sign: ${docTitle}`;
     const bodyText = `Hi ${firstName},\n\nPlease review and sign this document:\n\n${docUrl}\n\nYou can read and sign it from any device. Once signed, it appears in your portal under Documents.`;
-    const html = reaveEmailHtml({
+    const html = await brandedEmailHtml({
       firstName,
       paragraphs: [`Please review and sign the following document:`, `"${docTitle}"`],
       cta: { label: 'Review & sign document', url: docUrl },

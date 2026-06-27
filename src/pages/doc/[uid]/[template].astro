@@ -8,8 +8,12 @@
  * On success the page shows a confirmation and "View & Download PDF" link.
  */
 import { getContact, extractPortal } from '../../../lib/contactApi';
+import { getCompanyConfig, poweredByLabel } from '../../../lib/companyConfig';
 import { getTemplate, fillTemplate } from '../../../lib/documentTemplates';
 import Favicon from '../../../components/Favicon.astro';
+
+const company = await getCompanyConfig(Astro.request);
+const poweredBy = poweredByLabel(company);
 
 const { uid, template: templateSlug } = Astro.params;
 
@@ -42,7 +46,7 @@ if (!uid || !templateSlug) {
         if (existing) {
           alreadySignedUrl = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/view/${existing.id}`;
         }
-        filled = fillTemplate(tmpl.html, contactRes.data);
+        filled = fillTemplate(tmpl.html, contactRes.data, company);
         title = tmpl.title;
         contactName = contactRes.data.name;
       }
@@ -71,14 +75,14 @@ const siteBase = Astro.url.origin;
   <body>
     {error ? (
       <main class="error-wrap">
-        <div class="logo">Reave Automated</div>
+        <div class="logo">{company.name}</div>
         <h1>This link isn't available</h1>
         <p>{error}</p>
       </main>
     ) : (
       <main>
         <div class="doc-header">
-          <div class="logo">Reave Automated</div>
+          <div class="logo">{company.name}</div>
           <div class="doc-header-text">
             <div class="doc-title">{title}</div>
             <div class="doc-for">Prepared for {contactName}</div>
@@ -128,7 +132,7 @@ const siteBase = Astro.url.origin;
             <button class="sign-btn" id="sign-btn" type="button" disabled>Sign &amp; Agree</button>
 
             <p class="sign-legal">
-              Signed electronically via Reave Automated · {siteBase}
+              Signed electronically via {company.name} · {siteBase}
             </p>
           </div>
         )}
@@ -143,7 +147,7 @@ const siteBase = Astro.url.origin;
         </div>
 
         <footer class="doc-foot">
-          <span>Powered by Reave Automated</span>
+          <span>{poweredBy}</span>
         </footer>
       </main>
     )}

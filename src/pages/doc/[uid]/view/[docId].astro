@@ -11,8 +11,12 @@
  * "Save as PDF" natively. Print CSS hides UI chrome so only the document prints.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
+import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import Header from '../../../../components/Header.astro';
 import Favicon from '../../../../components/Favicon.astro';
+
+const company = await getCompanyConfig(Astro.request);
+const poweredBy = poweredByLabel(company);
 
 const { uid, docId } = Astro.params;
 
@@ -105,7 +109,7 @@ const fmtDate = (iso: string) => {
         </div>
 
         <div class="doc-header">
-          <div class="logo print-only">Reave Automated</div>
+          <div class="logo print-only">{company.name}</div>
           <div class="doc-header-text">
             <div class="doc-title">{title}</div>
             <div class="doc-for">Prepared for {contactName}</div>
@@ -127,7 +131,7 @@ const fmtDate = (iso: string) => {
               <div class="sig-stamp">
                 <div class="stamp-inner">
                   <div class="stamp-signed">SIGNED</div>
-                  <div class="stamp-via">via Reave Automated</div>
+                  <div class="stamp-via">via {company.name}</div>
                 </div>
               </div>
             </div>
@@ -151,7 +155,7 @@ const fmtDate = (iso: string) => {
 
         <footer class="doc-foot">
           <span>Document ID: {docId}</span>
-          <span>Powered by Reave Automated</span>
+          <span>{poweredBy}</span>
         </footer>
       </main>
     )}

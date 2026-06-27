@@ -3,13 +3,15 @@
  */
 import type { APIRoute } from 'astro';
 import { SITE } from '../../config/site';
+import { getCompanyConfig } from '../../lib/companyConfig';
 
 export const prerender = false;
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ request }) => {
+  const company = await getCompanyConfig(request);
   const manifest = {
-    name: 'Reave Business OS',
-    short_name: 'Reave',
+    name: company.name ? `${company.name} Business OS` : 'Business OS',
+    short_name: company.name || 'Business OS',
     description: 'Business OS — inbox, jobs, contacts',
     start_url: '/admin?tab=chats',
     scope: '/admin',

@@ -6,11 +6,14 @@
  * Layout.astro reads from here; update this file to change site-wide branding.
  */
 export const SITE = {
-  /** Short display name used in <title> and og:site_name. */
-  name: "Reave Automated",
+  /** Fallback display name when company details are not configured yet. */
+  name: "Business OS",
 
-  /** Default meta description for pages that don't supply their own. */
-  description: "Reave Automated",
+  /** Fallback meta description when company details are not configured yet. */
+  description: "Automated client communication platform",
+
+  /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
+  logoPath: "/logo.png",
 
   /** Default OG / Twitter card image — animated GIF, 600×315, 3.1 MB. */
   ogImage: "/og-image.gif",

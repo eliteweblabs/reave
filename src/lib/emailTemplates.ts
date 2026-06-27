@@ -1,11 +1,12 @@
 /**
- * Branded HTML email templates for all outbound Reave emails.
+ * Branded HTML email templates for all outbound emails.
  * Uses table-based layout for maximum email-client compatibility
  * (Gmail, Apple Mail, Outlook). Supports prefers-color-scheme so
  * Apple Mail and modern mobile clients render in dark or light mode
  * automatically; inline styles provide the light-mode fallback for
  * clients that strip <style> blocks (Gmail, older Outlook).
  */
+import { getCompanyConfig } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 
 function esc(s: string): string {
@@ -20,7 +21,7 @@ export type EmailCta = { label: string; url: string };
 export type EmailMetaRow = [string, string];
 
 /**
- * Wraps email content in the Reave branded wrapper.
+ * Wraps email content in the organization branded wrapper.
  *
  * @param firstName  - Recipient's first name for the greeting
  * @param paragraphs - Body paragraphs (plain text, auto-escaped)
@@ -28,16 +29,18 @@ export type EmailMetaRow = [string, string];
  * @param metaRows   - Optional metadata table rows (e.g. "Signed by", "Date")
  * @param note       - Optional small gray footnote (plain text, auto-escaped)
  */
-export function reaveEmailHtml(opts: {
+export async function brandedEmailHtml(opts: {
   firstName: string;
   paragraphs: string[];
   cta?: EmailCta;
   metaRows?: EmailMetaRow[];
   note?: string;
-}): string {
+}): Promise<string> {
+  const company = await getCompanyConfig();
   const base = siteBaseUrl();
-  const logoUrl = `${base}/reave-logo.png`;
+  const logoUrl = `${base}${company.logoPath.startsWith('/') ? company.logoPath : `/${company.logoPath}`}`;
   const homeUrl = base;
+  const brandName = company.name || 'Business OS';
 
   const bodyRows = opts.paragraphs
     .map(
@@ -91,7 +94,7 @@ export function reaveEmailHtml(opts: {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <title>Reave Automated</title>
+  <title>${esc(brandName)}</title>
   <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
   <style>
     /* ── Dark mode overrides (Apple Mail, Samsung Mail, Outlook iOS/Android) ── */
@@ -121,7 +124,7 @@ export function reaveEmailHtml(opts: {
           <tr>
             <td style="background-color:#09090b;padding:22px 32px;border-radius:12px 12px 0 0" align="center">
               <a href="${esc(homeUrl)}" style="text-decoration:none;display:inline-block">
-                <img src="${esc(logoUrl)}" alt="Reave" width="88" height="28"
+                <img src="${esc(logoUrl)}" alt="${esc(brandName)}" width="88" height="28"
                      style="display:block;width:88px;height:auto;border:0;outline:none;text-decoration:none"
                      onerror="this.style.display='none'" />
               </a>
@@ -160,7 +163,7 @@ export function reaveEmailHtml(opts: {
           <tr>
             <td style="padding:20px 32px;text-align:center">
               <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
-                Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">Reave Automated</a>
+                Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">${esc(brandName)}</a>
               </p>
             </td>
           </tr>
@@ -172,3 +175,6 @@ export function reaveEmailHtml(opts: {
 </body>
 </html>`;
 }
+
+/** @deprecated Use brandedEmailHtml */
+export const reaveEmailHtml = brandedEmailHtml;

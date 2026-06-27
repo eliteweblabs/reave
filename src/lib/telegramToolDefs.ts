@@ -69,7 +69,7 @@ import {
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
-import { reaveEmailHtml } from './emailTemplates';
+import { brandedEmailHtml } from './emailTemplates';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
@@ -1694,7 +1694,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
           `${intro}Hi ${firstName},\n\n` +
           `Here's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\n` +
           `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-        const html = reaveEmailHtml({
+        const html = await brandedEmailHtml({
           firstName,
           paragraphs: [
             ...introLines,

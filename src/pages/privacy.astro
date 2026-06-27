@@ -1,26 +1,31 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const siteUrl = company.domain ? `https://${company.domain}` : Astro.url.origin;
+const supportMail = company.supportEmail || (company.domain ? `support@${company.domain}` : "");
 ---
 
 <Layout
   title="Privacy Policy"
-  description="Privacy Policy for Reave Automated — how we collect, use, and protect your information."
+  description={`Privacy Policy for ${company.name} — how we collect, use, and protect your information.`}
 >
   <div class="page">
     <div class="doc">
       <div class="doc-header">
         <p class="doc-label">Legal</p>
         <h1>Privacy Policy</h1>
-        <p class="doc-meta">Reave Automated &mdash; Last updated June 16, 2025</p>
+        <p class="doc-meta">{company.name} &mdash; Last updated June 16, 2025</p>
       </div>
 
       <div class="doc-body">
         <section>
           <h2>1. Overview</h2>
           <p>
-            Reave Automated ("Reave," "we," "us," or "our") operates the platform available at
-            reave.app. This Privacy Policy explains what information we collect, how we use it, and
-            the choices you have. By using Reave you agree to the practices described here.
+            {company.legalName || company.name} ("we," "us," or "our") operates the platform available at
+            {company.domain ? ` ${company.domain}` : ' this website'}. This Privacy Policy explains what information we collect, how we use it, and
+            the choices you have. By using {company.name} you agree to the practices described here.
           </p>
         </section>
 
@@ -41,13 +46,16 @@ import Layout from "../layouts/Layout.astro";
         <section>
           <h2>3. SMS Communications</h2>
           <p>
-            When you request information through the Reave platform, we may send you a transactional
+            When you request information through the {company.name} platform, we may send you a transactional
             SMS message to the phone number you provide. These messages are sent only in direct
             response to your explicit request — we do not send marketing or promotional SMS.
           </p>
           <p>
             You can opt out of SMS at any time by replying <strong>STOP</strong> to any message. For
-            help, reply <strong>HELP</strong> or contact us at <a href="mailto:support@reave.app">support@reave.app</a>.
+            help, reply <strong>HELP</strong>
+            {supportMail ? (
+              <> or contact us at <a href={`mailto:${supportMail}`}>{supportMail}</a></>
+            ) : null}.
             Message and data rates may apply.
           </p>
         </section>
@@ -92,8 +100,10 @@ import Layout from "../layouts/Layout.astro";
           <h2>8. Your Rights</h2>
           <p>
             Depending on your location, you may have the right to access, correct, or delete your
-            personal data. To exercise any of these rights, contact us at
-            <a href="mailto:support@reave.app">support@reave.app</a>.
+            personal data. To exercise any of these rights, contact us
+            {supportMail ? (
+              <> at <a href={`mailto:${supportMail}`}>{supportMail}</a></>
+            ) : ' through the platform'}.
           </p>
         </section>
 
@@ -109,8 +119,13 @@ import Layout from "../layouts/Layout.astro";
         <section>
           <h2>10. Contact</h2>
           <p>
-            Questions? Reach us at <a href="mailto:support@reave.app">support@reave.app</a> or visit
-            <a href="https://reave.app">reave.app</a>.
+            Questions?
+            {supportMail ? (
+              <> Reach us at <a href={`mailto:${supportMail}`}>{supportMail}</a></>
+            ) : ' Contact us through the platform.'}
+            {company.domain ? (
+              <> or visit <a href={siteUrl}>{company.domain}</a>.</>
+            ) : '.'}
           </p>
         </section>
       </div>
@@ -119,15 +134,17 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <style>
-  html,
-  body {
+  * { box-sizing: border-box; }
+
+  :global(html),
+  :global(body) {
     background: #050505;
+    color: #e5e5e5;
   }
 
   .page {
     min-height: 100vh;
-    background: #050505;
-    padding: 80px 24px 120px;
+    padding: calc(64px + 48px) 24px 80px;
     display: flex;
     justify-content: center;
   }
@@ -138,94 +155,70 @@ import Layout from "../layouts/Layout.astro";
   }
 
   .doc-header {
-    margin-bottom: 56px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    padding-bottom: 40px;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
 
   .doc-label {
     font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.18em;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.35);
-    margin: 0 0 16px;
+    color: #a855f7;
+    margin: 0 0 12px;
   }
 
   h1 {
-    font-size: clamp(28px, 5vw, 42px);
+    font-size: 32px;
     font-weight: 700;
     color: #fff;
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     letter-spacing: -0.02em;
   }
 
   .doc-meta {
     font-size: 14px;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(255,255,255,0.4);
     margin: 0;
   }
 
-  .doc-body {
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
-  }
-
-  section {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  .doc-body section {
+    margin-bottom: 32px;
   }
 
   h2 {
-    font-size: 16px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.9);
-    margin: 0;
-    letter-spacing: 0.01em;
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 12px;
   }
 
   h3 {
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.55);
-    margin: 8px 0 0;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    color: rgba(255,255,255,0.85);
+    margin: 16px 0 8px;
   }
 
-  p {
+  p, li {
     font-size: 15px;
-    line-height: 1.75;
-    color: rgba(255, 255, 255, 0.6);
-    margin: 0;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.75);
+    margin: 0 0 12px;
   }
 
   ul {
-    margin: 0;
     padding-left: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  li {
-    font-size: 15px;
-    line-height: 1.75;
-    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 12px;
   }
 
   a {
-    color: rgba(255, 255, 255, 0.85);
-    text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.25);
-    text-underline-offset: 3px;
-    transition: color 0.15s, text-decoration-color 0.15s;
+    color: #a855f7;
+    text-decoration: none;
   }
 
-  a:hover {
-    color: #fff;
-    text-decoration-color: rgba(255, 255, 255, 0.6);
-  }
+  a:hover { text-decoration: underline; }
+
+  strong { color: rgba(255,255,255,0.9); }
 </style>

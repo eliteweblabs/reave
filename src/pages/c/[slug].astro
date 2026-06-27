@@ -21,9 +21,13 @@ import {
   type ClientPortal,
   type PortalDocument,
 } from '../../lib/contactApi';
+import { getCompanyConfig, poweredByLabel } from '../../lib/companyConfig';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
+
+const org = await getCompanyConfig(Astro.request);
+const poweredBy = poweredByLabel(org);
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -198,7 +202,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           </div>
 
           <footer class="foot">
-            <span class="brand">Powered by Reave Automated</span>
+            <span class="brand">{poweredBy}</span>
           </footer>
         </main>
       ) : (
@@ -381,7 +385,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           <footer class="foot">
             {updatedAt && <span>Updated {updatedAt}</span>}
-            <span class="brand">Powered by Reave Automated</span>
+            <span class="brand">{poweredBy}</span>
           </footer>
         </main>
       )

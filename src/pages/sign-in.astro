@@ -3,6 +3,9 @@ import { SignIn } from "@clerk/astro/components";
 import { dark } from "@clerk/ui/themes";
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
 ---
 
 <!doctype html>
@@ -13,7 +16,7 @@ import Favicon from "../components/Favicon.astro";
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <title>Sign In — Reave Automated</title>
+    <title>Sign In — {company.name}</title>
     <Favicon />
   </head>
   <body>

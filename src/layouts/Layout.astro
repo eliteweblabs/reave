@@ -2,16 +2,17 @@
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
 import { SITE } from "../config/site";
+import { getCompanyConfig } from "../lib/companyConfig";
 import { requestOrigin } from "../lib/requestOrigin";
 
 export interface Props {
-  /** Page-specific title. Rendered as "Page | Reave Automated". Omit to show just "Reave Automated". */
+  /** Page-specific title. Rendered as "Page | {company name}". Omit to show just the company name. */
   title?: string;
   /** Meta description for search results and OG cards. */
   description?: string;
   /**
    * Absolute or root-relative path to the OG / social-share image.
-   * Defaults to SITE.ogImage (/reave-logo.png).
+   * Defaults to SITE.ogImage.
    */
   ogImage?: string;
   /** OG type. Defaults to "website". */
@@ -27,14 +28,16 @@ export interface Props {
 
 const {
   title,
-  description = SITE.description,
+  description: descriptionProp,
   ogImage = SITE.ogImage,
   ogType = SITE.ogType,
   canonicalUrl,
   noIndex = false,
 } = Astro.props;
 
-const pageTitle = title ? `${title} | ${SITE.name}` : SITE.name;
+const company = await getCompanyConfig(Astro.request);
+const description = descriptionProp ?? company.description;
+const pageTitle = title ? `${title} | ${company.name}` : company.name;
 const origin = requestOrigin(Astro.request);
 const canonical =
   canonicalUrl ?? `${origin}${Astro.url.pathname}${Astro.url.search}`;
@@ -72,7 +75,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageAbsolute} />
-		<meta property="og:site_name" content={SITE.name} />
+		<meta property="og:site_name" content={company.name} />
 
 		<!-- Twitter Card -->
 		<meta name="twitter:card" content="summary_large_image" />

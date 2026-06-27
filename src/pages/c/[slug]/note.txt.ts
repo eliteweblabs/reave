@@ -11,13 +11,14 @@
  */
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, clientPortalUrl, contactStringField } from '../../../lib/contactApi';
+import { getCompanyConfig } from '../../../lib/companyConfig';
 import { isCraterConfigured, craterGetClientBilling } from '../../../lib/craterClient';
 
 export const prerender = false;
 
 const money = (n: number) => `$${Number(n).toFixed(2)}`;
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, request }) => {
   const uid = (params.slug ?? '').trim();
   const notFound = () =>
     new Response('This client page is not available.\n', {
@@ -37,8 +38,8 @@ export const GET: APIRoute = async ({ params }) => {
   const lines: string[] = [];
 
   lines.push(contactStringField(c.name) || 'Client');
-  const company = contactStringField(c.company);
-  if (company) lines.push(company);
+  const contactCompany = contactStringField(c.company);
+  if (contactCompany) lines.push(contactCompany);
   lines.push('');
 
   const phone = contactStringField(c.phone);
@@ -88,7 +89,9 @@ export const GET: APIRoute = async ({ params }) => {
   }
 
   lines.push('');
-  lines.push(`Updated ${new Date().toLocaleString('en-US')} · via Reave Automated`);
+  const org = await getCompanyConfig(request);
+  const viaLabel = org.name ? `via ${org.name}` : 'via platform';
+  lines.push(`Updated ${new Date().toLocaleString('en-US')} · ${viaLabel}`);
 
   return new Response(lines.join('\n') + '\n', {
     headers: {

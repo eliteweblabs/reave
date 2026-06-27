@@ -2,6 +2,7 @@
  * Outbound client messaging — send email (Resend) and SMS (Telnyx).
  * Used to deliver client portal links to clients on their own device.
  */
+import { resolveEmailFrom } from './companyConfig';
 import { serverEnv } from './serverEnv';
 import { sendTelnyxSms } from './telnyxClient';
 
@@ -15,11 +16,6 @@ export function isSmsSendConfigured(): boolean {
   return Boolean(serverEnv('TELNYX_API_KEY') && serverEnv('TELNYX_FROM_NUMBER'));
 }
 
-/** Default verified sender; override with RESEND_FROM (e.g. "Reave Automated <hi@reave.app>"). */
-function emailFrom(): string {
-  return serverEnv('RESEND_FROM')?.trim() || 'Reave Automated <noreply@reave.app>';
-}
-
 export async function sendEmail(opts: {
   to: string;
   subject: string;
@@ -31,12 +27,17 @@ export async function sendEmail(opts: {
   const to = opts.to.trim();
   if (!to) return { ok: false, error: 'recipient email is required' };
 
+  const from = await resolveEmailFrom();
+  if (!from) {
+    return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
+  }
+
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: emailFrom(),
+        from,
         to: [to],
         subject: opts.subject,
         text: opts.text,

@@ -1,4 +1,5 @@
 import type { ContactRecord } from './contactApi';
+import type { CompanyConfig } from './companyConfig';
 
 // Load all HTML templates at build time (Vite eager glob).
 // Path is relative to this file: src/lib/ → src/content/documents/
@@ -17,7 +18,7 @@ export type Shortcode = {
   token: string;       // e.g. '{client.name}'
   label: string;       // e.g. 'Full name'
   description: string;
-  category: 'Client' | 'Date';
+  category: 'Client' | 'Date' | 'Company';
 };
 
 export const SHORTCODES: Shortcode[] = [
@@ -28,6 +29,10 @@ export const SHORTCODES: Shortcode[] = [
   { code: 'client.phone',       token: '{client.phone}',       label: 'Phone',            description: "Contact's phone number",               category: 'Client' },
   { code: 'client.company',     token: '{client.company}',     label: 'Company',          description: "Contact's company name",               category: 'Client' },
   { code: 'client.company_str', token: '{client.company_str}', label: 'Company (inline)', description: '" · Company" or empty if none',        category: 'Client' },
+  { code: 'company.name',       token: '{company.name}',       label: 'Display name',     description: 'Your organization display name',       category: 'Company' },
+  { code: 'company.legal_name', token: '{company.legal_name}', label: 'Legal name',       description: 'Legal entity name for contracts',      category: 'Company' },
+  { code: 'company.domain',     token: '{company.domain}',     label: 'Domain',           description: 'Website hostname, e.g. example.com', category: 'Company' },
+  { code: 'company.support_email', token: '{company.support_email}', label: 'Support email', description: 'Public support contact email', category: 'Company' },
   { code: 'date',               token: '{date}',               label: "Today's date",     description: 'Long date format, e.g. "June 15, 2026"', category: 'Date'   },
   { code: 'year',               token: '{year}',               label: 'Current year',     description: '4-digit year, e.g. "2026"',            category: 'Date'   },
 ];
@@ -72,10 +77,18 @@ export function getTemplate(slug: string): DocumentTemplate | null {
  *   {client.phone}
  *   {client.company}
  *   {client.company_str}  " · Company Name" or "" (used inline in sentences)
+ *   {company.name}        organization display name
+ *   {company.legal_name}  legal entity name
+ *   {company.domain}      website hostname
+ *   {company.support_email}
  *   {date}                "June 14, 2026"
  *   {year}                "2026"
  */
-export function fillTemplate(html: string, contact: ContactRecord): string {
+export function fillTemplate(
+  html: string,
+  contact: ContactRecord,
+  org?: Pick<CompanyConfig, 'name' | 'legalName' | 'domain' | 'supportEmail'>,
+): string {
   const firstName =
     contact.firstName?.trim() ||
     (contact.name ?? '').split(/\s+/)[0] ||
@@ -84,7 +97,7 @@ export function fillTemplate(html: string, contact: ContactRecord): string {
     contact.lastName?.trim() ||
     (contact.name ?? '').split(/\s+/).slice(1).join(' ') ||
     '';
-  const company = contact.company?.trim() || '';
+  const contactCompany = contact.company?.trim() || '';
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -97,8 +110,12 @@ export function fillTemplate(html: string, contact: ContactRecord): string {
     .replace(/{client\.last_name}/g, escHtml(lastName))
     .replace(/{client\.email}/g, escHtml(contact.email ?? ''))
     .replace(/{client\.phone}/g, escHtml(contact.phone ?? ''))
-    .replace(/{client\.company}/g, escHtml(company))
-    .replace(/{client\.company_str}/g, company ? ` · <strong>${escHtml(company)}</strong>` : '')
+    .replace(/{client\.company}/g, escHtml(contactCompany))
+    .replace(/{client\.company_str}/g, contactCompany ? ` · <strong>${escHtml(contactCompany)}</strong>` : '')
+    .replace(/{company\.name}/g, escHtml(org?.name ?? ''))
+    .replace(/{company\.legal_name}/g, escHtml(org?.legalName ?? org?.name ?? ''))
+    .replace(/{company\.domain}/g, escHtml(org?.domain ?? ''))
+    .replace(/{company\.support_email}/g, escHtml(org?.supportEmail ?? ''))
     .replace(/{date}/g, today)
     .replace(/{year}/g, String(new Date().getFullYear()));
 

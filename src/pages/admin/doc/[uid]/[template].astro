@@ -9,6 +9,7 @@
  * middleware (the /admin(.*) matcher) plus a belt-and-suspenders check here.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
+import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
 import Favicon from '../../../../components/Favicon.astro';
 
@@ -16,6 +17,9 @@ export const prerender = false;
 
 const { userId } = Astro.locals.auth();
 if (!userId) return Astro.redirect('/sign-in');
+
+const company = await getCompanyConfig(Astro.request);
+const poweredBy = poweredByLabel(company);
 
 const { uid, template: templateSlug } = Astro.params;
 
@@ -43,7 +47,7 @@ if (!uid || !templateSlug) {
       const portal = extractPortal(c);
       const existing = (portal?.documents ?? []).find((d) => d.template === templateSlug);
       if (existing) alreadySignedUrl = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/view/${existing.id}`;
-      filled = fillTemplate(tmpl.html, c);
+      filled = fillTemplate(tmpl.html, c, company);
       title = tmpl.title;
       contactName = c.name;
       contactEmail = c.email ?? '';
@@ -69,7 +73,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
   <body>
     {error ? (
       <main class="error-wrap">
-        <div class="logo">Reave Automated</div>
+        <div class="logo">{company.name}</div>
         <h1>Can't open this document</h1>
         <p>{error}</p>
       </main>
@@ -115,7 +119,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
         </div>
 
         <div class="doc-header">
-          <div class="logo">Reave Automated</div>
+          <div class="logo">{company.name}</div>
           <div class="doc-header-text">
             <div class="doc-title">{title}</div>
             <div class="doc-for">Prepared for {contactName}</div>
@@ -124,7 +128,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
 
         <div class="doc-body" set:html={filled} />
 
-        <footer class="doc-foot"><span>Powered by Reave Automated</span></footer>
+        <footer class="doc-foot"><span>{poweredBy}</span></footer>
       </main>
     )}
 

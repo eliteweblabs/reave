@@ -1,11 +1,14 @@
 ---
 import { clerkClient } from "@clerk/astro/server";
+import { getCompanyConfig } from "../lib/companyConfig";
 
 interface Props {
   isIndex?: boolean;
 }
 
 const { isIndex = false } = Astro.props;
+
+const company = await getCompanyConfig(Astro.request);
 
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
@@ -28,8 +31,8 @@ if (userId) {
 
 <header class="site-header">
   {!isIndex && (
-    <a href="/" class="site-logo" aria-label="Home">
-      <img src="/reave-logo.png" alt="Reave" class="logo-img" />
+    <a href="/" class="site-logo" aria-label={company.name || "Home"}>
+      <img src={company.logoPath} alt={company.name} class="logo-img" />
     </a>
   )}
 
