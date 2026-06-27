@@ -3166,6 +3166,93 @@ function renderNewWorkForm(pane) {
   getWorkEditor()?.classList.add('de-pane-active');
 }
 
+function mountWorkCommentsSection(pane, slug) {
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-comments-section';
+  wrap.innerHTML = '<div class="de-loading">Loading comments…</div>';
+  pane.appendChild(wrap);
+
+  fetch(`/api/work/${encodeURIComponent(slug)}/comments`, { cache: 'no-store' })
+    .then((r) => r.json())
+    .then((data) => {
+      wrap.innerHTML = '';
+      const label = document.createElement('div');
+      label.className = 'de-label';
+      label.textContent = 'Client comments';
+      wrap.appendChild(label);
+
+      const list = document.createElement('div');
+      list.className = 'wk-comment-list';
+      const comments = data.comments || [];
+
+      if (comments.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'de-empty';
+        empty.style.padding = '0.5rem 0';
+        empty.textContent = 'No comments yet.';
+        list.appendChild(empty);
+      } else {
+        for (const c of comments) {
+          const row = document.createElement('div');
+          row.className = `wk-comment wk-comment-${c.author}`;
+          const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+          row.innerHTML =
+            `<div class="wk-comment-head">` +
+            `<span class="wk-comment-author">${escHtml(c.authorName || (c.author === 'staff' ? 'Team' : 'Client'))}</span>` +
+            `<span class="wk-comment-time">${escHtml(when)}</span>` +
+            `</div>` +
+            `<div class="wk-comment-text">${escHtml(c.text)}</div>`;
+          list.appendChild(row);
+        }
+      }
+      wrap.appendChild(list);
+
+      const replyLabel = document.createElement('label');
+      replyLabel.className = 'de-label';
+      replyLabel.textContent = 'Reply (visible on client portal)';
+      const replyTa = document.createElement('textarea');
+      replyTa.className = 'de-textarea wk-comment-reply';
+      replyTa.rows = 3;
+      replyTa.maxLength = 4000;
+      replyTa.placeholder = 'Write a reply to the client…';
+      replyLabel.appendChild(replyTa);
+      wrap.appendChild(replyLabel);
+
+      const replyBtn = document.createElement('button');
+      replyBtn.type = 'button';
+      replyBtn.className = 'de-btn de-btn-primary';
+      replyBtn.textContent = 'Post reply';
+      replyBtn.addEventListener('click', async () => {
+        const text = replyTa.value.trim();
+        if (!text) { replyTa.focus(); return; }
+        replyBtn.disabled = true;
+        replyBtn.textContent = 'Posting…';
+        try {
+          const res = await fetch(`/api/work/${encodeURIComponent(slug)}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+          });
+          const payload = await res.json();
+          if (!res.ok || !payload.ok) throw new Error(payload.error || `HTTP ${res.status}`);
+          replyTa.value = '';
+          const parent = wrap.parentElement;
+          wrap.remove();
+          if (parent) mountWorkCommentsSection(parent, slug);
+        } catch (e) {
+          alert(`Failed to post reply: ${e.message}`);
+        } finally {
+          replyBtn.disabled = false;
+          replyBtn.textContent = 'Post reply';
+        }
+      });
+      wrap.appendChild(replyBtn);
+    })
+    .catch(() => {
+      wrap.innerHTML = '';
+    });
+}
+
 function renderEditWorkForm(pane) {
   const slug = workState.activeSlug;
   pane.innerHTML = '<div class="de-loading">Loading…</div>';
@@ -3206,6 +3293,14 @@ function renderEditWorkForm(pane) {
       titleEl.className = 'de-doc-name';
       titleEl.textContent = data.title;
       header.appendChild(titleEl);
+
+      if (data.contact_uid) {
+        appendPortalShareBtn(header, data.contact_uid, {
+          tab: 'work',
+          title: `${data.contact_name || data.client || 'Client'} — Work`,
+        });
+      }
+
       pane.appendChild(header);
 
       const fields = document.createElement('div');
@@ -3258,6 +3353,7 @@ function renderEditWorkForm(pane) {
       statusSelect.addEventListener('change', markDirty);
       ta.addEventListener('input', markDirty);
       pane.appendChild(ta);
+      mountWorkCommentsSection(pane, slug);
 
       const actions = document.createElement('div');
       actions.className = 'de-actions';
@@ -3638,6 +3734,58 @@ function renderEditClientForm(pane) {
         (data.createdAt ? `<br>Created: ${escHtml(new Date(data.createdAt).toLocaleString())}` : '');
       pane.appendChild(meta);
 
+      const portalActions = document.createElement('div');
+      portalActions.className = 'cl-portal-actions';
+      portalActions.style.padding = '0 1rem 0.75rem';
+      appendPortalShareBtn(portalActions, uid, { title: `${clientState.draft.name || 'Client'} — portal` });
+      if (portalActions.childElementCount) pane.appendChild(portalActions);
+
+      const jobsWrap = document.createElement('div');
+      jobsWrap.className = 'cl-jobs-section';
+      jobsWrap.innerHTML = '<div class="de-loading">Loading jobs…</div>';
+      pane.appendChild(jobsWrap);
+      fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((jobData) => {
+          const jobs = (jobData.jobs || []).filter((j) => j.status !== 'archived');
+          jobsWrap.innerHTML = '';
+          const jobsLabel = document.createElement('div');
+          jobsLabel.className = 'de-label';
+          jobsLabel.textContent = `Work (${jobs.length})`;
+          jobsWrap.appendChild(jobsLabel);
+          if (jobs.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'de-empty';
+            empty.style.padding = '0.5rem 0';
+            empty.textContent = 'No active jobs for this client.';
+            jobsWrap.appendChild(empty);
+          } else {
+            const list = document.createElement('div');
+            list.className = 'cl-jobs-list';
+            for (const job of jobs) {
+              const row = document.createElement('button');
+              row.type = 'button';
+              row.className = 'cl-job-row';
+              row.innerHTML =
+                `<span class="de-item-title">${escHtml(job.title)}</span>` +
+                `<span class="wk-meta-row">` +
+                `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
+                (job.due_date ? `<span class="wk-contact">Due ${escHtml(job.due_date)}</span>` : '') +
+                `</span>`;
+              row.addEventListener('click', async () => {
+                setActiveMap('work');
+                await loadWorkTab();
+                openWork(job.slug);
+              });
+              list.appendChild(row);
+            }
+            jobsWrap.appendChild(list);
+          }
+        })
+        .catch(() => {
+          jobsWrap.innerHTML = '';
+        });
+
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
@@ -3978,6 +4126,43 @@ async function shareChatText(text, role, btn) {
   const ok = await copyChatText(text, btn);
   if (ok) showChatToast('Copied — paste to share');
   return ok;
+}
+
+function clientPortalShareUrl(uid, tab) {
+  if (!uid) return '';
+  const base = `${window.location.origin}/c/${encodeURIComponent(uid)}`;
+  return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
+}
+
+async function sharePortalLink(url, title, btn) {
+  if (!url) return false;
+  const payload = { url, title: title || 'Client page' };
+  if (navigator.share) {
+    try {
+      await navigator.share(payload);
+      return true;
+    } catch (e) {
+      if (e?.name === 'AbortError') return false;
+    }
+  }
+  const ok = await copyChatText(url, btn);
+  if (ok) showChatToast('Link copied — paste to share');
+  return ok;
+}
+
+function appendPortalShareBtn(parent, uid, opts = {}) {
+  const { tab, label = 'Share', title, className = 'de-btn de-btn-ghost de-share-btn' } = opts;
+  if (!uid) return null;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = className;
+  btn.textContent = label;
+  btn.title = 'Share client portal link';
+  btn.addEventListener('click', () => {
+    sharePortalLink(clientPortalShareUrl(uid, tab), title || 'Your client page', btn);
+  });
+  parent.appendChild(btn);
+  return btn;
 }
 
 function pasteIntoChatInput(input) {
