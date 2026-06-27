@@ -6,6 +6,7 @@ import {
   isContactApiConfigured,
   updateContact,
 } from '../../../lib/contactApi';
+import { getContactDeleteBlockers } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
 
@@ -108,7 +109,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, url }) => {
   const { userId } = locals.auth?.() ?? {};
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
   if (!isContactApiConfigured()) {
@@ -118,7 +119,26 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
+  const force = url.searchParams.get('force') === 'true';
+  const blockers = await getContactDeleteBlockers(uid);
+  if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
+
+  const { job_count, invoice_count, name } = blockers.data;
+  if ((job_count > 0 || invoice_count > 0) && !force) {
+    return json(
+      {
+        ok: false,
+        error: 'Contact has linked jobs or invoices',
+        job_count,
+        invoice_count,
+        contact_name: name,
+        hint: 'Re-send DELETE with ?force=true to confirm.',
+      },
+      409,
+    );
+  }
+
   const result = await deleteContact(uid);
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true });
+  return json({ ok: true, contact_name: name });
 };

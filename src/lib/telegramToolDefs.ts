@@ -22,11 +22,14 @@ import {
   type WorkPriority,
   type WorkStatus,
 } from './workStore';
+import { getContactDeleteBlockers } from './contactDeleteGuard';
 import {
   isContactApiConfigured,
   resolveContact,
   listContacts,
   createContact,
+  updateContact,
+  deleteContact,
   getContact,
   setContactPortal,
   extractPortal,
@@ -610,6 +613,47 @@ export function buildTools(): TelegramToolDef[] {
               notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
             },
             required: ['name'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'update_contact',
+          description:
+            "Update an existing contact's details. Identify by uid (preferred) or name (fuzzy-resolved; returns candidates if ambiguous). Only provided fields are changed.",
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid (preferred)' },
+              name: { type: 'string', description: 'Fuzzy match lookup if uid unknown' },
+              new_name: { type: 'string', description: 'Rename the contact' },
+              email: { type: 'string' },
+              phone: { type: 'string' },
+              company: { type: 'string' },
+              notes: { type: 'string', description: 'Private internal notes' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'delete_contact',
+          description:
+            'Permanently delete a contact by uid. Use only when the user explicitly asks to delete/remove a contact.',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Contact uid to delete' },
+              force: {
+                type: 'boolean',
+                description: 'Required if contact has linked jobs/invoices',
+              },
+            },
+            required: ['uid'],
             additionalProperties: false,
           },
         },
@@ -1450,6 +1494,79 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         email: result.data.email ?? null,
         phone: result.data.phone ?? null,
         portal_url: clientPortalUrl(result.data.uid),
+      });
+    }
+    if (name === 'update_contact') {
+      const explicitUid = typeof args.uid === 'string' ? args.uid.trim() : '';
+      const lookupName = typeof args.name === 'string' ? args.name.trim() : '';
+      const target = explicitUid
+        ? { ok: true as const, uid: explicitUid }
+        : await resolvePortalTarget({
+            name: lookupName || undefined,
+            email: lookupName ? undefined : args.email,
+            phone: lookupName ? undefined : args.phone,
+          });
+      if (!target.ok) return target.payload;
+
+      const patch: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        company?: string;
+        notes?: string;
+      } = {};
+      if (typeof args.new_name === 'string' && args.new_name.trim()) patch.name = args.new_name.trim();
+      if (typeof args.email === 'string') patch.email = args.email;
+      if (typeof args.phone === 'string') patch.phone = args.phone;
+      if (typeof args.company === 'string') patch.company = args.company;
+      if (typeof args.notes === 'string') patch.notes = args.notes;
+      if (!Object.keys(patch).length) {
+        return JSON.stringify({
+          error: 'Provide at least one field to update (new_name, email, phone, company, notes).',
+        });
+      }
+
+      const result = await updateContact(target.uid, patch);
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({
+        success: true,
+        uid: result.data.uid,
+        name: result.data.name,
+        email: result.data.email ?? null,
+        phone: result.data.phone ?? null,
+        company: result.data.company ?? null,
+        notes: result.data.notes ?? null,
+        portal_url: clientPortalUrl(result.data.uid),
+      });
+    }
+    if (name === 'delete_contact') {
+      const uid = typeof args.uid === 'string' ? args.uid.trim() : '';
+      if (!uid) return JSON.stringify({ error: 'uid is required (no fuzzy delete).' });
+
+      const blockers = await getContactDeleteBlockers(uid);
+      if (!blockers.ok) return JSON.stringify({ error: blockers.error });
+
+      const force = args.force === true;
+      const { name: contactName, job_count, invoice_count } = blockers.data;
+      if ((job_count > 0 || invoice_count > 0) && !force) {
+        return JSON.stringify({
+          blocked: true,
+          reason: 'linked_records',
+          uid,
+          contact_name: contactName,
+          job_count,
+          invoice_count,
+          hint: 'Warn the user, then re-call delete_contact with the same uid and force:true to confirm.',
+        });
+      }
+
+      const result = await deleteContact(uid);
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({
+        success: true,
+        message: `Deleted contact "${contactName}" (archived in master DB).`,
+        uid,
+        contact_name: contactName,
       });
     }
     if (name === 'set_client_portal') {

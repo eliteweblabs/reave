@@ -46,6 +46,16 @@ For HTTP **inside** the Railway private network you can reference private hostna
 
 Response `match`: `exact` | `likely` | `possible` | `none` (see upstream README).
 
+## Update
+
+`PATCH /api/contacts/:uid` with JSON `{ "name", "email", "phone", "company", "notes" }` — only provided keys are changed; old name/email/phone values are saved as aliases upstream.
+
+## Delete
+
+`DELETE /api/contacts/:uid` — soft-archives the contact (`archived = true`).
+
+Telegram: `update_contact` and `delete_contact` tools (Reave checks linked jobs/invoices before delete; pass `force: true` to confirm).
+
 Telegram shortcuts in this app: `/resolve <name>` and `/who <name>`.
 
 ## CardDAV (iOS sync)

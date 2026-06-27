@@ -198,7 +198,7 @@ const TG_NODES = [
   // LLM tool categories (what Claude can call)
   { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list/read/create/update/delete work · knowledge tools', icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
   { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · create_github_branch · write · PR',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
-  { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve_contact · list_contacts · create_contact',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
+  { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve · list · create · update · delete',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
   { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
   { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
   { id: 'tc_tool_web',       title: 'Web tools',        sub: 'fetch_url · lighthouse_audit · brave_search',                           icon: '🌐', hue: 210, group: 'tc_tools', x: 960, y: 1300 },
