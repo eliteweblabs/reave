@@ -334,6 +334,29 @@ export async function dbUpdateWork(
   }
 }
 
+export async function dbAppendWorkNote(
+  slug: string,
+  block: string,
+): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
+
+    const { rows } = await pool.query<JobRow>(
+      `UPDATE jobs SET body = COALESCE(body, '') || $2, updated_at = NOW()
+       WHERE slug = $1
+       RETURNING ${JOB_COLUMNS}`,
+      [slug, block],
+    );
+    const row = rows[0];
+    if (!row) return { ok: false, error: 'Not found' };
+    return { ok: true, doc: rowToWorkDoc(row) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
 export async function dbDeleteWork(slug: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const pool = await ensureSchema();

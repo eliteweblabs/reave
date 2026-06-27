@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
+import type { EmailCategory } from './emailProcessor';
 
 export interface EmailInboxRecord {
   id: string;
@@ -19,6 +20,13 @@ export interface EmailInboxRecord {
   status: string;
   action: string;
   notified: boolean;
+  summary: string;
+  category: EmailCategory;
+  contactUid: string | null;
+  contactName: string | null;
+  jobSlug: string | null;
+  jobTitle: string | null;
+  routeNote: string;
 }
 
 export interface EmailInboxInput {
@@ -28,6 +36,23 @@ export interface EmailInboxInput {
   status: string;
   action: string;
   notified: boolean;
+  summary?: string;
+  category?: EmailCategory;
+  contactUid?: string | null;
+  contactName?: string | null;
+  jobSlug?: string | null;
+  jobTitle?: string | null;
+  routeNote?: string;
+}
+
+export interface EmailInboxDigest {
+  total: number;
+  visible: number;
+  junkHidden: number;
+  client: number;
+  filed: number;
+  review: number;
+  alert: number;
 }
 
 const MAX_FILE_EVENTS = 500;
@@ -41,9 +66,27 @@ CREATE TABLE IF NOT EXISTS email_inbox (
   body_snippet  TEXT NOT NULL DEFAULT '',
   status        TEXT NOT NULL DEFAULT 'UNMATCHED',
   action        TEXT NOT NULL DEFAULT 'classified',
-  notified      BOOLEAN NOT NULL DEFAULT false
+  notified      BOOLEAN NOT NULL DEFAULT false,
+  summary       TEXT NOT NULL DEFAULT '',
+  category      TEXT NOT NULL DEFAULT 'review',
+  contact_uid   TEXT,
+  contact_name  TEXT,
+  job_slug      TEXT,
+  job_title     TEXT,
+  route_note    TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC);
+CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category);
+`;
+
+const MIGRATE_SQL = `
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT '';
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'review';
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_uid TEXT;
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_name TEXT;
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_slug TEXT;
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_title TEXT;
+ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS route_note TEXT NOT NULL DEFAULT '';
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -77,6 +120,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   if (!_schemaReady) {
     _schemaReady = pool
       .query(SCHEMA_SQL)
+      .then(() => pool.query(MIGRATE_SQL))
       .then(() => undefined)
       .catch((e) => {
         _schemaReady = null;
@@ -104,7 +148,7 @@ function inboxFilePath(): string {
   return join(projectRoot(), 'src', 'knowledge', 'email-inbox.json');
 }
 
-function rowToRecord(row: {
+type InboxRow = {
   id: string;
   received_at: Date | string;
   from_address: string;
@@ -113,7 +157,24 @@ function rowToRecord(row: {
   status: string;
   action: string;
   notified: boolean;
-}): EmailInboxRecord {
+  summary?: string;
+  category?: string;
+  contact_uid?: string | null;
+  contact_name?: string | null;
+  job_slug?: string | null;
+  job_title?: string | null;
+  route_note?: string;
+};
+
+function normalizeCategory(raw: string | undefined): EmailCategory {
+  const c = String(raw ?? 'review').toLowerCase();
+  if (c === 'junk' || c === 'client' || c === 'alert' || c === 'internal' || c === 'review') {
+    return c;
+  }
+  return 'review';
+}
+
+function rowToRecord(row: InboxRow): EmailInboxRecord {
   return {
     id: row.id,
     receivedAt: new Date(row.received_at).toISOString(),
@@ -123,6 +184,13 @@ function rowToRecord(row: {
     status: row.status,
     action: row.action,
     notified: !!row.notified,
+    summary: row.summary ?? row.body_snippet ?? '',
+    category: normalizeCategory(row.category),
+    contactUid: row.contact_uid ?? null,
+    contactName: row.contact_name ?? null,
+    jobSlug: row.job_slug ?? null,
+    jobTitle: row.job_title ?? null,
+    routeNote: row.route_note ?? '',
   };
 }
 
@@ -139,6 +207,13 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       status: String(e.status ?? 'UNMATCHED'),
       action: String(e.action ?? 'classified'),
       notified: !!e.notified,
+      summary: String(e.summary ?? e.bodySnippet ?? ''),
+      category: normalizeCategory(e.category),
+      contactUid: e.contactUid ?? null,
+      contactName: e.contactName ?? null,
+      jobSlug: e.jobSlug ?? null,
+      jobTitle: e.jobTitle ?? null,
+      routeNote: String(e.routeNote ?? ''),
     }));
   } catch {
     return [];
@@ -161,13 +236,27 @@ export function emailInboxStorageBackend(): 'postgres' | 'files' {
   return databaseUrl() ? 'postgres' : 'files';
 }
 
-async function listFromFile(limit: number): Promise<EmailInboxRecord[]> {
+export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean): EmailInboxDigest {
+  const junkHidden = events.filter((e) => e.category === 'junk').length;
+  const visibleEvents = hideJunk ? events.filter((e) => e.category !== 'junk') : events;
+  return {
+    total: events.length,
+    visible: visibleEvents.length,
+    junkHidden,
+    client: events.filter((e) => e.category === 'client').length,
+    filed: events.filter((e) => e.action === 'filed').length,
+    review: events.filter((e) => e.category === 'review').length,
+    alert: events.filter((e) => e.category === 'alert').length,
+  };
+}
+
+async function listFromFile(limit: number, hideJunk: boolean): Promise<EmailInboxRecord[]> {
   const path = inboxFilePath();
   if (!existsSync(path)) return [];
-  const events = parseFileEvents(readFileSync(path, 'utf8'));
-  return events
-    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
-    .slice(0, limit);
+  let events = parseFileEvents(readFileSync(path, 'utf8'));
+  events = events.sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
+  if (hideJunk) events = events.filter((e) => e.category !== 'junk');
+  return events.slice(0, limit);
 }
 
 async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
@@ -182,24 +271,51 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     status: input.status,
     action: input.action,
     notified: input.notified,
+    summary: input.summary ?? input.bodySnippet,
+    category: input.category ?? 'review',
+    contactUid: input.contactUid ?? null,
+    contactName: input.contactName ?? null,
+    jobSlug: input.jobSlug ?? null,
+    jobTitle: input.jobTitle ?? null,
+    routeNote: input.routeNote ?? '',
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
   return record;
 }
 
-async function listFromPg(limit: number): Promise<EmailInboxRecord[]> {
+async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxRecord[]> {
   try {
     const pool = await ensureSchema();
     if (!pool) return [];
+    const junkFilter = hideJunk ? `AND category <> 'junk'` : '';
     const { rows } = await pool.query(
-      `SELECT id, received_at, from_address, subject, body_snippet, status, action, notified
-       FROM email_inbox ORDER BY received_at DESC LIMIT $1`,
-      [limit]
+      `SELECT id, received_at, from_address, subject, body_snippet, status, action, notified,
+              summary, category, contact_uid, contact_name, job_slug, job_title, route_note
+       FROM email_inbox WHERE 1=1 ${junkFilter}
+       ORDER BY received_at DESC LIMIT $1`,
+      [limit],
     );
     return rows.map(rowToRecord);
   } catch (e) {
     console.error('[email-inbox] pg list failed', e);
+    return [];
+  }
+}
+
+async function listAllFromPg(limit: number): Promise<EmailInboxRecord[]> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const { rows } = await pool.query(
+      `SELECT id, received_at, from_address, subject, body_snippet, status, action, notified,
+              summary, category, contact_uid, contact_name, job_slug, job_title, route_note
+       FROM email_inbox ORDER BY received_at DESC LIMIT $1`,
+      [limit],
+    );
+    return rows.map(rowToRecord);
+  } catch (e) {
+    console.error('[email-inbox] pg list all failed', e);
     return [];
   }
 }
@@ -211,10 +327,27 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const id = randomUUID();
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
-        (id, from_address, subject, body_snippet, status, action, notified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, received_at, from_address, subject, body_snippet, status, action, notified`,
-      [id, input.from, input.subject, input.bodySnippet, input.status, input.action, input.notified]
+        (id, from_address, subject, body_snippet, status, action, notified,
+         summary, category, contact_uid, contact_name, job_slug, job_title, route_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+       RETURNING id, received_at, from_address, subject, body_snippet, status, action, notified,
+                 summary, category, contact_uid, contact_name, job_slug, job_title, route_note`,
+      [
+        id,
+        input.from,
+        input.subject,
+        input.bodySnippet,
+        input.status,
+        input.action,
+        input.notified,
+        input.summary ?? input.bodySnippet,
+        input.category ?? 'review',
+        input.contactUid ?? null,
+        input.contactName ?? null,
+        input.jobSlug ?? null,
+        input.jobTitle ?? null,
+        input.routeNote ?? '',
+      ],
     );
     return rows[0] ? rowToRecord(rows[0]) : null;
   } catch (e) {
@@ -223,9 +356,16 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
   }
 }
 
-export async function storeListEmailInbox(limit = 100): Promise<EmailInboxRecord[]> {
-  if (databaseUrl()) return listFromPg(limit);
-  return listFromFile(limit);
+export async function storeListEmailInbox(
+  limit = 100,
+  opts?: { hideJunk?: boolean; forDigest?: boolean },
+): Promise<EmailInboxRecord[]> {
+  const hideJunk = opts?.hideJunk !== false;
+  if (databaseUrl()) {
+    if (opts?.forDigest) return listAllFromPg(limit);
+    return listFromPg(limit, hideJunk);
+  }
+  return listFromFile(limit, hideJunk);
 }
 
 export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<EmailInboxRecord | null> {

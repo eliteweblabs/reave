@@ -77,6 +77,15 @@ interface ImportMetaEnv {
   EMAIL_ALLOWED_SENDERS?: string;
   /** Optional comma-separated allowlist of sender domains */
   EMAIL_ALLOWED_DOMAINS?: string;
+  /** Set to 0 to disable Claude triage on inbound email (keyword rules only) */
+  EMAIL_AI_ENABLED?: string;
+  /** Web Push VAPID keys — generate with: npx web-push generate-vapid-keys */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  /** mailto: or https: contact for VAPID subject (default mailto:thomas@reave.app) */
+  VAPID_SUBJECT?: string;
+  /** Set to 0 to disable Web Push notifications */
+  PUSH_ENABLED?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */

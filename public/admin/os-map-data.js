@@ -1,7 +1,7 @@
 // Reave Business OS — map data (single source of truth for the canvas).
 // ⚠️ KEEP CURRENT: add/edit nodes + edges here whenever a feature, service,
 //    API route, integration, bot command, MCP server, or CLI changes.
-//    Rendered at /dev/os-map (tabbed: "System" runtime + "MCP & CLI" tooling).
+//    Rendered at /admin/ (tabbed: "System" runtime + "MCP & CLI" tooling).
 //
 // node:  { id, title, sub, icon, brand?, hue, status?, ghost?, group?, x, y }
 // edge:  { from, to, label?, dashed?, ghost? }
@@ -20,7 +20,7 @@ const SYSTEM_NODES = [
   { id: 'tg_user', title: 'Telegram', sub: 'user / app', icon: '📱', brand: 'telegram', hue: 205, group: 'clients', x: 60, y: 130 },
   { id: 'web', title: 'Web visitors', sub: 'reave.app', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 260 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 390 },
-  { id: 'dev', title: 'Dev / dashboard', sub: '/dev/os-map', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 520 },
+  { id: 'dev', title: 'Admin / dashboard', sub: '/admin/', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 520 },
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
@@ -30,7 +30,7 @@ const SYSTEM_NODES = [
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · shareable PWA', icon: '📇', hue: 320, status: true, group: 'reave', x: 600, y: 560 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS Contacts sync', icon: '📲', hue: 275, status: true, group: 'reave', x: 600, y: 430 },
-  { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/dev/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 430, y: 160 },
+  { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/admin/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 430, y: 160 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages · /model or dashboard picker', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 120 },
@@ -182,7 +182,7 @@ const TG_NODES = [
   // Entry
   { id: 'tc_you',     title: 'You',            sub: 'Telegram message',           icon: '📱', brand: 'telegram', hue: 205, group: 'tc_entry',  x: 60,   y: 540 },
   { id: 'tc_handler', title: 'Bot handler',     sub: 'auth · history · route',     icon: '⚙️', hue: 185,          group: 'tc_entry',  x: 360,  y: 540 },
-  { id: 'tc_cheat',   title: 'Cheat sheet',     sub: '/dev/telegram · plain list', icon: '📋', hue: 95,           group: 'tc_entry',  x: 60,   y: 700 },
+  { id: 'tc_cheat',   title: 'Cheat sheet',     sub: '/admin/telegram · plain list', icon: '📋', hue: 95,           group: 'tc_entry',  x: 60,   y: 700 },
 
   // Routing nodes
   { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
@@ -264,7 +264,7 @@ export const MAPS = {
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },
   chats:     { id: 'chats',     title: 'Chats',      icon: '💬',  type: 'chats',         nodes: [],             edges: [],             groups: [] },
-  email:     { id: 'email',     title: 'Email',      icon: '📬',  type: 'email',         nodes: [],             edges: [],             groups: [] },
+  email:     { id: 'email',     title: 'Inbox',      icon: '📬',  type: 'email',         nodes: [],             edges: [],             groups: [] },
   rules:     { id: 'rules',     title: 'Rules',      icon: '⚡',  type: 'rules',         nodes: [],             edges: [],             groups: [] },
   work:      { id: 'work',      title: 'Work',       icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },

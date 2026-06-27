@@ -3,7 +3,7 @@ import { getAgentModelSettings } from '../../lib/agentModel';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
- * Live health snapshot for the /dev/os-map "System" tab.
+ * Live health snapshot for the /admin/ "System" tab.
  *
  * Honest about what it can and can't verify:
  *  - `live`    — actually pinged the service this request (reachable / down).

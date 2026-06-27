@@ -1,55 +1,55 @@
-# Email triage (Reave)
+# Email inbox (Reave)
 
-Inbound email automation lives **inside this Astro app** — there is no separate
-OpenClaw service. Mail arrives via a **Resend inbound webhook**, gets classified
-by a keyword rule table, and (when a rule says so) pings this Telegram bot.
+Smart inbox inside **/admin → Email tab**. You read **summaries** here — not Proton/Gmail.
 
 ## Flow
 
 ```
-Sender → Resend (MX on a reave.app subdomain) → POST /api/email/inbound
-       → verify svix signature → fetch full email → classifyEmail() → Telegram alert
+Proton/Gmail (human mail) ──BCC/forward copy──► inbox@mail.reave.app (Resend MX)
+       │
+       ▼
+POST /api/email/inbound → Claude triage → contact-api → job append → Postgres
+       │
+       ▼
+/admin Email tab (+ Web Push to phone PWA)
 ```
 
-- Route: `src/pages/api/email/inbound.ts` (signature-verified, always returns 200).
-- Engine: `src/lib/emailRules.ts` (`DEFAULT_RULES`, `classifyEmail`).
-- Pipeline: `src/lib/inboundEmailHandler.ts` (sender allowlist → classify → notify).
+- **Ingest:** Resend webhook at `/api/email/inbound` (copy mail here; keep reading in Proton).
+- **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`).
+- **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
+- **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
+- **Push:** Install `/admin` to home screen → tap 🔔 → Web Push (`VAPID_*` env vars).
 
-## Rules
+## Categories
 
-Each rule matches case-insensitive `phrases` against chosen `fields`
-(`subject` / `body` / `from`), resolves a `status`, and decides `notify`.
-First enabled match wins; unmatched mail notifies by default (`NOTIFY_ON_UNMATCHED`).
-
-Default table (ported from the old `status-rules.json`):
-
-| status | trigger | notify |
-|--------|---------|--------|
-| `DELETE` | marketing trash (`unsubscribe`, `you received this because`) | no |
-| `AUTO_ARCHIVED` | Google Workspace monthly invoice | no |
-| `DOWN` | `UptimeRobot` alerts | yes |
-| `NEEDS_CHECK` | security alerts (`Security alert`, `App password used`, …) | yes |
-
-Tune by editing `DEFAULT_RULES` in `src/lib/emailRules.ts`.
+| category | meaning |
+|----------|---------|
+| `junk` | Marketing/newsletter — hidden from default inbox |
+| `client` | Client/project mail — may auto-file to job |
+| `alert` | Uptime, security, monitoring |
+| `internal` | Admin/personal, not client work |
+| `review` | Needs your decision |
 
 ## Environment
 
 | var | purpose |
 |-----|---------|
-| `RESEND_API_KEY` | Resend key (receiving + fetch full email) |
-| `RESEND_WEBHOOK_SECRET` | `whsec_…` signing secret for the inbound webhook |
-| `EMAIL_NOTIFY_CHAT_ID` | chat for alerts (falls back to `TELEGRAM_DEPLOY_NOTIFY_CHAT_ID`) |
-| `EMAIL_ALLOWED_SENDERS` / `EMAIL_ALLOWED_DOMAINS` | optional allowlists; if both empty, all senders are processed |
-
-## Security
-
-Untrusted inbound email is **never** executed or fed into an LLM prompt — it is
-only classified by literal phrase matching and surfaced to Telegram. Webhook
-signatures are verified (svix) before anything is processed. Use the allowlist
-envs to restrict senders when you want strict triage.
+| `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Resend receiving + webhook verify |
+| `ANTHROPIC_API_KEY` | Summarize + classify + pick job |
+| `EMAIL_AI_ENABLED` | Set `0` to disable AI (rules-only) |
+| `CONTACT_API_BASE_URL` | Resolve sender → client |
+| `DATABASE_URL` | Inbox log + jobs + push subscriptions |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push (generate: `npx web-push generate-vapid-keys`) |
+| `VAPID_SUBJECT` | e.g. `mailto:thomas@reave.app` |
+| `PUSH_ENABLED` | Set `0` to disable push |
 
 ## Setup (one-time)
 
-1. Resend dashboard → enable receiving on a `reave.app` subdomain (add the MX record).
-2. Create a webhook for `email.received` pointing at `https://reave.app/api/email/inbound`; copy the `whsec_…` secret.
-3. Set `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `EMAIL_NOTIFY_CHAT_ID` on the Astro service.
+1. **Resend:** Enable receiving on `mail.reave.app` (MX). Webhook `email.received` → `https://reave.app/api/email/inbound`.
+2. **Copy mail in:** Proton filter or Gmail forward **BCC** to `inbox@mail.reave.app` (or your Resend receiving address).
+3. **Railway env:** `RESEND_*`, `ANTHROPIC_API_KEY`, `DATABASE_URL`, `CONTACT_API_BASE_URL`, `VAPID_*`.
+4. **Phone:** Open `/admin?tab=email` → Add to Home Screen → tap 🔔.
+
+## Security
+
+Inbound email is classified by rules + Claude for **summarization and routing only**. Job append uses structured JSON from the model; untrusted HTML is not executed. Use `EMAIL_ALLOWED_*` to restrict senders if needed.

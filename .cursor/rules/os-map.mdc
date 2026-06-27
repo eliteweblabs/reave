@@ -1,17 +1,17 @@
 ---
-description: Keep the /dev/os-map system map in sync with the codebase
+description: Keep the /admin/ system map in sync with the codebase
 globs: src/**
 alwaysApply: false
 ---
 
 # Keep the OS map current
 
-The `/dev/os-map` page (also `/dashboard`) is an interactive, Railway-style
+The `/admin/` page (also `/dashboard`) is an interactive, Railway-style
 canvas meant to be a true visual of the project's guts and workflow. When you
 add, remove, or significantly change a feature, service, API route, external
 integration, or Telegram bot command, update the map **in the same change**.
 
-Single source of truth: **`public/dev/os-map-data.js`**
+Single source of truth: **`public/admin/os-map-data.js`**
 
 The page is **tabbed** via `MAPS` in that file. Each map is
 `{ id, title, nodes, edges, groups }`:
@@ -34,6 +34,6 @@ Within each map:
 
 Give each node a distinct `hue` (0–360) so the map stays full-spectrum (in the
 `tooling` map a vendor may share its hue across its mcp/cli/svc nodes on
-purpose). The render/interaction engine is `public/dev/os-map-loader.js` (tabs,
+purpose). The render/interaction engine is `public/admin/os-map-loader.js` (tabs,
 drag + snap, pan, zoom, per-map persistence) — only touch it for behavior
 changes, not content.

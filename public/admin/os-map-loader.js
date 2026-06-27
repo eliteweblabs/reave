@@ -1,4 +1,4 @@
-import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/dev/os-map-data.js';
+import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -168,6 +168,7 @@ function setActiveMap(key) {
     if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
   syncHealthLifecycle();
+  syncEmailPoll();
 }
 
 function isPanelTab() {
@@ -4398,39 +4399,61 @@ async function deleteChat(id, title) {
   }
 }
 
-// ---- email tab ----
+// ---- email tab (inbox summaries) ----
 let emailState = {
   events: [],
   activeId: null,
   storage: 'files',
+  digest: null,
+  showJunk: false,
+  pushConfigured: false,
 };
+let emailPollTimer = null;
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
 
-function emailStatusClass(status) {
-  const key = String(status || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  const known = new Set(['rejected', 'delete', 'auto_archived', 'down', 'needs_check', 'unmatched']);
-  return known.has(key) ? `em-status-${key}` : 'em-status-default';
+function emailCategoryClass(cat) {
+  const key = String(cat || 'review').toLowerCase();
+  const known = new Set(['junk', 'client', 'alert', 'internal', 'review']);
+  return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
 }
 
 function formatEmailAction(ev) {
   const bits = [ev.action];
-  if (ev.notified) bits.push('Telegram');
+  if (ev.jobTitle) bits.push(ev.jobTitle);
+  if (ev.routeNote && !ev.jobTitle) bits.push(ev.routeNote);
   return bits.join(' · ');
 }
 
-async function loadEmailTab() {
+function stopEmailPoll() {
+  if (emailPollTimer) {
+    clearInterval(emailPollTimer);
+    emailPollTimer = null;
+  }
+}
+
+function syncEmailPoll() {
+  stopEmailPoll();
+  if (MAP.type === 'email' && !document.hidden) {
+    emailPollTimer = setInterval(() => loadEmailTab(true), 45000);
+  }
+}
+
+async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading email log…</div>';
+  if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
+  const junkQ = emailState.showJunk ? '?junk=1' : '';
   try {
-    const res = await fetch('/api/email/inbox', { cache: 'no-store' });
+    const res = await fetch(`/api/email/inbox${junkQ}`, { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     emailState.events = data.events || [];
     emailState.storage = data.storage || 'files';
+    emailState.digest = data.digest || null;
+    emailState.pushConfigured = !!data.pushConfigured;
   } catch (e) {
-    root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
+    if (!quiet) root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
   }
   if (emailState.activeId && !emailState.events.some((ev) => ev.id === emailState.activeId)) {
@@ -4438,6 +4461,20 @@ async function loadEmailTab() {
   }
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
+}
+
+function renderEmailDigest() {
+  const d = emailState.digest;
+  if (!d) return null;
+  const el = document.createElement('div');
+  el.className = 'em-digest';
+  const parts = [`${d.visible} shown`];
+  if (d.filed) parts.push(`${d.filed} filed to jobs`);
+  if (d.review) parts.push(`${d.review} need review`);
+  if (d.alert) parts.push(`${d.alert} alerts`);
+  if (d.junkHidden && !emailState.showJunk) parts.push(`${d.junkHidden} junk hidden`);
+  el.textContent = parts.join(' · ');
+  return el;
 }
 
 function renderEmailSidebar() {
@@ -4451,13 +4488,24 @@ function renderEmailSidebar() {
   refreshBtn.textContent = '↻ Refresh';
   refreshBtn.addEventListener('click', () => loadEmailTab());
   toolbar.appendChild(refreshBtn);
+
+  const junkBtn = document.createElement('button');
+  junkBtn.className = 'em-refresh';
+  junkBtn.textContent = emailState.showJunk ? 'Hide junk' : 'Show junk';
+  junkBtn.addEventListener('click', () => {
+    emailState.showJunk = !emailState.showJunk;
+    loadEmailTab();
+  });
+  toolbar.appendChild(junkBtn);
+
   const storageHint = document.createElement('span');
   storageHint.className = 'em-storage';
-  storageHint.textContent = emailState.storage === 'files'
-    ? 'Local file log'
-    : 'Postgres';
+  storageHint.textContent = emailState.storage === 'files' ? 'Local file' : 'Postgres';
   toolbar.appendChild(storageHint);
   sidebar.appendChild(toolbar);
+
+  const digest = renderEmailDigest();
+  if (digest) sidebar.appendChild(digest);
 
   const list = document.createElement('div');
   list.className = 'ch-list';
@@ -4465,20 +4513,23 @@ function renderEmailSidebar() {
     const item = document.createElement('button');
     item.className = 'em-list-item' + (ev.id === emailState.activeId ? ' active' : '');
     item.dataset.id = ev.id;
+    const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
     item.innerHTML =
       `<span class="em-item-row">` +
-        `<span class="em-status ${emailStatusClass(ev.status)}">${escHtml(ev.status)}</span>` +
-        `<span class="em-item-subject">${escHtml(ev.subject || '(no subject)')}</span>` +
+        `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
         `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `</span>` +
-      `<span class="em-item-from">${escHtml(ev.from || '(unknown sender)')}</span>`;
+      `<span class="em-item-summary">${escHtml(summary)}</span>` +
+      `<span class="em-item-from">${escHtml(ev.contactName || ev.from || '(unknown)')}</span>`;
     item.addEventListener('click', () => openEmailEvent(ev.id));
     list.appendChild(item);
   }
   if (emailState.events.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No inbound email yet.';
+    empty.innerHTML = emailState.showJunk
+      ? 'No messages.'
+      : 'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -4503,7 +4554,7 @@ function renderEmailPanel() {
   if (!ev) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = '<div class="de-placeholder-icon">📬</div>Select an email to view triage details.';
+    ph.innerHTML = '<div class="de-placeholder-icon">📬</div><p>Your inbox summaries appear here.</p><p class="em-hint">Install this app to your home screen and tap 🔔 for phone notifications.</p>';
     pane.appendChild(ph);
     root.appendChild(pane);
     return;
@@ -4513,7 +4564,7 @@ function renderEmailPanel() {
   header.className = 'de-header';
   const backBtn = document.createElement('button');
   backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Email';
+  backBtn.textContent = '← Inbox';
   backBtn.addEventListener('click', () => {
     emailState.activeId = null;
     getEmailPanel()?.classList.remove('em-pane-active');
@@ -4528,17 +4579,22 @@ function renderEmailPanel() {
 
   const detail = document.createElement('div');
   detail.className = 'em-detail';
+  const summary = ev.summary || ev.bodySnippet || '';
   detail.innerHTML =
-    `<div class="em-item-row"><span class="em-status ${emailStatusClass(ev.status)}">${escHtml(ev.status)}</span></div>` +
+    `<div class="em-item-row"><span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span></div>` +
+    (summary ? `<div class="em-detail-summary">${escHtml(summary)}</div>` : '') +
     `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
     `<div class="em-detail-meta">` +
       `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
+      (ev.contactName ? `<span><strong>Client</strong> ${escHtml(ev.contactName)}</span>` : '') +
+      (ev.jobTitle ? `<span><strong>Job</strong> ${escHtml(ev.jobTitle)}</span>` : '') +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
+      (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>` +
-    (ev.bodySnippet
+    (ev.bodySnippet && ev.bodySnippet !== summary
       ? `<div class="em-detail-body">${escHtml(ev.bodySnippet)}</div>`
-      : '<div class="de-empty">No body preview stored.</div>');
+      : '');
   pane.appendChild(detail);
 
   root.appendChild(pane);
@@ -4569,6 +4625,10 @@ function loadPositions() {
   }
 }
 function loadActiveKey() {
+  try {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab && MAPS[tab]) return tab;
+  } catch {}
   let key;
   try {
     key = localStorage.getItem(MAP_STORE);
@@ -4611,11 +4671,17 @@ async function boot() {
     if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
   syncHealthLifecycle();
+  syncEmailPoll();
 }
 
 boot();
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopHealth();
-  else syncHealthLifecycle();
+  if (document.hidden) {
+    stopHealth();
+    stopEmailPoll();
+  } else {
+    syncHealthLifecycle();
+    syncEmailPoll();
+  }
 });

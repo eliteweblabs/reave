@@ -480,6 +480,50 @@ export async function storeListWorkForContact(contactUid: string): Promise<WorkJ
   return storeListWork({ contact_uid: contactUid });
 }
 
+function formatEmailNoteBlock(
+  note: string,
+  meta?: { subject?: string; from?: string },
+): string {
+  const when = new Date().toISOString().replace('T', ' ').slice(0, 16);
+  const lines = [`\n\n---\n**Email** _${when} UTC_`];
+  if (meta?.from) lines.push(`From: ${meta.from}`);
+  if (meta?.subject) lines.push(`Subject: ${meta.subject}`);
+  lines.push('', note.trim(), '');
+  return lines.join('\n');
+}
+
+function fileAppendWorkNote(
+  slug: string,
+  block: string,
+): { ok: true; doc: WorkJobDoc } | { ok: false; error: string } {
+  if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
+  const doc = fileReadWork(slug);
+  if (!doc) return { ok: false, error: 'Not found' };
+  const content = doc.content.endsWith('\n')
+    ? doc.content + block.replace(/^\n+/, '')
+    : `${doc.content}${block}`;
+  const path = join(workDir(), `${slug}.md`);
+  writeFileSync(path, content, 'utf8');
+  const updated = fileReadWork(slug);
+  if (!updated) return { ok: false, error: 'Failed to read back' };
+  return { ok: true, doc: updated };
+}
+
+/** Append a timestamped email note to a job body (Postgres or markdown file). */
+export async function storeAppendWorkNote(
+  slug: string,
+  note: string,
+  meta?: { subject?: string; from?: string },
+): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
+  if (!note.trim()) return { ok: false, error: 'Empty note' };
+  const block = formatEmailNoteBlock(note, meta);
+  if (isWorkDbConfigured()) {
+    const { dbAppendWorkNote } = await import('./pgJobs');
+    return dbAppendWorkNote(slug, block);
+  }
+  return fileAppendWorkNote(slug, block);
+}
+
 export function slugFromTitle(title: string): string {
   return title
     .toLowerCase()
