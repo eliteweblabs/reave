@@ -148,6 +148,17 @@ const fmtMoney = (n: number) =>
         margin: 0; background: #0a0d14; color: #e9eef6; min-height: 100vh;
         font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       }
+      button,
+      select {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+      input,
+      textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
       a { color: #93c5fd; }
       .wrap { max-width: 1100px; margin: 0 auto; padding: calc(64px + 24px) 20px 80px; }
       .head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
@@ -310,6 +321,40 @@ const fmtMoney = (n: number) =>
       .btn-save:disabled { opacity: 0.5; cursor: default; }
       .modal-err { color: #fca5a5; font-size: 13px; margin-top: 10px; display: none; }
       .modal-ok { color: #86efac; font-size: 13px; margin-top: 10px; display: none; }
+
+      /* confirm / alert dialog (replaces system confirm/alert) */
+      .confirm-backdrop {
+        display: none; position: fixed; inset: 0; z-index: 200;
+        background: rgba(0,0,0,0.72); backdrop-filter: blur(6px);
+        align-items: center; justify-content: center; padding: 16px;
+      }
+      .confirm-backdrop.open { display: flex; }
+      .confirm-dialog {
+        width: 100%; max-width: 400px; background: #11151d;
+        border: 1px solid #283142; border-radius: 14px; overflow: hidden;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+      }
+      .confirm-dialog h2 {
+        margin: 0; padding: 1rem 1.15rem 0.5rem; font-size: 1rem; font-weight: 600;
+      }
+      .confirm-body {
+        padding: 0 1.15rem 1rem; font-size: 0.84rem; line-height: 1.55; color: #8b97a8;
+      }
+      .confirm-body p { margin: 0 0 0.65rem; }
+      .confirm-body p:last-child { margin-bottom: 0; }
+      .confirm-warn { color: #fbbf24; }
+      .confirm-note { color: #93c5fd; font-size: 0.8rem; }
+      .confirm-actions {
+        display: flex; gap: 0.5rem; justify-content: flex-end;
+        padding: 0.75rem 1rem 1rem; border-top: 1px solid #283142;
+        background: rgba(0,0,0,0.15);
+      }
+      .btn-confirm-danger {
+        padding: 9px 16px; border-radius: 10px; border: 1px solid #7f1d1d;
+        background: #3f1515; color: #fca5a5; font: inherit; font-size: 14px;
+        font-weight: 600; cursor: pointer;
+      }
+      .btn-confirm-danger:hover { background: #521818; }
     </style>
   </head>
   <body>
@@ -559,6 +604,14 @@ const fmtMoney = (n: number) =>
               </div>
             </div>
           </div>
+
+          <div class="confirm-backdrop" id="confirmBackdrop" aria-hidden="true">
+            <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+              <h2 id="confirmTitle"></h2>
+              <div class="confirm-body" id="confirmBody"></div>
+              <div class="confirm-actions" id="confirmActions"></div>
+            </div>
+          </div>
         </main>
       )
     }
@@ -678,6 +731,74 @@ const fmtMoney = (n: number) =>
       });
 
       // ── Delete-from-master buttons ─────────────────────────────────────────
+      const confirmBackdrop = document.getElementById('confirmBackdrop');
+      const confirmTitle = document.getElementById('confirmTitle');
+      const confirmBody = document.getElementById('confirmBody');
+      const confirmActions = document.getElementById('confirmActions');
+
+      function esc(s: string): string {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+
+      function appDialog(opts: {
+        title: string;
+        bodyHtml: string;
+        confirmLabel?: string;
+        cancelLabel?: string;
+        danger?: boolean;
+        showCancel?: boolean;
+      }): Promise<boolean> {
+        if (!confirmBackdrop || !confirmTitle || !confirmBody || !confirmActions) {
+          return Promise.resolve(false);
+        }
+        return new Promise((resolve) => {
+          let settled = false;
+          const finish = (value: boolean) => {
+            if (settled) return;
+            settled = true;
+            confirmBackdrop.classList.remove('open');
+            confirmBackdrop.setAttribute('aria-hidden', 'true');
+            document.removeEventListener('keydown', onKey);
+            resolve(value);
+          };
+          const onKey = (ev: KeyboardEvent) => {
+            if (ev.key === 'Escape' && opts.showCancel) finish(false);
+          };
+          confirmTitle.textContent = opts.title;
+          confirmBody.innerHTML = opts.bodyHtml;
+          confirmActions.innerHTML = '';
+          const mkBtn = (label: string, cls: string, value: boolean) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = cls;
+            btn.textContent = label;
+            btn.addEventListener('click', () => finish(value));
+            confirmActions.appendChild(btn);
+            return btn;
+          };
+          if (opts.showCancel) {
+            mkBtn(opts.cancelLabel || 'Cancel', 'btn-cancel', false);
+          }
+          const primary = mkBtn(
+            opts.confirmLabel || 'OK',
+            opts.danger ? 'btn-confirm-danger' : 'btn-save',
+            true,
+          );
+          confirmBackdrop.classList.add('open');
+          confirmBackdrop.setAttribute('aria-hidden', 'false');
+          document.addEventListener('keydown', onKey);
+          primary.focus();
+        });
+      }
+
+      function appConfirm(opts: Parameters<typeof appDialog>[0]): Promise<boolean> {
+        return appDialog({ ...opts, showCancel: true });
+      }
+
+      function appAlert(opts: Omit<Parameters<typeof appDialog>[0], 'showCancel'>): Promise<boolean> {
+        return appDialog({ ...opts, showCancel: false, confirmLabel: opts.confirmLabel || 'OK' });
+      }
+
       document.querySelectorAll<HTMLButtonElement>('.btn-delete').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const uid = btn.dataset.uid || '';
@@ -694,79 +815,104 @@ const fmtMoney = (n: number) =>
             return data;
           }
 
-          function buildDeleteConfirmMessage(preview: Record<string, unknown>): string {
-            const lines: string[] = [];
+          function buildDeleteConfirmHtml(preview: Record<string, unknown>): string {
+            const parts: string[] = [];
             const projectCount = Number(preview.project_count ?? preview.job_count ?? 0);
             if (projectCount > 0) {
               const projects = (preview.projects as Array<{ title?: string }> | undefined) ?? [];
-              const titles = projects.map((p) => p.title).filter(Boolean).slice(0, 8);
-              const list =
-                titles.join(', ') +
-                (projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '');
-              lines.push(`"${name}" has ${projectCount} attached project(s): ${list}.`);
-              lines.push('');
-              lines.push('Deleting this client will permanently delete all attached projects.');
+              const titles = projects.map((p) => esc(p.title || '')).filter(Boolean).slice(0, 8);
+              const extra = projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '';
+              parts.push(
+                `<p><strong>${esc(name)}</strong> has ${projectCount} attached project${projectCount === 1 ? '' : 's'}${titles.length ? `: ${titles.join(', ')}${extra}` : '.'}</p>`,
+              );
+              parts.push('<p class="confirm-warn">Deleting this client will permanently delete all attached projects.</p>');
             } else {
-              lines.push(`Delete "${name}" from the master DB? This cannot be undone.`);
+              parts.push(`<p>Delete <strong>${esc(name)}</strong> from the master DB? This cannot be undone.</p>`);
             }
             const invoiceCount = Number(preview.invoice_count ?? 0);
             if (invoiceCount > 0) {
-              lines.push('');
-              lines.push(
-                `Note: ${invoiceCount} Crater invoice(s) will remain in billing (not deleted with the client).`,
+              parts.push(
+                `<p class="confirm-note">${invoiceCount} linked Crater invoice${invoiceCount === 1 ? '' : 's'} — the client will be removed; invoice records stay in billing.</p>`,
               );
             }
-            return lines.join('\n');
+            return parts.join('');
           }
 
-          async function tryDelete(force: boolean): Promise<boolean> {
-            if (!force) {
-              let preview: Record<string, unknown>;
-              try {
-                preview = await fetchDeletePreview();
-              } catch (e) {
-                alert(`Could not check linked projects: ${e instanceof Error ? e.message : String(e)}`);
-                return false;
-              }
-              if (!confirm(buildDeleteConfirmMessage(preview))) return false;
-              const needsForce =
-                Number(preview.project_count ?? preview.job_count ?? 0) > 0 ||
-                Number(preview.invoice_count ?? 0) > 0;
-              if (needsForce) return tryDelete(true);
-            }
-            btn.disabled = true;
-            if (msgEl) { msgEl.textContent = 'Deleting…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+          async function performDelete(force: boolean) {
             const qs = force ? '?force=true' : '';
-            const res = await fetch(`/api/contacts/${encodeURIComponent(uid)}${qs}`, {
+            return fetch(`/api/contacts/${encodeURIComponent(uid)}${qs}`, {
               method: 'DELETE',
               headers: { 'x-dashboard-key': dashKey },
             });
-            const data = await res.json() as {
-              ok: boolean;
-              error?: string;
-              warning?: string;
-            };
+          }
+
+          let preview: Record<string, unknown>;
+          try {
+            preview = await fetchDeletePreview();
+          } catch (e) {
+            await appAlert({
+              title: 'Could not verify',
+              bodyHtml: `<p>${esc(e instanceof Error ? e.message : String(e))}</p>`,
+            });
+            return;
+          }
+
+          const projectCount = Number(preview.project_count ?? preview.job_count ?? 0);
+          const confirmed = await appConfirm({
+            title: projectCount > 0 ? 'Delete client and projects?' : 'Delete client?',
+            bodyHtml: buildDeleteConfirmHtml(preview),
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+          });
+          if (!confirmed) return;
+
+          btn.disabled = true;
+          if (msgEl) { msgEl.textContent = 'Deleting…'; msgEl.className = 'import-msg'; msgEl.style.display = 'block'; }
+
+          try {
+            let res = await performDelete(true);
+            let data = (await res.json()) as { ok: boolean; error?: string; warning?: string };
+
+            if (res.status === 409) {
+              const retry = await appConfirm({
+                title: 'Confirm delete',
+                bodyHtml: `<p>${esc(data.error || data.warning || 'This client has linked records.')}</p>`,
+                confirmLabel: 'Delete anyway',
+                cancelLabel: 'Cancel',
+                danger: true,
+              });
+              if (!retry) {
+                btn.disabled = false;
+                if (msgEl) msgEl.style.display = 'none';
+                return;
+              }
+              res = await performDelete(true);
+              data = (await res.json()) as { ok: boolean; error?: string; warning?: string };
+            }
+
             if (data.ok) {
               if (card) {
                 card.style.opacity = '0.4';
                 card.style.pointerEvents = 'none';
               }
               if (msgEl) { msgEl.textContent = 'Deleted.'; msgEl.className = 'import-msg ok'; }
-              return true;
+              return;
             }
-            btn.disabled = false;
-            if (msgEl) {
-              msgEl.textContent = data.error || data.warning || 'Delete failed.';
-              msgEl.className = 'import-msg err';
-            }
-            return false;
-          }
 
-          try {
-            await tryDelete(false);
+            btn.disabled = false;
+            await appAlert({
+              title: 'Delete failed',
+              bodyHtml: `<p>${esc(data.error || data.warning || 'Delete failed.')}</p>`,
+            });
+            if (msgEl) msgEl.style.display = 'none';
           } catch (e) {
             btn.disabled = false;
-            if (msgEl) { msgEl.textContent = `Error: ${e instanceof Error ? e.message : String(e)}`; msgEl.className = 'import-msg err'; }
+            await appAlert({
+              title: 'Delete failed',
+              bodyHtml: `<p>${esc(e instanceof Error ? e.message : String(e))}</p>`,
+            });
+            if (msgEl) msgEl.style.display = 'none';
           }
         });
       });

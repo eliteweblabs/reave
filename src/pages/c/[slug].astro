@@ -521,6 +521,16 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           radial-gradient(900px 500px at 100% 0%, rgba(236, 72, 153, 0.12), transparent 55%),
           #0a0a0a;
       }
+      button,
+      .tab,
+      .action {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+      .action .ico {
+        pointer-events: none;
+      }
       .wrap {
         max-width: 560px;
         margin: 0 auto;

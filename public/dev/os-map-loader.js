@@ -3506,53 +3506,144 @@ async function fetchClientDeletePreview(uid) {
   return data;
 }
 
-function buildClientDeleteConfirmMessage(name, preview) {
-  const lines = [];
-  const projectCount = preview.project_count ?? preview.job_count ?? 0;
-  if (projectCount > 0) {
-    const titles = (preview.projects || []).map((p) => p.title).slice(0, 8);
-    const list = titles.join(', ') + (projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '');
-    lines.push(`"${name}" has ${projectCount} attached project(s): ${list}.`);
-    lines.push('');
-    lines.push('Deleting this client will permanently delete all attached projects.');
-  } else {
-    lines.push(`Delete client "${name}"? This cannot be undone.`);
+function osDialog(opts) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
+    return Promise.resolve(opts.showCancel ? false : undefined);
   }
-  if ((preview.invoice_count ?? 0) > 0) {
-    lines.push('');
-    lines.push(`Note: ${preview.invoice_count} Crater invoice(s) will remain in billing (not deleted with the client).`);
-  }
-  return lines.join('\n');
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+
+    const onKey = (ev) => {
+      if (ev.key === 'Escape' && opts.showCancel) finish(false);
+    };
+
+    titleEl.textContent = opts.title || '';
+    bodyEl.innerHTML = opts.bodyHtml || '';
+    actionsEl.innerHTML = '';
+
+    const mkBtn = (label, cls, value) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', () => finish(value));
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    if (opts.showCancel) {
+      mkBtn(opts.cancelLabel || 'Cancel', 'os-dialog-btn--ghost', false);
+    }
+    const primary = mkBtn(
+      opts.confirmLabel || 'OK',
+      opts.danger ? 'os-dialog-btn--danger' : '',
+      true,
+    );
+
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', onKey);
+    primary.focus();
+  });
 }
 
-async function deleteClient(uid, name, force = false) {
-  if (!force) {
-    let preview;
-    try {
-      preview = await fetchClientDeletePreview(uid);
-    } catch (e) {
-      alert(`Could not check linked projects: ${e.message}`);
-      return;
-    }
-    if (!confirm(buildClientDeleteConfirmMessage(name, preview))) return;
-    const needsForce = (preview.project_count ?? preview.job_count ?? 0) > 0 || (preview.invoice_count ?? 0) > 0;
-    if (needsForce) return deleteClient(uid, name, true);
+function osConfirm(opts) {
+  return osDialog({ ...opts, showCancel: true });
+}
+
+function osAlert(opts) {
+  return osDialog({ ...opts, showCancel: false, confirmLabel: opts.confirmLabel || 'OK' });
+}
+
+function buildClientDeleteConfirmHtml(name, preview) {
+  const parts = [];
+  const projectCount = preview.project_count ?? preview.job_count ?? 0;
+  if (projectCount > 0) {
+    const titles = (preview.projects || []).map((p) => escHtml(p.title)).slice(0, 8);
+    const extra = projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '';
+    parts.push(
+      `<p><strong>${escHtml(name)}</strong> has ${projectCount} attached project${projectCount === 1 ? '' : 's'}${titles.length ? `: ${titles.join(', ')}${extra}` : '.'}</p>`,
+    );
+    parts.push('<p class="os-dialog-warn">Deleting this client will permanently delete all attached projects.</p>');
+  } else {
+    parts.push(`<p>Delete <strong>${escHtml(name)}</strong>? This cannot be undone.</p>`);
   }
+  const inv = preview.invoice_count ?? 0;
+  if (inv > 0) {
+    parts.push(
+      `<p class="os-dialog-note">${inv} linked Crater invoice${inv === 1 ? '' : 's'} — the client will be removed; invoice records stay in billing.</p>`,
+    );
+  }
+  return parts.join('');
+}
+
+async function performClientDelete(uid, force) {
+  const qs = force ? '?force=true' : '';
+  const res = await fetch(`/api/clients/${encodeURIComponent(uid)}${qs}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await res.json();
+  return { res, data };
+}
+
+async function deleteClient(uid, name) {
+  let preview;
   try {
-    const qs = force ? '?force=true' : '';
-    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}${qs}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    const data = await res.json();
+    preview = await fetchClientDeletePreview(uid);
+  } catch (e) {
+    await osAlert({ title: 'Could not verify', bodyHtml: `<p>${escHtml(e.message)}</p>` });
+    return;
+  }
+
+  const projectCount = preview.project_count ?? preview.job_count ?? 0;
+
+  const confirmed = await osConfirm({
+    title: projectCount > 0 ? 'Delete client and projects?' : 'Delete client?',
+    bodyHtml: buildClientDeleteConfirmHtml(name, preview),
+    confirmLabel: 'Delete',
+    cancelLabel: 'Cancel',
+    danger: true,
+  });
+  if (!confirmed) return;
+
+  try {
+    let { res, data } = await performClientDelete(uid, true);
+
+    if (res.status === 409) {
+      const retry = await osConfirm({
+        title: 'Confirm delete',
+        bodyHtml: `<p>${escHtml(data.error || data.warning || 'This client has linked records.')}</p>`,
+        confirmLabel: 'Delete anyway',
+        cancelLabel: 'Cancel',
+        danger: true,
+      });
+      if (!retry) return;
+      ({ res, data } = await performClientDelete(uid, true));
+    }
+
     if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
+
     clientState.activeUid = null;
     clientState.dirty = false;
     clientState.draft = null;
     await loadClientsTab();
   } catch (e) {
-    alert(`Failed to delete: ${e.message}`);
+    await osAlert({ title: 'Delete failed', bodyHtml: `<p>${escHtml(e.message)}</p>` });
   }
 }
 

@@ -43,6 +43,17 @@ const { userId } = Astro.locals.auth();
         touch-action: manipulation;
       }
 
+      /* Editor chrome — keep inputs/message bodies selectable */
+      button,
+      select,
+      .ch-msg-action,
+      .os-dialog-btn,
+      .tab-dropdown-item {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
+
       #wrap {
         position: fixed;
         inset: 0;
@@ -301,6 +312,9 @@ const { userId } = Astro.locals.auth();
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border-bottom: 1px solid rgba(35, 44, 58, 0.6);
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
       }
 
       /* Every direct child that needs clicks opts in */
@@ -313,7 +327,15 @@ const { userId } = Astro.locals.auth();
         flex-shrink: 0;
         line-height: 0;
       }
-      #topbar .brand-img { height: 1.4rem; width: auto; display: block; }
+      #topbar .brand-img {
+        height: 1.4rem;
+        width: auto;
+        display: block;
+        pointer-events: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+      }
 
       /* Right-side icon cluster */
       .topbar-end {
@@ -332,8 +354,6 @@ const { userId } = Astro.locals.auth();
         line-height: 1;
         color: var(--muted);
         cursor: default;
-        user-select: none;
-        -webkit-user-select: none;
       }
       #health-checked {
         opacity: 0.35;
@@ -380,6 +400,9 @@ const { userId } = Astro.locals.auth();
         flex-shrink: 0;
         transition: border-color 0.15s, background 0.15s, color 0.15s;
       }
+      .topbar-profile svg {
+        pointer-events: none;
+      }
       .topbar-profile:hover {
         border-color: rgba(168, 85, 247, 0.9);
         background: rgba(168, 85, 247, 0.22);
@@ -415,14 +438,14 @@ const { userId } = Astro.locals.auth();
       /* Items near the right edge: right-align the tooltip */
       [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
 
-      @media (max-width: 639px) {}
-
       /* Tabs */
       #tabs {
         display: flex;
         gap: 0.25rem;
         pointer-events: auto;
         align-items: center;
+        flex: 1 1 auto;
+        min-width: 0;
       }
       .tab-item {
         pointer-events: auto;
@@ -438,7 +461,6 @@ const { userId } = Astro.locals.auth();
         align-items: center;
         gap: 0.35rem;
         text-decoration: none;
-        user-select: none;
       }
       .tab-item:hover { color: var(--fg); }
       .tab-item.active {
@@ -468,7 +490,12 @@ const { userId } = Astro.locals.auth();
         flex: 0 0 auto;
       }
       .tab-grip:active { cursor: grabbing; }
-      .tab-icon { font-size: 0.9rem; line-height: 1; flex: 0 0 auto; }
+      .tab-icon,
+      .tab-caret {
+        flex: 0 0 auto;
+        pointer-events: none;
+      }
+      .tab-icon { font-size: 0.9rem; line-height: 1; }
       .tab-caret { font-size: 0.55rem; opacity: 0.65; margin-left: -0.1rem; }
       .tab-dropdown { position: relative; }
       .tab-dropdown-trigger {
@@ -519,12 +546,70 @@ const { userId } = Astro.locals.auth();
         background: #1b2230;
         border-color: var(--panel-border);
       }
-      @media (max-width: 600px) {
+
+      @media (max-width: 639px) {
+        #topbar {
+          gap: 0.2rem;
+          padding-left: max(0.375rem, env(safe-area-inset-left));
+          padding-right: max(0.375rem, env(safe-area-inset-right));
+        }
+        #topbar .spacer { display: none; }
+        #topbar .brand-img { height: 1.15rem; }
+        #tabs {
+          flex: 1 1 0;
+          min-width: 0;
+          gap: 0.06rem;
+          overflow-x: auto;
+          overscroll-behavior-x: contain;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        #tabs::-webkit-scrollbar { display: none; }
+        .tab-item,
+        .tab-item.tab-dropdown {
+          flex: 1 1 0;
+          min-width: 1.35rem;
+          max-width: 2.1rem;
+          justify-content: center;
+          padding: 0.2rem 0.12rem;
+        }
+        .tab-item.tab-link {
+          flex: 1 1 0;
+          min-width: 1.35rem;
+          max-width: 2.1rem;
+          padding: 0;
+        }
+        .tab-item.tab-link > a {
+          width: 100%;
+          justify-content: center;
+          padding: 0.2rem 0.12rem;
+        }
+        .tab-dropdown-trigger {
+          width: 100%;
+          justify-content: center;
+          gap: 0.1rem;
+        }
         .tab-label { display: none; }
         .tab-grip { display: none; }
-        .tab-item { padding: 0.28rem 0.5rem; }
-        .tab-item.tab-link > a { padding: 0.28rem 0.5rem; }
+        .tab-caret { display: none; }
+        .tab-icon { font-size: 0.82rem; }
+        .topbar-end {
+          gap: 0.2rem;
+          flex-shrink: 0;
+        }
+        #health-checked {
+          padding-right: 0.25rem;
+        }
+        .topbar-profile {
+          width: 26px;
+          height: 26px;
+        }
+        .topbar-profile svg {
+          width: 13px;
+          height: 13px;
+        }
       }
+
       #topbar button {
         pointer-events: auto;
         font: inherit;
@@ -547,6 +632,9 @@ const { userId } = Astro.locals.auth();
         flex-direction: column;
         gap: 0.35rem;
         z-index: 20;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
       }
       #tools button {
         width: 2.1rem;
@@ -578,6 +666,9 @@ const { userId } = Astro.locals.auth();
         max-width: 60vw;
         justify-content: flex-end;
         z-index: 20;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
       }
       #legend .chip {
         display: flex;
@@ -1594,6 +1685,79 @@ const { userId } = Astro.locals.auth();
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
       }
+
+      /* App dialog (replaces system alert/confirm on mobile) */
+      #os-dialog-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 5000;
+        background: rgba(0, 0, 0, 0.72);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        align-items: center;
+        justify-content: center;
+        padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+      }
+      #os-dialog-backdrop.open { display: flex; }
+      .os-dialog {
+        width: 100%;
+        max-width: 400px;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+      .os-dialog-title {
+        margin: 0;
+        padding: 1rem 1.15rem 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.35;
+      }
+      .os-dialog-body {
+        padding: 0 1.15rem 1rem;
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      .os-dialog-body p { margin: 0 0 0.65rem; }
+      .os-dialog-body p:last-child { margin-bottom: 0; }
+      .os-dialog-warn { color: #fbbf24; }
+      .os-dialog-note { color: #93c5fd; font-size: 0.8rem; }
+      .os-dialog-actions {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding: 0.75rem 1rem 1rem;
+        border-top: 1px solid var(--panel-border);
+        background: rgba(0, 0, 0, 0.15);
+      }
+      .os-dialog-btn {
+        font: inherit;
+        font-size: 0.84rem;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.5rem 0.9rem;
+        cursor: pointer;
+        border: 1px solid var(--panel-border);
+        background: #1b2230;
+        color: var(--fg);
+      }
+      .os-dialog-btn:hover { border-color: #4b5563; }
+      .os-dialog-btn--ghost {
+        background: transparent;
+        color: var(--muted);
+        border-color: transparent;
+      }
+      .os-dialog-btn--ghost:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
+      .os-dialog-btn--danger {
+        background: #3f1515;
+        border-color: #7f1d1d;
+        color: #fca5a5;
+      }
+      .os-dialog-btn--danger:hover { background: #521818; border-color: #991b1b; }
     </style>
   </head>
   <body data-user-id={userId ?? ""}>
@@ -1649,6 +1813,14 @@ const { userId } = Astro.locals.auth();
     <div id="clients-editor" style="display:none"></div>
 
     <div id="rule-editor" style="display:none"></div>
+
+    <div id="os-dialog-backdrop" role="presentation" aria-hidden="true">
+      <div class="os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">
+        <h2 class="os-dialog-title" id="os-dialog-title"></h2>
+        <div class="os-dialog-body" id="os-dialog-body"></div>
+        <div class="os-dialog-actions" id="os-dialog-actions"></div>
+      </div>
+    </div>
 
     <script is:inline type="module" src="/dev/os-map-loader.js"></script>
   </body>

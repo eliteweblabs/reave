@@ -80,6 +80,9 @@ if (userId) {
     padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
     /* Let page content/canvas underneath stay interactive; children opt back in. */
     pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   .site-header > * {
@@ -97,6 +100,10 @@ if (userId) {
     height: 28px;
     width: auto;
     display: block;
+    pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
 
   /* Never print the site chrome. */
@@ -125,6 +132,10 @@ if (userId) {
     justify-content: center;
     text-decoration: none;
     transition: color 0.15s;
+  }
+
+  .login-btn svg {
+    pointer-events: none;
   }
 
   .login-btn:hover {
@@ -168,7 +179,6 @@ if (userId) {
     color: #a855f7;
     font-family: 'Inter', -apple-system, sans-serif;
     letter-spacing: 0.02em;
-    user-select: none;
   }
 
   .profile-dropdown {
@@ -219,10 +229,25 @@ if (userId) {
     color: #f87171;
   }
 
+  .dropdown-item svg {
+    pointer-events: none;
+    flex-shrink: 0;
+  }
+
   .dropdown-divider {
     height: 1px;
     background: rgba(255, 255, 255, 0.08);
     margin: 4px 0;
+  }
+
+  @media (max-width: 639px) {
+    .site-header {
+      padding:
+        env(safe-area-inset-top)
+        max(10px, env(safe-area-inset-right))
+        0
+        max(10px, env(safe-area-inset-left));
+    }
   }
 </style>
 

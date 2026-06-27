@@ -100,4 +100,37 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 	}
+
+	/*
+	 * Interactive chrome — prevent accidental text/emoji selection on tap (esp. iOS).
+	 * Content areas (inputs, textareas, article copy) stay selectable by default.
+	 */
+	button:not(:disabled),
+	input[type="button"],
+	input[type="submit"],
+	input[type="reset"],
+	input[type="checkbox"],
+	input[type="radio"],
+	select,
+	summary,
+	[role="button"] {
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-touch-callout: none;
+	}
+
+	.site-header,
+	.site-header a,
+	.site-header button {
+		-webkit-user-select: none;
+		user-select: none;
+		-webkit-touch-callout: none;
+	}
+
+	button svg,
+	a[aria-label] svg,
+	[role="button"] svg {
+		-webkit-user-select: none;
+		user-select: none;
+	}
 </style>
