@@ -7,6 +7,7 @@ const TAB_ORDER_STORE = 'os-map-tab-order-v1';
 const SYSTEM_MAP_SET = new Set(SYSTEM_MAP_KEYS);
 const CHAT_MAP_SET = new Set(CHAT_MAP_KEYS);
 const MOBILE_TABS_MQ = window.matchMedia('(max-width: 639px)');
+const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
 const userId = document.body?.dataset?.userId?.trim() || '';
 const SVGNS = 'http://www.w3.org/2000/svg';
 const PINCH_ZOOM = true;
@@ -808,6 +809,10 @@ function isMobileTabs() {
   return MOBILE_TABS_MQ.matches;
 }
 
+function isCompactTabs() {
+  return COMPACT_TABS_MQ.matches;
+}
+
 /** Expand mobile-only dropdown slots back to persisted tab keys. */
 function storedTabOrderKeys(keys) {
   const out = [];
@@ -821,10 +826,10 @@ function storedTabOrderKeys(keys) {
   return normalizeTabOrderKeys(out);
 }
 
-/** Collapse tabs for mobile header (Knowledge → Chats menu; hide Finance). */
+/** Collapse tabs on narrow headers (Knowledge → Chats menu; hide Finance on mobile). */
 function effectiveTabOrder(order) {
   const normalized = normalizeTabOrderKeys(order);
-  if (!isMobileTabs()) return normalized;
+  if (!isCompactTabs()) return normalized;
 
   const out = [];
   let chatSlot = false;
@@ -836,7 +841,7 @@ function effectiveTabOrder(order) {
       }
       continue;
     }
-    if (key === 'finance') continue;
+    if (isMobileTabs() && key === 'finance') continue;
     out.push(key);
   }
   return out;
@@ -1179,7 +1184,9 @@ function buildTabs(order) {
   const tabs = document.getElementById('tabs');
   if (!tabs) return;
   tabs.innerHTML = '';
-  tabs.title = 'Drag ⋮⋮ on a tab to reorder';
+  tabs.title = isCompactTabs()
+    ? 'Tabs — scroll sideways if needed'
+    : 'Drag ⋮⋮ on a tab to reorder';
 
   for (const key of effectiveTabOrder(order)) {
     if (key === SYSTEM_TAB_SLOT) {
@@ -1601,7 +1608,11 @@ async function deleteRule(id) {
   const rule = ruleState.rules.find((r) => r.id === id);
   if (!confirm(`Delete "${rule?.title || 'this rule'}"?`)) return;
   try {
-    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     ruleState.dirty = false;
     closeRuleEditor(false);
@@ -2155,7 +2166,11 @@ async function deleteDocument(slug) {
   const tpl = docState.templates.find((t) => t.slug === slug);
   if (!confirm(`Delete "${tpl?.title ?? slug}"? This cannot be undone.`)) return;
   try {
-    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     docState.activeSlug = null;
     docState.dirty = false;
@@ -4509,8 +4524,12 @@ async function deleteChat(id, title) {
   const label = (title || 'this chat').trim() || 'this chat';
   if (!confirm(`Delete "${label}"? This permanently removes the chat and all messages.`)) return;
   try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    await readApiJson(res);
+    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (res.status !== 404) await readApiJson(res);
     chatState.threads = chatState.threads.filter((t) => t.id !== id);
     if (chatState.activeId === id) {
       chatState.activeId = null;
@@ -4769,12 +4788,15 @@ function saveActiveKey() {
 }
 
 // ---- init ----
+async function rebuildTabsForViewport() {
+  buildTabs(await resolveTabOrder());
+}
+
 async function boot() {
   const tabOrder = await resolveTabOrder();
   buildTabs(tabOrder);
-  MOBILE_TABS_MQ.addEventListener('change', async () => {
-    buildTabs(await resolveTabOrder());
-  });
+  MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
+  COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initModelSelector();
   syncCanvasVisibility();
   if (MAP.type === 'documents') {
