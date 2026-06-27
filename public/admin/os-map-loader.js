@@ -163,7 +163,7 @@ function setActiveMap(key) {
     loadEmailTab();
   } else {
     buildMap();
-    requestAnimationFrame(() => { redraw(); fit(); });
+    finishMapLayout();
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
     if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
@@ -407,9 +407,93 @@ function initModelSelector() {
 }
 
 // ---- rendering ----
+const NODE_W = 210;
+const NODE_H = 96;
+const NODE_H_COMPACT = 72;
+const NODE_GAP = GRID * 2;
+
+function defaultNodeSize(n) {
+  return {
+    w: n.wide || NODE_W,
+    h: n.status ? NODE_H : NODE_H_COMPACT,
+  };
+}
+
 function rect(n) {
   const el = nodeEls.get(n.id);
-  return { x: n.x, y: n.y, w: el.offsetWidth, h: el.offsetHeight };
+  const fallback = defaultNodeSize(n);
+  return {
+    x: n.x,
+    y: n.y,
+    w: el?.offsetWidth || fallback.w,
+    h: el?.offsetHeight || fallback.h,
+  };
+}
+
+function nodeBounds(n) {
+  const r = rect(n);
+  return { x: r.x, y: r.y, w: r.w, h: r.h, right: r.x + r.w, bottom: r.y + r.h };
+}
+
+function boxesOverlap(a, b, gap = NODE_GAP) {
+  return a.x < b.right + gap && a.right + gap > b.x && a.y < b.bottom + gap && a.bottom + gap > b.y;
+}
+
+function separateNodes(a, b, gap = NODE_GAP) {
+  const ra = nodeBounds(a);
+  const rb = nodeBounds(b);
+  if (!boxesOverlap(ra, rb, gap)) return false;
+
+  const overlapX = Math.min(ra.right + gap - rb.x, rb.right + gap - ra.x);
+  const overlapY = Math.min(ra.bottom + gap - rb.y, rb.bottom + gap - ra.y);
+
+  if (overlapX < overlapY) {
+    if (ra.x + ra.w / 2 <= rb.x + rb.w / 2) b.x = snap(ra.right + gap);
+    else a.x = snap(rb.right + gap);
+  } else if (ra.y + ra.h / 2 <= rb.y + rb.h / 2) b.y = snap(ra.bottom + gap);
+  else a.y = snap(rb.bottom + gap);
+
+  return true;
+}
+
+function applyNodePositions() {
+  for (const n of byId.values()) {
+    const el = nodeEls.get(n.id);
+    if (!el) continue;
+    el.style.left = `${n.x}px`;
+    el.style.top = `${n.y}px`;
+  }
+}
+
+/** Push overlapping nodes apart after layout; returns true if anything moved. */
+function resolveOverlaps() {
+  const nodes = [...byId.values()];
+  if (nodes.length < 2) return false;
+
+  let changed = false;
+  const maxPass = Math.max(24, nodes.length * 4);
+
+  for (let pass = 0; pass < maxPass; pass++) {
+    let moved = false;
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        if (separateNodes(nodes[i], nodes[j])) moved = true;
+      }
+    }
+    if (!moved) break;
+    changed = true;
+    applyNodePositions();
+  }
+  return changed;
+}
+
+function finishMapLayout({ persist = true } = {}) {
+  requestAnimationFrame(() => {
+    const fixed = resolveOverlaps();
+    redraw();
+    fit();
+    if (fixed && persist) savePositions();
+  });
 }
 
 function anchors(a, b) {
@@ -702,14 +786,14 @@ document.getElementById('reset')?.addEventListener('click', () => {
   localStorage.removeItem(storeKey());
   for (const n of byId.values()) {
     const orig = MAP.nodes.find((d) => d.id === n.id);
+    if (!orig) continue;
     n.x = orig.x;
     n.y = orig.y;
     const el = nodeEls.get(n.id);
     el.style.left = `${n.x}px`;
     el.style.top = `${n.y}px`;
   }
-  redraw();
-  fit();
+  finishMapLayout();
 });
 
 // ---- tabs ----
@@ -1178,8 +1262,8 @@ async function loadAndBuildRuleNodes() {
 
   const nodes = [];
   const groups = [];
-  const COL_W = 240;
-  const ROW_H = 108;
+  const COL_W = 280;
+  const ROW_H = 132;
   const MARGIN = 60;
   let colX = MARGIN;
   let rowY = MARGIN;
@@ -1222,7 +1306,7 @@ async function loadAndBuildRuleNodes() {
   MAP.edges = [];
 
   buildMap();
-  requestAnimationFrame(() => { redraw(); fit(); });
+  finishMapLayout();
   buildLegend();
   renderRuleEditorShell();
 
@@ -1533,8 +1617,8 @@ async function loadAndBuildTodoNodes() {
 
   const nodes = [];
   const groups = [];
-  const COL_W = 260;
-  const ROW_H = 108;
+  const COL_W = 280;
+  const ROW_H = 132;
   const MARGIN = 60;
 
   let colX = MARGIN;
@@ -1586,7 +1670,7 @@ async function loadAndBuildTodoNodes() {
   MAP.edges = [];
 
   buildMap();
-  requestAnimationFrame(() => { redraw(); fit(); });
+  finishMapLayout();
   buildLegend();
 
   // Wire up click-to-toggle on each node's chip after the DOM is built.
@@ -4666,7 +4750,7 @@ async function boot() {
     loadEmailTab();
   } else {
     buildMap();
-    requestAnimationFrame(() => { redraw(); fit(); });
+    finishMapLayout();
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
     if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }

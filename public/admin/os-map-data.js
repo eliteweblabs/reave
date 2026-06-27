@@ -23,14 +23,14 @@ const SYSTEM_NODES = [
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 520 },
 
   // Reave App (Railway) — the hub
-  { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 430, y: 300 },
-  { id: 'app_pg', title: 'App Postgres', sub: 'knowledge · jobs · chats · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 430, y: 470 },
-  { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 790, y: 160 },
-  { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 790, y: 300 },
-  { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 790, y: 440 },
-  { id: 'portal', title: 'Client portal', sub: '/c/:uid · shareable PWA', icon: '📇', hue: 320, status: true, group: 'reave', x: 600, y: 560 },
-  { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS Contacts sync', icon: '📲', hue: 275, status: true, group: 'reave', x: 600, y: 430 },
-  { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/admin/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 430, y: 160 },
+  { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · /carddav', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 264 },
+  { id: 'app_pg', title: 'App Postgres', sub: 'knowledge · jobs · chats · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 408 },
+  { id: 'contact_api', title: 'contact-api', sub: 'Reave App', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
+  { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
+  { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
+  { id: 'portal', title: 'Client portal', sub: '/c/:uid · shareable PWA', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS Contacts sync', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
+  { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/admin/contacts · key-gated', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'Claude Messages · /model or dashboard picker', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 120 },
@@ -41,7 +41,7 @@ const SYSTEM_NODES = [
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · voice · Call Control', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
 
   // Separate Railway service
-  { id: 'imap', title: 'openclaw-email-tools', sub: 'IMAP · watches Gmail', icon: '📨', brand: 'gmail', hue: 100, status: true, group: 'openclaw', x: 790, y: 620 },
+  { id: 'imap', title: 'openclaw-email-tools', sub: 'IMAP · watches Gmail', icon: '📨', brand: 'gmail', hue: 100, status: true, group: 'openclaw', x: 880, y: 552 },
 ];
 
 const SYSTEM_EDGES = [
