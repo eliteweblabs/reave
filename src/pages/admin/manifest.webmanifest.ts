@@ -11,7 +11,7 @@ export const GET: APIRoute = async () => {
     name: 'Reave Business OS',
     short_name: 'Reave',
     description: 'Business OS — inbox, jobs, contacts',
-    start_url: '/admin?tab=email',
+    start_url: '/admin?tab=chats',
     scope: '/admin',
     display: 'standalone',
     background_color: '#0a0d14',

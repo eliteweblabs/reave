@@ -997,9 +997,64 @@ function tabInnerHtml(m) {
   return `<span class="tab-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>${label}`;
 }
 
+function resetMobileTabDropdown(wrap) {
+  const menu = wrap?.querySelector('.tab-dropdown-menu');
+  if (!menu) return;
+  menu.style.position = '';
+  menu.style.top = '';
+  menu.style.left = '';
+  menu.style.right = '';
+  menu.style.zIndex = '';
+}
+
+function positionMobileTabDropdown(wrap) {
+  if (!isMobileTabs()) return;
+  const menu = wrap.querySelector('.tab-dropdown-menu');
+  const trigger = wrap.querySelector('.tab-dropdown-trigger');
+  if (!menu || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  menu.style.position = 'fixed';
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8))}px`;
+  menu.style.right = 'auto';
+  menu.style.zIndex = '100';
+}
+
 function closeTabDropdowns(except) {
   document.querySelectorAll('.tab-dropdown.open').forEach((dd) => {
-    if (dd !== except) dd.classList.remove('open');
+    if (dd !== except) {
+      dd.classList.remove('open');
+      resetMobileTabDropdown(dd);
+    }
+  });
+}
+
+/** Mobile: first tap opens the section; second tap (when active) opens the sub-menu. */
+function attachDropdownTriggerClick(wrap, mapSet, defaultKey) {
+  const trigger = wrap.querySelector('.tab-dropdown-trigger');
+  if (!trigger) return;
+
+  trigger.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (tabDragMoved) return;
+
+    if (isMobileTabs()) {
+      if (!mapSet.has(activeKey)) {
+        setActiveMap(defaultKey);
+        return;
+      }
+      const willOpen = !wrap.classList.contains('open');
+      closeTabDropdowns(willOpen ? wrap : null);
+      wrap.classList.toggle('open', willOpen);
+      if (willOpen) positionMobileTabDropdown(wrap);
+      else resetMobileTabDropdown(wrap);
+      return;
+    }
+
+    const willOpen = !wrap.classList.contains('open');
+    closeTabDropdowns(willOpen ? wrap : null);
+    wrap.classList.toggle('open', willOpen);
+    if (!willOpen) resetMobileTabDropdown(wrap);
   });
 }
 
@@ -1037,16 +1092,9 @@ function buildSystemDropdownTab() {
     menu.appendChild(item);
   }
 
-  trigger.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    if (tabDragMoved) return;
-    const willOpen = !wrap.classList.contains('open');
-    closeTabDropdowns(willOpen ? wrap : null);
-    wrap.classList.toggle('open', willOpen);
-  });
-
   wrap.appendChild(trigger);
   wrap.appendChild(menu);
+  attachDropdownTriggerClick(wrap, SYSTEM_MAP_SET, 'system');
   attachTabPointerReorder(wrap);
   return wrap;
 }
@@ -1085,16 +1133,9 @@ function buildChatDropdownTab() {
     menu.appendChild(item);
   }
 
-  trigger.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    if (tabDragMoved) return;
-    const willOpen = !wrap.classList.contains('open');
-    closeTabDropdowns(willOpen ? wrap : null);
-    wrap.classList.toggle('open', willOpen);
-  });
-
   wrap.appendChild(trigger);
   wrap.appendChild(menu);
+  attachDropdownTriggerClick(wrap, CHAT_MAP_SET, 'chats');
   attachTabPointerReorder(wrap);
   return wrap;
 }
@@ -4719,7 +4760,7 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
-  return MAPS[key] ? key : 'system';
+  return MAPS[key] ? key : 'chats';
 }
 function saveActiveKey() {
   try {

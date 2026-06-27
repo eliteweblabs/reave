@@ -442,13 +442,19 @@ const { userId } = Astro.locals.auth();
       /* Items near the right edge: right-align the tooltip */
       [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
 
-      /* Tabs */
+      /* Tabs — scroll wrapper keeps dropdown menus visible on mobile */
+      #tabs-scroll {
+        display: flex;
+        flex: 1 1 auto;
+        min-width: 0;
+        align-items: center;
+        pointer-events: auto;
+      }
       #tabs {
         display: flex;
         gap: 0.25rem;
         pointer-events: auto;
         align-items: center;
-        flex: 1 1 auto;
         min-width: 0;
       }
       .tab-item {
@@ -559,16 +565,22 @@ const { userId } = Astro.locals.auth();
         }
         #topbar .spacer { display: none; }
         #topbar .brand-img { height: 1.15rem; }
-        #tabs {
+        #tabs-scroll {
           flex: 1 1 0;
           min-width: 0;
-          gap: 0.06rem;
           overflow-x: auto;
           overscroll-behavior-x: contain;
           scrollbar-width: none;
           -ms-overflow-style: none;
         }
-        #tabs::-webkit-scrollbar { display: none; }
+        #tabs-scroll::-webkit-scrollbar { display: none; }
+        #tabs {
+          flex: 1 0 auto;
+          gap: 0.06rem;
+        }
+        .tab-dropdown.open .tab-dropdown-menu {
+          z-index: 100;
+        }
         .tab-item,
         .tab-item.tab-dropdown {
           flex: 1 1 0;
@@ -1821,7 +1833,7 @@ const { userId } = Astro.locals.auth();
       <a href="/" class="brand" aria-label="Reave">
         <img class="brand-img" src="/reave-logo.png" alt="Reave" />
       </a>
-      <div id="tabs"></div>
+      <div id="tabs-scroll"><div id="tabs"></div></div>
       <span class="spacer"></span>
       <div class="topbar-end">
         <select id="model-select" style="display:none" aria-label="Agent model">
