@@ -4064,12 +4064,14 @@ async function deleteClient(uid, name) {
 
 // ---- chats tab ----
 
-const CH_MSG_ICONS = {
-  copy: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-  share: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
-  paste: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
-  edit: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+/** SF Symbol–style icons (square.and.arrow.up, doc.on.doc, etc.) for iOS-native toolbar affordances. */
+const IOS_ICONS = {
+  copy: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
+  paste: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
+  edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
 };
+const CH_MSG_ICONS = IOS_ICONS;
 
 let _chToastTimer = null;
 
@@ -4136,7 +4138,12 @@ function clientPortalShareUrl(uid, tab) {
 
 async function sharePortalLink(url, title, btn) {
   if (!url) return false;
-  const payload = { url, title: title || 'Client page' };
+  const pageTitle = title || 'Client page';
+  const payload = {
+    title: pageTitle,
+    text: pageTitle,
+    url,
+  };
   if (navigator.share) {
     try {
       await navigator.share(payload);
@@ -4150,16 +4157,29 @@ async function sharePortalLink(url, title, btn) {
   return ok;
 }
 
-function appendPortalShareBtn(parent, uid, opts = {}) {
-  const { tab, label = 'Share', title, className = 'de-btn de-btn-ghost de-share-btn' } = opts;
-  if (!uid) return null;
+function createIosIconBtn(opts = {}) {
+  const { iconKey, label, className = 'ios-icon-btn', onClick } = opts;
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = className;
-  btn.textContent = label;
-  btn.title = 'Share client portal link';
-  btn.addEventListener('click', () => {
-    sharePortalLink(clientPortalShareUrl(uid, tab), title || 'Your client page', btn);
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.innerHTML = IOS_ICONS[iconKey] || '';
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onClick?.(btn);
+  });
+  return btn;
+}
+
+function appendPortalShareBtn(parent, uid, opts = {}) {
+  const { tab, title, className = 'ios-icon-btn de-share-btn' } = opts;
+  if (!uid) return null;
+  const btn = createIosIconBtn({
+    iconKey: 'share',
+    label: 'Share client portal link',
+    className,
+    onClick: () => sharePortalLink(clientPortalShareUrl(uid, tab), title || 'Your client page', btn),
   });
   parent.appendChild(btn);
   return btn;
@@ -4582,27 +4602,19 @@ function renderChatPanel() {
   deleteBtn.textContent = 'Delete';
   deleteBtn.addEventListener('click', () => deleteChat(chatState.activeId, chatState.title));
   header.appendChild(deleteBtn);
-  const copyChatBtn = document.createElement('button');
-  copyChatBtn.type = 'button';
-  copyChatBtn.className = 'ch-copy-chat-btn';
-  copyChatBtn.textContent = 'Copy chat';
-  copyChatBtn.title = 'Copy entire conversation';
-  copyChatBtn.addEventListener('click', () => {
-    const text = chatState.messages
-      .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`)
-      .join('\n\n');
-    copyChatText(text, copyChatBtn);
+  const chatTranscript = () =>
+    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`).join('\n\n');
+  const copyChatBtn = createIosIconBtn({
+    iconKey: 'copy',
+    label: 'Copy entire conversation',
+    className: 'ios-icon-btn ch-copy-chat-btn',
+    onClick: (btn) => copyChatText(chatTranscript(), btn),
   });
-  const shareChatBtn = document.createElement('button');
-  shareChatBtn.type = 'button';
-  shareChatBtn.className = 'ch-share-chat-btn';
-  shareChatBtn.textContent = 'Share';
-  shareChatBtn.title = 'Share entire conversation';
-  shareChatBtn.addEventListener('click', () => {
-    const text = chatState.messages
-      .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`)
-      .join('\n\n');
-    shareChatText(text, 'assistant', shareChatBtn);
+  const shareChatBtn = createIosIconBtn({
+    iconKey: 'share',
+    label: 'Share entire conversation',
+    className: 'ios-icon-btn ch-share-chat-btn',
+    onClick: (btn) => shareChatText(chatTranscript(), 'assistant', btn),
   });
   header.insertBefore(shareChatBtn, deleteBtn);
   header.insertBefore(copyChatBtn, shareChatBtn);

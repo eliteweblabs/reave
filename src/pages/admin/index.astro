@@ -53,6 +53,7 @@ const company = await getCompanyConfig(Astro.request);
       button,
       select,
       .ch-msg-action,
+      .ios-icon-btn,
       .os-dialog-btn,
       .tab-dropdown-item {
         -webkit-user-select: none;
@@ -897,6 +898,11 @@ const company = await getCompanyConfig(Astro.request);
         .de-doc-name { font-size: 0.88rem; }
       }
       .de-doc-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         font-size: 0.95rem;
         font-weight: 700;
         color: var(--fg);
@@ -1274,8 +1280,41 @@ const company = await getCompanyConfig(Astro.request);
         word-break: break-all;
       }
       .cl-readonly a { color: #79c0ff; }
-      .cl-portal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-      .de-share-btn { font-size: 0.78rem; padding: 0.35rem 0.65rem; }
+      .cl-portal-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+
+      /* iOS-style icon toolbar buttons (SF Symbol affordances, 44pt touch targets) */
+      .ios-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 2.75rem;
+        height: 2.75rem;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #0a84ff;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        transition: color 0.12s, background 0.12s, opacity 0.12s;
+      }
+      .ios-icon-btn:hover {
+        background: rgba(10, 132, 255, 0.12);
+      }
+      .ios-icon-btn:active {
+        opacity: 0.55;
+      }
+      .ios-icon-btn svg {
+        display: block;
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+      .de-header .de-share-btn {
+        margin-left: auto;
+      }
       .cl-jobs-section { padding: 0 1rem 0.75rem; }
       .cl-jobs-list {
         display: flex;
@@ -1481,6 +1520,10 @@ const company = await getCompanyConfig(Astro.request);
         cursor: pointer;
         transition: color 0.12s, background 0.12s;
       }
+      .ch-msg-action svg {
+        width: 0.875rem;
+        height: 0.875rem;
+      }
       .ch-msg-action:hover {
         color: var(--fg);
         background: rgba(255, 255, 255, 0.08);
@@ -1587,20 +1630,7 @@ const company = await getCompanyConfig(Astro.request);
       .ch-delete-btn:hover { background: rgba(239, 68, 68, 0.16); }
       .ch-copy-chat-btn,
       .ch-share-chat-btn {
-        margin-left: 0.35rem;
-        padding: 0.35rem 0.65rem;
-        border-radius: 8px;
-        border: 1px solid var(--panel-border);
-        background: transparent;
-        color: var(--muted);
-        font: inherit;
-        font-size: 0.75rem;
-        cursor: pointer;
-      }
-      .ch-copy-chat-btn:hover,
-      .ch-share-chat-btn:hover {
-        color: var(--fg);
-        background: rgba(255, 255, 255, 0.06);
+        margin-left: 0.15rem;
       }
       .ch-toast {
         position: fixed;
