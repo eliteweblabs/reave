@@ -1,8 +1,9 @@
 /**
- * Pinned deploy-status message in the admin Telegram chat (Option C).
+ * Pinned deploy-status message in the admin Telegram chat.
  */
 
 import { getDeployPinText } from './deployStatus';
+import { getStoredDeployPinMessageId, setStoredDeployPinMessageId } from './deployPinStore';
 import {
   telegramEditMessage,
   telegramPinChatMessage,
@@ -10,8 +11,7 @@ import {
 } from './telegramClient';
 import { serverEnv } from './serverEnv';
 
-const pinMessageByChat = new Map<number, number>();
-let lastPinText = '';
+const lastPinTextByChat = new Map<number, string>();
 
 function deployNotifyChatId(): number | null {
   const raw = serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
@@ -33,15 +33,16 @@ export async function syncDeployStatusPin(token: string): Promise<void> {
   if (chatId == null) return;
 
   const text = await getDeployPinText();
-  if (!text || text === lastPinText) return;
+  if (!text) return;
+  if (lastPinTextByChat.get(chatId) === text) return;
 
-  let messageId = pinMessageByChat.get(chatId) ?? envPinMessageId() ?? null;
+  let messageId =
+    (await getStoredDeployPinMessageId(chatId)) ?? envPinMessageId() ?? null;
 
   if (messageId != null) {
     try {
       await telegramEditMessage(token, chatId, messageId, text);
-      pinMessageByChat.set(chatId, messageId);
-      lastPinText = text;
+      lastPinTextByChat.set(chatId, text);
       return;
     } catch {
       messageId = null;
@@ -51,8 +52,8 @@ export async function syncDeployStatusPin(token: string): Promise<void> {
   const newId = await telegramSendMessageReturningId(token, chatId, text);
   if (newId == null) return;
 
-  pinMessageByChat.set(chatId, newId);
-  lastPinText = text;
+  await setStoredDeployPinMessageId(chatId, newId);
+  lastPinTextByChat.set(chatId, text);
 
   try {
     await telegramPinChatMessage(token, chatId, newId);

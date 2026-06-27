@@ -23,6 +23,9 @@ import {
 } from '../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../lib/companyConfig';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
+import { storeListWorkForContact, type WorkJobSummary } from '../../lib/workStore';
+import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
+import PortalWorkPanel, { type PortalWorkJobItem } from '../../components/PortalWorkPanel.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
 
@@ -123,17 +126,53 @@ const telHref = contactTelHref(contact?.phone);
 
 const updatedAt = fmtDate(portal?.updatedAt);
 
+const CLIENT_WORK_STATUS: Record<string, string> = {
+  inquiry: 'Submitted',
+  active: 'In progress',
+  done: 'Complete',
+};
+
+// Jobs linked to this client (non-archived only — internal archive stays hidden).
+let clientJobs: WorkJobSummary[] = [];
+let commentsBySlug: Record<string, WorkJobComment[]> = {};
+if (contact && uid) {
+  try {
+    clientJobs = (await storeListWorkForContact(uid)).filter((j) => j.status !== 'archived');
+    if (clientJobs.length) {
+      commentsBySlug = await storeListWorkCommentsForSlugs(clientJobs.map((j) => j.slug));
+    }
+  } catch {
+    // Jobs are optional on the portal — never take down the page for storage drift.
+  }
+}
+
+const portalWorkJobs: PortalWorkJobItem[] = clientJobs.map((job) => ({
+  slug: job.slug,
+  title: job.title,
+  status: job.status,
+  statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
+  dueLabel: job.due_date ? `Due ${fmtDate(job.due_date)}` : '',
+}));
+
 // Which tabs to show
 const hasOverview = Boolean(headline || bodyHtml || fields.length > 0);
 const hasBilling = Boolean(billing);
 const hasData = dataEntries.length > 0;
 const hasDocs = portalDocs.length > 0;
+const hasWork = clientJobs.length > 0;
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
+if (hasWork) tabs.push({ id: 'work', label: 'Work' });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
 if (hasData) tabs.push({ id: 'data', label: 'Data' });
 if (hasDocs) tabs.push({ id: 'documents', label: 'Documents' });
 const showTabs = tabs.length > 1;
+
+const initialTab = (() => {
+  const raw = Astro.url.searchParams.get('tab')?.trim().toLowerCase();
+  if (raw && tabs.some((t) => t.id === raw)) return raw;
+  return tabs[0]?.id ?? 'overview';
+})();
 
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = displayName;
@@ -237,8 +276,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           {showTabs && (
             <div class="tabbar" role="tablist">
-              {tabs.map((t, i) => (
-                <button class={`tab ${i === 0 ? 'active' : ''}`} data-tab-btn={t.id} type="button">
+              {tabs.map((t) => (
+                <button class={`tab ${t.id === initialTab ? 'active' : ''}`} data-tab-btn={t.id} type="button">
                   {t.label}
                 </button>
               ))}
@@ -246,7 +285,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           )}
 
           {/* Overview */}
-          <section class="panel active" data-tab-panel="overview">
+          <section class={`panel ${initialTab === 'overview' ? 'active' : ''}`} data-tab-panel="overview">
             {headline && <h2 class="headline">{headline}</h2>}
             {bodyHtml && <div class="body" set:html={bodyHtml} />}
             {fields.length > 0 && (
@@ -259,12 +298,23 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 ))}
               </div>
             )}
-            {!hasOverview && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
+            {!hasOverview && !hasWork && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
+            {!hasOverview && hasWork && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Work tab for your active projects.</p>}
           </section>
+
+          {/* Work (client-visible jobs + comments) */}
+          {hasWork && uid && (
+            <PortalWorkPanel
+              jobs={portalWorkJobs}
+              commentsBySlug={commentsBySlug}
+              contactUid={uid}
+              active={initialTab === 'work'}
+            />
+          )}
 
           {/* Billing */}
           {hasBilling && billing && (
-            <section class="panel" data-tab-panel="billing">
+            <section class={`panel ${initialTab === 'billing' ? 'active' : ''}`} data-tab-panel="billing">
               <div class="billing-head">
                 <span class="billing-title">Balance due</span>
                 <span class={`billing-total ${billing.totalDue > 0 ? 'due' : 'clear'}`}>{money(billing.totalDue)}</span>
@@ -333,7 +383,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           {/* Data (web-design handoff) */}
           {hasData && (
-            <section class="panel" data-tab-panel="data">
+            <section class={`panel ${initialTab === 'data' ? 'active' : ''}`} data-tab-panel="data">
               <p class="data-note">Account details &amp; credentials for your project. Keep this link private.</p>
               {dataEntries.map((e) => (
                 <div class="data-card">
@@ -364,7 +414,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           {/* Documents */}
           {hasDocs && (
-            <section class="panel" data-tab-panel="documents">
+            <section class={`panel ${initialTab === 'documents' ? 'active' : ''}`} data-tab-panel="documents">
               <p class="data-note">Signed documents — tap to view or download as PDF.</p>
               {portalDocs.map((doc) => (
                 <a

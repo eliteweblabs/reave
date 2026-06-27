@@ -2877,6 +2877,7 @@ function mountWorkClientPicker(parent, initial, onChange) {
   let selected = initial?.contact_uid
     ? { uid: initial.contact_uid, name: initial.contact_name || initial.client || '' }
     : null;
+  let changing = false;
   let showingNew = false;
 
   const wrap = document.createElement('div');
@@ -2944,19 +2945,28 @@ function mountWorkClientPicker(parent, initial, onChange) {
 
   function syncView() {
     const has = !!selected?.uid;
-    selectedEl.style.display = has && !showingNew ? 'flex' : 'none';
-    searchWrap.style.display = has && !showingNew ? 'none' : showingNew ? 'none' : 'block';
+    selectedEl.style.display = has && !showingNew && !changing ? 'flex' : 'none';
+    searchWrap.style.display = showingNew ? 'none' : changing || !has ? 'block' : 'none';
     newForm.style.display = showingNew ? 'flex' : 'none';
     if (has) selectedName.textContent = selected.name;
   }
 
+  function exitChangeMode() {
+    changing = false;
+    searchInput.value = '';
+    dropdown.style.display = 'none';
+    syncView();
+  }
+
   function pick(client) {
+    const prevUid = selected?.uid || '';
     selected = { uid: client.uid, name: client.name };
     showingNew = false;
+    changing = false;
     dropdown.style.display = 'none';
     searchInput.value = '';
     syncView();
-    onChange?.();
+    if (client.uid !== prevUid) onChange?.();
   }
 
   function renderDropdown(clients, query) {
@@ -3009,21 +3019,26 @@ function mountWorkClientPicker(parent, initial, onChange) {
   }
 
   changeBtn.addEventListener('click', () => {
-    selected = null;
     showingNew = false;
+    changing = true;
     syncView();
     searchInput.focus();
     scheduleSearch();
-    onChange?.();
   });
 
   searchInput.addEventListener('focus', () => scheduleSearch());
   searchInput.addEventListener('input', () => scheduleSearch());
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!wrap.contains(document.activeElement) && changing && !showingNew) exitChangeMode();
+    }, 0);
+  });
 
   newCancel.addEventListener('click', () => {
     showingNew = false;
+    changing = !selected?.uid;
     syncView();
-    searchInput.focus();
+    if (changing) searchInput.focus();
   });
 
   newSave.addEventListener('click', async () => {
@@ -3047,7 +3062,10 @@ function mountWorkClientPicker(parent, initial, onChange) {
   });
 
   document.addEventListener('click', (ev) => {
-    if (!wrap.contains(ev.target)) dropdown.style.display = 'none';
+    if (!wrap.contains(ev.target)) {
+      dropdown.style.display = 'none';
+      if (changing && !showingNew) exitChangeMode();
+    }
   });
 
   syncView();

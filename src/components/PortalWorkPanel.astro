@@ -1,0 +1,418 @@
+---
+/**
+ * Client portal Work tab — job list with expandable comment threads.
+ */
+import type { WorkJobComment } from '../lib/workComments';
+import type { WorkStatus } from '../lib/workStore';
+
+export interface PortalWorkJobItem {
+  slug: string;
+  title: string;
+  status: WorkStatus;
+  statusLabel: string;
+  dueLabel: string;
+}
+
+interface Props {
+  jobs: PortalWorkJobItem[];
+  commentsBySlug: Record<string, WorkJobComment[]>;
+  contactUid: string;
+  active?: boolean;
+}
+
+const { jobs, commentsBySlug, contactUid, active = false } = Astro.props;
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmtCommentTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const panelJobs = jobs.map((job) => ({
+  ...job,
+  comments: (commentsBySlug[job.slug] ?? []).map((c) => ({
+    id: c.id,
+    author: c.author,
+    authorName: c.authorName,
+    text: c.text,
+    createdLabel: fmtCommentTime(c.createdAt),
+  })),
+}));
+
+const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
+---
+
+<section class={`panel portal-work ${active ? 'active' : ''}`} data-tab-panel="work">
+  <p class="data-note">Your projects and requests with us. Tap a job to view updates or leave a comment.</p>
+
+  {jobs.length === 0 ? (
+    <p class="muted">No active projects right now.</p>
+  ) : (
+    <ul class="work-list" id="portal-work-list">
+      {jobs.map((job) => {
+        const comments = commentsBySlug[job.slug] ?? [];
+        return (
+          <li class="work-item" data-job-slug={job.slug}>
+            <button class="work-item-head" type="button" aria-expanded="false">
+              <span class="work-main">
+                <span class="work-title">{job.title}</span>
+                {job.dueLabel && <span class="work-meta">{job.dueLabel}</span>}
+              </span>
+              <span class={`work-status work-status-${job.status}`}>{job.statusLabel}</span>
+              <span class="work-chevron" aria-hidden="true">›</span>
+            </button>
+
+            <div class="work-item-body" hidden>
+              <div class="work-comments" data-comments-root>
+                {comments.length === 0 ? (
+                  <p class="work-comments-empty">No comments yet — say hello below.</p>
+                ) : (
+                  <ul class="work-comment-list">
+                    {comments.map((c) => (
+                      <li class={`work-comment work-comment-${c.author}`} data-comment-id={c.id}>
+                        <div class="work-comment-head">
+                          <span class="work-comment-author">{escapeHtml(c.authorName)}</span>
+                          <span class="work-comment-time">{fmtCommentTime(c.createdAt)}</span>
+                        </div>
+                        <p class="work-comment-text">{escapeHtml(c.text)}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <label class="work-comment-label">
+                <span>Add a comment</span>
+                <textarea
+                  class="work-comment-input"
+                  rows="3"
+                  maxlength="4000"
+                  placeholder="Ask a question or share an update…"
+                />
+              </label>
+              <button class="work-comment-submit" type="button">Post comment</button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</section>
+
+<script define:vars={{ commentEndpointBase }}>
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function fmtTime(iso) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderComment(c) {
+    const li = document.createElement('li');
+    li.className = `work-comment work-comment-${c.author}`;
+    li.dataset.commentId = c.id;
+    li.innerHTML =
+      `<div class="work-comment-head">` +
+      `<span class="work-comment-author">${escHtml(c.authorName)}</span>` +
+      `<span class="work-comment-time">${escHtml(c.createdLabel || fmtTime(c.createdAt))}</span>` +
+      `</div>` +
+      `<p class="work-comment-text">${escHtml(c.text)}</p>`;
+    return li;
+  }
+
+  document.querySelectorAll('.work-item').forEach((item) => {
+    const head = item.querySelector('.work-item-head');
+    const body = item.querySelector('.work-item-body');
+    const slug = item.getAttribute('data-job-slug');
+    const textarea = item.querySelector('.work-comment-input');
+    const submitBtn = item.querySelector('.work-comment-submit');
+    const commentsRoot = item.querySelector('[data-comments-root]');
+    if (!head || !body || !slug || !textarea || !submitBtn || !commentsRoot) return;
+
+    head.addEventListener('click', () => {
+      const open = body.hasAttribute('hidden');
+      document.querySelectorAll('.work-item-body').forEach((el) => {
+        if (el !== body) {
+          el.setAttribute('hidden', '');
+          el.previousElementSibling?.setAttribute('aria-expanded', 'false');
+        }
+      });
+      if (open) {
+        body.removeAttribute('hidden');
+        head.setAttribute('aria-expanded', 'true');
+        textarea.focus();
+      } else {
+        body.setAttribute('hidden', '');
+        head.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    submitBtn.addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      if (!text) {
+        textarea.focus();
+        return;
+      }
+
+      submitBtn.disabled = true;
+      const prev = submitBtn.textContent;
+      submitBtn.textContent = 'Posting…';
+
+      try {
+        const res = await fetch(`${commentEndpointBase}/${encodeURIComponent(slug)}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to post');
+
+        const empty = commentsRoot.querySelector('.work-comments-empty');
+        if (empty) empty.remove();
+
+        let list = commentsRoot.querySelector('.work-comment-list');
+        if (!list) {
+          list = document.createElement('ul');
+          list.className = 'work-comment-list';
+          commentsRoot.appendChild(list);
+        }
+
+        const c = data.comment;
+        list.appendChild(
+          renderComment({
+            ...c,
+            createdLabel: fmtTime(c.createdAt),
+          }),
+        );
+
+        textarea.value = '';
+        body.removeAttribute('hidden');
+        head.setAttribute('aria-expanded', 'true');
+      } catch {
+        alert('Could not post your comment. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = prev;
+      }
+    });
+  });
+</script>
+
+<style>
+  .portal-work .work-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .work-item {
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+  }
+
+  .work-item-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 16px;
+    border: none;
+    background: transparent;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .work-item-head:active {
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .work-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .work-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .work-meta {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .work-status {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
+
+  .work-status-inquiry {
+    color: #93c5fd;
+    background: rgba(147, 197, 253, 0.12);
+  }
+  .work-status-active {
+    color: #86efac;
+    background: rgba(134, 239, 172, 0.12);
+  }
+  .work-status-done {
+    color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .work-chevron {
+    flex: none;
+    font-size: 18px;
+    color: rgba(168, 85, 247, 0.75);
+    transition: transform 0.2s;
+  }
+
+  .work-item-head[aria-expanded='true'] .work-chevron {
+    transform: rotate(90deg);
+  }
+
+  .work-item-body {
+    padding: 0 16px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .work-comments {
+    margin: 14px 0 12px;
+  }
+
+  .work-comments-empty {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .work-comment-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .work-comment {
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .work-comment-staff {
+    border-color: rgba(168, 85, 247, 0.25);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .work-comment-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .work-comment-author {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .work-comment-time {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    flex: none;
+  }
+
+  .work-comment-text {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .work-comment-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .work-comment-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 11px 14px;
+    outline: none;
+    resize: vertical;
+    min-height: 72px;
+  }
+
+  .work-comment-input:focus {
+    border-color: rgba(168, 85, 247, 0.6);
+  }
+
+  .work-comment-submit {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .work-comment-submit:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .work-comment-submit:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+</style>

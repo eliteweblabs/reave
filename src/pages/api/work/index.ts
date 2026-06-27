@@ -27,9 +27,19 @@ function json(body: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const contactUid = context.url.searchParams.get('contact_uid')?.trim();
+  const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
+  const status = WORK_STATUSES.includes(statusRaw as (typeof WORK_STATUSES)[number])
+    ? (statusRaw as (typeof WORK_STATUSES)[number])
+    : undefined;
+
   return json({
     ok: true,
-    jobs: await storeListWork(),
+    jobs: await storeListWork({
+      contact_uid: contactUid || undefined,
+      status,
+    }),
     statuses: WORK_STATUSES,
     priorities: WORK_PRIORITIES,
   });

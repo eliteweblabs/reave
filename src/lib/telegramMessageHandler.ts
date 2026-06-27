@@ -460,9 +460,14 @@ async function sendResultWithBack(
   await telegramSendMenu(token, chatId, text, backRows(uid));
 }
 
-/** LLM agent reply with deploy banner (Option A) + pinned status sync (Option C). */
-async function sendAgentReply(token: string, chatId: number, reply: string): Promise<void> {
-  const text = await prependDeployBanner(reply);
+/** LLM agent reply with deploy banner + pinned status sync. */
+async function sendAgentReply(
+  token: string,
+  chatId: number,
+  reply: string,
+  userText?: string,
+): Promise<void> {
+  const text = await prependDeployBanner(reply, { userText });
   await telegramSendMessage(token, chatId, text);
   syncDeployStatusPin(token).catch((e) => {
     console.warn('[telegram] deploy pin sync failed:', e instanceof Error ? e.message : e);
@@ -1048,7 +1053,7 @@ export async function handleTelegramTextMessage(opts: {
       { role: 'user', content: userText },
       { role: 'assistant', content: reply },
     ]);
-    await sendAgentReply(token, chatId, reply);
+    await sendAgentReply(token, chatId, reply, userText);
     return;
   }
 
@@ -1280,7 +1285,7 @@ export async function handleTelegramTextMessage(opts: {
     { role: 'user', content: userText },
     { role: 'assistant', content: reply },
   ]);
-  await sendAgentReply(token, chatId, reply);
+  await sendAgentReply(token, chatId, reply, userText);
 }
 
 /** Handle Telegram inline keyboard button presses (callback_query). */

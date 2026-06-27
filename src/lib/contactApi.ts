@@ -25,8 +25,11 @@ export function isContactApiConfigured(): boolean {
 }
 
 /** Shareable, iOS-friendly portal URL for a contact uid. */
-export function clientPortalUrl(uid: string): string {
-  return `${siteBaseUrl()}/c/${encodeURIComponent(uid)}`;
+export function clientPortalUrl(uid: string, opts?: { tab?: string }): string {
+  const base = `${siteBaseUrl()}/c/${encodeURIComponent(uid)}`;
+  const tab = opts?.tab?.trim();
+  if (!tab) return base;
+  return `${base}?tab=${encodeURIComponent(tab)}`;
 }
 
 export type ResolveContactInput = {

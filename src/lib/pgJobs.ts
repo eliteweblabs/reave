@@ -63,6 +63,16 @@ CREATE INDEX IF NOT EXISTS idx_jobs_tags ON jobs USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING GIN(
   to_tsvector('english', title || ' ' || COALESCE(body, ''))
 );
+CREATE TABLE IF NOT EXISTS job_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_slug VARCHAR(255) NOT NULL,
+  author VARCHAR(20) NOT NULL CHECK (author IN ('client', 'staff')),
+  author_name VARCHAR(255) NOT NULL DEFAULT '',
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_job_comments_slug ON job_comments(job_slug);
+CREATE INDEX IF NOT EXISTS idx_job_comments_created ON job_comments(job_slug, created_at);
 `;
 
 const MIGRATE_SQL = `
@@ -362,9 +372,102 @@ export async function dbDeleteWork(slug: string): Promise<{ ok: boolean; error?:
     const pool = await ensureSchema();
     if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
 
+    await pool.query(`DELETE FROM job_comments WHERE job_slug = $1`, [slug]);
     const { rowCount } = await pool.query(`DELETE FROM jobs WHERE slug = $1`, [slug]);
     if ((rowCount ?? 0) === 0) return { ok: false, error: 'Not found' };
     return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+export interface JobCommentRow {
+  id: string;
+  job_slug: string;
+  author: 'client' | 'staff';
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
+function rowToComment(row: JobCommentRow) {
+  return {
+    id: row.id,
+    slug: row.job_slug,
+    author: row.author,
+    authorName: row.author_name || (row.author === 'client' ? 'Client' : 'Team'),
+    text: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+export async function dbListJobComments(slug: string) {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<JobCommentRow>(
+      `SELECT id, job_slug, author, author_name, body, created_at
+       FROM job_comments
+       WHERE job_slug = $1
+       ORDER BY created_at ASC`,
+      [slug],
+    );
+    return rows.map(rowToComment);
+  } catch (e) {
+    console.error('[jobs:pg] list comments error:', e);
+    return null;
+  }
+}
+
+export async function dbListJobCommentsForSlugs(slugs: string[]) {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    if (!slugs.length) return {};
+
+    const { rows } = await pool.query<JobCommentRow>(
+      `SELECT id, job_slug, author, author_name, body, created_at
+       FROM job_comments
+       WHERE job_slug = ANY($1::text[])
+       ORDER BY created_at ASC`,
+      [slugs],
+    );
+
+    const out: Record<string, ReturnType<typeof rowToComment>[]> = {};
+    for (const slug of slugs) out[slug] = [];
+    for (const row of rows) {
+      const list = out[row.job_slug] ?? [];
+      list.push(rowToComment(row));
+      out[row.job_slug] = list;
+    }
+    return out;
+  } catch (e) {
+    console.error('[jobs:pg] list comments batch error:', e);
+    return null;
+  }
+}
+
+export async function dbAddJobComment(
+  slug: string,
+  input: { author: 'client' | 'staff'; authorName: string; text: string },
+): Promise<{ ok: true; comment: ReturnType<typeof rowToComment> } | { ok: false; error: string } | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+
+    const text = input.text.trim();
+    if (!text) return { ok: false, error: 'Comment is required' };
+
+    const { rows } = await pool.query<JobCommentRow>(
+      `INSERT INTO job_comments (job_slug, author, author_name, body)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, job_slug, author, author_name, body, created_at`,
+      [slug, input.author, input.authorName.trim(), text],
+    );
+    const row = rows[0];
+    if (!row) return { ok: false, error: 'Insert failed' };
+    return { ok: true, comment: rowToComment(row) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
