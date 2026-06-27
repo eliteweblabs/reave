@@ -10,6 +10,26 @@ const { isIndex = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 
+/** Admin SPA tabs — deep links for mobile profile menu (?tab= survives full navigation). */
+const adminSpaTabs = [
+  { tab: "chats", label: "Chats", icon: "💬" },
+  { tab: "knowledge", label: "Knowledge", icon: "📚" },
+  { tab: "email", label: "Inbox", icon: "📬" },
+  { tab: "work", label: "Work", icon: "💼" },
+  { tab: "clients", label: "Clients", icon: "👥" },
+  { tab: "todo", label: "To-do", icon: "✅" },
+  { tab: "documents", label: "Documents", icon: "📄" },
+  { tab: "rules", label: "Rules", icon: "⚡" },
+  { tab: "system", label: "System", icon: "🖥️" },
+  { tab: "tooling", label: "MCP & CLI", icon: "🔧" },
+  { tab: "telegram", label: "Telegram", icon: "✈️" },
+] as const;
+
+const adminPages = [
+  { href: "/admin/contacts", label: "Contacts DB", icon: "📊" },
+  { href: "/admin/telegram", label: "Telegram help", icon: "📋" },
+] as const;
+
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
 let avatarUrl: string | null = null;
@@ -53,6 +73,24 @@ if (userId) {
           )}
         </button>
         <div class="profile-dropdown" id="profile-dropdown" role="menu">
+          <a href="/admin/" class="dropdown-item" role="menuitem">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Administration
+          </a>
+          <div class="dropdown-admin-section" aria-label="Admin sections">
+            {adminSpaTabs.map(({ tab, label, icon }) => (
+              <a href={`/admin/?tab=${tab}`} class="dropdown-item dropdown-item--sub" role="menuitem">
+                <span class="dropdown-sub-icon" aria-hidden="true">{icon}</span>
+                {label}
+              </a>
+            ))}
+            {adminPages.map(({ href, label, icon }) => (
+              <a href={href} class="dropdown-item dropdown-item--sub" role="menuitem">
+                <span class="dropdown-sub-icon" aria-hidden="true">{icon}</span>
+                {label}
+              </a>
+            ))}
+          </div>
           <a href="/admin/profile" class="dropdown-item" role="menuitem">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             Profile
@@ -243,6 +281,31 @@ if (userId) {
     margin: 4px 0;
   }
 
+  /* Mobile: admin SPA uses icon-only tabs — expose every section from profile menu. */
+  .dropdown-admin-section {
+    display: none;
+    max-height: min(52vh, 320px);
+    overflow-y: auto;
+    margin: 2px 0 4px;
+    padding: 4px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .dropdown-item--sub {
+    padding: 8px 12px 8px 10px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .dropdown-sub-icon {
+    width: 14px;
+    flex-shrink: 0;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1;
+  }
+
   @media (max-width: 639px) {
     .site-header {
       padding:
@@ -250,6 +313,15 @@ if (userId) {
         max(10px, env(safe-area-inset-right))
         0
         max(10px, env(safe-area-inset-left));
+    }
+
+    .profile-dropdown {
+      min-width: 200px;
+      max-width: min(92vw, 260px);
+    }
+
+    .dropdown-admin-section {
+      display: block;
     }
   }
 </style>
