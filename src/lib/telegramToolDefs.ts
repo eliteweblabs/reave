@@ -73,6 +73,9 @@ import { brandedEmailHtml } from './emailTemplates';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
+import { sslCheck, formatSslCheckResults } from './sslCheckClient';
+import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
+import { dnsCheck, formatDnsCheckResults } from './dnsCheckClient';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -428,7 +431,7 @@ export function buildTools(): TelegramToolDef[] {
       function: {
         name: 'fetch_url',
         description:
-          'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance/SEO scores use lighthouse_audit instead.',
+          'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance use lighthouse_audit; for SSL/headers use ssl_check; for broken links use check_links; for DNS/email auth use dns_check.',
         parameters: {
           type: 'object',
           properties: {
@@ -465,6 +468,58 @@ export function buildTools(): TelegramToolDef[] {
             },
           },
           required: ['url'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'ssl_check',
+        description:
+          'Check SSL certificate validity, expiry, TLS version, and security headers (HSTS, CSP, X-Frame-Options, etc.) for a URL. Returns cert details, header audit, mixed-content warnings, and an overall grade (A–F).',
+        parameters: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'Full URL or domain to check' },
+          },
+          required: ['url'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'check_links',
+        description:
+          'Crawl a page and check all links for broken URLs (404s, 5xx, timeouts) and redirect chains. Returns broken link report with anchor text and status codes.',
+        parameters: {
+          type: 'object',
+          properties: {
+            url: { type: 'string', description: 'Page URL to crawl' },
+            follow_internal: {
+              type: 'boolean',
+              description: 'Also crawl linked internal pages (depth 1, max 20). Default false.',
+            },
+          },
+          required: ['url'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'dns_check',
+        description:
+          'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers.',
+        parameters: {
+          type: 'object',
+          properties: {
+            domain: { type: 'string', description: 'Domain name (no protocol), e.g. example.com' },
+          },
+          required: ['domain'],
           additionalProperties: false,
         },
       },
@@ -1859,6 +1914,27 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return JSON.stringify({ summary: formatLighthouseResults(result), ...result });
+    }
+    if (name === 'ssl_check') {
+      const url = String(args.url ?? '').trim();
+      if (!url) return JSON.stringify({ error: 'url is required' });
+      const result = await sslCheck(url);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ...result, summary: formatSslCheckResults(result) });
+    }
+    if (name === 'check_links') {
+      const url = String(args.url ?? '').trim();
+      if (!url) return JSON.stringify({ error: 'url is required' });
+      const result = await checkLinks(url, args.follow_internal === true);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ...result, summary: formatCheckLinksResults(result) });
+    }
+    if (name === 'dns_check') {
+      const domain = String(args.domain ?? '').trim();
+      if (!domain) return JSON.stringify({ error: 'domain is required' });
+      const result = await dnsCheck(domain);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ...result, summary: formatDnsCheckResults(result) });
     }
 
     return JSON.stringify({ error: `unknown tool ${name}` });

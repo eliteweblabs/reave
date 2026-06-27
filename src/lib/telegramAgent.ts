@@ -124,7 +124,7 @@ export async function runTelegramKnowledgeAgent(opts: {
     );
   }
   sysParts.push(
-    'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO) — runs mobile + desktop by default. Call these yourself when the user asks to review, audit, or check a URL; do not ask them to paste page content.',
+    'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
   );
 
   const system = `${currentDateTimeLine()}\n\n${sysParts.join('\n')}`;

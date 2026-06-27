@@ -1,7 +1,8 @@
 import * as cheerio from 'cheerio';
+import { normalizePublicUrl } from './publicUrl';
 
 const USER_AGENT =
-  'Mozilla/5.0 (compatible; ReaveBot/1.0; +https://reave.app) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (compatible; SiteAuditBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_HTML_BYTES = 2_000_000;
@@ -20,43 +21,6 @@ export type FetchUrlResult = {
 export type FetchUrlResponse =
   | { ok: true; data: FetchUrlResult }
   | { ok: false; error: string; status_code?: number };
-
-function isPrivateHost(hostname: string): boolean {
-  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local')) return true;
-  if (h === '0.0.0.0') return true;
-
-  // IPv4
-  const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (v4) {
-    const [, a, b] = v4.map(Number);
-    if (a === 10) return true;
-    if (a === 127) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 0) return true;
-  }
-
-  // IPv6 loopback / link-local / unique-local
-  if (h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true;
-
-  return false;
-}
-
-function normalizeUrl(raw: string): URL | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  try {
-    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    const url = new URL(withScheme);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    if (isPrivateHost(url.hostname)) return null;
-    return url;
-  } catch {
-    return null;
-  }
-}
 
 function extractMeta($: cheerio.CheerioAPI, name: string): string {
   const byName = $(`meta[name="${name}"]`).attr('content');
@@ -91,7 +55,7 @@ function htmlToText(html: string, raw: boolean): { title: string; content: strin
 
 /** Fetch a public URL and return readable page content (or raw HTML). */
 export async function fetchUrl(urlInput: string, raw = false): Promise<FetchUrlResponse> {
-  const url = normalizeUrl(urlInput);
+  const url = normalizePublicUrl(urlInput, false);
   if (!url) {
     return { ok: false, error: 'Invalid or blocked URL (http/https only; no localhost/private IPs)' };
   }

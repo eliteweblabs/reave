@@ -201,7 +201,7 @@ const TG_NODES = [
   { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve · list · create · update · delete',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
   { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
   { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
-  { id: 'tc_tool_web',       title: 'Web tools',        sub: 'fetch_url · lighthouse_audit · brave_search',                           icon: '🌐', hue: 210, group: 'tc_tools', x: 960, y: 1300 },
+  { id: 'tc_tool_web',       title: 'Web tools',        sub: 'fetch_url · lighthouse · ssl · links · dns',                           icon: '🌐', hue: 210, group: 'tc_tools', x: 960, y: 1300 },
 
   // External services reached
   { id: 'tc_svc_tg',        title: 'Telegram API',   sub: 'sendMessage · replies',      icon: '💬', brand: 'telegram',  hue: 200, group: 'tc_svc', x: 1260, y: 60   },

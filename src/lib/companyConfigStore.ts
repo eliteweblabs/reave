@@ -162,7 +162,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
   });
 }
 
-async function writePgConfig(config: StoredCompanyConfig): boolean {
+async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
   const pool = await ensureSchema();
   if (!pool) return false;
   await pool.query(

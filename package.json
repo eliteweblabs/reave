@@ -27,7 +27,8 @@
     "resend": "^6.12.4",
     "styled-components": "^4.4.1",
     "three": "^0.160.0",
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "whois-json": "^2.0.4"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
