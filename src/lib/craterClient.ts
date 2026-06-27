@@ -143,7 +143,8 @@ export type CraterCustomer = {
   contact_name?: string;
   email?: string | null;
   phone?: string | null;
-  invoice_summary?: { count: number; total_billed: number; total_due: number };
+  invoice_summary?: { count: number; total_billed: number; total_paid?: number; total_due: number };
+  estimate_summary?: { count: number; open: number; accepted: number };
 };
 
 export async function craterSearchCustomers(
@@ -176,6 +177,7 @@ export async function craterSearchCustomers(
     email: (c.email as string | null | undefined) ?? null,
     phone: (c.phone as string | null | undefined) ?? null,
     invoice_summary: c.invoice_summary as CraterCustomer['invoice_summary'],
+    estimate_summary: c.estimate_summary as CraterCustomer['estimate_summary'],
   }));
   return { ok: true, data: { count: customers.length, customers } };
 }
@@ -199,6 +201,184 @@ export async function craterListInvoices(
     method: 'GET',
     query: { company_id: companyId },
   });
+}
+
+export type CraterEstimateSummary = {
+  id: number;
+  estimate_number: string;
+  customer_name?: string | null;
+  estimate_date?: string | null;
+  expiry_date?: string | null;
+  status: string;
+  total: number;
+  public_url?: string | null;
+};
+
+const OPEN_ESTIMATE_STATUSES = new Set(['DRAFT', 'SENT', 'VIEWED']);
+
+export async function craterListEstimates(
+  companyId?: number
+): Promise<CraterResult<{ count: number; estimates: CraterEstimateSummary[] }>> {
+  return craterFetch<{ count: number; estimates: CraterEstimateSummary[] }>('/api/custom/estimates', {
+    method: 'GET',
+    query: { company_id: companyId },
+  });
+}
+
+export type CraterInvoiceCounts = {
+  outstanding: number;
+  paid: number;
+  totalDue: number;
+};
+
+export type CraterEstimateCounts = {
+  open: number;
+  accepted: number;
+  total: number;
+};
+
+export type CraterBillingCounts = {
+  invoices: CraterInvoiceCounts;
+  estimates: CraterEstimateCounts;
+};
+
+/** Match a master contact to a Crater customer (email, then company name, then contact_name). */
+export function matchCraterCustomer(
+  contact: { name: string; email?: string | null },
+  customers: CraterCustomer[],
+): CraterCustomer | undefined {
+  const email = (contact.email ?? '').trim().toLowerCase();
+  if (email) {
+    const byEmail = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
+    if (byEmail) return byEmail;
+  }
+  const name = contact.name.trim().toLowerCase();
+  const byName = customers.find((c) => c.name.trim().toLowerCase() === name);
+  if (byName) return byName;
+  return customers.find((c) => (c.contact_name ?? '').trim().toLowerCase() === name);
+}
+
+/** Paid vs outstanding invoice counts keyed by Crater customer `name`. */
+export function buildInvoiceCountsByCustomerName(
+  invoices: CraterInvoiceSummary[],
+): Map<string, CraterInvoiceCounts> {
+  const map = new Map<string, CraterInvoiceCounts>();
+  for (const inv of invoices) {
+    const key = (inv.customer_name ?? '').trim().toLowerCase();
+    if (!key) continue;
+    const entry = map.get(key) ?? { outstanding: 0, paid: 0, totalDue: 0 };
+    const due = Number(inv.due);
+    if (due > 0) {
+      entry.outstanding++;
+      entry.totalDue += due;
+    } else {
+      entry.paid++;
+    }
+    map.set(key, entry);
+  }
+  return map;
+}
+
+/** Estimate counts keyed by Crater customer `name`. */
+export function buildEstimateCountsByCustomerName(
+  estimates: CraterEstimateSummary[],
+): Map<string, CraterEstimateCounts> {
+  const map = new Map<string, CraterEstimateCounts>();
+  for (const est of estimates) {
+    const key = (est.customer_name ?? '').trim().toLowerCase();
+    if (!key) continue;
+    const entry = map.get(key) ?? { open: 0, accepted: 0, total: 0 };
+    entry.total++;
+    const status = (est.status ?? '').toUpperCase();
+    if (status === 'ACCEPTED') entry.accepted++;
+    else if (OPEN_ESTIMATE_STATUSES.has(status)) entry.open++;
+    map.set(key, entry);
+  }
+  return map;
+}
+
+export function buildBillingCountsByCustomerName(
+  invoices: CraterInvoiceSummary[],
+  estimates: CraterEstimateSummary[],
+): Map<string, CraterBillingCounts> {
+  const invMap = buildInvoiceCountsByCustomerName(invoices);
+  const estMap = buildEstimateCountsByCustomerName(estimates);
+  const keys = new Set([...invMap.keys(), ...estMap.keys()]);
+  const map = new Map<string, CraterBillingCounts>();
+  for (const key of keys) {
+    map.set(key, {
+      invoices: invMap.get(key) ?? { outstanding: 0, paid: 0, totalDue: 0 },
+      estimates: estMap.get(key) ?? { open: 0, accepted: 0, total: 0 },
+    });
+  }
+  return map;
+}
+
+function formatBillingHintParts(counts: CraterBillingCounts): string[] {
+  const parts: string[] = [];
+  const { invoices, estimates } = counts;
+
+  if (invoices.outstanding > 0) {
+    parts.push(
+      `${invoices.outstanding} invoice${invoices.outstanding === 1 ? '' : 's'} outstanding`,
+    );
+  }
+  if (invoices.paid > 0) {
+    parts.push(`${invoices.paid} invoice${invoices.paid === 1 ? '' : 's'} paid`);
+  }
+  if (estimates.open > 0) {
+    parts.push(`${estimates.open} estimate${estimates.open === 1 ? '' : 's'} open`);
+  }
+  if (estimates.accepted > 0) {
+    parts.push(`${estimates.accepted} estimate${estimates.accepted === 1 ? '' : 's'} accepted`);
+  }
+  const otherEstimates = estimates.total - estimates.open - estimates.accepted;
+  if (otherEstimates > 0) {
+    parts.push(`${otherEstimates} estimate${otherEstimates === 1 ? '' : 's'}`);
+  }
+
+  return parts;
+}
+
+export type CraterBillingHint = {
+  matched: boolean;
+  craterCustomerId?: number;
+  label: string;
+  tone: 'none' | 'neutral' | 'paid' | 'due';
+};
+
+export function craterBillingHintForContact(
+  contact: { name: string; email?: string | null },
+  customers: CraterCustomer[],
+  billingCounts: Map<string, CraterBillingCounts>,
+): CraterBillingHint {
+  const customer = matchCraterCustomer(contact, customers);
+  if (!customer) {
+    return { matched: false, label: 'Not in Crater', tone: 'none' };
+  }
+
+  const key = customer.name.trim().toLowerCase();
+  const counts = billingCounts.get(key) ?? {
+    invoices: { outstanding: 0, paid: 0, totalDue: 0 },
+    estimates: { open: 0, accepted: 0, total: 0 },
+  };
+  const parts = formatBillingHintParts(counts);
+
+  if (parts.length === 0) {
+    return {
+      matched: true,
+      craterCustomerId: customer.id,
+      label: 'In Crater · no billing',
+      tone: 'neutral',
+    };
+  }
+
+  return {
+    matched: true,
+    craterCustomerId: customer.id,
+    label: parts.join(' · '),
+    tone: counts.invoices.outstanding > 0 || counts.estimates.open > 0 ? 'due' : 'paid',
+  };
 }
 
 export type CraterInvoiceDetail = {

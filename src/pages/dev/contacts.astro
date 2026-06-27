@@ -12,7 +12,17 @@ import Favicon from "../../components/Favicon.astro";
 export const prerender = false;
 
 import { listContacts, clientPortalUrl, type ContactRecord } from '../../lib/contactApi';
-import { craterSearchCustomers, isCraterConfigured, type CraterCustomer } from '../../lib/craterClient';
+import {
+  buildBillingCountsByCustomerName,
+  craterBillingHintForContact,
+  craterListEstimates,
+  craterListInvoices,
+  craterSearchCustomers,
+  isCraterConfigured,
+  matchCraterCustomer,
+  type CraterBillingHint,
+  type CraterCustomer,
+} from '../../lib/craterClient';
 import { serverEnv } from '../../lib/serverEnv';
 import Header from '../../components/Header.astro';
 
@@ -61,13 +71,34 @@ if (authorized) {
 let craterCustomers: CraterCustomer[] = [];
 let craterError = '';
 const craterConfigured = isCraterConfigured();
+const craterHints = new Map<string, CraterBillingHint>();
 
 if (authorized && craterConfigured) {
-  const res = await craterSearchCustomers('');
-  if (res.ok) {
-    craterCustomers = res.data.customers ?? [];
+  const [custRes, invRes, estRes] = await Promise.all([
+    craterSearchCustomers(''),
+    craterListInvoices(),
+    craterListEstimates(),
+  ]);
+  if (custRes.ok) {
+    craterCustomers = custRes.data.customers ?? [];
   } else {
-    craterError = res.error;
+    craterError = custRes.error;
+  }
+  if (!craterError && !invRes.ok) {
+    craterError = invRes.error;
+  }
+  if (!craterError && !estRes.ok) {
+    craterError = estRes.error;
+  }
+
+  const billingCounts = invRes.ok && estRes.ok
+    ? buildBillingCountsByCustomerName(invRes.data.invoices ?? [], estRes.data.estimates ?? [])
+    : invRes.ok
+      ? buildBillingCountsByCustomerName(invRes.data.invoices ?? [], [])
+      : new Map();
+
+  for (const c of contacts) {
+    craterHints.set(c.uid, craterBillingHintForContact(c, craterCustomers, billingCounts));
   }
 }
 
@@ -79,17 +110,25 @@ const syncEntries: CraterSyncEntry[] = craterCustomers.map((c) => {
   const cName = c.name.trim().toLowerCase();
   const cnName = (c.contact_name ?? '').trim().toLowerCase();
 
+  let matchedUid: string | undefined;
   if (email) {
     const m = contacts.find((ct) => (ct.email ?? '').trim().toLowerCase() === email);
-    if (m) return { customer: c, status: 'matched', matchedUid: m.uid };
+    if (m) matchedUid = m.uid;
   }
-  const m2 = contacts.find((ct) => ct.name.trim().toLowerCase() === cName);
-  if (m2) return { customer: c, status: 'matched', matchedUid: m2.uid };
-  if (cnName) {
+  if (!matchedUid) {
+    const m2 = contacts.find((ct) => ct.name.trim().toLowerCase() === cName);
+    if (m2) matchedUid = m2.uid;
+  }
+  if (!matchedUid && cnName) {
     const m3 = contacts.find((ct) => ct.name.trim().toLowerCase() === cnName);
-    if (m3) return { customer: c, status: 'matched', matchedUid: m3.uid };
+    if (m3) matchedUid = m3.uid;
   }
-  return { customer: c, status: 'unmatched' };
+
+  return {
+    customer: c,
+    status: matchedUid ? 'matched' : 'unmatched',
+    matchedUid,
+  } satisfies CraterSyncEntry;
 });
 
 const syncStats = {
@@ -99,19 +138,9 @@ const syncStats = {
 };
 
 // Contacts in master DB that have no Crater customer (orphaned / deleted from Crater)
-const craterEmails = new Set(
-  craterCustomers.map((c) => (c.email ?? '').trim().toLowerCase()).filter(Boolean)
-);
-const craterNames = new Set([
-  ...craterCustomers.map((c) => c.name.trim().toLowerCase()),
-  ...craterCustomers.map((c) => (c.contact_name ?? '').trim().toLowerCase()).filter(Boolean),
-]);
 const orphanedContacts = contacts.filter((c) => {
   if (c.archived) return false;
-  const email = (c.email ?? '').trim().toLowerCase();
-  if (email && craterEmails.has(email)) return false;
-  if (craterNames.has(c.name.trim().toLowerCase())) return false;
-  return true;
+  return !matchCraterCustomer(c, craterCustomers);
 });
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -233,6 +262,16 @@ const fmtMoney = (n: number) =>
       .card .meta a { text-decoration: none; }
       @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
       .card .when { font-size: 11px; color: #6e7681; margin-top: 2px; }
+      .crater-hint {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.35;
+        margin-top: 2px;
+      }
+      .crater-hint--none { color: #6e7681; }
+      .crater-hint--neutral { color: #93c5fd; }
+      .crater-hint--paid { color: #4ade80; }
+      .crater-hint--due { color: #fbbf24; }
       .card .links { display: flex; gap: 8px; flex-wrap: wrap; }
       .card .links a {
         font-size: 12px; text-decoration: none; padding: 5px 10px; border-radius: 8px;
@@ -426,10 +465,16 @@ const fmtMoney = (n: number) =>
                   {contacts.map((c) => {
                     const portal = clientPortalUrl(c.uid);
                     const searchVal = [c.name, c.company, c.email, c.phone].filter(Boolean).join(' ').toLowerCase();
+                    const craterHint = craterHints.get(c.uid);
                     return (
                       <div class="card" data-search={searchVal}>
                         <div class="name">{c.name}</div>
                         {c.company && <div class="company">{c.company}</div>}
+                        {craterConfigured && craterHint && (
+                          <div class={`crater-hint crater-hint--${craterHint.tone}`}>
+                            🧾 {craterHint.label}
+                          </div>
+                        )}
                         {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
                         {c.phone && <div class="meta"><a href={`tel:${c.phone.replace(/[^\d+]/g, '')}`}>{c.phone}</a></div>}
                         {c.updatedAt && <div class="when">Updated {fmtDate(c.updatedAt)}</div>}
@@ -519,6 +564,15 @@ const fmtMoney = (n: number) =>
                             <div class="when">
                               {c.invoice_summary.count} invoice{c.invoice_summary.count !== 1 ? 's' : ''}
                               {due > 0 && ` · ${fmtMoney(due)} due`}
+                            </div>
+                          )}
+                          {c.estimate_summary && c.estimate_summary.count > 0 && (
+                            <div class="when">
+                              {c.estimate_summary.open > 0 && `${c.estimate_summary.open} estimate${c.estimate_summary.open !== 1 ? 's' : ''} open`}
+                              {c.estimate_summary.open > 0 && c.estimate_summary.accepted > 0 && ' · '}
+                              {c.estimate_summary.accepted > 0 && `${c.estimate_summary.accepted} accepted`}
+                              {c.estimate_summary.open === 0 && c.estimate_summary.accepted === 0 &&
+                                `${c.estimate_summary.count} estimate${c.estimate_summary.count !== 1 ? 's' : ''}`}
                             </div>
                           )}
                           {portalUrl && (
@@ -830,9 +884,15 @@ const fmtMoney = (n: number) =>
               parts.push(`<p>Delete <strong>${esc(name)}</strong> from the master DB? This cannot be undone.</p>`);
             }
             const invoiceCount = Number(preview.invoice_count ?? 0);
+            const estimateCount = Number(preview.estimate_count ?? 0);
             if (invoiceCount > 0) {
               parts.push(
                 `<p class="confirm-note">${invoiceCount} linked Crater invoice${invoiceCount === 1 ? '' : 's'} — the client will be removed; invoice records stay in billing.</p>`,
+              );
+            }
+            if (estimateCount > 0) {
+              parts.push(
+                `<p class="confirm-note">${estimateCount} linked Crater estimate${estimateCount === 1 ? '' : 's'} — the client will be removed; estimate records stay in billing.</p>`,
               );
             }
             return parts.join('');

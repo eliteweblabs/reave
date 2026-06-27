@@ -1546,24 +1546,31 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!blockers.ok) return JSON.stringify({ error: blockers.error });
 
       const force = args.force === true;
-      const { name: contactName, project_count, invoice_count, projects } = blockers.data;
-      if ((project_count > 0 || invoice_count > 0) && !force) {
+      const { name: contactName, project_count, invoice_count, estimate_count, projects } = blockers.data;
+      if ((project_count > 0 || invoice_count > 0 || estimate_count > 0) && !force) {
         const projectWarn = project_count > 0
           ? `"${contactName}" has ${project_count} attached project(s). Deleting this client will permanently delete all attached projects.`
           : null;
+        const billingReason =
+          invoice_count > 0 && estimate_count > 0
+            ? 'linked_invoices_and_estimates'
+            : estimate_count > 0
+              ? 'linked_estimates'
+              : 'linked_invoices';
         return JSON.stringify({
           blocked: true,
-          reason: project_count > 0 ? 'linked_projects' : 'linked_invoices',
+          reason: project_count > 0 ? 'linked_projects' : billingReason,
           uid,
           contact_name: contactName,
           project_count,
           job_count: project_count,
           invoice_count,
+          estimate_count,
           projects,
           warning: projectWarn,
           hint: project_count > 0
             ? 'Warn the user that all attached projects will be deleted, then re-call delete_contact with force:true to confirm.'
-            : 'Warn the user about linked invoices, then re-call delete_contact with force:true to confirm.',
+            : 'Warn the user about linked Crater invoices/estimates, then re-call delete_contact with force:true to confirm.',
         });
       }
 

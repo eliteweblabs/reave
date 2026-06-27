@@ -3,7 +3,7 @@
  */
 
 import { deleteContact, getContact } from './contactApi';
-import { isCraterConfigured, craterGetClientBilling } from './craterClient';
+import { isCraterConfigured, craterListEstimates, craterListInvoices, craterSearchCustomers, matchCraterCustomer, buildBillingCountsByCustomerName } from './craterClient';
 import { storeDeleteWork, storeListWork } from './workStore';
 
 export type LinkedProject = { slug: string; title: string };
@@ -14,6 +14,7 @@ export type ContactDeleteBlockers = {
   job_count: number;
   project_count: number;
   invoice_count: number;
+  estimate_count: number;
   projects: LinkedProject[];
 };
 
@@ -42,13 +43,27 @@ export async function getContactDeleteBlockers(
   const project_count = projects.length;
 
   let invoice_count = 0;
+  let estimate_count = 0;
   if (isCraterConfigured()) {
-    const billing = await craterGetClientBilling({
-      email: contact.data.email ?? undefined,
-      name: contact.data.name,
-    });
-    if (billing.ok && billing.data) {
-      invoice_count = billing.data.outstanding.length + billing.data.previous.length;
+    const lookup = (contact.data.email ?? '').trim() || contact.data.name;
+    const [invRes, estRes, custRes] = await Promise.all([
+      craterListInvoices(),
+      craterListEstimates(),
+      craterSearchCustomers(lookup),
+    ]);
+
+    const billingCounts = buildBillingCountsByCustomerName(
+      invRes.ok ? (invRes.data.invoices ?? []) : [],
+      estRes.ok ? (estRes.data.estimates ?? []) : [],
+    );
+
+    const customer = custRes.ok ? matchCraterCustomer(contact.data, custRes.data.customers ?? []) : undefined;
+    if (customer) {
+      const counts = billingCounts.get(customer.name.trim().toLowerCase());
+      if (counts) {
+        invoice_count = counts.invoices.outstanding + counts.invoices.paid;
+        estimate_count = counts.estimates.total;
+      }
     }
   }
 
@@ -59,6 +74,7 @@ export async function getContactDeleteBlockers(
       job_count: project_count,
       project_count,
       invoice_count,
+      estimate_count,
       projects,
     },
   };
@@ -81,14 +97,23 @@ export async function executeContactDelete(
   const blockers = await getContactDeleteBlockers(trimmed);
   if (!blockers.ok) return { ok: false, error: blockers.error, status: 404 };
 
-  const { project_count, invoice_count, projects, name } = blockers.data;
-  const needsConfirm = project_count > 0 || invoice_count > 0;
+  const { project_count, invoice_count, estimate_count, projects, name } = blockers.data;
+  const needsConfirm = project_count > 0 || invoice_count > 0 || estimate_count > 0;
 
   if (needsConfirm && !opts.force) {
     const projectWarn = projectDeleteWarning(name, blockers.data);
-    const error =
-      projectWarn ??
-      `"${name}" has ${invoice_count} linked invoice(s) in Crater. Confirm delete to remove the client anyway.`;
+    const billingParts: string[] = [];
+    if (invoice_count > 0) {
+      billingParts.push(`${invoice_count} linked invoice${invoice_count === 1 ? '' : 's'}`);
+    }
+    if (estimate_count > 0) {
+      billingParts.push(`${estimate_count} linked estimate${estimate_count === 1 ? '' : 's'}`);
+    }
+    const billingWarn =
+      billingParts.length > 0
+        ? `"${name}" has ${billingParts.join(' and ')} in Crater. Confirm delete to remove the client anyway.`
+        : null;
+    const error = projectWarn ?? billingWarn ?? `Confirm delete to remove "${name}".`;
     return { ok: false, error, status: 409, blockers: blockers.data };
   }
 
@@ -117,6 +142,7 @@ export function blockersToJson(blockers: ContactDeleteBlockers, contact_name?: s
     job_count: blockers.project_count,
     project_count: blockers.project_count,
     invoice_count: blockers.invoice_count,
+    estimate_count: blockers.estimate_count,
     projects: blockers.projects,
     warning,
   };

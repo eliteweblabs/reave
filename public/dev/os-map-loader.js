@@ -3684,9 +3684,15 @@ function buildClientDeleteConfirmHtml(name, preview) {
     parts.push(`<p>Delete <strong>${escHtml(name)}</strong>? This cannot be undone.</p>`);
   }
   const inv = preview.invoice_count ?? 0;
+  const est = preview.estimate_count ?? 0;
   if (inv > 0) {
     parts.push(
       `<p class="os-dialog-note">${inv} linked Crater invoice${inv === 1 ? '' : 's'} — the client will be removed; invoice records stay in billing.</p>`,
+    );
+  }
+  if (est > 0) {
+    parts.push(
+      `<p class="os-dialog-note">${est} linked Crater estimate${est === 1 ? '' : 's'} — the client will be removed; estimate records stay in billing.</p>`,
     );
   }
   return parts.join('');
