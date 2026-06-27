@@ -4332,14 +4332,38 @@ async function loadChatsTab() {
   renderChatPanel();
 }
 
-function createChatTitleEl(threadId, title) {
+function createSidebarChatTitle(title) {
   const titleEl = document.createElement('span');
   titleEl.className = 'ch-item-title';
   titleEl.textContent = title;
+  return titleEl;
+}
+
+function syncSidebarChatTitle(threadId, title) {
+  const el = getChatPanel()?.querySelector(
+    `.ch-list-item[data-id="${CSS.escape(threadId)}"] .ch-item-title`,
+  );
+  if (el) el.textContent = title;
+}
+
+function createHeaderChatTitle(threadId, title) {
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name ch-header-title';
+  titleEl.textContent = title;
   titleEl.title = 'Click to rename';
-  titleEl.addEventListener('click', (e) => {
+  titleEl.setAttribute('role', 'button');
+  titleEl.tabIndex = 0;
+
+  const openEdit = (e) => {
     e.stopPropagation();
     startChatTitleEdit(titleEl, threadId, titleEl.textContent);
+  };
+  titleEl.addEventListener('click', openEdit);
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openEdit(e);
+    }
   });
   return titleEl;
 }
@@ -4374,7 +4398,7 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'ch-item-title-input';
+  input.className = 'ch-header-title-input';
   input.value = originalTitle;
   titleEl.replaceWith(input);
   input.focus();
@@ -4387,25 +4411,21 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
     input.dataset.finishing = '1';
 
     const nextTitle = input.value.trim() || 'New chat';
-    const span = createChatTitleEl(threadId, originalTitle);
+    let displayTitle = originalTitle;
 
     if (save && nextTitle !== originalTitle) {
       try {
-        const savedTitle = await saveChatTitle(threadId, nextTitle);
+        displayTitle = await saveChatTitle(threadId, nextTitle);
         const thread = chatState.threads.find((t) => t.id === threadId);
-        if (thread) thread.title = savedTitle;
-        span.textContent = savedTitle;
-        if (chatState.activeId === threadId) {
-          chatState.title = savedTitle;
-          const headerTitle = getChatPanel()?.querySelector('.de-doc-name');
-          if (headerTitle) headerTitle.textContent = savedTitle;
-        }
+        if (thread) thread.title = displayTitle;
+        if (chatState.activeId === threadId) chatState.title = displayTitle;
+        syncSidebarChatTitle(threadId, displayTitle);
       } catch (e) {
         alert(`Could not rename chat: ${e.message}`);
       }
     }
 
-    input.replaceWith(span);
+    input.replaceWith(createHeaderChatTitle(threadId, displayTitle));
   };
 
   input.addEventListener('keydown', (e) => {
@@ -4442,18 +4462,14 @@ function renderChatSidebar() {
     item.dataset.id = t.id;
     item.setAttribute('role', 'button');
     item.tabIndex = 0;
-    item.appendChild(createChatTitleEl(t.id, t.title));
+    item.appendChild(createSidebarChatTitle(t.title));
     const dateEl = document.createElement('span');
     dateEl.className = 'ch-item-date';
     dateEl.textContent = formatChatDate(t.updated_at);
     item.appendChild(dateEl);
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('.ch-item-title-input')) return;
-      openChat(t.id);
-    });
+    item.addEventListener('click', () => openChat(t.id));
     item.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
-        if (e.target.closest('.ch-item-title-input')) return;
         e.preventDefault();
         openChat(t.id);
       }
@@ -4585,10 +4601,7 @@ function renderChatPanel() {
     renderChatPanel();
   });
   header.appendChild(backBtn);
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = chatState.title || 'Chat';
-  header.appendChild(titleEl);
+  header.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title || 'Chat'));
   const modelBadge = document.createElement('span');
   modelBadge.className = 'ch-model-badge';
   modelBadge.textContent = modelOptionLabel(
