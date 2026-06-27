@@ -260,7 +260,7 @@ export const MAPS = {
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
   telegram:  { id: 'telegram',  title: 'Telegram',   icon: '✈️',  nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },
-  todo:      { id: 'todo',      title: 'To-do',      icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
+  todo:      { id: 'todo',      title: 'To\u2011do',  icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },
   chats:     { id: 'chats',     title: 'Chats',      icon: '💬',  type: 'chats',         nodes: [],             edges: [],             groups: [] },
