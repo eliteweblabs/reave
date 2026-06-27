@@ -608,6 +608,13 @@ const { userId } = Astro.locals.auth();
           width: 13px;
           height: 13px;
         }
+        #health-checked,
+        #topbar-stale-warn {
+          display: none;
+        }
+        .tab-item.tab-link[data-tab-key="finance"] {
+          display: none;
+        }
       }
 
       #topbar button {
@@ -1772,7 +1779,7 @@ const { userId } = Astro.locals.auth();
           <option value="claude-sonnet-4-6">Sonnet 4.6</option>
         </select>
         <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
-        <span class="tb-icon tt-left" data-tooltip="Keep current — edit public/dev/os-map-data.js when the system changes.">⚠️</span>
+        <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/dev/os-map-data.js when the system changes.">⚠️</span>
         <a href="/admin/profile" class="topbar-profile tt-left" data-tooltip="Profile" aria-label="Profile">
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
         </a>

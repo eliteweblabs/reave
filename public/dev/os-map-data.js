@@ -275,6 +275,9 @@ export const MAPS = {
 export const SYSTEM_MAP_KEYS = ['system', 'tooling', 'telegram'];
 /** Placeholder key in saved tab order for the System dropdown slot. */
 export const SYSTEM_TAB_SLOT = '__system__';
+/** Mobile: Chats dropdown also opens Knowledge. */
+export const CHAT_MAP_KEYS = ['chats', 'knowledge'];
+export const CHAT_TAB_SLOT = '__chat__';
 
 // Back-compat: the "System" map is still the default export surface.
 export const NODES = SYSTEM_NODES;

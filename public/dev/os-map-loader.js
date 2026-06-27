@@ -1,10 +1,12 @@
-import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT } from '/dev/os-map-data.js';
+import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/dev/os-map-data.js';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
 const MAP_STORE = 'os-map-active-v1';
 const TAB_ORDER_STORE = 'os-map-tab-order-v1';
 const SYSTEM_MAP_SET = new Set(SYSTEM_MAP_KEYS);
+const CHAT_MAP_SET = new Set(CHAT_MAP_KEYS);
+const MOBILE_TABS_MQ = window.matchMedia('(max-width: 639px)');
 const userId = document.body?.dataset?.userId?.trim() || '';
 const SVGNS = 'http://www.w3.org/2000/svg';
 const PINCH_ZOOM = true;
@@ -717,6 +719,44 @@ function tabOrderStoreKey() {
   return userId ? `${TAB_ORDER_STORE}:${userId}` : TAB_ORDER_STORE;
 }
 
+function isMobileTabs() {
+  return MOBILE_TABS_MQ.matches;
+}
+
+/** Expand mobile-only dropdown slots back to persisted tab keys. */
+function storedTabOrderKeys(keys) {
+  const out = [];
+  for (const raw of keys) {
+    if (raw === CHAT_TAB_SLOT) {
+      out.push('chats', 'knowledge');
+    } else {
+      out.push(raw);
+    }
+  }
+  return normalizeTabOrderKeys(out);
+}
+
+/** Collapse tabs for mobile header (Knowledge → Chats menu; hide Finance). */
+function effectiveTabOrder(order) {
+  const normalized = normalizeTabOrderKeys(order);
+  if (!isMobileTabs()) return normalized;
+
+  const out = [];
+  let chatSlot = false;
+  for (const key of normalized) {
+    if (key === 'knowledge' || key === 'chats') {
+      if (!chatSlot) {
+        out.push(CHAT_TAB_SLOT);
+        chatSlot = true;
+      }
+      continue;
+    }
+    if (key === 'finance') continue;
+    out.push(key);
+  }
+  return out;
+}
+
 function defaultTabKeys() {
   const keys = Object.keys(MAPS).filter((k) => !SYSTEM_MAP_SET.has(k));
   return [SYSTEM_TAB_SLOT, ...keys];
@@ -780,7 +820,7 @@ async function resolveTabOrder() {
 }
 
 function saveTabOrder(keys) {
-  const normalized = normalizeTabOrderKeys(keys);
+  const normalized = storedTabOrderKeys(keys);
   try {
     localStorage.setItem(tabOrderStoreKey(), JSON.stringify(normalized));
   } catch {}
@@ -798,9 +838,10 @@ function saveTabOrder(keys) {
 function currentTabOrderFromDom() {
   const tabs = document.getElementById('tabs');
   if (!tabs) return defaultTabKeys();
-  return [...tabs.querySelectorAll(':scope > [data-tab-key]')]
+  const raw = [...tabs.querySelectorAll(':scope > [data-tab-key]')]
     .map((el) => el.dataset.tabKey)
     .filter(Boolean);
+  return storedTabOrderKeys(raw);
 }
 
 function clearTabDropHints() {
@@ -925,6 +966,54 @@ function buildSystemDropdownTab() {
   return wrap;
 }
 
+function buildChatDropdownTab() {
+  const wrap = document.createElement('div');
+  wrap.className = 'tab-item tab-dropdown tab-dropdown--chat';
+  wrap.dataset.tabKey = CHAT_TAB_SLOT;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'tab-dropdown-trigger';
+  trigger.innerHTML = `${tabInnerHtml(MAPS.chats)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+  trigger.title = 'Chats & Knowledge';
+
+  const menu = document.createElement('div');
+  menu.className = 'tab-dropdown-menu';
+  menu.setAttribute('role', 'menu');
+
+  for (const key of CHAT_MAP_KEYS) {
+    const m = MAPS[key];
+    if (!m) continue;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'tab-dropdown-item';
+    item.dataset.map = key;
+    item.setAttribute('role', 'menuitem');
+    item.innerHTML = m.icon
+      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
+      : m.title;
+    item.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setActiveMap(key);
+      closeTabDropdowns();
+    });
+    menu.appendChild(item);
+  }
+
+  trigger.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (tabDragMoved) return;
+    const willOpen = !wrap.classList.contains('open');
+    closeTabDropdowns(willOpen ? wrap : null);
+    wrap.classList.toggle('open', willOpen);
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(menu);
+  attachTabPointerReorder(wrap);
+  return wrap;
+}
+
 function buildMapTab(key, m) {
   const item = document.createElement('div');
   item.className = 'tab-item';
@@ -966,9 +1055,13 @@ function buildTabs(order) {
   tabs.innerHTML = '';
   tabs.title = 'Drag ⋮⋮ on a tab to reorder';
 
-  for (const key of order) {
+  for (const key of effectiveTabOrder(order)) {
     if (key === SYSTEM_TAB_SLOT) {
       tabs.appendChild(buildSystemDropdownTab());
+      continue;
+    }
+    if (key === CHAT_TAB_SLOT) {
+      tabs.appendChild(buildChatDropdownTab());
       continue;
     }
     const m = MAPS[key];
@@ -983,18 +1076,27 @@ function updateTabs() {
     el.classList.toggle('active', el.dataset.map === activeKey);
   });
 
-  const dropdown = document.querySelector('.tab-dropdown');
-  if (dropdown) {
-    const isSystem = SYSTEM_MAP_SET.has(activeKey);
-    dropdown.classList.toggle('active', isSystem);
+  document.querySelectorAll('#tabs .tab-dropdown').forEach((dropdown) => {
+    const slot = dropdown.dataset.tabKey;
     dropdown.querySelectorAll('.tab-dropdown-item').forEach((item) => {
       item.classList.toggle('active', item.dataset.map === activeKey);
     });
+
     const trigger = dropdown.querySelector('.tab-dropdown-trigger');
-    if (trigger) {
+    if (!trigger) return;
+
+    if (slot === SYSTEM_TAB_SLOT) {
+      dropdown.classList.toggle('active', SYSTEM_MAP_SET.has(activeKey));
       trigger.innerHTML = `${tabInnerHtml(MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+      return;
     }
-  }
+
+    if (slot === CHAT_TAB_SLOT) {
+      dropdown.classList.toggle('active', CHAT_MAP_SET.has(activeKey));
+      const head = CHAT_MAP_SET.has(activeKey) ? MAPS[activeKey] : MAPS.chats;
+      trigger.innerHTML = `${tabInnerHtml(head)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+    }
+  });
 }
 
 document.addEventListener('click', () => closeTabDropdowns());
@@ -4479,6 +4581,9 @@ function saveActiveKey() {
 async function boot() {
   const tabOrder = await resolveTabOrder();
   buildTabs(tabOrder);
+  MOBILE_TABS_MQ.addEventListener('change', async () => {
+    buildTabs(await resolveTabOrder());
+  });
   initModelSelector();
   syncCanvasVisibility();
   if (MAP.type === 'documents') {
