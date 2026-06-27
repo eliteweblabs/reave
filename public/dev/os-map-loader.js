@@ -2378,9 +2378,19 @@ const WORK_STATUS_LABELS = {
   archived: 'Archived',
 };
 
+const WORK_PRIORITY_LABELS = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+};
+
+const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
+
 let workState = {
   jobs: [],
   statuses: ['inquiry', 'active', 'done', 'archived'],
+  priorities: ['low', 'normal', 'high', 'urgent'],
   activeSlug: null,
   dirty: false,
   draft: null,
@@ -2410,6 +2420,7 @@ async function loadWorkTab() {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     workState.jobs = data.jobs || [];
     workState.statuses = data.statuses || workState.statuses;
+    workState.priorities = data.priorities || workState.priorities;
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
@@ -2436,7 +2447,18 @@ function renderWorkEditor() {
   newBtn.addEventListener('click', () => {
     workState.activeSlug = '__new__';
     workState.dirty = false;
-    workState.draft = { title: '', contact_uid: '', contact_name: '', status: 'inquiry', body: '' };
+    workState.draft = {
+      title: '',
+      contact_uid: '',
+      contact_name: '',
+      status: 'inquiry',
+      priority: 'normal',
+      due_date: '',
+      value: '',
+      tags: '',
+      source: '',
+      body: '',
+    };
     renderWorkEditor();
   });
   sidebar.appendChild(newBtn);
@@ -2498,6 +2520,104 @@ function buildStatusSelect(value) {
     select.appendChild(opt);
   }
   return select;
+}
+
+function buildPrioritySelect(value) {
+  const select = document.createElement('select');
+  select.className = 'de-input';
+  for (const p of workState.priorities) {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = WORK_PRIORITY_LABELS[p] || p;
+    if (p === (value || 'normal')) opt.selected = true;
+    select.appendChild(opt);
+  }
+  return select;
+}
+
+function appendWorkMetaFields(fields, draft, markDirty) {
+  const priorityLabel = document.createElement('label');
+  priorityLabel.className = 'de-label';
+  priorityLabel.textContent = 'Priority';
+  const prioritySelect = buildPrioritySelect(draft?.priority || 'normal');
+  priorityLabel.appendChild(prioritySelect);
+  fields.appendChild(priorityLabel);
+
+  const dueLabel = document.createElement('label');
+  dueLabel.className = 'de-label';
+  dueLabel.textContent = 'Due date';
+  const dueInput = document.createElement('input');
+  dueInput.className = 'de-input';
+  dueInput.type = 'date';
+  dueInput.value = draft?.due_date || '';
+  dueLabel.appendChild(dueInput);
+  fields.appendChild(dueLabel);
+
+  const valueLabel = document.createElement('label');
+  valueLabel.className = 'de-label';
+  valueLabel.textContent = 'Value ($)';
+  const valueInput = document.createElement('input');
+  valueInput.className = 'de-input';
+  valueInput.type = 'number';
+  valueInput.min = '0';
+  valueInput.step = '0.01';
+  valueInput.placeholder = '0.00';
+  valueInput.value = draft?.value != null && draft?.value !== '' ? String(draft.value) : '';
+  valueLabel.appendChild(valueInput);
+  fields.appendChild(valueLabel);
+
+  const tagsLabel = document.createElement('label');
+  tagsLabel.className = 'de-label';
+  tagsLabel.textContent = 'Tags';
+  const tagsInput = document.createElement('input');
+  tagsInput.className = 'de-input';
+  tagsInput.placeholder = 'web-design, seo, hosting';
+  tagsInput.value = Array.isArray(draft?.tags) ? draft.tags.join(', ') : (draft?.tags || '');
+  tagsLabel.appendChild(tagsInput);
+  fields.appendChild(tagsLabel);
+
+  const sourceLabel = document.createElement('label');
+  sourceLabel.className = 'de-label';
+  sourceLabel.textContent = 'Lead source';
+  const sourceInput = document.createElement('input');
+  sourceInput.className = 'de-input';
+  sourceInput.placeholder = 'instagram, email, referral, phone';
+  sourceInput.setAttribute('list', 'wk-source-suggestions');
+  sourceInput.value = draft?.source || '';
+  sourceLabel.appendChild(sourceInput);
+  fields.appendChild(sourceLabel);
+  let datalist = document.getElementById('wk-source-suggestions');
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = 'wk-source-suggestions';
+    for (const s of WORK_SOURCE_SUGGESTIONS) {
+      const opt = document.createElement('option');
+      opt.value = s;
+      datalist.appendChild(opt);
+    }
+    document.body.appendChild(datalist);
+  }
+
+  if (markDirty) {
+    prioritySelect.addEventListener('change', markDirty);
+    dueInput.addEventListener('input', markDirty);
+    valueInput.addEventListener('input', markDirty);
+    tagsInput.addEventListener('input', markDirty);
+    sourceInput.addEventListener('input', markDirty);
+  }
+
+  return {
+    getPayload() {
+      const valueRaw = valueInput.value.trim();
+      return {
+        priority: prioritySelect.value,
+        due_date: dueInput.value.trim() || null,
+        value: valueRaw === '' ? null : Number(valueRaw),
+        tags: tagsInput.value.split(',').map((t) => t.trim()).filter(Boolean),
+        source: sourceInput.value.trim(),
+      };
+    },
+  };
 }
 
 let workClientSearchTimer = null;
@@ -2742,6 +2862,8 @@ function renderNewWorkForm(pane) {
   statusLabel.appendChild(statusSelect);
   fields.appendChild(statusLabel);
 
+  const metaFields = appendWorkMetaFields(fields, workState.draft, null);
+
   pane.appendChild(fields);
 
   const ta = document.createElement('textarea');
@@ -2773,6 +2895,7 @@ function renderNewWorkForm(pane) {
       title,
       ...client,
       status: statusSelect.value,
+      ...metaFields.getPayload(),
       body: ta.value,
     });
   });
@@ -2793,6 +2916,11 @@ function renderEditWorkForm(pane) {
       workState.draft = {
         title: data.title,
         status: data.status || 'inquiry',
+        priority: data.priority || 'normal',
+        due_date: data.due_date || '',
+        value: data.value ?? '',
+        tags: data.tags || [],
+        source: data.source || '',
         body: data.body || '',
         contact_uid: data.contact_uid,
         contact_name: data.contact_name || data.client,
@@ -2839,12 +2967,19 @@ function renderEditWorkForm(pane) {
       ta.value = workState.draft.body;
 
       let clientPicker;
+      let metaFields;
       const markDirty = () => {
         const client = clientPicker.getPayload();
+        const meta = metaFields.getPayload();
         workState.dirty =
           titleInput.value !== workState.draft.title ||
           (client?.contact_uid || '') !== (workState.draft.contact_uid || '') ||
           statusSelect.value !== workState.draft.status ||
+          meta.priority !== (workState.draft.priority || 'normal') ||
+          (meta.due_date || '') !== (workState.draft.due_date || '') ||
+          String(meta.value ?? '') !== String(workState.draft.value ?? '') ||
+          meta.tags.join(', ') !== (Array.isArray(workState.draft.tags) ? workState.draft.tags.join(', ') : '') ||
+          meta.source !== (workState.draft.source || '') ||
           ta.value !== workState.draft.body;
       };
       clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty);
@@ -2855,6 +2990,8 @@ function renderEditWorkForm(pane) {
       const statusSelect = buildStatusSelect(workState.draft.status);
       statusLabel.appendChild(statusSelect);
       fields.appendChild(statusLabel);
+
+      metaFields = appendWorkMetaFields(fields, workState.draft, markDirty);
 
       titleInput.addEventListener('input', markDirty);
       statusSelect.addEventListener('change', markDirty);
@@ -2877,6 +3014,7 @@ function renderEditWorkForm(pane) {
           title: titleInput.value.trim(),
           ...client,
           status: statusSelect.value,
+          ...metaFields.getPayload(),
           body: ta.value,
         });
       });

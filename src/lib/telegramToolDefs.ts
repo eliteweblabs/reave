@@ -17,7 +17,9 @@ import {
   storeListWork,
   storeReadWork,
   storeWriteWork,
+  WORK_PRIORITIES,
   WORK_STATUSES,
+  type WorkPriority,
   type WorkStatus,
 } from './workStore';
 import {
@@ -201,6 +203,28 @@ export function buildTools(): TelegramToolDef[] {
               enum: [...WORK_STATUSES],
               description: 'Defaults to inquiry',
             },
+            priority: {
+              type: 'string',
+              enum: [...WORK_PRIORITIES],
+              description: 'Defaults to normal',
+            },
+            due_date: {
+              type: 'string',
+              description: 'Optional deadline (YYYY-MM-DD)',
+            },
+            value: {
+              type: 'number',
+              description: 'Optional dollar value for the job',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Tags e.g. web-design, seo, hosting',
+            },
+            source: {
+              type: 'string',
+              description: 'Lead source — instagram, email, referral, phone, etc.',
+            },
             slug: {
               type: 'string',
               description: 'Optional filename slug; derived from title if omitted',
@@ -228,6 +252,28 @@ export function buildTools(): TelegramToolDef[] {
               type: 'string',
               enum: [...WORK_STATUSES],
               description: 'New status',
+            },
+            priority: {
+              type: 'string',
+              enum: [...WORK_PRIORITIES],
+              description: 'New priority',
+            },
+            due_date: {
+              type: 'string',
+              description: 'New deadline (YYYY-MM-DD)',
+            },
+            value: {
+              type: 'number',
+              description: 'New dollar value',
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Replace tags list',
+            },
+            source: {
+              type: 'string',
+              description: 'Lead source — instagram, email, referral, phone, etc.',
             },
           },
           required: ['slug'],
@@ -1048,6 +1094,40 @@ async function resolvePortalTarget(args: {
   };
 }
 
+function workExtrasFromArgs(args: Record<string, unknown>, existing?: {
+  priority?: WorkPriority;
+  due_date?: string | null;
+  value?: number | null;
+  tags?: string[];
+  source?: string;
+}) {
+  const priorityRaw = args.priority != null ? String(args.priority).trim().toLowerCase() : undefined;
+  const priority = priorityRaw && WORK_PRIORITIES.includes(priorityRaw as WorkPriority)
+    ? (priorityRaw as WorkPriority)
+    : existing?.priority;
+
+  const due_date = args.due_date != null
+    ? String(args.due_date).trim().slice(0, 10) || null
+    : existing?.due_date ?? null;
+
+  const value = args.value != null ? Number(args.value) : existing?.value ?? null;
+
+  let tags: string[] | undefined;
+  if (args.tags != null) {
+    tags = Array.isArray(args.tags)
+      ? (args.tags as unknown[]).map(String).map((t) => t.trim()).filter(Boolean)
+      : String(args.tags).split(',').map((t) => t.trim()).filter(Boolean);
+  } else {
+    tags = existing?.tags;
+  }
+
+  const source = args.source != null
+    ? String(args.source).trim()
+    : existing?.source ?? '';
+
+  return { priority, due_date, value, tags: tags ?? [], source };
+}
+
 export async function runTool(name: string, argsJson: string): Promise<string> {
   try {
     const args = JSON.parse(argsJson) as Record<string, unknown>;
@@ -1112,7 +1192,12 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         contact_uid: doc.contact_uid,
         contact_name: doc.contact_name,
         status: doc.status,
+        priority: doc.priority,
+        due_date: doc.due_date,
+        value: doc.value,
+        tags: doc.tags,
         source: doc.source,
+        record_origin: doc.record_origin,
         created: doc.created,
         updated: doc.updated,
         body,
@@ -1143,7 +1228,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         client,
         status,
         body,
-        source: 'telegram',
+        record_origin: 'telegram',
+        ...workExtrasFromArgs(args),
       });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const doc = result.doc;
@@ -1179,7 +1265,20 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!title) return JSON.stringify({ error: 'title is required' });
       if (!client) return JSON.stringify({ error: 'client is required' });
 
-      const result = await storeWriteWork(slug, { title, client, status, body, source: existing.source });
+      const extras = workExtrasFromArgs(args, existing);
+
+      const result = await storeWriteWork(slug, {
+        title,
+        client,
+        status,
+        body,
+        record_origin: existing.record_origin,
+        priority: extras.priority,
+        due_date: args.due_date != null ? extras.due_date : undefined,
+        value: args.value != null ? extras.value : undefined,
+        tags: args.tags != null ? extras.tags : undefined,
+        source: args.source != null ? extras.source : undefined,
+      });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const doc = result.doc;
       return JSON.stringify({

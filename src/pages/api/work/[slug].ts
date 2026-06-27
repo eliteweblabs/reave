@@ -56,7 +56,7 @@ export async function PUT(context: APIContext): Promise<Response> {
   if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
 
   const existing = (await storeReadWork(slug))!;
-  const result = await storeWriteWork(slug, { ...parsed, source: existing.source });
+  const result = await storeWriteWork(slug, { ...parsed, record_origin: existing.record_origin ?? 'dashboard' });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }

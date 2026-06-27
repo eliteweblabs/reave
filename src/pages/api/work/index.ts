@@ -10,6 +10,7 @@ import {
   storeListWork,
   storeReadWork,
   storeWriteWork,
+  WORK_PRIORITIES,
   WORK_STATUSES,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
@@ -26,7 +27,12 @@ function json(body: unknown, status = 200): Response {
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  return json({ ok: true, jobs: await storeListWork(), statuses: WORK_STATUSES });
+  return json({
+    ok: true,
+    jobs: await storeListWork(),
+    statuses: WORK_STATUSES,
+    priorities: WORK_PRIORITIES,
+  });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -55,7 +61,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists' }, 409);
 
-  const result = await storeWriteWork(slug, parsed);
+  const result = await storeWriteWork(slug, { ...parsed, record_origin: 'dashboard' });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.doc });
 }

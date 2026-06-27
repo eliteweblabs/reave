@@ -22,6 +22,9 @@ import { serverEnv } from './serverEnv';
 export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
 
+export const WORK_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
+export type WorkPriority = (typeof WORK_PRIORITIES)[number];
+
 export interface WorkJobSummary {
   slug: string;
   title: string;
@@ -29,7 +32,14 @@ export interface WorkJobSummary {
   contact_uid: string;
   contact_name: string;
   status: WorkStatus;
+  priority: WorkPriority;
+  due_date: string | null;
+  value: number | null;
+  tags: string[];
+  /** How the lead came in — instagram, email, referral, phone, etc. */
   source: string;
+  /** Who/what created the record — manual, telegram, dashboard (file storage only). */
+  record_origin?: string;
   created: string;
   updated: string;
 }
@@ -47,8 +57,15 @@ export interface WorkJobInput {
   /** Legacy / bot: fuzzy-resolve by name when contact_uid is omitted. */
   client?: string;
   status?: WorkStatus;
-  body?: string;
+  priority?: WorkPriority;
+  due_date?: string | null;
+  value?: number | null;
+  tags?: string[];
+  /** Lead source channel (instagram, email, referral, phone). */
   source?: string;
+  body?: string;
+  /** Record creation origin — manual, telegram, dashboard (not the lead source). */
+  record_origin?: string;
 }
 
 const SAFE_SLUG_RE = /^[a-z0-9._-]+$/i;
@@ -148,7 +165,42 @@ function normalizeStatus(raw: string | undefined): WorkStatus {
   return WORK_STATUSES.includes(s as WorkStatus) ? (s as WorkStatus) : 'inquiry';
 }
 
+function normalizePriority(raw: string | undefined): WorkPriority {
+  const p = (raw ?? 'normal').toLowerCase();
+  return WORK_PRIORITIES.includes(p as WorkPriority) ? (p as WorkPriority) : 'normal';
+}
+
 export const normalizeWorkStatus = normalizeStatus;
+export const normalizeWorkPriority = normalizePriority;
+
+const RECORD_ORIGINS = new Set(['manual', 'telegram', 'dashboard', 'file', 'db']);
+
+function parseTags(raw: string | undefined): string[] {
+  if (!raw?.trim()) return [];
+  if (raw.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      /* fall through */
+    }
+  }
+  return raw.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
+function parseValue(raw: string | undefined): number | null {
+  if (!raw?.trim()) return null;
+  const n = Number(raw.replace(/[$,]/g, ''));
+  return Number.isFinite(n) ? n : null;
+}
+
+function splitMetaSource(meta: Record<string, string>): { source: string; record_origin?: string } {
+  const raw = meta.lead_source?.trim() || meta.source?.trim() || '';
+  if (RECORD_ORIGINS.has(raw.toLowerCase())) {
+    return { source: meta.lead_source?.trim() || '', record_origin: raw };
+  }
+  return { source: raw, record_origin: meta.origin?.trim() || meta.record_origin?.trim() || undefined };
+}
 
 export function listWorkFileSlugs(): string[] {
   return listWorkFiles();
@@ -160,6 +212,8 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     body.split('\n').find((l) => l.startsWith('# '))?.slice(2).trim() ||
     slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
+  const { source, record_origin } = splitMetaSource(meta);
+
   return {
     slug,
     title,
@@ -167,7 +221,12 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     contact_uid: meta.contact_uid?.trim() || '',
     contact_name: meta.contact_name?.trim() || meta.client?.trim() || '',
     status: normalizeStatus(meta.status),
-    source: meta.source?.trim() || 'manual',
+    priority: normalizePriority(meta.priority),
+    due_date: meta.due_date?.trim() || null,
+    value: parseValue(meta.value),
+    tags: parseTags(meta.tags),
+    source,
+    record_origin: record_origin || 'manual',
     created: meta.created?.trim() || '',
     updated: meta.updated?.trim() || '',
   };
@@ -176,13 +235,19 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
 function buildMarkdown(
   input: WorkJobInput,
   contact: { uid: string; name: string },
-  existing?: { created: string; source: string },
+  existing?: WorkJobSummary,
 ): string {
   const now = new Date().toISOString();
   const title = input.title.trim();
   const body = (input.body ?? '').trim();
-  const status = normalizeStatus(input.status);
-  const source = existing?.source || input.source?.trim() || 'manual';
+  const status = normalizeStatus(input.status ?? existing?.status);
+  const priority = normalizePriority(input.priority ?? existing?.priority);
+  const recordOrigin = input.record_origin?.trim() || existing?.record_origin || 'manual';
+  const leadSource = input.source?.trim() ?? existing?.source ?? '';
+  const dueDate = input.due_date !== undefined ? input.due_date : existing?.due_date;
+  const value =
+    input.value !== undefined ? input.value : existing?.value ?? null;
+  const tags = input.tags ?? existing?.tags ?? [];
   const created = existing?.created || now;
 
   const lines = [
@@ -192,14 +257,21 @@ function buildMarkdown(
     yamlLine('contact_uid', contact.uid),
     yamlLine('contact_name', contact.name),
     yamlLine('status', status),
-    yamlLine('source', source),
+    yamlLine('priority', priority),
+    yamlLine('origin', recordOrigin),
+  ];
+  if (leadSource) lines.push(yamlLine('lead_source', leadSource));
+  if (dueDate) lines.push(yamlLine('due_date', dueDate));
+  if (value != null) lines.push(yamlLine('value', String(value)));
+  if (tags.length) lines.push(yamlLine('tags', tags.join(', ')));
+  lines.push(
     yamlLine('created', created),
     yamlLine('updated', now),
     '---',
     '',
     body || `# ${title}`,
     '',
-  ];
+  );
 
   return lines.join('\n');
 }
@@ -369,6 +441,11 @@ export async function storeWriteWork(
         client: contact.name,
         client_uid: contact.uid,
         status: input.status != null ? normalizeStatus(input.status) : undefined,
+        priority: input.priority != null ? normalizePriority(input.priority) : undefined,
+        due_date: input.due_date,
+        value: input.value,
+        tags: input.tags,
+        source: input.source,
         body: input.body != null ? input.body.trim() : undefined,
       });
     }
@@ -378,6 +455,11 @@ export async function storeWriteWork(
       client: contact.name,
       client_uid: contact.uid,
       status: normalizeStatus(input.status),
+      priority: normalizePriority(input.priority),
+      due_date: input.due_date ?? null,
+      value: input.value ?? null,
+      tags: input.tags ?? [],
+      source: input.source?.trim() ?? '',
       body: (input.body ?? '').trim(),
     });
   }

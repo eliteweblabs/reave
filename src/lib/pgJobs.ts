@@ -7,9 +7,11 @@ import pg from 'pg';
 import {
   fileReadWork,
   listWorkFileSlugs,
+  normalizeWorkPriority,
   normalizeWorkStatus,
   type WorkJobDoc,
   type WorkJobSummary,
+  type WorkPriority,
   type WorkStatus,
 } from './workStore';
 import { serverEnv } from './serverEnv';
@@ -21,10 +23,19 @@ export interface JobRow {
   client: string;
   client_uid: string | null;
   status: WorkStatus;
+  priority: WorkPriority;
+  due_date: string | null;
+  value: string | null;
+  tags: string[];
+  source: string;
   body: string;
   created_at: string;
   updated_at: string;
 }
+
+const JOB_COLUMNS = `
+  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, body, created_at, updated_at
+`;
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS jobs (
@@ -34,6 +45,11 @@ CREATE TABLE IF NOT EXISTS jobs (
   client VARCHAR(255) NOT NULL,
   client_uid VARCHAR(255),
   status VARCHAR(50) DEFAULT 'inquiry' CHECK (status IN ('inquiry', 'active', 'done', 'archived')),
+  priority VARCHAR(50) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+  due_date DATE,
+  value NUMERIC(12,2),
+  tags TEXT[] DEFAULT '{}',
+  source VARCHAR(100) DEFAULT '',
   body TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -41,9 +57,20 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE INDEX IF NOT EXISTS idx_jobs_slug ON jobs(slug);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_client_uid ON jobs(client_uid);
+CREATE INDEX IF NOT EXISTS idx_jobs_priority ON jobs(priority);
+CREATE INDEX IF NOT EXISTS idx_jobs_due_date ON jobs(due_date);
+CREATE INDEX IF NOT EXISTS idx_jobs_tags ON jobs USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_jobs_search ON jobs USING GIN(
   to_tsvector('english', title || ' ' || COALESCE(body, ''))
 );
+`;
+
+const MIGRATE_SQL = `
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS priority VARCHAR(50) NOT NULL DEFAULT 'normal';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS due_date DATE;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS value NUMERIC(12,2);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT '';
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -80,7 +107,12 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     contact_uid: row.client_uid ?? '',
     contact_name: row.client,
     status: row.status,
-    source: 'db',
+    priority: normalizeWorkPriority(row.priority),
+    due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
+    value: row.value != null ? Number(row.value) : null,
+    tags: row.tags ?? [],
+    source: row.source ?? '',
+    record_origin: 'db',
     created: row.created_at,
     updated: row.updated_at,
   };
@@ -100,8 +132,8 @@ async function seedJobsFromFiles(pool: pg.Pool): Promise<void> {
     const doc = fileReadWork(slug);
     if (!doc) continue;
     await pool.query(
-      `INSERT INTO jobs (slug, title, client, client_uid, status, body)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, body)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (slug) DO NOTHING`,
       [
         slug,
@@ -109,6 +141,11 @@ async function seedJobsFromFiles(pool: pg.Pool): Promise<void> {
         doc.client || doc.contact_name || slug,
         doc.contact_uid || null,
         doc.status,
+        doc.priority,
+        doc.due_date,
+        doc.value,
+        doc.tags,
+        doc.source,
         doc.body,
       ],
     );
@@ -120,7 +157,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool
-      .query(SCHEMA_SQL)
+      .query(`${SCHEMA_SQL}\n${MIGRATE_SQL}`)
       .then(() => undefined)
       .catch((e) => {
         _schemaReady = null;
@@ -158,7 +195,7 @@ export async function dbListWork(opts?: {
     const q = opts?.q?.trim() || null;
 
     const { rows } = await pool.query<JobRow>(
-      `SELECT slug, title, client, client_uid, status, body, created_at, updated_at, id
+      `SELECT ${JOB_COLUMNS}
        FROM jobs
        WHERE ($1::text IS NULL OR status = $1)
          AND ($2::text IS NULL OR client_uid = $2)
@@ -182,8 +219,7 @@ export async function dbReadWork(slug: string): Promise<WorkJobDoc | null> {
     const pool = await ensureSchema();
     if (!pool) return null;
     const { rows } = await pool.query<JobRow>(
-      `SELECT id, slug, title, client, client_uid, status, body, created_at, updated_at
-       FROM jobs WHERE slug = $1`,
+      `SELECT ${JOB_COLUMNS} FROM jobs WHERE slug = $1`,
       [slug],
     );
     const row = rows[0];
@@ -200,6 +236,11 @@ export async function dbCreateWork(input: {
   client: string;
   client_uid: string;
   status?: WorkStatus;
+  priority?: WorkPriority;
+  due_date?: string | null;
+  value?: number | null;
+  tags?: string[];
+  source?: string;
   body?: string;
 }): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
   try {
@@ -207,15 +248,20 @@ export async function dbCreateWork(input: {
     if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
 
     const { rows } = await pool.query<JobRow>(
-      `INSERT INTO jobs (slug, title, client, client_uid, status, body)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, slug, title, client, client_uid, status, body, created_at, updated_at`,
+      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, body)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING ${JOB_COLUMNS}`,
       [
         input.slug,
         input.title.trim(),
         input.client.trim(),
         input.client_uid.trim(),
         normalizeWorkStatus(input.status),
+        normalizeWorkPriority(input.priority),
+        input.due_date || null,
+        input.value ?? null,
+        input.tags ?? [],
+        input.source?.trim() ?? '',
         (input.body ?? '').trim(),
       ],
     );
@@ -238,6 +284,11 @@ export async function dbUpdateWork(
     client?: string;
     client_uid?: string;
     status?: WorkStatus;
+    priority?: WorkPriority;
+    due_date?: string | null;
+    value?: number | null;
+    tags?: string[];
+    source?: string;
     body?: string;
   },
 ): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
@@ -251,16 +302,26 @@ export async function dbUpdateWork(
          client = COALESCE($3, client),
          client_uid = COALESCE($4, client_uid),
          status = COALESCE($5, status),
-         body = COALESCE($6, body),
+         priority = COALESCE($6, priority),
+         due_date = COALESCE($7::date, due_date),
+         value = COALESCE($8::numeric, value),
+         tags = COALESCE($9, tags),
+         source = COALESCE($10, source),
+         body = COALESCE($11, body),
          updated_at = NOW()
        WHERE slug = $1
-       RETURNING id, slug, title, client, client_uid, status, body, created_at, updated_at`,
+       RETURNING ${JOB_COLUMNS}`,
       [
         slug,
         input.title?.trim() ?? null,
         input.client?.trim() ?? null,
         input.client_uid?.trim() ?? null,
         input.status ?? null,
+        input.priority ?? null,
+        input.due_date === undefined ? null : input.due_date,
+        input.value === undefined ? null : input.value,
+        input.tags ?? null,
+        input.source?.trim() ?? null,
         input.body != null ? input.body.trim() : null,
       ],
     );
