@@ -298,11 +298,36 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
 }
 
 export async function loadEmailRulesConfig(): Promise<EmailRulesConfig> {
+  let config: EmailRulesConfig;
   if (emailRulesStorageBackend() === 'postgres') {
     const pgConfig = await loadFromPg();
-    if (pgConfig) return pgConfig;
+    config = pgConfig ?? (await loadFromFile());
+  } else {
+    config = await loadFromFile();
   }
-  return loadFromFile();
+  return ensureBuiltinRules(config);
+}
+
+/** Insert any new DEFAULT_RULES statuses missing from persisted config (e.g. RAILWAY_ALERT). */
+async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesConfig> {
+  const present = new Set(config.rules.map((r) => r.status.toUpperCase()));
+  const missing = DEFAULT_RULES.filter((r) => !present.has(r.status.toUpperCase()));
+  if (!missing.length) return config;
+
+  const merged: EmailRulesConfig = {
+    ...config,
+    rules: [
+      ...config.rules,
+      ...missing.map((r, i) => ({
+        ...r,
+        id: randomUUID(),
+        title: ruleTitleFromDefaults(r),
+        sortOrder: config.rules.length + i,
+      })),
+    ],
+  };
+  await persistConfig(merged);
+  return merged;
 }
 
 /** Active enabled rules in sort order for classification. */

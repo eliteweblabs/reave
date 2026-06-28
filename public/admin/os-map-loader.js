@@ -183,6 +183,7 @@ function activateMapPanel() {
   } else if (MAP.type === 'chats') {
     loadChatsTab();
   } else if (MAP.type === 'email') {
+    markInboxSeenAndClearBadge();
     loadEmailTab();
   } else {
     buildMap();
@@ -5076,8 +5077,109 @@ let emailState = {
   pushConfigured: false,
 };
 let emailPollTimer = null;
+let inboxBadgeTimer = null;
+
+const INBOX_LAST_SEEN_KEY = 'reave-inbox-last-seen';
+const BADGE_CACHE = 'reave-badge-v1';
+const BADGE_URL = '/badge-count';
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
+
+function inboxLastSeenIso() {
+  try {
+    return localStorage.getItem(INBOX_LAST_SEEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function markInboxLastSeen() {
+  try {
+    localStorage.setItem(INBOX_LAST_SEEN_KEY, new Date().toISOString());
+  } catch {}
+}
+
+async function clearCachedBadgeCount() {
+  try {
+    const cache = await caches.open(BADGE_CACHE);
+    await cache.delete(BADGE_URL);
+  } catch {}
+}
+
+async function setAppIconBadge(n) {
+  if (!('setAppBadge' in navigator)) return;
+  try {
+    if (n > 0) await navigator.setAppBadge(n);
+    else if ('clearAppBadge' in navigator) await navigator.clearAppBadge();
+  } catch (e) {
+    console.warn('[badge]', e);
+  }
+}
+
+function unreadInboxCount(events) {
+  const last = inboxLastSeenIso() ? new Date(inboxLastSeenIso()).getTime() : 0;
+  return (events || []).filter((ev) => {
+    if (ev.category === 'junk') return false;
+    return new Date(ev.receivedAt).getTime() > last;
+  }).length;
+}
+
+async function readCachedBadgeCount() {
+  try {
+    const cache = await caches.open(BADGE_CACHE);
+    const res = await cache.match(BADGE_URL);
+    if (!res) return 0;
+    return parseInt(await res.text(), 10) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function syncInboxAppBadge(events) {
+  if (MAP.type === 'email') {
+    markInboxLastSeen();
+    await clearCachedBadgeCount();
+    await setAppIconBadge(0);
+    return;
+  }
+  const cached = await readCachedBadgeCount();
+  const unread = unreadInboxCount(events);
+  await setAppIconBadge(Math.max(unread, cached));
+}
+
+async function markInboxSeenAndClearBadge() {
+  markInboxLastSeen();
+  await clearCachedBadgeCount();
+  await setAppIconBadge(0);
+}
+
+async function refreshInboxBadgeQuiet() {
+  if (MAP.type === 'email') {
+    await markInboxSeenAndClearBadge();
+    return;
+  }
+  try {
+    const res = await fetch('/api/email/inbox?limit=100', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) return;
+    await syncInboxAppBadge(data.events || []);
+  } catch {}
+}
+
+function stopInboxBadgePoll() {
+  if (inboxBadgeTimer) {
+    clearInterval(inboxBadgeTimer);
+    inboxBadgeTimer = null;
+  }
+}
+
+function syncInboxBadgePoll() {
+  stopInboxBadgePoll();
+  if (!document.hidden) {
+    refreshInboxBadgeQuiet();
+    inboxBadgeTimer = setInterval(refreshInboxBadgeQuiet, 60000);
+  }
+}
 
 function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
@@ -5128,6 +5230,11 @@ async function loadEmailTab(quiet) {
   }
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
+  if (MAP.type === 'email') {
+    markInboxSeenAndClearBadge();
+  } else {
+    syncInboxAppBadge(emailState.events);
+  }
 }
 
 function renderEmailDigest() {
@@ -5325,16 +5432,25 @@ async function boot() {
   activateMapPanel();
   syncHealthLifecycle();
   syncEmailPoll();
+  syncInboxBadgePoll();
 }
 
 boot();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet();
+  });
+}
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     stopHealth();
     stopEmailPoll();
+    stopInboxBadgePoll();
   } else {
     syncHealthLifecycle();
     syncEmailPoll();
+    syncInboxBadgePoll();
   }
 });

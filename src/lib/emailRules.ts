@@ -65,6 +65,21 @@ export const DEFAULT_RULES: EmailRule[] = [
     enabled: true,
   },
   {
+    status: 'RAILWAY_ALERT',
+    description: 'Railway deploy/build crash emails — inbox alert + admin agent.',
+    phrases: [
+      'noreply@railway.app',
+      'Deployment crashed',
+      'Build failed for',
+      'Uh oh. Your deployment',
+      'crashed within the production environment',
+    ],
+    matchMode: 'any',
+    fields: ['from', 'subject', 'body'],
+    notify: true,
+    enabled: true,
+  },
+  {
     status: 'DOWN',
     description: 'UptimeRobot down alert — real-time Telegram ping.',
     phrases: ['UptimeRobot'],

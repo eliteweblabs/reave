@@ -11,6 +11,7 @@ import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { sendInboxPushNotification } from './webPush';
+import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './emailAgentAlert';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review';
 
@@ -37,7 +38,7 @@ function ruleCategory(status: string): EmailCategory {
   const s = status.toUpperCase();
   if (s === 'DELETE') return 'junk';
   if (s === 'AUTO_ARCHIVED') return 'junk';
-  if (s === 'DOWN' || s === 'NEEDS_CHECK') return 'alert';
+  if (s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK') return 'alert';
   return 'review';
 }
 
@@ -267,11 +268,28 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   });
 
   if (record && category !== 'junk') {
+    const pushTitle =
+      isRailwayAlertStatus(ruleResult.status)
+        ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
+        : category === 'client'
+          ? `Client: ${contactName ?? senderEmail}`
+          : summary.slice(0, 60);
     sendInboxPushNotification({
-      title: category === 'client' ? `Client: ${contactName ?? senderEmail}` : summary.slice(0, 60),
+      title: pushTitle,
       body: summary,
       tag: record.id,
     }).catch((e) => console.warn('[email] push failed', e));
+  }
+
+  if (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) {
+    notifyAdminAgentOfEmailAlert({
+      status: ruleResult.status,
+      from,
+      subject: email.subject ?? '',
+      summary,
+      bodySnippet: snippet(email.text ?? ''),
+      category,
+    }).catch((e) => console.warn('[email] agent alert failed', e));
   }
 
   return { ok: true, category, status: ruleResult.status, action, from, record };

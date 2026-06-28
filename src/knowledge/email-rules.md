@@ -19,6 +19,8 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Push:** Install `/admin` to home screen → tap 🔔 → Web Push (`VAPID_*` env vars).
+- **Railway crash emails:** Rule `RAILWAY_ALERT` matches `noreply@railway.app` / “Deployment crashed” / “Build failed”. Posts to admin **System alerts** chat and auto-runs the agent when `AGENT_ALERT_USER_ID` is set (Clerk user id). Note: Railway often sends “Deployment crashed” during rollout while the new build is still starting — false alarm; the agent is prompted to verify in Railway first.
+- **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → Telegram (see `RAILWAY_WEBHOOK_INGRESS_KEY`). Email path covers notification emails that hit Proton.
 
 ## Categories
 
@@ -42,6 +44,8 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push (generate: `npx web-push generate-vapid-keys`) |
 | `VAPID_SUBJECT` | e.g. `mailto:thomas@reave.app` |
 | `PUSH_ENABLED` | Set `0` to disable push |
+| `AGENT_ALERT_USER_ID` | Clerk user id — alert emails → **System alerts** chat + agent |
+| `AGENT_ALERT_AUTO_RUN` | Set `0` to queue alert without auto agent reply |
 
 ## Setup (one-time)
 

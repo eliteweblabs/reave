@@ -92,6 +92,10 @@ interface ImportMetaEnv {
   VAPID_SUBJECT?: string;
   /** Set to 0 to disable Web Push notifications */
   PUSH_ENABLED?: string;
+  /** Clerk user id — inbound alert emails post to admin "System alerts" chat */
+  AGENT_ALERT_USER_ID?: string;
+  /** Set to 0 to skip auto agent reply on alert emails (default: run agent) */
+  AGENT_ALERT_AUTO_RUN?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */
