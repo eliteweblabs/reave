@@ -10,6 +10,7 @@ import {
   type AgentModelSettings,
 } from '../../../lib/agentModel';
 import { agentModelStorageBackend, setStoredAgentModel } from '../../../lib/agentModelStore';
+import { getAnthropicBalance, type AnthropicBalance } from '../../../lib/anthropicBalance';
 
 export const prerender = false;
 
@@ -20,7 +21,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function payload(settings: AgentModelSettings) {
+function payload(settings: AgentModelSettings, anthropicBalance: AnthropicBalance) {
   return {
     ok: true,
     model: settings.model,
@@ -30,13 +31,18 @@ function payload(settings: AgentModelSettings) {
     storedModel: settings.storedModel,
     options: settings.options,
     storage: agentModelStorageBackend(),
+    anthropicBalance,
   };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  return json(payload(await getAgentModelSettings()));
+  const [settings, anthropicBalance] = await Promise.all([
+    getAgentModelSettings(),
+    getAnthropicBalance(),
+  ]);
+  return json(payload(settings, anthropicBalance));
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
@@ -54,7 +60,11 @@ export async function PUT(context: APIContext): Promise<Response> {
   if (raw == null || raw === '') {
     const ok = await setStoredAgentModel(null);
     if (!ok) return json({ ok: false, error: 'Failed to reset model' }, 500);
-    return json(payload(await getAgentModelSettings()));
+    const [settings, anthropicBalance] = await Promise.all([
+      getAgentModelSettings(),
+      getAnthropicBalance(),
+    ]);
+    return json(payload(settings, anthropicBalance));
   }
 
   const model = normalizeAgentModelInput(String(raw));
@@ -64,5 +74,9 @@ export async function PUT(context: APIContext): Promise<Response> {
 
   const ok = await setStoredAgentModel(model);
   if (!ok) return json({ ok: false, error: 'Failed to save model' }, 500);
-  return json(payload(await getAgentModelSettings()));
+  const [settings, anthropicBalance] = await Promise.all([
+    getAgentModelSettings(),
+    getAnthropicBalance(),
+  ]);
+  return json(payload(settings, anthropicBalance));
 }

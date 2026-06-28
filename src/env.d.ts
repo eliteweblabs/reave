@@ -15,6 +15,12 @@ interface ImportMetaEnv {
   ANTHROPIC_API_KEY?: string;
   /** Optional: defaults to claude-sonnet-4-6 */
   ANTHROPIC_MODEL?: string;
+  /** Anthropic Console org id — for live prepaid credit balance in /admin model switcher */
+  ANTHROPIC_ORG_ID?: string;
+  /** Anthropic Console sessionKey cookie — expires periodically; see .env.example */
+  ANTHROPIC_SESSION_KEY?: string;
+  /** Manual fallback prepaid balance in USD when live fetch is unavailable */
+  ANTHROPIC_CREDIT_BALANCE_USD?: string;
   /** Optional override path for persisted runtime model choice */
   AGENT_MODEL_FILE?: string;
   /** Brave Search API key (web search tool for Telegram agent) */

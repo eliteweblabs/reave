@@ -316,7 +316,34 @@ let agentModelState = {
   options: [],
   loading: true,
   saving: false,
+  anthropicBalance: null,
 };
+
+function formatBalanceUsd(n) {
+  if (n == null || !Number.isFinite(n)) return null;
+  return `$${n.toFixed(2)}`;
+}
+
+function anthropicBalanceLabel() {
+  const b = agentModelState.anthropicBalance;
+  if (!b) return null;
+  const usd = formatBalanceUsd(b.balanceUsd);
+  if (usd) return usd;
+  if (b.source === 'error' && b.detail) return '—';
+  return null;
+}
+
+function anthropicBalanceTitle() {
+  const b = agentModelState.anthropicBalance;
+  if (!b) return '';
+  const usd = formatBalanceUsd(b.balanceUsd);
+  if (usd) {
+    const src = b.source === 'live' ? 'Anthropic prepaid credits' : 'manual balance';
+    return `${usd} available (${src})`;
+  }
+  if (b.detail) return b.detail;
+  return 'Anthropic balance not configured';
+}
 
 function modelSelectEl() {
   return document.getElementById('model-select');
@@ -328,8 +355,14 @@ function syncModelSelectorVisibility() {
   el.style.display = MODEL_TABS.has(activeKey) ? '' : 'none';
 }
 
-function modelOptionLabel(opt) {
+function modelBaseLabel(opt) {
   return opt.label || opt.id;
+}
+
+function modelOptionLabel(opt) {
+  const base = modelBaseLabel(opt);
+  const bal = anthropicBalanceLabel();
+  return bal ? `${base} · ${bal}` : base;
 }
 
 function renderModelSelectOptions() {
@@ -350,17 +383,22 @@ function renderModelSelectOptions() {
   }
   el.value = agentModelState.model;
   el.disabled = agentModelState.loading || agentModelState.saving;
+  const balTitle = anthropicBalanceTitle();
   el.title = agentModelState.loading
     ? 'Loading model…'
-    : `Claude model (${agentModelState.source}) — chat, Telegram, dashboard agent`;
+    : balTitle
+      ? `${balTitle} — chat, Telegram, dashboard agent`
+      : `Claude model (${agentModelState.source}) — chat, Telegram, dashboard agent`;
 }
 
 function syncModelNodeLabels() {
   if (!agentModelState.model) return;
-  const label = modelOptionLabel(
+  const label = modelBaseLabel(
     agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
   );
   const bits = [`${label}`, agentModelState.source];
+  const bal = anthropicBalanceLabel();
+  if (bal) bits.push(bal);
   const sub = bits.join(' · ');
   for (const id of MODEL_NODE_IDS) {
     const node = byId.get(id);
@@ -381,6 +419,7 @@ async function loadAgentModel() {
     agentModelState.model = data.model || agentModelState.model;
     agentModelState.source = data.source || 'default';
     agentModelState.options = data.options || [];
+    agentModelState.anthropicBalance = data.anthropicBalance || null;
   } catch (e) {
     console.warn('[model] load failed:', e);
   } finally {
@@ -405,6 +444,7 @@ async function saveAgentModel(model) {
     agentModelState.model = data.model;
     agentModelState.source = data.source || 'stored';
     agentModelState.options = data.options || agentModelState.options;
+    agentModelState.anthropicBalance = data.anthropicBalance || agentModelState.anthropicBalance;
     syncModelNodeLabels();
     if (activeKey === 'system') pollHealth();
   } catch (e) {
