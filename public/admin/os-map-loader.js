@@ -4491,6 +4491,7 @@ let chatState = {
   messages: [],
   title: '',
   sending: false,
+  pendingDraft: null,
 };
 
 function getChatPanel() { return document.getElementById('chat-panel'); }
@@ -4994,6 +4995,11 @@ function renderChatPanel() {
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
   syncSendState();
+  if (chatState.pendingDraft) {
+    input.value = chatState.pendingDraft;
+    chatState.pendingDraft = null;
+    syncSendState();
+  }
   input.focus();
 }
 
@@ -5180,6 +5186,293 @@ function formatEmailAction(ev) {
   return bits.join(' · ');
 }
 
+// ---- swipe rows (iOS-style list actions) ----
+let openSwipeRow = null;
+
+function closeOpenSwipeRow() {
+  if (openSwipeRow) {
+    openSwipeRow.snap(false);
+    openSwipeRow = null;
+  }
+}
+
+function attachSwipeRow(row, contentEl, revealPx) {
+  let startX = 0;
+  let baseX = 0;
+  let dragging = false;
+  let moved = false;
+  let open = false;
+
+  function currentTx() {
+    const m = contentEl.style.transform.match(/translate3d\(([-\d.]+)px/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  function setTranslate(x, animate) {
+    contentEl.style.transition = animate ? 'transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+    contentEl.style.transform = `translate3d(${x}px, 0, 0)`;
+  }
+
+  function snap(shouldOpen) {
+    open = shouldOpen;
+    row.classList.toggle('swipe-open', open);
+    setTranslate(open ? -revealPx : 0, true);
+    if (open) {
+      if (openSwipeRow && openSwipeRow !== api) openSwipeRow.snap(false);
+      openSwipeRow = api;
+    } else if (openSwipeRow === api) {
+      openSwipeRow = null;
+    }
+  }
+
+  function onStart(clientX) {
+    if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
+    startX = clientX;
+    baseX = open ? -revealPx : 0;
+    dragging = true;
+    moved = false;
+    contentEl.style.transition = 'none';
+  }
+
+  function onMove(clientX, prevent) {
+    if (!dragging) return;
+    const dx = clientX - startX;
+    if (Math.abs(dx) > 6) moved = true;
+    let next = baseX + dx;
+    next = Math.min(0, Math.max(-revealPx, next));
+    setTranslate(next, false);
+    if (Math.abs(dx) > 8 && prevent) prevent();
+  }
+
+  function onEnd() {
+    if (!dragging) return;
+    dragging = false;
+    const tx = currentTx();
+    snap(tx <= -revealPx * 0.35);
+  }
+
+  contentEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (e.touches.length !== 1) return;
+      onStart(e.touches[0].clientX);
+    },
+    { passive: true },
+  );
+  contentEl.addEventListener(
+    'touchmove',
+    (e) => onMove(e.touches[0].clientX, () => e.preventDefault()),
+    { passive: false },
+  );
+  contentEl.addEventListener('touchend', onEnd);
+  contentEl.addEventListener('touchcancel', onEnd);
+
+  contentEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    onStart(e.clientX);
+    const onMouseMove = (ev) => onMove(ev.clientX, null);
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      onEnd();
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  contentEl.addEventListener(
+    'click',
+    (e) => {
+      if (moved) {
+        e.preventDefault();
+        e.stopPropagation();
+        moved = false;
+      }
+    },
+    true,
+  );
+
+  const api = { snap, row, moved: () => moved };
+  return api;
+}
+
+document.addEventListener('click', (e) => {
+  if (!openSwipeRow) return;
+  if (openSwipeRow.row.contains(e.target)) return;
+  closeOpenSwipeRow();
+});
+
+function buildEmailAgentPrompt(ev) {
+  const lines = [
+    'Review this inbound email and help me decide what to do:',
+    '',
+    `From: ${ev.from || '(unknown)'}`,
+  ];
+  if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
+  lines.push(`Subject: ${ev.subject || '(no subject)'}`);
+  lines.push(`Category: ${ev.category || 'review'}`);
+  if (ev.summary) lines.push(`Summary: ${ev.summary}`);
+  if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
+  return lines.join('\n');
+}
+
+async function askAgentAboutEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch('/api/chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const data = await readApiJson(res);
+    const thread = data.thread;
+    chatState.threads.unshift(thread);
+    chatState.activeId = thread.id;
+    chatState.title = thread.title;
+    chatState.messages = [];
+    chatState.pendingDraft = buildEmailAgentPrompt(ev);
+    setActiveMap('chats');
+    renderChatPanel();
+  } catch (e) {
+    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function markEmailJunk(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'junk', action: 'junk' }),
+    });
+    const data = await readApiJson(res);
+    if (!emailState.showJunk) {
+      emailState.events = emailState.events.filter((e) => e.id !== ev.id);
+      if (emailState.activeId === ev.id) emailState.activeId = null;
+    } else {
+      const idx = emailState.events.findIndex((e) => e.id === ev.id);
+      if (idx !== -1) emailState.events[idx] = data.event;
+    }
+    renderEmailPanel();
+    syncInboxAppBadge(emailState.events);
+  } catch (e) {
+    osAlert({ title: 'Could not mark junk', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function deleteEmail(ev) {
+  closeOpenSwipeRow();
+  const summary = ev.summary || ev.subject || ev.from || 'this message';
+  const ok = await osConfirm({
+    title: 'Delete message?',
+    bodyHtml: `<p>Remove <strong>${escHtml(summary.slice(0, 80))}</strong> from the inbox log?</p>`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    await readApiJson(res);
+    emailState.events = emailState.events.filter((e) => e.id !== ev.id);
+    if (emailState.activeId === ev.id) emailState.activeId = null;
+    renderEmailPanel();
+    syncInboxAppBadge(emailState.events);
+  } catch (e) {
+    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function createEmailListItem(ev) {
+  const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'em-list-item' + (ev.id === emailState.activeId ? ' active' : '');
+  item.dataset.id = ev.id;
+  item.innerHTML =
+    `<span class="em-item-row">` +
+      `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
+      `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
+    `</span>` +
+    `<span class="em-item-summary">${escHtml(summary)}</span>` +
+    `<span class="em-item-from">${escHtml(ev.contactName || ev.from || '(unknown)')}</span>`;
+  item.addEventListener('click', () => openEmailEvent(ev.id));
+  return item;
+}
+
+function createEmailSwipeRow(ev) {
+  const row = document.createElement('div');
+  row.className = 'swipe-row';
+  row.dataset.id = ev.id;
+
+  const actions = document.createElement('div');
+  actions.className = 'swipe-actions';
+
+  const agentBtn = document.createElement('button');
+  agentBtn.type = 'button';
+  agentBtn.className = 'swipe-act swipe-act-agent';
+  agentBtn.textContent = 'Agent';
+  agentBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    askAgentAboutEmail(ev);
+  });
+
+  const junkBtn = document.createElement('button');
+  junkBtn.type = 'button';
+  junkBtn.className = 'swipe-act swipe-act-junk';
+  junkBtn.textContent = ev.category === 'junk' ? 'Not junk' : 'Junk';
+  junkBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (ev.category === 'junk') {
+      fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: 'review', action: 'review' }),
+      })
+        .then(readApiJson)
+        .then((data) => {
+          const idx = emailState.events.findIndex((e) => e.id === ev.id);
+          if (idx !== -1) emailState.events[idx] = data.event;
+          renderEmailPanel();
+        })
+        .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
+    } else {
+      markEmailJunk(ev);
+    }
+  });
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'swipe-act swipe-act-delete';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteEmail(ev);
+  });
+
+  actions.appendChild(agentBtn);
+  actions.appendChild(junkBtn);
+  actions.appendChild(deleteBtn);
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+  content.appendChild(createEmailListItem(ev));
+
+  row.appendChild(actions);
+  row.appendChild(content);
+
+  requestAnimationFrame(() => {
+    const revealPx = actions.offsetWidth || 216;
+    attachSwipeRow(row, content, revealPx);
+  });
+
+  return row;
+}
+
 function stopEmailPoll() {
   if (emailPollTimer) {
     clearInterval(emailPollTimer);
@@ -5269,20 +5562,9 @@ function renderEmailSidebar() {
 
   const list = document.createElement('div');
   list.className = 'ch-list';
+  list.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
   for (const ev of emailState.events) {
-    const item = document.createElement('button');
-    item.className = 'em-list-item' + (ev.id === emailState.activeId ? ' active' : '');
-    item.dataset.id = ev.id;
-    const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
-    item.innerHTML =
-      `<span class="em-item-row">` +
-        `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
-        `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
-      `</span>` +
-      `<span class="em-item-summary">${escHtml(summary)}</span>` +
-      `<span class="em-item-from">${escHtml(ev.contactName || ev.from || '(unknown)')}</span>`;
-    item.addEventListener('click', () => openEmailEvent(ev.id));
-    list.appendChild(item);
+    list.appendChild(createEmailSwipeRow(ev));
   }
   if (emailState.events.length === 0) {
     const empty = document.createElement('div');

@@ -369,3 +369,91 @@ export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<Ema
   if (databaseUrl()) return appendToPg(input);
   return appendToFile(input);
 }
+
+export type EmailInboxPatch = Partial<Pick<EmailInboxInput, 'category' | 'action' | 'status'>>;
+
+async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return null;
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const idx = events.findIndex((e) => e.id === id);
+  if (idx === -1) return null;
+  const cur = events[idx]!;
+  const next: EmailInboxRecord = {
+    ...cur,
+    ...(patch.status != null ? { status: patch.status } : {}),
+    ...(patch.action != null ? { action: patch.action } : {}),
+    ...(patch.category != null ? { category: normalizeCategory(patch.category) } : {}),
+  };
+  events[idx] = next;
+  if (!writeFileEvents(events)) return null;
+  return next;
+}
+
+async function deleteFromFile(id: string): Promise<boolean> {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return false;
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const next = events.filter((e) => e.id !== id);
+  if (next.length === events.length) return false;
+  return writeFileEvents(next);
+}
+
+async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    let i = 1;
+    if (patch.status != null) {
+      sets.push(`status = $${i++}`);
+      vals.push(patch.status);
+    }
+    if (patch.action != null) {
+      sets.push(`action = $${i++}`);
+      vals.push(patch.action);
+    }
+    if (patch.category != null) {
+      sets.push(`category = $${i++}`);
+      vals.push(normalizeCategory(patch.category));
+    }
+    if (!sets.length) return null;
+    vals.push(id);
+    const { rows } = await pool.query(
+      `UPDATE email_inbox SET ${sets.join(', ')} WHERE id = $${i}
+       RETURNING id, received_at, from_address, subject, body_snippet, status, action, notified,
+                 summary, category, contact_uid, contact_name, job_slug, job_title, route_note`,
+      vals,
+    );
+    return rows[0] ? rowToRecord(rows[0]) : null;
+  } catch (e) {
+    console.error('[email-inbox] pg update failed', e);
+    return null;
+  }
+}
+
+async function deleteFromPg(id: string): Promise<boolean> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return false;
+    const { rowCount } = await pool.query(`DELETE FROM email_inbox WHERE id = $1`, [id]);
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error('[email-inbox] pg delete failed', e);
+    return false;
+  }
+}
+
+export async function storeUpdateEmailInbox(
+  id: string,
+  patch: EmailInboxPatch,
+): Promise<EmailInboxRecord | null> {
+  if (databaseUrl()) return updateInPg(id, patch);
+  return updateInFile(id, patch);
+}
+
+export async function storeDeleteEmailInbox(id: string): Promise<boolean> {
+  if (databaseUrl()) return deleteFromPg(id);
+  return deleteFromFile(id);
+}
