@@ -1454,7 +1454,7 @@ function syncTopbarInboxBadge(count) {
   }
 }
 
-function initTopbarMobileMenus() {
+function initTopbarMenus() {
   const inboxBtn = document.getElementById('topbar-inbox-btn');
   inboxBtn?.addEventListener('click', () => {
     setActiveMap('email', { force: true });
@@ -5942,7 +5942,7 @@ async function boot() {
   const tabOrder = await resolveTabOrder();
   buildTabs(tabOrder);
   if (isMobileTabs()) await buildMobileToolsMenu(tabOrder);
-  initTopbarMobileMenus();
+  initTopbarMenus();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initModelSelector();

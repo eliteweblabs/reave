@@ -6,12 +6,32 @@
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
 import Favicon from "../../components/Favicon.astro";
+import { clerkClient } from "@clerk/astro/server";
 import { getCompanyConfig } from "../../lib/companyConfig";
 
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
 const company = await getCompanyConfig(Astro.request);
+
+let avatarUrl: string | null = null;
+let userInitials = "";
+
+if (userId) {
+  try {
+    const client = clerkClient(Astro);
+    const user = await client.users.getUser(userId);
+    avatarUrl = user.imageUrl ?? null;
+    const first = user.firstName?.[0] ?? "";
+    const last = user.lastName?.[0] ?? "";
+    userInitials =
+      ((first + last).toUpperCase() ||
+        user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase()) ??
+      "?";
+  } catch {
+    // Clerk unreachable — fall back to initials placeholder
+  }
+}
 ---
 
 <!doctype html>
@@ -419,31 +439,45 @@ const company = await getCompanyConfig(Astro.request);
       #model-select:hover:not(:disabled) { border-color: #3b82f6; }
       #model-select:disabled { opacity: 0.55; cursor: default; }
 
-      /* Profile button */
-      .topbar-profile {
+      /* Profile button — matches site Header.astro */
+      .topbar-profile-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 2px solid rgba(168, 85, 247, 0.5);
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 1px solid rgba(168, 85, 247, 0.4);
-        background: rgba(168, 85, 247, 0.1);
-        color: rgba(168, 85, 247, 0.75);
-        text-decoration: none;
+        overflow: hidden;
         flex-shrink: 0;
-        transition: border-color 0.15s, background 0.15s, color 0.15s;
+        transition: border-color 0.15s, box-shadow 0.15s;
       }
-      .topbar-profile svg {
+      .topbar-profile-btn:hover {
+        border-color: rgba(168, 85, 247, 0.9);
+        box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
+      }
+      .topbar-profile-avatar {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
         pointer-events: none;
       }
-      .topbar-profile:hover {
-        border-color: rgba(168, 85, 247, 0.9);
-        background: rgba(168, 85, 247, 0.22);
+      .topbar-profile-initials {
+        font-size: 13px;
+        font-weight: 700;
         color: #a855f7;
+        letter-spacing: 0.02em;
+        pointer-events: none;
       }
 
       .topbar-icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -452,6 +486,9 @@ const company = await getCompanyConfig(Astro.request);
         background: var(--panel);
         color: var(--muted);
         cursor: pointer;
+        padding: 0;
+        font-size: 1rem;
+        line-height: 1;
         transition: border-color 0.15s, background 0.15s, color 0.15s;
       }
       .topbar-icon-btn:hover {
@@ -654,12 +691,19 @@ const company = await getCompanyConfig(Astro.request);
       }
 
       @media (max-width: 639px) {
-        #topbar {
-          gap: 0.2rem;
-          padding-left: max(0.375rem, env(safe-area-inset-left));
-          padding-right: max(0.375rem, env(safe-area-inset-right));
+        :root {
+          --topbar-h: 4rem;
         }
-        #topbar .brand-img { height: 1.15rem; }
+        #topbar {
+          gap: 0.5rem;
+          min-height: var(--topbar-h);
+          padding:
+            max(0.5rem, env(safe-area-inset-top))
+            max(0.75rem, env(safe-area-inset-right))
+            0.5rem
+            max(0.75rem, env(safe-area-inset-left));
+        }
+        #topbar .brand-img { height: 1.35rem; }
         #tabs-scroll {
           flex: 1 1 0;
           min-width: 0;
@@ -700,19 +744,8 @@ const company = await getCompanyConfig(Astro.request);
         .tab-caret { display: none; }
         .tab-icon { font-size: 0.82rem; }
         .topbar-end {
-          gap: 0.2rem;
+          gap: 0.5rem;
           flex-shrink: 0;
-        }
-        #health-checked {
-          padding-right: 0.25rem;
-        }
-        .topbar-profile {
-          width: 26px;
-          height: 26px;
-        }
-        .topbar-profile svg {
-          width: 13px;
-          height: 13px;
         }
         #health-checked,
         #topbar-stale-warn,
@@ -741,17 +774,9 @@ const company = await getCompanyConfig(Astro.request);
           gap: 0.1rem;
         }
         .topbar-end {
-          gap: 0.35rem;
+          gap: 0.5rem;
           flex-shrink: 0;
           margin-left: auto;
-        }
-        .topbar-icon-btn {
-          width: 30px;
-          height: 30px;
-          padding: 0;
-          border-radius: 50%;
-          font-size: 0.95rem;
-          line-height: 1;
         }
         .topbar-inbox-btn {
           position: relative;
@@ -853,14 +878,6 @@ const company = await getCompanyConfig(Astro.request);
           font-size: 0.82rem;
           line-height: 1;
         }
-        .topbar-profile-menu .topbar-profile.topbar-icon-btn {
-          width: 30px;
-          height: 30px;
-        }
-        .topbar-profile-menu .topbar-profile.topbar-icon-btn svg {
-          width: 14px;
-          height: 14px;
-        }
       }
 
       .tb-mobile-only {
@@ -885,7 +902,8 @@ const company = await getCompanyConfig(Astro.request);
         cursor: pointer;
       }
       #topbar button:hover { border-color: #4b5563; }
-      #topbar .topbar-icon-btn {
+      #topbar .topbar-icon-btn,
+      #topbar .topbar-profile-btn {
         padding: 0;
         line-height: 1;
       }
@@ -2321,11 +2339,12 @@ const company = await getCompanyConfig(Astro.request);
           <div id="topbar-tools-menu" class="topbar-dropdown" role="menu" aria-label="Admin sections"></div>
         </div>
         <div class="topbar-menu topbar-profile-menu">
-          <a href="/admin/profile" class="topbar-profile tb-desktop-only tt-left" data-tooltip="Profile" aria-label="Profile">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-          </a>
-          <button type="button" id="topbar-profile-toggle" class="topbar-profile topbar-icon-btn tb-mobile-only" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <button type="button" id="topbar-profile-toggle" class="topbar-profile-btn" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" class="topbar-profile-avatar" />
+            ) : (
+              <span class="topbar-profile-initials">{userInitials || "?"}</span>
+            )}
           </button>
           <div id="topbar-profile-menu" class="topbar-dropdown" role="menu">
             <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
@@ -2379,7 +2398,7 @@ const company = await getCompanyConfig(Astro.request);
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628e"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628f"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>
