@@ -71,6 +71,18 @@ if (userId) {
 
   {userId && (
     <div class="app-header-end topbar-end">
+      {adminShell && (
+        <button
+          type="button"
+          id="push-enable-btn"
+          class="app-header-icon-btn topbar-icon-btn topbar-push-btn"
+          aria-label="Enable push notifications"
+          title="Enable push notifications"
+        >
+          <span aria-hidden="true">🔔</span>
+        </button>
+      )}
+
       <div class="app-header-menu topbar-menu topbar-tools-menu">
         <button
           type="button"
@@ -255,6 +267,21 @@ if (userId) {
   .topbar-tools-btn.has-badge {
     border-color: rgba(251, 191, 36, 0.55);
     background: rgba(251, 191, 36, 0.08);
+  }
+
+  .topbar-push-btn {
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.08);
+    color: rgba(251, 191, 36, 0.95);
+  }
+
+  .topbar-push-btn:hover {
+    border-color: rgba(251, 191, 36, 0.55);
+    color: rgba(251, 191, 36, 1);
+  }
+
+  .topbar-push-btn[hidden] {
+    display: none !important;
   }
 
   .app-header-icon-btn:hover,

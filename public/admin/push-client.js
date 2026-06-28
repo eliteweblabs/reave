@@ -21,6 +21,38 @@ export async function registerAdminServiceWorker() {
   }
 }
 
+async function getExistingPushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  const reg = await navigator.serviceWorker.getRegistration('/admin/');
+  if (!reg) return null;
+  return reg.pushManager.getSubscription();
+}
+
+export async function isAdminPushEnabled() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission !== 'granted') return false;
+  const sub = await getExistingPushSubscription();
+  return !!sub;
+}
+
+export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+
+  if (!('Notification' in window) || !('PushManager' in window)) {
+    btn.hidden = true;
+    return;
+  }
+
+  await registerAdminServiceWorker();
+
+  try {
+    btn.hidden = await isAdminPushEnabled();
+  } catch {
+    btn.hidden = false;
+  }
+}
+
 export async function subscribeAdminPush() {
   if (!('Notification' in window) || !('PushManager' in window)) {
     throw new Error('Push not supported in this browser');
@@ -60,15 +92,13 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
 
-  registerAdminServiceWorker();
+  void syncAdminPushButton(buttonId);
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
     try {
       await subscribeAdminPush();
-      btn.textContent = '🔔 On';
-      btn.title = 'Push notifications enabled';
-      btn.classList.add('push-on');
+      btn.hidden = true;
     } catch (e) {
       alert(e.message || String(e));
       btn.disabled = false;

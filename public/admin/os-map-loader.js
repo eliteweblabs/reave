@@ -1418,22 +1418,6 @@ async function buildMobileToolsMenu(order) {
     menu.appendChild(btn);
   }
 
-  const divider = document.createElement('div');
-  divider.className = 'topbar-dropdown-divider';
-  menu.appendChild(divider);
-
-  const pushBtn = document.createElement('button');
-  pushBtn.type = 'button';
-  pushBtn.className = 'topbar-dropdown-item';
-  pushBtn.setAttribute('role', 'menuitem');
-  pushBtn.innerHTML = '<span class="topbar-dropdown-icon">🔔</span><span>Enable push notifications</span>';
-  pushBtn.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    document.getElementById('push-enable-btn')?.click();
-    closeTopbarMenus();
-  });
-  menu.appendChild(pushBtn);
-
   updateTabs();
 }
 
@@ -2068,23 +2052,22 @@ function renderDocEditor() {
 
   // ── Sidebar ──
   const sidebar = document.createElement('div');
-  sidebar.className = 'de-sidebar';
+  sidebar.className = 'ch-sidebar';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn';
+  newBtn.className = 'de-new-btn ch-new-btn';
   newBtn.textContent = '+ New Document';
   newBtn.addEventListener('click', () => startNewDocument());
-  sidebar.appendChild(newBtn);
+  toolbar.appendChild(newBtn);
+  sidebar.appendChild(toolbar);
 
   const list = document.createElement('div');
-  list.className = 'de-list';
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
   for (const tpl of templates) {
-    const item = document.createElement('button');
-    item.className = 'de-list-item' + (tpl.slug === activeSlug ? ' active' : '');
-    item.dataset.slug = tpl.slug;
-    item.innerHTML = `<span class="de-item-title">${escHtml(tpl.title)}</span><span class="de-item-slug">${escHtml(tpl.slug)}</span>`;
-    item.addEventListener('click', () => openDocument(tpl.slug));
-    list.appendChild(item);
+    list.appendChild(createDocumentSwipeRow(tpl));
   }
   if (templates.length === 0) {
     const empty = document.createElement('div');
@@ -2410,8 +2393,8 @@ async function saveDocument(slug, html, btn) {
       ?? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
     const tpl = docState.templates.find((t) => t.slug === slug);
     if (tpl) tpl.title = newTitle;
-    document.querySelector(`.de-list-item[data-slug="${CSS.escape(slug)}"] .de-item-title`)
-      ?.replaceWith(Object.assign(document.createElement('span'), { className: 'de-item-title', textContent: newTitle }));
+    document.querySelector(`.ch-list-item[data-slug="${CSS.escape(slug)}"] .ch-item-title`)
+      ?.replaceWith(Object.assign(document.createElement('span'), { className: 'ch-item-title', textContent: newTitle }));
   } catch (e) {
     btn.textContent = 'Save';
     btn.disabled = false;
@@ -2420,6 +2403,7 @@ async function saveDocument(slug, html, btn) {
 }
 
 async function deleteDocument(slug) {
+  closeOpenSwipeRow();
   const tpl = docState.templates.find((t) => t.slug === slug);
   if (!confirm(`Delete "${tpl?.title ?? slug}"? This cannot be undone.`)) return;
   try {
@@ -2627,34 +2611,32 @@ function renderKnowledgeEditor() {
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
-  sidebar.className = 'de-sidebar';
+  sidebar.className = 'ch-sidebar';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn';
+  newBtn.className = 'de-new-btn ch-new-btn';
   newBtn.textContent = '+ New Doc';
   newBtn.addEventListener('click', () => {
     knowledgeState.activeSlug = '__new__';
     knowledgeState.dirty = false;
     renderKnowledgeEditor();
   });
-  sidebar.appendChild(newBtn);
+  toolbar.appendChild(newBtn);
+  sidebar.appendChild(toolbar);
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
-  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.style.padding = '0 0.65rem 0.5rem';
   hint.textContent = 'Markdown in src/knowledge/ · bot reads on deploy';
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
-  list.className = 'de-list';
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
   for (const entry of entries) {
-    const item = document.createElement('button');
-    item.className = 'de-list-item' + (entry.slug === activeSlug ? ' active' : '');
-    item.innerHTML =
-      `<span class="de-item-title">${escHtml(entry.title)}</span>` +
-      `<span class="de-item-slug">${escHtml(entry.slug)}</span>`;
-    item.addEventListener('click', () => openKnowledge(entry.slug));
-    list.appendChild(item);
+    list.appendChild(createKnowledgeSwipeRow(entry));
   }
   if (entries.length === 0) {
     const empty = document.createElement('div');
@@ -2852,6 +2834,7 @@ async function saveKnowledge(slug, content) {
 }
 
 async function deleteKnowledge(slug) {
+  closeOpenSwipeRow();
   if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
   try {
     const res = await fetch(`/api/knowledge/${encodeURIComponent(slug)}`, {
@@ -2939,10 +2922,12 @@ function renderWorkEditor() {
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
-  sidebar.className = 'de-sidebar';
+  sidebar.className = 'ch-sidebar';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn';
+  newBtn.className = 'de-new-btn ch-new-btn';
   newBtn.textContent = '+ New Job';
   newBtn.addEventListener('click', () => {
     workState.activeSlug = '__new__';
@@ -2961,27 +2946,20 @@ function renderWorkEditor() {
     };
     renderWorkEditor();
   });
-  sidebar.appendChild(newBtn);
+  toolbar.appendChild(newBtn);
+  sidebar.appendChild(toolbar);
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
-  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.style.padding = '0 0.65rem 0.5rem';
   hint.textContent = 'Jobs in src/knowledge/jobs/ · pick or add a client';
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
-  list.className = 'de-list';
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
   for (const job of jobs) {
-    const item = document.createElement('button');
-    item.className = 'de-list-item' + (job.slug === activeSlug ? ' active' : '');
-    item.innerHTML =
-      `<span class="de-item-title">${escHtml(job.title)}</span>` +
-      `<span class="wk-meta-row">` +
-      `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
-      `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
-      `</span>`;
-    item.addEventListener('click', () => openWork(job.slug));
-    list.appendChild(item);
+    list.appendChild(createWorkSwipeRow(job));
   }
   if (jobs.length === 0) {
     const empty = document.createElement('div');
@@ -3691,6 +3669,7 @@ async function saveWork(slug, payload) {
 }
 
 async function deleteWork(slug) {
+  closeOpenSwipeRow();
   if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
@@ -3774,10 +3753,12 @@ function renderClientsEditor() {
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
-  sidebar.className = 'de-sidebar';
+  sidebar.className = 'ch-sidebar';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn';
+  newBtn.className = 'de-new-btn ch-new-btn';
   newBtn.textContent = '+ New Client';
   newBtn.addEventListener('click', () => {
     clientState.activeUid = '__new__';
@@ -3785,7 +3766,8 @@ function renderClientsEditor() {
     clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };
     renderClientsEditor();
   });
-  sidebar.appendChild(newBtn);
+  toolbar.appendChild(newBtn);
+  sidebar.appendChild(toolbar);
 
   const search = document.createElement('input');
   search.className = 'cl-search';
@@ -3800,23 +3782,15 @@ function renderClientsEditor() {
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
-  hint.style.padding = '0 0.7rem 0.5rem';
+  hint.style.padding = '0 0.65rem 0.5rem';
   hint.textContent = `contact-api · ${total} total`;
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
-  list.className = 'de-list';
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
   for (const c of clients) {
-    const item = document.createElement('button');
-    item.className = 'de-list-item' + (c.uid === activeUid ? ' active' : '');
-    item.innerHTML =
-      `<span class="de-item-title">${escHtml(c.name)}</span>` +
-      `<span class="wk-meta-row">` +
-      `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
-      (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
-      `</span>`;
-    item.addEventListener('click', () => openClient(c.uid));
-    list.appendChild(item);
+    list.appendChild(createClientSwipeRow(c));
   }
   if (clients.length === 0) {
     const empty = document.createElement('div');
@@ -4274,6 +4248,7 @@ async function performClientDelete(uid, force) {
 }
 
 async function deleteClient(uid, name) {
+  closeOpenSwipeRow();
   let preview;
   try {
     preview = await fetchClientDeletePreview(uid);
@@ -4831,47 +4806,18 @@ function createChatListItem(t) {
 }
 
 function createChatSwipeRow(t) {
-  const row = document.createElement('div');
-  row.className = 'swipe-row';
-  row.dataset.id = t.id;
-
-  const actions = document.createElement('div');
-  actions.className = 'swipe-actions';
-
-  const archiveBtn = document.createElement('button');
-  archiveBtn.type = 'button';
-  archiveBtn.className = 'swipe-act swipe-act-archive';
-  archiveBtn.textContent = t.archived ? 'Unarchive' : 'Archive';
-  archiveBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    archiveChat(t);
-  });
-
-  const deleteBtn = document.createElement('button');
-  deleteBtn.type = 'button';
-  deleteBtn.className = 'swipe-act swipe-act-delete';
-  deleteBtn.textContent = 'Delete';
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    deleteChat(t.id, t.title);
-  });
-
-  actions.appendChild(archiveBtn);
-  actions.appendChild(deleteBtn);
-
-  const content = document.createElement('div');
-  content.className = 'swipe-content';
-  content.appendChild(createChatListItem(t));
-
-  row.appendChild(actions);
-  row.appendChild(content);
-
-  requestAnimationFrame(() => {
-    const revealPx = actions.offsetWidth || 144;
-    attachSwipeRow(row, content, revealPx);
-  });
-
-  return row;
+  return createSwipeRow(createChatListItem(t), [
+    {
+      label: t.archived ? 'Unarchive' : 'Archive',
+      className: 'swipe-act swipe-act-archive',
+      onClick: () => archiveChat(t),
+    },
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteChat(t.id, t.title),
+    },
+  ]);
 }
 
 function renderChatSidebar() {
@@ -4898,9 +4844,7 @@ function renderChatSidebar() {
 
   const list = document.createElement('div');
   list.className = 'ch-list';
-  list.addEventListener('scroll', () => {
-    if (typeof closeOpenSwipeRow === 'function') closeOpenSwipeRow();
-  }, { passive: true });
+  bindSwipeListScroll(list);
   for (const t of chatState.threads) {
     list.appendChild(createChatSwipeRow(t));
   }
@@ -5461,6 +5405,43 @@ function closeOpenSwipeRow() {
   }
 }
 
+function bindSwipeListScroll(listEl) {
+  listEl.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
+}
+
+function createSwipeRow(contentEl, actions) {
+  const row = document.createElement('div');
+  row.className = 'swipe-row';
+  if (contentEl.dataset?.id) row.dataset.id = contentEl.dataset.id;
+  if (contentEl.dataset?.slug) row.dataset.slug = contentEl.dataset.slug;
+
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'swipe-actions';
+  for (const act of actions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = act.className || 'swipe-act';
+    btn.textContent = act.label;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      act.onClick();
+    });
+    actionsEl.appendChild(btn);
+  }
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+  content.appendChild(contentEl);
+  row.appendChild(actionsEl);
+  row.appendChild(content);
+
+  requestAnimationFrame(() => {
+    const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
+    attachSwipeRow(row, content, revealPx);
+  });
+  return row;
+}
+
 function attachSwipeRow(row, contentEl, revealPx) {
   let startX = 0;
   let baseX = 0;
@@ -5567,25 +5548,7 @@ document.addEventListener('click', (e) => {
   closeOpenSwipeRow();
 });
 
-function buildEmailAgentPrompt(ev) {
-  const lines = [
-    'Review this inbound email and help me decide what to do:',
-    '',
-    `From: ${ev.from || '(unknown)'}`,
-  ];
-  if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
-  lines.push(`Subject: ${ev.subject || '(no subject)'}`);
-  lines.push(`Category: ${ev.category || 'review'}`);
-  if (ev.summary) lines.push(`Summary: ${ev.summary}`);
-  if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
-  const body = (ev.bodySnippet || '').trim();
-  if (body) {
-    lines.push('', '---', 'Email body:', body);
-  }
-  return lines.join('\n');
-}
-
-async function askAgentAboutEmail(ev) {
+async function askAgentWithPrompt(prompt) {
   closeOpenSwipeRow();
   try {
     const res = await fetch('/api/chats', {
@@ -5599,7 +5562,7 @@ async function askAgentAboutEmail(ev) {
     chatState.activeId = thread.id;
     chatState.title = thread.title;
     chatState.messages = [];
-    chatState.pendingDraft = buildEmailAgentPrompt(ev);
+    chatState.pendingDraft = prompt;
     chatState.pendingAutoSend = true;
 
     if (activeKey === 'chats') {
@@ -5610,6 +5573,200 @@ async function askAgentAboutEmail(ev) {
   } catch (e) {
     osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
   }
+}
+
+function buildAgentContentPrompt(intro, metaLines, body) {
+  const lines = [intro, '', ...metaLines];
+  const trimmed = (body || '').trim();
+  if (trimmed) lines.push('', '---', trimmed.slice(0, 12000));
+  return lines.join('\n');
+}
+
+async function askAgentAboutKnowledge(entry) {
+  try {
+    const res = await fetch(`/api/knowledge/${encodeURIComponent(entry.slug)}`, { cache: 'no-store' });
+    const data = await readApiJson(res);
+    const prompt = buildAgentContentPrompt(
+      'Help me work with this knowledge doc:',
+      [`Title: ${entry.title}`, `Slug: ${entry.slug}`],
+      data.content,
+    );
+    await askAgentWithPrompt(prompt);
+  } catch (e) {
+    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function askAgentAboutDocument(tpl) {
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(tpl.slug)}`, { cache: 'no-store' });
+    const data = await readApiJson(res);
+    const prompt = buildAgentContentPrompt(
+      'Help me work with this document template:',
+      [`Title: ${tpl.title}`, `Slug: ${tpl.slug}`],
+      data.content || data.html,
+    );
+    await askAgentWithPrompt(prompt);
+  } catch (e) {
+    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function askAgentAboutWork(job) {
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(job.slug)}`, { cache: 'no-store' });
+    const data = await readApiJson(res);
+    const meta = [`Title: ${job.title}`, `Slug: ${job.slug}`];
+    if (job.contact_name || job.client) meta.push(`Client: ${job.contact_name || job.client}`);
+    if (job.status) meta.push(`Status: ${WORK_STATUS_LABELS[job.status] || job.status}`);
+    const prompt = buildAgentContentPrompt('Help me work with this job:', meta, data.content || data.body);
+    await askAgentWithPrompt(prompt);
+  } catch (e) {
+    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function createDocumentListItem(tpl) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item' + (tpl.slug === docState.activeSlug ? ' active' : '');
+  item.dataset.slug = tpl.slug;
+  item.innerHTML =
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(tpl.title)}</span></span>` +
+    `<span class="ch-item-sub ch-item-slug">${escHtml(tpl.slug)}</span>`;
+  item.addEventListener('click', () => openDocument(tpl.slug));
+  return item;
+}
+
+function createDocumentSwipeRow(tpl) {
+  return createSwipeRow(createDocumentListItem(tpl), [
+    {
+      label: 'Agent',
+      className: 'swipe-act swipe-act-agent',
+      onClick: () => askAgentAboutDocument(tpl),
+    },
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteDocument(tpl.slug),
+    },
+  ]);
+}
+
+function createKnowledgeListItem(entry) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item' + (entry.slug === knowledgeState.activeSlug ? ' active' : '');
+  item.dataset.slug = entry.slug;
+  item.innerHTML =
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span></span>` +
+    `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
+  item.addEventListener('click', () => openKnowledge(entry.slug));
+  return item;
+}
+
+function createKnowledgeSwipeRow(entry) {
+  return createSwipeRow(createKnowledgeListItem(entry), [
+    {
+      label: 'Agent',
+      className: 'swipe-act swipe-act-agent',
+      onClick: () => askAgentAboutKnowledge(entry),
+    },
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteKnowledge(entry.slug),
+    },
+  ]);
+}
+
+function createWorkListItem(job) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item' + (job.slug === workState.activeSlug ? ' active' : '');
+  item.dataset.slug = job.slug;
+  item.innerHTML =
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
+    `<span class="wk-meta-row">` +
+    `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
+    `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
+    `</span>`;
+  item.addEventListener('click', () => openWork(job.slug));
+  return item;
+}
+
+function createWorkSwipeRow(job) {
+  return createSwipeRow(createWorkListItem(job), [
+    {
+      label: 'Agent',
+      className: 'swipe-act swipe-act-agent',
+      onClick: () => askAgentAboutWork(job),
+    },
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteWork(job.slug),
+    },
+  ]);
+}
+
+function createClientListItem(c) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
+  item.dataset.id = c.uid;
+  item.innerHTML =
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(c.name)}</span></span>` +
+    `<span class="wk-meta-row">` +
+    `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
+    (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
+    `</span>`;
+  item.addEventListener('click', () => openClient(c.uid));
+  return item;
+}
+
+function createClientSwipeRow(c) {
+  return createSwipeRow(createClientListItem(c), [
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteClient(c.uid, c.name),
+    },
+  ]);
+}
+
+function buildEmailAgentPrompt(ev) {
+  const lines = [
+    '[Email triage]',
+    '',
+    'Purpose of this chat: decide what to DO with this inbound email.',
+    'I have already read it — do not summarize it or explain what it says back to me.',
+    '',
+    'Respond with:',
+    '1. Recommended action (reply, ignore, archive, schedule follow-up, create a job, escalate, mark junk, etc.)',
+    '2. One sentence on why',
+    '3. Concrete next steps I should take now',
+    '',
+    'If replying makes sense, include a draft I can send.',
+    'Be direct and action-oriented.',
+    '',
+    '---',
+    'Email (context only — do not recap):',
+    `From: ${ev.from || '(unknown)'}`,
+  ];
+  if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
+  lines.push(`Subject: ${ev.subject || '(no subject)'}`);
+  lines.push(`Category: ${ev.category || 'review'}`);
+  if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
+  const body = (ev.bodySnippet || '').trim();
+  if (body) {
+    lines.push('', body);
+  }
+  return lines.join('\n');
+}
+
+async function askAgentAboutEmail(ev) {
+  await askAgentWithPrompt(buildEmailAgentPrompt(ev));
 }
 
 async function markEmailJunk(ev) {
@@ -5679,72 +5836,40 @@ function createEmailListItem(ev) {
 }
 
 function createEmailSwipeRow(ev) {
-  const row = document.createElement('div');
-  row.className = 'swipe-row';
-  row.dataset.id = ev.id;
-
-  const actions = document.createElement('div');
-  actions.className = 'swipe-actions';
-
-  const agentBtn = document.createElement('button');
-  agentBtn.type = 'button';
-  agentBtn.className = 'swipe-act swipe-act-agent';
-  agentBtn.textContent = 'Agent';
-  agentBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    askAgentAboutEmail(ev);
-  });
-
-  const junkBtn = document.createElement('button');
-  junkBtn.type = 'button';
-  junkBtn.className = 'swipe-act swipe-act-junk';
-  junkBtn.textContent = ev.category === 'junk' ? 'Not junk' : 'Junk';
-  junkBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (ev.category === 'junk') {
-      fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: 'review', action: 'review' }),
-      })
-        .then(readApiJson)
-        .then((data) => {
-          const idx = emailState.events.findIndex((e) => e.id === ev.id);
-          if (idx !== -1) emailState.events[idx] = data.event;
-          renderEmailPanel();
-        })
-        .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
-    } else {
-      markEmailJunk(ev);
-    }
-  });
-
-  const deleteBtn = document.createElement('button');
-  deleteBtn.type = 'button';
-  deleteBtn.className = 'swipe-act swipe-act-delete';
-  deleteBtn.textContent = 'Delete';
-  deleteBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    deleteEmail(ev);
-  });
-
-  actions.appendChild(agentBtn);
-  actions.appendChild(junkBtn);
-  actions.appendChild(deleteBtn);
-
-  const content = document.createElement('div');
-  content.className = 'swipe-content';
-  content.appendChild(createEmailListItem(ev));
-
-  row.appendChild(actions);
-  row.appendChild(content);
-
-  requestAnimationFrame(() => {
-    const revealPx = actions.offsetWidth || 216;
-    attachSwipeRow(row, content, revealPx);
-  });
-
-  return row;
+  return createSwipeRow(createEmailListItem(ev), [
+    {
+      label: 'Agent',
+      className: 'swipe-act swipe-act-agent',
+      onClick: () => askAgentAboutEmail(ev),
+    },
+    {
+      label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+      className: 'swipe-act swipe-act-junk',
+      onClick: () => {
+        if (ev.category === 'junk') {
+          fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: 'review', action: 'review' }),
+          })
+            .then(readApiJson)
+            .then((data) => {
+              const idx = emailState.events.findIndex((e) => e.id === ev.id);
+              if (idx !== -1) emailState.events[idx] = data.event;
+              renderEmailPanel();
+            })
+            .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
+        } else {
+          markEmailJunk(ev);
+        }
+      },
+    },
+    {
+      label: 'Delete',
+      className: 'swipe-act swipe-act-delete',
+      onClick: () => deleteEmail(ev),
+    },
+  ]);
 }
 
 function stopEmailPoll() {
@@ -5824,11 +5949,6 @@ function renderEmailSidebar() {
     loadEmailTab();
   });
   toolbar.appendChild(junkBtn);
-
-  const storageHint = document.createElement('span');
-  storageHint.className = 'em-storage';
-  storageHint.textContent = emailState.storage === 'files' ? 'Local file' : 'Postgres';
-  toolbar.appendChild(storageHint);
   sidebar.appendChild(toolbar);
 
   const digest = renderEmailDigest();

@@ -620,7 +620,8 @@ const { userId } = Astro.locals.auth();
         #doc-editor {
           flex-direction: column;
         }
-        .de-sidebar {
+        .de-sidebar,
+        .ch-sidebar {
           width: 100%;
           flex: 1 1 auto;
           border-right: none;
@@ -630,7 +631,8 @@ const { userId } = Astro.locals.auth();
           display: none;
         }
         /* When a document is open on mobile, hide sidebar and show pane */
-        #doc-editor.de-pane-active .de-sidebar {
+        #doc-editor.de-pane-active .de-sidebar,
+        #doc-editor.de-pane-active .ch-sidebar {
           display: none;
         }
         #doc-editor.de-pane-active .de-pane {
@@ -1003,8 +1005,11 @@ const { userId } = Astro.locals.auth();
         #work-editor,
         #clients-editor { flex-direction: column; }
         #knowledge-editor.de-pane-active .de-sidebar,
+        #knowledge-editor.de-pane-active .ch-sidebar,
         #work-editor.de-pane-active .de-sidebar,
-        #clients-editor.de-pane-active .de-sidebar { display: none; }
+        #work-editor.de-pane-active .ch-sidebar,
+        #clients-editor.de-pane-active .de-sidebar,
+        #clients-editor.de-pane-active .ch-sidebar { display: none; }
         #knowledge-editor.de-pane-active .de-pane,
         #work-editor.de-pane-active .de-pane,
         #clients-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
@@ -1274,6 +1279,15 @@ const { userId } = Astro.locals.auth();
         flex: 0 0 auto;
         font-size: 0.68rem;
         color: var(--muted);
+      }
+      .ch-item-sub {
+        font-size: 0.69rem;
+        color: var(--muted);
+        width: 100%;
+        text-align: left;
+      }
+      .ch-item-slug {
+        font-family: ui-monospace, monospace;
       }
       .ch-item-archived {
         font-size: 0.62rem;
@@ -1635,10 +1649,6 @@ const { userId } = Astro.locals.auth();
         cursor: pointer;
       }
       .em-refresh:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
-      .em-storage {
-        font-size: 0.68rem;
-        color: var(--muted);
-      }
       .em-list-item {
         width: 100%;
         display: flex;
@@ -1835,16 +1845,6 @@ const { userId } = Astro.locals.auth();
       .em-cat-alert { color: #60a5fa; background: rgba(96,165,250,0.12); }
       .em-cat-internal { color: #a78bfa; background: rgba(167,139,250,0.12); }
       .em-cat-review { color: #fbbf24; background: rgba(251,191,36,0.12); }
-      .push-btn {
-        font: inherit;
-        cursor: pointer;
-        border: none;
-        background: transparent;
-        padding: 0;
-        line-height: 1;
-      }
-      .push-btn.push-on { opacity: 1; filter: none; }
-      .push-btn:not(.push-on) { opacity: 0.55; }
 
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
@@ -1954,7 +1954,6 @@ const { userId } = Astro.locals.auth();
         <option value="claude-sonnet-4-6">Sonnet 4.6</option>
       </select>
       <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
-      <button type="button" id="push-enable-btn" class="tb-icon push-btn tt-left" data-tooltip="Enable phone notifications" aria-label="Enable push notifications">🔔</button>
       <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">⚠️</span>
     </div>
 
@@ -2001,7 +2000,7 @@ const { userId } = Astro.locals.auth();
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628i"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628m"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>
