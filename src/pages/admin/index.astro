@@ -1752,6 +1752,9 @@ const { userId } = Astro.locals.auth();
         width: 100%;
         min-width: 0;
       }
+      .em-item-header {
+        gap: 0.35rem;
+      }
       .em-item-subject {
         flex: 1;
         min-width: 0;
@@ -1762,17 +1765,20 @@ const { userId } = Astro.locals.auth();
         white-space: nowrap;
       }
       .em-item-from {
-        font-size: 0.72rem;
-        color: var(--muted);
+        flex: 1;
+        min-width: 0;
+        font-size: 0.68rem;
+        color: var(--fg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        width: 100%;
       }
       .em-item-date {
         flex: 0 0 auto;
         font-size: 0.68rem;
         color: var(--muted);
+        white-space: nowrap;
       }
       .em-status {
         flex: 0 0 auto;
@@ -2011,7 +2017,7 @@ const { userId } = Astro.locals.auth();
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628o"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628q"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250628n"></script>
   </body>
 </html>

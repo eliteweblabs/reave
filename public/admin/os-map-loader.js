@@ -5388,6 +5388,18 @@ function emailCategoryClass(cat) {
   return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
 }
 
+function parseSenderEmail(from) {
+  const raw = String(from || '').trim();
+  const angle = raw.match(/<([^>]+)>/);
+  if (angle?.[1]) return angle[1].trim();
+  if (/^[^\s@]+@[^\s@]+$/.test(raw)) return raw;
+  return raw || '';
+}
+
+function formatEmailCardFrom(ev) {
+  return parseSenderEmail(ev.from) || '(unknown)';
+}
+
 function formatEmailAction(ev) {
   const bits = [ev.action];
   if (ev.jobTitle) bits.push(ev.jobTitle);
@@ -5828,12 +5840,12 @@ function createEmailListItem(ev) {
   item.className = 'em-list-item' + (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
-    `<span class="em-item-row">` +
+    `<span class="em-item-row em-item-header">` +
       `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
+      `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
     `</span>` +
-    `<span class="em-item-summary">${escHtml(summary)}</span>` +
-    `<span class="em-item-from">${escHtml(ev.contactName || ev.from || '(unknown)')}</span>`;
+    `<span class="em-item-summary">${escHtml(summary)}</span>`;
   item.addEventListener('click', () => openEmailEvent(ev.id));
   return item;
 }
