@@ -6,12 +6,16 @@
  */
 
 import type { APIContext } from 'astro';
+import type { ChatImageAttachment, ChatImageMediaType } from '../../../lib/chatTypes';
+import {
+  serializeChatMessageContent,
+  titleFromMessage,
+} from '../../../lib/chatTypes';
 import {
   storeAppendChatMessages,
   storeDeleteChatThread,
   storeGetChatThread,
   storeUpdateChatTitle,
-  titleFromMessage,
 } from '../../../lib/chatStore';
 import { runTelegramKnowledgeAgent } from '../../../lib/telegramAgent';
 import type { TelegramChatTurn } from '../../../lib/telegramChatHistory';
@@ -30,6 +34,32 @@ function historyCap(): number {
   if (!raw?.trim()) return 20;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 20;
+}
+
+const ALLOWED_IMAGE_MEDIA = new Set<ChatImageMediaType>([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+]);
+const MAX_CHAT_IMAGES = 5;
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function parseChatImages(body: Record<string, unknown>): ChatImageAttachment[] {
+  const raw = body.images;
+  if (!Array.isArray(raw)) return [];
+  const out: ChatImageAttachment[] = [];
+  for (const item of raw.slice(0, MAX_CHAT_IMAGES)) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const mediaType = String(rec.mediaType ?? rec.media_type ?? '').toLowerCase();
+    const data = String(rec.data ?? '').replace(/^data:[^;]+;base64,/, '');
+    if (!ALLOWED_IMAGE_MEDIA.has(mediaType as ChatImageMediaType) || !data) continue;
+    const bytes = Math.floor((data.length * 3) / 4);
+    if (bytes < 1 || bytes > MAX_CHAT_IMAGE_BYTES) continue;
+    out.push({ mediaType: mediaType as ChatImageMediaType, data });
+  }
+  return out;
 }
 
 function priorTurns(messages: { role: string; content: string }[]): TelegramChatTurn[] {
@@ -68,7 +98,10 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const message = String(body.message ?? '').trim();
-  if (!message) return json({ ok: false, error: 'message is required' }, 400);
+  const images = parseChatImages(body);
+  if (!message && !images.length) {
+    return json({ ok: false, error: 'message or images required' }, 400);
+  }
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
 
@@ -76,28 +109,30 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
 
   const isFirstMessage = thread.messages.length === 0;
+  const userContent = serializeChatMessageContent(message, images);
   const reply = await runTelegramKnowledgeAgent({
     userText: message,
+    images,
     priorTurns: priorTurns(thread.messages),
     model: modelOverride,
   });
 
   const saved = await storeAppendChatMessages(userId, id, [
-    { role: 'user', content: message },
+    { role: 'user', content: userContent },
     { role: 'assistant', content: reply },
   ]);
   if (!saved) return json({ ok: false, error: 'Failed to save messages' }, 500);
 
   let title = thread.title;
   if (isFirstMessage || title === 'New chat') {
-    title = titleFromMessage(message);
+    title = titleFromMessage(message, images.length);
     await storeUpdateChatTitle(userId, id, title);
   }
 
   return json({
     ok: true,
     title,
-    userMessage: { role: 'user', content: message },
+    userMessage: { role: 'user', content: userContent },
     assistantMessage: { role: 'assistant', content: reply },
   });
 }

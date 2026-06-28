@@ -138,9 +138,11 @@ function buildMap() {
   syncModelNodeLabels();
 }
 
-function setActiveMap(key) {
-  if (!MAPS[key] || key === activeKey) {
-    if (MAPS[key]) updateTabs();
+function setActiveMap(key, opts = {}) {
+  const force = opts.force === true;
+  if (!MAPS[key]) return;
+  if (key === activeKey && !force) {
+    updateTabs();
     return;
   }
   activeKey = key;
@@ -150,6 +152,26 @@ function setActiveMap(key) {
   updateTabs();
   syncCanvasVisibility();
   syncModelSelectorVisibility();
+  activateMapPanel();
+  syncHealthLifecycle();
+  syncEmailPoll();
+}
+
+function isPanelMapKey(key) {
+  const t = MAPS[key]?.type;
+  return (
+    t === 'documents' ||
+    t === 'knowledge' ||
+    t === 'work' ||
+    t === 'clients' ||
+    t === 'chats' ||
+    t === 'email' ||
+    t === 'todo' ||
+    t === 'rules'
+  );
+}
+
+function activateMapPanel() {
   if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -168,8 +190,6 @@ function setActiveMap(key) {
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
     if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
-  syncHealthLifecycle();
-  syncEmailPoll();
 }
 
 function isPanelTab() {
@@ -826,10 +846,10 @@ function storedTabOrderKeys(keys) {
   return normalizeTabOrderKeys(out);
 }
 
-/** Collapse tabs on narrow headers (Knowledge → Chats menu; hide Finance on mobile). */
+/** Collapse Chats+Knowledge into one slot on phone only; hide Finance on mobile. */
 function effectiveTabOrder(order) {
   const normalized = normalizeTabOrderKeys(order);
-  if (!isCompactTabs()) return normalized;
+  if (!isMobileTabs()) return normalized;
 
   const out = [];
   let chatSlot = false;
@@ -841,7 +861,7 @@ function effectiveTabOrder(order) {
       }
       continue;
     }
-    if (isMobileTabs() && key === 'finance') continue;
+    if (key === 'finance') continue;
     out.push(key);
   }
   return out;
@@ -1012,17 +1032,18 @@ function resetMobileTabDropdown(wrap) {
   menu.style.zIndex = '';
 }
 
-function positionMobileTabDropdown(wrap) {
-  if (!isMobileTabs()) return;
+function positionTabDropdownMenu(wrap) {
   const menu = wrap.querySelector('.tab-dropdown-menu');
   const trigger = wrap.querySelector('.tab-dropdown-trigger');
   if (!menu || !trigger) return;
-  const rect = trigger.getBoundingClientRect();
-  menu.style.position = 'fixed';
-  menu.style.top = `${rect.bottom + 4}px`;
-  menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8))}px`;
-  menu.style.right = 'auto';
-  menu.style.zIndex = '100';
+  requestAnimationFrame(() => {
+    const rect = trigger.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8))}px`;
+    menu.style.right = 'auto';
+    menu.style.zIndex = '10000';
+  });
 }
 
 function closeTabDropdowns(except) {
@@ -1034,7 +1055,7 @@ function closeTabDropdowns(except) {
   });
 }
 
-/** Mobile: first tap opens the section; second tap (when active) opens the sub-menu. */
+/** Dropdown tab: go to default sub-tab, reload if already there, else open sub-menu. */
 function attachDropdownTriggerClick(wrap, mapSet, defaultKey) {
   const trigger = wrap.querySelector('.tab-dropdown-trigger');
   if (!trigger) return;
@@ -1043,23 +1064,21 @@ function attachDropdownTriggerClick(wrap, mapSet, defaultKey) {
     ev.stopPropagation();
     if (tabDragMoved) return;
 
-    if (isMobileTabs()) {
-      if (!mapSet.has(activeKey)) {
-        setActiveMap(defaultKey);
-        return;
-      }
-      const willOpen = !wrap.classList.contains('open');
-      closeTabDropdowns(willOpen ? wrap : null);
-      wrap.classList.toggle('open', willOpen);
-      if (willOpen) positionMobileTabDropdown(wrap);
-      else resetMobileTabDropdown(wrap);
+    if (!mapSet.has(activeKey)) {
+      setActiveMap(defaultKey);
+      return;
+    }
+    if (activeKey === defaultKey) {
+      setActiveMap(defaultKey, { force: true });
+      closeTabDropdowns();
       return;
     }
 
     const willOpen = !wrap.classList.contains('open');
     closeTabDropdowns(willOpen ? wrap : null);
     wrap.classList.toggle('open', willOpen);
-    if (!willOpen) resetMobileTabDropdown(wrap);
+    if (willOpen) positionTabDropdownMenu(wrap);
+    else resetMobileTabDropdown(wrap);
   });
 }
 
@@ -1113,7 +1132,7 @@ function buildChatDropdownTab() {
   trigger.type = 'button';
   trigger.className = 'tab-dropdown-trigger';
   trigger.innerHTML = `${tabInnerHtml(MAPS.chats)}<span class="tab-caret" aria-hidden="true">▾</span>`;
-  trigger.title = 'Chats & Knowledge';
+  trigger.title = 'Chats — tap to open; hold for Chats & Knowledge menu';
 
   const menu = document.createElement('div');
   menu.className = 'tab-dropdown-menu';
@@ -1140,9 +1159,53 @@ function buildChatDropdownTab() {
 
   wrap.appendChild(trigger);
   wrap.appendChild(menu);
-  attachDropdownTriggerClick(wrap, CHAT_MAP_SET, 'chats');
+  attachChatDropdownTriggerClick(wrap);
   attachTabPointerReorder(wrap);
   return wrap;
+}
+
+/** Phone-only merged tab: tap always opens Chats; long-press opens Chats/Knowledge menu. */
+function attachChatDropdownTriggerClick(wrap) {
+  const trigger = wrap.querySelector('.tab-dropdown-trigger');
+  if (!trigger) return;
+
+  let longPressTimer = null;
+  let longPressFired = false;
+
+  function openSubmenu() {
+    const willOpen = !wrap.classList.contains('open');
+    closeTabDropdowns(willOpen ? wrap : null);
+    wrap.classList.toggle('open', willOpen);
+    if (willOpen) positionTabDropdownMenu(wrap);
+    else resetMobileTabDropdown(wrap);
+  }
+
+  trigger.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    if (tabDragMoved || longPressFired) {
+      longPressFired = false;
+      return;
+    }
+    setActiveMap('chats', { force: activeKey === 'chats' });
+    closeTabDropdowns();
+  });
+
+  trigger.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    longPressFired = false;
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      longPressFired = true;
+      openSubmenu();
+    }, 500);
+  });
+
+  function cancelLongPress() {
+    clearTimeout(longPressTimer);
+  }
+  trigger.addEventListener('pointerup', cancelLongPress);
+  trigger.addEventListener('pointerleave', cancelLongPress);
+  trigger.addEventListener('pointercancel', cancelLongPress);
 }
 
 function buildMapTab(key, m) {
@@ -1154,7 +1217,7 @@ function buildMapTab(key, m) {
   item.title = `${m.title} — drag ⋮⋮ to reorder`;
   item.addEventListener('click', (ev) => {
     if (tabDragMoved || ev.target.closest('.tab-grip')) return;
-    setActiveMap(key);
+    setActiveMap(key, { force: key === activeKey && isPanelMapKey(key) });
   });
   attachTabPointerReorder(item);
   return item;
@@ -4073,6 +4136,100 @@ const IOS_ICONS = {
 };
 const CH_MSG_ICONS = IOS_ICONS;
 
+const CHAT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const CHAT_MAX_IMAGES = 5;
+const CHAT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function parseChatMsgContent(content) {
+  if (typeof content !== 'string' || !content.startsWith('{"v":')) {
+    return { text: content || '', images: [] };
+  }
+  try {
+    const parsed = JSON.parse(content);
+    if (parsed?.v === 1) {
+      const images = Array.isArray(parsed.images)
+        ? parsed.images.filter((img) => img?.mediaType && img?.data)
+        : [];
+      return { text: String(parsed.text ?? ''), images };
+    }
+  } catch (_) {}
+  return { text: content, images: [] };
+}
+
+function chatMsgPlainText(content) {
+  const { text, images } = parseChatMsgContent(content);
+  if (images.length && !text.trim()) {
+    return images.length === 1 ? '[Image]' : `[${images.length} images]`;
+  }
+  if (images.length && text.trim()) {
+    return `${text}\n[${images.length} image${images.length === 1 ? '' : 's'} attached]`;
+  }
+  return text;
+}
+
+function serializeChatMsgContent(text, images) {
+  if (!images?.length) return text;
+  return JSON.stringify({
+    v: 1,
+    text,
+    images: images.map(({ mediaType, data }) => ({ mediaType, data })),
+  });
+}
+
+function fileToChatImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!CHAT_IMAGE_TYPES.has(file.type)) {
+      reject(new Error(`Unsupported image type: ${file.type || 'unknown'}`));
+      return;
+    }
+    if (file.size > CHAT_MAX_IMAGE_BYTES) {
+      reject(new Error('Image too large (max 5 MB)'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const comma = result.indexOf(',');
+      resolve({
+        mediaType: file.type,
+        data: comma >= 0 ? result.slice(comma + 1) : result,
+        previewUrl: result,
+        name: file.name || 'image',
+      });
+    };
+    reader.onerror = () => reject(new Error('Could not read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function collectChatImageFiles(files) {
+  const out = [];
+  for (const file of files) {
+    if (!file?.type?.startsWith('image/')) continue;
+    try {
+      out.push(await fileToChatImage(file));
+    } catch (e) {
+      showChatToast(e.message);
+    }
+  }
+  return out;
+}
+
+function appendChatMessageImages(bubble, images, beforeEl) {
+  if (!images.length) return;
+  const gallery = document.createElement('div');
+  gallery.className = 'ch-msg-images';
+  for (const img of images) {
+    const el = document.createElement('img');
+    el.className = 'ch-msg-img';
+    el.src = `data:${img.mediaType};base64,${img.data}`;
+    el.alt = 'Attached image';
+    el.loading = 'lazy';
+    gallery.appendChild(el);
+  }
+  bubble.insertBefore(gallery, beforeEl);
+}
+
 let _chToastTimer = null;
 
 function showChatToast(message, nearEl) {
@@ -4515,22 +4672,27 @@ function renderChatMessages(container, composeInput) {
     const bubble = document.createElement('div');
     bubble.className = 'ch-msg ' + (m.role === 'user' ? 'ch-msg-user' : 'ch-msg-assistant');
 
+    const parsed = parseChatMsgContent(m.content);
+    const plainText = chatMsgPlainText(m.content);
+
     const body = document.createElement('div');
     body.className = 'ch-msg-body';
-    body.textContent = m.content;
+    if (parsed.text) body.textContent = parsed.text;
+    appendChatMessageImages(bubble, parsed.images, body);
+    if (!parsed.text && parsed.images.length) body.hidden = true;
     bubble.appendChild(body);
 
     const actions = document.createElement('div');
     actions.className = 'ch-msg-actions';
     actions.appendChild(
-      createChatMsgAction('Copy', 'copy', (btn) => copyChatText(m.content, btn)),
+      createChatMsgAction('Copy', 'copy', (btn) => copyChatText(plainText, btn)),
     );
     actions.appendChild(
-      createChatMsgAction('Share', 'share', (btn) => shareChatText(m.content, m.role, btn)),
+      createChatMsgAction('Share', 'share', (btn) => shareChatText(plainText, m.role, btn)),
     );
     if (m.role === 'user' && composeInput) {
       actions.appendChild(
-        createChatMsgAction('Edit message', 'edit', () => insertChatDraft(composeInput, m.content)),
+        createChatMsgAction('Edit message', 'edit', () => insertChatDraft(composeInput, parsed.text)),
       );
     }
     bubble.appendChild(actions);
@@ -4538,9 +4700,9 @@ function renderChatMessages(container, composeInput) {
 
     bindChatMessageContextMenu(
       row,
-      m,
+      { ...m, content: plainText },
       composeInput,
-      composeInput ? () => insertChatDraft(composeInput, m.content) : null,
+      composeInput ? () => insertChatDraft(composeInput, parsed.text) : null,
     );
 
     container.appendChild(row);
@@ -4616,7 +4778,7 @@ function renderChatPanel() {
   deleteBtn.addEventListener('click', () => deleteChat(chatState.activeId, chatState.title));
   header.appendChild(deleteBtn);
   const chatTranscript = () =>
-    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.content}`).join('\n\n');
+    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`).join('\n\n');
   const copyChatBtn = createIosIconBtn({
     iconKey: 'copy',
     label: 'Copy entire conversation',
@@ -4638,14 +4800,22 @@ function renderChatPanel() {
 
   const compose = document.createElement('div');
   compose.className = 'ch-compose';
+
+  const composeMain = document.createElement('div');
+  composeMain.className = 'ch-compose-main';
+
+  const attachmentsEl = document.createElement('div');
+  attachmentsEl.className = 'ch-attachments';
+  attachmentsEl.hidden = true;
+
   const input = document.createElement('textarea');
   input.className = 'ch-input';
-  input.placeholder = 'Message the agent…';
+  input.placeholder = 'Message the agent… (drop or paste images)';
   input.rows = 1;
   input.disabled = chatState.sending;
 
-  renderChatMessages(messagesEl, input);
-  pane.appendChild(messagesEl);
+  composeMain.appendChild(attachmentsEl);
+  composeMain.appendChild(input);
 
   const pasteBtn = document.createElement('button');
   pasteBtn.type = 'button';
@@ -4654,29 +4824,113 @@ function renderChatPanel() {
   pasteBtn.title = 'Paste';
   pasteBtn.innerHTML = CH_MSG_ICONS.paste;
   pasteBtn.disabled = chatState.sending;
-  pasteBtn.addEventListener('click', () => pasteIntoChatInput(input));
 
   const sendBtn = document.createElement('button');
   sendBtn.className = 'ch-send';
   sendBtn.textContent = 'Send';
   sendBtn.disabled = chatState.sending;
 
+  let pendingImages = [];
+
+  function renderPendingAttachments() {
+    attachmentsEl.innerHTML = '';
+    attachmentsEl.hidden = pendingImages.length === 0;
+    for (const img of pendingImages) {
+      const wrap = document.createElement('div');
+      wrap.className = 'ch-attachment';
+      const thumb = document.createElement('img');
+      thumb.src = img.previewUrl;
+      thumb.alt = img.name || 'Attached image';
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'ch-attachment-remove';
+      rm.setAttribute('aria-label', 'Remove image');
+      rm.textContent = '×';
+      rm.addEventListener('click', () => {
+        pendingImages = pendingImages.filter((item) => item !== img);
+        renderPendingAttachments();
+        syncSendState();
+      });
+      wrap.appendChild(thumb);
+      wrap.appendChild(rm);
+      attachmentsEl.appendChild(wrap);
+    }
+  }
+
+  function syncSendState() {
+    const canSend = Boolean(
+      (input.value.trim() || pendingImages.length) && !chatState.sending && chatState.activeId,
+    );
+    sendBtn.disabled = !canSend;
+  }
+
+  async function addPendingImages(files) {
+    if (chatState.sending || !files?.length) return;
+    const room = CHAT_MAX_IMAGES - pendingImages.length;
+    if (room <= 0) {
+      showChatToast(`Max ${CHAT_MAX_IMAGES} images per message`);
+      return;
+    }
+    const slice = Array.from(files).slice(0, room);
+    const added = await collectChatImageFiles(slice);
+    if (!added.length) return;
+    pendingImages.push(...added);
+    if (files.length > room) showChatToast(`Only ${CHAT_MAX_IMAGES} images per message`);
+    renderPendingAttachments();
+    syncSendState();
+    input.focus();
+  }
+
+  compose.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    if (chatState.sending) return;
+    compose.classList.add('ch-compose-drag');
+  });
+  compose.addEventListener('dragleave', (e) => {
+    if (!compose.contains(e.relatedTarget)) compose.classList.remove('ch-compose-drag');
+  });
+  compose.addEventListener('drop', (e) => {
+    e.preventDefault();
+    compose.classList.remove('ch-compose-drag');
+    if (chatState.sending) return;
+    addPendingImages([...(e.dataTransfer?.files || [])]);
+  });
+  input.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.items || [])]
+      .filter((item) => item.type.startsWith('image/'))
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    if (!files.length) return;
+    e.preventDefault();
+    addPendingImages(files);
+  });
+  input.addEventListener('input', syncSendState);
+
+  renderChatMessages(messagesEl, input);
+  pane.appendChild(messagesEl);
+
+  pasteBtn.addEventListener('click', () => pasteIntoChatInput(input));
+
   async function doSend() {
     const text = input.value.trim();
-    if (!text || chatState.sending || !chatState.activeId) return;
+    const images = pendingImages.map(({ mediaType, data }) => ({ mediaType, data }));
+    if ((!text && !images.length) || chatState.sending || !chatState.activeId) return;
+    const userContent = serializeChatMsgContent(text, images);
     chatState.sending = true;
     input.value = '';
+    pendingImages = [];
+    renderPendingAttachments();
     input.disabled = true;
     sendBtn.disabled = true;
     pasteBtn.disabled = true;
-    chatState.messages.push({ role: 'user', content: text });
+    chatState.messages.push({ role: 'user', content: userContent });
     renderChatMessages(messagesEl, input);
 
     try {
       const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, images }),
       });
       const data = await readApiJson(res);
       chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
@@ -4705,13 +4959,14 @@ function renderChatPanel() {
       doSend();
     }
   });
-  compose.appendChild(input);
+  compose.appendChild(composeMain);
   compose.appendChild(pasteBtn);
   compose.appendChild(sendBtn);
   pane.appendChild(compose);
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
+  syncSendState();
   input.focus();
 }
 
@@ -5027,24 +5282,7 @@ async function boot() {
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initModelSelector();
   syncCanvasVisibility();
-  if (MAP.type === 'documents') {
-    loadDocumentsTab();
-  } else if (MAP.type === 'knowledge') {
-    loadKnowledgeTab();
-  } else if (MAP.type === 'work') {
-    loadWorkTab();
-  } else if (MAP.type === 'clients') {
-    loadClientsTab();
-  } else if (MAP.type === 'chats') {
-    loadChatsTab();
-  } else if (MAP.type === 'email') {
-    loadEmailTab();
-  } else {
-    buildMap();
-    finishMapLayout();
-    if (MAP.type === 'todo') loadAndBuildTodoNodes();
-    if (MAP.type === 'rules') loadAndBuildRuleNodes();
-  }
+  activateMapPanel();
   syncHealthLifecycle();
   syncEmailPoll();
 }

@@ -7,10 +7,16 @@ import { isCraterConfigured } from './craterClient';
 import { isGithubConfigured } from './githubClient';
 import { isRailwayConfigured } from './railwayClient';
 import { serverEnv } from './serverEnv';
+import type { ChatImageAttachment } from './chatTypes';
+import { parseChatMessageContent } from './chatTypes';
 import type { TelegramChatTurn } from './telegramChatHistory';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
+  | {
+      type: 'image';
+      source: { type: 'base64'; media_type: string; data: string };
+    }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string };
 
@@ -32,6 +38,31 @@ function buildAnthropicTools(): Array<{
   }));
 }
 
+function buildUserContentBlocks(
+  text: string,
+  images: ChatImageAttachment[] = []
+): string | AnthropicContentBlock[] {
+  if (!images.length) return text;
+  const blocks: AnthropicContentBlock[] = images.map((img) => ({
+    type: 'image',
+    source: { type: 'base64', media_type: img.mediaType, data: img.data },
+  }));
+  const trimmed = text.trim();
+  if (trimmed) blocks.push({ type: 'text', text: trimmed });
+  else blocks.push({ type: 'text', text: 'What can you tell me about this image?' });
+  return blocks;
+}
+
+function anthropicContentFromStored(
+  content: string,
+  role: TelegramChatTurn['role']
+): string | AnthropicContentBlock[] {
+  if (role === 'assistant') return content;
+  const { text, images } = parseChatMessageContent(content);
+  if (!images.length) return content;
+  return buildUserContentBlocks(text, images);
+}
+
 function currentDateTimeLine(): string {
   return `Current date and time: ${new Date().toLocaleString('en-US', {
     weekday: 'long',
@@ -51,10 +82,11 @@ function currentDateTimeLine(): string {
  */
 export async function runTelegramKnowledgeAgent(opts: {
   userText: string;
+  images?: ChatImageAttachment[];
   priorTurns?: TelegramChatTurn[];
   model?: string | null;
 }): Promise<string> {
-  const { userText, priorTurns = [], model: modelOverride } = opts;
+  const { userText, images = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
     return 'LLM is not configured. Set ANTHROPIC_API_KEY, or use /knowledge, /get, /invoices, /resolve.';
@@ -129,8 +161,11 @@ export async function runTelegramKnowledgeAgent(opts: {
 
   const system = `${currentDateTimeLine()}\n\n${sysParts.join('\n')}`;
   const messages: AnthropicMessage[] = [
-    ...priorTurns.map((turn) => ({ role: turn.role, content: turn.content })),
-    { role: 'user', content: userText },
+    ...priorTurns.map((turn) => ({
+      role: turn.role,
+      content: anthropicContentFromStored(turn.content, turn.role),
+    })),
+    { role: 'user', content: buildUserContentBlocks(userText, images) },
   ];
 
   const maxRounds = 25;
