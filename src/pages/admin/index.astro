@@ -1676,6 +1676,7 @@ const { userId } = Astro.locals.auth();
         border-radius: 8px;
         margin-bottom: 0.15rem;
         touch-action: pan-y;
+        background: var(--swipe-row-bg, var(--panel));
         --swipe-row-bg: var(--panel);
       }
       .ch-list .swipe-row:nth-child(odd) { --swipe-row-bg: #121722; }
@@ -1686,6 +1687,14 @@ const { userId } = Astro.locals.auth();
         display: flex;
         align-items: stretch;
         z-index: 0;
+        /* Hidden until swipe-open or active drag — stops action colors bleeding at corners */
+        clip-path: inset(0 100% 0 0);
+        pointer-events: none;
+      }
+      .swipe-row.swipe-open .swipe-actions,
+      .swipe-row.swipe-dragging .swipe-actions {
+        clip-path: none;
+        pointer-events: auto;
       }
       .swipe-act {
         flex: none;
@@ -1715,6 +1724,8 @@ const { userId } = Astro.locals.auth();
         will-change: transform;
         background: var(--swipe-row-bg, var(--panel));
         border-radius: 8px;
+        overflow: hidden;
+        isolation: isolate;
       }
       .swipe-content .em-list-item,
       .swipe-content .ch-list-item {
@@ -2000,7 +2011,7 @@ const { userId } = Astro.locals.auth();
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628m"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628o"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250628n"></script>
   </body>
 </html>

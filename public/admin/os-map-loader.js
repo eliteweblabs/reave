@@ -5462,6 +5462,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
   function snap(shouldOpen) {
     open = shouldOpen;
     row.classList.toggle('swipe-open', open);
+    row.classList.remove('swipe-dragging');
     setTranslate(open ? -revealPx : 0, true);
     if (open) {
       if (openSwipeRow && openSwipeRow !== api) openSwipeRow.snap(false);
@@ -5477,6 +5478,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
     baseX = open ? -revealPx : 0;
     dragging = true;
     moved = false;
+    row.classList.add('swipe-dragging');
     contentEl.style.transition = 'none';
   }
 
@@ -5493,6 +5495,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
   function onEnd() {
     if (!dragging) return;
     dragging = false;
+    row.classList.remove('swipe-dragging');
     const tx = currentTx();
     snap(tx <= -revealPx * 0.35);
   }
