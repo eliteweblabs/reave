@@ -57,7 +57,8 @@ export interface EmailInboxDigest {
 
 const MAX_FILE_EVENTS = 500;
 
-const SCHEMA_SQL = `
+/** Base table only — indexes run after column migration (old DBs may lack category). */
+const TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS email_inbox (
   id            UUID PRIMARY KEY,
   received_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -66,28 +67,24 @@ CREATE TABLE IF NOT EXISTS email_inbox (
   body_snippet  TEXT NOT NULL DEFAULT '',
   status        TEXT NOT NULL DEFAULT 'UNMATCHED',
   action        TEXT NOT NULL DEFAULT 'classified',
-  notified      BOOLEAN NOT NULL DEFAULT false,
-  summary       TEXT NOT NULL DEFAULT '',
-  category      TEXT NOT NULL DEFAULT 'review',
-  contact_uid   TEXT,
-  contact_name  TEXT,
-  job_slug      TEXT,
-  job_title     TEXT,
-  route_note    TEXT NOT NULL DEFAULT ''
+  notified      BOOLEAN NOT NULL DEFAULT false
 );
-CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC);
-CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category);
 `;
 
-const MIGRATE_SQL = `
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT '';
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'review';
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_uid TEXT;
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_name TEXT;
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_slug TEXT;
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_title TEXT;
-ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS route_note TEXT NOT NULL DEFAULT '';
-`;
+const MIGRATE_COLUMNS = [
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'review'`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_uid TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_name TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_slug TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_title TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS route_note TEXT NOT NULL DEFAULT ''`,
+];
+
+const INDEX_SQL = [
+  `CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
+];
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
@@ -118,14 +115,14 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPool();
   if (!pool) return null;
   if (!_schemaReady) {
-    _schemaReady = pool
-      .query(SCHEMA_SQL)
-      .then(() => pool.query(MIGRATE_SQL))
-      .then(() => undefined)
-      .catch((e) => {
-        _schemaReady = null;
-        throw e;
-      });
+    _schemaReady = (async () => {
+      await pool.query(TABLE_SQL);
+      for (const sql of MIGRATE_COLUMNS) await pool.query(sql);
+      for (const sql of INDEX_SQL) await pool.query(sql);
+    })().catch((e) => {
+      _schemaReady = null;
+      throw e;
+    });
   }
   await _schemaReady;
   return pool;
