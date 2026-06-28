@@ -443,6 +443,22 @@ const company = await getCompanyConfig(Astro.request);
         color: #a855f7;
       }
 
+      .topbar-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        color: var(--muted);
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s, color 0.15s;
+      }
+      .topbar-icon-btn:hover {
+        color: var(--fg);
+        border-color: #4b5563;
+      }
+
       /* ── Tooltips ──
          Default: centered below the trigger.
          .tt-left anchors to left edge (for items near right edge of screen). */
@@ -699,12 +715,148 @@ const company = await getCompanyConfig(Astro.request);
           height: 13px;
         }
         #health-checked,
-        #topbar-stale-warn {
+        #topbar-stale-warn,
+        #push-enable-btn,
+        #model-select {
+          display: none !important;
+        }
+        #tabs-scroll {
           display: none;
         }
-        .tab-item.tab-link[data-tab-key="finance"] {
-          display: none;
+        .tb-desktop-only {
+          display: none !important;
         }
+        .tb-mobile-only {
+          display: inline-flex !important;
+        }
+        .topbar-tools-menu.tb-mobile-only {
+          align-items: center;
+        }
+        .topbar-end {
+          gap: 0.35rem;
+          flex-shrink: 0;
+          margin-left: auto;
+        }
+        .topbar-icon-btn {
+          width: 30px;
+          height: 30px;
+          padding: 0;
+          border-radius: 50%;
+          font-size: 0.95rem;
+          line-height: 1;
+        }
+        .topbar-inbox-btn {
+          position: relative;
+          border-color: rgba(251, 191, 36, 0.35);
+          background: rgba(251, 191, 36, 0.08);
+          color: rgba(251, 191, 36, 0.9);
+        }
+        .topbar-inbox-btn.has-badge {
+          border-color: rgba(251, 191, 36, 0.55);
+        }
+        .topbar-tools-btn {
+          border-color: rgba(148, 163, 184, 0.35);
+          background: rgba(148, 163, 184, 0.08);
+          color: rgba(148, 163, 184, 0.95);
+        }
+        .topbar-badge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 999px;
+          background: #ef4444;
+          color: #fff;
+          font-size: 0.58rem;
+          font-weight: 700;
+          line-height: 16px;
+          text-align: center;
+          pointer-events: none;
+          box-shadow: 0 0 0 2px var(--bg);
+        }
+        .topbar-menu {
+          position: relative;
+        }
+        .topbar-dropdown {
+          display: none;
+          position: absolute;
+          top: calc(100% + 6px);
+          right: 0;
+          min-width: 188px;
+          max-width: min(88vw, 240px);
+          max-height: min(62vh, 420px);
+          overflow-y: auto;
+          background: rgba(14, 17, 24, 0.98);
+          border: 1px solid var(--panel-border);
+          border-radius: 10px;
+          padding: 0.35rem;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+          z-index: 120;
+        }
+        .topbar-dropdown.open {
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+        .topbar-dropdown-item {
+          display: flex;
+          align-items: center;
+          gap: 0.45rem;
+          width: 100%;
+          padding: 0.5rem 0.55rem;
+          font: inherit;
+          font-size: 0.78rem;
+          font-weight: 500;
+          color: var(--muted);
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 7px;
+          cursor: pointer;
+          text-align: left;
+          text-decoration: none;
+        }
+        .topbar-dropdown-item:hover {
+          color: var(--fg);
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .topbar-dropdown-item.active {
+          color: var(--fg);
+          background: #11253d;
+          border-color: #2d5a94;
+        }
+        .topbar-dropdown-item--danger {
+          color: rgba(248, 113, 113, 0.9);
+        }
+        .topbar-dropdown-item--danger:hover {
+          background: rgba(239, 68, 68, 0.12);
+          color: #f87171;
+        }
+        .topbar-dropdown-divider {
+          height: 1px;
+          background: var(--panel-border);
+          margin: 0.2rem 0;
+        }
+        .topbar-dropdown-icon {
+          width: 1rem;
+          flex-shrink: 0;
+          text-align: center;
+          font-size: 0.82rem;
+          line-height: 1;
+        }
+        .topbar-profile-menu .topbar-profile.topbar-icon-btn {
+          width: 30px;
+          height: 30px;
+        }
+        .topbar-profile-menu .topbar-profile.topbar-icon-btn svg {
+          width: 14px;
+          height: 14px;
+        }
+      }
+
+      .tb-mobile-only {
+        display: none;
       }
 
       #topbar button {
@@ -719,6 +871,10 @@ const company = await getCompanyConfig(Astro.request);
         cursor: pointer;
       }
       #topbar button:hover { border-color: #4b5563; }
+      #topbar .topbar-icon-btn {
+        padding: 0;
+        line-height: 1;
+      }
 
       /* Left toolbar */
       #tools {
@@ -2115,9 +2271,27 @@ const company = await getCompanyConfig(Astro.request);
         <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
         <button type="button" id="push-enable-btn" class="tb-icon push-btn tt-left" data-tooltip="Enable phone notifications" aria-label="Enable push notifications">🔔</button>
         <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">⚠️</span>
-        <a href="/admin/profile" class="topbar-profile tt-left" data-tooltip="Profile" aria-label="Profile">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        </a>
+        <button type="button" id="topbar-inbox-btn" class="topbar-icon-btn topbar-inbox-btn tb-mobile-only" aria-label="Inbox notifications">
+          <span class="topbar-inbox-icon" aria-hidden="true">🔔</span>
+          <span id="topbar-inbox-badge" class="topbar-badge" hidden>0</span>
+        </button>
+        <div class="topbar-menu topbar-tools-menu tb-mobile-only">
+          <button type="button" id="topbar-tools-toggle" class="topbar-icon-btn topbar-tools-btn" aria-label="Admin sections" aria-expanded="false" aria-haspopup="true">🔧</button>
+          <div id="topbar-tools-menu" class="topbar-dropdown" role="menu" aria-label="Admin sections"></div>
+        </div>
+        <div class="topbar-menu topbar-profile-menu">
+          <a href="/admin/profile" class="topbar-profile tb-desktop-only tt-left" data-tooltip="Profile" aria-label="Profile">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </a>
+          <button type="button" id="topbar-profile-toggle" class="topbar-profile topbar-icon-btn tb-mobile-only" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          </button>
+          <div id="topbar-profile-menu" class="topbar-dropdown tb-mobile-only" role="menu">
+            <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
+            <div class="topbar-dropdown-divider"></div>
+            <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">Sign out</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2164,7 +2338,7 @@ const company = await getCompanyConfig(Astro.request);
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628c"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>
