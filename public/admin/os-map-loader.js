@@ -4851,7 +4851,7 @@ function renderChatPanel() {
 
   const input = document.createElement('textarea');
   input.className = 'ch-input';
-  input.placeholder = 'Message the agent… (drop or paste images)';
+  input.placeholder = 'Message the agent…';
   input.rows = 1;
   input.disabled = chatState.sending;
 
