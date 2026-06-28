@@ -1666,8 +1666,9 @@ if (userId) {
       .swipe-content .ch-list-item {
         margin-bottom: 0;
         border-radius: 8px;
-        background: var(--panel);
+        background: var(--swipe-row-bg, var(--panel));
       }
+      .swipe-row.swipe-open .swipe-content .em-list-item,
       .swipe-row.swipe-open .swipe-content .ch-list-item {
         border-color: var(--panel-border);
       }
@@ -2043,7 +2044,10 @@ if (userId) {
         border-radius: 8px;
         margin-bottom: 0.15rem;
         touch-action: pan-y;
+        --swipe-row-bg: var(--panel);
       }
+      .ch-list .swipe-row:nth-child(odd) { --swipe-row-bg: #121722; }
+      .ch-list .swipe-row:nth-child(even) { --swipe-row-bg: #171d2a; }
       .swipe-actions {
         position: absolute;
         inset: 0 0 0 auto;
@@ -2077,15 +2081,26 @@ if (userId) {
         position: relative;
         z-index: 1;
         will-change: transform;
-        background: var(--panel);
+        background: var(--swipe-row-bg, var(--panel));
+        border-radius: 8px;
       }
-      .swipe-content .em-list-item {
+      .swipe-content .em-list-item,
+      .swipe-content .ch-list-item {
         margin-bottom: 0;
         border-radius: 8px;
-        background: var(--panel);
+        background: var(--swipe-row-bg, var(--panel));
       }
-      .swipe-row.swipe-open .swipe-content .em-list-item {
-        border-color: var(--panel-border);
+      .swipe-row:nth-child(odd) .em-list-item:hover,
+      .swipe-row:nth-child(odd) .ch-list-item:hover {
+        background: #161c28;
+      }
+      .swipe-row:nth-child(even) .em-list-item:hover,
+      .swipe-row:nth-child(even) .ch-list-item:hover {
+        background: #1b2230;
+      }
+      .swipe-content .em-list-item.active,
+      .swipe-content .ch-list-item.active {
+        background: #11253d;
       }
       .em-item-row {
         display: flex;
@@ -2389,7 +2404,7 @@ if (userId) {
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628f"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628g"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>
