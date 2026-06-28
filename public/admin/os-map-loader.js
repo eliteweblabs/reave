@@ -152,7 +152,7 @@ function setActiveMap(key, opts = {}) {
   updateTabs();
   syncCanvasVisibility();
   syncModelSelectorVisibility();
-  activateMapPanel();
+  activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
 }
@@ -171,7 +171,7 @@ function isPanelMapKey(key) {
   );
 }
 
-function activateMapPanel() {
+function activateMapPanel(opts = {}) {
   if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -181,7 +181,7 @@ function activateMapPanel() {
   } else if (MAP.type === 'clients') {
     loadClientsTab();
   } else if (MAP.type === 'chats') {
-    loadChatsTab();
+    loadChatsTab({ keepSession: opts.keepChatSession === true });
   } else if (MAP.type === 'email') {
     markInboxSeenAndClearBadge();
     loadEmailTab();
@@ -1350,7 +1350,6 @@ function wrenchMenuTabKeys(order) {
       }
       continue;
     }
-    if (isMobileTabs() && key === 'finance') continue;
     if (MAPS[key] && !out.includes(key)) out.push(key);
   }
   return out;
@@ -1440,27 +1439,21 @@ async function buildMobileToolsMenu(order) {
 
 function syncTopbarInboxBadge(count) {
   const badge = document.getElementById('topbar-inbox-badge');
-  const btn = document.getElementById('topbar-inbox-btn');
-  if (!badge || !btn) return;
+  const btn = document.getElementById('topbar-tools-toggle');
+  if (!badge) return;
   const n = Math.max(0, Number(count) || 0);
   if (n > 0) {
     badge.hidden = false;
     badge.textContent = n > 99 ? '99+' : String(n);
-    btn.classList.add('has-badge');
+    btn?.classList.add('has-badge');
   } else {
     badge.hidden = true;
     badge.textContent = '0';
-    btn.classList.remove('has-badge');
+    btn?.classList.remove('has-badge');
   }
 }
 
 function initTopbarMenus() {
-  const inboxBtn = document.getElementById('topbar-inbox-btn');
-  inboxBtn?.addEventListener('click', () => {
-    setActiveMap('email', { force: true });
-    closeTopbarMenus();
-  });
-
   const toolsToggle = document.getElementById('topbar-tools-toggle');
   const toolsMenu = document.getElementById('topbar-tools-menu');
   toolsToggle?.addEventListener('click', (ev) => {
@@ -4652,6 +4645,7 @@ let chatState = {
   title: '',
   sending: false,
   pendingDraft: null,
+  pendingAutoSend: false,
   showArchived: false,
 };
 
@@ -4671,9 +4665,16 @@ function formatChatDate(iso) {
   }
 }
 
-async function loadChatsTab() {
+async function loadChatsTab(opts = {}) {
   const root = getChatPanel();
   if (!root) return;
+  const keepSession = opts.keepSession === true && chatState.activeId;
+  const savedActiveId = keepSession ? chatState.activeId : null;
+  const savedTitle = keepSession ? chatState.title : '';
+  const savedMessages = keepSession ? chatState.messages : [];
+  const savedDraft = keepSession ? chatState.pendingDraft : null;
+  const savedAutoSend = keepSession ? chatState.pendingAutoSend : false;
+
   root.innerHTML = '<div class="de-loading">Loading chats…</div>';
   const archivedQ = chatState.showArchived ? '?archived=1' : '';
   try {
@@ -4685,10 +4686,23 @@ async function loadChatsTab() {
     root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
   }
-  chatState.activeId = null;
-  chatState.messages = [];
-  chatState.title = '';
-  getChatPanel()?.classList.remove('ch-pane-active');
+
+  if (savedActiveId) {
+    if (!chatState.threads.some((t) => t.id === savedActiveId)) {
+      chatState.threads.unshift({ id: savedActiveId, title: savedTitle || 'Chat' });
+    }
+    chatState.activeId = savedActiveId;
+    chatState.title = savedTitle;
+    chatState.messages = savedMessages;
+    chatState.pendingDraft = savedDraft;
+    chatState.pendingAutoSend = savedAutoSend;
+  } else {
+    chatState.activeId = null;
+    chatState.messages = [];
+    chatState.title = '';
+    chatState.pendingAutoSend = false;
+    getChatPanel()?.classList.remove('ch-pane-active');
+  }
   renderChatPanel();
 }
 
@@ -5202,6 +5216,11 @@ function renderChatPanel() {
     input.value = chatState.pendingDraft;
     chatState.pendingDraft = null;
     syncSendState();
+    if (chatState.pendingAutoSend) {
+      chatState.pendingAutoSend = false;
+      void doSend();
+      return;
+    }
   }
   input.focus();
 }
@@ -5559,6 +5578,10 @@ function buildEmailAgentPrompt(ev) {
   lines.push(`Category: ${ev.category || 'review'}`);
   if (ev.summary) lines.push(`Summary: ${ev.summary}`);
   if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
+  const body = (ev.bodySnippet || '').trim();
+  if (body) {
+    lines.push('', '---', 'Email body:', body);
+  }
   return lines.join('\n');
 }
 
@@ -5577,8 +5600,13 @@ async function askAgentAboutEmail(ev) {
     chatState.title = thread.title;
     chatState.messages = [];
     chatState.pendingDraft = buildEmailAgentPrompt(ev);
-    setActiveMap('chats');
-    renderChatPanel();
+    chatState.pendingAutoSend = true;
+
+    if (activeKey === 'chats') {
+      renderChatPanel();
+    } else {
+      setActiveMap('chats', { force: true, keepChatSession: true });
+    }
   } catch (e) {
     osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
   }
@@ -5863,6 +5891,12 @@ function renderEmailPanel() {
   titleEl.className = 'de-doc-name';
   titleEl.textContent = ev.subject || '(no subject)';
   header.appendChild(titleEl);
+  const agentBtn = document.createElement('button');
+  agentBtn.type = 'button';
+  agentBtn.className = 'de-new-btn em-agent-btn';
+  agentBtn.textContent = 'Agent';
+  agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
+  header.appendChild(agentBtn);
   pane.appendChild(header);
 
   const detail = document.createElement('div');
@@ -5935,13 +5969,13 @@ function saveActiveKey() {
 async function rebuildTabsForViewport() {
   const order = await resolveTabOrder();
   buildTabs(order);
-  if (isMobileTabs()) await buildMobileToolsMenu(order);
+  await buildMobileToolsMenu(order);
 }
 
 async function boot() {
   const tabOrder = await resolveTabOrder();
   buildTabs(tabOrder);
-  if (isMobileTabs()) await buildMobileToolsMenu(tabOrder);
+  await buildMobileToolsMenu(tabOrder);
   initTopbarMenus();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);

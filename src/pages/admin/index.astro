@@ -6,32 +6,11 @@
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
 import Favicon from "../../components/Favicon.astro";
-import { clerkClient } from "@clerk/astro/server";
-import { getCompanyConfig } from "../../lib/companyConfig";
+import Header from "../../components/Header.astro";
 
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
-const company = await getCompanyConfig(Astro.request);
-
-let avatarUrl: string | null = null;
-let userInitials = "";
-
-if (userId) {
-  try {
-    const client = clerkClient(Astro);
-    const user = await client.users.getUser(userId);
-    avatarUrl = user.imageUrl ?? null;
-    const first = user.firstName?.[0] ?? "";
-    const last = user.lastName?.[0] ?? "";
-    userInitials =
-      ((first + last).toUpperCase() ||
-        user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase()) ??
-      "?";
-  } catch {
-    // Clerk unreachable — fall back to initials placeholder
-  }
-}
 ---
 
 <!doctype html>
@@ -57,7 +36,7 @@ if (userId) {
         --card-border: #232c3a;
         --panel: #121722;
         --panel-border: #283142;
-        --topbar-h: 3.4rem;
+        --topbar-h: 4rem;
       }
       * { box-sizing: border-box; }
       html, body { height: 100%; margin: 0; }
@@ -350,70 +329,19 @@ if (userId) {
         50% { opacity: 1; }
       }
 
-      /* ── Top bar ── */
-      #topbar {
-        position: fixed;
-        top: 0; left: 0; right: 0;
-        height: var(--topbar-h);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0 0.75rem;
-        pointer-events: none;
-        z-index: 20;
-        overflow: visible;
-        background: rgba(10, 13, 20, 0.72);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border-bottom: 1px solid rgba(35, 44, 58, 0.6);
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
+      /* ── Top bar — Header.astro (id=topbar, app-header--admin) ── */
+      #topbar-utilities {
+        display: none !important;
       }
 
-      /* Every direct child that needs clicks opts in */
-      #topbar > * { pointer-events: auto; }
-      #topbar .spacer { display: none; }
-
-      #topbar .brand {
-        display: inline-flex;
-        align-items: center;
-        flex-shrink: 0;
-        line-height: 0;
-      }
-      #topbar .brand-img {
-        height: 1.4rem;
-        width: auto;
-        display: block;
-        pointer-events: none;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-touch-callout: none;
+      #tabs-scroll {
+        display: none !important;
       }
 
-      /* Right-side icon cluster */
-      .topbar-end {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-shrink: 0;
-      }
-
-      /* Shared style for the small icon/emoji items */
-      .tb-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.9rem;
-        line-height: 1;
-        color: var(--muted);
-        cursor: default;
-      }
+      /* Hidden status / model controls (still updated by os-map-loader.js) */
       #health-checked {
         opacity: 0.35;
         transition: opacity 0.2s ease;
-        padding-right: 0.5rem;
-        border-right: 1px solid var(--panel-border);
       }
 
       #model-select {
@@ -427,74 +355,9 @@ if (userId) {
         max-width: 13rem;
         cursor: pointer;
         appearance: none;
-        background-image:
-          linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-          linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-        background-position:
-          calc(100% - 12px) calc(50% + 1px),
-          calc(100% - 7px) calc(50% + 1px);
-        background-size: 5px 5px, 5px 5px;
-        background-repeat: no-repeat;
       }
       #model-select:hover:not(:disabled) { border-color: #3b82f6; }
       #model-select:disabled { opacity: 0.55; cursor: default; }
-
-      /* Profile button — matches site Header.astro */
-      .topbar-profile-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: 2px solid rgba(168, 85, 247, 0.5);
-        background: transparent;
-        cursor: pointer;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        flex-shrink: 0;
-        transition: border-color 0.15s, box-shadow 0.15s;
-      }
-      .topbar-profile-btn:hover {
-        border-color: rgba(168, 85, 247, 0.9);
-        box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
-      }
-      .topbar-profile-avatar {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-        pointer-events: none;
-      }
-      .topbar-profile-initials {
-        font-size: 13px;
-        font-weight: 700;
-        color: #a855f7;
-        letter-spacing: 0.02em;
-        pointer-events: none;
-      }
-
-      .topbar-icon-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        border: 1px solid var(--panel-border);
-        background: var(--panel);
-        color: var(--muted);
-        cursor: pointer;
-        padding: 0;
-        font-size: 1rem;
-        line-height: 1;
-        transition: border-color 0.15s, background 0.15s, color 0.15s;
-      }
-      .topbar-icon-btn:hover {
-        color: var(--fg);
-        border-color: #4b5563;
-      }
 
       /* ── Tooltips ──
          Default: centered below the trigger.
@@ -656,247 +519,6 @@ if (userId) {
         color: var(--fg);
         background: #1b2230;
         border-color: var(--panel-border);
-      }
-
-      /* Compact header — icon-only tabs, fewer chrome items */
-      @media (max-width: 1280px) {
-        #topbar {
-          gap: 0.35rem;
-          padding-left: max(0.5rem, env(safe-area-inset-left));
-          padding-right: max(0.5rem, env(safe-area-inset-right));
-        }
-        #topbar .brand-img { height: 1.25rem; }
-        #tabs { gap: 0.12rem; }
-        .tab-item,
-        .tab-item.tab-dropdown {
-          padding: 0.24rem 0.42rem;
-          gap: 0.15rem;
-        }
-        .tab-item.tab-link > a {
-          padding: 0.24rem 0.42rem;
-        }
-        .tab-label { display: none; }
-        .tab-grip { display: none; }
-        .tab-caret { display: none; }
-        .tab-icon { font-size: 0.88rem; }
-        .topbar-end { gap: 0.35rem; }
-        #health-checked,
-        #topbar-stale-warn { display: none; }
-        #model-select {
-          max-width: 8.75rem;
-          font-size: 0.68rem;
-          padding: 0.22rem 1.35rem 0.22rem 0.45rem;
-        }
-        .tab-item.tab-link[data-tab-key="finance"] { display: none; }
-      }
-
-      @media (max-width: 639px) {
-        :root {
-          --topbar-h: 4rem;
-        }
-        #topbar {
-          gap: 0.5rem;
-          min-height: var(--topbar-h);
-          padding:
-            max(0.5rem, env(safe-area-inset-top))
-            max(0.75rem, env(safe-area-inset-right))
-            0.5rem
-            max(0.75rem, env(safe-area-inset-left));
-        }
-        #topbar .brand-img { height: 1.35rem; }
-        #tabs-scroll {
-          flex: 1 1 0;
-          min-width: 0;
-        }
-        #tabs {
-          flex: 1 0 auto;
-          gap: 0.06rem;
-        }
-        .tab-dropdown.open .tab-dropdown-menu {
-          z-index: 100;
-        }
-        .tab-item,
-        .tab-item.tab-dropdown {
-          flex: 1 1 0;
-          min-width: 1.35rem;
-          max-width: 2.1rem;
-          justify-content: center;
-          padding: 0.2rem 0.12rem;
-        }
-        .tab-item.tab-link {
-          flex: 1 1 0;
-          min-width: 1.35rem;
-          max-width: 2.1rem;
-          padding: 0;
-        }
-        .tab-item.tab-link > a {
-          width: 100%;
-          justify-content: center;
-          padding: 0.2rem 0.12rem;
-        }
-        .tab-dropdown-trigger {
-          width: 100%;
-          justify-content: center;
-          gap: 0.1rem;
-        }
-        .tab-label { display: none; }
-        .tab-grip { display: none; }
-        .tab-caret { display: none; }
-        .tab-icon { font-size: 0.82rem; }
-        .topbar-end {
-          gap: 0.5rem;
-          flex-shrink: 0;
-        }
-        #health-checked,
-        #topbar-stale-warn,
-        #push-enable-btn,
-        #model-select {
-          display: none !important;
-        }
-        #tabs-scroll {
-          display: none;
-        }
-        .tb-mobile-only {
-          display: inline-flex !important;
-        }
-        .topbar-tools-menu.tb-mobile-only {
-          align-items: center;
-        }
-        .topbar-dropdown {
-          display: none !important;
-        }
-        .topbar-dropdown.open {
-          display: flex !important;
-          flex-direction: column;
-          gap: 0.1rem;
-        }
-        .topbar-end {
-          gap: 0.5rem;
-          flex-shrink: 0;
-          margin-left: auto;
-        }
-        .topbar-inbox-btn {
-          position: relative;
-          border-color: rgba(251, 191, 36, 0.35);
-          background: rgba(251, 191, 36, 0.08);
-          color: rgba(251, 191, 36, 0.9);
-        }
-        .topbar-inbox-btn.has-badge {
-          border-color: rgba(251, 191, 36, 0.55);
-        }
-        .topbar-tools-btn {
-          border-color: rgba(148, 163, 184, 0.35);
-          background: rgba(148, 163, 184, 0.08);
-          color: rgba(148, 163, 184, 0.95);
-        }
-        .topbar-badge {
-          position: absolute;
-          top: -4px;
-          right: -4px;
-          min-width: 16px;
-          height: 16px;
-          padding: 0 4px;
-          border-radius: 999px;
-          background: #ef4444;
-          color: #fff;
-          font-size: 0.58rem;
-          font-weight: 700;
-          line-height: 16px;
-          text-align: center;
-          pointer-events: none;
-          box-shadow: 0 0 0 2px var(--bg);
-        }
-        .topbar-menu {
-          position: relative;
-        }
-        .topbar-dropdown {
-          display: none;
-          position: absolute;
-          top: calc(100% + 6px);
-          right: 0;
-          min-width: 188px;
-          max-width: min(88vw, 240px);
-          max-height: min(62vh, 420px);
-          overflow-y: auto;
-          background: rgba(14, 17, 24, 0.98);
-          border: 1px solid var(--panel-border);
-          border-radius: 10px;
-          padding: 0.35rem;
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-          z-index: 120;
-        }
-        .topbar-dropdown.open {
-          display: flex;
-          flex-direction: column;
-          gap: 0.1rem;
-        }
-        .topbar-dropdown-item {
-          display: flex;
-          align-items: center;
-          gap: 0.45rem;
-          width: 100%;
-          padding: 0.5rem 0.55rem;
-          font: inherit;
-          font-size: 0.78rem;
-          font-weight: 500;
-          color: var(--muted);
-          background: transparent;
-          border: 1px solid transparent;
-          border-radius: 7px;
-          cursor: pointer;
-          text-align: left;
-          text-decoration: none;
-        }
-        .topbar-dropdown-item:hover {
-          color: var(--fg);
-          background: rgba(255, 255, 255, 0.05);
-        }
-        .topbar-dropdown-item.active {
-          color: var(--fg);
-          background: #11253d;
-          border-color: #2d5a94;
-        }
-        .topbar-dropdown-item--danger {
-          color: rgba(248, 113, 113, 0.9);
-        }
-        .topbar-dropdown-item--danger:hover {
-          background: rgba(239, 68, 68, 0.12);
-          color: #f87171;
-        }
-        .topbar-dropdown-divider {
-          height: 1px;
-          background: var(--panel-border);
-          margin: 0.2rem 0;
-        }
-        .topbar-dropdown-icon {
-          width: 1rem;
-          flex-shrink: 0;
-          text-align: center;
-          font-size: 0.82rem;
-          line-height: 1;
-        }
-      }
-
-      .tb-mobile-only {
-        display: none;
-      }
-
-      #topbar button {
-        pointer-events: auto;
-        font: inherit;
-        font-size: 0.78rem;
-        color: var(--fg);
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 8px;
-        padding: 0.35rem 0.7rem;
-        cursor: pointer;
-      }
-      #topbar button:hover { border-color: #4b5563; }
-      #topbar .topbar-icon-btn,
-      #topbar .topbar-profile-btn {
-        padding: 0;
-        line-height: 1;
       }
 
       /* Left toolbar */
@@ -2324,41 +1946,16 @@ if (userId) {
     </style>
   </head>
   <body data-user-id={userId ?? ""}>
-    <div id="topbar">
-      <a href="/" class="brand" aria-label={company.name}>
-        <img class="brand-img" src={company.logoPath} alt={company.name} />
-      </a>
+    <Header adminShell />
+
+    <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
-      <div class="topbar-end">
-        <select id="model-select" style="display:none" aria-label="Agent model">
-          <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-        </select>
-        <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
-        <button type="button" id="push-enable-btn" class="tb-icon push-btn tt-left" data-tooltip="Enable phone notifications" aria-label="Enable push notifications">🔔</button>
-        <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">⚠️</span>
-        <button type="button" id="topbar-inbox-btn" class="topbar-icon-btn topbar-inbox-btn tb-mobile-only" aria-label="Inbox notifications">
-          <span class="topbar-inbox-icon" aria-hidden="true">🔔</span>
-          <span id="topbar-inbox-badge" class="topbar-badge" hidden>0</span>
-        </button>
-        <div class="topbar-menu topbar-tools-menu tb-mobile-only">
-          <button type="button" id="topbar-tools-toggle" class="topbar-icon-btn topbar-tools-btn" aria-label="Admin sections" aria-expanded="false" aria-haspopup="true">🔧</button>
-          <div id="topbar-tools-menu" class="topbar-dropdown" role="menu" aria-label="Admin sections"></div>
-        </div>
-        <div class="topbar-menu topbar-profile-menu">
-          <button type="button" id="topbar-profile-toggle" class="topbar-profile-btn" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" class="topbar-profile-avatar" />
-            ) : (
-              <span class="topbar-profile-initials">{userInitials || "?"}</span>
-            )}
-          </button>
-          <div id="topbar-profile-menu" class="topbar-dropdown" role="menu">
-            <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
-            <div class="topbar-dropdown-divider"></div>
-            <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">Sign out</button>
-          </div>
-        </div>
-      </div>
+      <select id="model-select" style="display:none" aria-label="Agent model">
+        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+      </select>
+      <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
+      <button type="button" id="push-enable-btn" class="tb-icon push-btn tt-left" data-tooltip="Enable phone notifications" aria-label="Enable push notifications">🔔</button>
+      <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">⚠️</span>
     </div>
 
     <div id="tools">
@@ -2404,7 +2001,7 @@ if (userId) {
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628i"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>

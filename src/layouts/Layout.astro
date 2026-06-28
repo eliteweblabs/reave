@@ -45,8 +45,6 @@ const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
   : `${origin}${ogImage}`;
 
-const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
-const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 ---
 
 <!doctype html>
@@ -84,7 +82,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta name="twitter:image" content={ogImageAbsolute} />
 	</head>
 	<body>
-		<Header isIndex={isIndexPage} />
+		<Header />
 		<slot />
 	</body>
 </html>
@@ -122,9 +120,9 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		-webkit-touch-callout: none;
 	}
 
-	.site-header,
-	.site-header a,
-	.site-header button {
+	.app-header,
+	.app-header a,
+	.app-header button {
 		-webkit-user-select: none;
 		user-select: none;
 		-webkit-touch-callout: none;
