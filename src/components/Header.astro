@@ -5,9 +5,11 @@ import { getCompanyConfig } from "../lib/companyConfig";
 interface Props {
   /** Admin SPA shell — tools menu filled by os-map-loader.js */
   adminShell?: boolean;
+  /** Hide logo link (homepage — logo lives in page content) */
+  hideLogo?: boolean;
 }
 
-const { adminShell = false } = Astro.props;
+const { adminShell = false, hideLogo = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 
@@ -55,9 +57,11 @@ if (userId) {
   class:list={["app-header", { "app-header--admin": adminShell }]}
   id={adminShell ? "topbar" : undefined}
 >
-  <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
-    <img src={company.logoPath} alt={company.name} class="app-header-logo-img brand-img logo-img" />
-  </a>
+  {!hideLogo && (
+    <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
+      <img src={company.logoPath} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+    </a>
+  )}
 
   {!userId && (
     <a href="/sign-in" class="app-header-signin" aria-label="Sign in" title="Sign in">

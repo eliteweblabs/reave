@@ -45,6 +45,8 @@ const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
   : `${origin}${ogImage}`;
 
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 ---
 
 <!doctype html>
@@ -82,7 +84,7 @@ const ogImageAbsolute = ogImage.startsWith("http")
 		<meta name="twitter:image" content={ogImageAbsolute} />
 	</head>
 	<body>
-		<Header />
+		<Header hideLogo={isIndexPage} />
 		<slot />
 	</body>
 </html>
