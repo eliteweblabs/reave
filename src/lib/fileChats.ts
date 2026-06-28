@@ -15,7 +15,7 @@ import { titleFromMessage } from './chatTypes';
 
 export { titleFromMessage };
 
-const META_RE = /^<!--\s*(id|user|created|updated):\s*(.+?)\s*-->$/;
+const META_RE = /^<!--\s*(id|user|created|updated|archived):\s*(.+?)\s*-->$/;
 const MSG_HEADING_RE = /^##\s+(user|assistant)\s*$/i;
 
 function projectRoot(): string {
@@ -40,7 +40,7 @@ function threadPath(id: string): string {
 }
 
 interface ParsedThread {
-  meta: { id: string; user: string; created: string; updated: string };
+  meta: { id: string; user: string; created: string; updated: string; archived?: boolean };
   title: string;
   messages: ChatMessage[];
 }
@@ -97,6 +97,7 @@ function parseThreadFile(content: string): ParsedThread | null {
       user: meta.user,
       created: meta.created,
       updated: meta.updated,
+      archived: meta.archived === 'true',
     },
     title,
     messages,
@@ -106,7 +107,7 @@ function parseThreadFile(content: string): ParsedThread | null {
 function serializeThread(
   meta: ParsedThread['meta'],
   title: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
 ): string {
   const out = [
     `# ${title}`,
@@ -114,15 +115,19 @@ function serializeThread(
     `<!-- user: ${meta.user} -->`,
     `<!-- created: ${meta.created} -->`,
     `<!-- updated: ${meta.updated} -->`,
-    '',
   ];
+  if (meta.archived) out.push(`<!-- archived: true -->`);
+  out.push('');
   for (const m of messages) {
     out.push(`## ${m.role}`, m.content, '');
   }
   return out.join('\n').trimEnd() + '\n';
 }
 
-export function fileListChatThreads(userId: string): ChatThreadSummary[] {
+export function fileListChatThreads(
+  userId: string,
+  opts?: { archivedOnly?: boolean },
+): ChatThreadSummary[] {
   const dir = chatsDir();
   const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
   const threads: ChatThreadSummary[] = [];
@@ -131,11 +136,14 @@ export function fileListChatThreads(userId: string): ChatThreadSummary[] {
     try {
       const parsed = parseThreadFile(readFileSync(join(dir, file), 'utf8'));
       if (!parsed || parsed.meta.user !== userId) continue;
+      const isArchived = !!parsed.meta.archived;
+      if (opts?.archivedOnly ? !isArchived : isArchived) continue;
       threads.push({
         id: parsed.meta.id,
         title: parsed.title,
         created_at: parsed.meta.created,
         updated_at: parsed.meta.updated,
+        archived: !!parsed.meta.archived,
       });
     } catch (e) {
       console.error('[chats:file] parse error:', file, e);
@@ -143,7 +151,7 @@ export function fileListChatThreads(userId: string): ChatThreadSummary[] {
   }
 
   return threads.sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
   );
 }
 
@@ -152,7 +160,7 @@ export function fileCreateChatThread(userId: string): ChatThreadSummary {
   const now = new Date().toISOString();
   const meta = { id, user: userId, created: now, updated: now };
   writeFileSync(threadPath(id), serializeThread(meta, 'New chat', []), 'utf8');
-  return { id, title: 'New chat', created_at: now, updated_at: now };
+  return { id, title: 'New chat', created_at: now, updated_at: now, archived: false };
 }
 
 export function fileGetChatThread(userId: string, threadId: string): ChatThreadDetail | null {
@@ -165,6 +173,7 @@ export function fileGetChatThread(userId: string, threadId: string): ChatThreadD
     title: parsed.title,
     created_at: parsed.meta.created,
     updated_at: parsed.meta.updated,
+    archived: !!parsed.meta.archived,
     messages: parsed.messages,
   };
 }
@@ -193,21 +202,36 @@ export function fileAppendChatMessages(
     user: userId,
     created: thread.created_at,
     updated: now,
+    archived: thread.archived,
   };
   writeFileSync(threadPath(threadId), serializeThread(meta, thread.title, nextMessages), 'utf8');
   return true;
 }
 
+function threadMetaFromDetail(thread: ChatThreadDetail, userId: string, updated: string) {
+  return {
+    id: thread.id,
+    user: userId,
+    created: thread.created_at,
+    updated,
+    archived: thread.archived,
+  };
+}
+
 export function fileUpdateChatTitle(userId: string, threadId: string, title: string): boolean {
   const thread = fileGetChatThread(userId, threadId);
   if (!thread) return false;
-  const meta = {
-    id: threadId,
-    user: userId,
-    created: thread.created_at,
-    updated: new Date().toISOString(),
-  };
+  const meta = threadMetaFromDetail(thread, userId, new Date().toISOString());
   writeFileSync(threadPath(threadId), serializeThread(meta, title, thread.messages), 'utf8');
+  return true;
+}
+
+export function fileSetChatArchived(userId: string, threadId: string, archived: boolean): boolean {
+  const thread = fileGetChatThread(userId, threadId);
+  if (!thread) return false;
+  const meta = threadMetaFromDetail(thread, userId, new Date().toISOString());
+  meta.archived = archived;
+  writeFileSync(threadPath(threadId), serializeThread(meta, thread.title, thread.messages), 'utf8');
   return true;
 }
 

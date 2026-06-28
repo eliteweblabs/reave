@@ -10,7 +10,7 @@ import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTyp
 
 export type { ChatMessage, ChatThreadDetail, ChatThreadSummary };
 
-const SCHEMA_SQL = `
+const TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS chat_threads (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     TEXT NOT NULL,
@@ -25,9 +25,17 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   content     TEXT NOT NULL DEFAULT '',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS chat_threads_user_idx ON chat_threads (user_id, updated_at DESC);
-CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages (thread_id, created_at ASC);
 `;
+
+const MIGRATE_COLUMNS = [
+  `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`,
+];
+
+const INDEX_SQL = [
+  `CREATE INDEX IF NOT EXISTS chat_threads_user_idx ON chat_threads (user_id, updated_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages (thread_id, created_at ASC)`,
+  `CREATE INDEX IF NOT EXISTS chat_threads_archived_idx ON chat_threads (user_id, archived, updated_at DESC)`,
+];
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
@@ -58,7 +66,11 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPool();
   if (!pool) return null;
   if (!_schemaReady) {
-    _schemaReady = pool.query(SCHEMA_SQL).then(() => undefined).catch((e) => {
+    _schemaReady = (async () => {
+      await pool.query(TABLE_SQL);
+      for (const sql of MIGRATE_COLUMNS) await pool.query(sql);
+      for (const sql of INDEX_SQL) await pool.query(sql);
+    })().catch((e) => {
       _schemaReady = null;
       throw e;
     });
@@ -71,17 +83,33 @@ export function isPgChatsConfigured(): boolean {
   return !!databaseUrl();
 }
 
-export async function pgListChatThreads(userId: string): Promise<ChatThreadSummary[] | null> {
+type ThreadRow = ChatThreadSummary & { archived?: boolean };
+
+function rowToSummary(row: ThreadRow): ChatThreadSummary {
+  return {
+    id: row.id,
+    title: row.title,
+    updated_at: row.updated_at,
+    created_at: row.created_at,
+    archived: !!row.archived,
+  };
+}
+
+export async function pgListChatThreads(
+  userId: string,
+  opts?: { archivedOnly?: boolean },
+): Promise<ChatThreadSummary[] | null> {
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const { rows } = await pool.query<ChatThreadSummary>(
-      `SELECT id, title, updated_at, created_at
-       FROM chat_threads WHERE user_id = $1
+    const archivedFilter = opts?.archivedOnly ? 'AND archived = true' : 'AND archived = false';
+    const { rows } = await pool.query<ThreadRow>(
+      `SELECT id, title, updated_at, created_at, archived
+       FROM chat_threads WHERE user_id = $1 ${archivedFilter}
        ORDER BY updated_at DESC`,
-      [userId]
+      [userId],
     );
-    return rows;
+    return rows.map(rowToSummary);
   } catch (e) {
     console.error('[chats:pg] list error:', e);
     return null;
@@ -92,13 +120,13 @@ export async function pgCreateChatThread(userId: string): Promise<ChatThreadSumm
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const { rows } = await pool.query<ChatThreadSummary>(
+    const { rows } = await pool.query<ThreadRow>(
       `INSERT INTO chat_threads (user_id, title)
        VALUES ($1, 'New chat')
-       RETURNING id, title, updated_at, created_at`,
-      [userId]
+       RETURNING id, title, updated_at, created_at, archived`,
+      [userId],
     );
-    return rows[0] ?? null;
+    return rows[0] ? rowToSummary(rows[0]) : null;
   } catch (e) {
     console.error('[chats:pg] create error:', e);
     return null;
@@ -112,10 +140,10 @@ export async function pgGetChatThread(
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const threadRes = await pool.query<ChatThreadSummary>(
-      `SELECT id, title, updated_at, created_at
+    const threadRes = await pool.query<ThreadRow>(
+      `SELECT id, title, updated_at, created_at, archived
        FROM chat_threads WHERE id = $1 AND user_id = $2`,
-      [threadId, userId]
+      [threadId, userId],
     );
     const thread = threadRes.rows[0];
     if (!thread) return null;
@@ -127,7 +155,7 @@ export async function pgGetChatThread(
       [threadId]
     );
 
-    return { ...thread, messages: msgRes.rows };
+    return { ...rowToSummary(thread), messages: msgRes.rows };
   } catch (e) {
     console.error('[chats:pg] get error:', e);
     return null;
@@ -180,6 +208,26 @@ export async function pgUpdateChatTitle(threadId: string, title: string): Promis
     return true;
   } catch (e) {
     console.error('[chats:pg] title update error:', e);
+    return false;
+  }
+}
+
+export async function pgSetChatArchived(
+  userId: string,
+  threadId: string,
+  archived: boolean,
+): Promise<boolean> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return false;
+    const { rowCount } = await pool.query(
+      `UPDATE chat_threads SET archived = $1, updated_at = now()
+       WHERE id = $2 AND user_id = $3`,
+      [archived, threadId, userId],
+    );
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error('[chats:pg] archive error:', e);
     return false;
   }
 }

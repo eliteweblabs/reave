@@ -1,7 +1,7 @@
 /**
  * GET    /api/chats/:id — thread + messages
  * POST   /api/chats/:id — send a message { message } → runs Claude agent, persists reply
- * PATCH  /api/chats/:id — rename thread { title }
+ * PATCH  /api/chats/:id — rename thread { title } or archive { archived: boolean }
  * DELETE /api/chats/:id — delete thread and all messages
  */
 
@@ -15,6 +15,7 @@ import {
   storeAppendChatMessages,
   storeDeleteChatThread,
   storeGetChatThread,
+  storeSetChatArchived,
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
 import { runTelegramKnowledgeAgent } from '../../../lib/telegramAgent';
@@ -151,11 +152,23 @@ export async function PATCH(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const title = String(body.title ?? '').trim();
-  if (!title) return json({ ok: false, error: 'title is required' }, 400);
+  const title = body.title == null ? '' : String(body.title).trim();
+  const hasArchived = typeof body.archived === 'boolean';
+
+  if (!title && !hasArchived) {
+    return json({ ok: false, error: 'title or archived is required' }, 400);
+  }
 
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+
+  if (hasArchived) {
+    const updated = await storeSetChatArchived(userId, id, body.archived as boolean);
+    if (!updated) return json({ ok: false, error: 'Failed to update chat' }, 500);
+    return json({ ok: true, id, archived: body.archived });
+  }
+
+  if (!title) return json({ ok: false, error: 'title is required' }, 400);
 
   const updated = await storeUpdateChatTitle(userId, id, title);
   if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);

@@ -9,6 +9,7 @@ import {
   fileDeleteChatThread,
   fileGetChatThread,
   fileListChatThreads,
+  fileSetChatArchived,
   fileUpdateChatTitle,
 } from './fileChats';
 import {
@@ -18,6 +19,7 @@ import {
   pgDeleteChatThread,
   pgGetChatThread,
   pgListChatThreads,
+  pgSetChatArchived,
   pgUpdateChatTitle,
 } from './pgChats';
 import { titleFromMessage, type ChatThreadDetail, type ChatThreadSummary } from './chatTypes';
@@ -30,9 +32,14 @@ export function chatStorageBackend(): 'postgres' | 'files' {
   return 'files';
 }
 
-export async function storeListChatThreads(userId: string): Promise<ChatThreadSummary[]> {
-  if (chatStorageBackend() === 'postgres') return (await pgListChatThreads(userId)) ?? [];
-  return fileListChatThreads(userId);
+export async function storeListChatThreads(
+  userId: string,
+  opts?: { archivedOnly?: boolean },
+): Promise<ChatThreadSummary[]> {
+  if (chatStorageBackend() === 'postgres') {
+    return (await pgListChatThreads(userId, opts)) ?? [];
+  }
+  return fileListChatThreads(userId, opts);
 }
 
 export async function storeCreateChatThread(userId: string): Promise<ChatThreadSummary | null> {
@@ -69,4 +76,13 @@ export async function storeUpdateChatTitle(
 export async function storeDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
   if (chatStorageBackend() === 'postgres') return pgDeleteChatThread(userId, threadId);
   return fileDeleteChatThread(userId, threadId);
+}
+
+export async function storeSetChatArchived(
+  userId: string,
+  threadId: string,
+  archived: boolean,
+): Promise<boolean> {
+  if (chatStorageBackend() === 'postgres') return pgSetChatArchived(userId, threadId, archived);
+  return fileSetChatArchived(userId, threadId, archived);
 }

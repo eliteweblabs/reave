@@ -4652,6 +4652,7 @@ let chatState = {
   title: '',
   sending: false,
   pendingDraft: null,
+  showArchived: false,
 };
 
 function getChatPanel() { return document.getElementById('chat-panel'); }
@@ -4674,8 +4675,9 @@ async function loadChatsTab() {
   const root = getChatPanel();
   if (!root) return;
   root.innerHTML = '<div class="de-loading">Loading chats…</div>';
+  const archivedQ = chatState.showArchived ? '?archived=1' : '';
   try {
-    const res = await fetch('/api/chats', { cache: 'no-store' });
+    const res = await fetch(`/api/chats${archivedQ}`, { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     chatState.threads = data.threads || [];
@@ -4799,58 +4801,99 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
   input.addEventListener('blur', () => finish(!cancelled));
 }
 
+function createChatListItem(t) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
+  item.dataset.id = t.id;
+  item.innerHTML =
+    `<span class="ch-item-row">` +
+      `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
+      `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
+    `</span>` +
+    (t.archived ? `<span class="ch-item-archived">Archived</span>` : '');
+  item.addEventListener('click', () => openChat(t.id));
+  return item;
+}
+
+function createChatSwipeRow(t) {
+  const row = document.createElement('div');
+  row.className = 'swipe-row';
+  row.dataset.id = t.id;
+
+  const actions = document.createElement('div');
+  actions.className = 'swipe-actions';
+
+  const archiveBtn = document.createElement('button');
+  archiveBtn.type = 'button';
+  archiveBtn.className = 'swipe-act swipe-act-archive';
+  archiveBtn.textContent = t.archived ? 'Unarchive' : 'Archive';
+  archiveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    archiveChat(t);
+  });
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.type = 'button';
+  deleteBtn.className = 'swipe-act swipe-act-delete';
+  deleteBtn.textContent = 'Delete';
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteChat(t.id, t.title);
+  });
+
+  actions.appendChild(archiveBtn);
+  actions.appendChild(deleteBtn);
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+  content.appendChild(createChatListItem(t));
+
+  row.appendChild(actions);
+  row.appendChild(content);
+
+  requestAnimationFrame(() => {
+    const revealPx = actions.offsetWidth || 144;
+    attachSwipeRow(row, content, revealPx);
+  });
+
+  return row;
+}
+
 function renderChatSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn';
+  newBtn.className = 'de-new-btn ch-new-btn';
   newBtn.textContent = '+ New Chat';
   newBtn.addEventListener('click', () => startNewChat());
-  sidebar.appendChild(newBtn);
+  toolbar.appendChild(newBtn);
+
+  const archivedBtn = document.createElement('button');
+  archivedBtn.className = 'ch-refresh';
+  archivedBtn.textContent = chatState.showArchived ? 'Hide archived' : 'Show archived';
+  archivedBtn.addEventListener('click', () => {
+    chatState.showArchived = !chatState.showArchived;
+    loadChatsTab();
+  });
+  toolbar.appendChild(archivedBtn);
+  sidebar.appendChild(toolbar);
 
   const list = document.createElement('div');
   list.className = 'ch-list';
+  list.addEventListener('scroll', () => {
+    if (typeof closeOpenSwipeRow === 'function') closeOpenSwipeRow();
+  }, { passive: true });
   for (const t of chatState.threads) {
-    const row = document.createElement('div');
-    row.className = 'ch-list-row';
-
-    const item = document.createElement('div');
-    item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
-    item.dataset.id = t.id;
-    item.setAttribute('role', 'button');
-    item.tabIndex = 0;
-    item.appendChild(createSidebarChatTitle(t.title));
-    const dateEl = document.createElement('span');
-    dateEl.className = 'ch-item-date';
-    dateEl.textContent = formatChatDate(t.updated_at);
-    item.appendChild(dateEl);
-    item.addEventListener('click', () => openChat(t.id));
-    item.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openChat(t.id);
-      }
-    });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'ch-list-delete';
-    delBtn.type = 'button';
-    delBtn.setAttribute('aria-label', `Delete ${t.title}`);
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      deleteChat(t.id, t.title);
-    });
-
-    row.appendChild(item);
-    row.appendChild(delBtn);
-    list.appendChild(row);
+    list.appendChild(createChatSwipeRow(t));
   }
   if (chatState.threads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No chats yet.';
+    empty.textContent = chatState.showArchived ? 'No archived chats.' : 'No chats yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -5198,7 +5241,13 @@ async function openChat(id) {
 async function deleteChat(id, title) {
   if (!id) return;
   const label = (title || 'this chat').trim() || 'this chat';
-  if (!confirm(`Delete "${label}"? This permanently removes the chat and all messages.`)) return;
+  const ok = await osConfirm({
+    title: 'Delete chat?',
+    bodyHtml: `<p>Permanently delete <strong>${escHtml(label.slice(0, 80))}</strong> and all messages?</p>`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
+  if (!ok) return;
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -5215,7 +5264,38 @@ async function deleteChat(id, title) {
     }
     renderChatPanel();
   } catch (e) {
-    alert(`Delete failed: ${e.message}`);
+    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function archiveChat(t) {
+  closeOpenSwipeRow();
+  const unarchive = !!t.archived;
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(t.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived: !unarchive }),
+    });
+    await readApiJson(res);
+    if (!chatState.showArchived && !unarchive) {
+      chatState.threads = chatState.threads.filter((e) => e.id !== t.id);
+      if (chatState.activeId === t.id) {
+        chatState.activeId = null;
+        chatState.messages = [];
+        chatState.title = '';
+        getChatPanel()?.classList.remove('ch-pane-active');
+      }
+    } else {
+      const idx = chatState.threads.findIndex((e) => e.id === t.id);
+      if (idx !== -1) chatState.threads[idx] = { ...chatState.threads[idx], archived: !unarchive };
+    }
+    renderChatPanel();
+  } catch (e) {
+    osAlert({
+      title: unarchive ? 'Could not restore chat' : 'Could not archive chat',
+      bodyHtml: escHtml(e.message),
+    });
   }
 }
 

@@ -19,7 +19,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const threads = await storeListChatThreads(userId);
+  const archivedOnly = context.url.searchParams.get('archived') === '1';
+  const threads = await storeListChatThreads(userId, { archivedOnly });
   return json({ ok: true, threads, storage: chatStorageBackend() });
 }
 

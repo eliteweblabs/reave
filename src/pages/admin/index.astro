@@ -732,6 +732,14 @@ const company = await getCompanyConfig(Astro.request);
         .topbar-tools-menu.tb-mobile-only {
           align-items: center;
         }
+        .topbar-dropdown {
+          display: none !important;
+        }
+        .topbar-dropdown.open {
+          display: flex !important;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
         .topbar-end {
           gap: 0.35rem;
           flex-shrink: 0;
@@ -857,6 +865,12 @@ const company = await getCompanyConfig(Astro.request);
 
       .tb-mobile-only {
         display: none;
+      }
+
+      @media (min-width: 640px) {
+        .topbar-profile-menu .topbar-dropdown {
+          display: none !important;
+        }
       }
 
       #topbar button {
@@ -1564,44 +1578,35 @@ const company = await getCompanyConfig(Astro.request);
         overflow-y: auto;
         padding: 0 0.5rem 0.5rem;
       }
-      .ch-list-row {
+      .ch-toolbar {
         display: flex;
-        align-items: stretch;
-        gap: 0.25rem;
-        margin-bottom: 0.15rem;
+        flex-direction: column;
+        gap: 0.45rem;
+        padding: 0.55rem 0.65rem;
+        border-bottom: 1px solid var(--panel-border);
       }
-      .ch-list-row .ch-list-item {
-        flex: 1;
-        margin-bottom: 0;
+      .ch-new-btn {
+        width: 100%;
+        margin: 0;
       }
-      .ch-list-delete {
-        flex: none;
-        width: 2rem;
-        border: 1px solid transparent;
-        border-radius: 8px;
-        background: transparent;
-        color: rgba(248, 113, 113, 0.55);
+      .ch-refresh {
         font: inherit;
-        font-size: 0.95rem;
+        font-size: 0.72rem;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 0.25rem 0.55rem;
         cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.15s, background 0.15s, color 0.15s;
+        align-self: flex-start;
       }
-      .ch-list-row:hover .ch-list-delete,
-      .ch-list-row:focus-within .ch-list-delete {
-        opacity: 1;
-      }
-      .ch-list-delete:hover {
-        color: #f87171;
-        background: rgba(239, 68, 68, 0.12);
-        border-color: rgba(239, 68, 68, 0.25);
-      }
+      .ch-refresh:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
       .ch-list-item {
         width: 100%;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.15rem;
+        gap: 0.2rem;
         padding: 0.55rem 0.65rem;
         font: inherit;
         font-size: 0.8rem;
@@ -1611,15 +1616,51 @@ const company = await getCompanyConfig(Astro.request);
         border-radius: 8px;
         cursor: pointer;
         text-align: left;
-        margin-bottom: 0.15rem;
+        margin-bottom: 0;
       }
       .ch-list-item:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
       .ch-list-item.active { color: var(--fg); background: #11253d; border-color: #2d5a94; }
+      .ch-item-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        width: 100%;
+        min-width: 0;
+      }
       .ch-item-title {
+        flex: 1;
+        min-width: 0;
         font-weight: 600;
         font-size: 0.82rem;
-        color: inherit;
-        width: 100%;
+        line-height: 1.35;
+        text-align: left;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .ch-item-date {
+        flex: 0 0 auto;
+        font-size: 0.68rem;
+        color: var(--muted);
+      }
+      .ch-item-archived {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 0.12rem 0.35rem;
+        border-radius: 4px;
+        color: #8b97a8;
+        background: rgba(139, 151, 168, 0.12);
+      }
+      .swipe-content .ch-list-item {
+        margin-bottom: 0;
+        border-radius: 8px;
+        background: var(--panel);
+      }
+      .swipe-row.swipe-open .swipe-content .ch-list-item {
+        border-color: var(--panel-border);
       }
       .ch-header-title {
         cursor: text;
@@ -1646,7 +1687,6 @@ const company = await getCompanyConfig(Astro.request);
       @media (max-width: 639px) {
         .ch-header-title-input { font-size: max(16px, 0.88rem); }
       }
-      .ch-item-date { font-size: 0.69rem; color: var(--muted); }
       .ch-pane {
         flex: 1;
         display: flex;
@@ -2021,6 +2061,7 @@ const company = await getCompanyConfig(Astro.request);
       }
       .swipe-act-agent { background: #007aff; }
       .swipe-act-junk { background: #ff9500; }
+      .swipe-act-archive { background: #8e8e93; }
       .swipe-act-delete { background: #ff3b30; }
       .swipe-act:active { filter: brightness(0.92); }
       .swipe-content {
@@ -2286,7 +2327,7 @@ const company = await getCompanyConfig(Astro.request);
           <button type="button" id="topbar-profile-toggle" class="topbar-profile topbar-icon-btn tb-mobile-only" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           </button>
-          <div id="topbar-profile-menu" class="topbar-dropdown tb-mobile-only" role="menu">
+          <div id="topbar-profile-menu" class="topbar-dropdown" role="menu">
             <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
             <div class="topbar-dropdown-divider"></div>
             <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">Sign out</button>
@@ -2338,7 +2379,7 @@ const company = await getCompanyConfig(Astro.request);
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628e"></script>
     <script is:inline type="module" src="/admin/push-client.js"></script>
   </body>
 </html>

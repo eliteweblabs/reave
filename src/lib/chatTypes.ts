@@ -26,6 +26,7 @@ export interface ChatThreadSummary {
   title: string;
   updated_at: string;
   created_at: string;
+  archived?: boolean;
 }
 
 export interface ChatMessage {
