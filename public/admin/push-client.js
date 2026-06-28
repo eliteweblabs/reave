@@ -35,9 +35,19 @@ export async function isAdminPushEnabled() {
   return !!sub;
 }
 
+function resetPushButtonIcon(btn) {
+  if (!btn.querySelector('span[aria-hidden="true"]')) {
+    btn.innerHTML = '<span aria-hidden="true">🔔</span>';
+  }
+}
+
 export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
+
+  resetPushButtonIcon(btn);
+  btn.classList.remove('push-on');
+  btn.disabled = false;
 
   if (!('Notification' in window) || !('PushManager' in window)) {
     btn.hidden = true;
@@ -47,7 +57,8 @@ export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
   await registerAdminServiceWorker();
 
   try {
-    btn.hidden = await isAdminPushEnabled();
+    const enabled = await isAdminPushEnabled();
+    btn.hidden = enabled;
   } catch {
     btn.hidden = false;
   }
@@ -109,4 +120,5 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
   document.addEventListener('DOMContentLoaded', () => initAdminPushButton());
+  window.addEventListener('pageshow', () => syncAdminPushButton());
 }

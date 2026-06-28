@@ -78,6 +78,7 @@ if (userId) {
           class="app-header-icon-btn topbar-icon-btn topbar-push-btn"
           aria-label="Enable push notifications"
           title="Enable push notifications"
+          hidden
         >
           <span aria-hidden="true">🔔</span>
         </button>
@@ -270,14 +271,16 @@ if (userId) {
   }
 
   .topbar-push-btn {
-    border-color: rgba(251, 191, 36, 0.35);
-    background: rgba(251, 191, 36, 0.08);
-    color: rgba(251, 191, 36, 0.95);
+    border-color: rgba(239, 68, 68, 0.85);
+    background: rgba(239, 68, 68, 0.1);
+    color: rgba(252, 165, 165, 0.98);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
   }
 
   .topbar-push-btn:hover {
-    border-color: rgba(251, 191, 36, 0.55);
-    color: rgba(251, 191, 36, 1);
+    border-color: rgba(248, 113, 113, 1);
+    color: #fecaca;
+    box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.5);
   }
 
   .topbar-push-btn[hidden] {
