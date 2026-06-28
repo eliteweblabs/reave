@@ -4172,7 +4172,6 @@ async function deleteClient(uid, name) {
 const IOS_ICONS = {
   copy: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
-  paste: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>',
   edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
 };
 const CH_MSG_ICONS = IOS_ICONS;
@@ -4858,14 +4857,6 @@ function renderChatPanel() {
   composeMain.appendChild(attachmentsEl);
   composeMain.appendChild(input);
 
-  const pasteBtn = document.createElement('button');
-  pasteBtn.type = 'button';
-  pasteBtn.className = 'ch-paste';
-  pasteBtn.setAttribute('aria-label', 'Paste from clipboard');
-  pasteBtn.title = 'Paste';
-  pasteBtn.innerHTML = CH_MSG_ICONS.paste;
-  pasteBtn.disabled = chatState.sending;
-
   const sendBtn = document.createElement('button');
   sendBtn.className = 'ch-send';
   sendBtn.textContent = 'Send';
@@ -4950,8 +4941,6 @@ function renderChatPanel() {
   renderChatMessages(messagesEl, input);
   pane.appendChild(messagesEl);
 
-  pasteBtn.addEventListener('click', () => pasteIntoChatInput(input));
-
   async function doSend() {
     const text = input.value.trim();
     const images = pendingImages.map(({ mediaType, data }) => ({ mediaType, data }));
@@ -4963,7 +4952,6 @@ function renderChatPanel() {
     renderPendingAttachments();
     input.disabled = true;
     sendBtn.disabled = true;
-    pasteBtn.disabled = true;
     chatState.messages.push({ role: 'user', content: userContent });
     renderChatMessages(messagesEl, input);
 
@@ -4986,7 +4974,6 @@ function renderChatPanel() {
       chatState.sending = false;
       input.disabled = false;
       sendBtn.disabled = false;
-      pasteBtn.disabled = false;
       renderChatPanel();
       const newInput = getChatPanel()?.querySelector('.ch-input');
       newInput?.focus();
@@ -5001,7 +4988,6 @@ function renderChatPanel() {
     }
   });
   compose.appendChild(composeMain);
-  compose.appendChild(pasteBtn);
   compose.appendChild(sendBtn);
   pane.appendChild(compose);
 

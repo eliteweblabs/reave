@@ -1644,27 +1644,6 @@ const company = await getCompanyConfig(Astro.request);
         text-overflow: ellipsis;
       }
       .ch-input:focus { border-color: #3b82f6; }
-      .ch-paste {
-        flex: 0 0 auto;
-        align-self: flex-end;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.35rem;
-        height: 2.35rem;
-        padding: 0;
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        background: var(--card);
-        color: var(--muted);
-        cursor: pointer;
-        transition: color 0.12s, border-color 0.12s, background 0.12s;
-      }
-      .ch-paste:hover:not(:disabled) {
-        color: var(--fg);
-        border-color: #3b82f6;
-      }
-      .ch-paste:disabled { opacity: 0.45; cursor: default; }
       .ch-send {
         align-self: flex-end;
         font: inherit;
