@@ -1,0 +1,20 @@
+/* Fix for chat input placeholder - prevent line breaks and truncate */
+input[placeholder="message the agent"]::placeholder,
+textarea[placeholder="message the agent"]::placeholder {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+/* Alternative: single-line input approach */
+#chat-input,
+[data-chat-input] {
+  white-space: nowrap;
+}
+
+#chat-input::placeholder,
+[data-chat-input]::placeholder {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
