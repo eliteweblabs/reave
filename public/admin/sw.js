@@ -34,6 +34,14 @@ async function incrementBadgeCount() {
   await writeBadgeCount((await readBadgeCount()) + 1);
 }
 
+async function decrementBadgeCount() {
+  await writeBadgeCount(Math.max(0, (await readBadgeCount()) - 1));
+}
+
+async function restoreBadgeFromCache() {
+  await writeBadgeCount(await readBadgeCount());
+}
+
 function notifyClientsInboxPush() {
   return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
     for (const client of clients) {
@@ -65,12 +73,18 @@ self.addEventListener('push', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'reave-badge-sync') {
+    event.waitUntil(writeBadgeCount(Number(event.data.count) || 0));
+  }
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/admin?tab=email';
   event.waitUntil(
     Promise.all([
-      writeBadgeCount(0),
+      decrementBadgeCount(),
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
         for (const client of clients) {
           if ('focus' in client) {
@@ -89,5 +103,5 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([self.clients.claim(), restoreBadgeFromCache()]));
 });

@@ -1941,8 +1941,8 @@ function collapseFooterNav() {
   footerNavCollapsed = true;
   document.getElementById('admin-footer-nav')?.classList.add('footer-nav-collapsed');
   const homeBtn = document.getElementById('footer-nav-home');
-  homeBtn?.setAttribute('aria-label', 'Show navigation');
   homeBtn?.setAttribute('title', 'Show navigation');
+  renderFooterNavBadges();
 }
 
 function expandFooterNav({ force = false } = {}) {
@@ -1952,8 +1952,8 @@ function expandFooterNav({ force = false } = {}) {
   footerNavCollapsed = false;
   document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
   const homeBtn = document.getElementById('footer-nav-home');
-  homeBtn?.setAttribute('aria-label', 'Home');
   homeBtn?.setAttribute('title', 'Home');
+  renderFooterNavBadges();
 }
 
 function onChatInputFocusIn(ev) {
@@ -2195,22 +2195,69 @@ async function buildMobileToolsMenu(order) {
   if (activeKey === 'home') loadHomeDashboard();
 }
 
-function setFooterNavBadge(badgeId, btnId, count, baseLabel) {
-  const badge = document.getElementById(badgeId);
-  const btn = document.getElementById(btnId);
-  if (!badge || !btn) return;
-  const n = Math.max(0, Number(count) || 0);
-  if (n > 0) {
-    badge.hidden = false;
-    badge.textContent = n > 99 ? '99+' : String(n);
-    if (baseLabel) {
-      btn.setAttribute('aria-label', `${baseLabel} (${n} notification${n === 1 ? '' : 's'})`);
+const footerBadgeCounts = { home: 0, chat: 0, inbox: 0 };
+
+const FOOTER_BADGE_ENTRIES = [
+  { badgeId: 'footer-home-badge', btnId: 'footer-nav-home', key: 'home', label: 'Home' },
+  { badgeId: 'footer-chat-badge', btnId: 'footer-nav-chat', key: 'chat', label: 'Chats' },
+  { badgeId: 'footer-inbox-badge', btnId: 'footer-nav-inbox', key: 'inbox', label: 'Inbox' },
+];
+
+function footerBadgeKey(badgeId) {
+  if (badgeId === 'footer-home-badge') return 'home';
+  if (badgeId === 'footer-chat-badge') return 'chat';
+  if (badgeId === 'footer-inbox-badge') return 'inbox';
+  return null;
+}
+
+function renderFooterNavBadges() {
+  if (footerNavCollapsed) {
+    const total = footerBadgeCounts.home + footerBadgeCounts.chat + footerBadgeCounts.inbox;
+    for (const entry of FOOTER_BADGE_ENTRIES) {
+      const badge = document.getElementById(entry.badgeId);
+      const btn = document.getElementById(entry.btnId);
+      if (!badge || !btn) continue;
+      if (entry.key === 'home') {
+        if (total > 0) {
+          badge.hidden = false;
+          badge.textContent = total > 99 ? '99+' : String(total);
+          btn.setAttribute(
+            'aria-label',
+            `Show navigation (${total} notification${total === 1 ? '' : 's'})`,
+          );
+        } else {
+          badge.hidden = true;
+          badge.textContent = '0';
+          btn.setAttribute('aria-label', 'Show navigation');
+        }
+      } else {
+        badge.hidden = true;
+      }
     }
-  } else {
-    badge.hidden = true;
-    badge.textContent = '0';
-    if (baseLabel) btn.setAttribute('aria-label', baseLabel);
+    return;
   }
+
+  for (const entry of FOOTER_BADGE_ENTRIES) {
+    const badge = document.getElementById(entry.badgeId);
+    const btn = document.getElementById(entry.btnId);
+    if (!badge || !btn) continue;
+    const n = footerBadgeCounts[entry.key];
+    if (n > 0) {
+      badge.hidden = false;
+      badge.textContent = n > 99 ? '99+' : String(n);
+      btn.setAttribute('aria-label', `${entry.label} (${n} notification${n === 1 ? '' : 's'})`);
+    } else {
+      badge.hidden = true;
+      badge.textContent = '0';
+      btn.setAttribute('aria-label', entry.label);
+    }
+  }
+}
+
+function setFooterNavBadge(badgeId, btnId, count, baseLabel) {
+  const key = footerBadgeKey(badgeId);
+  if (key) footerBadgeCounts[key] = Math.max(0, Number(count) || 0);
+  renderFooterNavBadges();
 }
 
 function syncInboxBadge(count) {
@@ -6131,10 +6178,31 @@ async function clearCachedBadgeCount() {
   } catch {}
 }
 
+async function writeCachedBadgeCount(n) {
+  try {
+    const cache = await caches.open(BADGE_CACHE);
+    if (n <= 0) {
+      await cache.delete(BADGE_URL);
+      return;
+    }
+    await cache.put(BADGE_URL, new Response(String(n)));
+  } catch {}
+}
+
 async function setAppIconBadge(n) {
+  const count = Math.max(0, Number(n) || 0);
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration('/admin/');
+    if (reg?.active) {
+      reg.active.postMessage({ type: 'reave-badge-sync', count });
+      await writeCachedBadgeCount(count);
+      return;
+    }
+  } catch {}
   if (!('setAppBadge' in navigator)) return;
   try {
-    if (n > 0) await navigator.setAppBadge(n);
+    await writeCachedBadgeCount(count);
+    if (count > 0) await navigator.setAppBadge(count);
     else if ('clearAppBadge' in navigator) await navigator.clearAppBadge();
   } catch (e) {
     console.warn('[badge]', e);
@@ -6983,6 +7051,9 @@ async function boot() {
 boot();
 
 if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready
+    .then(() => refreshInboxBadgeQuiet())
+    .catch(() => undefined);
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet();
   });

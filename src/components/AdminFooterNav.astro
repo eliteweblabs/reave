@@ -274,8 +274,9 @@ if (userId) {
     transition: opacity 0.2s ease;
   }
 
-  .admin-footer-nav.footer-nav-collapsed .footer-nav-badge {
-    opacity: 0;
+  .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home) .footer-nav-badge,
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-profile .footer-nav-badge {
+    display: none !important;
   }
 
   .footer-nav-badge[hidden] {

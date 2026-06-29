@@ -112,6 +112,7 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
+  void registerAdminServiceWorker();
   document.addEventListener('DOMContentLoaded', () => initAdminPushButton());
   window.addEventListener('pageshow', () => syncAdminPushButton());
 }

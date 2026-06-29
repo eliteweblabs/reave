@@ -5,6 +5,7 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 /** PWA assets must be fetchable without a session (manifest, install flow). */
 const isPublicAdminAsset = createRouteMatcher([
   "/admin/manifest.webmanifest",
+  "/admin/sw.js",
 ]);
 
 export const onRequest = clerkMiddleware((auth, context, next) => {
