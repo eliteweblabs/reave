@@ -25,7 +25,6 @@ export async function GET(context: APIContext): Promise<Response> {
         lastName: user.lastName ?? "",
         email: user.emailAddresses?.[0]?.emailAddress ?? "",
         phone: meta.phone ?? "",
-        companyName: meta.companyName ?? "",
         timezone: meta.timezone ?? "",
       },
     });
@@ -55,17 +54,19 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  const { firstName, lastName, phone, companyName, timezone } = body;
+  const { firstName, lastName, phone, timezone } = body;
 
   try {
     const client = clerkClient(context);
+    const user = await client.users.getUser(userId);
+    const existing = (user.publicMetadata ?? {}) as Record<string, string>;
 
     await client.users.updateUser(userId, {
       firstName: firstName ?? undefined,
       lastName: lastName ?? undefined,
       publicMetadata: {
+        ...existing,
         phone: phone ?? "",
-        companyName: companyName ?? "",
         timezone: timezone ?? "",
       },
     });

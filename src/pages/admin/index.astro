@@ -42,6 +42,7 @@ const { userId } = Astro.locals.auth();
         --topbar-h: calc(4rem + var(--safe-top));
         --footer-nav-pill-h: 3.4rem;
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
+        --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
       }
       * { box-sizing: border-box; }
       html, body {
@@ -63,12 +64,57 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
       }
+      html::after {
+        content: "";
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: env(safe-area-inset-bottom, 0px);
+        background: var(--bg);
+        z-index: 1999;
+        pointer-events: none;
+      }
       body {
         position: fixed;
         inset: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
         color: var(--fg);
         touch-action: manipulation;
+      }
+
+      /* Pad scroll regions for the floating footer; panel shells stay edge-to-edge. */
+      .ch-list,
+      .ch-messages,
+      .de-list,
+      .em-detail,
+      .search-overlay-results,
+      .re-form-scroll {
+        padding-bottom: var(--footer-scroll-pad);
+      }
+
+      /* Header clearance on inner columns — not on panel shells (avoids dead bands in DevTools). */
+      #chat-panel > .ch-sidebar,
+      #chat-panel > .ch-pane,
+      #email-panel > .ch-sidebar,
+      #email-panel > .ch-pane,
+      #doc-editor > .de-sidebar,
+      #doc-editor > .de-pane,
+      #doc-editor > .ch-sidebar,
+      #knowledge-editor > .de-sidebar,
+      #knowledge-editor > .de-pane,
+      #knowledge-editor > .ch-sidebar,
+      #work-editor > .de-sidebar,
+      #work-editor > .de-pane,
+      #work-editor > .ch-sidebar,
+      #clients-editor > .de-sidebar,
+      #clients-editor > .de-pane,
+      #clients-editor > .ch-sidebar,
+      #rule-editor > .de-sidebar,
+      #rule-editor > .de-pane,
+      #rule-editor > .ch-sidebar,
+      .de-pane {
+        padding-top: var(--topbar-h);
       }
 
       /* App panels — no browser zoom; canvas (#wrap) keeps custom pinch/pan. */
@@ -112,8 +158,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         overflow: hidden;
         cursor: grab;
         background-color: var(--bg);
@@ -562,8 +606,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -970,8 +1012,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -1221,8 +1261,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -1662,8 +1700,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -2001,8 +2037,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: none;
         flex-direction: column;
         background: var(--bg);
@@ -2012,7 +2046,7 @@ const { userId } = Astro.locals.auth();
       .home-dashboard-scroll {
         flex: 1;
         overflow-y: auto;
-        padding: 1rem 1rem 1.25rem;
+        padding: calc(var(--topbar-h) + 1rem) 1rem var(--footer-scroll-pad);
       }
       .home-dashboard-title {
         margin: 0 0 0.25rem;
@@ -2217,16 +2251,11 @@ const { userId } = Astro.locals.auth();
         font-size: 0.84rem;
       }
 
-      .dash-quick-title {
-        margin: 0 0 0.75rem;
-        font-size: 0.88rem;
-        font-weight: 700;
-      }
-
       .home-dashboard-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
         gap: 0.65rem;
+        margin-top: 0.35rem;
       }
       .home-dashboard-tile {
         display: flex;
@@ -2271,8 +2300,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         height: 100dvh;
-        padding-top: var(--topbar-h);
-        padding-bottom: var(--footer-nav-h);
         display: none;
         flex-direction: column;
         background: var(--bg);
@@ -2282,7 +2309,7 @@ const { userId } = Astro.locals.auth();
       .profile-panel-scroll {
         flex: 1;
         overflow-y: auto;
-        padding: 1rem 1rem 1.25rem;
+        padding: calc(var(--topbar-h) + 1rem) 1rem var(--footer-scroll-pad);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -2418,7 +2445,7 @@ const { userId } = Astro.locals.auth();
         padding:
           calc(var(--topbar-h) + 0.75rem)
           1rem
-          calc(1rem + var(--footer-nav-h));
+          1rem;
       }
       #search-overlay.open {
         display: flex;
@@ -2592,7 +2619,7 @@ const { userId } = Astro.locals.auth();
 
     <AdminFooterNav />
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629e"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629h"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629e"></script>
   </body>
 </html>

@@ -1684,12 +1684,6 @@ function renderHomeDashboard(data) {
   }
   scroll.appendChild(inboxPanel);
 
-  const quick = document.createElement('section');
-  quick.className = 'dash-panel';
-  const quickTitle = document.createElement('h2');
-  quickTitle.className = 'dash-quick-title';
-  quickTitle.textContent = 'Go to';
-  quick.appendChild(quickTitle);
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
   for (const key of wrenchMenuTabKeys(cachedTabOrder || defaultTabKeys())) {
@@ -1704,8 +1698,7 @@ function renderHomeDashboard(data) {
   for (const link of HOME_EXTRA_LINKS) {
     grid.appendChild(buildHomeLinkTile(link));
   }
-  quick.appendChild(grid);
-  scroll.appendChild(quick);
+  scroll.appendChild(grid);
 
   root.appendChild(scroll);
 }
@@ -1838,9 +1831,6 @@ function renderProfilePanel(profile, company) {
             `<div class="prof-field"><label for="profile-lastName">Last Name</label>` +
             `<input id="profile-lastName" name="lastName" type="text" value="${escHtml(p.lastName || '')}" autocomplete="family-name" /></div>` +
           `</div>` +
-          `<div class="prof-field"><label for="profileCompanyName">Your Company (optional)</label>` +
-          `<input id="profileCompanyName" name="companyName" type="text" value="${escHtml(p.companyName || '')}" autocomplete="organization" />` +
-          `<span class="prof-hint">Your personal affiliation — not the platform brand shown to clients.</span></div>` +
           `<div class="prof-field"><label for="profile-email">Email</label>` +
           `<input id="profile-email" name="email" type="email" value="${escHtml(p.email || '')}" disabled autocomplete="email" />` +
           `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
@@ -1940,6 +1930,8 @@ function syncFooterChatNav() {
 
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+const footerPanelScrollTops = new WeakMap();
+const FOOTER_SCROLL_DELTA = 4;
 
 function collapseFooterNav() {
   if (footerNavCollapsed) return;
@@ -1960,7 +1952,6 @@ function expandFooterNav() {
 }
 
 function onPanelScrollCollapse(ev) {
-  if (footerNavCollapsed) return;
   const target = ev.target;
   if (!(target instanceof Element)) return;
   if (target.closest('#wrap, #admin-footer-nav')) return;
@@ -1968,7 +1959,21 @@ function onPanelScrollCollapse(ev) {
   if (!panel) return;
   const style = window.getComputedStyle(panel);
   if (style.display === 'none' || style.visibility === 'hidden') return;
-  if (target.scrollTop > 6) collapseFooterNav();
+
+  const scrollTop = target.scrollTop;
+  const prevTop = footerPanelScrollTops.get(target);
+  footerPanelScrollTops.set(target, scrollTop);
+
+  if (scrollTop <= 6) {
+    expandFooterNav();
+    return;
+  }
+
+  if (prevTop == null) return;
+
+  const delta = scrollTop - prevTop;
+  if (delta > FOOTER_SCROLL_DELTA) collapseFooterNav();
+  else if (delta < -FOOTER_SCROLL_DELTA) expandFooterNav();
 }
 
 function initFooterNavScrollCollapse() {
