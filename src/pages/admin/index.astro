@@ -37,19 +37,37 @@ const { userId } = Astro.locals.auth();
         --card-border: #232c3a;
         --panel: #121722;
         --panel-border: #283142;
-        --topbar-h: 4rem;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --topbar-h: calc(4rem + var(--safe-top));
+        --footer-nav-pill-h: 3.4rem;
+        --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
       }
       * { box-sizing: border-box; }
-      html, body { height: 100%; margin: 0; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        min-height: 100%;
+        min-height: 100dvh;
+        min-height: -webkit-fill-available;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        overscroll-behavior: none;
+        background: var(--bg);
+      }
       html {
         -webkit-text-size-adjust: 100%;
         text-size-adjust: 100%;
+        position: fixed;
+        inset: 0;
       }
       body {
+        position: fixed;
+        inset: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-        background: var(--bg);
         color: var(--fg);
-        overflow: hidden;
         touch-action: manipulation;
       }
 
@@ -93,7 +111,8 @@ const { userId } = Astro.locals.auth();
       #wrap {
         position: fixed;
         inset: 0;
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         overflow: hidden;
         cursor: grab;
@@ -525,8 +544,8 @@ const { userId } = Astro.locals.auth();
       #doc-editor {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
@@ -932,8 +951,8 @@ const { userId } = Astro.locals.auth();
       #rule-editor {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
@@ -1183,8 +1202,8 @@ const { userId } = Astro.locals.auth();
       #chat-panel {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
@@ -1624,8 +1643,8 @@ const { userId } = Astro.locals.auth();
       #email-panel {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
@@ -1882,11 +1901,7 @@ const { userId } = Astro.locals.auth();
         .ch-messages { padding: 0.75rem 0.85rem; }
         .ch-compose {
           gap: 0.4rem;
-          padding:
-            0.65rem
-            max(0.75rem, env(safe-area-inset-right, 0px))
-            calc(0.65rem + env(safe-area-inset-bottom, 0px))
-            max(0.75rem, env(safe-area-inset-left, 0px));
+          padding: 0.65rem 0.75rem;
         }
       }
 
@@ -1967,8 +1982,8 @@ const { userId } = Astro.locals.auth();
       #home-dashboard {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: none;
         flex-direction: column;
@@ -2237,8 +2252,8 @@ const { userId } = Astro.locals.auth();
       #profile-panel {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
+        padding-top: var(--topbar-h);
         padding-bottom: var(--footer-nav-h);
         display: none;
         flex-direction: column;
@@ -2377,13 +2392,15 @@ const { userId } = Astro.locals.auth();
       #search-overlay {
         position: fixed;
         inset: 0;
-        top: var(--topbar-h);
-        bottom: 0;
+        height: 100dvh;
         display: none;
         flex-direction: column;
         background: rgba(10, 13, 20, 0.96);
         z-index: 15;
-        padding: 0.75rem 1rem calc(1rem + var(--footer-nav-h));
+        padding:
+          calc(var(--topbar-h) + 0.75rem)
+          1rem
+          calc(1rem + var(--footer-nav-h));
       }
       #search-overlay.open {
         display: flex;
@@ -2553,7 +2570,7 @@ const { userId } = Astro.locals.auth();
 
     <AdminFooterNav />
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629d"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250628n"></script>
   </body>
 </html>
