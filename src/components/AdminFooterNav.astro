@@ -1,48 +1,5 @@
 ---
-import { clerkClient } from "@clerk/astro/server";
-import { Home, MessageCircle, Mail, Search } from "lucide-astro";
-
-const auth = Astro.locals.auth?.();
-const userId = auth?.userId ?? null;
-
-let avatarUrl: string | null = null;
-let userInitials = "";
-
-function footerAvatarUrl(user: {
-  imageUrl: string;
-  hasImage: boolean;
-  externalAccounts?: Array<{ provider: string; imageUrl?: string | null }>;
-}): string | null {
-  const sized = (url: string) => {
-    const join = url.includes("?") ? "&" : "?";
-    return `${url}${join}width=56&height=56&fit=crop`;
-  };
-
-  if (user.hasImage && user.imageUrl) return sized(user.imageUrl);
-
-  const google = user.externalAccounts?.find(
-    (account) => account.provider === "oauth_google" || account.provider === "google",
-  );
-  if (google?.imageUrl) return sized(google.imageUrl);
-  if (google && user.imageUrl) return sized(user.imageUrl);
-
-  return null;
-}
-
-if (userId) {
-  try {
-    const client = clerkClient(Astro);
-    const user = await client.users.getUser(userId);
-    avatarUrl = footerAvatarUrl(user);
-    const first = user.firstName?.[0] ?? "";
-    const last = user.lastName?.[0] ?? "";
-    userInitials =
-      ((first + last).toUpperCase() || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase()) ??
-      "?";
-  } catch {
-    // Clerk unreachable
-  }
-}
+import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
@@ -92,16 +49,12 @@ if (userId) {
 
     <button
       type="button"
-      id="footer-nav-profile"
-      class="footer-nav-btn footer-nav-profile"
-      data-nav="profile"
-      aria-label="Profile"
+      id="footer-nav-work"
+      class="footer-nav-btn"
+      data-nav="work"
+      aria-label="Work"
     >
-      {avatarUrl ? (
-        <img src={avatarUrl} alt="" class="footer-nav-avatar" />
-      ) : (
-        <span class="footer-nav-initials">{userInitials || "?"}</span>
-      )}
+      <Briefcase size={22} strokeWidth={1.75} />
     </button>
   </div>
     <div id="footer-chat-compose" class="footer-chat-compose" hidden></div>
@@ -198,7 +151,7 @@ if (userId) {
     }
 
     .admin-footer-nav.footer-nav-compose-open .footer-nav-btn:not(#footer-nav-home),
-    .admin-footer-nav.footer-nav-compose-open #footer-nav-profile {
+    .admin-footer-nav.footer-nav-compose-open #footer-nav-work {
       width: 0;
       max-width: 0;
       opacity: 0;
@@ -367,7 +320,7 @@ if (userId) {
   }
 
   .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home),
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-profile {
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-work {
     width: 0;
     max-width: 0;
     opacity: 0;
@@ -381,7 +334,6 @@ if (userId) {
   }
 
   .footer-nav-btn.active,
-  .footer-nav-profile.active,
   .admin-footer-nav.footer-nav-collapsed #footer-nav-home,
   .footer-nav-btn.footer-nav-btn--create,
   .footer-nav-btn.footer-nav-btn--create.active {
@@ -423,42 +375,6 @@ if (userId) {
     pointer-events: none;
   }
 
-  .footer-nav-profile {
-    width: var(--footer-nav-pill-h);
-    height: 100%;
-    max-width: var(--footer-nav-pill-h);
-    padding: 0;
-    overflow: hidden;
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-  }
-
-  .footer-nav-profile:hover {
-    color: rgba(255, 255, 255, 0.88);
-  }
-
-  .footer-nav-profile.active {
-    color: #fff;
-    background: transparent;
-  }
-
-  .footer-nav-avatar {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    pointer-events: none;
-    display: block;
-  }
-
-  .footer-nav-initials {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.72);
-    pointer-events: none;
-  }
-
   .footer-nav-badge {
     position: absolute;
     top: 0.15rem;
@@ -484,7 +400,7 @@ if (userId) {
   }
 
   .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home) .footer-nav-badge,
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-profile .footer-nav-badge {
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-work .footer-nav-badge {
     display: none !important;
   }
 

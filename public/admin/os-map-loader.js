@@ -1477,7 +1477,13 @@ function wrenchMenuTabKeys(order) {
   return out;
 }
 
-function closeTopbarMenus(_exceptMenu) {
+function closeTopbarMenus(exceptMenu) {
+  for (const menu of document.querySelectorAll('.topbar-dropdown')) {
+    if (exceptMenu && menu === exceptMenu) continue;
+    menu.classList.remove('open');
+  }
+  document.getElementById('topbar-tools-toggle')?.setAttribute('aria-expanded', 'false');
+  document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
   syncFooterNav();
 }
 
@@ -1933,7 +1939,7 @@ function footerNavActiveKey() {
   if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
-  if (activeKey === 'profile') return 'profile';
+  if (activeKey === 'work') return 'work';
   return null;
 }
 
@@ -2078,7 +2084,7 @@ function mountChatCompose(compose) {
   return true;
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'search', 'profile'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'search', 'work'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -2183,8 +2189,8 @@ function activateFooterNavFromDrag(nav) {
     toggleSearchOverlay();
     return;
   }
-  if (nav === 'profile') {
-    setActiveMap('profile', { force: activeKey === 'profile' });
+  if (nav === 'work') {
+    setActiveMap('work', { force: activeKey === 'work' });
   }
 }
 
@@ -2357,9 +2363,9 @@ function initFooterNav() {
   document.getElementById('footer-nav-search')?.addEventListener('click', () => {
     toggleSearchOverlay();
   });
-  document.getElementById('footer-nav-profile')?.addEventListener('click', () => {
+  document.getElementById('footer-nav-work')?.addEventListener('click', () => {
     closeSearchOverlay();
-    setActiveMap('profile', { force: activeKey === 'profile' });
+    setActiveMap('work', { force: activeKey === 'work' });
   });
   window.addEventListener('resize', () => {
     syncFooterNavIndicator();
@@ -2609,6 +2615,42 @@ function initTopbarMenus() {
     document.addEventListener('click', () => closeTopbarMenus());
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') closeTopbarMenus();
+    });
+  }
+
+  const profileToggle = document.getElementById('topbar-profile-toggle');
+  const profileMenu = document.getElementById('topbar-profile-menu');
+  if (profileToggle && profileMenu && !profileToggle.dataset.bound) {
+    profileToggle.dataset.bound = '1';
+    profileToggle.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      toggleTopbarMenu(profileMenu, profileToggle);
+    });
+  }
+
+  const profileLink = document.getElementById('topbar-profile-link');
+  if (profileLink && !profileLink.dataset.bound) {
+    profileLink.dataset.bound = '1';
+    profileLink.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      closeTopbarMenus();
+      setActiveMap('profile', { force: activeKey === 'profile' });
+    });
+  }
+
+  const signOutBtn = document.getElementById('topbar-sign-out');
+  if (signOutBtn && !signOutBtn.dataset.bound) {
+    signOutBtn.dataset.bound = '1';
+    signOutBtn.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      closeTopbarMenus();
+      const clerk = window.Clerk;
+      if (clerk) {
+        await clerk.signOut();
+        window.location.href = '/';
+      } else {
+        window.location.href = '/sign-out';
+      }
     });
   }
 }

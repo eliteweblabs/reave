@@ -163,7 +163,6 @@ const { userId } = Astro.locals.auth();
         #schedule-panel,
         #clients-editor,
         #rule-editor,
-        #home-dashboard,
         #profile-panel,
         .admin-footer-nav
       )
@@ -2458,6 +2457,16 @@ const { userId } = Astro.locals.auth();
         transition: border-color 0.15s, background 0.15s, transform 0.12s;
         min-height: 5.5rem;
       }
+      /* Override global pill buttons — dashboard cards stay rounded-rect. */
+      #home-dashboard button.dash-stat {
+        border-radius: 14px;
+      }
+      #home-dashboard button.dash-inbox-item {
+        border-radius: 10px;
+      }
+      #home-dashboard button.home-dashboard-tile {
+        border-radius: 12px;
+      }
       .dash-stat:hover {
         border-color: rgba(255, 255, 255, 0.18);
         background: rgba(255, 255, 255, 0.06);
@@ -3092,6 +3101,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630c"></script>
   </body>
 </html>
