@@ -15,6 +15,7 @@
  *   VOICE_GREETING         — Custom greeting prompt (optional).
  */
 import { serverEnv } from './serverEnv';
+import { hasFeature } from './features';
 
 export type VoiceMode = 'ai' | 'forwarding' | 'paused';
 
@@ -41,7 +42,7 @@ const sessions = new Map<string, VoiceSession>();
 // ─── Enable / disable ──────────────────────────────────────────────────────
 
 export function isVoiceAgentEnabled(): boolean {
-  return voiceAgentEnabled;
+  return hasFeature('voice') && voiceAgentEnabled;
 }
 
 export function setVoiceAgentEnabled(enabled: boolean): void {

@@ -28,10 +28,12 @@ export function vapidPublicKey(): string | null {
   return serverEnv('VAPID_PUBLIC_KEY')?.trim() || null;
 }
 
-export async function sendInboxPushNotification(payload: {
+export async function sendPushNotification(payload: {
   title: string;
   body: string;
   tag?: string;
+  /** Deep link when the notification is tapped (default /admin?tab=email). */
+  url?: string;
 }): Promise<void> {
   if (!isPushConfigured() || !configureWebPush()) return;
 
@@ -42,7 +44,7 @@ export async function sendInboxPushNotification(payload: {
     title: payload.title.slice(0, 120),
     body: payload.body.slice(0, 240),
     tag: payload.tag ?? 'inbox',
-    url: '/admin?tab=email',
+    url: payload.url ?? '/admin?tab=email',
   });
 
   await Promise.all(
@@ -64,4 +66,13 @@ export async function sendInboxPushNotification(payload: {
       }
     }),
   );
+}
+
+/** Push for inbound email alerts (legacy alias). */
+export async function sendInboxPushNotification(payload: {
+  title: string;
+  body: string;
+  tag?: string;
+}): Promise<void> {
+  return sendPushNotification({ ...payload, url: '/admin?tab=email' });
 }

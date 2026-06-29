@@ -29,6 +29,7 @@ const MAP_ICON_KEYS = {
   email: 'mail',
   rules: 'zap',
   work: 'briefcase',
+  schedule: 'calendar',
   clients: 'users',
   finance: 'wallet',
 };
@@ -81,6 +82,17 @@ function navIcon(name, size = 20) {
   const paths = NAV_ICON_PATHS[name];
   if (!paths) return '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+function createFabNewBtn(label, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'de-new-btn ch-new-btn';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.innerHTML = navIcon('plus', 22);
+  btn.addEventListener('click', onClick);
+  return btn;
 }
 
 function mapIconName(key) {
@@ -282,6 +294,8 @@ function activateMapPanel(opts = {}) {
     loadKnowledgeTab();
   } else if (MAP.type === 'work') {
     loadWorkTab();
+  } else if (MAP.type === 'schedule') {
+    loadScheduleTab();
   } else if (MAP.type === 'clients') {
     loadClientsTab();
   } else if (MAP.type === 'chats') {
@@ -299,7 +313,7 @@ function activateMapPanel(opts = {}) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
+  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'schedule' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
 }
 
 function setPanelDisplay(id, display) {
@@ -317,6 +331,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
+  setPanelDisplay('schedule-panel', MAP.type === 'schedule' ? 'flex' : 'none');
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
@@ -391,8 +406,8 @@ function updateChecked() {
   el.dataset.tooltip = `Health checked at ${lastChecked.toLocaleTimeString()}`;
 }
 
-// ---- agent model picker (System / Chats / Telegram) ----
-const MODEL_TABS = new Set(['system', 'chats', 'telegram']);
+// ---- agent model picker (System / Chats) ----
+const MODEL_TABS = new Set(['system', 'chats']);
 const MODEL_NODE_IDS = ['anthropic', 'tc_claude', 'tc_svc_anthropic'];
 
 let agentModelState = {
@@ -472,8 +487,8 @@ function renderModelSelectOptions() {
   el.title = agentModelState.loading
     ? 'Loading model…'
     : balTitle
-      ? `${balTitle} — chat, Telegram, dashboard agent`
-      : `Claude model (${agentModelState.source}) — chat, Telegram, dashboard agent`;
+      ? `${balTitle} — chat and dashboard agent`
+      : `Claude model (${agentModelState.source}) — chat and dashboard agent`;
 }
 
 function syncModelNodeLabels() {
@@ -1214,7 +1229,7 @@ function buildSystemDropdownTab() {
   trigger.type = 'button';
   trigger.className = 'tab-dropdown-trigger';
   trigger.innerHTML = `${tabInnerHtml('system', MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
-  trigger.title = 'System — runtime, MCP & CLI, Telegram';
+  trigger.title = 'System — runtime and MCP & CLI';
 
   const menu = document.createElement('div');
   menu.className = 'tab-dropdown-menu';
@@ -1449,11 +1464,6 @@ function toggleTopbarMenu(menuEl, toggleEl) {
   syncFooterNav();
 }
 
-const HOME_EXTRA_LINKS = [
-  { href: '/admin/contacts', label: 'Contacts DB', icon: 'database' },
-  { href: '/admin/telegram', label: 'Telegram help', icon: 'help-circle' },
-];
-
 function dashboardSectionItems(order) {
   const items = [];
   for (const key of wrenchMenuTabKeys(order || cachedTabOrder || defaultTabKeys())) {
@@ -1466,9 +1476,6 @@ function dashboardSectionItems(order) {
       icon: mapIconName(key),
       href: m.link || null,
     });
-  }
-  for (const link of HOME_EXTRA_LINKS) {
-    items.push({ kind: 'href', key: link.href, label: link.label, icon: link.icon, href: link.href });
   }
   return items;
 }
@@ -1583,7 +1590,7 @@ function renderHomeDashboard(data) {
     value: stats.eventsToday ?? 0,
     label: 'Events today',
     hint: data?.eventsMock ? 'sample schedule' : 'on your calendar',
-    onClick: () => scroll.querySelector('.dash-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    onClick: () => setActiveMap(data?.eventsMock ? 'home' : 'schedule', { force: true }),
   }));
 
   statsEl.appendChild(buildDashStat({
@@ -1697,9 +1704,6 @@ function renderHomeDashboard(data) {
     } else if (key !== 'home') {
       grid.appendChild(buildHomeMapTile(key, m));
     }
-  }
-  for (const link of HOME_EXTRA_LINKS) {
-    grid.appendChild(buildHomeLinkTile(link));
   }
   scroll.appendChild(grid);
 
@@ -1927,6 +1931,7 @@ function syncFooterChatNav() {
     btn.querySelector(':scope > svg')?.remove();
   }
   iconEl.innerHTML = navIcon(onChat ? 'plus' : 'message-circle', 22);
+  btn.classList.toggle('footer-nav-btn--create', onChat);
   btn.setAttribute('aria-label', onChat ? 'New chat' : 'Chats');
   btn.title = onChat ? 'New chat' : 'Chats';
 }
@@ -2394,10 +2399,7 @@ function renderRulesEditor() {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Rule';
-  newBtn.addEventListener('click', () => startNewRule());
+  const newBtn = createFabNewBtn('New rule', () => startNewRule());
   toolbar.appendChild(newBtn);
   sidebar.appendChild(toolbar);
 
@@ -2879,10 +2881,7 @@ function renderDocEditor() {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Document';
-  newBtn.addEventListener('click', () => startNewDocument());
+  const newBtn = createFabNewBtn('New document', () => startNewDocument());
   toolbar.appendChild(newBtn);
   sidebar.appendChild(toolbar);
 
@@ -3438,10 +3437,7 @@ function renderKnowledgeEditor() {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Doc';
-  newBtn.addEventListener('click', () => {
+  const newBtn = createFabNewBtn('New knowledge doc', () => {
     knowledgeState.activeSlug = '__new__';
     knowledgeState.dirty = false;
     renderKnowledgeEditor();
@@ -3749,10 +3745,7 @@ function renderWorkEditor() {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Job';
-  newBtn.addEventListener('click', () => {
+  const newBtn = createFabNewBtn('New job', () => {
     workState.activeSlug = '__new__';
     workState.dirty = false;
     workState.draft = {
@@ -4511,6 +4504,166 @@ async function deleteWork(slug) {
   }
 }
 
+// ---- schedule tab ----
+
+let scheduleState = {
+  bookings: [],
+  filter: 'upcoming',
+  calcomUrl: 'https://cal.reave.app',
+  bookingFormUrl: '/form/schedule',
+  loading: false,
+  error: '',
+};
+
+function getSchedulePanel() { return document.getElementById('schedule-panel'); }
+
+function formatScheduleWhen(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
+function scheduleStatusClass(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'accepted') return 'sched-status-accepted';
+  if (s === 'cancelled' || s === 'rejected') return 'sched-status-cancelled';
+  if (s === 'pending') return 'sched-status-pending';
+  return '';
+}
+
+async function loadScheduleTab() {
+  const root = getSchedulePanel();
+  if (!root) return;
+  scheduleState.loading = true;
+  scheduleState.error = '';
+  renderSchedulePanel();
+
+  try {
+    const upcoming = scheduleState.filter !== 'past';
+    const res = await fetch(
+      `/api/bookings?upcoming=${upcoming ? 'true' : 'false'}&limit=50`,
+      { cache: 'no-store' },
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    scheduleState.bookings = Array.isArray(data.bookings) ? data.bookings : [];
+  } catch (e) {
+    scheduleState.error = e.message || String(e);
+    scheduleState.bookings = [];
+  } finally {
+    scheduleState.loading = false;
+    renderSchedulePanel();
+  }
+}
+
+function renderSchedulePanel() {
+  const root = getSchedulePanel();
+  if (!root) return;
+  root.innerHTML = '';
+
+  const scroll = document.createElement('div');
+  scroll.className = 'home-dashboard-scroll schedule-panel-scroll';
+
+  const header = document.createElement('div');
+  header.className = 'dash-header schedule-header';
+  header.innerHTML =
+    `<h1 class="home-dashboard-title">Schedule</h1>` +
+    `<p class="dash-date">Cal.com bookings</p>`;
+  scroll.appendChild(header);
+
+  const actions = document.createElement('div');
+  actions.className = 'schedule-actions';
+  const calLink = document.createElement('a');
+  calLink.className = 'schedule-link-btn';
+  calLink.href = scheduleState.calcomUrl;
+  calLink.target = '_blank';
+  calLink.rel = 'noopener';
+  calLink.textContent = 'Open Cal.com';
+  actions.appendChild(calLink);
+  const formLink = document.createElement('a');
+  formLink.className = 'schedule-link-btn schedule-link-btn-secondary';
+  formLink.href = scheduleState.bookingFormUrl;
+  formLink.target = '_blank';
+  formLink.rel = 'noopener';
+  formLink.textContent = 'Public booking form';
+  actions.appendChild(formLink);
+  scroll.appendChild(actions);
+
+  const filters = document.createElement('div');
+  filters.className = 'schedule-filters';
+  for (const f of [
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'past', label: 'Recent' },
+  ]) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'schedule-filter' + (scheduleState.filter === f.id ? ' active' : '');
+    btn.textContent = f.label;
+    btn.addEventListener('click', () => {
+      if (scheduleState.filter === f.id) return;
+      scheduleState.filter = f.id;
+      loadScheduleTab();
+    });
+    filters.appendChild(btn);
+  }
+  scroll.appendChild(filters);
+
+  const panel = document.createElement('section');
+  panel.className = 'dash-panel';
+
+  if (scheduleState.loading) {
+    panel.innerHTML = `<p class="dash-empty">Loading bookings…</p>`;
+    scroll.appendChild(panel);
+    root.appendChild(scroll);
+    return;
+  }
+
+  if (scheduleState.error) {
+    panel.innerHTML =
+      `<p class="dash-empty de-error">${escHtml(scheduleState.error)}</p>` +
+      `<p class="dash-empty">Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.</p>`;
+    scroll.appendChild(panel);
+    root.appendChild(scroll);
+    return;
+  }
+
+  const list = document.createElement('ul');
+  list.className = 'dash-events schedule-bookings';
+  const bookings = scheduleState.bookings;
+  if (!bookings.length) {
+    panel.innerHTML = `<p class="dash-empty">${scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.'}</p>`;
+  } else {
+    for (const b of bookings) {
+      const li = document.createElement('li');
+      li.className = 'dash-event schedule-booking';
+      const who = b.attendee && b.attendee !== 'Unknown' ? b.attendee : b.email || 'Guest';
+      const meta = [who, b.email && b.attendee !== b.email ? b.email : '', b.location].filter(Boolean).join(' · ');
+      li.innerHTML =
+        `<span class="dash-event-time">${escHtml(formatScheduleWhen(b.startTime))}</span>` +
+        `<div class="dash-event-body">` +
+          `<div class="dash-event-title">${escHtml(b.title || 'Meeting')}</div>` +
+          `<div class="dash-event-type">${escHtml(meta)}</div>` +
+          (b.status ? `<span class="schedule-status ${scheduleStatusClass(b.status)}">${escHtml(b.status)}</span>` : '') +
+        `</div>`;
+      list.appendChild(li);
+    }
+    panel.appendChild(list);
+  }
+
+  scroll.appendChild(panel);
+  root.appendChild(scroll);
+}
+
 // ---- clients tab ----
 
 let clientState = {
@@ -4580,10 +4733,7 @@ function renderClientsEditor() {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Client';
-  newBtn.addEventListener('click', () => {
+  const newBtn = createFabNewBtn('New client', () => {
     clientState.activeUid = '__new__';
     clientState.dirty = false;
     clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };

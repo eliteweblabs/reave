@@ -27,12 +27,13 @@ const SYSTEM_NODES = [
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · email · push subs', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · site-change alerts', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
-  { id: 'contacts_dash', title: 'Contacts dashboard', sub: '/admin/contacts · Clerk + DASHBOARD_KEY', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
+  { id: 'contacts_dash', title: 'Clients editor', sub: '/admin/ · Clients tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · PWA (FEATURES: client_portal)', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
+  { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -44,6 +45,7 @@ const SYSTEM_NODES = [
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1060 },
+  { id: 'calcom_web', title: 'Cal.com', sub: 'cal.reave.app · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1180 },
 ];
 
 const SYSTEM_EDGES = [
@@ -79,6 +81,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'github', label: 'status · commits · PR' },
   { from: 'astro', to: 'changedetection', label: 'watch CRUD', dashed: true },
   { from: 'changedetection', to: 'astro', label: 'change webhook', dashed: true },
+  { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
+  { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
+  { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site alerts' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'tg_api', label: 'deploy alert', dashed: true },
@@ -86,8 +91,8 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'sms_caller', 'dev', 'vapi'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'resend', 'tg_api', 'github', 'telnyx', 'changedetection', 'clerk'] },
+  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'resend', 'tg_api', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────
@@ -270,7 +275,7 @@ export const MAPS = {
   home:      { id: 'home',      title: 'Home',       icon: 'home', type: 'home',          nodes: [],             edges: [],             groups: [] },
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
-  telegram:  { id: 'telegram',  title: 'Telegram',   icon: '✈️',  nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },
+  // telegram map data (TG_NODES / TG_EDGES / TG_GROUPS) kept above for reference; not exposed in admin UI
   todo:      { id: 'todo',      title: 'To\u2011do',  icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },
@@ -278,13 +283,14 @@ export const MAPS = {
   email:     { id: 'email',     title: 'Inbox',      icon: '📬',  type: 'email',         nodes: [],             edges: [],             groups: [] },
   rules:     { id: 'rules',     title: 'Rules',      icon: '⚡',  type: 'rules',         nodes: [],             edges: [],             groups: [] },
   work:      { id: 'work',      title: 'Work',       icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
+  schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
 };
 
 /** Canvas maps grouped under the header "System" dropdown. */
-export const SYSTEM_MAP_KEYS = ['system', 'tooling', 'telegram'];
+export const SYSTEM_MAP_KEYS = ['system', 'tooling'];
 /** Placeholder key in saved tab order for the System dropdown slot. */
 export const SYSTEM_TAB_SLOT = '__system__';
 /** Mobile: Chats dropdown also opens Knowledge. */

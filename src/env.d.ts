@@ -96,6 +96,37 @@ interface ImportMetaEnv {
   AGENT_ALERT_USER_ID?: string;
   /** Set to 0 to skip auto agent reply on alert emails (default: run agent) */
   AGENT_ALERT_AUTO_RUN?: string;
+  /**
+   * JSON array of optional modules enabled for this deployment, e.g.
+   * '["client_portal","billing","site_audits","site_monitoring","web_handoff"]'
+   */
+  FEATURES?: string;
+  /** Self-hosted ChangeDetection.io base URL (no trailing slash). */
+  CHANGEDETECTION_BASE_URL?: string;
+  /** ChangeDetection.io API key (Settings → API). */
+  CHANGEDETECTION_API_KEY?: string;
+  /** Shared secret for /api/monitoring/changedetection?key= */
+  CHANGEDETECTION_WEBHOOK_SECRET?: string;
+  /** Hours between ChangeDetection checks per watch (default 24). */
+  CHANGEDETECTION_CHECK_HOURS?: string;
+  /** Minutes to suppress change alerts after a deploy (default 20). */
+  CHANGEDETECTION_POST_DEPLOY_SUPPRESS_MINUTES?: string;
+  /** calcom-booking-api base URL — server-side (Railway internal or public). */
+  BOOKING_API_URL?: string;
+  /** Optional X-API-Key when calcom-booking-api has API_KEY set. */
+  BOOKING_API_KEY?: string;
+  /** Public calcom-booking-api URL for browser form (/form/schedule). */
+  PUBLIC_BOOKING_API_URL?: string;
+  /** Cal.com web app URL (e.g. https://cal.reave.app). */
+  CALCOM_WEBAPP_URL?: string;
+  /** Legacy alias for CALCOM_WEBAPP_URL. */
+  CALCOM_API_URL?: string;
+  /** Cal.com username slug (default reave). */
+  CALCOM_USERNAME?: string;
+  /** Pin default event type when creating bookings. */
+  CALCOM_EVENT_TYPE_ID?: string;
+  /** Timezone for schedule display (default America/New_York). */
+  BOOKING_TIMEZONE?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */

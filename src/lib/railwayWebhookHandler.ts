@@ -1,6 +1,8 @@
 import { telegramSendMessage } from './telegramClient';
 import { markDeployFailed } from './deployStatus';
 import { syncDeployStatusPin } from './telegramDeployPin';
+import { markDeployActivity } from './siteMonitoring';
+import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
 
 type RailwayWebhookBody = {
@@ -24,6 +26,16 @@ function isDeployFailureEvent(type: string): boolean {
     t === 'deployment.failed' ||
     t.includes('deployment.crashed') ||
     t.includes('service.crashed')
+  );
+}
+
+function isDeploySuccessEvent(type: string): boolean {
+  const t = type.toLowerCase();
+  return (
+    t.includes('deployment.success') ||
+    t.includes('deploy.success') ||
+    t === 'deployment.success' ||
+    (t.includes('deploy') && t.includes('success'))
   );
 }
 
@@ -75,6 +87,13 @@ export async function handleRailwayWebhook(opts: {
   const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
   const chatRaw = serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
   const chatId = chatRaw ? Number(chatRaw) : NaN;
+
+  if (isDeploySuccessEvent(type)) {
+    if (hasFeature('site_monitoring')) {
+      markDeployActivity();
+    }
+    return { ok: true, status: 200, message: 'deploy success — monitoring suppress window started' };
+  }
 
   if (!isDeployFailureEvent(type)) {
     return { ok: true, status: 200, message: 'ignored' };

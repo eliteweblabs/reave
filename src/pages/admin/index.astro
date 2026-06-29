@@ -43,6 +43,10 @@ const { userId } = Astro.locals.auth();
         --footer-nav-pill-h: 3.4rem;
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
+        --scroll-edge-h: 2rem;
+        --scroll-edge-blur: 10px;
+        --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+        --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
       }
       * { box-sizing: border-box; }
       html, body {
@@ -93,6 +97,149 @@ const { userId } = Astro.locals.auth();
         padding-bottom: var(--footer-scroll-pad);
       }
 
+      /* Gradual blur at scroll edges (content softens as it enters/leaves the viewport). */
+      @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+        .ch-list::before,
+        .ch-list::after,
+        .ch-messages::before,
+        .ch-messages::after,
+        .de-list::before,
+        .de-list::after,
+        .em-detail::before,
+        .em-detail::after,
+        .search-overlay-results::before,
+        .search-overlay-results::after,
+        .re-form-scroll::before,
+        .re-form-scroll::after,
+        .home-dashboard-scroll::before,
+        .home-dashboard-scroll::after,
+        .schedule-panel-scroll::before,
+        .schedule-panel-scroll::after,
+        .profile-panel-scroll::before,
+        .profile-panel-scroll::after {
+          content: "";
+          display: block;
+          position: sticky;
+          z-index: 2;
+          pointer-events: none;
+          height: var(--scroll-edge-h);
+          backdrop-filter: blur(var(--scroll-edge-blur)) saturate(1.08);
+          -webkit-backdrop-filter: blur(var(--scroll-edge-blur)) saturate(1.08);
+        }
+
+        .ch-list::before,
+        .ch-messages::before,
+        .de-list::before,
+        .em-detail::before,
+        .search-overlay-results::before,
+        .re-form-scroll::before,
+        .home-dashboard-scroll::before,
+        .schedule-panel-scroll::before,
+        .profile-panel-scroll::before {
+          top: 0;
+          -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+          mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+        }
+
+        .ch-list::after,
+        .ch-messages::after,
+        .de-list::after,
+        .em-detail::after,
+        .search-overlay-results::after,
+        .re-form-scroll::after,
+        .home-dashboard-scroll::after,
+        .schedule-panel-scroll::after,
+        .profile-panel-scroll::after {
+          bottom: 0;
+          -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+          mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+        }
+
+        .ch-list::before,
+        .de-list::before,
+        .em-detail::before,
+        .search-overlay-results::before,
+        .re-form-scroll::before {
+          margin-bottom: calc(-1 * var(--scroll-edge-h));
+        }
+
+        .ch-list::after,
+        .de-list::after,
+        .em-detail::after,
+        .search-overlay-results::after,
+        .re-form-scroll::after {
+          margin-top: calc(-1 * var(--scroll-edge-h));
+        }
+
+        /* Flex scroll regions — collapse sticky edge strips + flex gap. */
+        .ch-messages::before {
+          margin-bottom: calc(-1 * var(--scroll-edge-h) - 0.75rem);
+        }
+        .ch-messages::after {
+          margin-top: calc(-1 * var(--scroll-edge-h) - 0.75rem);
+        }
+        .home-dashboard-scroll::before,
+        .schedule-panel-scroll::before {
+          margin-bottom: calc(-1 * var(--scroll-edge-h));
+        }
+        .home-dashboard-scroll::after,
+        .schedule-panel-scroll::after {
+          margin-top: calc(-1 * var(--scroll-edge-h));
+        }
+        .profile-panel-scroll::before {
+          margin-bottom: calc(-1 * var(--scroll-edge-h) - 1rem);
+        }
+        .profile-panel-scroll::after {
+          margin-top: calc(-1 * var(--scroll-edge-h) - 1rem);
+        }
+
+        /* Bleed blur strips over horizontal scroll padding. */
+        .ch-list::before,
+        .ch-list::after,
+        .de-list::before,
+        .de-list::after {
+          width: calc(100% + 1rem);
+          margin-left: -0.5rem;
+        }
+        .ch-messages::before,
+        .ch-messages::after {
+          width: calc(100% + 2.4rem);
+          margin-left: -1.2rem;
+        }
+        .em-detail::before,
+        .em-detail::after {
+          width: calc(100% + 2.4rem);
+          margin-left: -1.2rem;
+        }
+      }
+
+      @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+        .ch-list,
+        .ch-messages,
+        .de-list,
+        .em-detail,
+        .search-overlay-results,
+        .re-form-scroll,
+        .home-dashboard-scroll,
+        .schedule-panel-scroll,
+        .profile-panel-scroll {
+          -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            #000 calc(var(--scroll-edge-h) * 0.45),
+            #000 calc(100% - var(--scroll-edge-h) * 0.45),
+            transparent 100%
+          );
+          mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            #000 calc(var(--scroll-edge-h) * 0.45),
+            #000 calc(100% - var(--scroll-edge-h) * 0.45),
+            transparent 100%
+          );
+        }
+      }
+
       /* Floating header clearance — transparent top bar; inset on columns, not panel shells. */
       #chat-panel > .ch-sidebar,
       #chat-panel > .ch-pane,
@@ -126,6 +273,7 @@ const { userId } = Astro.locals.auth();
       #email-panel,
       #knowledge-editor,
       #work-editor,
+      #schedule-panel,
       #clients-editor,
       #rule-editor,
       #home-dashboard,
@@ -671,6 +819,40 @@ const { userId } = Astro.locals.auth();
       }
       .de-new-btn:hover { background: #265080; border-color: #3a72b8; }
 
+      .ch-toolbar {
+        display: flex;
+        align-items: center;
+        padding: 0.35rem 0.65rem 0.15rem;
+        flex: 0 0 auto;
+      }
+      .de-new-btn.ch-new-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        color: #fff;
+        background: var(--create-fab-bg);
+        box-shadow: var(--create-fab-shadow);
+        text-align: center;
+        transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+      }
+      .de-new-btn.ch-new-btn:hover {
+        filter: brightness(1.08);
+        box-shadow: 0 4px 20px rgba(192, 38, 211, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.2);
+      }
+      .de-new-btn.ch-new-btn:active {
+        transform: scale(0.94);
+      }
+      .de-new-btn.ch-new-btn svg {
+        display: block;
+        stroke-width: 2.25;
+      }
+
       .de-list {
         flex: 1;
         overflow-y: auto;
@@ -1007,6 +1189,7 @@ const { userId } = Astro.locals.auth();
       /* ── Knowledge / Work / Clients / Rules tabs (reuse Documents editor classes) ── */
       #knowledge-editor,
       #work-editor,
+      #schedule-panel,
       #clients-editor,
       #rule-editor {
         position: fixed;
@@ -2255,6 +2438,92 @@ const { userId } = Astro.locals.auth();
         color: var(--muted);
       }
 
+      /* ── Schedule tab ── */
+      #schedule-panel {
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        display: none;
+        flex-direction: column;
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+      }
+      .schedule-panel-scroll {
+        padding-top: calc(var(--topbar-h) + 1rem);
+      }
+      .schedule-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .schedule-link-btn {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.45rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--fg);
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .schedule-link-btn:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .schedule-link-btn-secondary {
+        color: var(--muted);
+      }
+      .schedule-filters {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+      }
+      .schedule-filter {
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        border: 1px solid var(--panel-border);
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .schedule-filter.active {
+        color: var(--fg);
+        border-color: rgba(74, 222, 128, 0.45);
+        background: rgba(74, 222, 128, 0.1);
+      }
+      .schedule-booking {
+        position: relative;
+      }
+      .schedule-status {
+        display: inline-block;
+        margin-top: 0.25rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 6px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .sched-status-accepted {
+        background: rgba(74, 222, 128, 0.15);
+        color: #86efac;
+      }
+      .sched-status-pending {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fcd34d;
+      }
+      .sched-status-cancelled {
+        background: rgba(248, 113, 113, 0.12);
+        color: #fca5a5;
+      }
+
       .dash-loading {
         padding: 2rem 0;
         text-align: center;
@@ -2615,6 +2884,9 @@ const { userId } = Astro.locals.auth();
     <!-- Work tab panel (hidden unless work tab is active) -->
     <div id="work-editor" style="display:none"></div>
 
+    <!-- Schedule tab panel (hidden unless schedule tab is active) -->
+    <div id="schedule-panel" style="display:none"></div>
+
     <!-- Clients tab panel (hidden unless clients tab is active) -->
     <div id="clients-editor" style="display:none"></div>
 
@@ -2631,6 +2903,6 @@ const { userId } = Astro.locals.auth();
     <AdminFooterNav />
 
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629k"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629l"></script>
   </body>
 </html>

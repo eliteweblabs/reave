@@ -19,6 +19,7 @@ export const FEATURE_IDS = [
   'documents',
   'voice',
   'carddav',
+  'scheduling',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -79,4 +80,5 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   documents: 'Document signing',
   voice: 'Telnyx voice agent',
   carddav: 'CardDAV (iOS Contacts sync)',
+  scheduling: 'Cal.com scheduling (bookings, admin schedule tab)',
 };

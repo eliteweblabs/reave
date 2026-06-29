@@ -64,6 +64,15 @@ function minutesSince(iso: string | null | undefined): number | null {
 function noteStateTransition(state: DeployState): void {
   if ((previousState === 'deploying' || previousState === 'stale') && state === 'live') {
     showLiveBannerOnce = true;
+    import('./features')
+      .then(({ hasFeature }) => {
+        if (hasFeature('site_monitoring')) {
+          return import('./siteMonitoring');
+        }
+        return null;
+      })
+      .then((mod) => mod?.markDeployActivity())
+      .catch(() => undefined);
   }
   previousState = state;
 }

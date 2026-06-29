@@ -76,6 +76,25 @@ import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
 import { sslCheck, formatSslCheckResults } from './sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from './dnsCheckClient';
+import { hasFeature } from './features';
+import {
+  isChangeDetectionConfigured,
+  cdGetWatch,
+  cdRecheckWatch,
+} from './changedetectionClient';
+import {
+  portalSiteUrl,
+  SITE_URL_FIELD_LABEL,
+} from './siteMonitoring';
+import {
+  isBookingConfigured,
+  bookingList,
+  bookingGet,
+  bookingEventTypes,
+  publicBookingPageUrl,
+  formatBookingLine,
+  calcomWebappUrl,
+} from './bookingClient';
 
 export type TelegramToolDef = {
   type: 'function';
@@ -426,104 +445,112 @@ export function buildTools(): TelegramToolDef[] {
         parameters: { type: 'object', properties: {}, additionalProperties: false },
       },
     },
-    {
-      type: 'function',
-      function: {
-        name: 'fetch_url',
-        description:
-          'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance use lighthouse_audit; for SSL/headers use ssl_check; for broken links use check_links; for DNS/email auth use dns_check.',
-        parameters: {
-          type: 'object',
-          properties: {
-            url: { type: 'string', description: 'Full URL or domain, e.g. https://example.com' },
-            raw: {
-              type: 'boolean',
-              description: 'If true, return raw HTML body instead of cleaned text. Default false.',
+  ];
+
+  if (hasFeature('site_audits')) {
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'fetch_url',
+          description:
+            'Fetch a public web page and return its content for review (client sites, SEO checks, error pages). Returns title, meta tags, and readable text (scripts/styles stripped). Use when the user asks to review, read, or audit a website URL. For performance use lighthouse_audit; for SSL/headers use ssl_check; for broken links use check_links; for DNS/email auth use dns_check.',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'Full URL or domain, e.g. https://example.com' },
+              raw: {
+                type: 'boolean',
+                description: 'If true, return raw HTML body instead of cleaned text. Default false.',
+              },
             },
+            required: ['url'],
+            additionalProperties: false,
           },
-          required: ['url'],
-          additionalProperties: false,
         },
       },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'lighthouse_audit',
-        description:
-          'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default.',
-        parameters: {
-          type: 'object',
-          properties: {
-            url: { type: 'string', description: 'Full URL or domain to audit' },
-            category: {
-              type: 'string',
-              enum: ['performance', 'accessibility', 'best-practices', 'seo'],
-              description: 'Optional — audit one category only; default runs all four.',
+      {
+        type: 'function',
+        function: {
+          name: 'lighthouse_audit',
+          description:
+            'Run Google PageSpeed Insights (Lighthouse) on a URL. Returns performance, accessibility, best-practices, and SEO scores (0–100), core web vitals (FCP, LCP, CLS, TBT), and top improvement opportunities. Runs mobile + desktop by default.',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'Full URL or domain to audit' },
+              category: {
+                type: 'string',
+                enum: ['performance', 'accessibility', 'best-practices', 'seo'],
+                description: 'Optional — audit one category only; default runs all four.',
+              },
+              strategy: {
+                type: 'string',
+                enum: ['mobile', 'desktop', 'both'],
+                description: 'Device strategy. Default both (mobile + desktop).',
+              },
             },
-            strategy: {
-              type: 'string',
-              enum: ['mobile', 'desktop', 'both'],
-              description: 'Device strategy. Default both (mobile + desktop).',
+            required: ['url'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'ssl_check',
+          description:
+            'Check SSL certificate validity, expiry, TLS version, and security headers (HSTS, CSP, X-Frame-Options, etc.) for a URL. Returns cert details, header audit, mixed-content warnings, and an overall grade (A–F).',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'Full URL or domain to check' },
             },
+            required: ['url'],
+            additionalProperties: false,
           },
-          required: ['url'],
-          additionalProperties: false,
         },
       },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'ssl_check',
-        description:
-          'Check SSL certificate validity, expiry, TLS version, and security headers (HSTS, CSP, X-Frame-Options, etc.) for a URL. Returns cert details, header audit, mixed-content warnings, and an overall grade (A–F).',
-        parameters: {
-          type: 'object',
-          properties: {
-            url: { type: 'string', description: 'Full URL or domain to check' },
-          },
-          required: ['url'],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'check_links',
-        description:
-          'Crawl a page and check all links for broken URLs (404s, 5xx, timeouts) and redirect chains. Returns broken link report with anchor text and status codes.',
-        parameters: {
-          type: 'object',
-          properties: {
-            url: { type: 'string', description: 'Page URL to crawl' },
-            follow_internal: {
-              type: 'boolean',
-              description: 'Also crawl linked internal pages (depth 1, max 20). Default false.',
+      {
+        type: 'function',
+        function: {
+          name: 'check_links',
+          description:
+            'Crawl a page and check all links for broken URLs (404s, 5xx, timeouts) and redirect chains. Returns broken link report with anchor text and status codes.',
+          parameters: {
+            type: 'object',
+            properties: {
+              url: { type: 'string', description: 'Page URL to crawl' },
+              follow_internal: {
+                type: 'boolean',
+                description: 'Also crawl linked internal pages (depth 1, max 20). Default false.',
+              },
             },
+            required: ['url'],
+            additionalProperties: false,
           },
-          required: ['url'],
-          additionalProperties: false,
         },
       },
-    },
-    {
-      type: 'function',
-      function: {
-        name: 'dns_check',
-        description:
-          'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers.',
-        parameters: {
-          type: 'object',
-          properties: {
-            domain: { type: 'string', description: 'Domain name (no protocol), e.g. example.com' },
+      {
+        type: 'function',
+        function: {
+          name: 'dns_check',
+          description:
+            'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers.',
+          parameters: {
+            type: 'object',
+            properties: {
+              domain: { type: 'string', description: 'Domain name (no protocol), e.g. example.com' },
+            },
+            required: ['domain'],
+            additionalProperties: false,
           },
-          required: ['domain'],
-          additionalProperties: false,
         },
       },
-    },
+    );
+  }
+
+  base.push(
     {
       type: 'function',
       function: {
@@ -613,7 +640,7 @@ export function buildTools(): TelegramToolDef[] {
         },
       },
     },
-  ];
+  );
 
   if (isContactApiConfigured()) {
     base.push({
@@ -712,6 +739,11 @@ export function buildTools(): TelegramToolDef[] {
           },
         },
       },
+    );
+  }
+
+  if (isContactApiConfigured() && hasFeature('client_portal')) {
+    base.push(
       {
         type: 'function',
         function: {
@@ -835,7 +867,123 @@ export function buildTools(): TelegramToolDef[] {
     }
   }
 
-  if (isCraterConfigured()) {
+  if (hasFeature('site_monitoring') && isChangeDetectionConfigured()) {
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'get_site_monitoring',
+          description:
+            `Get ChangeDetection.io watch status for a client. Requires a "${SITE_URL_FIELD_LABEL}" field on their portal (auto-creates a watch when saved). Identify client by uid or name.`,
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string' },
+              name: { type: 'string' },
+              email: { type: 'string' },
+              phone: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'set_site_monitoring',
+          description:
+            `Enable or disable automatic change monitoring for a client's Site URL. When enabled and a "${SITE_URL_FIELD_LABEL}" portal field is set, Reave creates a ChangeDetection watch and sends push alerts on unexpected changes (deploys are suppressed).`,
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string' },
+              name: { type: 'string' },
+              enabled: {
+                type: 'boolean',
+                description: 'false = pause monitoring for this client even if Site URL is set',
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'recheck_site_monitoring',
+          description:
+            'Trigger an immediate ChangeDetection recheck for a client (updates baseline after you deploy). Identify by uid or name.',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string' },
+              name: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    );
+  }
+
+  if (hasFeature('scheduling') && isBookingConfigured()) {
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'list_bookings',
+          description:
+            'List Cal.com bookings (upcoming by default). Use when the user asks what is on the calendar, today\'s meetings, or upcoming appointments.',
+          parameters: {
+            type: 'object',
+            properties: {
+              upcoming: {
+                type: 'boolean',
+                description: 'true = future bookings only (default). false = recent past 30 days.',
+              },
+              limit: { type: 'integer', description: 'Max results (1-50, default 15)' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_booking',
+          description: 'Fetch one Cal.com booking by uid (from list_bookings).',
+          parameters: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string', description: 'Booking uid' },
+            },
+            required: ['uid'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'get_booking_link',
+          description:
+            'Get the public Cal.com booking URL to share with a client (default 30 min meeting). Also returns reave.app/form/schedule conversational form link.',
+          parameters: {
+            type: 'object',
+            properties: {
+              event_slug: {
+                type: 'string',
+                description: 'Cal.com event slug, e.g. 30min, 15min. Default 30min.',
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    );
+  }
+
+  if (hasFeature('billing') && isCraterConfigured()) {
     base.push(
       {
         type: 'function',
@@ -1769,6 +1917,130 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
 
       const anyOk = Object.values(sent).some((v) => (v as { ok?: boolean }).ok);
       return JSON.stringify({ success: anyOk, uid: target.uid, name: c.name, url, sent });
+    }
+    if (name === 'get_site_monitoring') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const portal = extractPortal(current.data);
+      const meta = portal?.siteMonitoring;
+      const siteUrl = portalSiteUrl(portal);
+      const watchUuid = meta?.watchUuid?.trim();
+
+      let watch: Record<string, unknown> | null = null;
+      if (watchUuid) {
+        const w = await cdGetWatch(watchUuid);
+        if (w.ok) {
+          watch = {
+            uuid: w.watch.uuid,
+            url: w.watch.url,
+            title: w.watch.title,
+            paused: w.watch.paused,
+            last_checked: w.watch.last_checked,
+            last_changed: w.watch.last_changed,
+          };
+        }
+      }
+
+      return JSON.stringify({
+        uid: target.uid,
+        name: current.data.name,
+        site_url: siteUrl,
+        monitoring_enabled: meta?.enabled !== false,
+        watch_uuid: watchUuid ?? null,
+        watch,
+      });
+    }
+    if (name === 'set_site_monitoring') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const existing = extractPortal(current.data) ?? {};
+      const enabled = typeof args.enabled === 'boolean' ? args.enabled : true;
+      const next: ClientPortal = {
+        ...existing,
+        siteMonitoring: {
+          ...(existing.siteMonitoring ?? {}),
+          enabled,
+        },
+      };
+      const saved = await setContactPortal(target.uid, next);
+      if (!saved.ok) return JSON.stringify({ error: saved.error, status: saved.status });
+      return JSON.stringify({
+        success: true,
+        uid: target.uid,
+        name: current.data.name,
+        monitoring_enabled: enabled,
+        site_url: portalSiteUrl(next),
+        watch_uuid: next.siteMonitoring?.watchUuid ?? null,
+      });
+    }
+    if (name === 'recheck_site_monitoring') {
+      const target = await resolvePortalTarget(args);
+      if (!target.ok) return target.payload;
+
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      const portal = extractPortal(current.data);
+      const watchUuid = portal?.siteMonitoring?.watchUuid?.trim();
+      if (!watchUuid) {
+        return JSON.stringify({ error: 'No ChangeDetection watch for this client (set a Site URL field first).' });
+      }
+      const recheck = await cdRecheckWatch(watchUuid);
+      if (!recheck.ok) return JSON.stringify({ error: recheck.error });
+      return JSON.stringify({ success: true, uid: target.uid, watch_uuid: watchUuid });
+    }
+    if (name === 'list_bookings') {
+      const upcoming = args.upcoming !== false;
+      const limit = typeof args.limit === 'number' ? Math.min(Math.max(args.limit, 1), 50) : 15;
+      const result = await bookingList({ upcoming, status: 'ACCEPTED', limit });
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      return JSON.stringify({
+        count: result.data.bookings.length,
+        upcoming,
+        bookings: result.data.bookings.map((b) => ({
+          uid: b.uid,
+          summary: formatBookingLine(b),
+          startTime: b.startTime,
+          attendee: b.attendee,
+          email: b.email,
+          location: b.location || null,
+          status: b.status,
+        })),
+      });
+    }
+    if (name === 'get_booking') {
+      const uid = String(args.uid ?? '').trim();
+      if (!uid) return JSON.stringify({ error: 'uid is required' });
+      const result = await bookingGet(uid);
+      if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+      const b = result.data.booking;
+      return JSON.stringify({
+        booking: {
+          ...b,
+          summary: formatBookingLine(b),
+          calcom_admin: calcomWebappUrl() ? `${calcomWebappUrl()}/bookings/${uid}` : null,
+        },
+      });
+    }
+    if (name === 'get_booking_link') {
+      const slug = typeof args.event_slug === 'string' && args.event_slug.trim()
+        ? args.event_slug.trim()
+        : '30min';
+      const types = await bookingEventTypes();
+      const eventTypes = types.ok ? types.data.eventTypes : [];
+      const calUrl = publicBookingPageUrl(slug);
+      return JSON.stringify({
+        event_slug: slug,
+        calcom_url: calUrl,
+        form_url: '/form/schedule',
+        event_types: eventTypes.map((e) => ({ slug: e.slug, title: e.title, length: e.length })),
+        hint: 'Share calcom_url for direct booking or form_url for the conversational scheduler on reave.app.',
+      });
     }
     if (name === 'create_invoice') {
       const items = parseLineItems(args.items);

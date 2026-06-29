@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
 import { enabledFeatures, FEATURE_LABELS, type FeatureId } from '../../lib/features';
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
+import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
@@ -131,7 +132,8 @@ export const GET: APIRoute = async () => {
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, craterProbe, tgProbe, ghProbe, cdProbe] = await Promise.all([
+  const [contactProbe, craterProbe, tgProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
+    await Promise.all([
     contactBase ? reach(contactBase) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     craterBase ? reach(craterBase) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
     tgToken ? telegramProbe(tgToken) : Promise.resolve(unconfigured('TELEGRAM_BOT_TOKEN not set')),
@@ -139,6 +141,16 @@ export const GET: APIRoute = async () => {
     isChangeDetectionConfigured()
       ? reach(trimBase(serverEnv('CHANGEDETECTION_BASE_URL'))!)
       : Promise.resolve(unconfigured('CHANGEDETECTION not configured')),
+    isBookingConfigured()
+      ? bookingPing().then((r) =>
+          r.ok && r.data.reachable
+            ? { status: 'up' as Status, mode: 'live' as Mode, detail: r.data.db ? `db ${r.data.db}` : 'reachable' }
+            : { status: 'down' as Status, mode: 'live' as Mode, detail: r.ok ? 'unhealthy' : r.error },
+        )
+      : Promise.resolve(unconfigured('BOOKING_API_URL not set')),
+    calcomWebappUrl()
+      ? reach(calcomWebappUrl()!)
+      : Promise.resolve(unconfigured('CALCOM_WEBAPP_URL not set')),
   ]);
 
   // contact-postgres sits behind contact-api on the private network — infer it.
@@ -186,6 +198,8 @@ export const GET: APIRoute = async () => {
       ? configured(`TELNYX_API_KEY set${serverEnv('VOICE_AGENT_ENABLED') === '1' ? ' · voice enabled' : ''}`)
       : unconfigured('TELNYX_API_KEY not set'),
     changedetection: cdProbe,
+    calcom_booking: bookingProbe,
+    calcom_web: calWebProbe,
     clerk: serverEnv('CLERK_SECRET_KEY')
       ? configured('CLERK_SECRET_KEY set')
       : unconfigured('CLERK_SECRET_KEY not set'),

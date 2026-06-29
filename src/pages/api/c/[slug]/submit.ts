@@ -1,9 +1,17 @@
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, setContactPortal } from '../../../../lib/contactApi';
+import { hasFeature } from '../../../../lib/features';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request }) => {
+  if (!hasFeature('client_portal') || !hasFeature('web_handoff')) {
+    return new Response(JSON.stringify({ ok: false, error: 'Not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const uid = (params.slug ?? '').trim();
   if (!uid) {
     return new Response(JSON.stringify({ ok: false, error: 'Missing contact id' }), {

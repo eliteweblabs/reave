@@ -4,6 +4,7 @@
  */
 import { serverEnv } from './serverEnv';
 import { siteBaseUrl } from './requestOrigin';
+import { hasFeature } from './features';
 
 export { siteBaseUrl } from './requestOrigin';
 
@@ -218,6 +219,14 @@ export type PortalDocument = {
   contentHash?: string;
 };
 
+export type SiteMonitoringMeta = {
+  /** When false, skip ChangeDetection watch even if Site URL is set. Default true. */
+  enabled?: boolean;
+  watchUuid?: string;
+  watchUrl?: string;
+  updatedAt?: string;
+};
+
 export type ClientPortal = {
   /** When false, the public page returns 404 (revoked) even if content exists. */
   enabled?: boolean;
@@ -229,6 +238,8 @@ export type ClientPortal = {
   data?: ClientDataEntry[];
   /** Signed documents — appended on each signing event, never overwritten. */
   documents?: PortalDocument[];
+  /** ChangeDetection.io watch metadata (when site_monitoring feature is enabled). */
+  siteMonitoring?: SiteMonitoringMeta;
   updatedAt?: string;
 };
 
@@ -244,7 +255,7 @@ export function contactSummary(c: ContactRecord) {
     company: contactStringField(c.company),
     archived: !!c.archived,
     updatedAt: c.updatedAt ?? c.createdAt ?? '',
-    portal_url: clientPortalUrl(c.uid),
+    ...(hasFeature('client_portal') ? { portal_url: clientPortalUrl(c.uid) } : {}),
   };
 }
 
@@ -529,13 +540,38 @@ export async function setContactPortal(
   if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
   if (!uid?.trim()) return { ok: false, error: 'uid is required' };
 
-  const metadata: ClientPortal = { ...portal, updatedAt: new Date().toISOString() };
+  const trimmedUid = uid.trim();
+  let metadata: ClientPortal = { ...portal, updatedAt: new Date().toISOString() };
+
+  // Site monitoring sync (optional module) — merge watch metadata before save.
+  try {
+    const { hasFeature } = await import('./features');
+    const { syncSiteWatchForPortal } = await import('./siteMonitoring');
+    if (hasFeature('site_monitoring')) {
+      let previousPortal: ClientPortal | null = null;
+      let contactName = trimmedUid;
+      const current = await getContact(trimmedUid);
+      if (current.ok) {
+        previousPortal = extractPortal(current.data);
+        contactName = contactStringField(current.data.name) || contactName;
+      }
+      metadata = await syncSiteWatchForPortal({
+        uid: trimmedUid,
+        contactName,
+        portal: metadata,
+        previousPortal,
+      });
+      metadata.updatedAt = new Date().toISOString();
+    }
+  } catch (e) {
+    console.warn('[contact-api] site monitoring sync failed', e);
+  }
 
   try {
-    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}/link`, {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(trimmedUid)}/link`, {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ system: PORTAL_SYSTEM, externalId: uid.trim(), metadata }),
+      body: JSON.stringify({ system: PORTAL_SYSTEM, externalId: trimmedUid, metadata }),
     });
     const text = await res.text();
     if (!res.ok) {

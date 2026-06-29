@@ -12,9 +12,6 @@ import {
   Zap,
   Monitor,
   Wrench,
-  Send,
-  Database,
-  CircleHelp,
   LayoutDashboard,
 } from "lucide-astro";
 
@@ -41,12 +38,6 @@ const adminSpaTabs = [
   { tab: "rules", label: "Rules", Icon: Zap },
   { tab: "system", label: "System", Icon: Monitor },
   { tab: "tooling", label: "MCP & CLI", Icon: Wrench },
-  { tab: "telegram", label: "Telegram", Icon: Send },
-] as const;
-
-const adminPages = [
-  { href: "/admin/contacts", label: "Contacts DB", Icon: Database },
-  { href: "/admin/telegram", label: "Telegram help", Icon: CircleHelp },
 ] as const;
 
 const auth = Astro.locals.auth?.();
@@ -132,12 +123,6 @@ if (userId) {
               <div class="topbar-dropdown-divider"></div>
               {adminSpaTabs.map(({ tab, label, Icon }) => (
                 <a href={`/admin/?tab=${tab}`} class="topbar-dropdown-item" role="menuitem">
-                  <span class="topbar-dropdown-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.75} /></span>
-                  <span>{label}</span>
-                </a>
-              ))}
-              {adminPages.map(({ href, label, Icon }) => (
-                <a href={href} class="topbar-dropdown-item" role="menuitem">
                   <span class="topbar-dropdown-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.75} /></span>
                   <span>{label}</span>
                 </a>

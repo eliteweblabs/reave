@@ -3,6 +3,7 @@
  * Only allowlisted tasks run — no arbitrary shell commands.
  */
 import { isContactApiConfigured } from './contactApi';
+import { isBookingConfigured, bookingPing } from './bookingClient';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
@@ -17,6 +18,7 @@ export const DEV_TASK_NAMES = [
   'ping_railway',
   'list_railway_domains',
   'list_knowledge_slugs',
+  'ping_booking',
 ] as const;
 
 export type DevTaskName = (typeof DEV_TASK_NAMES)[number];
@@ -40,6 +42,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           carddav: isCardDavConfigured(),
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
           railway: isRailwayConfigured(),
+          booking: isBookingConfigured(),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
           github_token: isGithubConfigured(),
           github_repo: githubRepoSlug(),
@@ -94,6 +97,15 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
 
     case 'list_knowledge_slugs':
       return { ok: true, task, result: { slugs: listKnowledgeSlugs() } };
+
+    case 'ping_booking': {
+      if (!isBookingConfigured()) {
+        return { ok: false, error: 'Booking API not configured (BOOKING_API_URL)' };
+      }
+      const out = await bookingPing();
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: out.data };
+    }
 
     default: {
       const _exhaustive: never = task;

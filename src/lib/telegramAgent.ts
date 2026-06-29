@@ -4,6 +4,8 @@ import { buildTools, runTool } from './telegramToolDefs';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
+import { isBookingConfigured } from './bookingClient';
+import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { isRailwayConfigured } from './railwayClient';
 import { serverEnv } from './serverEnv';
@@ -149,6 +151,11 @@ export async function runTelegramKnowledgeAgent(opts: {
     }
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
+  }
+  if (hasFeature('scheduling') && isBookingConfigured()) {
+    sysParts.push(
+      'Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; get_booking_link to share the public booking URL (cal.reave.app/reave/30min) or /form/schedule conversational form. Admin calendar UI: cal.reave.app.',
+    );
   }
   if (isBraveConfigured()) {
     sysParts.push(

@@ -1,6 +1,5 @@
 ---
-/** Legacy URL — redirects to `/admin/contacts`. */
+/** Legacy URL — redirects to Clients in admin. */
 export const prerender = false;
-const qs = Astro.url.search;
-return Astro.redirect(`/admin/contacts${qs}`, 301);
+return Astro.redirect('/admin/?tab=clients', 301);
 ---

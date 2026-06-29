@@ -10,6 +10,7 @@ import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
 import { getDeployStatus } from '../../../lib/deployStatus';
+import { bookingsToday, isBookingConfigured } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 
 export const prerender = false;
@@ -47,7 +48,7 @@ function countOpenTodos(): number {
   return open;
 }
 
-/** Placeholder until calendar integration — replace with real events feed. */
+/** Sample events when Cal.com booking API is not configured. */
 function mockEventsToday() {
   const today = new Date();
   const y = today.getFullYear();
@@ -77,6 +78,17 @@ function mockEventsToday() {
       mock: true,
     },
   ];
+}
+
+async function loadEventsToday(): Promise<{ events: ReturnType<typeof mockEventsToday>; mock: boolean }> {
+  if (!isBookingConfigured()) {
+    return { events: mockEventsToday(), mock: true };
+  }
+  const out = await bookingsToday();
+  if (!out.ok || !out.data.configured) {
+    return { events: mockEventsToday(), mock: true };
+  }
+  return { events: out.data.events, mock: false };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -112,7 +124,7 @@ export async function GET(context: APIContext): Promise<Response> {
     category: e.category,
   }));
 
-  const eventsToday = mockEventsToday();
+  const { events: eventsToday, mock: eventsMock } = await loadEventsToday();
 
   return json({
     ok: true,
@@ -131,7 +143,8 @@ export async function GET(context: APIContext): Promise<Response> {
     },
     recentEmails,
     eventsToday,
-    eventsMock: true,
+    eventsMock,
+    schedulingConfigured: isBookingConfigured(),
     deploy: deploy
       ? {
           state: deploy.state,
