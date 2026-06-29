@@ -663,11 +663,70 @@ const { userId } = Astro.locals.auth();
       }
       .de-new-btn:hover { background: #265080; border-color: #3a72b8; }
 
-      .ch-toolbar {
+      /* Sidebar list subheader — search + optional FAB (see admin-ui.js listSearchAddNew) */
+      .panel-list-subheader {
+        position: relative;
+        margin: 0.35rem 0.7rem 0.5rem;
+        flex: 0 0 auto;
+      }
+      .panel-list-subheader--fab-only {
         display: flex;
         align-items: center;
         padding: 0.35rem 0.65rem 0.15rem;
-        flex: 0 0 auto;
+        margin: 0;
+      }
+      .panel-list-search {
+        margin: 0;
+        width: 100%;
+        padding: 0.45rem 0.55rem;
+        border-radius: 7px;
+        border: 1px solid var(--panel-border);
+        background: var(--card);
+        color: var(--fg);
+        font-size: 0.82rem;
+        outline: none;
+      }
+      .panel-list-search:focus {
+        border-color: #3b82f6;
+      }
+      /* Inline + FAB: mobile sidebar only (footer nav handles create on wider viewports). */
+      @media (max-width: 639px) {
+        .panel-list-subheader:not(.panel-list-subheader--search-only) .panel-list-search {
+          padding-right: 2.65rem;
+        }
+        .panel-list-subheader .de-new-btn.ch-new-btn {
+          position: absolute;
+          right: 0.28rem;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 2rem;
+          height: 2rem;
+          box-shadow: 0 2px 10px rgba(192, 38, 211, 0.45);
+        }
+        .panel-list-subheader .de-new-btn.ch-new-btn:hover {
+          box-shadow: 0 3px 14px rgba(192, 38, 211, 0.52);
+        }
+        .panel-list-subheader .de-new-btn.ch-new-btn:active {
+          transform: translateY(-50%) scale(0.94);
+        }
+        .panel-list-subheader .de-new-btn.ch-new-btn svg {
+          width: 18px;
+          height: 18px;
+        }
+      }
+      @media (min-width: 640px) {
+        .panel-list-subheader .de-new-btn.ch-new-btn,
+        .panel-list-subheader--fab-only {
+          display: none !important;
+        }
+      }
+      .panel-list-subheader--stacked {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .panel-list-subheader--stacked .em-filter-tabs {
+        margin: 0;
       }
       .de-new-btn.ch-new-btn {
         display: inline-flex;
@@ -707,6 +766,30 @@ const { userId } = Astro.locals.auth();
         font-size: 0.78rem;
         color: var(--muted);
       }
+      button.de-empty-action {
+        display: block;
+        width: calc(100% - 0.15rem);
+        margin: 0.15rem 0.075rem;
+        padding: 0.75rem 0.65rem;
+        font: inherit;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: var(--muted);
+        text-align: left;
+        border: 1px dashed var(--panel-border);
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
+        transition: color 0.12s, background 0.12s, border-color 0.12s;
+      }
+      button.de-empty-action:hover {
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(121, 192, 255, 0.35);
+      }
+      button.de-empty-action:active {
+        opacity: 0.85;
+      }
       .de-list-item {
         width: 100%;
         display: flex;
@@ -742,6 +825,37 @@ const { userId } = Astro.locals.auth();
         text-align: center;
         color: var(--muted);
         font-size: 0.85rem;
+      }
+      button.de-placeholder-action {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: min(100%, 20rem);
+        margin: auto;
+        padding: 1.25rem 1rem;
+        font: inherit;
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--muted);
+        text-align: center;
+        border: 1px dashed var(--panel-border);
+        border-radius: 12px;
+        background: transparent;
+        cursor: pointer;
+        transition: color 0.12s, background 0.12s, border-color 0.12s;
+      }
+      button.de-placeholder-action:hover {
+        color: var(--fg);
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(121, 192, 255, 0.35);
+      }
+      button.de-placeholder-action:hover .de-placeholder-icon {
+        opacity: 0.85;
+        color: #79c0ff;
+      }
+      button.de-placeholder-action:active {
+        opacity: 0.88;
       }
       .de-placeholder-icon { margin-bottom: 0.6rem; display: flex; justify-content: center; color: var(--muted); opacity: 0.55; }
       .de-placeholder-icon svg { display: block; }
@@ -1175,16 +1289,6 @@ const { userId } = Astro.locals.auth();
       }
       .wk-client-new .de-input { width: 100%; }
       .wk-client-new-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-      .cl-search {
-        margin: 0 0.7rem 0.5rem;
-        padding: 0.45rem 0.55rem;
-        border-radius: 7px;
-        border: 1px solid var(--panel-border);
-        background: var(--card);
-        color: var(--fg);
-        font-size: 0.82rem;
-        width: calc(100% - 1.4rem);
-      }
       .cl-archived {
         font-size: 0.62rem;
         font-weight: 600;
@@ -1235,7 +1339,60 @@ const { userId } = Astro.locals.auth();
         height: 1.25rem;
       }
       .de-header .de-share-btn {
+        margin-left: 0;
+      }
+      .de-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.1rem;
         margin-left: auto;
+        flex-shrink: 0;
+      }
+      .cl-title-wrap {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .cl-title-input {
+        flex: 1;
+        min-width: 0;
+        font: inherit;
+        font-size: max(16px, 0.95rem);
+        font-weight: 700;
+        color: var(--fg);
+        background: transparent;
+        border: none;
+        border-bottom: 1px dashed transparent;
+        padding: 0.15rem 0;
+        outline: none;
+      }
+      .cl-title-input:focus {
+        border-bottom-color: var(--panel-border);
+      }
+      .cl-title-input::placeholder {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .cl-title-edit-hint {
+        flex: 0 0 auto;
+        color: var(--muted);
+        opacity: 0.65;
+        display: inline-flex;
+        pointer-events: none;
+      }
+      .cl-title-edit-hint svg {
+        width: 0.95rem;
+        height: 0.95rem;
+      }
+      .cl-notes-label { margin-top: 0.15rem; }
+      .cl-notes-textarea {
+        margin: 0;
+        min-height: 5.5rem;
+        max-width: 100%;
+        width: 100%;
+        resize: vertical;
       }
       .cl-jobs-section { padding: 0 1rem 0.75rem; }
       .cl-jobs-list {
@@ -1775,6 +1932,8 @@ const { userId } = Astro.locals.auth();
         gap: 0.25rem;
         overflow-x: auto;
         scrollbar-width: none;
+        margin: 0 0.7rem 0.35rem;
+        flex: 0 0 auto;
       }
       .em-filter-tabs::-webkit-scrollbar { display: none; }
       .em-filter-tab {
@@ -2783,6 +2942,6 @@ const { userId } = Astro.locals.auth();
     <AdminFooterNav />
 
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629x"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629z"></script>
   </body>
 </html>

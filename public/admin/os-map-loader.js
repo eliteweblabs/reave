@@ -1,5 +1,13 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
-import { IOS_ICONS, createIosIconBtn, createPanelBackBtn } from './admin-ui.js?v=20250629w';
+import {
+  IOS_ICONS,
+  createIosIconBtn,
+  createListEmptyState,
+  createPanePlaceholder,
+  listSearchAddNew,
+  createPanelBackBtn,
+  matchesListSearch,
+} from './admin-ui.js?v=20250630a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -110,17 +118,6 @@ function navIcon(name, size = 20) {
   const paths = NAV_ICON_PATHS[name];
   if (!paths) return '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-}
-
-function createFabNewBtn(label, onClick) {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'de-new-btn ch-new-btn';
-  btn.setAttribute('aria-label', label);
-  btn.title = label;
-  btn.innerHTML = navIcon('plus', 22);
-  btn.addEventListener('click', onClick);
-  return btn;
 }
 
 function mapIconName(key) {
@@ -2654,6 +2651,7 @@ let ruleState = {
   rules: [],
   notifyOnUnmatched: true,
   storage: 'files',
+  search: '',
   activeId: null,
   dirty: false,
 };
@@ -2710,11 +2708,24 @@ function renderRulesEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = createFabNewBtn('New rule', () => startNewRule());
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
+  const ordered = [...rules]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    .filter((rule) =>
+      matchesListSearch(ruleState.search, rule.title, rule.status, ruleSubline(rule), rule.description),
+    );
+
+  const subheader = listSearchAddNew({
+    search: {
+      value: ruleState.search,
+      placeholder: `Search ${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}`,
+      onInput: (value) => {
+        ruleState.search = value;
+        renderRulesEditor();
+      },
+    },
+    addNew: { label: 'New rule', onClick: () => startNewRule() },
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
@@ -2758,7 +2769,6 @@ function renderRulesEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  const ordered = [...rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   for (const rule of ordered) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -2774,7 +2784,7 @@ function renderRulesEditor() {
   if (ordered.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No rules yet.';
+    empty.textContent = ruleState.search.trim() ? 'No matches.' : 'No rules yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -3148,6 +3158,7 @@ async function loadAndBuildTodoNodes() {
 let docState = {
   templates: [],    // [{ slug, title }]
   shortcodes: [],   // [{ code, token, label, description, category }]
+  search: '',
   activeSlug: null,
   dirty: false,
   paneMode: 'edit', // 'edit' | 'view'
@@ -3180,7 +3191,10 @@ async function loadDocumentsTab() {
 function renderDocEditor() {
   const root = getDocEditor();
   if (!root) return;
-  const { templates, activeSlug, dirty } = docState;
+  const { templates, activeSlug, dirty, search } = docState;
+  const visibleTemplates = templates.filter((tpl) =>
+    matchesListSearch(search, tpl.title, tpl.slug),
+  );
 
   root.innerHTML = '';
 
@@ -3188,22 +3202,29 @@ function renderDocEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = createFabNewBtn('New document', () => startNewDocument());
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
+  const subheader = listSearchAddNew({
+    search: {
+      value: search,
+      placeholder: `Search ${templates.length} ${templates.length === 1 ? 'document' : 'documents'}`,
+      onInput: (value) => {
+        docState.search = value;
+        renderDocEditor();
+      },
+    },
+    addNew: { label: 'New document', onClick: () => startNewDocument() },
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const tpl of templates) {
+  for (const tpl of visibleTemplates) {
     list.appendChild(createDocumentSwipeRow(tpl));
   }
-  if (templates.length === 0) {
+  if (visibleTemplates.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No templates yet.';
+    empty.textContent = search.trim() ? 'No matches.' : 'No templates yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -3700,6 +3721,7 @@ function escHtml(str) {
 
 let knowledgeState = {
   entries: [],
+  search: '',
   activeSlug: null,
   dirty: false,
   content: '',
@@ -3735,21 +3757,34 @@ async function loadKnowledgeTab() {
 function renderKnowledgeEditor() {
   const root = getKnowledgeEditor();
   if (!root) return;
-  const { entries, activeSlug, dirty } = knowledgeState;
+  const { entries, activeSlug, dirty, search } = knowledgeState;
+  const visibleEntries = entries.filter((entry) =>
+    matchesListSearch(search, entry.title, entry.slug, entry.source),
+  );
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = createFabNewBtn('New knowledge doc', () => {
-    knowledgeState.activeSlug = '__new__';
-    knowledgeState.dirty = false;
-    renderKnowledgeEditor();
+  const subheader = listSearchAddNew({
+    search: {
+      value: search,
+      placeholder: `Search ${entries.length} ${entries.length === 1 ? 'doc' : 'docs'}`,
+      onInput: (value) => {
+        knowledgeState.search = value;
+        renderKnowledgeEditor();
+      },
+    },
+    addNew: {
+      label: 'New knowledge doc',
+      onClick: () => {
+        knowledgeState.activeSlug = '__new__';
+        knowledgeState.dirty = false;
+        renderKnowledgeEditor();
+      },
+    },
   });
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
@@ -3760,13 +3795,13 @@ function renderKnowledgeEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const entry of entries) {
+  for (const entry of visibleEntries) {
     list.appendChild(createKnowledgeSwipeRow(entry));
   }
-  if (entries.length === 0) {
+  if (visibleEntries.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No knowledge files yet.';
+    empty.textContent = search.trim() ? 'No matches.' : 'No knowledge files yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -4006,10 +4041,26 @@ let workState = {
   jobs: [],
   statuses: ['inquiry', 'active', 'done', 'archived'],
   priorities: ['low', 'normal', 'high', 'urgent'],
+  search: '',
   activeSlug: null,
   dirty: false,
   draft: null,
 };
+
+function filterWorkJobs(jobs, query) {
+  return jobs.filter((job) =>
+    matchesListSearch(
+      query,
+      job.title,
+      job.contact_name,
+      job.client,
+      job.status,
+      WORK_STATUS_LABELS[job.status],
+      job.slug,
+      job.tags,
+    ),
+  );
+}
 
 function getWorkEditor() { return document.getElementById('work-editor'); }
 
@@ -4050,33 +4101,45 @@ async function loadWorkTab() {
 function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
-  const { jobs, activeSlug } = workState;
+  const { jobs, activeSlug, search } = workState;
+  const visibleJobs = filterWorkJobs(jobs, search);
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = createFabNewBtn('New job', () => {
-    workState.activeSlug = '__new__';
-    workState.dirty = false;
-    workState.draft = {
-      title: '',
-      contact_uid: '',
-      contact_name: '',
-      status: 'inquiry',
-      priority: 'normal',
-      due_date: '',
-      value: '',
-      tags: '',
-      source: '',
-      body: '',
-    };
-    renderWorkEditor();
+  const jobLabel = jobs.length === 1 ? 'project' : 'projects';
+  const subheader = listSearchAddNew({
+    search: {
+      value: search,
+      placeholder: `Search ${jobs.length} ${jobLabel}`,
+      onInput: (value) => {
+        workState.search = value;
+        renderWorkEditor();
+      },
+    },
+    addNew: {
+      label: 'New project',
+      onClick: () => {
+        workState.activeSlug = '__new__';
+        workState.dirty = false;
+        workState.draft = {
+          title: '',
+          contact_uid: '',
+          contact_name: '',
+          status: 'inquiry',
+          priority: 'normal',
+          due_date: '',
+          value: '',
+          tags: '',
+          source: '',
+          body: '',
+        };
+        renderWorkEditor();
+      },
+    },
   });
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const hint = document.createElement('div');
   hint.className = 'de-empty';
@@ -4087,13 +4150,13 @@ function renderWorkEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const job of jobs) {
+  for (const job of visibleJobs) {
     list.appendChild(createWorkSwipeRow(job));
   }
-  if (jobs.length === 0) {
+  if (visibleJobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No jobs yet.';
+    empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -4986,6 +5049,7 @@ let clientState = {
   draft: null,
 };
 let clientSearchTimer = null;
+let clientAutosaveTimer = null;
 
 function getClientsEditor() { return document.getElementById('clients-editor'); }
 
@@ -5042,33 +5106,27 @@ function renderClientsEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = createFabNewBtn('New client', () => {
-    clientState.activeUid = '__new__';
-    clientState.dirty = false;
-    clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };
-    renderClientsEditor();
+  const clientLabel = total === 1 ? 'client' : 'clients';
+  const subheader = listSearchAddNew({
+    search: {
+      value: clientState.search,
+      placeholder: `Search ${total} ${clientLabel}`,
+      onInput: (value) => {
+        clientState.search = value;
+        scheduleClientSearch();
+      },
+    },
+    addNew: {
+      label: 'New client',
+      onClick: () => {
+        clientState.activeUid = '__new__';
+        clientState.dirty = false;
+        clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };
+        renderClientsEditor();
+      },
+    },
   });
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
-
-  const search = document.createElement('input');
-  search.className = 'cl-search';
-  search.type = 'search';
-  search.placeholder = 'Search clients…';
-  search.value = clientState.search;
-  search.addEventListener('input', (e) => {
-    clientState.search = e.target.value;
-    scheduleClientSearch();
-  });
-  sidebar.appendChild(search);
-
-  const hint = document.createElement('div');
-  hint.className = 'de-empty';
-  hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = `contact-api · ${total} total`;
-  sidebar.appendChild(hint);
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const list = document.createElement('div');
   list.className = 'ch-list';
@@ -5218,40 +5276,50 @@ function renderEditClientForm(pane) {
         archived: contact.archived ?? data.archived,
       };
       clientState.dirty = false;
+      clientState.autosaveGetPayload = null;
       pane.innerHTML = '';
 
       const header = document.createElement('div');
       header.className = 'de-header';
       header.appendChild(createPanelBackBtn({
         label: 'Back to clients',
-        onClick: () => {
+        onClick: async () => {
+          await flushClientAutosave();
           if (clientState.dirty && !confirm('Discard unsaved changes?')) return;
           clientState.activeUid = null;
           clientState.draft = null;
+          clientState.autosaveGetPayload = null;
           getClientsEditor()?.classList.remove('de-pane-active');
           renderClientsEditor();
         },
       }));
-      const titleEl = document.createElement('span');
-      titleEl.className = 'de-doc-name';
-      titleEl.textContent = clientState.draft.name || 'Client';
-      header.appendChild(titleEl);
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'cl-title-wrap';
+      const nameInput = document.createElement('input');
+      nameInput.className = 'cl-title-input';
+      nameInput.value = clientState.draft.name || '';
+      nameInput.placeholder = 'Client name';
+      nameInput.setAttribute('aria-label', 'Client name');
+      const editHint = document.createElement('span');
+      editHint.className = 'cl-title-edit-hint';
+      editHint.innerHTML = IOS_ICONS.edit;
+      editHint.setAttribute('aria-hidden', 'true');
+      titleWrap.appendChild(nameInput);
+      titleWrap.appendChild(editHint);
+      header.appendChild(titleWrap);
+
+      const headerActions = document.createElement('div');
+      headerActions.className = 'de-header-actions';
+      appendPortalShareBtn(headerActions, uid, { title: `${clientState.draft.name || 'Client'} — portal` });
+      headerActions.appendChild(createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete client',
+        className: 'ios-icon-btn ch-delete-btn',
+        onClick: () => deleteClient(uid, nameInput.value.trim() || 'Client'),
+      }));
+      header.appendChild(headerActions);
       pane.appendChild(header);
-
-      const meta = document.createElement('div');
-      meta.className = 'cl-readonly';
-      meta.style.padding = '0 1rem 0.5rem';
-      meta.innerHTML =
-        `UID: ${escHtml(uid)}` +
-        (data.portal_url ? `<br>Portal: <a href="${escHtml(data.portal_url)}" target="_blank" rel="noopener">${escHtml(data.portal_url)}</a>` : '') +
-        (data.createdAt ? `<br>Created: ${escHtml(new Date(data.createdAt).toLocaleString())}` : '');
-      pane.appendChild(meta);
-
-      const portalActions = document.createElement('div');
-      portalActions.className = 'cl-portal-actions';
-      portalActions.style.padding = '0 1rem 0.75rem';
-      appendPortalShareBtn(portalActions, uid, { title: `${clientState.draft.name || 'Client'} — portal` });
-      if (portalActions.childElementCount) pane.appendChild(portalActions);
 
       const jobsWrap = document.createElement('div');
       jobsWrap.className = 'cl-jobs-section';
@@ -5302,11 +5370,6 @@ function renderEditClientForm(pane) {
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
-      const nameInput = document.createElement('input');
-      nameInput.className = 'de-input';
-      nameInput.value = clientState.draft.name || '';
-      appendClientField(fields, 'Name', nameInput);
-
       const emailInput = document.createElement('input');
       emailInput.className = 'de-input';
       emailInput.type = 'email';
@@ -5323,17 +5386,26 @@ function renderEditClientForm(pane) {
       companyInput.value = clientState.draft.company || '';
       appendClientField(fields, 'Company', companyInput);
 
-      pane.appendChild(fields);
-
       const notesLabel = document.createElement('label');
-      notesLabel.className = 'de-label';
+      notesLabel.className = 'de-label cl-notes-label';
       notesLabel.textContent = 'Notes (internal)';
       const notesTa = document.createElement('textarea');
-      notesTa.className = 'de-textarea';
+      notesTa.className = 'de-textarea cl-notes-textarea';
       notesTa.spellcheck = false;
       notesTa.value = clientState.draft.notes || '';
       notesLabel.appendChild(notesTa);
-      pane.appendChild(notesLabel);
+      fields.appendChild(notesLabel);
+
+      pane.appendChild(fields);
+
+      const getPayload = () => ({
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        phone: phoneInput.value.trim(),
+        company: companyInput.value.trim(),
+        notes: notesTa.value.trim(),
+      });
+      clientState.autosaveGetPayload = getPayload;
 
       const markDirty = () => {
         clientState.dirty =
@@ -5343,33 +5415,19 @@ function renderEditClientForm(pane) {
           companyInput.value !== clientState.draft.company ||
           notesTa.value !== clientState.draft.notes;
       };
-      nameInput.addEventListener('input', markDirty);
-      emailInput.addEventListener('input', markDirty);
-      phoneInput.addEventListener('input', markDirty);
-      companyInput.addEventListener('input', markDirty);
-      notesTa.addEventListener('input', markDirty);
+      const queueAutosave = () => {
+        markDirty();
+        scheduleClientAutosave(uid, getPayload);
+      };
+      const saveNow = () => {
+        markDirty();
+        autosaveClient(uid, getPayload());
+      };
+      for (const el of [nameInput, emailInput, phoneInput, companyInput, notesTa]) {
+        el.addEventListener('input', queueAutosave);
+        el.addEventListener('blur', saveNow);
+      }
 
-      const actions = document.createElement('div');
-      actions.className = 'de-actions';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'de-btn de-btn-danger';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', () => deleteClient(uid, clientState.draft?.name || 'Client'));
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'de-btn de-btn-primary';
-      saveBtn.textContent = 'Save';
-      saveBtn.addEventListener('click', () =>
-        saveClient(uid, {
-          name: nameInput.value.trim(),
-          email: emailInput.value.trim(),
-          phone: phoneInput.value.trim(),
-          company: companyInput.value.trim(),
-          notes: notesTa.value.trim(),
-        }),
-      );
-      actions.appendChild(delBtn);
-      actions.appendChild(saveBtn);
-      pane.appendChild(actions);
       getClientsEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -5378,9 +5436,11 @@ function renderEditClientForm(pane) {
 }
 
 async function openClient(uid) {
+  await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !confirm('Discard unsaved changes?')) return;
   clientState.activeUid = uid;
   clientState.dirty = false;
+  clientState.autosaveGetPayload = null;
   renderClientsEditor();
 }
 
@@ -5399,6 +5459,66 @@ async function createClient(payload) {
     renderClientsEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
+  }
+}
+
+function syncClientListRow(uid, name) {
+  const row = getClientsEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(uid)}"] .ch-item-title`);
+  if (row) row.textContent = name;
+}
+
+function scheduleClientAutosave(uid, getPayload) {
+  clearTimeout(clientAutosaveTimer);
+  clientAutosaveTimer = setTimeout(() => {
+    clientAutosaveTimer = null;
+    autosaveClient(uid, getPayload());
+  }, 650);
+}
+
+async function flushClientAutosave() {
+  if (clientAutosaveTimer) {
+    clearTimeout(clientAutosaveTimer);
+    clientAutosaveTimer = null;
+  }
+  const uid = clientState.activeUid;
+  if (!uid || uid === '__new__' || !clientState.autosaveGetPayload) return;
+  await autosaveClient(uid, clientState.autosaveGetPayload());
+}
+
+async function autosaveClient(uid, payload) {
+  if (!payload.name) return;
+  const draft = clientState.draft;
+  if (!draft) return;
+  const unchanged =
+    payload.name === draft.name &&
+    payload.email === draft.email &&
+    payload.phone === draft.phone &&
+    payload.company === draft.company &&
+    payload.notes === draft.notes;
+  if (unchanged) {
+    clientState.dirty = false;
+    return;
+  }
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    Object.assign(clientState.draft, payload);
+    clientState.dirty = false;
+    const c = clientState.clients.find((x) => x.uid === uid);
+    if (c) {
+      c.name = payload.name;
+      c.email = payload.email;
+      c.phone = payload.phone;
+      c.company = payload.company;
+    }
+    syncClientListRow(uid, payload.name);
+  } catch (e) {
+    console.warn('[clients] autosave failed', e);
   }
 }
 
@@ -5874,6 +5994,7 @@ function showChatContextMenu(x, y, items) {
 
 let chatState = {
   threads: [],
+  search: '',
   activeId: null,
   messages: [],
   title: '',
@@ -6102,16 +6223,32 @@ function renderChatSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
+  const visibleThreads = chatState.threads.filter((t) =>
+    matchesListSearch(chatState.search, t.title, t.id),
+  );
+  const subheader = listSearchAddNew({
+    search: {
+      value: chatState.search,
+      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'chat' : 'chats'}`,
+      onInput: (value) => {
+        chatState.search = value;
+        renderChatPanel();
+      },
+    },
+    addNew: { label: 'New chat', onClick: () => void startNewChat() },
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
+
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const t of chatState.threads) {
+  for (const t of visibleThreads) {
     list.appendChild(createChatSwipeRow(t));
   }
-  if (chatState.threads.length === 0) {
+  if (visibleThreads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'No chats yet.';
+    empty.textContent = chatState.search.trim() ? 'No matches.' : 'No chats yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -6507,6 +6644,7 @@ async function archiveChat(t) {
 let emailState = {
   allEvents: [],
   inboxFilter: 'all',
+  search: '',
   activeId: null,
   storage: 'files',
   digest: null,
@@ -6537,7 +6675,7 @@ function inboxTabCounts() {
   };
 }
 
-function filteredInboxEvents() {
+function inboxEventsForFilter() {
   const all = emailState.allEvents;
   const f = emailState.inboxFilter;
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
@@ -6545,6 +6683,25 @@ function filteredInboxEvents() {
   if (f === 'review') return all.filter((e) => e.category === 'review');
   if (f === 'routed') return all.filter(isEmailRouted);
   return all.filter((e) => e.category !== 'junk');
+}
+
+function filteredInboxEvents() {
+  const q = emailState.search.trim();
+  let events = inboxEventsForFilter();
+  if (!q) return events;
+  return events.filter((ev) =>
+    matchesListSearch(
+      q,
+      ev.subject,
+      ev.from,
+      ev.summary,
+      ev.bodySnippet,
+      ev.contactName,
+      ev.jobTitle,
+      ev.category,
+      ev.routeNote,
+    ),
+  );
 }
 
 function syncInboxHeaderControls() {
@@ -7372,7 +7529,34 @@ function renderEmailSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  sidebar.appendChild(renderEmailFilterTabs());
+  const counts = inboxTabCounts();
+  const countForTab =
+    emailState.inboxFilter === 'junk'
+      ? counts.junk
+      : emailState.inboxFilter === 'alert'
+        ? counts.alert
+        : emailState.inboxFilter === 'review'
+          ? counts.review
+          : emailState.inboxFilter === 'routed'
+            ? counts.routed
+            : counts.all;
+  const subheader = listSearchAddNew({
+    search: {
+      value: emailState.search,
+      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'message' : 'messages'}`,
+      onInput: (value) => {
+        emailState.search = value;
+        if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
+          emailState.activeId = null;
+          getEmailPanel()?.classList.remove('em-pane-active');
+        }
+        renderEmailPanel();
+      },
+    },
+    addNew: false,
+    below: renderEmailFilterTabs(),
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const events = filteredInboxEvents();
   const list = document.createElement('div');
@@ -7384,7 +7568,9 @@ function renderEmailSidebar() {
   if (events.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    if (emailState.inboxFilter === 'junk') {
+    if (emailState.search.trim()) {
+      empty.textContent = 'No matches.';
+    } else if (emailState.inboxFilter === 'junk') {
       empty.textContent = 'No junk messages.';
     } else if (emailState.inboxFilter === 'alert') {
       empty.textContent = 'No alerts.';
