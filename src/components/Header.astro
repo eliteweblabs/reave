@@ -519,11 +519,11 @@ if (userId) {
     max-width: min(88vw, 260px);
     max-height: min(62vh, 420px);
     overflow-y: auto;
-    background: rgba(14, 17, 24, 0.98);
+    background: var(--dropdown-bg);
     border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
     border-radius: 10px;
     padding: 0.35rem;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--dropdown-shadow, 0 16px 40px rgba(0, 0, 0, 0.55));
     z-index: 120;
   }
 
@@ -554,13 +554,13 @@ if (userId) {
 
   .topbar-dropdown-item:hover {
     color: var(--fg, #e9eef6);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--surface-hover, rgba(255, 255, 255, 0.05));
   }
 
   .topbar-dropdown-item.active {
     color: var(--fg, #e9eef6);
-    background: #11253d;
-    border-color: #2d5a94;
+    background: var(--list-item-active-bg, #11253d);
+    border-color: var(--list-item-active-border, #2d5a94);
   }
 
   .topbar-dropdown-item--danger {
@@ -584,7 +584,7 @@ if (userId) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--icon-muted, rgba(255, 255, 255, 0.72));
   }
 
   .topbar-dropdown-icon svg {

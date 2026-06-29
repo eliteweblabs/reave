@@ -16,8 +16,8 @@ export const GET: APIRoute = async ({ request }) => {
     start_url: '/admin?tab=chats',
     scope: '/admin',
     display: 'standalone',
-    background_color: '#0a0d14',
-    theme_color: '#0a0d14',
+    background_color: '#ffffff',
+    theme_color: '#ffffff',
     icons: [
       { src: SITE.favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: SITE.favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'any' },

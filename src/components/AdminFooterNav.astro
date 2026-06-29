@@ -62,15 +62,6 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
 </nav>
 
 <style is:global>
-  :root {
-    --bg: #0a0d14;
-    --footer-nav-pill-h: 3.4rem;
-    --footer-nav-h: calc(var(--footer-nav-pill-h) + env(safe-area-inset-bottom, 0px));
-    --footer-nav-glass-bg: transparent;
-    --footer-nav-glass-blur: blur(18px) saturate(1.15);
-    --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
   .admin-footer-nav {
     position: fixed;
     left: 0;
@@ -256,7 +247,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     left: 0;
     width: 0;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--nav-indicator-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     pointer-events: none;
@@ -310,7 +301,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
-    color: rgba(255, 255, 255, 0.58);
+    color: var(--nav-icon);
     cursor: pointer;
     flex-shrink: 0;
     overflow: visible;
@@ -335,7 +326,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   }
 
   .footer-nav-btn:hover {
-    color: rgba(255, 255, 255, 0.88);
+    color: var(--nav-icon-hover);
   }
 
   .footer-nav-btn.active,
@@ -344,12 +335,12 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   }
 
   .footer-nav-btn.active {
-    color: #fff;
+    color: var(--nav-icon-active);
     background: transparent;
   }
 
   .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
-    color: #fff;
+    color: var(--nav-icon-active);
     background: transparent;
   }
 
@@ -374,7 +365,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     text-align: center;
     pointer-events: none;
     z-index: 5;
-    box-shadow: 0 0 0 2px rgba(10, 13, 20, 0.55);
+    box-shadow: 0 0 0 2px var(--badge-ring);
     transition: opacity 0.2s ease;
   }
 
