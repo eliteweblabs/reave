@@ -3064,7 +3064,34 @@ const { userId } = Astro.locals.auth();
 
     <AdminFooterNav />
 
+    <script is:inline>
+      (function () {
+        function showAdminLoadError(detail) {
+          if (document.getElementById('admin-boot-error')) return;
+          var banner = document.createElement('div');
+          banner.id = 'admin-boot-error';
+          banner.setAttribute('role', 'alert');
+          banner.style.cssText =
+            'position:fixed;inset:auto 0 0 0;z-index:99999;padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
+          banner.textContent =
+            'Admin failed to start' +
+            (detail ? ': ' + detail : '') +
+            '. Hard-refresh (Shift+Reload). If it persists, clear site data for this domain.';
+          document.body.appendChild(banner);
+        }
+        window.addEventListener('error', function (e) {
+          var src = String(e.filename || '');
+          if (src.indexOf('/admin/') === -1) return;
+          showAdminLoadError(e.message || 'script error');
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var msg = String((e.reason && e.reason.message) || e.reason || '');
+          if (msg.indexOf('admin-ui') === -1 && msg.indexOf('os-map-loader') === -1) return;
+          showAdminLoadError(msg);
+        });
+      })();
+    </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629empty"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630b"></script>
   </body>
 </html>

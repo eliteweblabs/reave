@@ -3,12 +3,10 @@ import {
   IOS_ICONS,
   createIosIconBtn,
   createCenteredListEmpty,
-  createListEmptyState,
-  createPanePlaceholder,
   listSearchAddNew,
   createPanelBackBtn,
   matchesListSearch,
-} from './admin-ui.js?v=20250630a';
+} from './admin-ui.js?v=20250630b';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -353,7 +351,7 @@ function setPanelDisplay(id, display) {
 
 function syncCanvasVisibility() {
   const isPanel = isPanelTab();
-  wrap.style.display = isPanel ? 'none' : '';
+  if (wrap) wrap.style.display = isPanel ? 'none' : '';
   setPanelDisplay('tools', isPanel ? 'none' : '');
   setPanelDisplay('legend', isPanel ? 'none' : '');
   setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
@@ -7748,6 +7746,17 @@ async function rebuildTabsForViewport() {
   if (activeKey === 'home') loadHomeDashboard();
 }
 
+function showBootError(err) {
+  console.error('[admin] boot failed', err);
+  const banner = document.createElement('div');
+  banner.setAttribute('role', 'alert');
+  banner.style.cssText =
+    'position:fixed;inset:auto 0 0 0;z-index:99999;padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
+  banner.textContent =
+    'Admin failed to start (JavaScript error). Hard-refresh the page. If it persists, clear site data for this domain.';
+  document.body?.appendChild(banner);
+}
+
 async function boot() {
   const tabOrder = await resolveTabOrder();
   cachedTabOrder = tabOrder;
@@ -7772,7 +7781,7 @@ async function boot() {
   syncDashboardHeaderDate();
 }
 
-boot();
+boot().catch(showBootError);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready
