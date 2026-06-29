@@ -1,5 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
+import { enabledFeatures, FEATURE_LABELS, type FeatureId } from '../../lib/features';
+import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
@@ -129,11 +131,14 @@ export const GET: APIRoute = async () => {
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, craterProbe, tgProbe, ghProbe] = await Promise.all([
+  const [contactProbe, craterProbe, tgProbe, ghProbe, cdProbe] = await Promise.all([
     contactBase ? reach(contactBase) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     craterBase ? reach(craterBase) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
     tgToken ? telegramProbe(tgToken) : Promise.resolve(unconfigured('TELEGRAM_BOT_TOKEN not set')),
     ghToken ? githubProbe(ghToken) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
+    isChangeDetectionConfigured()
+      ? reach(trimBase(serverEnv('CHANGEDETECTION_BASE_URL'))!)
+      : Promise.resolve(unconfigured('CHANGEDETECTION not configured')),
   ]);
 
   // contact-postgres sits behind contact-api on the private network — infer it.
@@ -151,8 +156,15 @@ export const GET: APIRoute = async () => {
     ? `model ${agentModel.model} (${agentModel.source})`
     : undefined;
 
+  const pushConfigured =
+    serverEnv('VAPID_PUBLIC_KEY')?.trim() && serverEnv('VAPID_PRIVATE_KEY')?.trim();
+  const pushEnabled = serverEnv('PUSH_ENABLED') !== '0';
+
   const services: Record<string, Probe> = {
     astro: { status: 'up', mode: 'self', detail: 'serving this endpoint' },
+    app_pg: serverEnv('DATABASE_URL')
+      ? configured('DATABASE_URL set')
+      : unconfigured('DATABASE_URL not set'),
     contact_api: contactProbe,
     contact_pg: contactPg,
     crater: craterProbe,
@@ -163,6 +175,9 @@ export const GET: APIRoute = async () => {
     railway_gql: serverEnv('RAILWAY_API_TOKEN')
       ? configured('RAILWAY_API_TOKEN set')
       : unconfigured('RAILWAY_API_TOKEN not set'),
+    railway_webhook: serverEnv('RAILWAY_WEBHOOK_INGRESS_KEY')
+      ? configured('RAILWAY_WEBHOOK_INGRESS_KEY set')
+      : unconfigured('RAILWAY_WEBHOOK_INGRESS_KEY not set'),
     resend: serverEnv('RESEND_API_KEY')
       ? configured('RESEND_API_KEY set')
       : unconfigured('RESEND_API_KEY not set'),
@@ -170,11 +185,25 @@ export const GET: APIRoute = async () => {
     telnyx: serverEnv('TELNYX_API_KEY')
       ? configured(`TELNYX_API_KEY set${serverEnv('VOICE_AGENT_ENABLED') === '1' ? ' · voice enabled' : ''}`)
       : unconfigured('TELNYX_API_KEY not set'),
-    // Separate Railway service with no exposed health route we can reach from here.
-    imap: { status: 'unknown', mode: 'config', detail: 'no reachable health endpoint' },
+    changedetection: cdProbe,
+    clerk: serverEnv('CLERK_SECRET_KEY')
+      ? configured('CLERK_SECRET_KEY set')
+      : unconfigured('CLERK_SECRET_KEY not set'),
+    web_push: pushConfigured
+      ? configured(pushEnabled ? 'VAPID keys set · enabled' : 'VAPID keys set · PUSH_ENABLED=0')
+      : unconfigured('VAPID keys not set'),
+    vapi:
+      serverEnv('PUBLIC_VAPI_PUBLIC_KEY')?.trim() && serverEnv('PUBLIC_VAPI_ASSISTANT_ID')?.trim()
+        ? configured('PUBLIC_VAPI_* set')
+        : unconfigured('PUBLIC_VAPI_* not set'),
   };
 
-  return new Response(JSON.stringify({ checkedAt: new Date().toISOString(), services }), {
+  const features = [...enabledFeatures()].map((id: FeatureId) => ({
+    id,
+    label: FEATURE_LABELS[id],
+  }));
+
+  return new Response(JSON.stringify({ checkedAt: new Date().toISOString(), services, features }), {
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store',

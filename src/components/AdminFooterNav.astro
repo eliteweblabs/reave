@@ -34,6 +34,7 @@ if (userId) {
       aria-label="Home"
     >
       <Home size={22} strokeWidth={1.75} />
+      <span id="footer-home-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -43,6 +44,7 @@ if (userId) {
       aria-label="Chats"
     >
       <MessageCircle size={22} strokeWidth={1.75} />
+      <span id="footer-chat-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -65,29 +67,18 @@ if (userId) {
       <Search size={22} strokeWidth={1.75} />
     </button>
 
-    <div class="footer-nav-profile-wrap">
-      <button
-        type="button"
-        id="topbar-profile-toggle"
-        class="footer-nav-btn footer-nav-profile"
-        aria-label="Account menu"
-        aria-expanded="false"
-        aria-haspopup="true"
-      >
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" class="footer-nav-avatar" />
-        ) : (
-          <span class="footer-nav-initials">{userInitials || "?"}</span>
-        )}
-      </button>
-      <div id="topbar-profile-menu" class="footer-profile-dropdown topbar-dropdown" role="menu">
-        <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
-        <div class="topbar-dropdown-divider"></div>
-        <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
-          Sign out
-        </button>
-      </div>
-    </div>
+    <a
+      href="/admin/profile"
+      id="footer-nav-profile"
+      class="footer-nav-btn footer-nav-profile"
+      aria-label="Profile"
+    >
+      {avatarUrl ? (
+        <img src={avatarUrl} alt="" class="footer-nav-avatar" />
+      ) : (
+        <span class="footer-nav-initials">{userInitials || "?"}</span>
+      )}
+    </a>
   </div>
 </nav>
 
@@ -141,8 +132,13 @@ if (userId) {
     color: rgba(255, 255, 255, 0.72);
     cursor: pointer;
     flex-shrink: 0;
-    transition: color 0.15s, background 0.15s;
+    overflow: visible;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .footer-nav-btn.has-badge {
+    border: 1px solid rgba(251, 191, 36, 0.45);
   }
 
   .footer-nav-btn:hover {
@@ -165,6 +161,7 @@ if (userId) {
     margin-left: 0.1rem;
     overflow: hidden;
     border: 1.5px solid rgba(255, 255, 255, 0.25);
+    text-decoration: none;
   }
 
   .footer-nav-profile.active {
@@ -189,8 +186,8 @@ if (userId) {
 
   .footer-nav-badge {
     position: absolute;
-    top: 0.35rem;
-    right: 0.35rem;
+    top: 0.15rem;
+    right: 0.1rem;
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
@@ -202,18 +199,12 @@ if (userId) {
     line-height: 16px;
     text-align: center;
     pointer-events: none;
+    z-index: 2;
     box-shadow: 0 0 0 2px rgba(18, 22, 30, 0.95);
   }
 
-  .footer-nav-profile-wrap {
-    position: relative;
-  }
-
-  .footer-profile-dropdown {
-    bottom: calc(100% + 8px);
-    top: auto;
-    right: 0;
-    left: auto;
+  .footer-nav-badge[hidden] {
+    display: none !important;
   }
 
   @media print {

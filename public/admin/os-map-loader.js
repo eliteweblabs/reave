@@ -160,6 +160,7 @@ function setActiveMap(key, opts = {}) {
   syncHealthLifecycle();
   syncEmailPoll();
   syncFooterNav();
+  void refreshInboxBadgeQuiet();
 }
 
 function isPanelMapKey(key) {
@@ -1342,12 +1343,7 @@ function wrenchMenuTabKeys(order) {
   return out;
 }
 
-function closeTopbarMenus(exceptMenu) {
-  const profileMenu = document.getElementById('topbar-profile-menu');
-  if (profileMenu && profileMenu !== exceptMenu) {
-    profileMenu.classList.remove('open');
-    document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
-  }
+function closeTopbarMenus(_exceptMenu) {
   syncFooterNav();
 }
 
@@ -1384,6 +1380,7 @@ const MAP_ICON_KEYS = {
 };
 
 const NAV_ICON_PATHS = {
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
   home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
@@ -1459,7 +1456,60 @@ function buildHomeLinkTile(item) {
   return tile;
 }
 
-function loadHomeDashboard() {
+function buildDashStat(opts) {
+  const { value, label, hint, onClick, tone, muted } = opts;
+  const el = document.createElement(muted ? 'div' : 'button');
+  if (!muted) el.type = 'button';
+  el.className = `dash-stat${tone ? ` dash-stat--${tone}` : ''}${muted ? ' dash-stat--muted' : ''}`;
+  el.innerHTML =
+    `<span class="dash-stat-value">${escHtml(String(value))}</span>` +
+    `<span class="dash-stat-label">${escHtml(label)}</span>` +
+    (hint ? `<span class="dash-stat-hint">${escHtml(hint)}</span>` : '');
+  if (!muted && onClick) el.addEventListener('click', onClick);
+  return el;
+}
+
+function deployStatLabel(state) {
+  if (state === 'live') return 'Live';
+  if (state === 'stale') return 'Stale';
+  if (state === 'deploying') return 'Deploying';
+  if (state === 'failed') return 'Failed';
+  return 'Unknown';
+}
+
+function deployStatTone(state) {
+  if (state === 'live') return 'live';
+  if (state === 'failed') return 'failed';
+  if (state === 'stale' || state === 'deploying') return 'stale';
+  return null;
+}
+
+function formatDashDate(d = new Date()) {
+  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function formatEventTime(iso) {
+  try {
+    return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function formatEmailWhen(iso) {
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay
+      ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
+function renderHomeDashboard(data) {
   const root = document.getElementById('home-dashboard');
   if (!root) return;
   root.innerHTML = '';
@@ -1467,51 +1517,193 @@ function loadHomeDashboard() {
   const scroll = document.createElement('div');
   scroll.className = 'home-dashboard-scroll';
 
-  const title = document.createElement('h1');
-  title.className = 'home-dashboard-title';
-  title.textContent = 'Dashboard';
-  scroll.appendChild(title);
+  const header = document.createElement('div');
+  header.className = 'dash-header';
+  header.innerHTML =
+    `<h1 class="home-dashboard-title">Dashboard</h1>` +
+    `<p class="dash-date">${escHtml(formatDashDate())}</p>`;
+  scroll.appendChild(header);
 
-  const sub = document.createElement('p');
-  sub.className = 'home-dashboard-sub';
-  sub.textContent = 'Tools, maps, and admin sections.';
-  scroll.appendChild(sub);
+  const stats = data?.stats || {};
+  const statsEl = document.createElement('div');
+  statsEl.className = 'dash-stats';
 
+  statsEl.appendChild(buildDashStat({
+    value: stats.emails ?? 0,
+    label: 'Emails',
+    hint: stats.emailsReview ? `${stats.emailsReview} need review` : 'inbox clear',
+    onClick: () => setActiveMap('email', { force: activeKey === 'email' }),
+  }));
+
+  statsEl.appendChild(buildDashStat({
+    value: stats.eventsToday ?? 0,
+    label: 'Events today',
+    hint: data?.eventsMock ? 'sample schedule' : 'on your calendar',
+    onClick: () => scroll.querySelector('.dash-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+  }));
+
+  statsEl.appendChild(buildDashStat({
+    value: stats.projectsPending ?? 0,
+    label: 'Projects pending',
+    hint: stats.projectsActive ? `${stats.projectsActive} active` : 'none active',
+    onClick: () => setActiveMap('work', { force: activeKey === 'work' }),
+  }));
+
+  statsEl.appendChild(buildDashStat({
+    value: stats.todosOpen ?? 0,
+    label: 'Open tasks',
+    hint: 'to-do lists',
+    onClick: () => setActiveMap('todo', { force: activeKey === 'todo' }),
+  }));
+
+  statsEl.appendChild(buildDashStat({
+    value: stats.clients ?? '—',
+    label: 'Clients',
+    hint: stats.clients == null ? 'contact-api off' : 'in CRM',
+    muted: stats.clients == null,
+    onClick: stats.clients == null ? null : () => setActiveMap('clients', { force: activeKey === 'clients' }),
+  }));
+
+  statsEl.appendChild(buildDashStat({
+    value: stats.chats ?? 0,
+    label: 'Chats',
+    hint: 'agent threads',
+    onClick: () => setActiveMap('chats', { force: activeKey === 'chats' }),
+  }));
+
+  const deployTone = deployStatTone(stats.deployState);
+  statsEl.appendChild(buildDashStat({
+    value: deployStatLabel(stats.deployState),
+    label: 'Deploy',
+    hint: data?.deploy?.deployedShort
+      ? `@ ${data.deploy.deployedShort}`
+      : stats.deployUpToDate === false
+        ? 'behind GitHub'
+        : 'status',
+    tone: deployTone,
+    onClick: () => setActiveMap('system', { force: activeKey === 'system' }),
+  }));
+
+  scroll.appendChild(statsEl);
+
+  const eventsPanel = document.createElement('section');
+  eventsPanel.className = 'dash-panel';
+  eventsPanel.innerHTML =
+    `<div class="dash-panel-head">` +
+      `<h2 class="dash-panel-title">Today</h2>` +
+      (data?.eventsMock ? `<span class="dash-panel-note">Preview</span>` : '') +
+    `</div>`;
+  const eventsList = document.createElement('ul');
+  eventsList.className = 'dash-events';
+  const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
+  if (!events.length) {
+    const empty = document.createElement('p');
+    empty.className = 'dash-empty';
+    empty.textContent = 'Nothing scheduled today.';
+    eventsPanel.appendChild(empty);
+  } else {
+    for (const ev of events) {
+      const li = document.createElement('li');
+      li.className = 'dash-event';
+      li.innerHTML =
+        `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+        `<div class="dash-event-body">` +
+          `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+          (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+        `</div>`;
+      eventsList.appendChild(li);
+    }
+    eventsPanel.appendChild(eventsList);
+  }
+  scroll.appendChild(eventsPanel);
+
+  const inboxPanel = document.createElement('section');
+  inboxPanel.className = 'dash-panel';
+  inboxPanel.innerHTML = `<div class="dash-panel-head"><h2 class="dash-panel-title">Recent inbox</h2></div>`;
+  const recent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
+  if (!recent.length) {
+    const empty = document.createElement('p');
+    empty.className = 'dash-empty';
+    empty.textContent = 'No emails yet.';
+    inboxPanel.appendChild(empty);
+  } else {
+    const list = document.createElement('ul');
+    list.className = 'dash-inbox-list';
+    for (const mail of recent) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dash-inbox-item';
+      btn.innerHTML =
+        `<span class="dash-inbox-subject">${escHtml(mail.subject)}</span>` +
+        `<span class="dash-inbox-meta">${escHtml(mail.from || 'Unknown')} · ${escHtml(formatEmailWhen(mail.receivedAt))}</span>`;
+      btn.addEventListener('click', () => setActiveMap('email', { force: true }));
+      list.appendChild(btn);
+    }
+    inboxPanel.appendChild(list);
+  }
+  scroll.appendChild(inboxPanel);
+
+  const quick = document.createElement('section');
+  quick.className = 'dash-panel';
+  const quickTitle = document.createElement('h2');
+  quickTitle.className = 'dash-quick-title';
+  quickTitle.textContent = 'Go to';
+  quick.appendChild(quickTitle);
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
-
   for (const key of wrenchMenuTabKeys(cachedTabOrder || defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
-    } else {
+    } else if (key !== 'home') {
       grid.appendChild(buildHomeMapTile(key, m));
     }
   }
   for (const link of HOME_EXTRA_LINKS) {
     grid.appendChild(buildHomeLinkTile(link));
   }
+  quick.appendChild(grid);
+  scroll.appendChild(quick);
 
-  scroll.appendChild(grid);
   root.appendChild(scroll);
+}
+
+async function loadHomeDashboard() {
+  const root = document.getElementById('home-dashboard');
+  if (!root) return;
+  root.innerHTML = '<div class="home-dashboard-scroll"><div class="dash-loading">Loading dashboard…</div></div>';
+
+  try {
+    const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderHomeDashboard(data);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="home-dashboard-scroll">` +
+        `<div class="dash-header"><h1 class="home-dashboard-title">Dashboard</h1></div>` +
+        `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
+      `</div>`;
+  }
 }
 
 function footerNavActiveKey() {
   if (searchOverlayOpen) return 'search';
+  if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
-  return 'home';
+  return null;
 }
 
 function syncFooterNav() {
   const activeNav = footerNavActiveKey();
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.nav === activeNav);
+    btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
   });
-  const profileOpen = document.getElementById('topbar-profile-menu')?.classList.contains('open');
-  document.getElementById('topbar-profile-toggle')?.classList.toggle('active', !!profileOpen);
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
+  if (activeKey === 'home') syncHomeBadge(0);
+  if (activeKey === 'chats' || activeKey === 'knowledge') syncChatBadge(0);
 }
 
 function initFooterNav() {
@@ -1530,6 +1722,7 @@ function initFooterNav() {
   document.getElementById('footer-nav-search')?.addEventListener('click', () => {
     toggleSearchOverlay();
   });
+  void refreshInboxBadgeQuiet();
 }
 
 function openSearchOverlay() {
@@ -1671,43 +1864,56 @@ async function buildMobileToolsMenu(order) {
   if (activeKey === 'home') loadHomeDashboard();
 }
 
-function syncInboxBadge(count) {
-  const badge = document.getElementById('footer-inbox-badge');
-  const btn = document.getElementById('footer-nav-inbox');
-  if (!badge) return;
+function setFooterNavBadge(badgeId, btnId, count, baseLabel) {
+  const badge = document.getElementById(badgeId);
+  const btn = document.getElementById(btnId);
+  if (!badge || !btn) return;
   const n = Math.max(0, Number(count) || 0);
   if (n > 0) {
     badge.hidden = false;
     badge.textContent = n > 99 ? '99+' : String(n);
-    btn?.classList.add('has-badge');
+    btn.classList.add('has-badge');
+    if (baseLabel) {
+      btn.setAttribute('aria-label', `${baseLabel} (${n} notification${n === 1 ? '' : 's'})`);
+    }
   } else {
     badge.hidden = true;
     badge.textContent = '0';
-    btn?.classList.remove('has-badge');
+    btn.classList.remove('has-badge');
+    if (baseLabel) btn.setAttribute('aria-label', baseLabel);
   }
 }
 
+function syncInboxBadge(count) {
+  setFooterNavBadge('footer-inbox-badge', 'footer-nav-inbox', count, 'Inbox');
+}
+
+function dashboardAttentionCount(stats) {
+  if (!stats) return 0;
+  return (
+    (Number(stats.emails) || 0) +
+    (Number(stats.projectsPending) || 0) +
+    (Number(stats.todosOpen) || 0)
+  );
+}
+
+function syncHomeBadge(count) {
+  if (activeKey === 'home') {
+    setFooterNavBadge('footer-home-badge', 'footer-nav-home', 0, 'Home');
+    return;
+  }
+  setFooterNavBadge('footer-home-badge', 'footer-nav-home', count, 'Home');
+}
+
+function syncChatBadge(count) {
+  if (activeKey === 'chats' || activeKey === 'knowledge') {
+    setFooterNavBadge('footer-chat-badge', 'footer-nav-chat', 0, 'Chats');
+    return;
+  }
+  setFooterNavBadge('footer-chat-badge', 'footer-nav-chat', count, 'Chats');
+}
+
 function initTopbarMenus() {
-  const profileToggle = document.getElementById('topbar-profile-toggle');
-  const profileMenu = document.getElementById('topbar-profile-menu');
-  profileToggle?.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    toggleTopbarMenu(profileMenu, profileToggle);
-    syncFooterNav();
-  });
-
-  document.getElementById('topbar-sign-out')?.addEventListener('click', async (ev) => {
-    ev.preventDefault();
-    closeTopbarMenus();
-    const { Clerk } = window;
-    if (Clerk) {
-      await Clerk.signOut();
-      window.location.href = '/';
-    } else {
-      window.location.href = '/sign-out';
-    }
-  });
-
   if (!document.documentElement.dataset.topbarMenuBound) {
     document.documentElement.dataset.topbarMenuBound = '1';
     document.addEventListener('click', () => closeTopbarMenus());
@@ -4865,8 +5071,28 @@ let chatState = {
   sendAbort: null,
   pendingDraft: null,
   pendingAutoSend: false,
-  showArchived: false,
 };
+
+function sortChatThreads(threads) {
+  const byUpdated = (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
+  const active = threads.filter((t) => !t.archived).sort(byUpdated);
+  const archived = threads.filter((t) => t.archived).sort(byUpdated);
+  return [...active, ...archived];
+}
+
+async function fetchChatThreads() {
+  const [activeRes, archivedRes] = await Promise.all([
+    fetch('/api/chats', { cache: 'no-store' }),
+    fetch('/api/chats?archived=1', { cache: 'no-store' }),
+  ]);
+  const activeData = await activeRes.json();
+  const archivedData = await archivedRes.json();
+  if (!activeRes.ok) throw new Error(activeData.error || `HTTP ${activeRes.status}`);
+  if (!archivedRes.ok) throw new Error(archivedData.error || `HTTP ${archivedRes.status}`);
+  const active = (activeData.threads || []).map((t) => ({ ...t, archived: false }));
+  const archived = (archivedData.threads || []).map((t) => ({ ...t, archived: true }));
+  return sortChatThreads([...active, ...archived]);
+}
 
 function getChatPanel() { return document.getElementById('chat-panel'); }
 
@@ -4895,12 +5121,8 @@ async function loadChatsTab(opts = {}) {
   const savedAutoSend = keepSession ? chatState.pendingAutoSend : false;
 
   root.innerHTML = '<div class="de-loading">Loading chats…</div>';
-  const archivedQ = chatState.showArchived ? '?archived=1' : '';
   try {
-    const res = await fetch(`/api/chats${archivedQ}`, { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    chatState.threads = data.threads || [];
+    chatState.threads = await fetchChatThreads();
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
@@ -5037,14 +5259,16 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
 function createChatListItem(t) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'ch-list-item' + (t.id === chatState.activeId ? ' active' : '');
+  item.className =
+    'ch-list-item' +
+    (t.id === chatState.activeId ? ' active' : '') +
+    (t.archived ? ' ch-list-item--archived' : '');
   item.dataset.id = t.id;
   item.innerHTML =
     `<span class="ch-item-row">` +
       `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
       `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
-    `</span>` +
-    (t.archived ? `<span class="ch-item-archived">Archived</span>` : '');
+    `</span>`;
   item.addEventListener('click', () => openChat(t.id));
   return item;
 }
@@ -5071,19 +5295,13 @@ function renderChatSidebar() {
   const toolbar = document.createElement('div');
   toolbar.className = 'ch-toolbar';
   const newBtn = document.createElement('button');
-  newBtn.className = 'de-new-btn ch-new-btn';
-  newBtn.textContent = '+ New Chat';
+  newBtn.type = 'button';
+  newBtn.className = 'ch-new-btn';
+  newBtn.setAttribute('aria-label', 'New chat');
+  newBtn.title = 'New chat';
+  newBtn.innerHTML = navIcon('plus', 20);
   newBtn.addEventListener('click', () => startNewChat());
   toolbar.appendChild(newBtn);
-
-  const archivedBtn = document.createElement('button');
-  archivedBtn.className = 'ch-refresh';
-  archivedBtn.textContent = chatState.showArchived ? 'Hide archived' : 'Show archived';
-  archivedBtn.addEventListener('click', () => {
-    chatState.showArchived = !chatState.showArchived;
-    loadChatsTab();
-  });
-  toolbar.appendChild(archivedBtn);
   sidebar.appendChild(toolbar);
 
   const list = document.createElement('div');
@@ -5095,7 +5313,7 @@ function renderChatSidebar() {
   if (chatState.threads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = chatState.showArchived ? 'No archived chats.' : 'No chats yet.';
+    empty.textContent = 'No chats yet.';
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -5505,17 +5723,16 @@ async function archiveChat(t) {
       body: JSON.stringify({ archived: !unarchive }),
     });
     await readApiJson(res);
-    if (!chatState.showArchived && !unarchive) {
-      chatState.threads = chatState.threads.filter((e) => e.id !== t.id);
-      if (chatState.activeId === t.id) {
-        chatState.activeId = null;
-        chatState.messages = [];
-        chatState.title = '';
-        getChatPanel()?.classList.remove('ch-pane-active');
-      }
-    } else {
-      const idx = chatState.threads.findIndex((e) => e.id === t.id);
-      if (idx !== -1) chatState.threads[idx] = { ...chatState.threads[idx], archived: !unarchive };
+    const idx = chatState.threads.findIndex((e) => e.id === t.id);
+    if (idx !== -1) {
+      chatState.threads[idx] = { ...chatState.threads[idx], archived: !unarchive };
+    }
+    chatState.threads = sortChatThreads(chatState.threads);
+    if (!unarchive && chatState.activeId === t.id) {
+      chatState.activeId = null;
+      chatState.messages = [];
+      chatState.title = '';
+      getChatPanel()?.classList.remove('ch-pane-active');
     }
     renderChatPanel();
   } catch (e) {
@@ -5619,14 +5836,26 @@ async function markInboxSeenAndClearBadge() {
 async function refreshInboxBadgeQuiet() {
   if (MAP.type === 'email') {
     await markInboxSeenAndClearBadge();
+    try {
+      const dashRes = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+      const dashData = dashRes.ok ? await dashRes.json() : null;
+      syncHomeBadge(dashboardAttentionCount(dashData?.stats));
+    } catch {}
     return;
   }
   try {
-    const res = await fetch('/api/email/inbox?limit=100', { cache: 'no-store' });
-    const data = await res.json();
-    if (!res.ok) return;
-    const events = data.events || [];
-    syncInboxBadge(Math.max(unreadInboxCount(events), await readCachedBadgeCount()));
+    const [inboxRes, dashRes] = await Promise.all([
+      fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
+      fetch('/api/admin/dashboard', { cache: 'no-store' }),
+    ]);
+    const inboxData = inboxRes.ok ? await inboxRes.json() : null;
+    const dashData = dashRes.ok ? await dashRes.json() : null;
+    if (dashData) syncHomeBadge(dashboardAttentionCount(dashData?.stats));
+    if (!inboxRes.ok || !inboxData) return;
+    const events = inboxData.events || [];
+    const cached = await readCachedBadgeCount();
+    const inboxCount = Math.max(unreadInboxCount(events), cached);
+    syncInboxBadge(inboxCount);
     await syncInboxAppBadge(events);
   } catch {}
 }
