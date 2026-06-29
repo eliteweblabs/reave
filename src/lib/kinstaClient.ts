@@ -14,6 +14,11 @@ function companyId(): string | null {
   return serverEnv('KINSTA_COMPANY_ID')?.trim() || null;
 }
 
+function isKinstaDryRun(): boolean {
+  const dryRaw = serverEnv('KINSTA_DRY_RUN');
+  return dryRaw === '1' || dryRaw === 'true';
+}
+
 export type KinstaEnvironmentSummary = {
   id: string;
   name: string;
@@ -28,6 +33,28 @@ export type KinstaSiteSummary = {
   display_name: string;
   status: string;
   environments: KinstaEnvironmentSummary[];
+};
+
+export type KinstaBackupSummary = {
+  id: number;
+  name: string;
+  note: string | null;
+  type: string;
+  created_at: number;
+};
+
+export type KinstaCreateSiteInput = {
+  display_name: string;
+  region?: string;
+  install_mode?: 'new' | 'clone';
+  source_env_id?: string;
+  admin_email?: string;
+  admin_user?: string;
+  admin_password?: string;
+  site_title?: string;
+  wp_language?: string;
+  woocommerce?: boolean;
+  wordpressseo?: boolean;
 };
 
 type KinstaApiEnvironment = {
@@ -198,9 +225,7 @@ export async function kinstaClearCache(environmentId: string): Promise<
   const envId = environmentId.trim();
   if (!envId) return { ok: false, error: 'environment_id is required' };
 
-  const dryRaw = serverEnv('KINSTA_DRY_RUN');
-  const dry = dryRaw === '1' || dryRaw === 'true';
-  if (dry) {
+  if (isKinstaDryRun()) {
     return { ok: true, operation_id: '(dry-run)', dry_run: true };
   }
 
@@ -245,6 +270,158 @@ export async function kinstaPing(): Promise<
   const out = await kinstaListSites({ includeEnvironments: false });
   if (!out.ok) return { ok: false, error: out.error };
   return { ok: true, company_id: out.company_id, site_count: out.sites.length };
+}
+
+export async function kinstaDeleteSite(siteId: string): Promise<
+  | { ok: true; operation_id: string; dry_run?: boolean }
+  | { ok: false; error: string }
+> {
+  const id = siteId.trim();
+  if (!id) return { ok: false, error: 'site_id is required' };
+
+  if (isKinstaDryRun()) {
+    return { ok: true, operation_id: '(dry-run)', dry_run: true };
+  }
+
+  const result = await kinstaRequest<{ operation_id?: string }>({
+    method: 'DELETE',
+    path: `/sites/${encodeURIComponent(id)}`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const operationId = result.data.operation_id?.trim();
+  if (!operationId) return { ok: false, error: 'Kinsta did not return operation_id' };
+  return { ok: true, operation_id: operationId };
+}
+
+export async function kinstaCreateSite(input: KinstaCreateSiteInput): Promise<
+  | { ok: true; operation_id: string; dry_run?: boolean }
+  | { ok: false; error: string }
+> {
+  const cid = companyId();
+  if (!cid) return { ok: false, error: 'KINSTA_COMPANY_ID is not set on this service' };
+
+  const displayName = input.display_name.trim();
+  if (!displayName) return { ok: false, error: 'display_name is required' };
+
+  const installMode = input.install_mode ?? 'new';
+  if (installMode === 'clone') {
+    const sourceEnvId = input.source_env_id?.trim();
+    if (!sourceEnvId) return { ok: false, error: 'source_env_id is required when install_mode is clone' };
+  } else {
+    const adminEmail = input.admin_email?.trim();
+    const adminUser = input.admin_user?.trim();
+    const adminPassword = input.admin_password?.trim();
+    if (!adminEmail || !adminUser || !adminPassword) {
+      return {
+        ok: false,
+        error: 'admin_email, admin_user, and admin_password are required for install_mode new',
+      };
+    }
+  }
+
+  if (isKinstaDryRun()) {
+    return { ok: true, operation_id: '(dry-run)', dry_run: true };
+  }
+
+  const body: Record<string, unknown> = {
+    company: cid,
+    display_name: displayName,
+    install_mode: installMode,
+    is_subdomain_multisite: false,
+    is_multisite: false,
+    wp_language: input.wp_language?.trim() || 'en_US',
+  };
+
+  if (installMode === 'clone') {
+    body.source_env_id = input.source_env_id!.trim();
+    if (input.region?.trim()) body.region = input.region.trim();
+  } else {
+    body.region = input.region?.trim() || 'us-central1';
+    body.admin_email = input.admin_email!.trim();
+    body.admin_user = input.admin_user!.trim();
+    body.admin_password = input.admin_password!.trim();
+    body.site_title = input.site_title?.trim() || displayName;
+    body.woocommerce = input.woocommerce === true;
+    body.wordpressseo = input.wordpressseo === true;
+  }
+
+  const result = await kinstaRequest<{ operation_id?: string }>({
+    method: 'POST',
+    path: '/sites',
+    body,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const operationId = result.data.operation_id?.trim();
+  if (!operationId) return { ok: false, error: 'Kinsta did not return operation_id' };
+  return { ok: true, operation_id: operationId };
+}
+
+export async function kinstaCreateManualBackup(
+  environmentId: string,
+  tag?: string,
+): Promise<
+  | { ok: true; operation_id: string; dry_run?: boolean }
+  | { ok: false; error: string }
+> {
+  const envId = environmentId.trim();
+  if (!envId) return { ok: false, error: 'environment_id is required' };
+
+  if (isKinstaDryRun()) {
+    return { ok: true, operation_id: '(dry-run)', dry_run: true };
+  }
+
+  const body: Record<string, string> = {};
+  const note = tag?.trim();
+  if (note) body.tag = note;
+
+  const result = await kinstaRequest<{ operation_id?: string }>({
+    method: 'POST',
+    path: `/sites/environments/${encodeURIComponent(envId)}/manual-backups`,
+    body: Object.keys(body).length ? body : {},
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const operationId = result.data.operation_id?.trim();
+  if (!operationId) return { ok: false, error: 'Kinsta did not return operation_id' };
+  return { ok: true, operation_id: operationId };
+}
+
+export async function kinstaListBackups(environmentId: string): Promise<
+  | { ok: true; environment_id: string; backups: KinstaBackupSummary[] }
+  | { ok: false; error: string }
+> {
+  const envId = environmentId.trim();
+  if (!envId) return { ok: false, error: 'environment_id is required' };
+
+  const result = await kinstaRequest<{
+    environment?: {
+      display_name?: string;
+      backups?: Array<{
+        id?: number;
+        name?: string;
+        note?: string;
+        type?: string;
+        created_at?: number;
+      }>;
+    };
+  }>({
+    path: `/sites/environments/${encodeURIComponent(envId)}/backups`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const backups = (result.data.environment?.backups ?? [])
+    .filter((b) => typeof b.id === 'number')
+    .map((b) => ({
+      id: b.id as number,
+      name: String(b.name ?? ''),
+      note: b.note?.trim() || null,
+      type: String(b.type ?? 'unknown'),
+      created_at: Number(b.created_at ?? 0),
+    }));
+
+  return { ok: true, environment_id: envId, backups };
 }
 
 export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {

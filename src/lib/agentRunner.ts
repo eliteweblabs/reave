@@ -118,7 +118,7 @@ export async function runKnowledgeAgent(opts: {
   }
   if (isKinstaConfigured()) {
     sysParts.push(
-      'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites and clear cache via list_kinsta_sites, clear_kinsta_cache, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and cache-clear workflow. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites.',
+      'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.',
     );
   } else {
     sysParts.push(

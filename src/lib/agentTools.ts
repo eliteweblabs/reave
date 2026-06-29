@@ -70,8 +70,12 @@ import {
   formatKinstaSitesSummary,
   isKinstaConfigured,
   kinstaClearCache,
+  kinstaCreateManualBackup,
+  kinstaCreateSite,
+  kinstaDeleteSite,
   kinstaGetOperation,
   kinstaGetSite,
+  kinstaListBackups,
   kinstaListSites,
 } from './kinstaClient';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
@@ -457,7 +461,7 @@ export function buildTools(): AgentToolDef[] {
               type: 'string',
               enum: [...DEV_TASK_NAMES],
               description:
-                'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains; list_kinsta_sites = Kinsta WordPress sites/environments.',
+                'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains; list_kinsta_sites = Kinsta WordPress sites/environments. Kinsta site management: list_kinsta_sites, create_kinsta_site, delete_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, get_kinsta_operation.',
             },
           },
           required: ['task'],
@@ -541,6 +545,100 @@ export function buildTools(): AgentToolDef[] {
             operation_id: { type: 'string', description: 'operation_id from a prior Kinsta tool call' },
           },
           required: ['operation_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_kinsta_site',
+        description:
+          'Create a new Kinsta WordPress site (fresh install or clone from an existing environment). Returns operation_id — poll with get_kinsta_operation (provisioning often takes 1–3 minutes). Requires KINSTA_API_KEY + KINSTA_COMPANY_ID.',
+        parameters: {
+          type: 'object',
+          properties: {
+            display_name: { type: 'string', description: 'Site label in MyKinsta (e.g. client name)' },
+            region: {
+              type: 'string',
+              description: 'GCP region for new installs (default us-central1). Examples: us-east1, europe-west1.',
+            },
+            install_mode: {
+              type: 'string',
+              enum: ['new', 'clone'],
+              description: 'new = fresh WordPress; clone = copy from source_env_id',
+            },
+            source_env_id: {
+              type: 'string',
+              description: 'Required when install_mode is clone — environment to copy from',
+            },
+            admin_email: { type: 'string', description: 'WP admin email (required for install_mode new)' },
+            admin_user: { type: 'string', description: 'WP admin username (required for install_mode new)' },
+            admin_password: { type: 'string', description: 'WP admin password (required for install_mode new)' },
+            site_title: { type: 'string', description: 'WordPress site title (defaults to display_name)' },
+            woocommerce: { type: 'boolean', description: 'Pre-install WooCommerce (default false)' },
+            wordpressseo: { type: 'boolean', description: 'Pre-install Yoast SEO (default false)' },
+          },
+          required: ['display_name'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'delete_kinsta_site',
+        description:
+          'Permanently delete a Kinsta WordPress site by site_id. Destructive and irreversible — warn the user and require confirmed:true before calling.',
+        parameters: {
+          type: 'object',
+          properties: {
+            site_id: { type: 'string', description: 'Kinsta site UUID from list_kinsta_sites' },
+            confirmed: {
+              type: 'boolean',
+              description: 'Must be true after the user explicitly confirms deletion',
+            },
+          },
+          required: ['site_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'backup_kinsta_site',
+        description:
+          'Create a manual backup for a Kinsta environment. Returns operation_id — poll with get_kinsta_operation. Use list_kinsta_backups to see existing backups first.',
+        parameters: {
+          type: 'object',
+          properties: {
+            environment_id: {
+              type: 'string',
+              description: 'Kinsta environment UUID (live or staging) from list_kinsta_sites',
+            },
+            tag: { type: 'string', description: 'Optional short label to identify this backup later' },
+          },
+          required: ['environment_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_kinsta_backups',
+        description:
+          'List manual, scheduled, and system backups for a Kinsta environment. Use before restore or to verify a backup_kinsta_site completed.',
+        parameters: {
+          type: 'object',
+          properties: {
+            environment_id: {
+              type: 'string',
+              description: 'Kinsta environment UUID from list_kinsta_sites',
+            },
+          },
+          required: ['environment_id'],
           additionalProperties: false,
         },
       },
@@ -1866,6 +1964,93 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await kinstaGetOperation(operationId);
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({ ok: true, status: result.status, data: result.data });
+    }
+    if (name === 'create_kinsta_site') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const installMode =
+        args.install_mode === 'clone' ? 'clone' : args.install_mode === 'new' ? 'new' : undefined;
+      const result = await kinstaCreateSite({
+        display_name: String(args.display_name ?? ''),
+        region: typeof args.region === 'string' ? args.region : undefined,
+        install_mode: installMode,
+        source_env_id: typeof args.source_env_id === 'string' ? args.source_env_id : undefined,
+        admin_email: typeof args.admin_email === 'string' ? args.admin_email : undefined,
+        admin_user: typeof args.admin_user === 'string' ? args.admin_user : undefined,
+        admin_password: typeof args.admin_password === 'string' ? args.admin_password : undefined,
+        site_title: typeof args.site_title === 'string' ? args.site_title : undefined,
+        woocommerce: args.woocommerce === true,
+        wordpressseo: args.wordpressseo === true,
+      });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        operation_id: result.operation_id,
+        dry_run: result.dry_run ?? false,
+        hint: 'Poll get_kinsta_operation until has_completed (site create can take 1–3 minutes).',
+      });
+    }
+    if (name === 'delete_kinsta_site') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const siteId = String(args.site_id ?? '').trim();
+      if (!siteId) return JSON.stringify({ error: 'site_id is required' });
+
+      const confirmed = args.confirmed === true;
+      if (!confirmed) {
+        const site = await kinstaGetSite(siteId);
+        if (!site.ok) return JSON.stringify({ error: site.error });
+        return JSON.stringify({
+          blocked: true,
+          reason: 'confirmation_required',
+          site_id: siteId,
+          site: site.site,
+          summary: formatKinstaSitesSummary([site.site]),
+          warning: `Permanently delete Kinsta site "${site.site.display_name || site.site.name}" (${siteId})? This cannot be undone.`,
+          hint: 'Warn the user, then re-call delete_kinsta_site with the same site_id and confirmed:true.',
+        });
+      }
+
+      const result = await kinstaDeleteSite(siteId);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        operation_id: result.operation_id,
+        dry_run: result.dry_run ?? false,
+        site_id: siteId,
+        hint: 'Poll get_kinsta_operation until has_completed.',
+      });
+    }
+    if (name === 'backup_kinsta_site') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const environmentId = String(args.environment_id ?? '').trim();
+      const tag = typeof args.tag === 'string' ? args.tag : undefined;
+      const result = await kinstaCreateManualBackup(environmentId, tag);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        operation_id: result.operation_id,
+        dry_run: result.dry_run ?? false,
+        hint: 'Poll get_kinsta_operation until has_completed, then list_kinsta_backups to verify.',
+      });
+    }
+    if (name === 'list_kinsta_backups') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const environmentId = String(args.environment_id ?? '').trim();
+      const result = await kinstaListBackups(environmentId);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        environment_id: result.environment_id,
+        backup_count: result.backups.length,
+        backups: result.backups,
+      });
     }
     if (name === 'get_git_status') {
       const result = await getGitStatus({
