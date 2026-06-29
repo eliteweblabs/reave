@@ -156,7 +156,6 @@ let cachedTabOrder = null;
 let searchOverlayOpen = false;
 let searchDebounceTimer = null;
 let footerNavCollapsed = false;
-let footerNavChatInputFocused = false;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -249,8 +248,7 @@ function setActiveMap(key, opts = {}) {
     updateTabs();
     return;
   }
-  footerNavChatInputFocused = false;
-  expandFooterNav({ force: true });
+  expandFooterNav();
   activeKey = key;
   MAP = MAPS[key];
   saveActiveKey();
@@ -265,6 +263,7 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncInboxHeaderControls();
   syncDashboardHeaderDate();
+  if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
 }
 
@@ -1695,7 +1694,7 @@ function renderHomeDashboard(data) {
     if (!m) continue;
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
-    } else if (key !== 'home') {
+    } else if (key !== 'home' && key !== 'profile') {
       grid.appendChild(buildHomeMapTile(key, m));
     }
   }
@@ -1944,9 +1943,7 @@ function collapseFooterNav() {
   scheduleFooterNavIndicatorSync();
 }
 
-function expandFooterNav({ force = false } = {}) {
-  if (footerNavChatInputFocused && !force) return;
-  if (force) footerNavChatInputFocused = false;
+function expandFooterNav() {
   if (!footerNavCollapsed) return;
   footerNavCollapsed = false;
   document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
@@ -1954,30 +1951,6 @@ function expandFooterNav({ force = false } = {}) {
   homeBtn?.setAttribute('title', 'Home');
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
-}
-
-function onChatInputFocusIn(ev) {
-  const t = ev.target;
-  if (!(t instanceof HTMLTextAreaElement) || !t.classList.contains('ch-input')) return;
-  if (activeKey !== 'chats') return;
-  footerNavChatInputFocused = true;
-  collapseFooterNav();
-}
-
-function onChatInputFocusOut(ev) {
-  const t = ev.target;
-  if (!(t instanceof HTMLTextAreaElement) || !t.classList.contains('ch-input')) return;
-  setTimeout(() => {
-    const active = document.activeElement;
-    if (active instanceof HTMLTextAreaElement && active.classList.contains('ch-input')) return;
-    footerNavChatInputFocused = false;
-    expandFooterNav();
-  }, 0);
-}
-
-function initFooterNavChatInputCollapse() {
-  document.addEventListener('focusin', onChatInputFocusIn, true);
-  document.addEventListener('focusout', onChatInputFocusOut, true);
 }
 
 function onPanelScrollCollapse(ev) {
@@ -2007,6 +1980,41 @@ function onPanelScrollCollapse(ev) {
 
 function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
+}
+
+function getFooterChatComposeSlot() {
+  return document.getElementById('footer-chat-compose');
+}
+
+function clearFooterChatCompose() {
+  const slot = getFooterChatComposeSlot();
+  if (slot) slot.innerHTML = '';
+  syncFooterChatComposeLayout();
+}
+
+function syncFooterChatComposeLayout() {
+  const slot = getFooterChatComposeSlot();
+  const nav = document.getElementById('admin-footer-nav');
+  if (!slot || !nav) return;
+  const show = activeKey === 'chats' && Boolean(chatState.activeId) && slot.childElementCount > 0;
+  slot.hidden = !show;
+  nav.classList.toggle('footer-nav-has-compose', show);
+  if (show) {
+    const h = nav.getBoundingClientRect().height;
+    document.documentElement.style.setProperty('--footer-nav-h', `${h}px`);
+  } else {
+    document.documentElement.style.removeProperty('--footer-nav-h');
+  }
+  scheduleFooterNavIndicatorSync();
+}
+
+function mountChatCompose(compose) {
+  const slot = getFooterChatComposeSlot();
+  if (!slot) return false;
+  slot.innerHTML = '';
+  slot.appendChild(compose);
+  syncFooterChatComposeLayout();
+  return true;
 }
 
 function syncFooterNavIndicator() {
@@ -2061,11 +2069,7 @@ function initFooterNav() {
   document.getElementById('footer-nav-home')?.addEventListener('click', () => {
     closeSearchOverlay();
     if (footerNavCollapsed) {
-      if (footerNavChatInputFocused) {
-        getChatPanel()?.querySelector('.ch-input')?.blur();
-      } else {
-        expandFooterNav();
-      }
+      expandFooterNav();
       return;
     }
     setActiveMap('home', { force: activeKey === 'home' });
@@ -2089,7 +2093,10 @@ function initFooterNav() {
     closeSearchOverlay();
     setActiveMap('profile', { force: activeKey === 'profile' });
   });
-  window.addEventListener('resize', syncFooterNavIndicator, { passive: true });
+  window.addEventListener('resize', () => {
+    syncFooterNavIndicator();
+    syncFooterChatComposeLayout();
+  }, { passive: true });
   void refreshInboxBadgeQuiet();
 }
 
@@ -5952,6 +5959,7 @@ function renderChatPanel() {
     ph.innerHTML = placeholderHtml('message-circle', 'Select a chat or start a new one.');
     pane.appendChild(ph);
     root.appendChild(pane);
+    clearFooterChatCompose();
     return;
   }
 
@@ -6178,7 +6186,7 @@ function renderChatPanel() {
   composeActions.appendChild(sendBtn);
   composeActions.appendChild(stopBtn);
   compose.appendChild(composeActions);
-  pane.appendChild(compose);
+  if (!mountChatCompose(compose)) pane.appendChild(compose);
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
@@ -7228,7 +7236,6 @@ async function boot() {
   initTopbarMenus();
   initFooterNav();
   initFooterNavScrollCollapse();
-  initFooterNavChatInputCollapse();
   initInboxHeaderRefresh();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);

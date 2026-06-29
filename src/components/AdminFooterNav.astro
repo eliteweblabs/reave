@@ -46,7 +46,9 @@ if (userId) {
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
-  <div class="admin-footer-nav-pill">
+  <div class="admin-footer-nav-bar">
+    <div id="footer-chat-compose" class="footer-chat-compose" hidden></div>
+    <div class="admin-footer-nav-pill">
     <div id="footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
     <button
       type="button"
@@ -103,6 +105,7 @@ if (userId) {
       )}
     </button>
   </div>
+  </div>
 </nav>
 
 <style is:global>
@@ -133,12 +136,46 @@ if (userId) {
     transition: justify-content 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  .admin-footer-nav.footer-nav-has-compose {
+    justify-content: stretch;
+  }
+
+  .admin-footer-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: auto;
+    max-width: none;
+    pointer-events: auto;
+  }
+
+  .admin-footer-nav.footer-nav-has-compose .admin-footer-nav-bar {
+    width: 100%;
+    max-width: min(100%, 720px);
+  }
+
+  .footer-chat-compose {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .footer-chat-compose[hidden] {
+    display: none !important;
+  }
+
   .admin-footer-nav.footer-nav-collapsed {
     justify-content: flex-start;
   }
 
+  .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed {
+    justify-content: stretch;
+  }
+
   .admin-footer-nav-pill {
     position: relative;
+    flex-shrink: 0;
     pointer-events: auto;
     display: flex;
     align-items: stretch;

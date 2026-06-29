@@ -68,17 +68,6 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
       }
-      html::after {
-        content: "";
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        height: env(safe-area-inset-bottom, 0px);
-        background: var(--bg);
-        z-index: 1999;
-        pointer-events: none;
-      }
       body {
         position: fixed;
         inset: 0;
@@ -1671,6 +1660,32 @@ const { userId } = Astro.locals.auth();
         max-width: 100%;
         box-sizing: border-box;
       }
+      .footer-chat-compose .ch-compose {
+        flex: 1 1 auto;
+        align-items: center;
+        padding: 0;
+        border-top: none;
+        background: transparent;
+        gap: 0.4rem;
+      }
+      .footer-chat-compose .ch-compose-main {
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .footer-chat-compose .ch-input {
+        min-height: 2.35rem;
+        max-height: 5rem;
+        padding: 0.45rem 0.65rem;
+      }
+      .footer-chat-compose .ch-compose-actions {
+        align-self: center;
+      }
+      .footer-chat-compose .ch-send,
+      .footer-chat-compose .ch-stop {
+        min-height: 2.35rem;
+        height: 2.35rem;
+        padding: 0 0.75rem;
+      }
       .ch-compose.ch-compose-drag {
         background: rgba(59, 130, 246, 0.08);
         box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.45);
@@ -2903,6 +2918,6 @@ const { userId } = Astro.locals.auth();
     <AdminFooterNav />
 
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629n"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629p"></script>
   </body>
 </html>
