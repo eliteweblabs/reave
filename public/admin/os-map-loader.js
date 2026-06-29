@@ -1943,25 +1943,6 @@ function footerNavActiveKey() {
   return null;
 }
 
-function syncFooterChatNav() {
-  const btn = document.getElementById('footer-nav-chat');
-  if (!btn) return;
-  const onChat = activeKey === 'chats';
-  let iconEl = btn.querySelector('.footer-nav-chat-icon');
-  if (!iconEl) {
-    iconEl = document.createElement('span');
-    iconEl.className = 'footer-nav-chat-icon';
-    iconEl.setAttribute('aria-hidden', 'true');
-    const badge = document.getElementById('footer-chat-badge');
-    btn.insertBefore(iconEl, badge || null);
-    btn.querySelector(':scope > svg')?.remove();
-  }
-  iconEl.innerHTML = navIcon(onChat ? 'plus' : 'message-circle', 22);
-  btn.classList.toggle('footer-nav-btn--create', onChat);
-  btn.setAttribute('aria-label', onChat ? 'New chat' : 'Chats');
-  btn.title = onChat ? 'New chat' : 'Chats';
-}
-
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
 const footerPanelScrollTops = new WeakMap();
@@ -2092,8 +2073,7 @@ function footerNavIndicatorHidden() {
   if (!indicator || indicator.hidden) return true;
   const nav = document.getElementById('admin-footer-nav');
   if (nav?.classList.contains('footer-nav-compose-open')) return true;
-  const chatBtn = document.getElementById('footer-nav-chat');
-  return activeKey === 'chats' && chatBtn?.classList.contains('footer-nav-btn--create');
+  return false;
 }
 
 function getVisibleFooterNavButtons() {
@@ -2174,10 +2154,6 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'chat') {
-    if (activeKey === 'chats') {
-      void startNewChat();
-      return;
-    }
     setActiveMap('chats', { force: activeKey === 'chats' });
     return;
   }
@@ -2288,8 +2264,6 @@ function syncFooterNavIndicator() {
   if (!indicator || !pill) return;
 
   const activeNav = footerNavActiveKey();
-  const chatBtn = document.getElementById('footer-nav-chat');
-  const hideForCreate = activeNav === 'chat' && chatBtn?.classList.contains('footer-nav-btn--create');
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
@@ -2298,7 +2272,7 @@ function syncFooterNavIndicator() {
     targetBtn = document.getElementById('footer-nav-home');
   }
 
-  if (!targetBtn || hideForCreate) {
+  if (!targetBtn) {
     indicator.hidden = true;
     indicator.classList.remove('is-visible');
     return;
@@ -2324,7 +2298,6 @@ function syncFooterNav() {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
   });
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
-  syncFooterChatNav();
   scheduleFooterNavIndicatorSync();
   if (activeKey === 'home') syncHomeBadge(0);
   if (activeKey === 'chats' || activeKey === 'knowledge') syncChatBadge(0);
@@ -2346,14 +2319,6 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     closeSearchOverlay();
-    if (activeKey === 'chats') {
-      if (!footerChatComposeVisible && chatState.activeId) {
-        showFooterChatCompose();
-        return;
-      }
-      void startNewChat();
-      return;
-    }
     setActiveMap('chats', { force: activeKey === 'chats' });
   });
   document.getElementById('footer-nav-inbox')?.addEventListener('click', () => {

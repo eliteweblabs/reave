@@ -46,6 +46,7 @@ const { userId } = Astro.locals.auth();
         --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
         --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
         --radius-pill: 999px;
+        --radius-input: 8px;
         --control-h: 2.75rem;
         --control-inset: 0.22rem;
       }
@@ -168,11 +169,30 @@ const { userId } = Astro.locals.auth();
       )
         :is(
           input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not(.cl-title-input),
-          textarea:not(.cl-title-input),
           select,
           button
         ) {
         border-radius: var(--radius-pill);
+      }
+
+      :is(
+        #topbar,
+        #tools,
+        #search-overlay,
+        #os-dialog-backdrop,
+        #doc-editor,
+        #chat-panel,
+        #email-panel,
+        #knowledge-editor,
+        #work-editor,
+        #schedule-panel,
+        #clients-editor,
+        #rule-editor,
+        #profile-panel,
+        .admin-footer-nav
+      )
+        textarea:not(.cl-title-input):not(.ch-input) {
+        border-radius: var(--radius-input);
       }
 
       /* Pill field — inset buttons/actions live inside the input shell. */
@@ -188,6 +208,10 @@ const { userId } = Astro.locals.auth();
         background: var(--card);
         box-sizing: border-box;
         transition: border-color 0.12s;
+      }
+      .control-field:has(textarea) {
+        border-radius: var(--radius-input);
+        align-items: flex-end;
       }
       .control-field:focus-within {
         border-color: #3b82f6;
@@ -1038,7 +1062,7 @@ const { userId } = Astro.locals.auth();
         color: var(--fg);
         background: var(--card);
         border: 1px solid var(--card-border);
-        border-radius: 7px;
+        border-radius: var(--radius-input);
         padding: 0.4rem 0.6rem;
         outline: none;
         width: 100%;
@@ -1057,7 +1081,7 @@ const { userId } = Astro.locals.auth();
         color: #c9d1d9;
         background: var(--card);
         border: 1px solid var(--card-border);
-        border-radius: 9px;
+        border-radius: var(--radius-input);
         outline: none;
         tab-size: 2;
         white-space: pre;
@@ -1334,7 +1358,7 @@ const { userId } = Astro.locals.auth();
         color: var(--fg);
         background: var(--card);
         border: 1px solid var(--card-border);
-        border-radius: 7px;
+        border-radius: var(--radius-input);
         padding: 0.45rem 0.55rem;
         resize: vertical;
         outline: none;
@@ -2837,10 +2861,11 @@ const { userId } = Astro.locals.auth();
         color: var(--muted);
       }
       .prof-field input,
-      .prof-field select {
+      .prof-field select,
+      .prof-field textarea {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--panel-border);
-        border-radius: 8px;
+        border-radius: var(--radius-input);
         padding: 0.6rem 0.75rem;
         font: inherit;
         font-size: max(16px, 0.88rem);
@@ -2848,7 +2873,8 @@ const { userId } = Astro.locals.auth();
         outline: none;
       }
       .prof-field input:focus,
-      .prof-field select:focus {
+      .prof-field select:focus,
+      .prof-field textarea:focus {
         border-color: rgba(255, 255, 255, 0.22);
       }
       .prof-field input:disabled {
