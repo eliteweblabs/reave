@@ -115,6 +115,9 @@ if (userId) {
     --footer-nav-h: calc(var(--footer-nav-pill-h) + env(safe-area-inset-bottom, 0px));
     --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
     --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
+    --footer-nav-glass-bg: transparent;
+    --footer-nav-glass-blur: blur(18px) saturate(1.15);
+    --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .admin-footer-nav {
@@ -172,11 +175,11 @@ if (userId) {
       max-width: min(100%, 720px);
       gap: 0;
       border-radius: 999px;
-      background: rgba(18, 22, 30, 0.72);
-      backdrop-filter: blur(20px) saturate(1.2);
-      -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      background: var(--footer-nav-glass-bg);
+      backdrop-filter: var(--footer-nav-glass-blur);
+      -webkit-backdrop-filter: var(--footer-nav-glass-blur);
+      border: var(--footer-nav-glass-border);
+      box-shadow: none;
       overflow: hidden;
     }
 
@@ -270,11 +273,11 @@ if (userId) {
     height: var(--footer-nav-pill-h);
     padding: 0;
     border-radius: 999px;
-    background: rgba(18, 22, 30, 0.72);
-    backdrop-filter: blur(20px) saturate(1.2);
-    -webkit-backdrop-filter: blur(20px) saturate(1.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    background: var(--footer-nav-glass-bg);
+    backdrop-filter: var(--footer-nav-glass-blur);
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur);
+    border: var(--footer-nav-glass-border);
+    box-shadow: none;
     transition: gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
   }
@@ -295,9 +298,9 @@ if (userId) {
     left: 0;
     width: 0;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     pointer-events: none;
     z-index: 0;
     opacity: 0;
@@ -472,7 +475,7 @@ if (userId) {
     text-align: center;
     pointer-events: none;
     z-index: 5;
-    box-shadow: 0 0 0 2px rgba(18, 22, 30, 0.95);
+    box-shadow: 0 0 0 2px rgba(10, 13, 20, 0.55);
     transition: opacity 0.2s ease;
   }
 

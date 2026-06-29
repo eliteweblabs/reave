@@ -3161,8 +3161,11 @@ let docState = {
   search: '',
   activeSlug: null,
   dirty: false,
+  savedHtml: '',
+  autosaveGetHtml: null,
   paneMode: 'edit', // 'edit' | 'view'
 };
+let docAutosaveTimer = null;
 
 function getDocEditor() { return document.getElementById('doc-editor'); }
 
@@ -3367,12 +3370,6 @@ function renderEditForm(pane) {
       nameEl2.textContent = tpl?.title ?? slug;
       header.appendChild(nameEl2);
 
-      const slugEl = document.createElement('span');
-      slugEl.className = 'de-doc-slug';
-      slugEl.textContent = `${slug}.html`;
-      header.appendChild(slugEl);
-
-      // Edit / View toggle
       const headerSpacer = document.createElement('span');
       headerSpacer.style.flex = '1';
       header.appendChild(headerSpacer);
@@ -3391,7 +3388,20 @@ function renderEditForm(pane) {
       modeTabs.appendChild(editTab);
       modeTabs.appendChild(viewTab);
       header.appendChild(modeTabs);
+
+      const headerActions = document.createElement('div');
+      headerActions.className = 'de-header-actions';
+      headerActions.appendChild(createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete document',
+        className: 'ios-icon-btn ch-delete-btn',
+        onClick: () => deleteDocument(slug),
+      }));
+      header.appendChild(headerActions);
       pane.appendChild(header);
+
+      docState.savedHtml = html;
+      docState.dirty = false;
 
       // ── Textarea (edit mode) ──
       const ta = document.createElement('textarea');
@@ -3399,7 +3409,11 @@ function renderEditForm(pane) {
       ta.id = `de-edit-${slug}`;
       ta.spellcheck = false;
       ta.value = html;
-      ta.addEventListener('input', () => { docState.dirty = true; updateSaveBtn(); });
+      docState.autosaveGetHtml = () => ta.value;
+      ta.addEventListener('input', () => {
+        docState.dirty = ta.value !== docState.savedHtml;
+        scheduleDocAutosave(slug);
+      });
       attachShortcodePopover(ta);
 
       // ── Preview iframe (view mode, sandboxed — no scripts) ──
@@ -3418,31 +3432,6 @@ function renderEditForm(pane) {
       pane.appendChild(ta);
       pane.appendChild(preview);
 
-      // ── Actions bar (hidden in view mode) ──
-      const actions = document.createElement('div');
-      actions.className = 'de-actions';
-      if (docState.paneMode === 'view') actions.style.display = 'none';
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'de-btn de-btn-danger';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', () => deleteDocument(slug));
-
-      const spacer = document.createElement('span');
-      spacer.style.flex = '1';
-
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'de-btn de-btn-primary';
-      saveBtn.id = 'de-save-btn';
-      saveBtn.textContent = 'Save';
-      saveBtn.disabled = !docState.dirty;
-      saveBtn.addEventListener('click', () => saveDocument(slug, ta.value, saveBtn));
-
-      actions.appendChild(delBtn);
-      actions.appendChild(spacer);
-      actions.appendChild(saveBtn);
-      pane.appendChild(actions);
-
       // ── Tab switching ──
       editTab.addEventListener('click', () => {
         docState.paneMode = 'edit';
@@ -3450,17 +3439,16 @@ function renderEditForm(pane) {
         viewTab.classList.remove('active');
         ta.style.display = '';
         preview.style.display = 'none';
-        actions.style.display = '';
       });
 
-      viewTab.addEventListener('click', () => {
+      viewTab.addEventListener('click', async () => {
+        await flushDocAutosave();
         docState.paneMode = 'view';
         viewTab.classList.add('active');
         editTab.classList.remove('active');
         preview.srcdoc = ta.value;
         ta.style.display = 'none';
         preview.style.display = '';
-        actions.style.display = 'none';
       });
     })
     .catch((e) => {
@@ -3468,32 +3456,90 @@ function renderEditForm(pane) {
     });
 }
 
-function updateSaveBtn() {
-  const btn = document.getElementById('de-save-btn');
-  if (btn) btn.disabled = !docState.dirty;
+function syncDocSidebarTitle(slug, html) {
+  const newTitle = html.match(/<!--\s*title:\s*(.+?)\s*-->/i)?.[1]?.trim()
+    ?? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const tpl = docState.templates.find((t) => t.slug === slug);
+  if (tpl) tpl.title = newTitle;
+  const titleEl = document.querySelector(
+    `.ch-list-item[data-slug="${CSS.escape(slug)}"] .ch-item-title`,
+  );
+  if (titleEl) titleEl.textContent = newTitle;
+  if (docState.activeSlug === slug) {
+    const nameEl = getDocEditor()?.querySelector('.de-doc-name');
+    if (nameEl) nameEl.textContent = newTitle;
+  }
+}
+
+function scheduleDocAutosave(slug) {
+  clearTimeout(docAutosaveTimer);
+  docAutosaveTimer = setTimeout(() => {
+    docAutosaveTimer = null;
+    if (docState.autosaveGetHtml) autosaveDocument(slug, docState.autosaveGetHtml());
+  }, 650);
+}
+
+async function flushDocAutosave() {
+  if (docAutosaveTimer) {
+    clearTimeout(docAutosaveTimer);
+    docAutosaveTimer = null;
+  }
+  const slug = docState.activeSlug;
+  if (!slug || slug === '__new__' || !docState.autosaveGetHtml) return;
+  await autosaveDocument(slug, docState.autosaveGetHtml());
+}
+
+async function autosaveDocument(slug, html) {
+  if (html === docState.savedHtml) {
+    docState.dirty = false;
+    return;
+  }
+  if (!html.trim()) return;
+  try {
+    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    docState.savedHtml = html;
+    docState.dirty = false;
+    syncDocSidebarTitle(slug, html);
+  } catch (e) {
+    console.warn('[documents] autosave failed', e);
+  }
 }
 
 async function openDocument(slug) {
+  await flushDocAutosave();
   if (docState.dirty && !confirm('Discard unsaved changes?')) return;
   docState.activeSlug = slug;
   docState.dirty = false;
+  docState.savedHtml = '';
+  docState.autosaveGetHtml = null;
   docState.paneMode = 'edit';
   renderDocEditor();
   getDocEditor()?.classList.add('de-pane-active');
 }
 
-function startNewDocument() {
+async function startNewDocument() {
+  await flushDocAutosave();
   if (docState.dirty && !confirm('Discard unsaved changes?')) return;
   docState.activeSlug = '__new__';
   docState.dirty = false;
+  docState.savedHtml = '';
+  docState.autosaveGetHtml = null;
   renderDocEditor();
   getDocEditor()?.classList.add('de-pane-active');
 }
 
-function backToList() {
+async function backToList() {
+  await flushDocAutosave();
   if (docState.dirty && !confirm('Discard unsaved changes?')) return;
   docState.activeSlug = null;
   docState.dirty = false;
+  docState.savedHtml = '';
+  docState.autosaveGetHtml = null;
   getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
@@ -3519,37 +3565,14 @@ async function createDocument(slug, html) {
   }
 }
 
-async function saveDocument(slug, html, btn) {
-  btn.textContent = 'Saving…';
-  btn.disabled = true;
-  try {
-    const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html }),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    docState.dirty = false;
-    btn.textContent = 'Saved ✓';
-    setTimeout(() => { btn.textContent = 'Save'; btn.disabled = true; }, 1800);
-    // Refresh title in sidebar in case <!-- title: --> changed
-    const newTitle = html.match(/<!--\s*title:\s*(.+?)\s*-->/i)?.[1]?.trim()
-      ?? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    const tpl = docState.templates.find((t) => t.slug === slug);
-    if (tpl) tpl.title = newTitle;
-    document.querySelector(`.ch-list-item[data-slug="${CSS.escape(slug)}"] .ch-item-title`)
-      ?.replaceWith(Object.assign(document.createElement('span'), { className: 'ch-item-title', textContent: newTitle }));
-  } catch (e) {
-    btn.textContent = 'Save';
-    btn.disabled = false;
-    alert(`Failed to save: ${e.message}`);
-  }
-}
-
 async function deleteDocument(slug) {
   closeOpenSwipeRow();
   const tpl = docState.templates.find((t) => t.slug === slug);
   if (!confirm(`Delete "${tpl?.title ?? slug}"? This cannot be undone.`)) return;
+  if (docAutosaveTimer) {
+    clearTimeout(docAutosaveTimer);
+    docAutosaveTimer = null;
+  }
   try {
     const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
@@ -3559,6 +3582,8 @@ async function deleteDocument(slug) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     docState.activeSlug = null;
     docState.dirty = false;
+    docState.savedHtml = '';
+    docState.autosaveGetHtml = null;
     getDocEditor()?.classList.remove('de-pane-active');
     await loadDocumentsTab();
   } catch (e) {
