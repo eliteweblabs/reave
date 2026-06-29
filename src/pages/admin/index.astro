@@ -43,8 +43,6 @@ const { userId } = Astro.locals.auth();
         --footer-nav-pill-h: 3.4rem;
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
-        --scroll-edge-h: 2rem;
-        --scroll-edge-blur: 10px;
         --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
         --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
       }
@@ -84,149 +82,6 @@ const { userId } = Astro.locals.auth();
       .search-overlay-results,
       .re-form-scroll {
         padding-bottom: var(--footer-scroll-pad);
-      }
-
-      /* Gradual blur at scroll edges (content softens as it enters/leaves the viewport). */
-      @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-        .ch-list::before,
-        .ch-list::after,
-        .ch-messages::before,
-        .ch-messages::after,
-        .de-list::before,
-        .de-list::after,
-        .em-detail::before,
-        .em-detail::after,
-        .search-overlay-results::before,
-        .search-overlay-results::after,
-        .re-form-scroll::before,
-        .re-form-scroll::after,
-        .home-dashboard-scroll::before,
-        .home-dashboard-scroll::after,
-        .schedule-panel-scroll::before,
-        .schedule-panel-scroll::after,
-        .profile-panel-scroll::before,
-        .profile-panel-scroll::after {
-          content: "";
-          display: block;
-          position: sticky;
-          z-index: 2;
-          pointer-events: none;
-          height: var(--scroll-edge-h);
-          backdrop-filter: blur(var(--scroll-edge-blur)) saturate(1.08);
-          -webkit-backdrop-filter: blur(var(--scroll-edge-blur)) saturate(1.08);
-        }
-
-        .ch-list::before,
-        .ch-messages::before,
-        .de-list::before,
-        .em-detail::before,
-        .search-overlay-results::before,
-        .re-form-scroll::before,
-        .home-dashboard-scroll::before,
-        .schedule-panel-scroll::before,
-        .profile-panel-scroll::before {
-          top: 0;
-          -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
-          mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
-        }
-
-        .ch-list::after,
-        .ch-messages::after,
-        .de-list::after,
-        .em-detail::after,
-        .search-overlay-results::after,
-        .re-form-scroll::after,
-        .home-dashboard-scroll::after,
-        .schedule-panel-scroll::after,
-        .profile-panel-scroll::after {
-          bottom: 0;
-          -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
-          mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
-        }
-
-        .ch-list::before,
-        .de-list::before,
-        .em-detail::before,
-        .search-overlay-results::before,
-        .re-form-scroll::before {
-          margin-bottom: calc(-1 * var(--scroll-edge-h));
-        }
-
-        .ch-list::after,
-        .de-list::after,
-        .em-detail::after,
-        .search-overlay-results::after,
-        .re-form-scroll::after {
-          margin-top: calc(-1 * var(--scroll-edge-h));
-        }
-
-        /* Flex scroll regions — collapse sticky edge strips + flex gap. */
-        .ch-messages::before {
-          margin-bottom: calc(-1 * var(--scroll-edge-h) - 0.75rem);
-        }
-        .ch-messages::after {
-          margin-top: calc(-1 * var(--scroll-edge-h) - 0.75rem);
-        }
-        .home-dashboard-scroll::before,
-        .schedule-panel-scroll::before {
-          margin-bottom: calc(-1 * var(--scroll-edge-h));
-        }
-        .home-dashboard-scroll::after,
-        .schedule-panel-scroll::after {
-          margin-top: calc(-1 * var(--scroll-edge-h));
-        }
-        .profile-panel-scroll::before {
-          margin-bottom: calc(-1 * var(--scroll-edge-h) - 1rem);
-        }
-        .profile-panel-scroll::after {
-          margin-top: calc(-1 * var(--scroll-edge-h) - 1rem);
-        }
-
-        /* Bleed blur strips over horizontal scroll padding. */
-        .ch-list::before,
-        .ch-list::after,
-        .de-list::before,
-        .de-list::after {
-          width: calc(100% + 1rem);
-          margin-left: -0.5rem;
-        }
-        .ch-messages::before,
-        .ch-messages::after {
-          width: calc(100% + 2.4rem);
-          margin-left: -1.2rem;
-        }
-        .em-detail::before,
-        .em-detail::after {
-          width: calc(100% + 2.4rem);
-          margin-left: -1.2rem;
-        }
-      }
-
-      @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-        .ch-list,
-        .ch-messages,
-        .de-list,
-        .em-detail,
-        .search-overlay-results,
-        .re-form-scroll,
-        .home-dashboard-scroll,
-        .schedule-panel-scroll,
-        .profile-panel-scroll {
-          -webkit-mask-image: linear-gradient(
-            to bottom,
-            transparent 0,
-            #000 calc(var(--scroll-edge-h) * 0.45),
-            #000 calc(100% - var(--scroll-edge-h) * 0.45),
-            transparent 100%
-          );
-          mask-image: linear-gradient(
-            to bottom,
-            transparent 0,
-            #000 calc(var(--scroll-edge-h) * 0.45),
-            #000 calc(100% - var(--scroll-edge-h) * 0.45),
-            transparent 100%
-          );
-        }
       }
 
       /* Floating header clearance — transparent top bar; inset on columns, not panel shells. */
@@ -911,7 +766,7 @@ const { userId } = Astro.locals.auth();
         flex: 0 0 auto;
       }
       @media (max-width: 639px) {
-        .de-back-btn { display: inline-flex; align-items: center; gap: 0.25rem; }
+        .de-back-btn { display: inline-flex; align-items: center; justify-content: center; }
         .de-doc-name { font-size: 0.88rem; }
       }
       .de-doc-name {
@@ -1841,16 +1696,16 @@ const { userId } = Astro.locals.auth();
       }
       .ch-delete-btn {
         margin-left: 0.45rem;
-        padding: 0.35rem 0.65rem;
-        border-radius: 8px;
+        padding: 0;
+        border-radius: 10px;
         border: 1px solid rgba(239, 68, 68, 0.35);
         background: rgba(239, 68, 68, 0.08);
         color: #f87171;
-        font: inherit;
-        font-size: 0.75rem;
-        cursor: pointer;
       }
-      .ch-delete-btn:hover { background: rgba(239, 68, 68, 0.16); }
+      .ch-delete-btn:hover {
+        background: rgba(239, 68, 68, 0.16);
+        color: #fca5a5;
+      }
       .ch-copy-chat-btn,
       .ch-share-chat-btn {
         margin-left: 0.15rem;
@@ -1916,9 +1771,7 @@ const { userId } = Astro.locals.auth();
       }
       .em-filter-tabs {
         display: flex;
-        gap: 0.35rem;
-        padding: 0.45rem 0.65rem;
-        border-bottom: 1px solid var(--panel-border);
+        gap: 0.25rem;
         overflow-x: auto;
         scrollbar-width: none;
       }
@@ -1930,9 +1783,9 @@ const { userId } = Astro.locals.auth();
         align-items: center;
         justify-content: center;
         gap: 0.35rem;
-        padding: 0.4rem 0.45rem;
+        padding: 0.3rem 0.35rem;
         border: 1px solid transparent;
-        border-radius: 8px;
+        border-radius: 6px;
         background: transparent;
         color: var(--muted);
         font: inherit;
