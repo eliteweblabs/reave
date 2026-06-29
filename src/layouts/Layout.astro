@@ -84,7 +84,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta name="twitter:image" content={ogImageAbsolute} />
 	</head>
 	<body>
-		<Header hideLogo={isIndexPage} />
+		<Header hideLogo={isIndexPage} homeAdminEntry={isIndexPage} />
 		<slot />
 	</body>
 </html>
