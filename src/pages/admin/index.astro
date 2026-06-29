@@ -7,6 +7,7 @@
  */
 import Favicon from "../../components/Favicon.astro";
 import Header from "../../components/Header.astro";
+import AdminFooterNav from "../../components/AdminFooterNav.astro";
 
 export const prerender = false;
 
@@ -37,6 +38,7 @@ const { userId } = Astro.locals.auth();
         --panel: #121722;
         --panel-border: #283142;
         --topbar-h: 4rem;
+        --footer-nav-h: 4.75rem;
       }
       * { box-sizing: border-box; }
       html, body { height: 100%; margin: 0; }
@@ -63,6 +65,8 @@ const { userId } = Astro.locals.auth();
       #work-editor,
       #clients-editor,
       #rule-editor,
+      #home-dashboard,
+      #search-overlay,
       #os-dialog-backdrop {
         touch-action: manipulation;
       }
@@ -89,6 +93,7 @@ const { userId } = Astro.locals.auth();
       #wrap {
         position: fixed;
         inset: 0;
+        bottom: var(--footer-nav-h);
         overflow: hidden;
         cursor: grab;
         background-color: var(--bg);
@@ -227,77 +232,6 @@ const { userId } = Astro.locals.auth();
         overflow: hidden;
       }
 
-      .node.rule-card { cursor: pointer; }
-
-      #rule-editor {
-        display: none;
-        flex-direction: column;
-        position: fixed;
-        top: var(--topbar-h);
-        right: 0;
-        bottom: 0;
-        width: min(400px, 100vw);
-        z-index: 35;
-        background: var(--panel);
-        border-left: 1px solid var(--panel-border);
-        box-shadow: -8px 0 32px rgba(0, 0, 0, 0.35);
-      }
-      #rule-editor.re-pane-active { display: flex; }
-      #rule-editor .re-idle {
-        padding: 1rem 1.1rem;
-        font-size: 0.82rem;
-        color: var(--muted);
-        line-height: 1.45;
-      }
-      #rule-editor .re-idle strong { color: var(--fg); }
-      #rule-editor .re-warn { color: #f85149; margin-top: 0.75rem; font-size: 0.75rem; }
-      #rule-editor .re-head {
-        padding: 0.65rem 0.85rem;
-        border-bottom: 1px solid var(--panel-border);
-      }
-      #rule-editor .re-form {
-        flex: 1 1 auto;
-        overflow: auto;
-        padding: 0.85rem 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
-      }
-      #rule-editor .re-field { display: flex; flex-direction: column; gap: 0.3rem; }
-      #rule-editor .re-label {
-        font-size: 0.68rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--muted);
-      }
-      #rule-editor .re-field input,
-      #rule-editor .re-field textarea,
-      #rule-editor .re-field select {
-        font: inherit;
-        font-size: max(16px, 0.82rem);
-        color: var(--fg);
-        background: var(--card);
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        padding: 0.45rem 0.55rem;
-        resize: vertical;
-      }
-      #rule-editor .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
-      #rule-editor .re-check {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.8rem;
-        color: var(--fg);
-        cursor: pointer;
-      }
-      #rule-editor .re-actions {
-        display: flex;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        border-top: 1px solid var(--panel-border);
-      }
       .node .status {
         margin-top: 0.4rem;
         font-size: 0.7rem;
@@ -525,7 +459,7 @@ const { userId } = Astro.locals.auth();
       #tools {
         position: fixed;
         left: 0.7rem;
-        bottom: 0.7rem;
+        bottom: calc(var(--footer-nav-h) + 0.5rem);
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
@@ -557,7 +491,7 @@ const { userId } = Astro.locals.auth();
       #legend {
         position: fixed;
         right: 0.7rem;
-        bottom: 0.7rem;
+        bottom: calc(var(--footer-nav-h) + 0.5rem);
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
@@ -591,6 +525,7 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -988,13 +923,15 @@ const { userId } = Astro.locals.auth();
         min-height: 0;
       }
 
-      /* ── Knowledge / Work / Clients tabs (reuse Documents editor classes) ── */
+      /* ── Knowledge / Work / Clients / Rules tabs (reuse Documents editor classes) ── */
       #knowledge-editor,
       #work-editor,
-      #clients-editor {
+      #clients-editor,
+      #rule-editor {
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -1003,17 +940,66 @@ const { userId } = Astro.locals.auth();
       @media (max-width: 639px) {
         #knowledge-editor,
         #work-editor,
-        #clients-editor { flex-direction: column; }
+        #clients-editor,
+        #rule-editor { flex-direction: column; }
         #knowledge-editor.de-pane-active .de-sidebar,
         #knowledge-editor.de-pane-active .ch-sidebar,
         #work-editor.de-pane-active .de-sidebar,
         #work-editor.de-pane-active .ch-sidebar,
         #clients-editor.de-pane-active .de-sidebar,
-        #clients-editor.de-pane-active .ch-sidebar { display: none; }
+        #clients-editor.de-pane-active .ch-sidebar,
+        #rule-editor.de-pane-active .de-sidebar,
+        #rule-editor.de-pane-active .ch-sidebar { display: none; }
         #knowledge-editor.de-pane-active .de-pane,
         #work-editor.de-pane-active .de-pane,
-        #clients-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+        #clients-editor.de-pane-active .de-pane,
+        #rule-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
       }
+      .re-settings {
+        padding: 0 0.65rem 0.65rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+      .re-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        font-size: 0.78rem;
+        color: var(--fg);
+        cursor: pointer;
+        line-height: 1.4;
+      }
+      .re-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+      .re-warn-inline {
+        font-size: 0.72rem;
+        color: #f85149;
+        padding: 0 0.65rem 0.5rem;
+        line-height: 1.35;
+      }
+      .re-list-disabled { opacity: 0.55; }
+      .re-form-scroll {
+        flex: 1 1 auto;
+        overflow: auto;
+        padding: 0.7rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .re-form-scroll .de-input { max-width: none; }
+      .re-textarea {
+        width: 100%;
+        min-height: 4.5rem;
+        font: inherit;
+        font-size: max(16px, 0.84rem);
+        font-family: ui-monospace, monospace;
+        color: var(--fg);
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 7px;
+        padding: 0.45rem 0.55rem;
+        resize: vertical;
+        outline: none;
+      }
+      .re-textarea:focus { border-color: #3b82f6; }
       .wk-status {
         font-size: 0.62rem;
         font-weight: 600;
@@ -1195,6 +1181,7 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -1517,22 +1504,44 @@ const { userId } = Astro.locals.auth();
         text-overflow: ellipsis;
       }
       .ch-input:focus { border-color: #3b82f6; }
-      .ch-send {
+      .ch-compose-actions {
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
         align-self: flex-end;
+      }
+      .ch-send,
+      .ch-stop {
+        flex-shrink: 0;
+        box-sizing: border-box;
+        min-height: 2.6rem;
+        height: 2.6rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         font: inherit;
         font-size: 0.8rem;
         font-weight: 600;
-        color: #fff;
-        background: #2563eb;
-        border: 1px solid #3b82f6;
-        border-radius: 8px;
-        padding: 0.45rem 0.95rem;
+        border-radius: 9px;
+        padding: 0 0.95rem;
         cursor: pointer;
         white-space: nowrap;
       }
+      .ch-send {
+        color: #fff;
+        background: #2563eb;
+        border: 1px solid #3b82f6;
+      }
       .ch-send:disabled { opacity: 0.45; cursor: default; }
       .ch-send:not(:disabled):hover { background: #1d4ed8; }
+      .ch-stop {
+        color: #fff;
+        background: #dc2626;
+        border: 1px solid #ef4444;
+      }
+      .ch-stop:hover { background: #b91c1c; }
+      .ch-stop[hidden] { display: none !important; }
+      .ch-send[hidden] { display: none !important; }
       .ch-thinking {
         align-self: flex-start;
         color: var(--muted);
@@ -1625,6 +1634,7 @@ const { userId } = Astro.locals.auth();
         position: fixed;
         inset: 0;
         top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
         display: flex;
         flex-direction: row;
         background: var(--bg);
@@ -1960,6 +1970,178 @@ const { userId } = Astro.locals.auth();
         color: #fca5a5;
       }
       .os-dialog-btn--danger:hover { background: #521818; border-color: #991b1b; }
+
+      /* ── Home dashboard ── */
+      #home-dashboard {
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
+        display: none;
+        flex-direction: column;
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+      }
+      .home-dashboard-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1rem 1.25rem;
+      }
+      .home-dashboard-title {
+        margin: 0 0 0.25rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .home-dashboard-sub {
+        margin: 0 0 1.25rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .home-dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+        gap: 0.65rem;
+      }
+      .home-dashboard-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.85rem 0.8rem;
+        border-radius: 12px;
+        border: 1px solid var(--panel-border);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--fg);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .home-dashboard-tile:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .home-dashboard-tile-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        color: rgba(255, 255, 255, 0.88);
+      }
+      .home-dashboard-tile-icon svg {
+        width: 1.25rem;
+        height: 1.25rem;
+        display: block;
+      }
+      .home-dashboard-tile-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+
+      /* ── Search overlay ── */
+      #search-overlay {
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        bottom: var(--footer-nav-h);
+        display: none;
+        flex-direction: column;
+        background: rgba(10, 13, 20, 0.96);
+        z-index: 15;
+        padding: 0.75rem 1rem 1rem;
+      }
+      #search-overlay.open {
+        display: flex;
+      }
+      .search-overlay-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .search-overlay-input {
+        flex: 1;
+        padding: 0.65rem 0.75rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--panel);
+        color: var(--fg);
+        font: inherit;
+        font-size: 1rem;
+      }
+      .search-overlay-input:focus {
+        outline: none;
+        border-color: rgba(255, 255, 255, 0.25);
+      }
+      .search-overlay-close {
+        flex: 0 0 auto;
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.7);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+      }
+      .search-overlay-close:hover { color: #fff; border-color: rgba(255, 255, 255, 0.2); }
+      .search-overlay-results {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .search-result-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        width: 100%;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--fg);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        text-decoration: none;
+      }
+      .search-result-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--panel-border);
+      }
+      .search-result-icon {
+        flex: 0 0 auto;
+        width: 1.25rem;
+        height: 1.25rem;
+        color: rgba(255, 255, 255, 0.75);
+      }
+      .search-result-icon svg { width: 100%; height: 100%; display: block; }
+      .search-result-body { min-width: 0; }
+      .search-result-title {
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+      .search-result-sub {
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .search-result-empty {
+        padding: 2rem 0.5rem;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
     </style>
   </head>
   <body data-user-id={userId ?? ""}>
@@ -1987,6 +2169,25 @@ const { userId } = Astro.locals.auth();
       <div id="world">
         <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
+    </div>
+
+    <div id="home-dashboard" style="display:none" aria-label="Dashboard"></div>
+
+    <div id="search-overlay" aria-hidden="true">
+      <div class="search-overlay-bar">
+        <input
+          id="search-overlay-input"
+          class="search-overlay-input"
+          type="search"
+          placeholder="Search sections and clients…"
+          autocomplete="off"
+          aria-label="Search"
+        />
+        <button type="button" id="search-overlay-close" class="search-overlay-close" aria-label="Close search">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+      <div id="search-overlay-results" class="search-overlay-results"></div>
     </div>
 
     <!-- Documents tab panel (hidden unless documents tab is active) -->
@@ -2017,7 +2218,8 @@ const { userId } = Astro.locals.auth();
       </div>
     </div>
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628q"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250628t"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250628n"></script>
+    <AdminFooterNav />
   </body>
 </html>

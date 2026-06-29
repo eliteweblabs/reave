@@ -1,0 +1,224 @@
+---
+import { clerkClient } from "@clerk/astro/server";
+import { Home, MessageCircle, Mail, Search } from "lucide-astro";
+
+const auth = Astro.locals.auth?.();
+const userId = auth?.userId ?? null;
+
+let avatarUrl: string | null = null;
+let userInitials = "";
+
+if (userId) {
+  try {
+    const client = clerkClient(Astro);
+    const user = await client.users.getUser(userId);
+    avatarUrl = user.imageUrl ?? null;
+    const first = user.firstName?.[0] ?? "";
+    const last = user.lastName?.[0] ?? "";
+    userInitials =
+      ((first + last).toUpperCase() || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase()) ??
+      "?";
+  } catch {
+    // Clerk unreachable
+  }
+}
+---
+
+<nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
+  <div class="admin-footer-nav-pill">
+    <button
+      type="button"
+      id="footer-nav-home"
+      class="footer-nav-btn"
+      data-nav="home"
+      aria-label="Home"
+    >
+      <Home size={22} strokeWidth={1.75} />
+    </button>
+    <button
+      type="button"
+      id="footer-nav-chat"
+      class="footer-nav-btn"
+      data-nav="chat"
+      aria-label="Chats"
+    >
+      <MessageCircle size={22} strokeWidth={1.75} />
+    </button>
+    <button
+      type="button"
+      id="footer-nav-inbox"
+      class="footer-nav-btn"
+      data-nav="inbox"
+      aria-label="Inbox"
+    >
+      <Mail size={22} strokeWidth={1.75} />
+      <span id="footer-inbox-badge" class="footer-nav-badge" hidden>0</span>
+    </button>
+    <button
+      type="button"
+      id="footer-nav-search"
+      class="footer-nav-btn"
+      data-nav="search"
+      aria-label="Search"
+      aria-expanded="false"
+    >
+      <Search size={22} strokeWidth={1.75} />
+    </button>
+
+    <div class="footer-nav-profile-wrap">
+      <button
+        type="button"
+        id="topbar-profile-toggle"
+        class="footer-nav-btn footer-nav-profile"
+        aria-label="Account menu"
+        aria-expanded="false"
+        aria-haspopup="true"
+      >
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" class="footer-nav-avatar" />
+        ) : (
+          <span class="footer-nav-initials">{userInitials || "?"}</span>
+        )}
+      </button>
+      <div id="topbar-profile-menu" class="footer-profile-dropdown topbar-dropdown" role="menu">
+        <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
+        <div class="topbar-dropdown-divider"></div>
+        <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<style is:global>
+  :root {
+    --footer-nav-h: 4.75rem;
+  }
+
+  .admin-footer-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    padding:
+      0 max(0.75rem, env(safe-area-inset-right))
+      max(0.65rem, env(safe-area-inset-bottom))
+      max(0.75rem, env(safe-area-inset-left));
+    pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .admin-footer-nav-pill {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.35rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(18, 22, 30, 0.88);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .footer-nav-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.72);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .footer-nav-btn:hover {
+    color: #fff;
+  }
+
+  .footer-nav-btn.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .footer-nav-btn svg {
+    display: block;
+    pointer-events: none;
+  }
+
+  .footer-nav-profile {
+    width: 2.35rem;
+    height: 2.35rem;
+    margin-left: 0.1rem;
+    overflow: hidden;
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
+  }
+
+  .footer-nav-profile.active {
+    border-color: rgba(255, 255, 255, 0.55);
+    background: transparent;
+  }
+
+  .footer-nav-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .footer-nav-initials {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.85);
+    pointer-events: none;
+  }
+
+  .footer-nav-badge {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+    box-shadow: 0 0 0 2px rgba(18, 22, 30, 0.95);
+  }
+
+  .footer-nav-profile-wrap {
+    position: relative;
+  }
+
+  .footer-profile-dropdown {
+    bottom: calc(100% + 8px);
+    top: auto;
+    right: 0;
+    left: auto;
+  }
+
+  @media print {
+    .admin-footer-nav {
+      display: none !important;
+    }
+  }
+</style>

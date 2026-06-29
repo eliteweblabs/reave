@@ -39,6 +39,7 @@ const SYSTEM_NODES = [
   { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage', icon: '💬', brand: 'telegram', hue: 200, status: true, group: 'external', x: 1160, y: 540 },
   { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 680 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · voice · Call Control', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
+  { id: 'changedetection', title: 'ChangeDetection.io', sub: 'Railway · site watches · FEATURES', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 960 },
 
   // Separate Railway service
   { id: 'imap', title: 'openclaw-email-tools', sub: 'IMAP · watches Gmail', icon: '📨', brand: 'gmail', hue: 100, status: true, group: 'openclaw', x: 880, y: 552 },
@@ -70,13 +71,15 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'github', label: 'status / commits / write / PR' },
   { from: 'telnyx', to: 'astro', label: 'SMS webhook · call events', dashed: true },
   { from: 'railway_gql', to: 'astro', label: 'deploy webhook', dashed: true },
+  { from: 'astro', to: 'changedetection', label: 'site_monitoring · watches', dashed: true },
+  { from: 'changedetection', to: 'astro', label: 'change webhook → push', dashed: true },
   { from: 'imap', to: 'tg_api', label: 'trigger:telegram' },
 ];
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'sms_caller', 'dev'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github', 'telnyx'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'resend', 'tg_api', 'github', 'telnyx', 'changedetection'] },
   { id: 'openclaw', title: 'Railway — openclaw-email-tools', hue: 100, members: ['imap'] },
 ];
 
@@ -257,6 +260,7 @@ const TG_GROUPS = [
 
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
+  home:      { id: 'home',      title: 'Home',       icon: 'home', type: 'home',          nodes: [],             edges: [],             groups: [] },
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
   telegram:  { id: 'telegram',  title: 'Telegram',   icon: '✈️',  nodes: TG_NODES,       edges: TG_EDGES,       groups: TG_GROUPS },

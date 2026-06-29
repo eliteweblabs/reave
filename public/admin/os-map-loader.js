@@ -53,6 +53,9 @@ let lastChecked = null;
 // ---- active map state (rebuilt on tab switch) ----
 let activeKey = loadActiveKey();
 let MAP = MAPS[activeKey];
+let cachedTabOrder = null;
+let searchOverlayOpen = false;
+let searchDebounceTimer = null;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -152,14 +155,17 @@ function setActiveMap(key, opts = {}) {
   updateTabs();
   syncCanvasVisibility();
   syncModelSelectorVisibility();
+  if (key !== 'search') closeSearchOverlay();
   activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
+  syncFooterNav();
 }
 
 function isPanelMapKey(key) {
   const t = MAPS[key]?.type;
   return (
+    t === 'home' ||
     t === 'documents' ||
     t === 'knowledge' ||
     t === 'work' ||
@@ -172,7 +178,9 @@ function isPanelMapKey(key) {
 }
 
 function activateMapPanel(opts = {}) {
-  if (MAP.type === 'documents') {
+  if (MAP.type === 'home') {
+    loadHomeDashboard();
+  } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
     loadKnowledgeTab();
@@ -185,16 +193,17 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'email') {
     markInboxSeenAndClearBadge();
     loadEmailTab();
+  } else if (MAP.type === 'rules') {
+    loadRulesTab();
   } else {
     buildMap();
     finishMapLayout();
     if (MAP.type === 'todo') loadAndBuildTodoNodes();
-    if (MAP.type === 'rules') loadAndBuildRuleNodes();
   }
 }
 
 function isPanelTab() {
-  return MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email';
+  return MAP.type === 'home' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
 }
 
 function setPanelDisplay(id, display) {
@@ -207,6 +216,7 @@ function syncCanvasVisibility() {
   wrap.style.display = isPanel ? 'none' : '';
   setPanelDisplay('tools', isPanel ? 'none' : '');
   setPanelDisplay('legend', isPanel ? 'none' : '');
+  setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
@@ -214,29 +224,6 @@ function syncCanvasVisibility() {
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
-  syncRulesToolbar();
-}
-
-function syncRulesToolbar() {
-  const tools = document.getElementById('tools');
-  if (!tools) return;
-  let addBtn = document.getElementById('rules-add-btn');
-  if (MAP.type !== 'rules') {
-    addBtn?.remove();
-    return;
-  }
-  if (!addBtn) {
-    addBtn = document.createElement('button');
-    addBtn.id = 'rules-add-btn';
-    addBtn.dataset.act = 'rules-add';
-    addBtn.textContent = '+';
-    addBtn.title = 'Add email rule';
-    tools.insertBefore(addBtn, tools.firstChild);
-    addBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      startNewRule();
-    });
-  }
 }
 
 // ---- health polling ----
@@ -1356,16 +1343,12 @@ function wrenchMenuTabKeys(order) {
 }
 
 function closeTopbarMenus(exceptMenu) {
-  const toolsMenu = document.getElementById('topbar-tools-menu');
   const profileMenu = document.getElementById('topbar-profile-menu');
-  if (toolsMenu && toolsMenu !== exceptMenu) {
-    toolsMenu.classList.remove('open');
-    document.getElementById('topbar-tools-toggle')?.setAttribute('aria-expanded', 'false');
-  }
   if (profileMenu && profileMenu !== exceptMenu) {
     profileMenu.classList.remove('open');
     document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
   }
+  syncFooterNav();
 }
 
 function toggleTopbarMenu(menuEl, toggleEl) {
@@ -1376,54 +1359,321 @@ function toggleTopbarMenu(menuEl, toggleEl) {
     menuEl.classList.add('open');
     toggleEl.setAttribute('aria-expanded', 'true');
   }
+  syncFooterNav();
+}
+
+const HOME_EXTRA_LINKS = [
+  { href: '/admin/contacts', label: 'Contacts DB', icon: 'database' },
+  { href: '/admin/telegram', label: 'Telegram help', icon: 'help-circle' },
+];
+
+const MAP_ICON_KEYS = {
+  home: 'home',
+  system: 'monitor',
+  tooling: 'wrench',
+  telegram: 'send',
+  todo: 'check-square',
+  documents: 'file-text',
+  knowledge: 'book-open',
+  chats: 'message-circle',
+  email: 'mail',
+  rules: 'zap',
+  work: 'briefcase',
+  clients: 'users',
+  finance: 'wallet',
+};
+
+const NAV_ICON_PATHS = {
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+  'check-square': '<path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+};
+
+function navIcon(name, size = 20) {
+  const paths = NAV_ICON_PATHS[name];
+  if (!paths) return '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+function mapIconName(key) {
+  return MAP_ICON_KEYS[key] || 'monitor';
+}
+
+function dashboardSectionItems(order) {
+  const items = [];
+  for (const key of wrenchMenuTabKeys(order || cachedTabOrder || defaultTabKeys())) {
+    const m = MAPS[key];
+    if (!m) continue;
+    items.push({
+      kind: m.link ? 'link' : 'map',
+      key,
+      label: m.title,
+      icon: mapIconName(key),
+      href: m.link || null,
+    });
+  }
+  for (const link of HOME_EXTRA_LINKS) {
+    items.push({ kind: 'href', key: link.href, label: link.label, icon: link.icon, href: link.href });
+  }
+  return items;
+}
+
+function buildHomeMapTile(key, m) {
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'home-dashboard-tile';
+  tile.innerHTML =
+    `<span class="home-dashboard-tile-icon">${navIcon(mapIconName(key))}</span>` +
+    `<span class="home-dashboard-tile-label">${escHtml(m.title)}</span>`;
+  tile.addEventListener('click', () => {
+    setActiveMap(key, { force: key === activeKey && isPanelMapKey(key) });
+  });
+  return tile;
+}
+
+function buildHomeLinkTile(item) {
+  const tile = document.createElement('a');
+  tile.className = 'home-dashboard-tile';
+  tile.href = item.href;
+  if (item.href.startsWith('http')) {
+    tile.target = '_blank';
+    tile.rel = 'noopener noreferrer';
+  }
+  tile.innerHTML =
+    `<span class="home-dashboard-tile-icon">${navIcon(item.icon)}</span>` +
+    `<span class="home-dashboard-tile-label">${escHtml(item.label)}</span>`;
+  return tile;
+}
+
+function loadHomeDashboard() {
+  const root = document.getElementById('home-dashboard');
+  if (!root) return;
+  root.innerHTML = '';
+
+  const scroll = document.createElement('div');
+  scroll.className = 'home-dashboard-scroll';
+
+  const title = document.createElement('h1');
+  title.className = 'home-dashboard-title';
+  title.textContent = 'Dashboard';
+  scroll.appendChild(title);
+
+  const sub = document.createElement('p');
+  sub.className = 'home-dashboard-sub';
+  sub.textContent = 'Tools, maps, and admin sections.';
+  scroll.appendChild(sub);
+
+  const grid = document.createElement('div');
+  grid.className = 'home-dashboard-grid';
+
+  for (const key of wrenchMenuTabKeys(cachedTabOrder || defaultTabKeys())) {
+    const m = MAPS[key];
+    if (!m) continue;
+    if (m.link) {
+      grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
+    } else {
+      grid.appendChild(buildHomeMapTile(key, m));
+    }
+  }
+  for (const link of HOME_EXTRA_LINKS) {
+    grid.appendChild(buildHomeLinkTile(link));
+  }
+
+  scroll.appendChild(grid);
+  root.appendChild(scroll);
+}
+
+function footerNavActiveKey() {
+  if (searchOverlayOpen) return 'search';
+  if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
+  if (activeKey === 'email') return 'inbox';
+  return 'home';
+}
+
+function syncFooterNav() {
+  const activeNav = footerNavActiveKey();
+  document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.nav === activeNav);
+  });
+  const profileOpen = document.getElementById('topbar-profile-menu')?.classList.contains('open');
+  document.getElementById('topbar-profile-toggle')?.classList.toggle('active', !!profileOpen);
+  document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
+}
+
+function initFooterNav() {
+  document.getElementById('footer-nav-home')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    setActiveMap('home', { force: activeKey === 'home' });
+  });
+  document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    setActiveMap('chats', { force: activeKey === 'chats' });
+  });
+  document.getElementById('footer-nav-inbox')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    setActiveMap('email', { force: activeKey === 'email' });
+  });
+  document.getElementById('footer-nav-search')?.addEventListener('click', () => {
+    toggleSearchOverlay();
+  });
+}
+
+function openSearchOverlay() {
+  const overlay = document.getElementById('search-overlay');
+  const input = document.getElementById('search-overlay-input');
+  if (!overlay) return;
+  searchOverlayOpen = true;
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  renderSearchResults('');
+  syncFooterNav();
+  requestAnimationFrame(() => input?.focus());
+}
+
+function closeSearchOverlay() {
+  const overlay = document.getElementById('search-overlay');
+  if (!overlay || !searchOverlayOpen) return;
+  searchOverlayOpen = false;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  const input = document.getElementById('search-overlay-input');
+  if (input) input.value = '';
+  syncFooterNav();
+}
+
+function toggleSearchOverlay() {
+  if (searchOverlayOpen) closeSearchOverlay();
+  else openSearchOverlay();
+}
+
+function buildSearchResultItem(opts) {
+  const { label, sub, icon, onClick, href, external } = opts;
+  const el = href ? document.createElement('a') : document.createElement('button');
+  el.className = 'search-result-item';
+  if (href) {
+    el.href = href;
+    if (external) {
+      el.target = '_blank';
+      el.rel = 'noopener noreferrer';
+    }
+  } else {
+    el.type = 'button';
+    el.addEventListener('click', () => {
+      closeSearchOverlay();
+      onClick?.();
+    });
+  }
+  el.innerHTML =
+    `<span class="search-result-icon">${navIcon(icon || 'search')}</span>` +
+    `<span class="search-result-body">` +
+      `<div class="search-result-title">${escHtml(label)}</div>` +
+      (sub ? `<div class="search-result-sub">${escHtml(sub)}</div>` : '') +
+    `</span>`;
+  if (href && !external) {
+    el.addEventListener('click', () => closeSearchOverlay());
+  }
+  return el;
+}
+
+async function renderSearchResults(query) {
+  const root = document.getElementById('search-overlay-results');
+  if (!root) return;
+  root.innerHTML = '';
+
+  const q = query.trim().toLowerCase();
+  const sections = dashboardSectionItems().filter((item) => {
+    if (!q) return true;
+    return item.label.toLowerCase().includes(q);
+  });
+
+  for (const item of sections) {
+    if (item.kind === 'href' || item.kind === 'link') {
+      root.appendChild(buildSearchResultItem({
+        label: item.label,
+        sub: item.href?.replace(/^https?:\/\//, '') || '',
+        icon: item.icon,
+        href: item.href,
+        external: item.href?.startsWith('http'),
+      }));
+      continue;
+    }
+    root.appendChild(buildSearchResultItem({
+      label: item.label,
+      sub: 'Open section',
+      icon: item.icon,
+      onClick: () => setActiveMap(item.key, { force: item.key === activeKey && isPanelMapKey(item.key) }),
+    }));
+  }
+
+  if (q.length >= 2) {
+    try {
+      const params = new URLSearchParams({ q: query.trim(), limit: '8' });
+      const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
+      const data = await res.json();
+      const clients = Array.isArray(data.clients) ? data.clients : [];
+      for (const client of clients) {
+        const name = client.displayName || client.name || client.uid || 'Client';
+        root.appendChild(buildSearchResultItem({
+          label: name,
+          sub: client.email || client.uid || '',
+          icon: 'users',
+          onClick: () => setActiveMap('clients', { force: true }),
+        }));
+      }
+    } catch {
+      // Ignore client search failures in the overlay.
+    }
+  }
+
+  if (!root.children.length) {
+    const empty = document.createElement('div');
+    empty.className = 'search-result-empty';
+    empty.textContent = q ? 'No matches.' : 'Search sections and clients…';
+    root.appendChild(empty);
+  }
+}
+
+function initSearchOverlay() {
+  const input = document.getElementById('search-overlay-input');
+  const closeBtn = document.getElementById('search-overlay-close');
+
+  input?.addEventListener('input', () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => renderSearchResults(input.value), 180);
+  });
+
+  closeBtn?.addEventListener('click', () => closeSearchOverlay());
+
+  if (!document.documentElement.dataset.searchOverlayBound) {
+    document.documentElement.dataset.searchOverlayBound = '1';
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && searchOverlayOpen) closeSearchOverlay();
+    });
+  }
 }
 
 async function buildMobileToolsMenu(order) {
-  const menu = document.getElementById('topbar-tools-menu');
-  if (!menu) return;
-  menu.innerHTML = '';
-
-  for (const key of wrenchMenuTabKeys(order)) {
-    const m = MAPS[key];
-    if (!m) continue;
-
-    if (m.link) {
-      const a = document.createElement('a');
-      a.className = 'topbar-dropdown-item';
-      a.href = m.link;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.setAttribute('role', 'menuitem');
-      a.innerHTML = m.icon
-        ? `<span class="topbar-dropdown-icon">${m.icon}</span><span>${escHtml(m.title)}</span>`
-        : escHtml(m.title);
-      a.addEventListener('click', () => closeTopbarMenus());
-      menu.appendChild(a);
-      continue;
-    }
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'topbar-dropdown-item';
-    btn.dataset.map = key;
-    btn.setAttribute('role', 'menuitem');
-    btn.innerHTML = m.icon
-      ? `<span class="topbar-dropdown-icon">${m.icon}</span><span>${escHtml(m.title)}</span>`
-      : escHtml(m.title);
-    btn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      setActiveMap(key, { force: key === activeKey && isPanelMapKey(key) });
-      closeTopbarMenus();
-    });
-    menu.appendChild(btn);
-  }
-
-  updateTabs();
+  cachedTabOrder = order || cachedTabOrder;
+  if (activeKey === 'home') loadHomeDashboard();
 }
 
-function syncTopbarInboxBadge(count) {
-  const badge = document.getElementById('topbar-inbox-badge');
-  const btn = document.getElementById('topbar-tools-toggle');
+function syncInboxBadge(count) {
+  const badge = document.getElementById('footer-inbox-badge');
+  const btn = document.getElementById('footer-nav-inbox');
   if (!badge) return;
   const n = Math.max(0, Number(count) || 0);
   if (n > 0) {
@@ -1438,18 +1688,12 @@ function syncTopbarInboxBadge(count) {
 }
 
 function initTopbarMenus() {
-  const toolsToggle = document.getElementById('topbar-tools-toggle');
-  const toolsMenu = document.getElementById('topbar-tools-menu');
-  toolsToggle?.addEventListener('click', (ev) => {
-    ev.stopPropagation();
-    toggleTopbarMenu(toolsMenu, toolsToggle);
-  });
-
   const profileToggle = document.getElementById('topbar-profile-toggle');
   const profileMenu = document.getElementById('topbar-profile-menu');
   profileToggle?.addEventListener('click', (ev) => {
     ev.stopPropagation();
     toggleTopbarMenu(profileMenu, profileToggle);
+    syncFooterNav();
   });
 
   document.getElementById('topbar-sign-out')?.addEventListener('click', async (ev) => {
@@ -1486,13 +1730,6 @@ function buildLegend() {
     legend.appendChild(chip);
   }
 
-  if (activeKey === 'rules') {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.innerHTML = '<span class="dot" style="background:hsl(165 75% 58%)"></span>First match wins · click a card to edit';
-    legend.appendChild(chip);
-  }
-
   // Status key (only meaningful on the live System map).
   if (activeKey === 'system') {
     const states = [
@@ -1511,7 +1748,7 @@ function buildLegend() {
   }
 }
 
-// ---- rules tab (todo-style cards + editor) ----
+// ---- rules tab (list + editor, like Knowledge/Work) ----
 
 let ruleState = {
   rules: [],
@@ -1533,127 +1770,130 @@ function ruleSubline(rule) {
   return bits.join(' · ');
 }
 
-async function loadAndBuildRuleNodes() {
-  closeRuleEditor(false);
-  let data;
-  try {
-    const res = await fetch('/api/email/rules', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    data = await res.json();
-  } catch (e) {
-    console.error('[rules] fetch failed:', e);
-    return;
-  }
-
-  ruleState.rules = data.rules || [];
-  ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
-  ruleState.storage = data.storage || 'files';
-
-  const nodes = [];
-  const groups = [];
-  const COL_W = 280;
-  const ROW_H = 132;
-  const MARGIN = 60;
-  let colX = MARGIN;
-  let rowY = MARGIN;
-  const perCol = 6;
-
-  const ordered = [...ruleState.rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-
-  ordered.forEach((rule, i) => {
-    if (i > 0 && i % perCol === 0) {
-      colX += COL_W;
-      rowY = MARGIN;
-    }
-    const id = `er_${rule.id}`;
-    nodes.push({
-      id,
-      title: rule.title || rule.status,
-      sub: ruleSubline(rule),
-      icon: rule.notify ? '🔔' : '📧',
-      hue: rule.enabled === false ? 115 : rule.notify ? 0 : 210,
-      ghost: rule.enabled === false,
-      cls: 'rule-card',
-      x: colX,
-      y: rowY,
-      _ruleId: rule.id,
-    });
-    rowY += ROW_H;
-  });
-
-  if (nodes.length) {
-    groups.push({
-      id: 'grp_email_rules',
-      title: 'Email rules',
-      hue: 165,
-      members: nodes.map((n) => n.id),
-    });
-  }
-
-  MAP.nodes = nodes;
-  MAP.groups = groups;
-  MAP.edges = [];
-
-  buildMap();
-  finishMapLayout();
-  buildLegend();
-  renderRuleEditorShell();
-
-  for (const n of nodes) {
-    const el = nodeEls.get(n.id);
-    if (!el) continue;
-    attachRuleNodeOpen(n, el);
-  }
+function appendRuleField(parent, label, el) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = label;
+  wrap.appendChild(el);
+  parent.appendChild(wrap);
 }
 
-function attachRuleNodeOpen(n, el) {
-  let downX = 0;
-  let downY = 0;
-  let moved = false;
-  el.addEventListener('pointerdown', (ev) => {
-    downX = ev.clientX;
-    downY = ev.clientY;
-    moved = false;
-  });
-  el.addEventListener('pointermove', (ev) => {
-    if (Math.hypot(ev.clientX - downX, ev.clientY - downY) > 6) moved = true;
-  });
-  el.addEventListener('click', (ev) => {
-    if (moved) return;
-    ev.stopPropagation();
-    openRuleEditor(n._ruleId);
-  });
-}
-
-function renderRuleEditorShell() {
+async function loadRulesTab() {
   const root = getRuleEditor();
   if (!root) return;
-  if (ruleState.activeId) return;
-  root.classList.remove('re-pane-active');
-  root.innerHTML = `
-    <div class="re-idle">
-      <p>Click a rule card to edit, or use <strong>+</strong> to add one.</p>
-      <label class="re-check">
-        <input type="checkbox" id="re-notify-unmatched" ${ruleState.notifyOnUnmatched ? 'checked' : ''} />
-        Notify Telegram when no rule matches
-      </label>
-      ${ruleState.storage === 'files' ? '<p class="re-warn">Using local file storage — set DATABASE_URL on Railway for production.</p>' : ''}
-    </div>`;
-  root.querySelector('#re-notify-unmatched')?.addEventListener('change', async (e) => {
-    const notifyOnUnmatched = e.target.checked;
+  root.innerHTML = '<div class="de-loading">Loading rules…</div>';
+  try {
+    const res = await fetch('/api/email/rules', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    ruleState.rules = data.rules || [];
+    ruleState.notifyOnUnmatched = !!data.notifyOnUnmatched;
+    ruleState.storage = data.storage || 'files';
+  } catch (e) {
+    root.innerHTML = `<div class="de-loading de-error">Failed to load rules: ${escHtml(e.message)}</div>`;
+    return;
+  }
+  if (ruleState.activeId && !ruleState.rules.some((r) => r.id === ruleState.activeId)) {
+    ruleState.activeId = null;
+    ruleState.dirty = false;
+    getRuleEditor()?.classList.remove('de-pane-active');
+  }
+  renderRulesEditor();
+}
+
+function renderRulesEditor() {
+  const root = getRuleEditor();
+  if (!root) return;
+  const { rules, activeId, notifyOnUnmatched, storage } = ruleState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'ch-toolbar';
+  const newBtn = document.createElement('button');
+  newBtn.className = 'de-new-btn ch-new-btn';
+  newBtn.textContent = '+ New Rule';
+  newBtn.addEventListener('click', () => startNewRule());
+  toolbar.appendChild(newBtn);
+  sidebar.appendChild(toolbar);
+
+  const hint = document.createElement('div');
+  hint.className = 'de-empty';
+  hint.style.padding = '0 0.65rem 0.5rem';
+  hint.textContent = 'First match wins · inbound email triage';
+  sidebar.appendChild(hint);
+
+  if (storage === 'files') {
+    const warn = document.createElement('div');
+    warn.className = 're-warn-inline';
+    warn.textContent = 'Using local file storage — set DATABASE_URL on Railway for production.';
+    sidebar.appendChild(warn);
+  }
+
+  const settings = document.createElement('div');
+  settings.className = 're-settings';
+  const notifyLb = document.createElement('label');
+  notifyLb.className = 're-check';
+  const notifyCb = document.createElement('input');
+  notifyCb.type = 'checkbox';
+  notifyCb.checked = notifyOnUnmatched;
+  notifyCb.addEventListener('change', async (e) => {
+    const next = e.target.checked;
     try {
       const res = await fetch('/api/email/rules', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyOnUnmatched }),
+        body: JSON.stringify({ notifyOnUnmatched: next }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      ruleState.notifyOnUnmatched = notifyOnUnmatched;
+      ruleState.notifyOnUnmatched = next;
     } catch (err) {
-      e.target.checked = !notifyOnUnmatched;
+      e.target.checked = !next;
       alert(`Could not save setting: ${err.message}`);
     }
   });
+  notifyLb.append(notifyCb, document.createTextNode(' Notify Telegram when no rule matches'));
+  settings.appendChild(notifyLb);
+  sidebar.appendChild(settings);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
+  const ordered = [...rules].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  for (const rule of ordered) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false ? ' re-list-disabled' : ''}`;
+    btn.innerHTML = `
+      <span class="ch-item-row">
+        <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
+      </span>
+      <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
+    btn.addEventListener('click', () => openRuleEditor(rule.id));
+    list.appendChild(btn);
+  }
+  if (ordered.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No rules yet.';
+    list.appendChild(empty);
+  }
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+  if (activeId) {
+    renderRuleEditPane(pane);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = '<div class="de-placeholder-icon">⚡</div><p>Select a rule to edit, or create a new one.</p>';
+    pane.appendChild(placeholder);
+  }
+  root.appendChild(pane);
 }
 
 function openRuleEditor(id) {
@@ -1662,70 +1902,73 @@ function openRuleEditor(id) {
   }
   ruleState.activeId = id;
   ruleState.dirty = false;
-  renderRuleEditorForm();
-  getRuleEditor()?.classList.add('re-pane-active');
+  getRuleEditor()?.classList.add('de-pane-active');
+  renderRulesEditor();
 }
 
 function closeRuleEditor(checkDirty = true) {
   if (checkDirty && ruleState.dirty && !confirm('Discard unsaved changes?')) return;
   ruleState.activeId = null;
   ruleState.dirty = false;
-  getRuleEditor()?.classList.remove('re-pane-active');
-  renderRuleEditorShell();
+  getRuleEditor()?.classList.remove('de-pane-active');
+  renderRulesEditor();
 }
 
-function renderRuleEditorForm() {
-  const root = getRuleEditor();
+function renderRuleEditPane(pane) {
   const rule = ruleState.rules.find((r) => r.id === ruleState.activeId);
-  if (!root || !rule) return;
+  if (!rule) {
+    pane.innerHTML = '<div class="de-loading de-error">Rule not found.</div>';
+    return;
+  }
 
-  root.innerHTML = '';
-  root.classList.add('re-pane-active');
-
-  const head = document.createElement('div');
-  head.className = 're-head';
-  const back = document.createElement('button');
-  back.type = 'button';
-  back.className = 'de-btn de-btn-ghost';
-  back.textContent = '← Rules';
-  back.addEventListener('click', () => closeRuleEditor());
-  head.appendChild(back);
-  root.appendChild(head);
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'de-back-btn';
+  backBtn.textContent = '← Rules';
+  backBtn.addEventListener('click', () => closeRuleEditor());
+  header.appendChild(backBtn);
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = rule.title || rule.status || 'Rule';
+  header.appendChild(titleEl);
+  const statusEl = document.createElement('span');
+  statusEl.className = 'de-doc-slug';
+  statusEl.textContent = rule.status || '';
+  header.appendChild(statusEl);
+  pane.appendChild(header);
 
   const form = document.createElement('div');
-  form.className = 're-form';
-
-  const mkField = (label, el) => {
-    const wrap = document.createElement('label');
-    wrap.className = 're-field';
-    wrap.innerHTML = `<span class="re-label">${label}</span>`;
-    wrap.appendChild(el);
-    return wrap;
-  };
+  form.className = 're-form-scroll';
 
   const titleIn = document.createElement('input');
+  titleIn.className = 'de-input';
   titleIn.type = 'text';
   titleIn.value = rule.title || '';
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const statusIn = document.createElement('input');
+  statusIn.className = 'de-input';
   statusIn.type = 'text';
   statusIn.value = rule.status || '';
   statusIn.placeholder = 'DOWN, RECEIPT, …';
   statusIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const descIn = document.createElement('textarea');
+  descIn.className = 're-textarea';
   descIn.rows = 2;
   descIn.value = rule.description || '';
   descIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const phrasesIn = document.createElement('textarea');
-  phrasesIn.rows = 5;
+  phrasesIn.className = 're-textarea';
+  phrasesIn.rows = 6;
   phrasesIn.placeholder = 'One keyword or phrase per line';
   phrasesIn.value = (rule.phrases || []).join('\n');
   phrasesIn.addEventListener('input', () => { ruleState.dirty = true; });
 
   const matchSel = document.createElement('select');
+  matchSel.className = 'de-input';
   matchSel.innerHTML = '<option value="any">Any phrase matches</option><option value="all">All phrases must match</option>';
   matchSel.value = rule.matchMode === 'all' ? 'all' : 'any';
   matchSel.addEventListener('change', () => { ruleState.dirty = true; });
@@ -1761,20 +2004,23 @@ function renderRuleEditorForm() {
   enabledCb.addEventListener('change', () => { ruleState.dirty = true; });
   enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
 
-  form.append(
-    mkField('Title', titleIn),
-    mkField('Status tag', statusIn),
-    mkField('Description', descIn),
-    mkField('Keywords / phrases', phrasesIn),
-    mkField('Match mode', matchSel),
-    mkField('Search in', fieldsWrap),
-    notifyLb,
-    enabledLb
-  );
-  root.appendChild(form);
+  appendRuleField(form, 'Title', titleIn);
+  appendRuleField(form, 'Status tag', statusIn);
+  appendRuleField(form, 'Description', descIn);
+  appendRuleField(form, 'Keywords / phrases', phrasesIn);
+  appendRuleField(form, 'Match mode', matchSel);
+  appendRuleField(form, 'Search in', fieldsWrap);
+  form.appendChild(notifyLb);
+  form.appendChild(enabledLb);
+  pane.appendChild(form);
 
   const actions = document.createElement('div');
-  actions.className = 're-actions';
+  actions.className = 'de-actions';
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'de-btn de-btn-danger';
+  delBtn.textContent = 'Delete';
+  delBtn.addEventListener('click', () => deleteRule(rule.id));
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
   saveBtn.className = 'de-btn de-btn-primary';
@@ -1792,13 +2038,8 @@ function renderRuleEditorForm() {
       saveBtn,
     })
   );
-  const delBtn = document.createElement('button');
-  delBtn.type = 'button';
-  delBtn.className = 'de-btn de-btn-danger';
-  delBtn.textContent = 'Delete';
-  delBtn.addEventListener('click', () => deleteRule(rule.id));
-  actions.append(saveBtn, delBtn);
-  root.appendChild(actions);
+  actions.append(delBtn, saveBtn);
+  pane.appendChild(actions);
 }
 
 function collectRulePayload(inputs) {
@@ -1835,9 +2076,8 @@ async function saveRule(id, inputs) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     ruleState.dirty = false;
-    await loadAndBuildRuleNodes();
+    await loadRulesTab();
     openRuleEditor(id);
-    inputs.saveBtn.textContent = 'Saved ✓';
   } catch (e) {
     inputs.saveBtn.textContent = 'Save';
     inputs.saveBtn.disabled = false;
@@ -1856,8 +2096,9 @@ async function deleteRule(id) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     ruleState.dirty = false;
-    closeRuleEditor(false);
-    await loadAndBuildRuleNodes();
+    ruleState.activeId = null;
+    getRuleEditor()?.classList.remove('de-pane-active');
+    await loadRulesTab();
   } catch (e) {
     alert(`Delete failed: ${e.message}`);
   }
@@ -1882,7 +2123,9 @@ async function startNewRule() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    await loadAndBuildRuleNodes();
+    ruleState.activeId = data.rule.id;
+    ruleState.dirty = false;
+    await loadRulesTab();
     openRuleEditor(data.rule.id);
   } catch (e) {
     alert(`Could not create rule: ${e.message}`);
@@ -4619,6 +4862,7 @@ let chatState = {
   messages: [],
   title: '',
   sending: false,
+  sendAbort: null,
   pendingDraft: null,
   pendingAutoSend: false,
   showArchived: false,
@@ -4886,26 +5130,20 @@ function renderChatMessages(container, composeInput) {
 
     const actions = document.createElement('div');
     actions.className = 'ch-msg-actions';
-    actions.appendChild(
-      createChatMsgAction('Copy', 'copy', (btn) => copyChatText(plainText, btn)),
-    );
-    actions.appendChild(
-      createChatMsgAction('Share', 'share', (btn) => shareChatText(plainText, m.role, btn)),
-    );
-    if (m.role === 'user' && composeInput) {
+    if (m.role !== 'user') {
       actions.appendChild(
-        createChatMsgAction('Edit message', 'edit', () => insertChatDraft(composeInput, parsed.text)),
+        createChatMsgAction('Copy', 'copy', (btn) => copyChatText(plainText, btn)),
       );
+      actions.appendChild(
+        createChatMsgAction('Share', 'share', (btn) => shareChatText(plainText, m.role, btn)),
+      );
+      bubble.appendChild(actions);
     }
-    bubble.appendChild(actions);
     row.appendChild(bubble);
 
-    bindChatMessageContextMenu(
-      row,
-      { ...m, content: plainText },
-      composeInput,
-      composeInput ? () => insertChatDraft(composeInput, parsed.text) : null,
-    );
+    if (m.role !== 'user') {
+      bindChatMessageContextMenu(row, { ...m, content: plainText }, composeInput, null);
+    }
 
     container.appendChild(row);
   }
@@ -5021,8 +5259,16 @@ function renderChatPanel() {
 
   const sendBtn = document.createElement('button');
   sendBtn.className = 'ch-send';
+  sendBtn.type = 'button';
   sendBtn.textContent = 'Send';
   sendBtn.disabled = chatState.sending;
+
+  const stopBtn = document.createElement('button');
+  stopBtn.className = 'ch-stop';
+  stopBtn.type = 'button';
+  stopBtn.textContent = 'Stop';
+  stopBtn.hidden = true;
+  stopBtn.setAttribute('aria-label', 'Stop generating');
 
   let pendingImages = [];
 
@@ -5056,6 +5302,8 @@ function renderChatPanel() {
       (input.value.trim() || pendingImages.length) && !chatState.sending && chatState.activeId,
     );
     sendBtn.disabled = !canSend;
+    sendBtn.hidden = chatState.sending;
+    stopBtn.hidden = !chatState.sending;
   }
 
   async function addPendingImages(files) {
@@ -5113,15 +5361,19 @@ function renderChatPanel() {
     pendingImages = [];
     renderPendingAttachments();
     input.disabled = true;
-    sendBtn.disabled = true;
+    syncSendState();
     chatState.messages.push({ role: 'user', content: userContent });
     renderChatMessages(messagesEl, input);
+
+    const abort = new AbortController();
+    chatState.sendAbort = abort;
 
     try {
       const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, images }),
+        signal: abort.signal,
       });
       const data = await readApiJson(res);
       chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
@@ -5131,11 +5383,15 @@ function renderChatPanel() {
         if (thread) thread.title = data.title;
       }
     } catch (e) {
-      chatState.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+      if (e instanceof Error && e.name === 'AbortError') {
+        chatState.messages.push({ role: 'assistant', content: 'Stopped.' });
+      } else {
+        chatState.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
+      }
     } finally {
       chatState.sending = false;
+      chatState.sendAbort = null;
       input.disabled = false;
-      sendBtn.disabled = false;
       renderChatPanel();
       const newInput = getChatPanel()?.querySelector('.ch-input');
       newInput?.focus();
@@ -5143,14 +5399,22 @@ function renderChatPanel() {
   }
 
   sendBtn.addEventListener('click', doSend);
+  stopBtn.addEventListener('click', () => {
+    chatState.sendAbort?.abort();
+  });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
+      if (chatState.sending) return;
       doSend();
     }
   });
   compose.appendChild(composeMain);
-  compose.appendChild(sendBtn);
+  const composeActions = document.createElement('div');
+  composeActions.className = 'ch-compose-actions';
+  composeActions.appendChild(sendBtn);
+  composeActions.appendChild(stopBtn);
+  compose.appendChild(composeActions);
   pane.appendChild(compose);
 
   root.appendChild(pane);
@@ -5335,21 +5599,21 @@ async function syncInboxAppBadge(events) {
     markInboxLastSeen();
     await clearCachedBadgeCount();
     await setAppIconBadge(0);
-    syncTopbarInboxBadge(0);
+    syncInboxBadge(0);
     return;
   }
   const cached = await readCachedBadgeCount();
   const unread = unreadInboxCount(events);
   const n = Math.max(unread, cached);
   await setAppIconBadge(n);
-  syncTopbarInboxBadge(n);
+  syncInboxBadge(n);
 }
 
 async function markInboxSeenAndClearBadge() {
   markInboxLastSeen();
   await clearCachedBadgeCount();
   await setAppIconBadge(0);
-  syncTopbarInboxBadge(0);
+  syncInboxBadge(0);
 }
 
 async function refreshInboxBadgeQuiet() {
@@ -5362,7 +5626,7 @@ async function refreshInboxBadgeQuiet() {
     const data = await res.json();
     if (!res.ok) return;
     const events = data.events || [];
-    syncTopbarInboxBadge(Math.max(unreadInboxCount(events), await readCachedBadgeCount()));
+    syncInboxBadge(Math.max(unreadInboxCount(events), await readCachedBadgeCount()));
     await syncInboxAppBadge(events);
   } catch {}
 }
@@ -6092,7 +6356,7 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
-  return MAPS[key] ? key : 'chats';
+  return MAPS[key] ? key : 'home';
 }
 function saveActiveKey() {
   try {
@@ -6103,15 +6367,18 @@ function saveActiveKey() {
 // ---- init ----
 async function rebuildTabsForViewport() {
   const order = await resolveTabOrder();
+  cachedTabOrder = order;
   buildTabs(order);
-  await buildMobileToolsMenu(order);
+  if (activeKey === 'home') loadHomeDashboard();
 }
 
 async function boot() {
   const tabOrder = await resolveTabOrder();
+  cachedTabOrder = tabOrder;
   buildTabs(tabOrder);
-  await buildMobileToolsMenu(tabOrder);
   initTopbarMenus();
+  initFooterNav();
+  initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initModelSelector();
@@ -6120,6 +6387,7 @@ async function boot() {
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();
+  syncFooterNav();
 }
 
 boot();
