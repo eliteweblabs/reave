@@ -2,6 +2,7 @@ import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } 
 import {
   IOS_ICONS,
   createIosIconBtn,
+  createCenteredListEmpty,
   createListEmptyState,
   createPanePlaceholder,
   listSearchAddNew,
@@ -6385,14 +6386,18 @@ function renderChatPanel() {
   attachmentsEl.className = 'ch-attachments';
   attachmentsEl.hidden = true;
 
+  composeMain.appendChild(attachmentsEl);
+
+  const inputField = document.createElement('div');
+  inputField.className = 'ch-input-field control-field';
+
   const input = document.createElement('textarea');
   input.className = 'ch-input';
   input.placeholder = 'Message the agent…';
   input.rows = 1;
   input.disabled = chatState.sending;
 
-  composeMain.appendChild(attachmentsEl);
-  composeMain.appendChild(input);
+  inputField.appendChild(input);
 
   const sendBtn = document.createElement('button');
   sendBtn.type = 'button';
@@ -6548,12 +6553,13 @@ function renderChatPanel() {
       doSend();
     }
   });
-  compose.appendChild(composeMain);
   const composeActions = document.createElement('div');
   composeActions.className = 'ch-compose-actions';
   composeActions.appendChild(sendBtn);
   composeActions.appendChild(stopBtn);
-  compose.appendChild(composeActions);
+  inputField.appendChild(composeActions);
+  composeMain.appendChild(inputField);
+  compose.appendChild(composeMain);
   if (!mountChatCompose(compose)) pane.appendChild(compose);
 
   root.appendChild(pane);
@@ -6745,6 +6751,11 @@ function clearTopbarPanelContext() {
   topbar?.classList.remove('topbar-has-panel-context');
 }
 
+function shouldShowChatTopbarTitle(title) {
+  const t = (title || '').trim();
+  return t.length > 0 && t !== 'New chat';
+}
+
 function syncChatTopbarContext() {
   const slot = document.getElementById('topbar-panel-context');
   const topbar = document.getElementById('topbar');
@@ -6771,7 +6782,9 @@ function syncChatTopbarContext() {
     }));
   }
 
-  slot.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title || 'Chat'));
+  if (shouldShowChatTopbarTitle(chatState.title)) {
+    slot.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
+  }
 
   const modelBadge = document.createElement('span');
   modelBadge.className = 'ch-model-badge';
@@ -7591,23 +7604,22 @@ function renderEmailSidebar() {
     list.appendChild(createEmailSwipeRow(ev));
   }
   if (events.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
+    let emptyBody;
     if (emailState.search.trim()) {
-      empty.textContent = 'No matches.';
+      emptyBody = 'No matches.';
     } else if (emailState.inboxFilter === 'junk') {
-      empty.textContent = 'No junk messages.';
+      emptyBody = 'No junk messages.';
     } else if (emailState.inboxFilter === 'alert') {
-      empty.textContent = 'No alerts.';
+      emptyBody = 'No alerts.';
     } else if (emailState.inboxFilter === 'review') {
-      empty.textContent = 'No messages need review.';
+      emptyBody = 'No messages need review.';
     } else if (emailState.inboxFilter === 'routed') {
-      empty.textContent = 'No routed messages yet.';
+      emptyBody = 'No routed messages yet.';
     } else {
-      empty.innerHTML =
+      emptyBody =
         'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
     }
-    list.appendChild(empty);
+    list.appendChild(createCenteredListEmpty({ innerHtml: emptyBody }));
   }
   sidebar.appendChild(list);
   return sidebar;

@@ -68,6 +68,21 @@ export function matchesListSearch(query, ...parts) {
   return hay.includes(q);
 }
 
+const LIST_EMPTY_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>';
+
+/** Centered list empty state — icon + message, flex-filled in scroll lists. */
+export function createCenteredListEmpty(opts = {}) {
+  const { text, innerHtml } = opts;
+  const el = document.createElement('div');
+  el.className = 'list-empty-state';
+  const body = innerHtml != null ? innerHtml : (text || 'Nothing here yet.');
+  el.innerHTML =
+    `<div class="list-empty-state-icon">${LIST_EMPTY_ICON}</div>` +
+    `<div class="list-empty-state-body">${body}</div>`;
+  return el;
+}
+
 /** Sidebar list empty row — tappable to create when `onAction` is set and not a search miss. */
 export function createListEmptyState(opts = {}) {
   const { text, filtered = false, onAction, actionText } = opts;
@@ -126,6 +141,8 @@ export function listSearchAddNew(opts = {}) {
       'panel-list-subheader' +
       (newBtn ? '' : ' panel-list-subheader--search-only') +
       (stacked ? ' panel-list-subheader--stacked' : '');
+    const field = document.createElement('div');
+    field.className = 'panel-list-search-field control-field';
     const input = document.createElement('input');
     input.className = 'panel-list-search';
     input.type = 'search';
@@ -133,8 +150,9 @@ export function listSearchAddNew(opts = {}) {
     input.value = opts.search.value ?? '';
     input.setAttribute('aria-label', opts.search.ariaLabel || opts.search.placeholder || 'Search');
     input.addEventListener('input', (e) => opts.search.onInput?.(e.target.value, e));
-    wrap.appendChild(input);
-    if (newBtn) wrap.appendChild(newBtn);
+    field.appendChild(input);
+    if (newBtn) field.appendChild(newBtn);
+    wrap.appendChild(field);
     for (const node of belowNodes) wrap.appendChild(node);
     return { el: wrap, input };
   }
