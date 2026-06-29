@@ -930,6 +930,17 @@ const { userId } = Astro.locals.auth();
       .panel-list-search-field.control-field {
         margin: 0;
       }
+      .panel-list-search-field.control-field:has(> .de-new-btn.ch-new-btn) {
+        padding-right: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        gap: 0;
+      }
+      .panel-list-search-field.control-field > .de-new-btn.ch-new-btn {
+        width: var(--control-h);
+        height: var(--control-h);
+        min-width: var(--control-h);
+      }
       /* Inline + FAB: mobile sidebar only (footer nav handles create on wider viewports). */
       @media (max-width: 639px) {
         .panel-list-subheader .de-new-btn.ch-new-btn {
