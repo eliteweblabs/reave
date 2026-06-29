@@ -227,6 +227,10 @@ const { userId } = Astro.locals.auth();
         -webkit-mask: var(--icon) center / contain no-repeat;
         mask: var(--icon) center / contain no-repeat;
       }
+      .node .chip-svg svg {
+        display: block;
+        color: hsl(var(--h) 90% 72%);
+      }
       .node .ttl {
         font-size: 0.85rem;
         font-weight: 600;
@@ -296,6 +300,18 @@ const { userId } = Astro.locals.auth();
       #health-checked {
         opacity: 0.35;
         transition: opacity 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+      }
+      #health-checked svg,
+      #topbar-stale-warn svg {
+        display: block;
+      }
+      #topbar-stale-warn {
+        display: inline-flex;
+        align-items: center;
+        color: #fbbf24;
       }
 
       #model-select {
@@ -418,7 +434,8 @@ const { userId } = Astro.locals.auth();
         flex: 0 0 auto;
         pointer-events: none;
       }
-      .tab-icon { font-size: 0.9rem; line-height: 1; }
+      .tab-icon { font-size: 0.9rem; line-height: 1; display: inline-flex; align-items: center; }
+      .tab-icon svg { display: block; }
       .tab-label {
         white-space: nowrap;
         flex-shrink: 0;
@@ -658,7 +675,8 @@ const { userId } = Astro.locals.auth();
         color: var(--muted);
         font-size: 0.85rem;
       }
-      .de-placeholder-icon { font-size: 2.5rem; margin-bottom: 0.6rem; }
+      .de-placeholder-icon { margin-bottom: 0.6rem; display: flex; justify-content: center; color: var(--muted); opacity: 0.55; }
+      .de-placeholder-icon svg { display: block; }
 
       .de-header {
         display: flex;
@@ -2500,8 +2518,12 @@ const { userId } = Astro.locals.auth();
       <select id="model-select" style="display:none" aria-label="Agent model">
         <option value="claude-sonnet-4-6">Sonnet 4.6</option>
       </select>
-      <span id="health-checked" class="tb-icon" data-tooltip="">🕐</span>
-      <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">⚠️</span>
+      <span id="health-checked" class="tb-icon" data-tooltip="">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </span>
+      <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      </span>
     </div>
 
     <div id="tools">
@@ -2570,7 +2592,7 @@ const { userId } = Astro.locals.auth();
 
     <AdminFooterNav />
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629d"></script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20250628n"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629e"></script>
+    <script is:inline type="module" src="/admin/push-client.js?v=20250629e"></script>
   </body>
 </html>

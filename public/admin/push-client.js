@@ -35,17 +35,10 @@ export async function isAdminPushEnabled() {
   return !!sub;
 }
 
-function resetPushButtonIcon(btn) {
-  if (!btn.querySelector('span[aria-hidden="true"]')) {
-    btn.innerHTML = '<span aria-hidden="true">🔔</span>';
-  }
-}
-
 export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
   const btn = document.getElementById(buttonId);
   if (!btn) return;
 
-  resetPushButtonIcon(btn);
   btn.classList.remove('push-on');
   btn.disabled = false;
 

@@ -102,7 +102,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
               disabled={!contactEmail}
               title={contactEmail ? `Email ${contactEmail}` : 'No email on file'}
             >
-              ✉︎ Send via Email
+              Send via Email
             </button>
             <button
               class="send-btn"
@@ -112,7 +112,7 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
               disabled={!contactPhone}
               title={contactPhone ? `Text ${contactPhone}` : 'No phone on file'}
             >
-              🗨︎ Send via SMS
+              Send via SMS
             </button>
           </div>
           <div id="send-status" class="send-status" style="display:none"></div>

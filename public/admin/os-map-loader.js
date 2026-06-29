@@ -17,11 +17,98 @@ const PINCH_ZOOM = true;
 // its node's hue, keeping the full-spectrum look on the dark canvas.
 const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
+const MAP_ICON_KEYS = {
+  home: 'home',
+  system: 'monitor',
+  tooling: 'wrench',
+  telegram: 'send',
+  todo: 'check-square',
+  documents: 'file-text',
+  knowledge: 'book-open',
+  chats: 'message-circle',
+  email: 'mail',
+  rules: 'zap',
+  work: 'briefcase',
+  clients: 'users',
+  finance: 'wallet',
+};
+
+const LEGACY_EMOJI_ICON = {
+  '🔔': 'bell',
+  '📊': 'database',
+  '💬': 'message-circle',
+  '📋': 'file-text',
+  '⚡': 'zap',
+  '📚': 'book-open',
+  '🔧': 'wrench',
+  '👥': 'users',
+  '✈️': 'send',
+  '🖥️': 'monitor',
+  '📄': 'file-text',
+  '📬': 'mail',
+  '💼': 'briefcase',
+  '✅': 'check-square',
+};
+
+const NAV_ICON_PATHS = {
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+  'check-square': '<path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/>',
+  square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+  'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  'alert-triangle': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+
+function navIcon(name, size = 20) {
+  const paths = NAV_ICON_PATHS[name];
+  if (!paths) return '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+function mapIconName(key) {
+  return MAP_ICON_KEYS[key] || 'monitor';
+}
+
+function chipIconName(n) {
+  if (n._checked !== undefined) return n._checked ? 'check-square' : 'square';
+  return LEGACY_EMOJI_ICON[n.icon] || null;
+}
+
 function chipHtml(n) {
   if (n.brand) {
     return `<span class="chip brand"><i class="bi" style="--icon:url('${ICON_CDN(n.brand)}')"></i></span>`;
   }
+  const iconKey = chipIconName(n);
+  if (iconKey) {
+    return `<span class="chip chip-svg">${navIcon(iconKey, 14)}</span>`;
+  }
   return `<span class="chip">${n.icon ?? '•'}</span>`;
+}
+
+function placeholderHtml(iconName, bodyHtml) {
+  return `<div class="de-placeholder-icon">${navIcon(iconName, 40)}</div>${bodyHtml}`;
+}
+
+function todoChipHtml(checked) {
+  return navIcon(checked ? 'check-square' : 'square', 14);
 }
 
 const wrap = document.getElementById('wrap');
@@ -1050,10 +1137,8 @@ function attachTabPointerReorder(el) {
   });
 }
 
-function tabInnerHtml(m) {
-  const label = m.icon
-    ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
-    : m.title;
+function tabInnerHtml(key, m) {
+  const label = `<span class="tab-icon">${navIcon(mapIconName(key), 16)}</span><span class="tab-label">${m.title}</span>`;
   return `<span class="tab-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>${label}`;
 }
 
@@ -1125,7 +1210,7 @@ function buildSystemDropdownTab() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'tab-dropdown-trigger';
-  trigger.innerHTML = `${tabInnerHtml(MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+  trigger.innerHTML = `${tabInnerHtml('system', MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
   trigger.title = 'System — runtime, MCP & CLI, Telegram';
 
   const menu = document.createElement('div');
@@ -1140,9 +1225,7 @@ function buildSystemDropdownTab() {
     item.className = 'tab-dropdown-item';
     item.dataset.map = key;
     item.setAttribute('role', 'menuitem');
-    item.innerHTML = m.icon
-      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
-      : m.title;
+    item.innerHTML = `<span class="tab-icon">${navIcon(mapIconName(key), 16)}</span><span class="tab-label">${m.title}</span>`;
     item.addEventListener('click', (ev) => {
       ev.stopPropagation();
       setActiveMap(key);
@@ -1166,7 +1249,7 @@ function buildChatDropdownTab() {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'tab-dropdown-trigger';
-  trigger.innerHTML = `${tabInnerHtml(MAPS.chats)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+  trigger.innerHTML = `${tabInnerHtml('chats', MAPS.chats)}<span class="tab-caret" aria-hidden="true">▾</span>`;
   trigger.title = 'Chats — tap to open; hold for Chats & Knowledge menu';
 
   const menu = document.createElement('div');
@@ -1181,9 +1264,7 @@ function buildChatDropdownTab() {
     item.className = 'tab-dropdown-item';
     item.dataset.map = key;
     item.setAttribute('role', 'menuitem');
-    item.innerHTML = m.icon
-      ? `<span class="tab-icon">${m.icon}</span><span class="tab-label">${m.title}</span>`
-      : m.title;
+    item.innerHTML = `<span class="tab-icon">${navIcon(mapIconName(key), 16)}</span><span class="tab-label">${m.title}</span>`;
     item.addEventListener('click', (ev) => {
       ev.stopPropagation();
       setActiveMap(key);
@@ -1248,7 +1329,7 @@ function buildMapTab(key, m) {
   item.className = 'tab-item';
   item.dataset.tabKey = key;
   item.dataset.map = key;
-  item.innerHTML = tabInnerHtml(m);
+  item.innerHTML = tabInnerHtml(key, m);
   item.title = `${m.title} — drag ⋮⋮ to reorder`;
   item.addEventListener('click', (ev) => {
     if (tabDragMoved || ev.target.closest('.tab-grip')) return;
@@ -1267,7 +1348,7 @@ function buildLinkTab(key, m) {
   a.href = m.link;
   a.target = '_blank';
   a.rel = 'noopener noreferrer';
-  a.innerHTML = tabInnerHtml(m);
+  a.innerHTML = tabInnerHtml(key, m);
   a.title = `${m.title} — drag ⋮⋮ to reorder`;
   a.addEventListener('click', (ev) => {
     if (tabDragMoved) ev.preventDefault();
@@ -1318,14 +1399,15 @@ function updateTabs() {
 
     if (slot === SYSTEM_TAB_SLOT) {
       dropdown.classList.toggle('active', SYSTEM_MAP_SET.has(activeKey));
-      trigger.innerHTML = `${tabInnerHtml(MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+      trigger.innerHTML = `${tabInnerHtml('system', MAPS.system)}<span class="tab-caret" aria-hidden="true">▾</span>`;
       return;
     }
 
     if (slot === CHAT_TAB_SLOT) {
       dropdown.classList.toggle('active', CHAT_MAP_SET.has(activeKey));
-      const head = CHAT_MAP_SET.has(activeKey) ? MAPS[activeKey] : MAPS.chats;
-      trigger.innerHTML = `${tabInnerHtml(head)}<span class="tab-caret" aria-hidden="true">▾</span>`;
+      const headKey = CHAT_MAP_SET.has(activeKey) ? activeKey : 'chats';
+      const head = MAPS[headKey];
+      trigger.innerHTML = `${tabInnerHtml(headKey, head)}<span class="tab-caret" aria-hidden="true">▾</span>`;
     }
   });
 
@@ -1368,53 +1450,6 @@ const HOME_EXTRA_LINKS = [
   { href: '/admin/contacts', label: 'Contacts DB', icon: 'database' },
   { href: '/admin/telegram', label: 'Telegram help', icon: 'help-circle' },
 ];
-
-const MAP_ICON_KEYS = {
-  home: 'home',
-  system: 'monitor',
-  tooling: 'wrench',
-  telegram: 'send',
-  todo: 'check-square',
-  documents: 'file-text',
-  knowledge: 'book-open',
-  chats: 'message-circle',
-  email: 'mail',
-  rules: 'zap',
-  work: 'briefcase',
-  clients: 'users',
-  finance: 'wallet',
-};
-
-const NAV_ICON_PATHS = {
-  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
-  home: '<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
-  'message-circle': '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
-  mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
-  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/>',
-  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
-  send: '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
-  'check-square': '<path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12.5"/><path d="m9 11 3 3L22 4"/>',
-  'file-text': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
-  'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
-  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
-  briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
-  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
-  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
-  'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
-  'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
-};
-
-function navIcon(name, size = 20) {
-  const paths = NAV_ICON_PATHS[name];
-  if (!paths) return '';
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-}
-
-function mapIconName(key) {
-  return MAP_ICON_KEYS[key] || 'monitor';
-}
 
 function dashboardSectionItems(order) {
   const items = [];
@@ -2352,7 +2387,7 @@ function renderRulesEditor() {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = '<div class="de-placeholder-icon">⚡</div><p>Select a rule to edit, or create a new one.</p>';
+    placeholder.innerHTML = placeholderHtml('zap', '<p>Select a rule to edit, or create a new one.</p>');
     pane.appendChild(placeholder);
   }
   root.appendChild(pane);
@@ -2637,7 +2672,7 @@ async function loadAndBuildTodoNodes() {
         id,
         title: label,
         sub: section.title,
-        icon: item.checked ? '✅' : '☐',
+        icon: item.checked ? '✅' : '☐', // legacy data field; chipHtml uses _checked
         hue: item.checked ? 115 : 220,
         ghost: item.checked,
         x: colX,
@@ -2688,8 +2723,7 @@ async function loadAndBuildTodoNodes() {
       const newChecked = !n._checked;
       // Optimistic DOM update
       n._checked = newChecked;
-      n.icon = newChecked ? '✅' : '☐';
-      chip.textContent = n.icon;
+      chip.innerHTML = todoChipHtml(newChecked);
       chip.title = newChecked ? 'Mark as undone' : 'Mark as done';
       el.classList.toggle('ghost', newChecked);
       el.classList.toggle('todo-done', newChecked);
@@ -2702,8 +2736,7 @@ async function loadAndBuildTodoNodes() {
       }).catch((err) => {
         // Revert on network error
         n._checked = !newChecked;
-        n.icon = !newChecked ? '✅' : '☐';
-        chip.textContent = n.icon;
+        chip.innerHTML = todoChipHtml(!newChecked);
         chip.title = !newChecked ? 'Mark as undone' : 'Mark as done';
         el.classList.toggle('ghost', !newChecked);
         el.classList.toggle('todo-done', !newChecked);
@@ -2835,7 +2868,7 @@ function renderDocEditor() {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = `<div class="de-placeholder-icon">📄</div><p>Select a template to edit, or create a new one.</p>`;
+    placeholder.innerHTML = placeholderHtml('file-text', '<p>Select a template to edit, or create a new one.</p>');
     pane.appendChild(placeholder);
   }
 
@@ -3362,7 +3395,7 @@ function renderKnowledgeEditor() {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = '<div class="de-placeholder-icon">📚</div><p>Select a doc to edit, or create a new one.</p>';
+    placeholder.innerHTML = placeholderHtml('book-open', '<p>Select a doc to edit, or create a new one.</p>');
     pane.appendChild(placeholder);
   }
 
@@ -3685,7 +3718,7 @@ function renderWorkEditor() {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = '<div class="de-placeholder-icon">💼</div><p>Select a job to edit, or create a new one.</p>';
+    placeholder.innerHTML = placeholderHtml('briefcase', '<p>Select a job to edit, or create a new one.</p>');
     pane.appendChild(placeholder);
   }
 
@@ -4516,7 +4549,7 @@ function renderClientsEditor() {
   } else {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = '<div class="de-placeholder-icon">👥</div><p>Select a client to edit, or add a new one.</p>';
+    placeholder.innerHTML = placeholderHtml('users', '<p>Select a client to edit, or add a new one.</p>');
     pane.appendChild(placeholder);
   }
 
@@ -5569,7 +5602,7 @@ function renderChatMessages(container, composeInput) {
   if (chatState.messages.length === 0 && !chatState.sending) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = '<div class="de-placeholder-icon">💬</div>Send a message to start.';
+    ph.innerHTML = placeholderHtml('message-circle', 'Send a message to start.');
     container.appendChild(ph);
     return;
   }
@@ -5648,7 +5681,7 @@ function renderChatPanel() {
   if (!chatState.activeId) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = '<div class="de-placeholder-icon">💬</div>Select a chat or start a new one.';
+    ph.innerHTML = placeholderHtml('message-circle', 'Select a chat or start a new one.');
     pane.appendChild(ph);
     root.appendChild(pane);
     return;
@@ -6742,7 +6775,10 @@ function renderEmailPanel() {
   if (!ev) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = '<div class="de-placeholder-icon">📬</div><p>Your inbox summaries appear here.</p><p class="em-hint">Install this app to your home screen and tap 🔔 for phone notifications.</p>';
+    ph.innerHTML = placeholderHtml(
+      'mail',
+      '<p>Your inbox summaries appear here.</p><p class="em-hint">Install this app to your home screen and tap the bell icon for phone notifications.</p>',
+    );
     pane.appendChild(ph);
     root.appendChild(pane);
     return;

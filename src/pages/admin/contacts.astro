@@ -472,7 +472,7 @@ const fmtMoney = (n: number) =>
                         {c.company && <div class="company">{c.company}</div>}
                         {craterConfigured && craterHint && (
                           <div class={`crater-hint crater-hint--${craterHint.tone}`}>
-                            🧾 {craterHint.label}
+                            {craterHint.label}
                           </div>
                         )}
                         {c.email && <div class="meta"><a href={`mailto:${c.email}`}>{c.email}</a></div>}
@@ -554,7 +554,7 @@ const fmtMoney = (n: number) =>
                             <div class="name">{displayName}</div>
                             {e.status === 'matched'
                               ? <span class="sync-badge ok">✓ synced</span>
-                              : <span class="sync-badge missing">⚠ missing</span>
+                              : <span class="sync-badge missing">missing</span>
                             }
                           </div>
                           {isCompany && <div class="company">{c.name}</div>}

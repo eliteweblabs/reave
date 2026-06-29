@@ -1,6 +1,22 @@
 ---
 import { clerkClient } from "@clerk/astro/server";
 import { getCompanyConfig } from "../lib/companyConfig";
+import {
+  MessageCircle,
+  BookOpen,
+  Mail,
+  Briefcase,
+  Users,
+  CheckSquare,
+  FileText,
+  Zap,
+  Monitor,
+  Wrench,
+  Send,
+  Database,
+  CircleHelp,
+  LayoutDashboard,
+} from "lucide-astro";
 
 interface Props {
   /** Admin SPA shell — tools menu filled by os-map-loader.js */
@@ -15,22 +31,22 @@ const company = await getCompanyConfig(Astro.request);
 const logoPath = company.logoPath || "/logo.png";
 
 const adminSpaTabs = [
-  { tab: "chats", label: "Chats", icon: "💬" },
-  { tab: "knowledge", label: "Knowledge", icon: "📚" },
-  { tab: "email", label: "Inbox", icon: "📬" },
-  { tab: "work", label: "Work", icon: "💼" },
-  { tab: "clients", label: "Clients", icon: "👥" },
-  { tab: "todo", label: "To-do", icon: "✅" },
-  { tab: "documents", label: "Documents", icon: "📄" },
-  { tab: "rules", label: "Rules", icon: "⚡" },
-  { tab: "system", label: "System", icon: "🖥️" },
-  { tab: "tooling", label: "MCP & CLI", icon: "🔧" },
-  { tab: "telegram", label: "Telegram", icon: "✈️" },
+  { tab: "chats", label: "Chats", Icon: MessageCircle },
+  { tab: "knowledge", label: "Knowledge", Icon: BookOpen },
+  { tab: "email", label: "Inbox", Icon: Mail },
+  { tab: "work", label: "Work", Icon: Briefcase },
+  { tab: "clients", label: "Clients", Icon: Users },
+  { tab: "todo", label: "To-do", Icon: CheckSquare },
+  { tab: "documents", label: "Documents", Icon: FileText },
+  { tab: "rules", label: "Rules", Icon: Zap },
+  { tab: "system", label: "System", Icon: Monitor },
+  { tab: "tooling", label: "MCP & CLI", Icon: Wrench },
+  { tab: "telegram", label: "Telegram", Icon: Send },
 ] as const;
 
 const adminPages = [
-  { href: "/admin/contacts", label: "Contacts DB", icon: "📊" },
-  { href: "/admin/telegram", label: "Telegram help", icon: "📋" },
+  { href: "/admin/contacts", label: "Contacts DB", Icon: Database },
+  { href: "/admin/telegram", label: "Telegram help", Icon: CircleHelp },
 ] as const;
 
 const auth = Astro.locals.auth?.();
@@ -98,19 +114,19 @@ if (userId) {
             </button>
             <div id="topbar-tools-menu" class="app-header-dropdown topbar-dropdown" role="menu" aria-label="Tools">
               <a href="/admin/" class="topbar-dropdown-item" role="menuitem">
-                <span class="topbar-dropdown-icon" aria-hidden="true">🧑‍💻</span>
+                <span class="topbar-dropdown-icon" aria-hidden="true"><LayoutDashboard size={16} strokeWidth={1.75} /></span>
                 <span>Administration</span>
               </a>
               <div class="topbar-dropdown-divider"></div>
-              {adminSpaTabs.map(({ tab, label, icon }) => (
+              {adminSpaTabs.map(({ tab, label, Icon }) => (
                 <a href={`/admin/?tab=${tab}`} class="topbar-dropdown-item" role="menuitem">
-                  <span class="topbar-dropdown-icon" aria-hidden="true">{icon}</span>
+                  <span class="topbar-dropdown-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.75} /></span>
                   <span>{label}</span>
                 </a>
               ))}
-              {adminPages.map(({ href, label, icon }) => (
+              {adminPages.map(({ href, label, Icon }) => (
                 <a href={href} class="topbar-dropdown-item" role="menuitem">
-                  <span class="topbar-dropdown-icon" aria-hidden="true">{icon}</span>
+                  <span class="topbar-dropdown-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.75} /></span>
                   <span>{label}</span>
                 </a>
               ))}
@@ -436,9 +452,14 @@ if (userId) {
   .topbar-dropdown-icon {
     width: 1rem;
     flex-shrink: 0;
-    text-align: center;
-    font-size: 0.82rem;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .topbar-dropdown-icon svg {
+    display: block;
   }
 
   @media print {
