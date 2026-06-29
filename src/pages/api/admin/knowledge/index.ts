@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   storeListKnowledge,
   storeWriteKnowledge,
@@ -22,16 +23,16 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const entries = await storeListKnowledge();
   return json({ ok: true, entries, db: isKnowledgeDbConfigured() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const url = new URL(context.request.url);
 

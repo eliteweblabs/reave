@@ -9,7 +9,34 @@ const CHAT_MAP_SET = new Set(CHAT_MAP_KEYS);
 const MOBILE_TABS_MQ = window.matchMedia('(max-width: 639px)');
 const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
 const userId = document.body?.dataset?.userId?.trim() || '';
+const KNOWLEDGE_API = '/api/admin/knowledge';
 const SVGNS = 'http://www.w3.org/2000/svg';
+
+/** Dashboard fetch — always send session cookies; re-auth on 401. */
+async function adminFetch(url, opts = {}) {
+  const res = await fetch(url, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+    ...opts,
+    headers: {
+      Accept: 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  if (res.status === 401) {
+    const returnTo = encodeURIComponent(window.location.href);
+    window.location.assign(`/sign-in?redirect_url=${returnTo}`);
+    throw new Error('Session expired');
+  }
+  return res;
+}
+
+function titleFromKnowledgeMarkdown(content, slug) {
+  const first = content.split('\n').find((l) => l.trim().length > 0) ?? '';
+  const fromHeading = first.replace(/^#\s*/, '').trim();
+  if (fromHeading) return fromHeading.slice(0, 200);
+  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 const PINCH_ZOOM = true;
 
 // Real brand logos via Simple Icons (https://simpleicons.org), pinned to a
@@ -156,6 +183,9 @@ let cachedTabOrder = null;
 let searchOverlayOpen = false;
 let searchDebounceTimer = null;
 let footerNavCollapsed = false;
+let footerIndicatorDragging = false;
+let footerIndicatorSuppressClick = false;
+let footerChatComposeVisible = true;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -1989,17 +2019,49 @@ function getFooterChatComposeSlot() {
 function clearFooterChatCompose() {
   const slot = getFooterChatComposeSlot();
   if (slot) slot.innerHTML = '';
+  footerChatComposeVisible = true;
   syncFooterChatComposeLayout();
+}
+
+function revealFooterNavFromCompose() {
+  footerChatComposeVisible = false;
+  syncFooterChatComposeLayout();
+  const homeBtn = document.getElementById('footer-nav-home');
+  homeBtn?.setAttribute('title', 'Home');
+  homeBtn?.setAttribute('aria-label', 'Home');
+}
+
+function showFooterChatCompose() {
+  if (activeKey !== 'chats' || !chatState.activeId) return;
+  const slot = getFooterChatComposeSlot();
+  if (!slot?.childElementCount) return;
+  footerChatComposeVisible = true;
+  syncFooterChatComposeLayout();
+  const homeBtn = document.getElementById('footer-nav-home');
+  homeBtn?.setAttribute('title', 'Show navigation');
+  homeBtn?.setAttribute('aria-label', 'Show navigation');
+  requestAnimationFrame(() => getChatPanel()?.querySelector('.ch-input')?.focus());
 }
 
 function syncFooterChatComposeLayout() {
   const slot = getFooterChatComposeSlot();
   const nav = document.getElementById('admin-footer-nav');
   if (!slot || !nav) return;
-  const show = activeKey === 'chats' && Boolean(chatState.activeId) && slot.childElementCount > 0;
-  slot.hidden = !show;
-  nav.classList.toggle('footer-nav-has-compose', show);
-  if (show) {
+  const hasCompose = activeKey === 'chats' && Boolean(chatState.activeId) && slot.childElementCount > 0;
+  const showCompose = hasCompose && footerChatComposeVisible;
+
+  slot.hidden = !showCompose;
+  nav.classList.toggle('footer-nav-has-compose', hasCompose);
+  nav.classList.toggle('footer-nav-compose-open', showCompose);
+  nav.classList.toggle('footer-nav-compose-nav-only', hasCompose && !footerChatComposeVisible);
+
+  if (showCompose) {
+    const homeBtn = document.getElementById('footer-nav-home');
+    homeBtn?.setAttribute('title', 'Show navigation');
+    homeBtn?.setAttribute('aria-label', 'Show navigation');
+  }
+
+  if (hasCompose) {
     const h = nav.getBoundingClientRect().height;
     document.documentElement.style.setProperty('--footer-nav-h', `${h}px`);
   } else {
@@ -2013,11 +2075,210 @@ function mountChatCompose(compose) {
   if (!slot) return false;
   slot.innerHTML = '';
   slot.appendChild(compose);
+  footerChatComposeVisible = true;
   syncFooterChatComposeLayout();
   return true;
 }
 
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'search', 'profile'];
+const FOOTER_NAV_DRAG_THRESHOLD = 8;
+
+function footerNavIndicatorHidden() {
+  const indicator = document.getElementById('footer-nav-indicator');
+  if (!indicator || indicator.hidden) return true;
+  const nav = document.getElementById('admin-footer-nav');
+  if (nav?.classList.contains('footer-nav-compose-open')) return true;
+  const chatBtn = document.getElementById('footer-nav-chat');
+  return activeKey === 'chats' && chatBtn?.classList.contains('footer-nav-btn--create');
+}
+
+function getVisibleFooterNavButtons() {
+  const pill = document.querySelector('.admin-footer-nav-pill');
+  if (!pill) return [];
+  return FOOTER_NAV_DRAG_ORDER.map((nav) => {
+    const btn = pill.querySelector(`.footer-nav-btn[data-nav="${nav}"]`);
+    if (!btn) return null;
+    const style = window.getComputedStyle(btn);
+    if (style.display === 'none' || style.visibility === 'hidden') return null;
+    if (parseFloat(style.opacity) < 0.05) return null;
+    if (btn.offsetWidth <= 0) return null;
+    return { nav, btn };
+  }).filter(Boolean);
+}
+
+function footerNavSnapTargets() {
+  const pill = document.querySelector('.admin-footer-nav-pill');
+  if (!pill) return [];
+  const pillRect = pill.getBoundingClientRect();
+  return getVisibleFooterNavButtons().map(({ nav, btn }) => {
+    const rect = btn.getBoundingClientRect();
+    const x = rect.left - pillRect.left;
+    return { nav, btn, x, width: rect.width, center: x + rect.width / 2 };
+  });
+}
+
+function parseFooterIndicatorX(indicator) {
+  const transform = indicator.style.transform || '';
+  const match = transform.match(/translateX\(([-\d.]+)px\)/);
+  if (match) return parseFloat(match[1]);
+  const matrix = window.getComputedStyle(indicator).transform;
+  if (matrix && matrix !== 'none') {
+    const values = matrix.match(/matrix\(([^)]+)\)/);
+    if (values) {
+      const parts = values[1].split(',').map((part) => parseFloat(part.trim()));
+      if (parts.length === 6) return parts[4];
+    }
+  }
+  return 0;
+}
+
+function setFooterIndicatorPosition(x, width, { animate = true } = {}) {
+  const indicator = document.getElementById('footer-nav-indicator');
+  if (!indicator) return;
+  indicator.classList.toggle('footer-nav-indicator--dragging', !animate);
+  indicator.style.transition = animate ? '' : 'none';
+  indicator.style.width = `${width}px`;
+  indicator.style.transform = `translateX(${x}px)`;
+}
+
+function nearestFooterNavTarget(clientX) {
+  const pill = document.querySelector('.admin-footer-nav-pill');
+  if (!pill) return null;
+  const targets = footerNavSnapTargets();
+  if (!targets.length) return null;
+  const x = clientX - pill.getBoundingClientRect().left;
+  let best = targets[0];
+  let bestDist = Math.abs(x - best.center);
+  for (const target of targets.slice(1)) {
+    const dist = Math.abs(x - target.center);
+    if (dist < bestDist) {
+      best = target;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function activateFooterNavFromDrag(nav) {
+  closeSearchOverlay();
+  if (nav === 'home') {
+    if (footerNavCollapsed) {
+      expandFooterNav();
+      return;
+    }
+    setActiveMap('home', { force: activeKey === 'home' });
+    return;
+  }
+  if (nav === 'chat') {
+    if (activeKey === 'chats') {
+      void startNewChat();
+      return;
+    }
+    setActiveMap('chats', { force: activeKey === 'chats' });
+    return;
+  }
+  if (nav === 'inbox') {
+    setActiveMap('email', { force: activeKey === 'email' });
+    return;
+  }
+  if (nav === 'search') {
+    toggleSearchOverlay();
+    return;
+  }
+  if (nav === 'profile') {
+    setActiveMap('profile', { force: activeKey === 'profile' });
+  }
+}
+
+function initFooterNavIndicatorDrag() {
+  const pill = document.querySelector('.admin-footer-nav-pill');
+  if (!pill || pill.dataset.indicatorDragBound) return;
+  pill.dataset.indicatorDragBound = '1';
+
+  let pointerId = null;
+  let dragStartX = 0;
+  let dragStartIndicatorX = 0;
+  let dragWidth = 0;
+  let dragActive = false;
+
+  const finishDrag = (ev) => {
+    if (pointerId == null || ev.pointerId !== pointerId) return;
+    const moved = dragActive;
+    const clientX = ev.clientX;
+    pill.releasePointerCapture?.(pointerId);
+    pointerId = null;
+    dragActive = false;
+    footerIndicatorDragging = false;
+    pill.classList.remove('footer-nav-pill--dragging');
+
+    const indicator = document.getElementById('footer-nav-indicator');
+    if (indicator) {
+      indicator.classList.remove('footer-nav-indicator--dragging');
+      indicator.style.transition = '';
+    }
+
+    const target = nearestFooterNavTarget(clientX);
+    if (target) {
+      setFooterIndicatorPosition(target.x, target.width, { animate: true });
+      if (moved) {
+        footerIndicatorSuppressClick = true;
+        const currentNav = footerNavActiveKey();
+        if (target.nav !== currentNav) activateFooterNavFromDrag(target.nav);
+      }
+    } else {
+      scheduleFooterNavIndicatorSync();
+    }
+  };
+
+  pill.addEventListener('pointerdown', (ev) => {
+    if (footerNavIndicatorHidden()) return;
+    if (getVisibleFooterNavButtons().length < 2) return;
+    if (!(ev.target instanceof Element)) return;
+    if (ev.target.closest('.footer-nav-badge')) return;
+
+    pointerId = ev.pointerId;
+    dragActive = false;
+    footerIndicatorDragging = false;
+    footerIndicatorSuppressClick = false;
+    dragStartX = ev.clientX;
+
+    const indicator = document.getElementById('footer-nav-indicator');
+    if (!indicator) return;
+    dragStartIndicatorX = parseFooterIndicatorX(indicator);
+    dragWidth = indicator.offsetWidth || parseFloat(indicator.style.width) || 0;
+  });
+
+  pill.addEventListener('pointermove', (ev) => {
+    if (pointerId == null || ev.pointerId !== pointerId) return;
+    const dx = ev.clientX - dragStartX;
+    if (!dragActive) {
+      if (Math.abs(dx) < FOOTER_NAV_DRAG_THRESHOLD) return;
+      dragActive = true;
+      footerIndicatorDragging = true;
+      pill.classList.add('footer-nav-pill--dragging');
+      pill.setPointerCapture(ev.pointerId);
+    }
+
+    const pillRect = pill.getBoundingClientRect();
+    const maxX = Math.max(0, pillRect.width - dragWidth);
+    const nextX = Math.min(maxX, Math.max(0, dragStartIndicatorX + dx));
+    setFooterIndicatorPosition(nextX, dragWidth, { animate: false });
+    ev.preventDefault();
+  });
+
+  pill.addEventListener('pointerup', finishDrag);
+  pill.addEventListener('pointercancel', finishDrag);
+
+  pill.addEventListener('click', (ev) => {
+    if (!footerIndicatorSuppressClick) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    footerIndicatorSuppressClick = false;
+  }, true);
+}
+
 function syncFooterNavIndicator() {
+  if (footerIndicatorDragging) return;
   const indicator = document.getElementById('footer-nav-indicator');
   const pill = document.querySelector('.admin-footer-nav-pill');
   if (!indicator || !pill) return;
@@ -2068,6 +2329,11 @@ function syncFooterNav() {
 function initFooterNav() {
   document.getElementById('footer-nav-home')?.addEventListener('click', () => {
     closeSearchOverlay();
+    const nav = document.getElementById('admin-footer-nav');
+    if (nav?.classList.contains('footer-nav-compose-open')) {
+      revealFooterNavFromCompose();
+      return;
+    }
     if (footerNavCollapsed) {
       expandFooterNav();
       return;
@@ -2077,6 +2343,10 @@ function initFooterNav() {
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     closeSearchOverlay();
     if (activeKey === 'chats') {
+      if (!footerChatComposeVisible && chatState.activeId) {
+        showFooterChatCompose();
+        return;
+      }
       void startNewChat();
       return;
     }
@@ -2097,6 +2367,7 @@ function initFooterNav() {
     syncFooterNavIndicator();
     syncFooterChatComposeLayout();
   }, { passive: true });
+  initFooterNavIndicatorDrag();
   void refreshInboxBadgeQuiet();
 }
 
@@ -3449,13 +3720,18 @@ function getKnowledgeEditor() { return document.getElementById('knowledge-editor
 async function loadKnowledgeTab() {
   const root = getKnowledgeEditor();
   if (!root) return;
+  if (!userId) {
+    root.innerHTML = '<div class="de-loading de-error">Sign in required to view knowledge.</div>';
+    return;
+  }
   root.innerHTML = '<div class="de-loading">Loading knowledge…</div>';
   try {
-    const res = await fetch('/api/knowledge', { cache: 'no-store' });
+    const res = await adminFetch(KNOWLEDGE_API);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     knowledgeState.entries = data.entries || [];
   } catch (e) {
+    if (e.message === 'Session expired') return;
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
@@ -3488,7 +3764,7 @@ function renderKnowledgeEditor() {
   const hint = document.createElement('div');
   hint.className = 'de-empty';
   hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'Markdown in src/knowledge/ · bot reads on deploy';
+  hint.textContent = 'Live DB + bundled docs · bot reads DB first';
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
@@ -3584,7 +3860,7 @@ function renderEditKnowledgeForm(pane) {
   const entry = knowledgeState.entries.find((e) => e.slug === slug);
   pane.innerHTML = '<div class="de-loading">Loading…</div>';
 
-  fetch(`/api/knowledge/${encodeURIComponent(slug)}`, { cache: 'no-store' })
+  adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`)
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
     .then(({ ok, data }) => {
       if (!ok) throw new Error(data.error || 'Failed to load');
@@ -3656,10 +3932,15 @@ async function createKnowledge(slug, content) {
   if (!/^[a-z0-9._-]+$/i.test(slug)) { alert('Slug may only contain letters, numbers, dots, hyphens, and underscores.'); return; }
   if (!content.trim()) { alert('Content cannot be empty.'); return; }
   try {
-    const res = await fetch('/api/knowledge', {
+    const res = await adminFetch(KNOWLEDGE_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, content }),
+      body: JSON.stringify({
+        slug,
+        title: titleFromKnowledgeMarkdown(content, slug),
+        content,
+        source: 'manual',
+      }),
     });
     const data = await res.json();
     if (res.status === 409) { alert('That slug already exists.'); return; }
@@ -3675,10 +3956,14 @@ async function createKnowledge(slug, content) {
 async function saveKnowledge(slug, content) {
   if (!content.trim()) { alert('Content cannot be empty.'); return; }
   try {
-    const res = await fetch(`/api/knowledge/${encodeURIComponent(slug)}`, {
+    const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({
+        title: titleFromKnowledgeMarkdown(content, slug),
+        content,
+        source: 'manual',
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -3696,7 +3981,7 @@ async function deleteKnowledge(slug) {
   closeOpenSwipeRow();
   if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
   try {
-    const res = await fetch(`/api/knowledge/${encodeURIComponent(slug)}`, {
+    const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
@@ -5311,9 +5596,11 @@ async function deleteClient(uid, name) {
 
 /** SF Symbol–style icons (square.and.arrow.up, doc.on.doc, etc.) for iOS-native toolbar affordances. */
 const IOS_ICONS = {
+  'chevron-left': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
   copy: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
   edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  trash: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
 };
 const CH_MSG_ICONS = IOS_ICONS;
 
@@ -5965,13 +6252,15 @@ function renderChatPanel() {
 
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Chats';
-  backBtn.addEventListener('click', () => {
-    chatState.activeId = null;
-    getChatPanel()?.classList.remove('ch-pane-active');
-    renderChatPanel();
+  const backBtn = createIosIconBtn({
+    iconKey: 'chevron-left',
+    label: 'Back to chats',
+    className: 'ios-icon-btn de-back-btn',
+    onClick: () => {
+      chatState.activeId = null;
+      getChatPanel()?.classList.remove('ch-pane-active');
+      renderChatPanel();
+    },
   });
   header.appendChild(backBtn);
   header.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title || 'Chat'));
@@ -5982,11 +6271,12 @@ function renderChatPanel() {
   );
   modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
   header.appendChild(modelBadge);
-  const deleteBtn = document.createElement('button');
-  deleteBtn.className = 'ch-delete-btn';
-  deleteBtn.type = 'button';
-  deleteBtn.textContent = 'Delete';
-  deleteBtn.addEventListener('click', () => deleteChat(chatState.activeId, chatState.title));
+  const deleteBtn = createIosIconBtn({
+    iconKey: 'trash',
+    label: 'Delete chat',
+    className: 'ios-icon-btn ch-delete-btn',
+    onClick: () => deleteChat(chatState.activeId, chatState.title),
+  });
   header.appendChild(deleteBtn);
   const chatTranscript = () =>
     chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`).join('\n\n');
@@ -6314,12 +6604,18 @@ const BADGE_URL = '/badge-count';
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
 
+function isEmailRouted(ev) {
+  const action = String(ev.action || '').toLowerCase();
+  return action === 'filed' || action === 'matched';
+}
+
 function inboxTabCounts() {
   const all = emailState.allEvents;
   return {
     all: all.filter((e) => e.category !== 'junk').length,
     alert: all.filter((e) => e.category === 'alert').length,
     review: all.filter((e) => e.category === 'review').length,
+    routed: all.filter(isEmailRouted).length,
     junk: all.filter((e) => e.category === 'junk').length,
   };
 }
@@ -6330,6 +6626,7 @@ function filteredInboxEvents() {
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
   if (f === 'alert') return all.filter((e) => e.category === 'alert');
   if (f === 'review') return all.filter((e) => e.category === 'review');
+  if (f === 'routed') return all.filter(isEmailRouted);
   return all.filter((e) => e.category !== 'junk');
 }
 
@@ -6712,7 +7009,7 @@ function buildAgentContentPrompt(intro, metaLines, body) {
 
 async function askAgentAboutKnowledge(entry) {
   try {
-    const res = await fetch(`/api/knowledge/${encodeURIComponent(entry.slug)}`, { cache: 'no-store' });
+    const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(entry.slug)}`);
     const data = await readApiJson(res);
     const prompt = buildAgentContentPrompt(
       'Help me work with this knowledge doc:',
@@ -6786,8 +7083,11 @@ function createKnowledgeListItem(entry) {
   item.type = 'button';
   item.className = 'ch-list-item' + (entry.slug === knowledgeState.activeSlug ? ' active' : '');
   item.dataset.slug = entry.slug;
+  const sourceBadge = entry.source === 'db'
+    ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
+    : '';
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span></span>` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${sourceBadge}</span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
   item.addEventListener('click', () => openKnowledge(entry.slug));
   return item;
@@ -7051,6 +7351,7 @@ function renderEmailFilterTabs() {
     { id: 'all', label: 'All', count: counts.all },
     { id: 'alert', label: 'Alerts', count: counts.alert },
     { id: 'review', label: 'Review', count: counts.review },
+    { id: 'routed', label: 'Routed', count: counts.routed },
     { id: 'junk', label: 'Junk', count: counts.junk },
   ];
 
@@ -7095,6 +7396,8 @@ function renderEmailSidebar() {
       empty.textContent = 'No alerts.';
     } else if (emailState.inboxFilter === 'review') {
       empty.textContent = 'No messages need review.';
+    } else if (emailState.inboxFilter === 'routed') {
+      empty.textContent = 'No routed messages yet.';
     } else {
       empty.innerHTML =
         'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
@@ -7134,13 +7437,15 @@ function renderEmailPanel() {
 
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Inbox';
-  backBtn.addEventListener('click', () => {
-    emailState.activeId = null;
-    getEmailPanel()?.classList.remove('em-pane-active');
-    renderEmailPanel();
+  const backBtn = createIosIconBtn({
+    iconKey: 'chevron-left',
+    label: 'Back to inbox',
+    className: 'ios-icon-btn de-back-btn',
+    onClick: () => {
+      emailState.activeId = null;
+      getEmailPanel()?.classList.remove('em-pane-active');
+      renderEmailPanel();
+    },
   });
   header.appendChild(backBtn);
   const titleEl = document.createElement('span');

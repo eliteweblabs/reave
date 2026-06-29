@@ -1524,6 +1524,17 @@ const { userId } = Astro.locals.auth();
         color: #8b97a8;
         background: rgba(139, 151, 168, 0.12);
       }
+      .ch-item-badge {
+        flex-shrink: 0;
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 0.1rem 0.32rem;
+        border-radius: 4px;
+        color: #6ee7b7;
+        background: rgba(16, 185, 129, 0.14);
+      }
       .swipe-content .ch-list-item {
         margin-bottom: 0;
         border-radius: 8px;
@@ -2918,6 +2929,6 @@ const { userId } = Astro.locals.auth();
     <AdminFooterNav />
 
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629p"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629u"></script>
   </body>
 </html>
