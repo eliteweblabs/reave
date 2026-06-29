@@ -1,4 +1,5 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
+import { IOS_ICONS, createIosIconBtn, createPanelBackBtn } from './admin-ui.js?v=20250629w';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -292,6 +293,7 @@ function setActiveMap(key, opts = {}) {
   syncEmailPoll();
   syncFooterNav();
   syncInboxHeaderControls();
+  syncTopbarPanelContext();
   syncDashboardHeaderDate();
   if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
@@ -2818,11 +2820,7 @@ function renderRuleEditPane(pane) {
 
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Rules';
-  backBtn.addEventListener('click', () => closeRuleEditor());
-  header.appendChild(backBtn);
+  header.appendChild(createPanelBackBtn({ label: 'Back to rules', onClick: () => closeRuleEditor() }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
   titleEl.textContent = rule.title || rule.status || 'Rule';
@@ -3274,11 +3272,7 @@ function renderNewForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.innerHTML = '‹ Back';
-  backBtn.addEventListener('click', () => backToList());
-  header.appendChild(backBtn);
+  header.appendChild(createPanelBackBtn({ label: 'Back to documents', onClick: () => backToList() }));
   const nameEl = document.createElement('span');
   nameEl.className = 'de-doc-name';
   nameEl.textContent = 'New Document';
@@ -3345,11 +3339,7 @@ function renderEditForm(pane) {
       const header = document.createElement('div');
       header.className = 'de-header';
 
-      const backBtn2 = document.createElement('button');
-      backBtn2.className = 'de-back-btn';
-      backBtn2.innerHTML = '‹ Back';
-      backBtn2.addEventListener('click', () => backToList());
-      header.appendChild(backBtn2);
+      header.appendChild(createPanelBackBtn({ label: 'Back to documents', onClick: () => backToList() }));
 
       const nameEl2 = document.createElement('span');
       nameEl2.className = 'de-doc-name';
@@ -3803,15 +3793,14 @@ function renderNewKnowledgeForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Docs';
-  backBtn.addEventListener('click', () => {
-    knowledgeState.activeSlug = null;
-    getKnowledgeEditor()?.classList.remove('de-pane-active');
-    renderKnowledgeEditor();
-  });
-  header.appendChild(backBtn);
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to knowledge',
+    onClick: () => {
+      knowledgeState.activeSlug = null;
+      getKnowledgeEditor()?.classList.remove('de-pane-active');
+      renderKnowledgeEditor();
+    },
+  }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
   titleEl.textContent = 'New knowledge doc';
@@ -3870,17 +3859,16 @@ function renderEditKnowledgeForm(pane) {
 
       const header = document.createElement('div');
       header.className = 'de-header';
-      const backBtn = document.createElement('button');
-      backBtn.className = 'de-back-btn';
-      backBtn.textContent = '← Docs';
-      backBtn.addEventListener('click', () => {
-        if (knowledgeState.dirty && !confirm('Discard unsaved changes?')) return;
-        knowledgeState.activeSlug = null;
-        knowledgeState.dirty = false;
-        getKnowledgeEditor()?.classList.remove('de-pane-active');
-        renderKnowledgeEditor();
-      });
-      header.appendChild(backBtn);
+      header.appendChild(createPanelBackBtn({
+        label: 'Back to knowledge',
+        onClick: () => {
+          if (knowledgeState.dirty && !confirm('Discard unsaved changes?')) return;
+          knowledgeState.activeSlug = null;
+          knowledgeState.dirty = false;
+          getKnowledgeEditor()?.classList.remove('de-pane-active');
+          renderKnowledgeEditor();
+        },
+      }));
       const titleEl = document.createElement('span');
       titleEl.className = 'de-doc-name';
       titleEl.textContent = data.title || entry?.title || slug;
@@ -4460,16 +4448,15 @@ function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Jobs';
-  backBtn.addEventListener('click', () => {
-    workState.activeSlug = null;
-    workState.draft = null;
-    getWorkEditor()?.classList.remove('de-pane-active');
-    renderWorkEditor();
-  });
-  header.appendChild(backBtn);
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to jobs',
+    onClick: () => {
+      workState.activeSlug = null;
+      workState.draft = null;
+      getWorkEditor()?.classList.remove('de-pane-active');
+      renderWorkEditor();
+    },
+  }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
   titleEl.textContent = 'New job';
@@ -4654,17 +4641,16 @@ function renderEditWorkForm(pane) {
 
       const header = document.createElement('div');
       header.className = 'de-header';
-      const backBtn = document.createElement('button');
-      backBtn.className = 'de-back-btn';
-      backBtn.textContent = '← Jobs';
-      backBtn.addEventListener('click', () => {
-        if (workState.dirty && !confirm('Discard unsaved changes?')) return;
-        workState.activeSlug = null;
-        workState.draft = null;
-        getWorkEditor()?.classList.remove('de-pane-active');
-        renderWorkEditor();
-      });
-      header.appendChild(backBtn);
+      header.appendChild(createPanelBackBtn({
+        label: 'Back to jobs',
+        onClick: () => {
+          if (workState.dirty && !confirm('Discard unsaved changes?')) return;
+          workState.activeSlug = null;
+          workState.draft = null;
+          getWorkEditor()?.classList.remove('de-pane-active');
+          renderWorkEditor();
+        },
+      }));
       const titleEl = document.createElement('span');
       titleEl.className = 'de-doc-name';
       titleEl.textContent = data.title;
@@ -5128,16 +5114,15 @@ function renderNewClientForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = document.createElement('button');
-  backBtn.className = 'de-back-btn';
-  backBtn.textContent = '← Clients';
-  backBtn.addEventListener('click', () => {
-    clientState.activeUid = null;
-    clientState.draft = null;
-    getClientsEditor()?.classList.remove('de-pane-active');
-    renderClientsEditor();
-  });
-  header.appendChild(backBtn);
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to clients',
+    onClick: () => {
+      clientState.activeUid = null;
+      clientState.draft = null;
+      getClientsEditor()?.classList.remove('de-pane-active');
+      renderClientsEditor();
+    },
+  }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
   titleEl.textContent = 'New client';
@@ -5237,17 +5222,16 @@ function renderEditClientForm(pane) {
 
       const header = document.createElement('div');
       header.className = 'de-header';
-      const backBtn = document.createElement('button');
-      backBtn.className = 'de-back-btn';
-      backBtn.textContent = '← Clients';
-      backBtn.addEventListener('click', () => {
-        if (clientState.dirty && !confirm('Discard unsaved changes?')) return;
-        clientState.activeUid = null;
-        clientState.draft = null;
-        getClientsEditor()?.classList.remove('de-pane-active');
-        renderClientsEditor();
-      });
-      header.appendChild(backBtn);
+      header.appendChild(createPanelBackBtn({
+        label: 'Back to clients',
+        onClick: () => {
+          if (clientState.dirty && !confirm('Discard unsaved changes?')) return;
+          clientState.activeUid = null;
+          clientState.draft = null;
+          getClientsEditor()?.classList.remove('de-pane-active');
+          renderClientsEditor();
+        },
+      }));
       const titleEl = document.createElement('span');
       titleEl.className = 'de-doc-name';
       titleEl.textContent = clientState.draft.name || 'Client';
@@ -5594,16 +5578,6 @@ async function deleteClient(uid, name) {
 
 // ---- chats tab ----
 
-/** SF Symbol–style icons (square.and.arrow.up, doc.on.doc, etc.) for iOS-native toolbar affordances. */
-const IOS_ICONS = {
-  'chevron-left': '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
-  copy: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
-  share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
-  edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
-  trash: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
-};
-const CH_MSG_ICONS = IOS_ICONS;
-
 const CHAT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const CHAT_MAX_IMAGES = 5;
 const CHAT_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -5782,21 +5756,6 @@ async function sharePortalLink(url, title, btn) {
   return ok;
 }
 
-function createIosIconBtn(opts = {}) {
-  const { iconKey, label, className = 'ios-icon-btn', onClick } = opts;
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = className;
-  btn.setAttribute('aria-label', label);
-  btn.title = label;
-  btn.innerHTML = IOS_ICONS[iconKey] || '';
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    onClick?.(btn);
-  });
-  return btn;
-}
-
 function appendPortalShareBtn(parent, uid, opts = {}) {
   const { tab, title, className = 'ios-icon-btn de-share-btn' } = opts;
   if (!uid) return null;
@@ -5845,7 +5804,7 @@ function createChatMsgAction(label, iconKey, onClick) {
   btn.className = 'ch-msg-action';
   btn.setAttribute('aria-label', label);
   btn.title = label;
-  btn.innerHTML = CH_MSG_ICONS[iconKey] || '';
+  btn.innerHTML = IOS_ICONS[iconKey] || '';
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     onClick(btn);
@@ -6014,7 +5973,7 @@ function syncSidebarChatTitle(threadId, title) {
 
 function createHeaderChatTitle(threadId, title) {
   const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name ch-header-title';
+  titleEl.className = 'de-doc-name ch-header-title topbar-panel-title';
   titleEl.textContent = title;
   titleEl.title = 'Click to rename';
   titleEl.setAttribute('role', 'button');
@@ -6247,54 +6206,9 @@ function renderChatPanel() {
     pane.appendChild(ph);
     root.appendChild(pane);
     clearFooterChatCompose();
+    clearTopbarPanelContext();
     return;
   }
-
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  const backBtn = createIosIconBtn({
-    iconKey: 'chevron-left',
-    label: 'Back to chats',
-    className: 'ios-icon-btn de-back-btn',
-    onClick: () => {
-      chatState.activeId = null;
-      getChatPanel()?.classList.remove('ch-pane-active');
-      renderChatPanel();
-    },
-  });
-  header.appendChild(backBtn);
-  header.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title || 'Chat'));
-  const modelBadge = document.createElement('span');
-  modelBadge.className = 'ch-model-badge';
-  modelBadge.textContent = modelOptionLabel(
-    agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
-  );
-  modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
-  header.appendChild(modelBadge);
-  const deleteBtn = createIosIconBtn({
-    iconKey: 'trash',
-    label: 'Delete chat',
-    className: 'ios-icon-btn ch-delete-btn',
-    onClick: () => deleteChat(chatState.activeId, chatState.title),
-  });
-  header.appendChild(deleteBtn);
-  const chatTranscript = () =>
-    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`).join('\n\n');
-  const copyChatBtn = createIosIconBtn({
-    iconKey: 'copy',
-    label: 'Copy entire conversation',
-    className: 'ios-icon-btn ch-copy-chat-btn',
-    onClick: (btn) => copyChatText(chatTranscript(), btn),
-  });
-  const shareChatBtn = createIosIconBtn({
-    iconKey: 'share',
-    label: 'Share entire conversation',
-    className: 'ios-icon-btn ch-share-chat-btn',
-    onClick: (btn) => shareChatText(chatTranscript(), 'assistant', btn),
-  });
-  header.insertBefore(shareChatBtn, deleteBtn);
-  header.insertBefore(copyChatBtn, shareChatBtn);
-  pane.appendChild(header);
 
   const messagesEl = document.createElement('div');
   messagesEl.className = 'ch-messages';
@@ -6319,9 +6233,11 @@ function renderChatPanel() {
   composeMain.appendChild(input);
 
   const sendBtn = document.createElement('button');
-  sendBtn.className = 'ch-send';
   sendBtn.type = 'button';
-  sendBtn.textContent = 'Send';
+  sendBtn.className = 'ch-send';
+  sendBtn.setAttribute('aria-label', 'Send message');
+  sendBtn.title = 'Send message';
+  sendBtn.innerHTML = IOS_ICONS.send || '';
   sendBtn.disabled = chatState.sending;
 
   const stopBtn = document.createElement('button');
@@ -6480,6 +6396,7 @@ function renderChatPanel() {
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
+  syncTopbarPanelContext();
   syncSendState();
   if (chatState.pendingDraft) {
     input.value = chatState.pendingDraft;
@@ -6634,6 +6551,83 @@ function syncInboxHeaderControls() {
   const btn = document.getElementById('inbox-refresh-btn');
   if (!btn) return;
   btn.hidden = MAP.type !== 'email';
+}
+
+function clearTopbarPanelContext() {
+  const slot = document.getElementById('topbar-panel-context');
+  const topbar = document.getElementById('topbar');
+  if (slot) {
+    slot.innerHTML = '';
+    slot.hidden = true;
+  }
+  topbar?.classList.remove('topbar-has-panel-context');
+}
+
+function syncChatTopbarContext() {
+  const slot = document.getElementById('topbar-panel-context');
+  const topbar = document.getElementById('topbar');
+  if (!slot || !topbar || !chatState.activeId) {
+    clearTopbarPanelContext();
+    return;
+  }
+
+  slot.innerHTML = '';
+  slot.hidden = false;
+  topbar.classList.add('topbar-has-panel-context');
+
+  const chatTranscript = () =>
+    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`).join('\n\n');
+
+  if (isMobileTabs()) {
+    slot.appendChild(createPanelBackBtn({
+      label: 'Back to chats',
+      onClick: () => {
+        chatState.activeId = null;
+        getChatPanel()?.classList.remove('ch-pane-active');
+        renderChatPanel();
+      },
+    }));
+  }
+
+  slot.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title || 'Chat'));
+
+  const modelBadge = document.createElement('span');
+  modelBadge.className = 'ch-model-badge';
+  modelBadge.textContent = modelOptionLabel(
+    agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
+  );
+  modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
+  slot.appendChild(modelBadge);
+
+  const actions = document.createElement('div');
+  actions.className = 'topbar-panel-actions';
+  actions.appendChild(createIosIconBtn({
+    iconKey: 'copy',
+    label: 'Copy entire conversation',
+    className: 'ios-icon-btn ch-copy-chat-btn',
+    onClick: (btn) => copyChatText(chatTranscript(), btn),
+  }));
+  actions.appendChild(createIosIconBtn({
+    iconKey: 'share',
+    label: 'Share entire conversation',
+    className: 'ios-icon-btn ch-share-chat-btn',
+    onClick: (btn) => shareChatText(chatTranscript(), 'assistant', btn),
+  }));
+  actions.appendChild(createIosIconBtn({
+    iconKey: 'trash',
+    label: 'Delete chat',
+    className: 'ios-icon-btn ch-delete-btn',
+    onClick: () => deleteChat(chatState.activeId, chatState.title),
+  }));
+  slot.appendChild(actions);
+}
+
+function syncTopbarPanelContext() {
+  if (activeKey === 'chats' && chatState.activeId) {
+    syncChatTopbarContext();
+    return;
+  }
+  clearTopbarPanelContext();
 }
 
 function syncDashboardHeaderDate() {
@@ -7437,17 +7431,14 @@ function renderEmailPanel() {
 
   const header = document.createElement('div');
   header.className = 'de-header';
-  const backBtn = createIosIconBtn({
-    iconKey: 'chevron-left',
+  header.appendChild(createPanelBackBtn({
     label: 'Back to inbox',
-    className: 'ios-icon-btn de-back-btn',
     onClick: () => {
       emailState.activeId = null;
       getEmailPanel()?.classList.remove('em-pane-active');
       renderEmailPanel();
     },
-  });
-  header.appendChild(backBtn);
+  }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
   titleEl.textContent = ev.subject || '(no subject)';
@@ -7544,6 +7535,7 @@ async function boot() {
   initInboxHeaderRefresh();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
+  MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   initModelSelector();
   syncCanvasVisibility();
@@ -7553,6 +7545,7 @@ async function boot() {
   syncInboxBadgePoll();
   syncFooterNav();
   syncInboxHeaderControls();
+  syncTopbarPanelContext();
   syncDashboardHeaderDate();
 }
 

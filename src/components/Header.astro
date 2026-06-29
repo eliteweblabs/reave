@@ -71,6 +71,8 @@ if (userId) {
     </a>
   )}
 
+  <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
+
   {adminShell && (
     <time id="topbar-dash-date" class="topbar-dash-date" datetime="" hidden></time>
   )}
@@ -207,6 +209,54 @@ if (userId) {
 
   .app-header--admin .topbar-end {
     margin-left: auto;
+  }
+
+  .topbar-panel-context {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex: 1;
+    min-width: 0;
+    margin-left: 0.15rem;
+    overflow: hidden;
+  }
+
+  .topbar-panel-context[hidden] {
+    display: none !important;
+  }
+
+  .topbar-panel-context .topbar-panel-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+
+  .topbar-panel-context .ch-header-title-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .topbar-panel-context .ch-model-badge {
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  .topbar-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.05rem;
+    flex-shrink: 0;
+    margin-left: 0.15rem;
+  }
+
+  .app-header--admin.topbar-has-panel-context .topbar-dash-date {
+    display: none !important;
+  }
+
+  .app-header--admin.topbar-has-panel-context .topbar-end {
+    margin-left: 0;
   }
 
   .app-header > * {

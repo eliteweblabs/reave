@@ -756,17 +756,11 @@ const { userId } = Astro.locals.auth();
       }
       .de-back-btn {
         display: none;
-        font: inherit;
-        font-size: 0.8rem;
-        color: #58a6ff;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 0.1rem 0.2rem;
-        flex: 0 0 auto;
       }
       @media (max-width: 639px) {
-        .de-back-btn { display: inline-flex; align-items: center; justify-content: center; }
+        .de-back-btn.ios-icon-btn {
+          display: inline-flex;
+        }
         .de-doc-name { font-size: 0.88rem; }
       }
       .de-doc-name {
@@ -1441,6 +1435,9 @@ const { userId } = Astro.locals.auth();
         gap: 0.75rem;
         min-width: 0;
       }
+      #chat-panel.ch-pane-active .ch-messages {
+        padding-bottom: calc(var(--footer-nav-h) + 0.75rem);
+      }
       .ch-msg-row {
         display: flex;
         width: 100%;
@@ -1548,9 +1545,10 @@ const { userId } = Astro.locals.auth();
       }
       .footer-chat-compose .ch-send,
       .footer-chat-compose .ch-stop {
-        min-height: 2.35rem;
+        width: 2.35rem;
         height: 2.35rem;
-        padding: 0 0.75rem;
+        min-height: 2.35rem;
+        padding: 0;
       }
       .ch-compose.ch-compose-drag {
         background: rgba(59, 130, 246, 0.08);
@@ -1644,30 +1642,38 @@ const { userId } = Astro.locals.auth();
       .ch-stop {
         flex-shrink: 0;
         box-sizing: border-box;
-        min-height: 2.6rem;
-        height: 2.6rem;
+        width: 2.75rem;
+        height: 2.75rem;
+        min-height: 2.75rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        font: inherit;
-        font-size: 0.8rem;
-        font-weight: 600;
-        border-radius: 9px;
-        padding: 0 0.95rem;
+        padding: 0;
+        border-radius: 10px;
         cursor: pointer;
-        white-space: nowrap;
       }
       .ch-send {
         color: #fff;
         background: #2563eb;
-        border: 1px solid #3b82f6;
+        border: none;
       }
       .ch-send:disabled { opacity: 0.45; cursor: default; }
       .ch-send:not(:disabled):hover { background: #1d4ed8; }
+      .ch-send svg {
+        display: block;
+        width: 1.25rem;
+        height: 1.25rem;
+      }
       .ch-stop {
         color: #fff;
         background: #dc2626;
-        border: 1px solid #ef4444;
+        border: none;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 600;
+        width: auto;
+        min-width: 2.75rem;
+        padding: 0 0.65rem;
       }
       .ch-stop:hover { background: #b91c1c; }
       .ch-stop[hidden] { display: none !important; }
@@ -1686,29 +1692,24 @@ const { userId } = Astro.locals.auth();
         overflow: hidden;
       }
       .ch-model-badge {
-        margin-left: auto;
         font-size: 0.68rem;
         color: var(--muted);
         border: 1px solid var(--panel-border);
         border-radius: 999px;
         padding: 0.12rem 0.5rem;
         white-space: nowrap;
+        flex-shrink: 0;
       }
       .ch-delete-btn {
-        margin-left: 0.45rem;
-        padding: 0;
-        border-radius: 10px;
-        border: 1px solid rgba(239, 68, 68, 0.35);
-        background: rgba(239, 68, 68, 0.08);
         color: #f87171;
       }
       .ch-delete-btn:hover {
-        background: rgba(239, 68, 68, 0.16);
+        background: rgba(239, 68, 68, 0.12);
         color: #fca5a5;
       }
       .ch-copy-chat-btn,
       .ch-share-chat-btn {
-        margin-left: 0.15rem;
+        margin-left: 0;
       }
       .ch-toast {
         position: fixed;
@@ -2782,6 +2783,6 @@ const { userId } = Astro.locals.auth();
     <AdminFooterNav />
 
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629u"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629x"></script>
   </body>
 </html>
