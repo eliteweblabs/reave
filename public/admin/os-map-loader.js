@@ -290,7 +290,6 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
-  syncDashboardHeaderDate();
   if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
 }
@@ -1569,10 +1568,6 @@ function deployStatTone(state) {
   return null;
 }
 
-function formatDashDate(d = new Date()) {
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-}
-
 function formatEventTime(iso) {
   try {
     return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -2669,7 +2664,7 @@ function getRuleEditor() {
 function ruleSubline(rule) {
   const bits = [];
   if (rule.status) bits.push(rule.status);
-  bits.push(rule.notify ? 'Telegram' : 'Silent');
+  bits.push(rule.notify ? 'Notify' : 'Silent');
   if (!rule.enabled) bits.push('Off');
   return bits.join(' · ');
 }
@@ -2768,7 +2763,7 @@ function renderRulesEditor() {
       alert(`Could not save setting: ${err.message}`);
     }
   });
-  notifyLb.append(notifyCb, document.createTextNode(' Notify Telegram when no rule matches'));
+  notifyLb.append(notifyCb, document.createTextNode(' Notify when no rule matches'));
   settings.appendChild(notifyLb);
   sidebar.appendChild(settings);
 
@@ -2903,7 +2898,7 @@ function renderRuleEditPane(pane) {
   notifyCb.type = 'checkbox';
   notifyCb.checked = !!rule.notify;
   notifyCb.addEventListener('change', () => { ruleState.dirty = true; });
-  notifyLb.append(notifyCb, document.createTextNode(' Send Telegram alert'));
+  notifyLb.append(notifyCb, document.createTextNode(' Send push alert'));
 
   const enabledLb = document.createElement('label');
   enabledLb.className = 're-check';
@@ -3888,7 +3883,7 @@ function renderNewKnowledgeForm(pane) {
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
   ta.spellcheck = false;
-  ta.placeholder = '# Title\n\nMarkdown content for the Telegram agent…';
+  ta.placeholder = '# Title\n\nMarkdown content for the admin agent…';
   pane.appendChild(ta);
 
   const actions = document.createElement('div');
@@ -6830,18 +6825,6 @@ function syncTopbarPanelContext() {
   clearTopbarPanelContext();
 }
 
-function syncDashboardHeaderDate() {
-  const el = document.getElementById('topbar-dash-date');
-  if (!el) return;
-  const onHome = MAP.type === 'home';
-  el.hidden = !onHome;
-  if (onHome) {
-    const now = new Date();
-    el.textContent = formatDashDate(now);
-    el.dateTime = now.toISOString().slice(0, 10);
-  }
-}
-
 function initInboxHeaderRefresh() {
   const btn = document.getElementById('inbox-refresh-btn');
   if (!btn || btn.dataset.bound) return;
@@ -7361,19 +7344,26 @@ function buildEmailAgentPrompt(ev) {
   const lines = [
     '[Email triage]',
     '',
-    'Purpose of this chat: decide what to DO with this inbound email.',
+    'Purpose of this chat: decide what to DO with this inbound email — and execute inbox actions yourself via tools.',
     'I have already read it — do not summarize it or explain what it says back to me.',
+    '',
+    'You CAN and MUST use tools for inbox management (never tell me to mark spam or create filters manually):',
+    '- mark_email_junk { email_id } — hide from default inbox',
+    '- create_email_filter_rule { sender } — auto-junk future mail from this sender',
+    '- delete_email { email_id } — remove from inbox log',
+    'When triage is junk/spam, call all three in one turn unless I only asked to hide it.',
     '',
     'Respond with:',
     '1. Recommended action (reply, ignore, archive, schedule follow-up, create a job, escalate, mark junk, etc.)',
     '2. One sentence on why',
-    '3. Concrete next steps I should take now',
+    '3. What you did via tools (or will do if I confirm)',
     '',
     'If replying makes sense, include a draft I can send.',
     'Be direct and action-oriented.',
     '',
     '---',
     'Email (context only — do not recap):',
+    `Message ID: ${ev.id}`,
     `From: ${ev.from || '(unknown)'}`,
   ];
   if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
@@ -7785,7 +7775,6 @@ async function boot() {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
-  syncDashboardHeaderDate();
 }
 
 boot().catch(showBootError);

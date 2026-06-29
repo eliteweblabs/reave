@@ -1596,6 +1596,7 @@ const { userId } = Astro.locals.auth();
       .ch-sidebar {
         width: 260px;
         flex: 0 0 260px;
+        min-width: 0;
         border-right: 1px solid var(--panel-border);
         display: flex;
         flex-direction: column;
@@ -1604,6 +1605,8 @@ const { userId } = Astro.locals.auth();
       }
       .ch-list {
         flex: 1;
+        min-width: 0;
+        overflow-x: hidden;
         overflow-y: auto;
         padding: 0.5rem 0.5rem 0.5rem;
       }
@@ -1845,24 +1848,42 @@ const { userId } = Astro.locals.auth();
         border-top: none;
         background: transparent;
         gap: 0.35rem;
+        min-width: 0;
       }
       .footer-chat-compose .ch-compose-main {
         flex-direction: column;
         gap: 0.35rem;
+        min-width: 0;
       }
-      .footer-chat-compose .ch-input-field.control-field {
+      /* Match sidebar subheader search: one pill shell, inset send on the right. */
+      .footer-chat-compose .ch-input-field.control-field,
+      .footer-chat-compose .ch-input-field.control-field:has(textarea) {
+        flex: 1;
+        min-width: 0;
+        min-height: var(--footer-nav-pill-h);
+        padding: var(--control-inset);
+        border-radius: var(--radius-pill);
         align-items: center;
-        min-height: var(--control-h);
       }
       .footer-chat-compose .ch-input {
         min-height: 0;
         max-height: 5rem;
-        padding: 0.2rem 0.5rem;
+        padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+        align-self: center;
       }
       .footer-chat-compose .ch-compose-actions {
         align-self: center;
         flex-direction: row;
         gap: 0.25rem;
+        margin: 0;
+      }
+      .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-send,
+      .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-stop {
+        width: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
+        height: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
+        min-height: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
+        min-width: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
+        border-radius: var(--radius-pill);
       }
       .ch-compose.ch-compose-drag {
         background: rgba(59, 130, 246, 0.08);
@@ -2117,11 +2138,14 @@ const { userId } = Astro.locals.auth();
       }
       .em-list-item {
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.2rem;
         padding: 0.55rem 0.65rem;
+        overflow: hidden;
         font: inherit;
         font-size: 0.8rem;
         color: var(--muted);
@@ -2265,6 +2289,8 @@ const { userId } = Astro.locals.auth();
       .em-status-down { color: #60a5fa; background: rgba(96,165,250,0.12); }
       .em-detail {
         flex: 1;
+        min-width: 0;
+        overflow-x: hidden;
         overflow-y: auto;
         padding: 1rem 1.2rem;
       }
@@ -2273,6 +2299,7 @@ const { userId } = Astro.locals.auth();
         font-weight: 600;
         margin: 0.65rem 0 0.85rem;
         line-height: 1.35;
+        overflow-wrap: anywhere;
       }
       .em-detail-meta {
         display: flex;
@@ -2282,9 +2309,14 @@ const { userId } = Astro.locals.auth();
         color: var(--muted);
         margin-bottom: 1rem;
       }
+      .em-detail-meta span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
       .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
       .em-detail-body {
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
         word-break: break-word;
         font-size: 0.84rem;
         line-height: 1.55;
@@ -2298,17 +2330,21 @@ const { userId } = Astro.locals.auth();
         font-weight: 600;
         line-height: 1.35;
         width: 100%;
+        min-width: 0;
+        max-width: 100%;
         text-align: left;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+        overflow-wrap: anywhere;
       }
       .em-detail-summary {
         font-size: 1rem;
         line-height: 1.45;
         margin: 0.5rem 0 0.75rem;
         color: var(--fg);
+        overflow-wrap: anywhere;
       }
       .em-hint {
         font-size: 0.75rem;
@@ -2429,6 +2465,7 @@ const { userId } = Astro.locals.auth();
       }
       .home-dashboard-scroll {
         flex: 1;
+        overflow-x: hidden;
         overflow-y: auto;
         padding: calc(var(--topbar-h) + 0.65rem) 1rem var(--footer-scroll-pad);
       }
@@ -2529,6 +2566,8 @@ const { userId } = Astro.locals.auth();
 
       .dash-panel {
         margin-bottom: 1.35rem;
+        min-width: 0;
+        overflow: hidden;
         padding: 0.85rem 0.9rem;
         border-radius: 14px;
         border: 1px solid var(--panel-border);
@@ -2606,6 +2645,9 @@ const { userId } = Astro.locals.auth();
         flex-direction: column;
         gap: 0.1rem;
         width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
         padding: 0.55rem 0.5rem;
         border: none;
         border-radius: 10px;
@@ -2621,6 +2663,8 @@ const { userId } = Astro.locals.auth();
       .dash-inbox-subject {
         font-size: 0.82rem;
         font-weight: 500;
+        min-width: 0;
+        max-width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2628,6 +2672,8 @@ const { userId } = Astro.locals.auth();
       .dash-inbox-meta {
         font-size: 0.68rem;
         color: var(--muted);
+        min-width: 0;
+        max-width: 100%;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

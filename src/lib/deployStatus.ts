@@ -1,5 +1,5 @@
 /**
- * Railway deploy vs GitHub latest — cached for Telegram banners and pinned status.
+ * Railway deploy vs GitHub latest — cached for deploy banners in agent replies.
  */
 
 import { serverEnv } from './serverEnv';
@@ -234,64 +234,6 @@ export function deployBanner(
   }
 
   return null;
-}
-
-/** Text for pinned deploy-status message. */
-export function deployPinText(snapshot: DeployStatusSnapshot): string {
-  if (snapshot.state === 'failed') {
-    const lines = [`🔴 Deploy failed — check Railway logs`];
-    if (snapshot.failed_reason && !snapshot.failed_reason.startsWith('Deploy failed')) {
-      lines[0] = `🔴 ${snapshot.failed_reason}`;
-    }
-    if (snapshot.deployed_short) lines.push(`Running: ${snapshot.deployed_short}`);
-    return lines.join('\n');
-  }
-
-  if (snapshot.state === 'live') {
-    const age = relativeAge(snapshot.latest_commit?.date);
-    const lines = [`🟢 Live — ${snapshot.deployed_short ?? '?'} — up to date`];
-    if (age) lines.push(`Latest commit pushed ${age}`);
-    return lines.join('\n');
-  }
-
-  if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min = snapshot.minutes_since_push ?? minutesSince(snapshot.latest_commit.date) ?? '?';
-    const msg = truncateMessage(snapshot.latest_commit.message, 80);
-    const lines = [
-      `🔴 Deploy stale — check Railway logs`,
-      `${snapshot.latest_commit.short_sha}${msg ? ` "${msg}"` : ''} — pushed ${min} min ago, not live`,
-    ];
-    if (snapshot.deployed_short) lines.push(`Currently running: ${snapshot.deployed_short}`);
-    return lines.join('\n');
-  }
-
-  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
-    const msg = truncateMessage(snapshot.latest_commit.message, 80);
-    const age = relativeAge(snapshot.latest_commit.date);
-    const lines = [
-      `🚀 Building — ${snapshot.latest_commit.short_sha}${msg ? ` "${msg}"` : ''}`,
-      'Not live yet on Railway.',
-    ];
-    if (snapshot.deployed_short) lines.push(`Currently running: ${snapshot.deployed_short}`);
-    if (age) lines.push(`Pushed ${age}`);
-    return lines.join('\n');
-  }
-
-  const lines = ['Status unknown (GitHub or deploy SHA unavailable)'];
-  if (snapshot.deployed_short) lines.push(`Running: ${snapshot.deployed_short}`);
-  return lines.join('\n');
-}
-
-export async function getDeployBanner(opts?: { includeLive?: boolean }): Promise<string | null> {
-  const status = await getDeployStatus();
-  if (!status) return null;
-  return deployBanner(status, opts);
-}
-
-export async function getDeployPinText(): Promise<string | null> {
-  const status = await getDeployStatus();
-  if (!status) return null;
-  return deployPinText(status);
 }
 
 const BANNER_PREFIXES = ['🚀 Deploying:', '🟢 Live:', '🔴 Deploy stale:', '🔴 Deploy failed', '🔴 '];

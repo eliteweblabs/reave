@@ -1,6 +1,5 @@
-import { telegramSendMessage } from './telegramClient';
+import { postToSystemAlertsThread } from './adminAgentAlert';
 import { markDeployFailed } from './deployStatus';
-import { syncDeployStatusPin } from './telegramDeployPin';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
@@ -47,7 +46,7 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   const branch = body.details?.branch;
   const commit = body.details?.commitMessage;
   const lines = [
-    `Railway: ${body.type ?? 'event'}`,
+    `Railway deploy failure: ${body.type ?? 'event'}`,
     `Project: ${proj}`,
     `Service: ${svc}`,
     `Environment: ${env}`,
@@ -56,11 +55,12 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (typeof branch === 'string') lines.push(`Branch: ${branch}`);
   if (typeof commit === 'string') lines.push(`Commit: ${String(commit).slice(0, 120)}`);
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
+  lines.push('', 'Check Railway logs and suggest next steps.');
   return lines.join('\n');
 }
 
 /**
- * Railway project webhook → optional Telegram alert (deploy failures).
+ * Railway project webhook → admin System alerts chat (+ optional push).
  */
 export async function handleRailwayWebhook(opts: {
   ingressKey: string | null;
@@ -84,9 +84,6 @@ export async function handleRailwayWebhook(opts: {
   }
 
   const type = body.type ?? '';
-  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
-  const chatRaw = serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
-  const chatId = chatRaw ? Number(chatRaw) : NaN;
 
   if (isDeploySuccessEvent(type)) {
     if (hasFeature('site_monitoring')) {
@@ -99,18 +96,25 @@ export async function handleRailwayWebhook(opts: {
     return { ok: true, status: 200, message: 'ignored' };
   }
 
-  if (!token || !Number.isFinite(chatId)) {
-    console.warn('[railway-webhook] deploy failure but TELEGRAM_BOT_TOKEN or TELEGRAM_DEPLOY_NOTIFY_CHAT_ID missing');
-    return { ok: true, status: 200, message: 'no telegram target' };
-  }
-
-  const text = formatRailwayDeployAlert(body);
   const svc = body.resource?.service?.name ?? 'service';
   const proj = body.resource?.project?.name ?? 'project';
   markDeployFailed(`Deploy failed — ${svc} (${proj})`);
-  await telegramSendMessage(token, chatId, text);
-  syncDeployStatusPin(token).catch((e) => {
-    console.warn('[railway-webhook] deploy pin sync failed:', e instanceof Error ? e.message : e);
+
+  const text = formatRailwayDeployAlert(body);
+  if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {
+    console.warn('[railway-webhook] deploy failure but AGENT_ALERT_USER_ID missing');
+    return { ok: true, status: 200, message: 'no alert target' };
+  }
+
+  await postToSystemAlertsThread({
+    message: text,
+    push: {
+      title: `Railway: ${svc} deploy failed`,
+      body: `${proj} · ${type}`,
+      tag: 'railway-deploy-failed',
+      url: '/admin?tab=chats',
+    },
   });
+
   return { ok: true, status: 200, message: 'sent' };
 }

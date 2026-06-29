@@ -18,8 +18,8 @@ import {
   storeSetChatArchived,
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
-import { runTelegramKnowledgeAgent } from '../../../lib/telegramAgent';
-import type { TelegramChatTurn } from '../../../lib/telegramChatHistory';
+import { runKnowledgeAgent } from '../../../lib/agentRunner';
+import type { ChatTurn } from '../../../lib/chatTypes';
 
 export const prerender = false;
 
@@ -31,7 +31,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 function historyCap(): number {
-  const raw = import.meta.env.TELEGRAM_CHAT_HISTORY_TURNS;
+  const raw = import.meta.env.AGENT_CHAT_HISTORY_TURNS;
   if (!raw?.trim()) return 20;
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 20;
@@ -63,7 +63,7 @@ function parseChatImages(body: Record<string, unknown>): ChatImageAttachment[] {
   return out;
 }
 
-function priorTurns(messages: { role: string; content: string }[]): TelegramChatTurn[] {
+function priorTurns(messages: { role: string; content: string }[]): ChatTurn[] {
   const turns = messages.map((m) => ({
     role: m.role as 'user' | 'assistant',
     content: m.content,
@@ -111,7 +111,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images);
-  const reply = await runTelegramKnowledgeAgent({
+  const reply = await runKnowledgeAgent({
     userText: message,
     images,
     priorTurns: priorTurns(thread.messages),

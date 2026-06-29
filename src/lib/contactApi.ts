@@ -79,8 +79,8 @@ export async function resolveContact(
   }
 }
 
-/** Compact text for Telegram from resolve JSON */
-export function formatResolveForTelegram(data: unknown): string {
+/** Compact text from resolve JSON */
+export function formatResolveSummary(data: unknown): string {
   if (!data || typeof data !== 'object') return JSON.stringify(data, null, 2).slice(0, 3500);
 
   const o = data as Record<string, unknown>;

@@ -1,18 +1,14 @@
 /**
  * Inbound SMS triage pipeline.
  *
- * Flow: sender allowlist → Telegram alert → (optional) Claude auto-reply.
- * Mirrors the pattern of inboundEmailHandler.ts.
+ * Flow: sender allowlist → admin System alerts thread → (optional) Claude auto-reply.
  *
  * Env vars:
  *   SMS_ALLOWED_SENDERS   — comma-separated phone numbers (E.164). If empty, all pass.
  *   SMS_AI_REPLY_ENABLED  — set to "1" to have Claude auto-reply to every SMS.
- *   SMS_NOTIFY_CHAT_ID    — Telegram chat id for inbound SMS alerts.
- *                           Falls back to EMAIL_NOTIFY_CHAT_ID, then
- *                           TELEGRAM_DEPLOY_NOTIFY_CHAT_ID.
  */
 import { serverEnv } from './serverEnv';
-import { telegramSendMessage } from './telegramClient';
+import { postToSystemAlertsThread, agentAlertUserId } from './adminAgentAlert';
 import { sendTelnyxSms } from './telnyxClient';
 
 export interface InboundSms {
@@ -40,22 +36,15 @@ function isAllowedSender(from: string): boolean {
   return allowed.includes(from.replace(/\s/g, ''));
 }
 
-function notifyTarget(): number | null {
-  const raw =
-    serverEnv('SMS_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('EMAIL_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
-
 function formatSmsAlert(sms: InboundSms): string {
   const lines = [
-    '💬 Inbound SMS',
+    'Inbound SMS received.',
     `From: ${sms.from}`,
     `To: ${sms.to}`,
     '',
     sms.text.length > 600 ? `${sms.text.slice(0, 600)}…` : sms.text,
+    '',
+    'Summarize and suggest whether to reply.',
   ];
   return lines.join('\n');
 }
@@ -99,14 +88,20 @@ export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResul
     return { ok: true, action: 'rejected', from };
   }
 
-  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
-  const chatId = notifyTarget();
-
-  if (token && chatId) {
-    await telegramSendMessage(token, chatId, formatSmsAlert(sms));
-    console.info('[sms] notified Telegram', { from, chatId });
+  if (agentAlertUserId()) {
+    await postToSystemAlertsThread({
+      message: formatSmsAlert(sms),
+      autoRun: false,
+      push: {
+        title: `SMS from ${from}`,
+        body: sms.text.slice(0, 120),
+        tag: `sms-${from}`,
+        url: '/admin?tab=chats',
+      },
+    });
+    console.info('[sms] posted to System alerts', { from });
   } else {
-    console.warn('[sms] no Telegram target configured (SMS_NOTIFY_CHAT_ID or fallbacks)');
+    console.warn('[sms] AGENT_ALERT_USER_ID not set — alert skipped');
   }
 
   const aiEnabled = serverEnv('SMS_AI_REPLY_ENABLED') === '1';
@@ -122,5 +117,5 @@ export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResul
     }
   }
 
-  return { ok: true, action: token && chatId ? 'notified' : 'no-target', from };
+  return { ok: true, action: agentAlertUserId() ? 'notified' : 'no-target', from };
 }

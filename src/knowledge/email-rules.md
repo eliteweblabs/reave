@@ -20,7 +20,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Push:** Install `/admin` to home screen → tap 🔔 → Web Push (`VAPID_*` env vars).
 - **Railway crash emails:** Rule `RAILWAY_ALERT` matches `noreply@railway.app` / “Deployment crashed” / “Build failed”. Posts to admin **System alerts** chat and auto-runs the agent when `AGENT_ALERT_USER_ID` is set (Clerk user id). Note: Railway often sends “Deployment crashed” during rollout while the new build is still starting — false alarm; the agent is prompted to verify in Railway first.
-- **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → Telegram (see `RAILWAY_WEBHOOK_INGRESS_KEY`). Email path covers notification emails that hit Proton.
+- **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → admin System alerts chat (see `RAILWAY_WEBHOOK_INGRESS_KEY` + `AGENT_ALERT_USER_ID`). Email path covers notification emails that hit Proton.
 
 ## Categories
 

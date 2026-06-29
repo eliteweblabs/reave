@@ -11,7 +11,7 @@ import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { sendInboxPushNotification } from './webPush';
-import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './emailAgentAlert';
+import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './adminAgentAlert';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review';
 

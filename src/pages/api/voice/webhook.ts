@@ -14,8 +14,7 @@
  *   VOICE_AGENT_ENABLED=1  enables AI responses.
  *   If disabled, caller hears an unavailable message and call is ended.
  *
- * Manual takeover:
- *   /takeover in Telegram transfers the call to TELNYX_OPERATOR_NUMBER.
+ * Manual takeover: transfer the call to TELNYX_OPERATOR_NUMBER via admin tooling.
  *
  * Configure your Telnyx phone number's webhook URL to:
  *   https://<your-host>/api/voice/webhook
@@ -38,9 +37,8 @@ import {
   getVoiceSession,
   isVoiceAgentEnabled,
   runVoiceAgent,
-  voiceNotifyChatId,
 } from '../../../lib/voiceSessionManager';
-import { telegramSendMessage } from '../../../lib/telegramClient';
+import { postToSystemAlertsThread } from '../../../lib/adminAgentAlert';
 
 export const prerender = false;
 
@@ -81,13 +79,17 @@ const GREETING =
 const FALLBACK_MSG =
   "I'm sorry, I had trouble understanding that. Could you please try again?";
 
-async function notifyTelegram(text: string): Promise<void> {
-  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
-  const chatId = voiceNotifyChatId();
-  if (!token || !chatId) return;
-  await telegramSendMessage(token, chatId, text).catch((e) =>
-    console.error('[voice] Telegram notify failed', e),
-  );
+async function notifyOperator(text: string): Promise<void> {
+  await postToSystemAlertsThread({
+    message: text,
+    autoRun: false,
+    push: {
+      title: 'Voice call',
+      body: text.split('\n')[0] ?? 'Call event',
+      tag: 'voice-call',
+      url: '/admin?tab=chats',
+    },
+  }).catch((e) => console.error('[voice] alert failed', e));
 }
 
 // ─── Event handlers ────────────────────────────────────────────────────────
@@ -97,7 +99,7 @@ async function handleCallInitiated(payload: TelnyxCallPayload): Promise<void> {
   if (!call_control_id || !from || !to) return;
 
   const session = createVoiceSession(call_control_id, from, to);
-  await notifyTelegram(formatCallAlert(session, 'Incoming call'));
+  await notifyOperator(formatCallAlert(session, 'Incoming call'));
 
   // Answer the call — Telnyx will send call.answered next.
   const ans = await telnyxAnswerCall(call_control_id);
@@ -165,7 +167,7 @@ async function handleCallHangup(payload: TelnyxCallPayload): Promise<void> {
 
   const session = getVoiceSession(call_control_id);
   if (session) {
-    await notifyTelegram(formatCallAlert(session, 'Call ended'));
+    await notifyOperator(formatCallAlert(session, 'Call ended'));
     deleteVoiceSession(call_control_id);
   }
 }

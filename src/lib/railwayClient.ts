@@ -80,7 +80,7 @@ export async function createRailwayEmptyProject(name: string): Promise<
   const prefix = serverEnv('RAILWAY_PROJECT_DESCRIPTION_PREFIX')?.trim();
 
   const input: Record<string, string> = { name: clean };
-  if (prefix) input.description = `${prefix} (via Reave Telegram)`;
+  if (prefix) input.description = `${prefix} (via Reave admin agent)`;
   if (workspaceId) input.workspaceId = workspaceId;
 
   const query = `
@@ -356,8 +356,8 @@ export async function railwayPing(): Promise<
   return { ok: true, project_count: listed.projects.length, projects: listed.projects };
 }
 
-/** Compact text for Telegram from railwayListProjectNetworking(). */
-export function formatRailwayNetworkingForTelegram(data: RailwayProjectNetworking): string {
+/** Compact summary from railwayListProjectNetworking(). */
+export function formatRailwayNetworkingSummary(data: RailwayProjectNetworking): string {
   const lines: string[] = [
     `Project: ${data.project_name} (${data.project_id})`,
     `Environment: ${data.environment_name}`,

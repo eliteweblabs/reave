@@ -1,4 +1,7 @@
-import type { TelegramChatTurn } from './telegramChatHistory';
+export type ChatTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+};
 
 export type ChatImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
@@ -31,7 +34,7 @@ export interface ChatThreadSummary {
 
 export interface ChatMessage {
   id: string;
-  role: TelegramChatTurn['role'];
+  role: ChatTurn['role'];
   content: string;
   created_at: string;
 }

@@ -19,7 +19,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 - **Read-only:** `/invoices` lists recent invoices.
 - **Billing (buttons):** in a `/contacts` action card, tap **Billing** → choose **+ New invoice** or **Add to existing** (pick an unsent DRAFT) → send a line item as `description | amount | qty` (qty optional). Adds to the draft (or creates one), then offers **+ Add another**.
-- **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/telegramToolDefs.ts` (still includes invoice creation).
+- **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/agentTools.ts` (still includes invoice creation).
 
 > The deterministic `/invoice <customer> | <amount>` slash command was removed for now; create_invoice remains available via the freeform LLM path.
 
@@ -44,4 +44,4 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 
 Prices in create/add payloads are **whole dollars** (Crater stores cents). `record_payment` may return HTTP 300 with `needs_selection` when customer, invoice, or payment_mode is ambiguous.
 
-Implementation: `src/lib/craterClient.ts` (HTTP) + `src/lib/telegramToolDefs.ts` (JSON schema + dispatch).
+Implementation: `src/lib/craterClient.ts` (HTTP) + `src/lib/agentTools.ts` (JSON schema + dispatch).

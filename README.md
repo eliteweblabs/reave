@@ -190,27 +190,24 @@ All commands are run from the root of the project, from a terminal:
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
 
-## Telegram (rudimentary knowledge bot)
+## Admin agent (Claude tool loop)
 
-Bundled markdown lives in `src/knowledge/*.md`. The webhook exposes **slash commands** (no LLM) and optional **Anthropic (Claude) tool use** for freeform questions.
+Bundled markdown lives in `src/knowledge/*.md`. The **/admin → Chats** tab runs an Anthropic agent with tools for knowledge, contacts, jobs, billing, email inbox actions, and dev ops. See `src/lib/agentTools.ts`.
 
-### Live architecture diagrams (local)
+**Inbound email triage** runs inside this app: mail arrives via a **Resend webhook** at `/api/email/inbound`, is classified by keyword rules + Claude, and surfaces in **/admin → Inbox** (Web Push optional). See `src/knowledge/email-rules.md`.
 
-With `npm run dev`, open **http://localhost:4321/dashboard** (redirects to **`/dev/os-map`**) — your v1 **OS dashboard**: diagrams load from `public/dev/*.mmd`. Edit those files, save, refresh. `noindex` so it is not for public SEO; you can still protect deploys separately if needed.
+1. Copy `.env.example` → `.env` and set **`ANTHROPIC_API_KEY`**, **`DATABASE_URL`**, and **`AGENT_ALERT_USER_ID`** (your Clerk user id for the System alerts thread).
+2. Sign in at **`/admin`**, open **Chats**, and ask natural-language questions — the agent calls tools (list contacts, create invoices, mark email junk, etc.).
 
-**Inbound email triage** runs inside this app (no separate service): mail arrives via a **Resend webhook** at `/api/email/inbound`, is classified by a keyword rule table, and pings the Telegram bot. See `src/knowledge/email-rules.md`.
+3. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**.
 
-1. Copy `.env.example` → `.env` and set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_ALLOWED_USER_IDS` (your numeric user id).
-2. Deploy or tunnel a **public** HTTPS URL (Telegram cannot call `localhost` directly). Point the bot webhook at `https://<host>/api/telegram/webhook` with the same `secret_token` as `TELEGRAM_WEBHOOK_SECRET`.
-3. In Telegram: `/knowledge`, `/get business-os-overview`, `/help`, `/invoices`, `/resolve <name>` (or `/who`). With `ANTHROPIC_API_KEY` set, freeform messages use Claude tools — see `src/lib/telegramToolDefs.ts` (knowledge, contact resolve, Crater billing, sandboxed `run_dev_task`).
+4. **Railway tooling:** set **`RAILWAY_API_TOKEN`** (and optionally **`RAILWAY_WORKSPACE_ID`**, **`RAILWAY_DRY_RUN=1`** for rehearsals) on Astro. Ask the agent to list domains or check deploy status.
 
-4. **Contact identity (`eliteweblabs/contact-api`)** — on Railway, **do not hardcode** the public URL on the Astro service. Add **`CONTACT_API_BASE_URL`** as a [reference variable](https://docs.railway.com/guides/variables#reference-variables), e.g. `https://${{ contact-api.RAILWAY_PUBLIC_DOMAIN }}` (service name must match your Railway service). Optional **`CONTACT_API_KEY`**: use a **shared variable** and reference it from both Astro and contact-api so secrets stay single-source. **Reave App** already includes **`contact-api`** and **`contact-postgres`**.
+5. **Deploy failure alerts:** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Failures post to the **System alerts** chat when **`AGENT_ALERT_USER_ID`** is set. Details: `src/knowledge/railway-deploy-webhook.md`.
 
-5. **Railway from phone:** set **`RAILWAY_API_TOKEN`** (and optionally **`RAILWAY_WORKSPACE_ID`**, **`RAILWAY_DRY_RUN=1`** for rehearsals) on Astro. In Telegram: **`/railway project My New Project`**. See `src/knowledge/railway-telegram.md`.
+6. **Inbound email:** in Resend, enable receiving on a `reave.app` subdomain (add the MX record) and create an `email.received` webhook to `https://reave.app/api/email/inbound`. Set **`RESEND_API_KEY`** and **`RESEND_WEBHOOK_SECRET`**. Tune rules in `src/lib/emailRules.ts`. Details: `src/knowledge/email-rules.md`.
 
-6. **Deploy failure → Telegram (automatic):** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as Astro env **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Set **`TELEGRAM_DEPLOY_NOTIFY_CHAT_ID`** on Astro. Details: `src/knowledge/railway-deploy-webhook.md`.
-
-7. **Inbound email → Telegram (automatic):** in Resend, enable receiving on a `reave.app` subdomain (add the MX record) and create an `email.received` webhook to `https://reave.app/api/email/inbound`. Set **`RESEND_API_KEY`**, **`RESEND_WEBHOOK_SECRET`**, and **`EMAIL_NOTIFY_CHAT_ID`** on Astro. Tune rules in `src/lib/emailRules.ts`. Details: `src/knowledge/email-rules.md`.### Hot reload (local)
+### Hot reload (local)
 
 - Run **`npm run dev`** — Astro + Vite hot-reload **client** scripts/styles and refresh **server** routes when you save (some `.astro` layout changes may still do a full page reload; that is normal).
 - Prefer **`http://localhost:4321`** for the fewest WebSocket/HMR edge cases. The dev server listens on **all interfaces** (`server.host: true`) so LAN access still works.

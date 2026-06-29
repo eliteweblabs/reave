@@ -2,7 +2,7 @@
  * Chat storage: Postgres (DATABASE_URL) → ephemeral files (dev only).
  */
 
-import type { TelegramChatTurn } from './telegramChatHistory';
+import type { ChatTurn } from './chatTypes';
 import {
   fileAppendChatMessages,
   fileCreateChatThread,
@@ -58,7 +58,7 @@ export async function storeGetChatThread(
 export async function storeAppendChatMessages(
   userId: string,
   threadId: string,
-  turns: TelegramChatTurn[]
+  turns: ChatTurn[]
 ): Promise<boolean> {
   if (chatStorageBackend() === 'postgres') return pgAppendChatMessages(threadId, turns);
   return fileAppendChatMessages(userId, threadId, turns);

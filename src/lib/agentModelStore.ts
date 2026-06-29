@@ -1,5 +1,5 @@
 /**
- * Persist the runtime Claude model choice for chat, Telegram, and dashboard agent.
+ * Persist the runtime Claude model choice for admin chats and dashboard agent.
  * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
  */
 

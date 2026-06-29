@@ -17,11 +17,10 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Clients / entry points
-  { id: 'tg_user', title: 'Telegram', sub: 'user / app', icon: '📱', brand: 'telegram', hue: 205, group: 'clients', x: 60, y: 130 },
-  { id: 'web', title: 'Web visitors', sub: 'reave.app · /form/* · /doc/*', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 260 },
-  { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 390 },
-  { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 520 },
-  { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 650 },
+  { id: 'web', title: 'Web visitors', sub: 'reave.app · /form/* · /doc/*', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
+  { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
+  { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 520 },
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
@@ -39,8 +38,7 @@ const SYSTEM_NODES = [
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
-  { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 460 },
-  { id: 'tg_api', title: 'Telegram Bot API', sub: 'sendMessage · deploy/email alerts', icon: '💬', brand: 'telegram', hue: 200, status: true, group: 'external', x: 1160, y: 580 },
+  { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
@@ -49,7 +47,6 @@ const SYSTEM_NODES = [
 ];
 
 const SYSTEM_EDGES = [
-  { from: 'tg_user', to: 'astro', label: 'webhook' },
   { from: 'web', to: 'astro' },
   { from: 'web', to: 'vapi', label: 'voice widget', dashed: true },
   { from: 'web', to: 'portal', label: 'share link', dashed: true },
@@ -57,8 +54,6 @@ const SYSTEM_EDGES = [
   { from: 'dev', to: 'clerk', label: 'sign-in' },
   { from: 'clerk', to: 'astro', dashed: true },
   { from: 'dev', to: 'contacts_dash', label: 'view DB', dashed: true },
-  { from: 'astro', to: 'tg_api', label: 'sendMessage' },
-  { from: 'tg_api', to: 'tg_user', dashed: true, label: 'reply' },
   { from: 'astro', to: 'anthropic', label: 'Claude tool loop' },
   { from: 'astro', to: 'contact_api', label: 'resolve' },
   { from: 'astro', to: 'carddav', label: 'CardDAV' },
@@ -76,7 +71,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'crater', label: 'billing API' },
   { from: 'astro', to: 'resend', label: 'outbound send' },
   { from: 'resend', to: 'astro', label: 'inbound webhook', dashed: true },
-  { from: 'resend', to: 'tg_api', label: 'email alert', dashed: true },
+  { from: 'resend', to: 'web_push', label: 'inbox alert', dashed: true },
   { from: 'astro', to: 'app_pg', label: 'DATABASE_URL' },
   { from: 'astro', to: 'github', label: 'status · commits · PR' },
   { from: 'astro', to: 'changedetection', label: 'watch CRUD', dashed: true },
@@ -86,13 +81,14 @@ const SYSTEM_EDGES = [
   { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site alerts' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
-  { from: 'railway_webhook', to: 'tg_api', label: 'deploy alert', dashed: true },
+  { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
+  { from: 'railway_webhook', to: 'anthropic', label: 'System alerts chat', dashed: true },
 ];
 
 const SYSTEM_GROUPS = [
-  { id: 'clients', title: 'Entry points', hue: 300, members: ['tg_user', 'web', 'sms_caller', 'dev', 'vapi'] },
+  { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'resend', 'tg_api', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────
@@ -190,92 +186,13 @@ const TOOLING_GROUPS = [
   { id: 't_prod', title: 'Production', hue: 150, members: ['t_prod'] },
 ];
 
-// ───────────────────────── TELEGRAM COMMANDS (bot interface) ─────────────────────────
-// Shows the full Telegram bot surface: slash commands (direct, no LLM) + Claude
-// agent tool categories. Useful for remembering what you can ask the bot to do.
-const TG_NODES = [
-  // Entry
-  { id: 'tc_you',     title: 'You',            sub: 'Telegram message',           icon: '📱', brand: 'telegram', hue: 205, group: 'tc_entry',  x: 60,   y: 540 },
-  { id: 'tc_handler', title: 'Bot handler',     sub: 'auth · history · route',     icon: '⚙️', hue: 185,          group: 'tc_entry',  x: 360,  y: 540 },
-  { id: 'tc_cheat',   title: 'Cheat sheet',     sub: '/admin/telegram · plain list', icon: '📋', hue: 95,           group: 'tc_entry',  x: 60,   y: 700 },
-
-  // Routing nodes
-  { id: 'tc_slash',  title: 'Slash commands',  sub: 'instant · no LLM',           icon: '⚡', hue: 55,           group: 'tc_routing', x: 660,  y: 240 },
-  { id: 'tc_claude', title: 'Claude agent',    sub: 'freeform · /model · up to 25 rounds', icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_routing', x: 660,  y: 820 },
-
-  // Slash commands (one node per command or tight group)
-  { id: 'tc_cmd_util',      title: '/help · /clear · /model', sub: 'menu · wipe history · switch model',        icon: '🛠️', hue: 160, group: 'tc_slash_grp', x: 960, y: 60  },
-  { id: 'tc_cmd_knowledge', title: '/knowledge · /get',       sub: 'list & read knowledge docs (/start=/knowledge)', icon: '📚', hue: 130, group: 'tc_slash_grp', x: 960, y: 180 },
-  { id: 'tc_cmd_resolve',   title: '/resolve · /who',         sub: 'fuzzy contact lookup',                      icon: '👤', hue: 30,  group: 'tc_slash_grp', x: 960, y: 300 },
-  { id: 'tc_cmd_invoice',   title: '/invoices',               sub: 'list recent invoices',                      icon: '🧾', hue: 0,   group: 'tc_slash_grp', x: 960, y: 420 },
-  { id: 'tc_cmd_railway',   title: '/railway project',        sub: 'new project (/railway help)',               icon: '🚆', brand: 'railway', hue: 25, group: 'tc_slash_grp', x: 960, y: 540 },
-
-  // LLM tool categories (what Claude can call)
-  { id: 'tc_tool_knowledge', title: 'Knowledge tools',  sub: 'list/read/create/update/delete work · knowledge tools', icon: '📚', hue: 130, group: 'tc_tools', x: 960, y: 700  },
-  { id: 'tc_tool_devops',    title: 'DevOps tools',     sub: 'git_status · create_github_branch · write · PR',        icon: '🔧', hue: 185, group: 'tc_tools', x: 960, y: 820  },
-  { id: 'tc_tool_contacts',  title: 'Contact tools',    sub: 'resolve · list · create · update · delete',                      icon: '👥', hue: 30,  group: 'tc_tools', x: 960, y: 940  },
-  { id: 'tc_tool_portal',    title: 'Portal tools',     sub: 'get · set · send_client_portal',                                        icon: '📇', hue: 320, group: 'tc_tools', x: 960, y: 1060 },
-  { id: 'tc_tool_billing',   title: 'Billing tools',    sub: 'create_invoice · record_payment · recurring · repair (14 tools)',       icon: '🧾', hue: 0,   group: 'tc_tools', x: 960, y: 1180 },
-  { id: 'tc_tool_web',       title: 'Web tools',        sub: 'fetch_url · lighthouse · ssl · links · dns',                           icon: '🌐', hue: 210, group: 'tc_tools', x: 960, y: 1300 },
-
-  // External services reached
-  { id: 'tc_svc_tg',        title: 'Telegram API',   sub: 'sendMessage · replies',      icon: '💬', brand: 'telegram',  hue: 200, group: 'tc_svc', x: 1260, y: 60   },
-  { id: 'tc_svc_anthropic',  title: 'Anthropic',      sub: 'Claude Messages · runtime model',        icon: '🤖', brand: 'anthropic', hue: 265, group: 'tc_svc', x: 1260, y: 300  },
-  { id: 'tc_svc_capi',       title: 'contact-api',    sub: 'contacts + portal data',     icon: '🧩', hue: 30,            group: 'tc_svc', x: 1260, y: 580  },
-  { id: 'tc_svc_crater',     title: 'Crater',         sub: 'invoicing',                  icon: '🧾', hue: 0,             group: 'tc_svc', x: 1260, y: 820  },
-  { id: 'tc_svc_github',     title: 'GitHub',         sub: 'repo · commits · write · PRs',    icon: '🐙', brand: 'github',    hue: 235, group: 'tc_svc', x: 1260, y: 1060 },
-  { id: 'tc_svc_psi',        title: 'PageSpeed API',  sub: 'Lighthouse audits',               icon: '⚡', brand: 'google',    hue: 45,  group: 'tc_svc', x: 1260, y: 1180 },
-];
-
-const TG_EDGES = [
-  // Entry flow
-  { from: 'tc_you',     to: 'tc_handler', label: 'message' },
-  { from: 'tc_handler', to: 'tc_slash',   label: '/cmd' },
-  { from: 'tc_handler', to: 'tc_claude',  label: 'freeform' },
-  { from: 'tc_handler', to: 'tc_svc_tg',  label: 'reply', dashed: true },
-
-  // Slash commands
-  { from: 'tc_slash', to: 'tc_cmd_util' },
-  { from: 'tc_slash', to: 'tc_cmd_knowledge' },
-  { from: 'tc_slash', to: 'tc_cmd_resolve' },
-  { from: 'tc_slash', to: 'tc_cmd_invoice' },
-  { from: 'tc_slash', to: 'tc_cmd_railway' },
-
-  // Slash → services
-  { from: 'tc_cmd_resolve', to: 'tc_svc_capi',   dashed: true },
-  { from: 'tc_cmd_invoice', to: 'tc_svc_crater',  dashed: true },
-
-  // Claude agent
-  { from: 'tc_claude', to: 'tc_svc_anthropic', label: 'tool loop' },
-  { from: 'tc_claude', to: 'tc_tool_knowledge' },
-  { from: 'tc_claude', to: 'tc_tool_devops' },
-  { from: 'tc_claude', to: 'tc_tool_contacts' },
-  { from: 'tc_claude', to: 'tc_tool_portal' },
-  { from: 'tc_claude', to: 'tc_tool_billing' },
-  { from: 'tc_claude', to: 'tc_tool_web' },
-
-  // Tool categories → services
-  { from: 'tc_tool_contacts', to: 'tc_svc_capi',   dashed: true },
-  { from: 'tc_tool_portal',   to: 'tc_svc_capi',   dashed: true },
-  { from: 'tc_tool_billing',  to: 'tc_svc_crater',  dashed: true },
-  { from: 'tc_tool_devops',   to: 'tc_svc_github',  dashed: true },
-  { from: 'tc_tool_web',      to: 'tc_svc_psi',     dashed: true, label: 'lighthouse' },
-];
-
-const TG_GROUPS = [
-  { id: 'tc_entry',     title: 'Entry',              hue: 185, members: ['tc_you', 'tc_handler', 'tc_cheat'] },
-  { id: 'tc_routing',   title: 'Routing',             hue: 55,  members: ['tc_slash', 'tc_claude'] },
-  { id: 'tc_slash_grp', title: 'Slash commands',      hue: 55,  members: ['tc_cmd_util', 'tc_cmd_knowledge', 'tc_cmd_resolve', 'tc_cmd_invoice', 'tc_cmd_railway'] },
-  { id: 'tc_tools',     title: 'Claude tool catalog', hue: 265, members: ['tc_tool_knowledge', 'tc_tool_devops', 'tc_tool_contacts', 'tc_tool_portal', 'tc_tool_billing', 'tc_tool_web'] },
-  { id: 'tc_svc',       title: 'External services',   hue: 240, members: ['tc_svc_tg', 'tc_svc_anthropic', 'tc_svc_capi', 'tc_svc_crater', 'tc_svc_github', 'tc_svc_psi'] },
-];
 
 // ───────────────────────── exports ─────────────────────────
 export const MAPS = {
   home:      { id: 'home',      title: 'Home',       icon: 'home', type: 'home',          nodes: [],             edges: [],             groups: [] },
   system:    { id: 'system',    title: 'System',     icon: '🖥️',  nodes: SYSTEM_NODES,   edges: SYSTEM_EDGES,   groups: SYSTEM_GROUPS },
   tooling:   { id: 'tooling',   title: 'MCP & CLI',  icon: '🔧',  nodes: TOOLING_NODES,  edges: TOOLING_EDGES,  groups: TOOLING_GROUPS },
-  // telegram map data (TG_NODES / TG_EDGES / TG_GROUPS) kept above for reference; not exposed in admin UI
+  // telegram map removed — admin Chats tab is the agent surface
   todo:      { id: 'todo',      title: 'To\u2011do',  icon: '✅',  type: 'todo',          nodes: [],             edges: [],             groups: [] },
   documents: { id: 'documents', title: 'Documents',  icon: '📄',  type: 'documents',     nodes: [],             edges: [],             groups: [] },
   knowledge: { id: 'knowledge', title: 'Knowledge',  icon: '📚',  type: 'knowledge',     nodes: [],             edges: [],             groups: [] },

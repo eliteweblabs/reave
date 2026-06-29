@@ -22,7 +22,7 @@ import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
 import { brandedEmailHtml } from '../../../../lib/emailTemplates';
-import { telegramSendMessage } from '../../../../lib/telegramClient';
+import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import { serverEnv } from '../../../../lib/serverEnv';
 
 export const prerender = false;
@@ -105,27 +105,30 @@ function buildSignatureBlock(opts: {
 <!-- end:esignature -->`.trim();
 }
 
-/** Fire-and-forget Telegram notification to the operator. */
-async function notifyTelegram(opts: {
+/** Fire-and-forget alert to the admin System alerts thread. */
+async function notifyOperator(opts: {
   signerName: string;
   title: string;
   viewUrl: string;
   contactName: string;
 }): Promise<void> {
-  const token = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
-  const rawId =
-    serverEnv('DOC_SIGN_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('EMAIL_NOTIFY_CHAT_ID')?.trim();
-  const chatId = rawId ? Number(rawId) : NaN;
-  if (!token || !Number.isFinite(chatId)) return;
   const msg = [
-    '✍️ Document signed',
+    'Document signed',
     `Contact: ${opts.contactName}`,
     `Signed by: ${opts.signerName}`,
     `Document: ${opts.title}`,
     opts.viewUrl,
   ].join('\n');
-  await telegramSendMessage(token, chatId, msg).catch(() => {});
+  await postToSystemAlertsThread({
+    message: msg,
+    autoRun: false,
+    push: {
+      title: `Signed: ${opts.title}`,
+      body: `${opts.contactName} · ${opts.signerName}`,
+      tag: 'doc-signed',
+      url: '/admin?tab=documents',
+    },
+  }).catch(() => {});
 }
 
 function err(status: number, error: string): Response {
@@ -259,8 +262,8 @@ export const POST: APIRoute = async ({ params, request }) => {
     }).catch(() => {});
   }
 
-  // ── Telegram notification to operator ─────────────────────────────────────
-  notifyTelegram({
+  // ── Admin alert ───────────────────────────────────────────────────────────
+  notifyOperator({
     signerName,
     title: tmpl.title,
     viewUrl,

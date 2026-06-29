@@ -1,5 +1,5 @@
 /**
- * Sandboxed dev/ops tasks callable from the Telegram assistant.
+ * Sandboxed dev/ops tasks callable from the admin agent.
  * Only allowlisted tasks run — no arbitrary shell commands.
  */
 import { isContactApiConfigured } from './contactApi';

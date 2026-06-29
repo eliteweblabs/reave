@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
-import type { TelegramChatTurn } from './telegramChatHistory';
+import type { ChatTurn } from './chatTypes';
 import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTypes';
 import { titleFromMessage } from './chatTypes';
 
@@ -181,7 +181,7 @@ export function fileGetChatThread(userId: string, threadId: string): ChatThreadD
 export function fileAppendChatMessages(
   userId: string,
   threadId: string,
-  turns: TelegramChatTurn[]
+  turns: ChatTurn[]
 ): boolean {
   const thread = fileGetChatThread(userId, threadId);
   if (!thread || !turns.length) return false;

@@ -99,44 +99,17 @@ async function githubProbe(token: string): Promise<Probe> {
   }
 }
 
-/** Telegram getMe is the canonical "is my bot alive" check. */
-async function telegramProbe(token: string): Promise<Probe> {
-  const started = Date.now();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`, {
-      signal: ctrl.signal,
-    });
-    const ms = Date.now() - started;
-    const j = (await res.json().catch(() => null)) as
-      | { ok?: boolean; result?: { username?: string }; description?: string }
-      | null;
-    if (res.ok && j?.ok) {
-      return { status: 'up', mode: 'live', detail: `@${j.result?.username ?? 'bot'}`, ms };
-    }
-    return { status: 'down', mode: 'live', detail: j?.description || `HTTP ${res.status}`, ms };
-  } catch (e) {
-    const ms = Date.now() - started;
-    const msg = e instanceof Error ? e.message : String(e);
-    return { status: 'down', mode: 'live', detail: msg.includes('aborted') ? 'timeout' : msg, ms };
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 export const GET: APIRoute = async () => {
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
-  const tgToken = serverEnv('TELEGRAM_BOT_TOKEN')?.trim();
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, craterProbe, tgProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
+  const [contactProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
     contactBase ? reach(contactBase) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     craterBase ? reach(craterBase) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
-    tgToken ? telegramProbe(tgToken) : Promise.resolve(unconfigured('TELEGRAM_BOT_TOKEN not set')),
     ghToken ? githubProbe(ghToken) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
     isChangeDetectionConfigured()
       ? reach(trimBase(serverEnv('CHANGEDETECTION_BASE_URL'))!)
@@ -180,7 +153,6 @@ export const GET: APIRoute = async () => {
     contact_api: contactProbe,
     contact_pg: contactPg,
     crater: craterProbe,
-    tg_api: tgProbe,
     anthropic: serverEnv('ANTHROPIC_API_KEY')
       ? configured(anthropicDetail ?? 'ANTHROPIC_API_KEY set')
       : unconfigured('ANTHROPIC_API_KEY not set'),

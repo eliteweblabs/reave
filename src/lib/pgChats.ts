@@ -5,7 +5,7 @@
 
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
-import type { TelegramChatTurn } from './telegramChatHistory';
+import type { ChatTurn } from './chatTypes';
 import type { ChatMessage, ChatThreadDetail, ChatThreadSummary } from './chatTypes';
 
 export type { ChatMessage, ChatThreadDetail, ChatThreadSummary };
@@ -164,7 +164,7 @@ export async function pgGetChatThread(
 
 export async function pgAppendChatMessages(
   threadId: string,
-  turns: TelegramChatTurn[]
+  turns: ChatTurn[]
 ): Promise<boolean> {
   if (!turns.length) return false;
   try {

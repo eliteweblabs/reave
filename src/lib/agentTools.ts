@@ -1,5 +1,5 @@
 /**
- * Telegram assistant tool definitions (JSON schema) and dispatch.
+ * Admin agent tool definitions (JSON schema) and dispatch.
  * Single source of truth for buildTools / runTool.
  */
 import { summarizeKnowledgeIndex } from './localKnowledge';
@@ -62,7 +62,7 @@ import {
 } from './outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
 import {
-  formatRailwayNetworkingForTelegram,
+  formatRailwayNetworkingSummary,
   isRailwayConfigured,
   railwayListProjectNetworking,
 } from './railwayClient';
@@ -72,6 +72,13 @@ import { describeSafeShell, runSafeShellCommand } from './safeShell';
 import { brandedEmailHtml } from './emailTemplates';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
+import {
+  storeDeleteEmailInbox,
+  storeListEmailInbox,
+  storeUpdateEmailInbox,
+} from './emailInboxStore';
+import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
+import type { RuleField } from './emailRules';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
 import { sslCheck, formatSslCheckResults } from './sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
@@ -96,7 +103,7 @@ import {
   calcomWebappUrl,
 } from './bookingClient';
 
-export type TelegramToolDef = {
+export type AgentToolDef = {
   type: 'function';
   function: { name: string; description: string; parameters: Record<string, unknown> };
 };
@@ -117,8 +124,8 @@ const lineItemSchema = {
   additionalProperties: false,
 };
 
-export function buildTools(): TelegramToolDef[] {
-  const base: TelegramToolDef[] = [
+export function buildTools(): AgentToolDef[] {
+  const base: AgentToolDef[] = [
     {
       type: 'function',
       function: {
@@ -346,6 +353,85 @@ export function buildTools(): TelegramToolDef[] {
             },
           },
           required: ['slug', 'title', 'content'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_email_inbox',
+        description:
+          'List recent inbound emails from the Reave inbox log (admin Email tab). Use when triaging mail or finding a message id by sender/subject.',
+        parameters: {
+          type: 'object',
+          properties: {
+            q: { type: 'string', description: 'Optional search on from, subject, or summary' },
+            include_junk: {
+              type: 'boolean',
+              description: 'Include junk-marked messages (default false)',
+            },
+            limit: { type: 'number', description: 'Max rows (default 20, max 100)' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'mark_email_junk',
+        description:
+          'Mark an inbound inbox message as junk (hidden from default inbox). Requires the message id from email triage context or list_email_inbox.',
+        parameters: {
+          type: 'object',
+          properties: {
+            email_id: { type: 'string', description: 'Inbox message UUID' },
+          },
+          required: ['email_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'delete_email',
+        description:
+          'Permanently remove an inbound inbox message from the Reave inbox log. Use after marking junk when the user wants it gone, or when triage says delete/spam.',
+        parameters: {
+          type: 'object',
+          properties: {
+            email_id: { type: 'string', description: 'Inbox message UUID' },
+          },
+          required: ['email_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'create_email_filter_rule',
+        description:
+          'Create a triage rule so future mail from a sender or matching phrases is auto-classified as junk (status DELETE, no alert). Skips if an enabled rule already matches the same sender phrase.',
+        parameters: {
+          type: 'object',
+          properties: {
+            sender: {
+              type: 'string',
+              description: 'Sender email or domain substring, e.g. wordpress@mdot.world',
+            },
+            phrases: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Optional extra match phrases (subject/body). sender is always added when provided.',
+            },
+            title: {
+              type: 'string',
+              description: 'Optional rule title shown in admin Rules UI',
+            },
+          },
           additionalProperties: false,
         },
       },
@@ -1474,7 +1560,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         client,
         status,
         body,
-        record_origin: 'telegram',
+        record_origin: 'agent',
         ...workExtrasFromArgs(args),
       });
       if (!result.ok) return JSON.stringify({ error: result.error });
@@ -1557,6 +1643,93 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({ ok: true, slug, title, db: isKnowledgeDbConfigured() });
     }
+    if (name === 'list_email_inbox') {
+      const q = String(args.q ?? '').trim().toLowerCase();
+      const includeJunk = args.include_junk === true;
+      const limitRaw = Number(args.limit);
+      const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 100) : 20;
+      let events = await storeListEmailInbox(Math.max(limit, 100), { hideJunk: !includeJunk });
+      if (q) {
+        events = events.filter((e) => {
+          const hay = `${e.from} ${e.subject} ${e.summary} ${e.bodySnippet}`.toLowerCase();
+          return hay.includes(q);
+        });
+      }
+      events = events.slice(0, limit);
+      return JSON.stringify({
+        count: events.length,
+        events: events.map((e) => ({
+          id: e.id,
+          from: e.from,
+          subject: e.subject,
+          category: e.category,
+          summary: e.summary,
+          receivedAt: e.receivedAt,
+        })),
+      });
+    }
+    if (name === 'mark_email_junk') {
+      const emailId = String(args.email_id ?? '').trim();
+      if (!emailId) return JSON.stringify({ error: 'email_id is required' });
+      const event = await storeUpdateEmailInbox(emailId, {
+        category: 'junk',
+        action: 'junk',
+        status: 'JUNK',
+      });
+      if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+      return JSON.stringify({ ok: true, email_id: emailId, category: event.category, action: event.action });
+    }
+    if (name === 'delete_email') {
+      const emailId = String(args.email_id ?? '').trim();
+      if (!emailId) return JSON.stringify({ error: 'email_id is required' });
+      const deleted = await storeDeleteEmailInbox(emailId);
+      if (!deleted) return JSON.stringify({ error: 'not found', email_id: emailId });
+      return JSON.stringify({ ok: true, email_id: emailId, deleted: true });
+    }
+    if (name === 'create_email_filter_rule') {
+      const sender = String(args.sender ?? '').trim().toLowerCase();
+      const extra = Array.isArray(args.phrases)
+        ? (args.phrases as unknown[]).map((p) => String(p).trim()).filter(Boolean)
+        : [];
+      const phrases = [...new Set([...(sender ? [sender] : []), ...extra])];
+      if (!phrases.length) return JSON.stringify({ error: 'sender or phrases required' });
+
+      const config = await storeListEmailRules();
+      const needle = phrases[0].toLowerCase();
+      const existing = config.rules.find(
+        (r) =>
+          r.enabled &&
+          r.fields.includes('from' as RuleField) &&
+          r.phrases.some((p) => p.toLowerCase() === needle),
+      );
+      if (existing) {
+        return JSON.stringify({
+          ok: true,
+          skipped: true,
+          reason: 'rule already exists',
+          rule: { id: existing.id, title: existing.title, phrases: existing.phrases },
+        });
+      }
+
+      const title =
+        String(args.title ?? '').trim() ||
+        (sender ? `Block sender ${sender}` : `Block: ${phrases[0].slice(0, 40)}`);
+      const rule = await storeCreateEmailRule({
+        title,
+        status: 'DELETE',
+        description: 'Auto-junk — created by agent from inbox triage',
+        phrases,
+        matchMode: 'any',
+        fields: sender ? (['from'] as RuleField[]) : (['subject', 'body'] as RuleField[]),
+        notify: false,
+        enabled: true,
+      });
+      if (!rule) return JSON.stringify({ error: 'failed to create rule' });
+      return JSON.stringify({
+        ok: true,
+        rule: { id: rule.id, title: rule.title, status: rule.status, phrases: rule.phrases, fields: rule.fields },
+      });
+    }
     if (name === 'run_dev_task') {
       const task = String(args.task ?? '').trim();
       if (!isDevTaskName(task)) {
@@ -1578,7 +1751,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({
         ok: true,
-        summary: formatRailwayNetworkingForTelegram(result.data),
+        summary: formatRailwayNetworkingSummary(result.data),
         data: result.data,
       });
     }

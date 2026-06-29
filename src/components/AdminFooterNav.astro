@@ -115,6 +115,11 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     align-items: center;
   }
 
+  .footer-chat-compose .ch-compose {
+    width: 100%;
+    min-width: 0;
+  }
+
   .footer-chat-compose[hidden] {
     display: none !important;
   }
@@ -124,28 +129,30 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
       width: 100%;
       max-width: min(100%, 720px);
-      gap: 0;
-      border-radius: 999px;
+      gap: 0.45rem;
+      border-radius: 0;
+      background: transparent;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border: none;
+      box-shadow: none;
+      overflow: visible;
+      align-items: center;
+    }
+
+    .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
+      padding: 0;
+      border-left: none;
+    }
+
+    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
       background: var(--footer-nav-glass-bg);
       backdrop-filter: var(--footer-nav-glass-blur);
       -webkit-backdrop-filter: var(--footer-nav-glass-blur);
       border: var(--footer-nav-glass-border);
       box-shadow: none;
-      overflow: hidden;
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
-      padding: 0 0.45rem 0 0.35rem;
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
       gap: 0;
+      flex-shrink: 0;
     }
 
     .admin-footer-nav.footer-nav-compose-open .footer-nav-btn:not(#footer-nav-home),
@@ -188,7 +195,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
 
     .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-compose {
       width: 100%;
-      max-width: min(36rem, calc(100vw - 22rem));
+      max-width: none;
     }
 
     .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed,

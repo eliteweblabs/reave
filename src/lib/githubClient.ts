@@ -96,7 +96,7 @@ async function ghFetch<T>(
     Accept: 'application/vnd.github+json',
     'X-GitHub-Api-Version': '2022-11-28',
     // GitHub rejects requests without a User-Agent.
-    'User-Agent': 'reave-telegram-assistant',
+    'User-Agent': 'reave-admin-agent',
   };
   const tok = token();
   if (tok) headers.Authorization = `Bearer ${tok}`;

@@ -8,10 +8,7 @@
  *
  * Env vars:
  *   VOICE_AGENT_ENABLED   — "1" enables AI on inbound calls (default: off).
- *   VOICE_NOTIFY_CHAT_ID  — Telegram chat id for call alerts.
- *                           Falls back to SMS_NOTIFY_CHAT_ID, EMAIL_NOTIFY_CHAT_ID,
- *                           then TELEGRAM_DEPLOY_NOTIFY_CHAT_ID.
- *   TELNYX_OPERATOR_NUMBER — Phone to forward calls to when /takeover is used.
+ *   AGENT_ALERT_USER_ID   — Clerk user id; call alerts post to System alerts chat.
  *   VOICE_GREETING         — Custom greeting prompt (optional).
  */
 import { serverEnv } from './serverEnv';
@@ -34,7 +31,7 @@ export interface VoiceSession {
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 
-/** Reads VOICE_AGENT_ENABLED at startup; toggled at runtime by Telegram. */
+/** Reads VOICE_AGENT_ENABLED at startup; may be toggled at runtime via env/API. */
 let voiceAgentEnabled: boolean = serverEnv('VOICE_AGENT_ENABLED') === '1';
 
 const sessions = new Map<string, VoiceSession>();
@@ -180,17 +177,7 @@ export async function runVoiceAgent(
   }
 }
 
-// ─── Telegram notifications ───────────────────────────────────────────────
-
-export function voiceNotifyChatId(): number | null {
-  const raw =
-    serverEnv('VOICE_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('SMS_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('EMAIL_NOTIFY_CHAT_ID')?.trim() ||
-    serverEnv('TELEGRAM_DEPLOY_NOTIFY_CHAT_ID')?.trim();
-  const n = raw ? Number(raw) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
+// ─── Operator notifications ───────────────────────────────────────────────
 
 export function formatCallAlert(session: VoiceSession, event: string): string {
   const dur = session.durationSecs();

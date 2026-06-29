@@ -4,7 +4,7 @@
  * Ported from the retired `openclaw-email-tools` IMAP monitor. Instead of
  * polling a mailbox, inbound mail now arrives via a Resend webhook
  * (`/api/email/inbound`). Each message is matched against keyword/phrase rules
- * that resolve to a `status` and decide whether to ping the Telegram bot.
+ * that resolve to a `status` and decide whether to notify the owner (Web Push).
  *
  * This is intentionally lightweight: no mailbox mutation (mark/archive/delete)
  * since Resend receiving is read-only — a rule only decides classification and
@@ -23,7 +23,7 @@ export interface EmailRule {
   /** "any" = at least one phrase, "all" = every phrase. */
   matchMode: MatchMode;
   fields: RuleField[];
-  /** Whether a match should send a Telegram alert. */
+  /** Whether a match should send a push/inbox alert. */
   notify: boolean;
   enabled: boolean;
 }
@@ -81,7 +81,7 @@ export const DEFAULT_RULES: EmailRule[] = [
   },
   {
     status: 'DOWN',
-    description: 'UptimeRobot down alert — real-time Telegram ping.',
+    description: 'UptimeRobot down alert — real-time push ping.',
     phrases: ['UptimeRobot'],
     matchMode: 'any',
     fields: ['subject', 'body'],
