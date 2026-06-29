@@ -1,0 +1,262 @@
+/**
+ * Kinsta REST API v2 client for the admin agent.
+ * @see https://kinsta.com/docs/kinsta-api/
+ */
+import { serverEnv } from './serverEnv';
+
+const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
+
+export function isKinstaConfigured(): boolean {
+  return Boolean(serverEnv('KINSTA_API_KEY')?.trim() && serverEnv('KINSTA_COMPANY_ID')?.trim());
+}
+
+function companyId(): string | null {
+  return serverEnv('KINSTA_COMPANY_ID')?.trim() || null;
+}
+
+export type KinstaEnvironmentSummary = {
+  id: string;
+  name: string;
+  display_name: string;
+  primary_domain: string | null;
+  php_version: string | null;
+};
+
+export type KinstaSiteSummary = {
+  id: string;
+  name: string;
+  display_name: string;
+  status: string;
+  environments: KinstaEnvironmentSummary[];
+};
+
+type KinstaApiEnvironment = {
+  id?: string;
+  name?: string;
+  display_name?: string;
+  primaryDomain?: { name?: string } | null;
+  container_info?: { php_engine_version?: string } | null;
+  environments?: KinstaApiEnvironment[];
+};
+
+type KinstaApiSite = {
+  id?: string;
+  name?: string;
+  display_name?: string;
+  status?: string;
+  environments?: KinstaApiEnvironment[];
+};
+
+function mapEnvironment(env: KinstaApiEnvironment): KinstaEnvironmentSummary {
+  return {
+    id: String(env.id ?? ''),
+    name: String(env.name ?? ''),
+    display_name: String(env.display_name ?? env.name ?? ''),
+    primary_domain: env.primaryDomain?.name?.trim() || null,
+    php_version: env.container_info?.php_engine_version?.trim() || null,
+  };
+}
+
+function mapSite(site: KinstaApiSite, includeEnvironments: boolean): KinstaSiteSummary {
+  const environments = includeEnvironments
+    ? (site.environments ?? []).map(mapEnvironment).filter((e) => e.id)
+    : [];
+  return {
+    id: String(site.id ?? ''),
+    name: String(site.name ?? ''),
+    display_name: String(site.display_name ?? site.name ?? ''),
+    status: String(site.status ?? 'unknown'),
+    environments,
+  };
+}
+
+export async function kinstaRequest<T>(opts: {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  path: string;
+  query?: Record<string, string | boolean | undefined>;
+  body?: unknown;
+}): Promise<
+  | { ok: true; status: number; data: T }
+  | { ok: false; error: string; status?: number; raw?: string }
+> {
+  const token = serverEnv('KINSTA_API_KEY')?.trim();
+  if (!token) {
+    return { ok: false, error: 'KINSTA_API_KEY is not set on this service' };
+  }
+
+  const path = opts.path.startsWith('/') ? opts.path : `/${opts.path}`;
+  const url = new URL(`${KINSTA_API_BASE}${path}`);
+  for (const [key, value] of Object.entries(opts.query ?? {})) {
+    if (value === undefined || value === '') continue;
+    url.searchParams.set(key, value === true ? 'true' : String(value));
+  }
+
+  const res = await fetch(url, {
+    method: opts.method ?? 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/json',
+      ...(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+
+  const raw = await res.text();
+  let data: T | undefined;
+  if (raw) {
+    try {
+      data = JSON.parse(raw) as T;
+    } catch {
+      return {
+        ok: false,
+        error: 'Invalid JSON from Kinsta',
+        status: res.status,
+        raw: raw.slice(0, 400),
+      };
+    }
+  }
+
+  if (!res.ok) {
+    const message =
+      typeof data === 'object' &&
+      data !== null &&
+      'message' in data &&
+      typeof (data as { message?: unknown }).message === 'string'
+        ? (data as { message: string }).message
+        : `HTTP ${res.status}`;
+    return { ok: false, error: message, status: res.status, raw: raw.slice(0, 400) };
+  }
+
+  return { ok: true, status: res.status, data: data as T };
+}
+
+export async function kinstaListSites(opts?: {
+  includeEnvironments?: boolean;
+  company?: string;
+}): Promise<
+  | { ok: true; company_id: string; sites: KinstaSiteSummary[] }
+  | { ok: false; error: string }
+> {
+  const cid = opts?.company?.trim() || companyId();
+  if (!cid) {
+    return { ok: false, error: 'KINSTA_COMPANY_ID is not set on this service' };
+  }
+
+  const includeEnvironments = opts?.includeEnvironments !== false;
+  const result = await kinstaRequest<{ company?: { sites?: KinstaApiSite[] } }>({
+    path: '/sites',
+    query: {
+      company: cid,
+      include_environments: includeEnvironments ? 'true' : 'false',
+    },
+  });
+
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const sites = (result.data.company?.sites ?? [])
+    .map((site) => mapSite(site, includeEnvironments))
+    .filter((site) => site.id);
+
+  return { ok: true, company_id: cid, sites };
+}
+
+export async function kinstaGetSite(siteId: string): Promise<
+  | { ok: true; site: KinstaSiteSummary }
+  | { ok: false; error: string }
+> {
+  const id = siteId.trim();
+  if (!id) return { ok: false, error: 'site_id is required' };
+
+  const result = await kinstaRequest<{ site?: KinstaApiSite }>({
+    path: `/sites/${encodeURIComponent(id)}`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const site = result.data.site;
+  if (!site?.id) return { ok: false, error: 'Site not found in Kinsta response' };
+
+  const envResult = await kinstaRequest<{ site?: { environments?: KinstaApiEnvironment[] } }>({
+    path: `/sites/${encodeURIComponent(id)}/environments`,
+  });
+  const environments = envResult.ok
+    ? (envResult.data.site?.environments ?? []).map(mapEnvironment).filter((e) => e.id)
+    : [];
+
+  return {
+    ok: true,
+    site: {
+      ...mapSite(site, false),
+      environments,
+    },
+  };
+}
+
+export async function kinstaClearCache(environmentId: string): Promise<
+  | { ok: true; operation_id: string; dry_run?: boolean }
+  | { ok: false; error: string }
+> {
+  const envId = environmentId.trim();
+  if (!envId) return { ok: false, error: 'environment_id is required' };
+
+  const dryRaw = serverEnv('KINSTA_DRY_RUN');
+  const dry = dryRaw === '1' || dryRaw === 'true';
+  if (dry) {
+    return { ok: true, operation_id: '(dry-run)', dry_run: true };
+  }
+
+  const result = await kinstaRequest<{ operation_id?: string }>({
+    method: 'POST',
+    path: '/sites/tools/clear-cache',
+    body: { environment_id: envId },
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const operationId = result.data.operation_id?.trim();
+  if (!operationId) return { ok: false, error: 'Kinsta did not return operation_id' };
+  return { ok: true, operation_id: operationId };
+}
+
+export async function kinstaGetOperation(operationId: string): Promise<
+  | { ok: true; status: string; data: unknown }
+  | { ok: false; error: string }
+> {
+  const id = operationId.trim();
+  if (!id) return { ok: false, error: 'operation_id is required' };
+  if (id === '(dry-run)') {
+    return { ok: true, status: 'has_completed', data: { dry_run: true } };
+  }
+
+  const result = await kinstaRequest<{ status?: string } & Record<string, unknown>>({
+    path: `/operations/${encodeURIComponent(id)}`,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  return {
+    ok: true,
+    status: String(result.data.status ?? 'unknown'),
+    data: result.data,
+  };
+}
+
+export async function kinstaPing(): Promise<
+  | { ok: true; company_id: string; site_count: number }
+  | { ok: false; error: string }
+> {
+  const out = await kinstaListSites({ includeEnvironments: false });
+  if (!out.ok) return { ok: false, error: out.error };
+  return { ok: true, company_id: out.company_id, site_count: out.sites.length };
+}
+
+export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {
+  if (!sites.length) return 'No Kinsta WordPress sites found for this company.';
+  const lines: string[] = [];
+  for (const site of sites) {
+    lines.push(`${site.display_name || site.name} (${site.status}) — site_id ${site.id}`);
+    for (const env of site.environments) {
+      const domain = env.primary_domain ? ` · ${env.primary_domain}` : '';
+      const php = env.php_version ? ` · PHP ${env.php_version}` : '';
+      lines.push(`  ${env.display_name || env.name}: env_id ${env.id}${domain}${php}`);
+    }
+  }
+  return lines.join('\n');
+}

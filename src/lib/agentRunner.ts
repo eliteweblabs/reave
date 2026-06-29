@@ -8,6 +8,7 @@ import { isBookingConfigured } from './bookingClient';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { isRailwayConfigured } from './railwayClient';
+import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 import type { ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent } from './chatTypes';
@@ -113,6 +114,15 @@ export async function runKnowledgeAgent(opts: {
   } else {
     sysParts.push(
       'Railway reads unavailable (RAILWAY_API_TOKEN not set). /railway project still works only if token is added later.',
+    );
+  }
+  if (isKinstaConfigured()) {
+    sysParts.push(
+      'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites and clear cache via list_kinsta_sites, clear_kinsta_cache, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and cache-clear workflow. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites.',
+    );
+  } else {
+    sysParts.push(
+      'Kinsta unavailable (KINSTA_API_KEY or KINSTA_COMPANY_ID not set). WordPress-on-Kinsta tasks need those env vars on this service.',
     );
   }
   sysParts.push(

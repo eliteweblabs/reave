@@ -9,6 +9,7 @@ import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
 import { isRailwayConfigured, railwayListProjectNetworking, railwayPing } from './railwayClient';
+import { isKinstaConfigured, kinstaListSites, kinstaPing } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 
 export const DEV_TASK_NAMES = [
@@ -17,6 +18,8 @@ export const DEV_TASK_NAMES = [
   'ping_contact_api',
   'ping_railway',
   'list_railway_domains',
+  'ping_kinsta',
+  'list_kinsta_sites',
   'list_knowledge_slugs',
   'ping_booking',
 ] as const;
@@ -42,6 +45,7 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           carddav: isCardDavConfigured(),
           anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim()),
           railway: isRailwayConfigured(),
+          kinsta: isKinstaConfigured(),
           booking: isBookingConfigured(),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
           github_token: isGithubConfigured(),
@@ -93,6 +97,18 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
       const out = await railwayListProjectNetworking();
       if (!out.ok) return { ok: false, error: out.error };
       return { ok: true, task, result: out.data };
+    }
+
+    case 'ping_kinsta': {
+      const out = await kinstaPing();
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: out };
+    }
+
+    case 'list_kinsta_sites': {
+      const out = await kinstaListSites({ includeEnvironments: true });
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: out };
     }
 
     case 'list_knowledge_slugs':

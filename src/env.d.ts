@@ -43,6 +43,14 @@ interface ImportMetaEnv {
   RAILWAY_DRY_RUN?: string;
   /** Optional suffix for project description field */
   RAILWAY_PROJECT_DESCRIPTION_PREFIX?: string;
+  /** Kinsta REST API key (MyKinsta → Company settings → API keys) */
+  KINSTA_API_KEY?: string;
+  /** Kinsta company UUID (MyKinsta URL idCompany=… or Billing details) */
+  KINSTA_COMPANY_ID?: string;
+  /** Optional override for Kinsta API base URL (default https://api.kinsta.com/v2) */
+  KINSTA_API_BASE_URL?: string;
+  /** If "1", clear_kinsta_cache returns dry-run without calling Kinsta */
+  KINSTA_DRY_RUN?: string;
   /** Shared secret: same value must appear as ?key= on /api/railway/webhook */
   RAILWAY_WEBHOOK_INGRESS_KEY?: string;
   /** GitHub PAT (read-only Contents+Metadata) for dev/status tools. Recommended even for public repos to avoid rate limits. */

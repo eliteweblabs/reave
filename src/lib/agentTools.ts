@@ -66,6 +66,14 @@ import {
   isRailwayConfigured,
   railwayListProjectNetworking,
 } from './railwayClient';
+import {
+  formatKinstaSitesSummary,
+  isKinstaConfigured,
+  kinstaClearCache,
+  kinstaGetOperation,
+  kinstaGetSite,
+  kinstaListSites,
+} from './kinstaClient';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
@@ -449,7 +457,7 @@ export function buildTools(): AgentToolDef[] {
               type: 'string',
               enum: [...DEV_TASK_NAMES],
               description:
-                'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains.',
+                'service_status = which integrations are configured; ping_crater / ping_contact_api / ping_railway / ping_kinsta = connectivity check; list_knowledge_slugs = bundled docs; list_railway_domains = Railway CNAME/custom domains; list_kinsta_sites = Kinsta WordPress sites/environments.',
             },
           },
           required: ['task'],
@@ -476,6 +484,63 @@ export function buildTools(): AgentToolDef[] {
               description: 'Optional service name filter, e.g. "reave" or "contact-api"',
             },
           },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_kinsta_sites',
+        description:
+          'List WordPress sites on Kinsta for the configured company (KINSTA_API_KEY + KINSTA_COMPANY_ID). Returns site ids, statuses, and optionally live/staging environment ids, primary domains, and PHP versions. Use for Kinsta hosting questions, finding environment_id before cache clears, or client site inventory.',
+        parameters: {
+          type: 'object',
+          properties: {
+            include_environments: {
+              type: 'boolean',
+              description: 'Include live/staging environment details (default true)',
+            },
+            site_id: {
+              type: 'string',
+              description: 'Optional: fetch one site by id instead of listing all',
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'clear_kinsta_cache',
+        description:
+          'Clear Kinsta site cache for a specific environment_id (from list_kinsta_sites). Returns operation_id — poll with get_kinsta_operation. Requires KINSTA_API_KEY.',
+        parameters: {
+          type: 'object',
+          properties: {
+            environment_id: {
+              type: 'string',
+              description: 'Kinsta environment UUID (live or staging)',
+            },
+          },
+          required: ['environment_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_kinsta_operation',
+        description:
+          'Check status of an async Kinsta API operation (site create, cache clear, backup, etc.). Status values include has_completed and has_failed.',
+        parameters: {
+          type: 'object',
+          properties: {
+            operation_id: { type: 'string', description: 'operation_id from a prior Kinsta tool call' },
+          },
+          required: ['operation_id'],
           additionalProperties: false,
         },
       },
@@ -1754,6 +1819,53 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         summary: formatRailwayNetworkingSummary(result.data),
         data: result.data,
       });
+    }
+    if (name === 'list_kinsta_sites') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const siteId = typeof args.site_id === 'string' ? args.site_id.trim() : '';
+      if (siteId) {
+        const one = await kinstaGetSite(siteId);
+        if (!one.ok) return JSON.stringify({ error: one.error });
+        return JSON.stringify({
+          ok: true,
+          summary: formatKinstaSitesSummary([one.site]),
+          sites: [one.site],
+        });
+      }
+      const includeEnvironments = args.include_environments !== false;
+      const result = await kinstaListSites({ includeEnvironments });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        company_id: result.company_id,
+        summary: formatKinstaSitesSummary(result.sites),
+        sites: result.sites,
+      });
+    }
+    if (name === 'clear_kinsta_cache') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const environmentId = String(args.environment_id ?? '').trim();
+      const result = await kinstaClearCache(environmentId);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        operation_id: result.operation_id,
+        dry_run: result.dry_run ?? false,
+        hint: 'Poll get_kinsta_operation until status is has_completed or has_failed.',
+      });
+    }
+    if (name === 'get_kinsta_operation') {
+      if (!isKinstaConfigured()) {
+        return JSON.stringify({ error: 'KINSTA_API_KEY and KINSTA_COMPANY_ID must be set on this service' });
+      }
+      const operationId = String(args.operation_id ?? '').trim();
+      const result = await kinstaGetOperation(operationId);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ok: true, status: result.status, data: result.data });
     }
     if (name === 'get_git_status') {
       const result = await getGitStatus({

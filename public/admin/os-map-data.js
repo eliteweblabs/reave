@@ -38,6 +38,7 @@ const SYSTEM_NODES = [
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
+  { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
   { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
   { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
@@ -68,6 +69,7 @@ const SYSTEM_EDGES = [
   { from: 'contacts_dash', to: 'contact_api', label: 'list contacts' },
   { from: 'contact_api', to: 'contact_pg' },
   { from: 'astro', to: 'railway_gql', label: 'GraphQL · /railway' },
+  { from: 'astro', to: 'kinsta_api', label: 'agent · Kinsta WP' },
   { from: 'astro', to: 'crater', label: 'billing API' },
   { from: 'astro', to: 'resend', label: 'outbound send' },
   { from: 'resend', to: 'astro', label: 'inbound webhook', dashed: true },
@@ -88,7 +90,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

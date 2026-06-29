@@ -162,6 +162,10 @@ export const GET: APIRoute = async () => {
     railway_webhook: serverEnv('RAILWAY_WEBHOOK_INGRESS_KEY')
       ? configured('RAILWAY_WEBHOOK_INGRESS_KEY set')
       : unconfigured('RAILWAY_WEBHOOK_INGRESS_KEY not set'),
+    kinsta_api:
+      serverEnv('KINSTA_API_KEY')?.trim() && serverEnv('KINSTA_COMPANY_ID')?.trim()
+        ? configured('KINSTA_API_KEY + KINSTA_COMPANY_ID set')
+        : unconfigured('KINSTA_API_KEY or KINSTA_COMPANY_ID not set'),
     resend: serverEnv('RESEND_API_KEY')
       ? configured('RESEND_API_KEY set')
       : unconfigured('RESEND_API_KEY not set'),
