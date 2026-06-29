@@ -144,6 +144,7 @@ let cachedTabOrder = null;
 let searchOverlayOpen = false;
 let searchDebounceTimer = null;
 let footerNavCollapsed = false;
+let footerNavChatInputFocused = false;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -236,7 +237,8 @@ function setActiveMap(key, opts = {}) {
     updateTabs();
     return;
   }
-  expandFooterNav();
+  footerNavChatInputFocused = false;
+  expandFooterNav({ force: true });
   activeKey = key;
   MAP = MAPS[key];
   saveActiveKey();
@@ -1943,13 +1945,39 @@ function collapseFooterNav() {
   homeBtn?.setAttribute('title', 'Show navigation');
 }
 
-function expandFooterNav() {
+function expandFooterNav({ force = false } = {}) {
+  if (footerNavChatInputFocused && !force) return;
+  if (force) footerNavChatInputFocused = false;
   if (!footerNavCollapsed) return;
   footerNavCollapsed = false;
   document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
   const homeBtn = document.getElementById('footer-nav-home');
   homeBtn?.setAttribute('aria-label', 'Home');
   homeBtn?.setAttribute('title', 'Home');
+}
+
+function onChatInputFocusIn(ev) {
+  const t = ev.target;
+  if (!(t instanceof HTMLTextAreaElement) || !t.classList.contains('ch-input')) return;
+  if (activeKey !== 'chats') return;
+  footerNavChatInputFocused = true;
+  collapseFooterNav();
+}
+
+function onChatInputFocusOut(ev) {
+  const t = ev.target;
+  if (!(t instanceof HTMLTextAreaElement) || !t.classList.contains('ch-input')) return;
+  setTimeout(() => {
+    const active = document.activeElement;
+    if (active instanceof HTMLTextAreaElement && active.classList.contains('ch-input')) return;
+    footerNavChatInputFocused = false;
+    expandFooterNav();
+  }, 0);
+}
+
+function initFooterNavChatInputCollapse() {
+  document.addEventListener('focusin', onChatInputFocusIn, true);
+  document.addEventListener('focusout', onChatInputFocusOut, true);
 }
 
 function onPanelScrollCollapse(ev) {
@@ -1996,7 +2024,11 @@ function initFooterNav() {
   document.getElementById('footer-nav-home')?.addEventListener('click', () => {
     closeSearchOverlay();
     if (footerNavCollapsed) {
-      expandFooterNav();
+      if (footerNavChatInputFocused) {
+        getChatPanel()?.querySelector('.ch-input')?.blur();
+      } else {
+        expandFooterNav();
+      }
       return;
     }
     setActiveMap('home', { force: activeKey === 'home' });
@@ -6933,6 +6965,7 @@ async function boot() {
   initTopbarMenus();
   initFooterNav();
   initFooterNavScrollCollapse();
+  initFooterNavChatInputCollapse();
   initInboxHeaderRefresh();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
