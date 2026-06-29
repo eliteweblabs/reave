@@ -8,11 +8,32 @@ const userId = auth?.userId ?? null;
 let avatarUrl: string | null = null;
 let userInitials = "";
 
+function footerAvatarUrl(user: {
+  imageUrl: string;
+  hasImage: boolean;
+  externalAccounts?: Array<{ provider: string; imageUrl?: string | null }>;
+}): string | null {
+  const sized = (url: string) => {
+    const join = url.includes("?") ? "&" : "?";
+    return `${url}${join}width=56&height=56&fit=crop`;
+  };
+
+  if (user.hasImage && user.imageUrl) return sized(user.imageUrl);
+
+  const google = user.externalAccounts?.find(
+    (account) => account.provider === "oauth_google" || account.provider === "google",
+  );
+  if (google?.imageUrl) return sized(google.imageUrl);
+  if (google && user.imageUrl) return sized(user.imageUrl);
+
+  return null;
+}
+
 if (userId) {
   try {
     const client = clerkClient(Astro);
     const user = await client.users.getUser(userId);
-    avatarUrl = user.imageUrl ?? null;
+    avatarUrl = footerAvatarUrl(user);
     const first = user.firstName?.[0] ?? "";
     const last = user.lastName?.[0] ?? "";
     userInitials =
@@ -84,7 +105,8 @@ if (userId) {
 
 <style is:global>
   :root {
-    --footer-nav-h: 4.75rem;
+    --footer-nav-pill-h: 3.4rem;
+    --footer-nav-h: calc(var(--footer-nav-pill-h) + max(0.65rem, env(safe-area-inset-bottom)));
   }
 
   .admin-footer-nav {
@@ -102,20 +124,34 @@ if (userId) {
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;
+    transition: justify-content 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .admin-footer-nav.footer-nav-collapsed {
+    justify-content: flex-start;
   }
 
   .admin-footer-nav-pill {
     pointer-events: auto;
     display: flex;
     align-items: center;
-    gap: 0.15rem;
-    padding: 0.35rem 0.45rem;
+    gap: 0.5rem;
+    padding: 0.45rem 0.85rem;
     border-radius: 999px;
-    background: rgba(18, 22, 30, 0.88);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: rgba(18, 22, 30, 0.72);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    transition:
+      gap 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      padding 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
+    gap: 0;
+    padding: 0.45rem;
   }
 
   .footer-nav-btn {
@@ -123,50 +159,87 @@ if (userId) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.75rem;
-    height: 2.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    max-width: 2.5rem;
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: 12px;
     background: transparent;
-    color: rgba(255, 255, 255, 0.72);
+    color: rgba(255, 255, 255, 0.58);
     cursor: pointer;
     flex-shrink: 0;
     overflow: visible;
-    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    transition:
+      color 0.15s,
+      background 0.15s,
+      opacity 0.24s ease,
+      max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      margin 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     -webkit-tap-highlight-color: transparent;
   }
 
-  .footer-nav-btn.has-badge {
-    border: 1px solid rgba(251, 191, 36, 0.45);
+  .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home),
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-profile {
+    width: 0;
+    max-width: 0;
+    opacity: 0;
+    margin: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
 
   .footer-nav-btn:hover {
-    color: #fff;
+    color: rgba(255, 255, 255, 0.88);
   }
 
   .footer-nav-btn.active {
     color: #fff;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
   }
 
-  .footer-nav-btn svg {
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  }
+
+  .footer-nav-btn svg,
+  .footer-nav-chat-icon svg {
     display: block;
     pointer-events: none;
   }
 
   .footer-nav-profile {
-    width: 2.35rem;
-    height: 2.35rem;
-    margin-left: 0.1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    max-width: 2.5rem;
     overflow: hidden;
-    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    border: none;
+    background: transparent;
     text-decoration: none;
+    transition:
+      color 0.15s,
+      background 0.15s,
+      opacity 0.24s ease,
+      max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+      margin 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .footer-nav-profile:hover {
+    color: rgba(255, 255, 255, 0.88);
   }
 
   .footer-nav-profile.active {
-    border-color: rgba(255, 255, 255, 0.55);
-    background: transparent;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
   }
 
   .footer-nav-avatar {
@@ -175,12 +248,13 @@ if (userId) {
     object-fit: cover;
     border-radius: 50%;
     pointer-events: none;
+    display: block;
   }
 
   .footer-nav-initials {
     font-size: 0.72rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.72);
     pointer-events: none;
   }
 
@@ -201,6 +275,11 @@ if (userId) {
     pointer-events: none;
     z-index: 2;
     box-shadow: 0 0 0 2px rgba(18, 22, 30, 0.95);
+    transition: opacity 0.2s ease;
+  }
+
+  .admin-footer-nav.footer-nav-collapsed .footer-nav-badge {
+    opacity: 0;
   }
 
   .footer-nav-badge[hidden] {

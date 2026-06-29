@@ -56,6 +56,7 @@ let MAP = MAPS[activeKey];
 let cachedTabOrder = null;
 let searchOverlayOpen = false;
 let searchDebounceTimer = null;
+let footerNavCollapsed = false;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -148,6 +149,7 @@ function setActiveMap(key, opts = {}) {
     updateTabs();
     return;
   }
+  expandFooterNav();
   activeKey = key;
   MAP = MAPS[key];
   saveActiveKey();
@@ -1696,12 +1698,68 @@ function footerNavActiveKey() {
   return null;
 }
 
+function syncFooterChatNav() {
+  const btn = document.getElementById('footer-nav-chat');
+  if (!btn) return;
+  const onChat = activeKey === 'chats';
+  let iconEl = btn.querySelector('.footer-nav-chat-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-chat-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    const badge = document.getElementById('footer-chat-badge');
+    btn.insertBefore(iconEl, badge || null);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  iconEl.innerHTML = navIcon(onChat ? 'plus' : 'message-circle', 22);
+  btn.setAttribute('aria-label', onChat ? 'New chat' : 'Chats');
+  btn.title = onChat ? 'New chat' : 'Chats';
+}
+
+const FOOTER_PANEL_SELECTOR =
+  '#home-dashboard, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+
+function collapseFooterNav() {
+  if (footerNavCollapsed) return;
+  footerNavCollapsed = true;
+  document.getElementById('admin-footer-nav')?.classList.add('footer-nav-collapsed');
+  const homeBtn = document.getElementById('footer-nav-home');
+  homeBtn?.setAttribute('aria-label', 'Show navigation');
+  homeBtn?.setAttribute('title', 'Show navigation');
+}
+
+function expandFooterNav() {
+  if (!footerNavCollapsed) return;
+  footerNavCollapsed = false;
+  document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
+  const homeBtn = document.getElementById('footer-nav-home');
+  homeBtn?.setAttribute('aria-label', 'Home');
+  homeBtn?.setAttribute('title', 'Home');
+}
+
+function onPanelScrollCollapse(ev) {
+  if (footerNavCollapsed) return;
+  const target = ev.target;
+  if (!(target instanceof Element)) return;
+  if (target.closest('#wrap, #admin-footer-nav')) return;
+  const panel = target.closest(FOOTER_PANEL_SELECTOR);
+  if (!panel) return;
+  const style = window.getComputedStyle(panel);
+  if (style.display === 'none' || style.visibility === 'hidden') return;
+  if (target.scrollTop > 6) collapseFooterNav();
+}
+
+function initFooterNavScrollCollapse() {
+  document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
+}
+
 function syncFooterNav() {
   const activeNav = footerNavActiveKey();
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
   });
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
+  syncFooterChatNav();
   if (activeKey === 'home') syncHomeBadge(0);
   if (activeKey === 'chats' || activeKey === 'knowledge') syncChatBadge(0);
 }
@@ -1709,10 +1767,18 @@ function syncFooterNav() {
 function initFooterNav() {
   document.getElementById('footer-nav-home')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (footerNavCollapsed) {
+      expandFooterNav();
+      return;
+    }
     setActiveMap('home', { force: activeKey === 'home' });
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (activeKey === 'chats') {
+      void startNewChat();
+      return;
+    }
     setActiveMap('chats', { force: activeKey === 'chats' });
   });
   document.getElementById('footer-nav-inbox')?.addEventListener('click', () => {
@@ -1730,6 +1796,7 @@ function openSearchOverlay() {
   const input = document.getElementById('search-overlay-input');
   if (!overlay) return;
   searchOverlayOpen = true;
+  expandFooterNav();
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
   renderSearchResults('');
@@ -1872,14 +1939,12 @@ function setFooterNavBadge(badgeId, btnId, count, baseLabel) {
   if (n > 0) {
     badge.hidden = false;
     badge.textContent = n > 99 ? '99+' : String(n);
-    btn.classList.add('has-badge');
     if (baseLabel) {
       btn.setAttribute('aria-label', `${baseLabel} (${n} notification${n === 1 ? '' : 's'})`);
     }
   } else {
     badge.hidden = true;
     badge.textContent = '0';
-    btn.classList.remove('has-badge');
     if (baseLabel) btn.setAttribute('aria-label', baseLabel);
   }
 }
@@ -5292,18 +5357,6 @@ function renderChatSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'ch-toolbar';
-  const newBtn = document.createElement('button');
-  newBtn.type = 'button';
-  newBtn.className = 'ch-new-btn';
-  newBtn.setAttribute('aria-label', 'New chat');
-  newBtn.title = 'New chat';
-  newBtn.innerHTML = navIcon('plus', 20);
-  newBtn.addEventListener('click', () => startNewChat());
-  toolbar.appendChild(newBtn);
-  sidebar.appendChild(toolbar);
-
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
@@ -6607,6 +6660,7 @@ async function boot() {
   buildTabs(tabOrder);
   initTopbarMenus();
   initFooterNav();
+  initFooterNavScrollCollapse();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
