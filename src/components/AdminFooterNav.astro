@@ -47,6 +47,7 @@ if (userId) {
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
   <div class="admin-footer-nav-pill">
+    <div id="footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
     <button
       type="button"
       id="footer-nav-home"
@@ -137,39 +138,67 @@ if (userId) {
   }
 
   .admin-footer-nav-pill {
+    position: relative;
     pointer-events: auto;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.85rem;
+    align-items: stretch;
+    gap: 0.15rem;
+    height: var(--footer-nav-pill-h);
+    padding: 0;
     border-radius: 999px;
     background: rgba(18, 22, 30, 0.72);
     backdrop-filter: blur(20px) saturate(1.2);
     -webkit-backdrop-filter: blur(20px) saturate(1.2);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
-    transition:
-      gap 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      padding 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
   }
 
   .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
     gap: 0;
-    padding: 0.45rem;
+  }
+
+  .footer-nav-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(14px) saturate(1.15);
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transform: translateX(0);
+    transition:
+      transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.18s ease;
+  }
+
+  .footer-nav-indicator.is-visible {
+    opacity: 1;
+  }
+
+  .footer-nav-indicator[hidden] {
+    display: none !important;
   }
 
   .footer-nav-btn {
     position: relative;
+    z-index: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    max-width: 2.5rem;
+    width: var(--footer-nav-pill-h);
+    height: 100%;
+    max-width: var(--footer-nav-pill-h);
     padding: 0;
     border: none;
-    border-radius: 50%;
+    border-radius: 999px;
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -206,14 +235,12 @@ if (userId) {
   .admin-footer-nav.footer-nav-collapsed #footer-nav-home,
   .footer-nav-btn.footer-nav-btn--create,
   .footer-nav-btn.footer-nav-btn--create.active {
-    border-radius: 50%;
+    border-radius: 999px;
   }
 
   .footer-nav-btn.active {
     color: #fff;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: transparent;
   }
 
   .footer-nav-btn.footer-nav-btn--create,
@@ -237,9 +264,7 @@ if (userId) {
 
   .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
     color: #fff;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: transparent;
   }
 
   .footer-nav-btn svg,
@@ -249,13 +274,13 @@ if (userId) {
   }
 
   .footer-nav-profile {
-    width: 2.5rem;
-    height: 2.5rem;
-    max-width: 2.5rem;
+    width: var(--footer-nav-pill-h);
+    height: 100%;
+    max-width: var(--footer-nav-pill-h);
     padding: 0;
     overflow: hidden;
     border: none;
-    border-radius: 50%;
+    border-radius: 999px;
     background: transparent;
   }
 
@@ -265,9 +290,7 @@ if (userId) {
 
   .footer-nav-profile.active {
     color: #fff;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(14px) saturate(1.15);
-    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    background: transparent;
   }
 
   .footer-nav-avatar {
