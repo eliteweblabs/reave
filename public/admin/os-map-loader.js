@@ -264,6 +264,7 @@ function setActiveMap(key, opts = {}) {
   syncEmailPoll();
   syncFooterNav();
   syncInboxHeaderControls();
+  syncDashboardHeaderDate();
   void refreshInboxBadgeQuiet();
 }
 
@@ -1568,13 +1569,6 @@ function renderHomeDashboard(data) {
   const scroll = document.createElement('div');
   scroll.className = 'home-dashboard-scroll';
 
-  const header = document.createElement('div');
-  header.className = 'dash-header';
-  header.innerHTML =
-    `<h1 class="home-dashboard-title">Dashboard</h1>` +
-    `<p class="dash-date">${escHtml(formatDashDate())}</p>`;
-  scroll.appendChild(header);
-
   const stats = data?.stats || {};
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
@@ -1723,7 +1717,6 @@ async function loadHomeDashboard() {
   } catch (e) {
     root.innerHTML =
       `<div class="home-dashboard-scroll">` +
-        `<div class="dash-header"><h1 class="home-dashboard-title">Dashboard</h1></div>` +
         `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
       `</div>`;
   }
@@ -6298,6 +6291,18 @@ function syncInboxHeaderControls() {
   btn.hidden = MAP.type !== 'email';
 }
 
+function syncDashboardHeaderDate() {
+  const el = document.getElementById('topbar-dash-date');
+  if (!el) return;
+  const onHome = MAP.type === 'home';
+  el.hidden = !onHome;
+  if (onHome) {
+    const now = new Date();
+    el.textContent = formatDashDate(now);
+    el.dateTime = now.toISOString().slice(0, 10);
+  }
+}
+
 function initInboxHeaderRefresh() {
   const btn = document.getElementById('inbox-refresh-btn');
   if (!btn || btn.dataset.bound) return;
@@ -7196,6 +7201,7 @@ async function boot() {
   syncInboxBadgePoll();
   syncFooterNav();
   syncInboxHeaderControls();
+  syncDashboardHeaderDate();
 }
 
 boot();
