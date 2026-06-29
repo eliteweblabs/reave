@@ -249,6 +249,7 @@ function setActiveMap(key, opts = {}) {
   syncHealthLifecycle();
   syncEmailPoll();
   syncFooterNav();
+  syncInboxHeaderControls();
   void refreshInboxBadgeQuiet();
 }
 
@@ -6027,11 +6028,11 @@ async function archiveChat(t) {
 
 // ---- email tab (inbox summaries) ----
 let emailState = {
-  events: [],
+  allEvents: [],
+  inboxFilter: 'all',
   activeId: null,
   storage: 'files',
   digest: null,
-  showJunk: false,
   pushConfigured: false,
 };
 let emailPollTimer = null;
@@ -6042,6 +6043,40 @@ const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
+
+function inboxTabCounts() {
+  const all = emailState.allEvents;
+  return {
+    all: all.filter((e) => e.category !== 'junk').length,
+    alert: all.filter((e) => e.category === 'alert').length,
+    review: all.filter((e) => e.category === 'review').length,
+    junk: all.filter((e) => e.category === 'junk').length,
+  };
+}
+
+function filteredInboxEvents() {
+  const all = emailState.allEvents;
+  const f = emailState.inboxFilter;
+  if (f === 'junk') return all.filter((e) => e.category === 'junk');
+  if (f === 'alert') return all.filter((e) => e.category === 'alert');
+  if (f === 'review') return all.filter((e) => e.category === 'review');
+  return all.filter((e) => e.category !== 'junk');
+}
+
+function syncInboxHeaderControls() {
+  const btn = document.getElementById('inbox-refresh-btn');
+  if (!btn) return;
+  btn.hidden = MAP.type !== 'email';
+}
+
+function initInboxHeaderRefresh() {
+  const btn = document.getElementById('inbox-refresh-btn');
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = '1';
+  btn.addEventListener('click', () => {
+    if (MAP.type === 'email') loadEmailTab();
+  });
+}
 
 function inboxLastSeenIso() {
   try {
@@ -6568,15 +6603,13 @@ async function markEmailJunk(ev) {
       body: JSON.stringify({ category: 'junk', action: 'junk' }),
     });
     const data = await readApiJson(res);
-    if (!emailState.showJunk) {
-      emailState.events = emailState.events.filter((e) => e.id !== ev.id);
-      if (emailState.activeId === ev.id) emailState.activeId = null;
-    } else {
-      const idx = emailState.events.findIndex((e) => e.id === ev.id);
-      if (idx !== -1) emailState.events[idx] = data.event;
+    const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+    if (idx !== -1) emailState.allEvents[idx] = data.event;
+    if (emailState.activeId === ev.id && !filteredInboxEvents().some((e) => e.id === ev.id)) {
+      emailState.activeId = null;
     }
     renderEmailPanel();
-    syncInboxAppBadge(emailState.events);
+    syncInboxAppBadge(emailState.allEvents);
   } catch (e) {
     osAlert({ title: 'Could not mark junk', bodyHtml: escHtml(e.message) });
   }
@@ -6599,10 +6632,10 @@ async function deleteEmail(ev) {
       body: '{}',
     });
     await readApiJson(res);
-    emailState.events = emailState.events.filter((e) => e.id !== ev.id);
+    emailState.allEvents = emailState.allEvents.filter((e) => e.id !== ev.id);
     if (emailState.activeId === ev.id) emailState.activeId = null;
     renderEmailPanel();
-    syncInboxAppBadge(emailState.events);
+    syncInboxAppBadge(emailState.allEvents);
   } catch (e) {
     osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
   }
@@ -6644,8 +6677,8 @@ function createEmailSwipeRow(ev) {
           })
             .then(readApiJson)
             .then((data) => {
-              const idx = emailState.events.findIndex((e) => e.id === ev.id);
-              if (idx !== -1) emailState.events[idx] = data.event;
+              const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+              if (idx !== -1) emailState.allEvents[idx] = data.event;
               renderEmailPanel();
             })
             .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
@@ -6680,12 +6713,11 @@ async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
   if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
-  const junkQ = emailState.showJunk ? '?junk=1' : '';
   try {
-    const res = await fetch(`/api/email/inbox${junkQ}`, { cache: 'no-store' });
+    const res = await fetch('/api/email/inbox?junk=1', { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    emailState.events = data.events || [];
+    emailState.allEvents = data.events || [];
     emailState.storage = data.storage || 'files';
     emailState.digest = data.digest || null;
     emailState.pushConfigured = !!data.pushConfigured;
@@ -6693,7 +6725,7 @@ async function loadEmailTab(quiet) {
     if (!quiet) root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
   }
-  if (emailState.activeId && !emailState.events.some((ev) => ev.id === emailState.activeId)) {
+  if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
     emailState.activeId = null;
   }
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -6701,61 +6733,69 @@ async function loadEmailTab(quiet) {
   if (MAP.type === 'email') {
     markInboxSeenAndClearBadge();
   } else {
-    syncInboxAppBadge(emailState.events);
+    syncInboxAppBadge(emailState.allEvents);
   }
 }
 
-function renderEmailDigest() {
-  const d = emailState.digest;
-  if (!d) return null;
-  const el = document.createElement('div');
-  el.className = 'em-digest';
-  const parts = [`${d.visible} shown`];
-  if (d.filed) parts.push(`${d.filed} filed to jobs`);
-  if (d.review) parts.push(`${d.review} need review`);
-  if (d.alert) parts.push(`${d.alert} alerts`);
-  if (d.junkHidden && !emailState.showJunk) parts.push(`${d.junkHidden} junk hidden`);
-  el.textContent = parts.join(' · ');
-  return el;
+function renderEmailFilterTabs() {
+  const counts = inboxTabCounts();
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Inbox filters');
+
+  const tabs = [
+    { id: 'all', label: 'All', count: counts.all },
+    { id: 'alert', label: 'Alerts', count: counts.alert },
+    { id: 'review', label: 'Review', count: counts.review },
+    { id: 'junk', label: 'Junk', count: counts.junk },
+  ];
+
+  for (const tab of tabs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'em-filter-tab' + (emailState.inboxFilter === tab.id ? ' active' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', emailState.inboxFilter === tab.id ? 'true' : 'false');
+    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
+    btn.addEventListener('click', () => {
+      if (emailState.inboxFilter === tab.id) return;
+      emailState.inboxFilter = tab.id;
+      emailState.activeId = null;
+      getEmailPanel()?.classList.remove('em-pane-active');
+      renderEmailPanel();
+    });
+    nav.appendChild(btn);
+  }
+  return nav;
 }
 
 function renderEmailSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'em-toolbar';
-  const refreshBtn = document.createElement('button');
-  refreshBtn.className = 'em-refresh';
-  refreshBtn.textContent = '↻ Refresh';
-  refreshBtn.addEventListener('click', () => loadEmailTab());
-  toolbar.appendChild(refreshBtn);
+  sidebar.appendChild(renderEmailFilterTabs());
 
-  const junkBtn = document.createElement('button');
-  junkBtn.className = 'em-refresh';
-  junkBtn.textContent = emailState.showJunk ? 'Hide junk' : 'Show junk';
-  junkBtn.addEventListener('click', () => {
-    emailState.showJunk = !emailState.showJunk;
-    loadEmailTab();
-  });
-  toolbar.appendChild(junkBtn);
-  sidebar.appendChild(toolbar);
-
-  const digest = renderEmailDigest();
-  if (digest) sidebar.appendChild(digest);
-
+  const events = filteredInboxEvents();
   const list = document.createElement('div');
   list.className = 'ch-list';
   list.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
-  for (const ev of emailState.events) {
+  for (const ev of events) {
     list.appendChild(createEmailSwipeRow(ev));
   }
-  if (emailState.events.length === 0) {
+  if (events.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.innerHTML = emailState.showJunk
-      ? 'No messages.'
-      : 'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
+    if (emailState.inboxFilter === 'junk') {
+      empty.textContent = 'No junk messages.';
+    } else if (emailState.inboxFilter === 'alert') {
+      empty.textContent = 'No alerts.';
+    } else if (emailState.inboxFilter === 'review') {
+      empty.textContent = 'No messages need review.';
+    } else {
+      empty.innerHTML =
+        'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
+    }
     list.appendChild(empty);
   }
   sidebar.appendChild(list);
@@ -6776,7 +6816,7 @@ function renderEmailPanel() {
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
 
-  const ev = emailState.events.find((e) => e.id === emailState.activeId);
+  const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
   if (!ev) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
@@ -6893,6 +6933,7 @@ async function boot() {
   initTopbarMenus();
   initFooterNav();
   initFooterNavScrollCollapse();
+  initInboxHeaderRefresh();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
@@ -6903,6 +6944,7 @@ async function boot() {
   syncEmailPoll();
   syncInboxBadgePoll();
   syncFooterNav();
+  syncInboxHeaderControls();
 }
 
 boot();

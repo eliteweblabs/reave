@@ -93,7 +93,7 @@ const { userId } = Astro.locals.auth();
         padding-bottom: var(--footer-scroll-pad);
       }
 
-      /* Header clearance on inner columns — not on panel shells (avoids dead bands in DevTools). */
+      /* Floating header clearance — transparent top bar; inset on columns, not panel shells. */
       #chat-panel > .ch-sidebar,
       #chat-panel > .ch-pane,
       #email-panel > .ch-sidebar,
@@ -626,7 +626,7 @@ const { userId } = Astro.locals.auth();
         border-right: 1px solid var(--panel-border);
         display: flex;
         flex-direction: column;
-        background: var(--panel);
+        background: var(--bg);
         overflow: hidden;
       }
 
@@ -1272,7 +1272,7 @@ const { userId } = Astro.locals.auth();
         border-right: 1px solid var(--panel-border);
         display: flex;
         flex-direction: column;
-        background: var(--panel);
+        background: var(--bg);
         overflow: hidden;
       }
       .ch-list {
@@ -1482,7 +1482,7 @@ const { userId } = Astro.locals.auth();
         align-items: flex-end;
         padding: 0.75rem 1rem;
         border-top: 1px solid var(--panel-border);
-        background: var(--panel);
+        background: var(--bg);
         transition: background 0.12s, box-shadow 0.12s;
         min-width: 0;
         max-width: 100%;
@@ -1705,25 +1705,43 @@ const { userId } = Astro.locals.auth();
         background: var(--bg);
         z-index: 10;
       }
-      .em-toolbar {
+      .em-filter-tabs {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.55rem 0.65rem;
+        gap: 0.35rem;
+        padding: 0.45rem 0.65rem;
         border-bottom: 1px solid var(--panel-border);
+        overflow-x: auto;
+        scrollbar-width: none;
       }
-      .em-refresh {
-        font: inherit;
-        font-size: 0.75rem;
-        color: var(--muted);
+      .em-filter-tabs::-webkit-scrollbar { display: none; }
+      .em-filter-tab {
+        flex: 1;
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.45rem;
+        border: 1px solid transparent;
+        border-radius: 8px;
         background: transparent;
-        border: 1px solid var(--panel-border);
-        border-radius: 6px;
-        padding: 0.25rem 0.55rem;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 600;
         cursor: pointer;
+        white-space: nowrap;
       }
-      .em-refresh:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
+      .em-filter-tab:hover { color: var(--fg); background: rgba(255,255,255,0.04); }
+      .em-filter-tab.active {
+        color: var(--fg);
+        background: rgba(255,255,255,0.06);
+        border-color: var(--panel-border);
+      }
+      .em-filter-count {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+      }
       .em-list-item {
         width: 100%;
         display: flex;
@@ -1901,13 +1919,6 @@ const { userId } = Astro.locals.auth();
         background: var(--card);
         border: 1px solid var(--card-border);
         border-radius: 8px;
-      }
-      .em-digest {
-        font-size: 0.72rem;
-        color: var(--muted);
-        padding: 0.45rem 0.65rem;
-        border-bottom: 1px solid var(--panel-border);
-        line-height: 1.4;
       }
       .em-item-summary {
         font-size: 0.82rem;
@@ -2619,7 +2630,7 @@ const { userId } = Astro.locals.auth();
 
     <AdminFooterNav />
 
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629h"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250629i"></script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629e"></script>
   </body>
 </html>

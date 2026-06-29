@@ -89,16 +89,28 @@ if (userId) {
   {userId && (
     <div class="app-header-end topbar-end">
       {adminShell ? (
-        <button
-          type="button"
-          id="push-enable-btn"
-          class="app-header-icon-btn topbar-icon-btn topbar-push-btn"
-          aria-label="Enable push notifications"
-          title="Enable push notifications"
-          hidden
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-        </button>
+        <>
+          <button
+            type="button"
+            id="push-enable-btn"
+            class="app-header-icon-btn topbar-icon-btn topbar-push-btn"
+            aria-label="Enable push notifications"
+            title="Enable push notifications"
+            hidden
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          </button>
+          <button
+            type="button"
+            id="inbox-refresh-btn"
+            class="app-header-icon-btn topbar-icon-btn topbar-inbox-refresh-btn"
+            aria-label="Refresh inbox"
+            title="Refresh inbox"
+            hidden
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+          </button>
+        </>
       ) : (
         <>
           <div class="app-header-menu topbar-menu topbar-tools-menu">
@@ -191,18 +203,12 @@ if (userId) {
   .app-header--admin {
     z-index: 20;
     min-height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
-    background: var(--bg, #0a0d14);
-    border-bottom: 1px solid rgba(35, 44, 58, 0.45);
+    background: transparent;
+    border-bottom: none;
   }
 
   .app-header--admin::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: rgba(10, 13, 20, 0.45);
-    backdrop-filter: blur(16px) saturate(1.1);
-    -webkit-backdrop-filter: blur(16px) saturate(1.1);
-    pointer-events: none;
+    content: none;
   }
 
   .app-header--admin > * {
@@ -313,7 +319,8 @@ if (userId) {
     box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.5);
   }
 
-  .topbar-push-btn[hidden] {
+  .topbar-push-btn[hidden],
+  .topbar-inbox-refresh-btn[hidden] {
     display: none !important;
   }
 
