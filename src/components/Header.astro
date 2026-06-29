@@ -1,6 +1,7 @@
 ---
 import { clerkClient } from "@clerk/astro/server";
 import { getCompanyConfig } from "../lib/companyConfig";
+import ReaveLogoMark from "./ReaveLogoMark.astro";
 
 interface Props {
   /** Admin SPA shell — tools menu filled by os-map-loader.js */
@@ -12,6 +13,9 @@ interface Props {
 const { adminShell = false, hideLogo = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
+const logoPath = company.logoPath || "/logo.png";
+const useDifferenceLogo =
+  logoPath === "/logo.png" || logoPath === "/reave-logo.png" || logoPath.endsWith("/logo.png");
 
 const adminSpaTabs = [
   { tab: "chats", label: "Chats", icon: "💬" },
@@ -58,8 +62,16 @@ if (userId) {
   id={adminShell ? "topbar" : undefined}
 >
   {!hideLogo && (
-    <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
-      <img src={company.logoPath} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+    <a
+      href="/"
+      class:list={["app-header-logo brand", { "app-header-logo--difference": useDifferenceLogo }]}
+      aria-label={company.name || "Home"}
+    >
+      {useDifferenceLogo ? (
+        <ReaveLogoMark class="app-header-logo-mark" />
+      ) : (
+        <img src={logoPath} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+      )}
     </a>
   )}
 
@@ -173,10 +185,10 @@ if (userId) {
 
   .app-header--admin {
     z-index: 20;
-    background: rgba(10, 13, 20, 0.72);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(35, 44, 58, 0.6);
+    background: rgba(10, 13, 20, 0.45);
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    border-bottom: 1px solid rgba(35, 44, 58, 0.45);
   }
 
   .app-header--admin .topbar-end {
@@ -193,6 +205,27 @@ if (userId) {
     flex-shrink: 0;
     line-height: 0;
     text-decoration: none;
+  }
+
+  .app-header-logo--difference {
+    color: #fff;
+  }
+
+  .app-header-logo-mark,
+  .reave-logo-mark {
+    display: block;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  .app-header-logo--difference .app-header-logo-mark {
+    mix-blend-mode: difference;
+  }
+
+  @supports not (mix-blend-mode: difference) {
+    .app-header-logo--difference .app-header-logo-mark {
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.35));
+    }
   }
 
   .app-header-logo-img {

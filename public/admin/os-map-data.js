@@ -279,6 +279,7 @@ export const MAPS = {
   rules:     { id: 'rules',     title: 'Rules',      icon: '⚡',  type: 'rules',         nodes: [],             edges: [],             groups: [] },
   work:      { id: 'work',      title: 'Work',       icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
+  profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
 };
 

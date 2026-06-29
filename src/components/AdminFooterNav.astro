@@ -88,10 +88,11 @@ if (userId) {
       <Search size={22} strokeWidth={1.75} />
     </button>
 
-    <a
-      href="/admin/profile"
+    <button
+      type="button"
       id="footer-nav-profile"
       class="footer-nav-btn footer-nav-profile"
+      data-nav="profile"
       aria-label="Profile"
     >
       {avatarUrl ? (
@@ -99,7 +100,7 @@ if (userId) {
       ) : (
         <span class="footer-nav-initials">{userInitials || "?"}</span>
       )}
-    </a>
+    </button>
   </div>
 </nav>
 
@@ -218,17 +219,10 @@ if (userId) {
     width: 2.5rem;
     height: 2.5rem;
     max-width: 2.5rem;
+    padding: 0;
     overflow: hidden;
     border: none;
     background: transparent;
-    text-decoration: none;
-    transition:
-      color 0.15s,
-      background 0.15s,
-      opacity 0.24s ease,
-      max-width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      width 0.32s cubic-bezier(0.4, 0, 0.2, 1),
-      margin 0.32s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .footer-nav-profile:hover {

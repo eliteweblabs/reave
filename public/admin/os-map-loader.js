@@ -169,6 +169,7 @@ function isPanelMapKey(key) {
   const t = MAPS[key]?.type;
   return (
     t === 'home' ||
+    t === 'profile' ||
     t === 'documents' ||
     t === 'knowledge' ||
     t === 'work' ||
@@ -183,6 +184,8 @@ function isPanelMapKey(key) {
 function activateMapPanel(opts = {}) {
   if (MAP.type === 'home') {
     loadHomeDashboard();
+  } else if (MAP.type === 'profile') {
+    loadProfileTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -206,7 +209,7 @@ function activateMapPanel(opts = {}) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'home' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
+  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
 }
 
 function setPanelDisplay(id, display) {
@@ -220,6 +223,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('tools', isPanel ? 'none' : '');
   setPanelDisplay('legend', isPanel ? 'none' : '');
   setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
+  setPanelDisplay('profile-panel', MAP.type === 'profile' ? 'flex' : 'none');
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
@@ -1690,11 +1694,194 @@ async function loadHomeDashboard() {
   }
 }
 
+const PROFILE_TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'America/Toronto',
+  'America/Vancouver',
+  'Europe/London',
+  'Europe/Paris',
+  'Europe/Berlin',
+  'Asia/Tokyo',
+  'Asia/Shanghai',
+  'Asia/Kolkata',
+  'Australia/Sydney',
+  'Pacific/Auckland',
+  'UTC',
+];
+
+function profileTimezoneOptions(selected) {
+  return PROFILE_TIMEZONES.map((tz) => {
+    const label = tz.replace(/_/g, ' ');
+    const sel = tz === selected ? ' selected' : '';
+    return `<option value="${escHtml(tz)}"${sel}>${escHtml(label)}</option>`;
+  }).join('');
+}
+
+function showProfileAlert(el, msg, type) {
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `prof-alert prof-alert--${type}`;
+  el.hidden = false;
+  clearTimeout(el.dataset.timerId ? Number(el.dataset.timerId) : 0);
+  const timerId = window.setTimeout(() => {
+    el.hidden = true;
+  }, 4000);
+  el.dataset.timerId = String(timerId);
+}
+
+function bindProfileForms(root) {
+  const profileForm = root.querySelector('#profile-form');
+  const profileBtn = root.querySelector('#profile-save-btn');
+  const profileAlert = root.querySelector('#profile-alert');
+  const companyForm = root.querySelector('#company-form');
+  const companyBtn = root.querySelector('#company-save-btn');
+  const companyAlert = root.querySelector('#company-alert');
+
+  profileForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(profileForm instanceof HTMLFormElement) || !(profileBtn instanceof HTMLButtonElement)) return;
+    profileBtn.disabled = true;
+    profileBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(profileForm))),
+      });
+      const json = await res.json();
+      if (res.ok) showProfileAlert(profileAlert, 'Profile saved.', 'success');
+      else showProfileAlert(profileAlert, json.error || 'Save failed.', 'error');
+    } catch {
+      showProfileAlert(profileAlert, 'Network error — please try again.', 'error');
+    } finally {
+      profileBtn.disabled = false;
+      profileBtn.textContent = 'Save Profile';
+    }
+  });
+
+  companyForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(companyForm instanceof HTMLFormElement) || !(companyBtn instanceof HTMLButtonElement)) return;
+    companyBtn.disabled = true;
+    companyBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(companyForm))),
+      });
+      const json = await res.json();
+      if (res.ok) showProfileAlert(companyAlert, 'Company details saved.', 'success');
+      else showProfileAlert(companyAlert, json.error || 'Save failed.', 'error');
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      companyBtn.disabled = false;
+      companyBtn.textContent = 'Save Company Details';
+    }
+  });
+}
+
+function renderProfilePanel(profile, company) {
+  const p = profile || {};
+  const c = company || {};
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Profile</h1>` +
+        `<p class="prof-subtitle">Your account details and preferences.</p>` +
+        `<div id="profile-alert" class="prof-alert" hidden></div>` +
+        `<form id="profile-form" class="prof-form">` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="profile-firstName">First Name</label>` +
+            `<input id="profile-firstName" name="firstName" type="text" value="${escHtml(p.firstName || '')}" autocomplete="given-name" /></div>` +
+            `<div class="prof-field"><label for="profile-lastName">Last Name</label>` +
+            `<input id="profile-lastName" name="lastName" type="text" value="${escHtml(p.lastName || '')}" autocomplete="family-name" /></div>` +
+          `</div>` +
+          `<div class="prof-field"><label for="profileCompanyName">Your Company (optional)</label>` +
+          `<input id="profileCompanyName" name="companyName" type="text" value="${escHtml(p.companyName || '')}" autocomplete="organization" />` +
+          `<span class="prof-hint">Your personal affiliation — not the platform brand shown to clients.</span></div>` +
+          `<div class="prof-field"><label for="profile-email">Email</label>` +
+          `<input id="profile-email" name="email" type="email" value="${escHtml(p.email || '')}" disabled autocomplete="email" />` +
+          `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="profile-phone">Phone</label>` +
+            `<input id="profile-phone" name="phone" type="tel" value="${escHtml(p.phone || '')}" autocomplete="tel" placeholder="+1 (555) 000-0000" /></div>` +
+            `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
+            `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
+          `</div>` +
+          `<div class="prof-actions"><button type="submit" id="profile-save-btn" class="prof-btn-primary">Save Profile</button></div>` +
+        `</form>` +
+      `</div>` +
+      `<div class="prof-card">` +
+        `<h2 class="prof-title prof-title--section">Company details</h2>` +
+        `<p class="prof-subtitle">Branding shown on client pages, emails, documents, and legal pages.</p>` +
+        `<div id="company-alert" class="prof-alert" hidden></div>` +
+        `<form id="company-form" class="prof-form">` +
+          `<div class="prof-field"><label for="company-name">Display name</label>` +
+          `<input id="company-name" name="name" type="text" value="${escHtml(c.name || '')}" placeholder="Acme Corp" autocomplete="organization" /></div>` +
+          `<div class="prof-field"><label for="company-legalName">Legal name</label>` +
+          `<input id="company-legalName" name="legalName" type="text" value="${escHtml(c.legalName || '')}" placeholder="Acme Corporation LLC" />` +
+          `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
+          `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
+          `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="company-domain">Website domain</label>` +
+            `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocomplete="url" /></div>` +
+            `<div class="prof-field"><label for="company-logoPath">Logo path</label>` +
+            `<input id="company-logoPath" name="logoPath" type="text" value="${escHtml(c.logoPath || '')}" placeholder="/logo.png" /></div>` +
+          `</div>` +
+          `<span class="prof-hint prof-hint--block">Upload your logo to <code>/public</code> and enter the path here (e.g. <code>/logo.png</code>).</span>` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
+            `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
+            `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
+            `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
+          `</div>` +
+          `<span class="prof-hint prof-hint--block">Outbound email is used when <code>RESEND_FROM</code> is not set. Domain must be verified in Resend.</span>` +
+          `<div class="prof-actions"><button type="submit" id="company-save-btn" class="prof-btn-primary">Save Company Details</button></div>` +
+        `</form>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+async function loadProfileTab() {
+  const root = document.getElementById('profile-panel');
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
+
+  try {
+    const [profileRes, companyRes] = await Promise.all([
+      fetch('/api/admin/profile', { cache: 'no-store' }),
+      fetch('/api/admin/company', { cache: 'no-store' }),
+    ]);
+    const profileData = await profileRes.json();
+    const companyData = await companyRes.json();
+    if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
+    if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
+    root.innerHTML = renderProfilePanel(profileData.profile, companyData.company);
+    bindProfileForms(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Profile</h1>` +
+        `<p class="dash-empty">Could not load profile: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
 function footerNavActiveKey() {
   if (searchOverlayOpen) return 'search';
   if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
+  if (activeKey === 'profile') return 'profile';
   return null;
 }
 
@@ -1717,7 +1904,7 @@ function syncFooterChatNav() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+  '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
 
 function collapseFooterNav() {
   if (footerNavCollapsed) return;
@@ -1787,6 +1974,10 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-search')?.addEventListener('click', () => {
     toggleSearchOverlay();
+  });
+  document.getElementById('footer-nav-profile')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    setActiveMap('profile', { force: activeKey === 'profile' });
   });
   void refreshInboxBadgeQuiet();
 }
