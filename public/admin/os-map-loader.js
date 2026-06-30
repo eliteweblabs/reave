@@ -1989,10 +1989,20 @@ function footerNavActiveKey() {
   return null;
 }
 
+function footerNavShowsCreate(nav) {
+  if (footerNavCollapsed) return false;
+  const navEl = document.getElementById('admin-footer-nav');
+  if (navEl?.classList.contains('footer-nav-compose-open')) return false;
+  const activeNav = footerNavActiveKey();
+  if (nav === 'chat') return activeKey === 'chats' && activeNav === 'chat';
+  if (nav === 'work') return activeKey === 'work' && activeNav === 'work';
+  return false;
+}
+
 function syncFooterChatNav() {
   const btn = document.getElementById('footer-nav-chat');
   if (!btn) return;
-  const onChat = activeKey === 'chats';
+  const create = footerNavShowsCreate('chat');
   let iconEl = btn.querySelector('.footer-nav-chat-icon');
   if (!iconEl) {
     iconEl = document.createElement('span');
@@ -2002,16 +2012,16 @@ function syncFooterChatNav() {
     btn.insertBefore(iconEl, badge || null);
     btn.querySelector(':scope > svg')?.remove();
   }
-  iconEl.innerHTML = navIcon(onChat ? 'plus' : 'message-circle', 22);
-  btn.classList.toggle('footer-nav-btn--create', onChat);
-  btn.setAttribute('aria-label', onChat ? 'New chat' : 'Chats');
-  btn.title = onChat ? 'New chat' : 'Chats';
+  iconEl.innerHTML = navIcon(create ? 'plus' : 'message-circle', 22);
+  btn.classList.toggle('footer-nav-btn--create', create);
+  btn.setAttribute('aria-label', create ? 'New chat' : 'Chats');
+  btn.title = create ? 'New chat' : 'Chats';
 }
 
 function syncFooterWorkNav() {
   const btn = document.getElementById('footer-nav-work');
   if (!btn) return;
-  const onWork = activeKey === 'work';
+  const create = footerNavShowsCreate('work');
   let iconEl = btn.querySelector('.footer-nav-work-icon');
   if (!iconEl) {
     iconEl = document.createElement('span');
@@ -2020,16 +2030,14 @@ function syncFooterWorkNav() {
     btn.appendChild(iconEl);
     btn.querySelector(':scope > svg')?.remove();
   }
-  iconEl.innerHTML = navIcon(onWork ? 'plus' : 'briefcase', 22);
-  btn.classList.toggle('footer-nav-btn--create', onWork);
-  btn.setAttribute('aria-label', onWork ? 'New project' : 'Projects');
-  btn.title = onWork ? 'New project' : 'Projects';
+  iconEl.innerHTML = navIcon(create ? 'plus' : 'briefcase', 22);
+  btn.classList.toggle('footer-nav-btn--create', create);
+  btn.setAttribute('aria-label', create ? 'New project' : 'Projects');
+  btn.title = create ? 'New project' : 'Projects';
 }
 
 function footerNavCreateModeActive(nav) {
-  const btnId = nav === 'chat' ? 'footer-nav-chat' : nav === 'work' ? 'footer-nav-work' : null;
-  if (!btnId) return false;
-  return document.getElementById(btnId)?.classList.contains('footer-nav-btn--create') ?? false;
+  return footerNavShowsCreate(nav);
 }
 
 const FOOTER_PANEL_SELECTOR =
@@ -2044,6 +2052,8 @@ function collapseFooterNav() {
   const homeBtn = document.getElementById('footer-nav-home');
   homeBtn?.setAttribute('title', 'Show navigation');
   renderFooterNavBadges();
+  syncFooterChatNav();
+  syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2054,6 +2064,8 @@ function expandFooterNav() {
   const homeBtn = document.getElementById('footer-nav-home');
   homeBtn?.setAttribute('title', 'Home');
   renderFooterNavBadges();
+  syncFooterChatNav();
+  syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2141,6 +2153,7 @@ function syncFooterChatComposeLayout() {
   } else {
     document.documentElement.style.removeProperty('--footer-nav-h');
   }
+  syncFooterChatNav();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2466,8 +2479,17 @@ function openSearchOverlay() {
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
   renderSearchResults('');
+  syncSearchOverlayClearBtn();
   syncFooterNav();
   requestAnimationFrame(() => input?.focus());
+}
+
+function syncSearchOverlayClearBtn() {
+  const input = document.getElementById('search-overlay-input');
+  const clearBtn = document.getElementById('search-overlay-clear');
+  if (!input || !clearBtn) return;
+  const hasText = input.value.length > 0;
+  clearBtn.hidden = !hasText;
 }
 
 function closeSearchOverlay() {
@@ -2478,6 +2500,7 @@ function closeSearchOverlay() {
   overlay.setAttribute('aria-hidden', 'true');
   const input = document.getElementById('search-overlay-input');
   if (input) input.value = '';
+  syncSearchOverlayClearBtn();
   syncFooterNav();
 }
 
@@ -2575,14 +2598,21 @@ async function renderSearchResults(query) {
 
 function initSearchOverlay() {
   const input = document.getElementById('search-overlay-input');
-  const closeBtn = document.getElementById('search-overlay-close');
+  const clearBtn = document.getElementById('search-overlay-clear');
 
   input?.addEventListener('input', () => {
+    syncSearchOverlayClearBtn();
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => renderSearchResults(input.value), 180);
   });
 
-  closeBtn?.addEventListener('click', () => closeSearchOverlay());
+  clearBtn?.addEventListener('click', () => {
+    if (!input) return;
+    input.value = '';
+    syncSearchOverlayClearBtn();
+    renderSearchResults('');
+    input.focus();
+  });
 
   if (!document.documentElement.dataset.searchOverlayBound) {
     document.documentElement.dataset.searchOverlayBound = '1';
@@ -4307,12 +4337,6 @@ function renderWorkEditor() {
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
-  const hint = document.createElement('div');
-  hint.className = 'de-empty';
-  hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'Jobs in src/knowledge/jobs/ · pick or add a client';
-  sidebar.appendChild(hint);
-
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
@@ -4665,6 +4689,16 @@ function mountWorkClientPicker(parent, initial, onChange) {
   };
 }
 
+function createWorkHeaderTitleInput(value, placeholder) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'de-doc-name de-header-title-input';
+  input.placeholder = placeholder || 'Job title';
+  input.value = value || '';
+  input.setAttribute('aria-label', 'Job title');
+  return input;
+}
+
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
@@ -4678,24 +4712,12 @@ function renderNewWorkForm(pane) {
       renderWorkEditor();
     },
   }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = 'New job';
-  header.appendChild(titleEl);
+  const titleInput = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
+  header.appendChild(titleInput);
   pane.appendChild(header);
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
-
-  const titleLabel = document.createElement('label');
-  titleLabel.className = 'de-label';
-  titleLabel.textContent = 'Title';
-  const titleInput = document.createElement('input');
-  titleInput.className = 'de-input';
-  titleInput.placeholder = 'e.g. New website for Acme';
-  titleInput.value = workState.draft?.title || '';
-  titleLabel.appendChild(titleInput);
-  fields.appendChild(titleLabel);
 
   let clientPicker;
   clientPicker = mountWorkClientPicker(fields, workState.draft, () => { workState.dirty = true; });
@@ -4872,10 +4894,8 @@ function renderEditWorkForm(pane) {
           renderWorkEditor();
         },
       }));
-      const titleEl = document.createElement('span');
-      titleEl.className = 'de-doc-name';
-      titleEl.textContent = data.title;
-      header.appendChild(titleEl);
+      const titleInput = createWorkHeaderTitleInput(workState.draft.title);
+      header.appendChild(titleInput);
 
       if (data.contact_uid) {
         appendPortalShareBtn(header, data.contact_uid, {
@@ -4888,15 +4908,6 @@ function renderEditWorkForm(pane) {
 
       const fields = document.createElement('div');
       fields.className = 'de-fields';
-
-      const titleLabel = document.createElement('label');
-      titleLabel.className = 'de-label';
-      titleLabel.textContent = 'Title';
-      const titleInput = document.createElement('input');
-      titleInput.className = 'de-input';
-      titleInput.value = workState.draft.title;
-      titleLabel.appendChild(titleInput);
-      fields.appendChild(titleLabel);
 
       const ta = document.createElement('textarea');
       ta.className = 'de-textarea';

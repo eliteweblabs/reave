@@ -373,7 +373,7 @@ const { userId } = Astro.locals.auth();
       .control-field > .de-new-btn.ch-new-btn:active {
         transform: scale(0.94);
       }
-      .control-field > .search-overlay-close,
+      .control-field > .search-overlay-clear,
       .control-field > .ch-send,
       .control-field > .ch-compose-actions > .ch-send {
         width: calc(var(--control-h) - var(--control-inset) * 2);
@@ -1162,6 +1162,25 @@ const { userId } = Astro.locals.auth();
         font-size: 0.95rem;
         font-weight: 700;
         color: var(--fg);
+      }
+      .de-header-title-input {
+        font: inherit;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        padding: 0;
+        outline: none;
+        width: 100%;
+      }
+      .de-header-title-input::placeholder {
+        color: var(--muted);
+        opacity: 0.85;
+      }
+      .de-header-title-input:focus {
+        background: var(--card);
+        border: 1px solid #3b82f6;
+        padding: 0.15rem 0.45rem;
+        white-space: normal;
       }
       .de-doc-slug {
         font-size: 0.72rem;
@@ -3192,7 +3211,7 @@ const { userId } = Astro.locals.auth();
         font-size: 1rem;
         outline: none;
       }
-      .search-overlay-close {
+      .search-overlay-clear {
         flex: 0 0 auto;
         border: 1px solid var(--panel-border);
         background: transparent;
@@ -3201,7 +3220,10 @@ const { userId } = Astro.locals.auth();
         display: grid;
         place-items: center;
       }
-      .search-overlay-close:hover { color: var(--fg); border-color: var(--border-strong-hover); }
+      .search-overlay-clear[hidden] {
+        display: none !important;
+      }
+      .search-overlay-clear:hover { color: var(--fg); border-color: var(--border-strong-hover); }
       .search-overlay-results {
         flex: 1;
         overflow-y: auto;
@@ -3298,12 +3320,12 @@ const { userId } = Astro.locals.auth();
           <input
             id="search-overlay-input"
             class="search-overlay-input"
-            type="search"
+            type="text"
             placeholder="Search sections and clients…"
             autocomplete="off"
             aria-label="Search"
           />
-          <button type="button" id="search-overlay-close" class="search-overlay-close" aria-label="Close search">
+          <button type="button" id="search-overlay-clear" class="search-overlay-clear" aria-label="Clear search" hidden>
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
           </button>
         </div>
@@ -3372,6 +3394,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630i"></script>
   </body>
 </html>
