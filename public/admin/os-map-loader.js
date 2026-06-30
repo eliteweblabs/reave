@@ -3,10 +3,10 @@ import {
   IOS_ICONS,
   createIosIconBtn,
   createCenteredListEmpty,
-  listSearchAddNew,
+  listSearchSubheader,
   createPanelBackBtn,
   matchesListSearch,
-} from './admin-ui.js?v=20250630c';
+} from './admin-ui.js?v=20250630g';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -2008,6 +2008,30 @@ function syncFooterChatNav() {
   btn.title = onChat ? 'New chat' : 'Chats';
 }
 
+function syncFooterWorkNav() {
+  const btn = document.getElementById('footer-nav-work');
+  if (!btn) return;
+  const onWork = activeKey === 'work';
+  let iconEl = btn.querySelector('.footer-nav-work-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-work-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    btn.appendChild(iconEl);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  iconEl.innerHTML = navIcon(onWork ? 'plus' : 'briefcase', 22);
+  btn.classList.toggle('footer-nav-btn--create', onWork);
+  btn.setAttribute('aria-label', onWork ? 'New project' : 'Projects');
+  btn.title = onWork ? 'New project' : 'Projects';
+}
+
+function footerNavCreateModeActive(nav) {
+  const btnId = nav === 'chat' ? 'footer-nav-chat' : nav === 'work' ? 'footer-nav-work' : null;
+  if (!btnId) return false;
+  return document.getElementById(btnId)?.classList.contains('footer-nav-btn--create') ?? false;
+}
+
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
 const footerPanelScrollTops = new WeakMap();
@@ -2138,8 +2162,10 @@ function footerNavIndicatorHidden() {
   if (!indicator || indicator.hidden) return true;
   const nav = document.getElementById('admin-footer-nav');
   if (nav?.classList.contains('footer-nav-compose-open')) return true;
-  const chatBtn = document.getElementById('footer-nav-chat');
-  return activeKey === 'chats' && chatBtn?.classList.contains('footer-nav-btn--create');
+  return (
+    (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
+    (activeKey === 'work' && footerNavCreateModeActive('work'))
+  );
 }
 
 function getVisibleFooterNavButtons() {
@@ -2236,6 +2262,10 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'work') {
+    if (activeKey === 'work') {
+      startNewProject();
+      return;
+    }
     setActiveMap('work', { force: activeKey === 'work' });
   }
 }
@@ -2334,8 +2364,9 @@ function syncFooterNavIndicator() {
   if (!indicator || !pill) return;
 
   const activeNav = footerNavActiveKey();
-  const chatBtn = document.getElementById('footer-nav-chat');
-  const hideForCreate = activeNav === 'chat' && chatBtn?.classList.contains('footer-nav-btn--create');
+  const hideForCreate =
+    (activeNav === 'chat' && footerNavCreateModeActive('chat')) ||
+    (activeNav === 'work' && footerNavCreateModeActive('work'));
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
@@ -2371,6 +2402,7 @@ function syncFooterNav() {
   });
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
   syncFooterChatNav();
+  syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
   if (activeKey === 'home') syncHomeBadge(0);
   if (activeKey === 'chats' || activeKey === 'knowledge') syncChatBadge(0);
@@ -2411,6 +2443,10 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-work')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (activeKey === 'work') {
+      startNewProject();
+      return;
+    }
     setActiveMap('work', { force: activeKey === 'work' });
   });
   window.addEventListener('resize', () => {
@@ -2801,7 +2837,7 @@ function renderRulesEditor() {
       matchesListSearch(ruleState.search, rule.title, rule.status, ruleSubline(rule), rule.description),
     );
 
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: ruleState.search,
       placeholder: `Search ${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}`,
@@ -2810,7 +2846,6 @@ function renderRulesEditor() {
         renderRulesEditor();
       },
     },
-    addNew: { label: 'New rule', onClick: () => startNewRule() },
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -3292,7 +3327,7 @@ function renderDocEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: search,
       placeholder: `Search ${templates.length} ${templates.length === 1 ? 'document' : 'documents'}`,
@@ -3301,7 +3336,6 @@ function renderDocEditor() {
         renderDocEditor();
       },
     },
-    addNew: { label: 'New document', onClick: () => startNewDocument() },
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -3878,20 +3912,12 @@ function renderKnowledgeEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: search,
       placeholder: `Search ${entries.length} ${entries.length === 1 ? 'doc' : 'docs'}`,
       onInput: (value) => {
         knowledgeState.search = value;
-        renderKnowledgeEditor();
-      },
-    },
-    addNew: {
-      label: 'New knowledge doc',
-      onClick: () => {
-        knowledgeState.activeSlug = '__new__';
-        knowledgeState.dirty = false;
         renderKnowledgeEditor();
       },
     },
@@ -4210,44 +4236,72 @@ async function loadWorkTab() {
   renderWorkEditor();
 }
 
+function startNewProject() {
+  workState.activeSlug = '__new__';
+  workState.dirty = false;
+  workState.draft = {
+    title: '',
+    contact_uid: '',
+    contact_name: '',
+    status: 'inquiry',
+    priority: 'normal',
+    due_date: '',
+    value: '',
+    tags: '',
+    source: '',
+    body: '',
+  };
+  renderWorkEditor();
+}
+
+function fillWorkSidebarList(list) {
+  const { search } = workState;
+  const visibleJobs = filterWorkJobs(workState.jobs, search);
+  list.innerHTML = '';
+  for (const job of visibleJobs) {
+    list.appendChild(createWorkSwipeRow(job));
+  }
+  if (visibleJobs.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
+    list.appendChild(empty);
+  }
+}
+
+function refreshWorkSidebarList() {
+  const root = getWorkEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderWorkEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput) {
+    const count = workState.jobs.length;
+    const jobLabel = count === 1 ? 'project' : 'projects';
+    searchInput.placeholder = `Search ${count} ${jobLabel}`;
+  }
+  fillWorkSidebarList(list);
+}
+
 function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
   const { jobs, activeSlug, search } = workState;
-  const visibleJobs = filterWorkJobs(jobs, search);
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
   const jobLabel = jobs.length === 1 ? 'project' : 'projects';
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: search,
       placeholder: `Search ${jobs.length} ${jobLabel}`,
       onInput: (value) => {
         workState.search = value;
-        renderWorkEditor();
-      },
-    },
-    addNew: {
-      label: 'New project',
-      onClick: () => {
-        workState.activeSlug = '__new__';
-        workState.dirty = false;
-        workState.draft = {
-          title: '',
-          contact_uid: '',
-          contact_name: '',
-          status: 'inquiry',
-          priority: 'normal',
-          due_date: '',
-          value: '',
-          tags: '',
-          source: '',
-          body: '',
-        };
-        renderWorkEditor();
+        refreshWorkSidebarList();
       },
     },
   });
@@ -4262,15 +4316,7 @@ function renderWorkEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const job of visibleJobs) {
-    list.appendChild(createWorkSwipeRow(job));
-  }
-  if (visibleJobs.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
-    list.appendChild(empty);
-  }
+  fillWorkSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
 
@@ -5218,22 +5264,13 @@ function renderClientsEditor() {
   sidebar.className = 'ch-sidebar';
 
   const clientLabel = total === 1 ? 'client' : 'clients';
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: clientState.search,
       placeholder: `Search ${total} ${clientLabel}`,
       onInput: (value) => {
         clientState.search = value;
         scheduleClientSearch();
-      },
-    },
-    addNew: {
-      label: 'New client',
-      onClick: () => {
-        clientState.activeUid = '__new__';
-        clientState.dirty = false;
-        clientState.draft = { name: '', email: '', phone: '', company: '', notes: '' };
-        renderClientsEditor();
       },
     },
   });
@@ -6330,29 +6367,15 @@ function createChatSwipeRow(t) {
   ]);
 }
 
-function renderChatSidebar() {
-  const sidebar = document.createElement('div');
-  sidebar.className = 'ch-sidebar';
-
-  const visibleThreads = chatState.threads.filter((t) =>
+function visibleChatThreads() {
+  return chatState.threads.filter((t) =>
     matchesListSearch(chatState.search, t.title, t.id),
   );
-  const subheader = listSearchAddNew({
-    search: {
-      value: chatState.search,
-      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'chat' : 'chats'}`,
-      onInput: (value) => {
-        chatState.search = value;
-        renderChatPanel();
-      },
-    },
-    addNew: false,
-  });
-  if (subheader) sidebar.appendChild(subheader.el);
+}
 
-  const list = document.createElement('div');
-  list.className = 'ch-list';
-  bindSwipeListScroll(list);
+function fillChatSidebarList(list) {
+  const visibleThreads = visibleChatThreads();
+  list.innerHTML = '';
   for (const t of visibleThreads) {
     list.appendChild(createChatSwipeRow(t));
   }
@@ -6362,6 +6385,43 @@ function renderChatSidebar() {
     empty.textContent = chatState.search.trim() ? 'No matches.' : 'No chats yet.';
     list.appendChild(empty);
   }
+}
+
+function refreshChatSidebarList() {
+  const root = getChatPanel();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderChatPanel();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput) {
+    const count = chatState.threads.length;
+    searchInput.placeholder = `Search ${count} ${count === 1 ? 'chat' : 'chats'}`;
+  }
+  fillChatSidebarList(list);
+}
+
+function renderChatSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const subheader = listSearchSubheader({
+    search: {
+      value: chatState.search,
+      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'chat' : 'chats'}`,
+      onInput: (value) => {
+        chatState.search = value;
+        refreshChatSidebarList();
+      },
+    },
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
+  fillChatSidebarList(list);
   sidebar.appendChild(list);
   return sidebar;
 }
@@ -7652,7 +7712,7 @@ function renderEmailSidebar() {
           : emailState.inboxFilter === 'routed'
             ? counts.routed
             : counts.all;
-  const subheader = listSearchAddNew({
+  const subheader = listSearchSubheader({
     search: {
       value: emailState.search,
       placeholder: `Search ${countForTab} ${countForTab === 1 ? 'message' : 'messages'}`,
@@ -7665,7 +7725,6 @@ function renderEmailSidebar() {
         renderEmailPanel();
       },
     },
-    addNew: false,
     below: renderEmailFilterTabs(),
   });
   if (subheader) sidebar.appendChild(subheader.el);

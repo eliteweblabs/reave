@@ -169,6 +169,11 @@ export function listSearchAddNew(opts = {}) {
   return null;
 }
 
+/** Standard sidebar search row — no inline create FAB (footer nav handles create). */
+export function listSearchSubheader(opts = {}) {
+  return listSearchAddNew({ ...opts, addNew: false });
+}
+
 /**
  * Detail-pane subheader (.de-header): optional back chevron + title/subtitle/actions.
  */
