@@ -330,7 +330,9 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   }
 
   .footer-nav-btn.active,
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+  .admin-footer-nav.footer-nav-collapsed #footer-nav-home,
+  .footer-nav-btn.footer-nav-btn--create,
+  .footer-nav-btn.footer-nav-btn--create.active {
     border-radius: 999px;
   }
 
@@ -339,12 +341,32 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     background: transparent;
   }
 
+  .footer-nav-btn.footer-nav-btn--create,
+  .footer-nav-btn.footer-nav-btn--create.active {
+    color: #fff;
+    background: var(--create-fab-bg);
+    box-shadow: var(--create-fab-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .footer-nav-btn.footer-nav-btn--create:hover {
+    color: #fff;
+    filter: brightness(1.08);
+    box-shadow: 0 4px 20px rgba(192, 38, 211, 0.58), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+
+  .footer-nav-btn.footer-nav-btn--create svg {
+    stroke-width: 2.25;
+  }
+
   .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
     color: var(--nav-icon-active);
     background: transparent;
   }
 
-  .footer-nav-btn svg {
+  .footer-nav-btn svg,
+  .footer-nav-chat-icon svg {
     display: block;
     pointer-events: none;
   }

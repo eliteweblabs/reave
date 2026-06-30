@@ -1,5 +1,4 @@
 ---
-import { clerkClient } from "@clerk/astro/server";
 import { getCompanyConfig } from "../lib/companyConfig";
 import {
   MessageCircle,
@@ -44,23 +43,6 @@ const adminSpaTabs = [
 
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
-let avatarUrl: string | null = null;
-let userInitials = "";
-
-if (userId) {
-  try {
-    const client = clerkClient(Astro);
-    const user = await client.users.getUser(userId);
-    avatarUrl = user.imageUrl ?? null;
-    const first = user.firstName?.[0] ?? "";
-    const last = user.lastName?.[0] ?? "";
-    userInitials =
-      ((first + last).toUpperCase() || user.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase()) ??
-      "?";
-  } catch {
-    // Clerk unreachable
-  }
-}
 ---
 
 <header
@@ -114,11 +96,7 @@ if (userId) {
               aria-expanded="false"
               aria-haspopup="true"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" class="topbar-profile-avatar" />
-              ) : (
-                <span class="topbar-profile-initials">{userInitials || "?"}</span>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             </button>
             <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               <button type="button" id="topbar-profile-link" class="topbar-dropdown-item" role="menuitem">
@@ -177,11 +155,7 @@ if (userId) {
               aria-expanded="false"
               aria-haspopup="true"
             >
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="" class="topbar-profile-avatar" />
-              ) : (
-                <span class="topbar-profile-initials">{userInitials || "?"}</span>
-              )}
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
             </button>
             <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
@@ -457,38 +431,27 @@ if (userId) {
   .topbar-profile-btn {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
-    border: 2px solid rgba(168, 85, 247, 0.5);
+    border: none;
+    border-radius: 999px;
     background: transparent;
+    color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
     cursor: pointer;
     padding: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
     flex-shrink: 0;
-    transition: border-color 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s;
   }
 
   .app-header-profile-btn:hover,
   .topbar-profile-btn:hover {
-    border-color: rgba(168, 85, 247, 0.9);
-    box-shadow: 0 0 14px rgba(168, 85, 247, 0.4);
+    color: var(--nav-icon-hover, var(--fg, #e9eef6));
   }
 
-  .topbar-profile-avatar {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-    pointer-events: none;
-  }
-
-  .topbar-profile-initials {
-    font-size: 13px;
-    font-weight: 700;
-    color: #a855f7;
-    letter-spacing: 0.02em;
+  .topbar-profile-btn svg {
+    display: block;
     pointer-events: none;
   }
 
