@@ -10,6 +10,7 @@ import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
+import { parseProposedMeetingStart } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './adminAgentAlert';
 
@@ -48,6 +49,8 @@ type AiTriage = {
   job_slug: string | null;
   note_to_append: string | null;
   reason: string;
+  proposed_meeting_start: string | null;
+  scheduling_note: string | null;
 };
 
 async function runAiTriage(
@@ -74,7 +77,9 @@ Respond with ONLY valid JSON (no markdown fences):
   "summary": "1-2 sentences the owner reads instead of the full email",
   "job_slug": "slug from the job list below, or null",
   "note_to_append": "project-relevant facts to append to the job file, or null",
-  "reason": "short routing explanation"
+  "reason": "short routing explanation",
+  "proposed_meeting_start": "ISO 8601 UTC datetime ONLY when the email proposes a concrete meeting date AND time (e.g. Tuesday at 2pm), otherwise null",
+  "scheduling_note": "short human phrase for the proposed meeting time, or null when not scheduling"
 }
 Categories:
 - junk: marketing, newsletters, spam, bulk receipts, list mail
@@ -82,7 +87,8 @@ Categories:
 - alert: uptime, security, monitoring, auth warnings
 - internal: personal/admin not tied to a client job
 - review: ambiguous — needs human decision
-Pick job_slug only when confident; prefer active/inquiry jobs.`;
+Pick job_slug only when confident; prefer active/inquiry jobs.
+For proposed_meeting_start: require BOTH a specific date and time. Vague availability requests ("let's find a time", "next week") must be null. Deadlines and launch dates are NOT meetings.`;
 
   const user = [
     `From: ${email.from ?? ''}`,
@@ -106,7 +112,7 @@ Pick job_slug only when confident; prefer active/inquiry jobs.`;
       },
       body: JSON.stringify({
         model,
-        max_tokens: 400,
+        max_tokens: 500,
         system,
         messages: [{ role: 'user', content: user }],
       }),
@@ -123,6 +129,10 @@ Pick job_slug only when confident; prefer active/inquiry jobs.`;
       parsed.category = 'review';
     }
     parsed.summary = String(parsed.summary ?? '').trim() || snippet(email.text ?? email.subject ?? '');
+    parsed.scheduling_note = parsed.scheduling_note
+      ? String(parsed.scheduling_note).trim()
+      : null;
+    parsed.proposed_meeting_start = parseProposedMeetingStart(parsed.proposed_meeting_start);
     return parsed;
   } catch (e) {
     console.warn('[email] AI triage failed', e);
@@ -175,6 +185,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let contactName: string | null = null;
   let routeNote = '';
   let action = 'classified';
+  let proposedMeetingStart: string | null = null;
+  let schedulingNote = '';
 
   const contactRes = senderEmail.includes('@')
     ? await resolveContact({ email: senderEmail })
@@ -198,6 +210,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       category = ai.category;
       summary = ai.summary;
       routeNote = ai.reason ?? '';
+      proposedMeetingStart = ai.proposed_meeting_start;
+      schedulingNote = ai.scheduling_note ?? '';
       const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
       if (job && category === 'client' && ai.note_to_append?.trim()) {
         const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {
@@ -262,6 +276,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     jobSlug,
     jobTitle,
     routeNote,
+    proposedMeetingStart,
+    schedulingNote,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;

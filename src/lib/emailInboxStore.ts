@@ -27,6 +27,10 @@ export interface EmailInboxRecord {
   jobSlug: string | null;
   jobTitle: string | null;
   routeNote: string;
+  proposedMeetingStart: string | null;
+  schedulingNote: string;
+  bookingUid: string | null;
+  bookingStart: string | null;
 }
 
 export interface EmailInboxInput {
@@ -43,6 +47,10 @@ export interface EmailInboxInput {
   jobSlug?: string | null;
   jobTitle?: string | null;
   routeNote?: string;
+  proposedMeetingStart?: string | null;
+  schedulingNote?: string;
+  bookingUid?: string | null;
+  bookingStart?: string | null;
 }
 
 export interface EmailInboxDigest {
@@ -79,12 +87,20 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_slug TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS job_title TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS route_note TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS proposed_meeting_start TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS scheduling_note TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_uid TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
 ];
 
 const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
 ];
+
+const INBOX_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
+              summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
+              proposed_meeting_start, scheduling_note, booking_uid, booking_start`;
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
@@ -161,6 +177,10 @@ type InboxRow = {
   job_slug?: string | null;
   job_title?: string | null;
   route_note?: string;
+  proposed_meeting_start?: Date | string | null;
+  scheduling_note?: string;
+  booking_uid?: string | null;
+  booking_start?: Date | string | null;
 };
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
@@ -188,6 +208,12 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     jobSlug: row.job_slug ?? null,
     jobTitle: row.job_title ?? null,
     routeNote: row.route_note ?? '',
+    proposedMeetingStart: row.proposed_meeting_start
+      ? new Date(row.proposed_meeting_start).toISOString()
+      : null,
+    schedulingNote: row.scheduling_note ?? '',
+    bookingUid: row.booking_uid ?? null,
+    bookingStart: row.booking_start ? new Date(row.booking_start).toISOString() : null,
   };
 }
 
@@ -211,6 +237,10 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       jobSlug: e.jobSlug ?? null,
       jobTitle: e.jobTitle ?? null,
       routeNote: String(e.routeNote ?? ''),
+      proposedMeetingStart: e.proposedMeetingStart ?? null,
+      schedulingNote: String(e.schedulingNote ?? ''),
+      bookingUid: e.bookingUid ?? null,
+      bookingStart: e.bookingStart ?? null,
     }));
   } catch {
     return [];
@@ -275,6 +305,10 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     jobSlug: input.jobSlug ?? null,
     jobTitle: input.jobTitle ?? null,
     routeNote: input.routeNote ?? '',
+    proposedMeetingStart: input.proposedMeetingStart ?? null,
+    schedulingNote: input.schedulingNote ?? '',
+    bookingUid: input.bookingUid ?? null,
+    bookingStart: input.bookingStart ?? null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
@@ -287,8 +321,7 @@ async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxR
     if (!pool) return [];
     const junkFilter = hideJunk ? `AND category <> 'junk'` : '';
     const { rows } = await pool.query(
-      `SELECT id, received_at, from_address, subject, body_snippet, status, action, notified,
-              summary, category, contact_uid, contact_name, job_slug, job_title, route_note
+      `SELECT ${INBOX_SELECT}
        FROM email_inbox WHERE 1=1 ${junkFilter}
        ORDER BY received_at DESC LIMIT $1`,
       [limit],
@@ -305,8 +338,7 @@ async function listAllFromPg(limit: number): Promise<EmailInboxRecord[]> {
     const pool = await ensureSchema();
     if (!pool) return [];
     const { rows } = await pool.query(
-      `SELECT id, received_at, from_address, subject, body_snippet, status, action, notified,
-              summary, category, contact_uid, contact_name, job_slug, job_title, route_note
+      `SELECT ${INBOX_SELECT}
        FROM email_inbox ORDER BY received_at DESC LIMIT $1`,
       [limit],
     );
@@ -325,10 +357,10 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
         (id, from_address, subject, body_snippet, status, action, notified,
-         summary, category, contact_uid, contact_name, job_slug, job_title, route_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-       RETURNING id, received_at, from_address, subject, body_snippet, status, action, notified,
-                 summary, category, contact_uid, contact_name, job_slug, job_title, route_note`,
+         summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
+         proposed_meeting_start, scheduling_note, booking_uid, booking_start)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+       RETURNING ${INBOX_SELECT}`,
       [
         id,
         input.from,
@@ -344,6 +376,10 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.jobSlug ?? null,
         input.jobTitle ?? null,
         input.routeNote ?? '',
+        input.proposedMeetingStart ?? null,
+        input.schedulingNote ?? '',
+        input.bookingUid ?? null,
+        input.bookingStart ?? null,
       ],
     );
     return rows[0] ? rowToRecord(rows[0]) : null;
@@ -351,6 +387,25 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     console.error('[email-inbox] pg append failed', e);
     return null;
   }
+}
+
+export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord | null> {
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return null;
+      const { rows } = await pool.query(`SELECT ${INBOX_SELECT} FROM email_inbox WHERE id = $1`, [
+        id,
+      ]);
+      return rows[0] ? rowToRecord(rows[0]) : null;
+    } catch (e) {
+      console.error('[email-inbox] pg get failed', e);
+      return null;
+    }
+  }
+  const path = inboxFilePath();
+  if (!existsSync(path)) return null;
+  return parseFileEvents(readFileSync(path, 'utf8')).find((e) => e.id === id) ?? null;
 }
 
 export async function storeListEmailInbox(
@@ -370,7 +425,12 @@ export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<Ema
   return appendToFile(input);
 }
 
-export type EmailInboxPatch = Partial<Pick<EmailInboxInput, 'category' | 'action' | 'status'>>;
+export type EmailInboxPatch = Partial<
+  Pick<
+    EmailInboxInput,
+    'category' | 'action' | 'status' | 'bookingUid' | 'bookingStart' | 'proposedMeetingStart'
+  >
+>;
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
   const path = inboxFilePath();
@@ -384,6 +444,11 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.status != null ? { status: patch.status } : {}),
     ...(patch.action != null ? { action: patch.action } : {}),
     ...(patch.category != null ? { category: normalizeCategory(patch.category) } : {}),
+    ...(patch.bookingUid !== undefined ? { bookingUid: patch.bookingUid } : {}),
+    ...(patch.bookingStart !== undefined ? { bookingStart: patch.bookingStart } : {}),
+    ...(patch.proposedMeetingStart !== undefined
+      ? { proposedMeetingStart: patch.proposedMeetingStart }
+      : {}),
   };
   events[idx] = next;
   if (!writeFileEvents(events)) return null;
@@ -418,12 +483,23 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
       sets.push(`category = $${i++}`);
       vals.push(normalizeCategory(patch.category));
     }
+    if (patch.bookingUid !== undefined) {
+      sets.push(`booking_uid = $${i++}`);
+      vals.push(patch.bookingUid);
+    }
+    if (patch.bookingStart !== undefined) {
+      sets.push(`booking_start = $${i++}`);
+      vals.push(patch.bookingStart);
+    }
+    if (patch.proposedMeetingStart !== undefined) {
+      sets.push(`proposed_meeting_start = $${i++}`);
+      vals.push(patch.proposedMeetingStart);
+    }
     if (!sets.length) return null;
     vals.push(id);
     const { rows } = await pool.query(
       `UPDATE email_inbox SET ${sets.join(', ')} WHERE id = $${i}
-       RETURNING id, received_at, from_address, subject, body_snippet, status, action, notified,
-                 summary, category, contact_uid, contact_name, job_slug, job_title, route_note`,
+       RETURNING ${INBOX_SELECT}`,
       vals,
     );
     return rows[0] ? rowToRecord(rows[0]) : null;

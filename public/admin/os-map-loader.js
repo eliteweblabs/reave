@@ -6856,12 +6856,21 @@ function isEmailRouted(ev) {
   return action === 'filed' || action === 'matched';
 }
 
+function isEmailBookable(ev) {
+  return Boolean(ev.proposedMeetingStart) && String(ev.category || '').toLowerCase() !== 'junk';
+}
+
+function isEmailBooked(ev) {
+  return Boolean(ev.bookingUid);
+}
+
 function inboxTabCounts() {
   const all = emailState.allEvents;
   return {
     all: all.filter((e) => e.category !== 'junk').length,
     alert: all.filter((e) => e.category === 'alert').length,
     review: all.filter((e) => e.category === 'review').length,
+    book: all.filter((e) => isEmailBookable(e)).length,
     routed: all.filter(isEmailRouted).length,
     junk: all.filter((e) => e.category === 'junk').length,
   };
@@ -6873,6 +6882,7 @@ function inboxEventsForFilter() {
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
   if (f === 'alert') return all.filter((e) => e.category === 'alert');
   if (f === 'review') return all.filter((e) => e.category === 'review');
+  if (f === 'book') return all.filter(isEmailBookable);
   if (f === 'routed') return all.filter(isEmailRouted);
   return all.filter((e) => e.category !== 'junk');
 }
@@ -7143,7 +7153,9 @@ function formatEmailCardFrom(ev) {
 }
 
 function formatEmailAction(ev) {
-  const bits = [ev.action];
+  const bits = [];
+  if (ev.bookingUid) bits.push('booked');
+  else if (ev.action) bits.push(ev.action);
   if (ev.jobTitle) bits.push(ev.jobTitle);
   if (ev.routeNote && !ev.jobTitle) bits.push(ev.routeNote);
   return bits.join(' · ');
@@ -7495,6 +7507,163 @@ function createClientSwipeRow(c) {
   ]);
 }
 
+async function confirmEmailBooking(ev, startIso) {
+  const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ start: startIso }),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.check = data.check;
+    throw err;
+  }
+  const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+  if (idx !== -1 && data.event) emailState.allEvents[idx] = data.event;
+  renderEmailPanel();
+  return data;
+}
+
+function showEmailScheduleDialog(ev, check) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (evKey) => {
+      if (evKey.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = check.available ? 'Schedule meeting' : 'Time conflict';
+    const parts = [
+      `<p class="em-book-dialog-lead">${escHtml(ev.subject || '(no subject)')}</p>`,
+      `<p><strong>Requested:</strong> ${escHtml(check.proposedLabel)}</p>`,
+      `<p><strong>With:</strong> ${escHtml(check.attendeeName)} &lt;${escHtml(check.attendeeEmail)}&gt;</p>`,
+    ];
+    if (!check.available && check.conflictReason) {
+      parts.push(`<p class="em-book-conflict">${escHtml(check.conflictReason)}</p>`);
+    }
+    if (!check.available && check.alternatives?.length) {
+      parts.push('<p class="em-book-alt-label">Pick an open slot:</p>');
+      parts.push('<div class="em-book-alt-slots">');
+      for (const slot of check.alternatives) {
+        parts.push(
+          `<button type="button" class="em-book-alt-slot" data-start="${escHtml(slot.iso)}">${escHtml(slot.label || formatScheduleWhen(slot.iso))}</button>`,
+        );
+      }
+      parts.push('</div>');
+    } else if (!check.available) {
+      parts.push('<p class="em-book-conflict">No nearby open slots found. Try Cal.com directly.</p>');
+    }
+    bodyEl.innerHTML = parts.join('');
+    actionsEl.innerHTML = '';
+
+    const mkBtn = (label, cls, value) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', () => finish(value));
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', false);
+
+    if (check.available) {
+      const bookBtn = document.createElement('button');
+      bookBtn.type = 'button';
+      bookBtn.className = 'os-dialog-btn';
+      bookBtn.textContent = 'Book meeting';
+      bookBtn.addEventListener('click', async () => {
+        bookBtn.disabled = true;
+        bookBtn.textContent = 'Booking…';
+        try {
+          await confirmEmailBooking(ev, check.proposedStart);
+          finish(true);
+          await osAlert({
+            title: 'Meeting scheduled',
+            bodyHtml: `<p>Booked for <strong>${escHtml(check.proposedLabel)}</strong> with ${escHtml(check.attendeeName)}.</p>`,
+          });
+        } catch (err) {
+          bookBtn.disabled = false;
+          bookBtn.textContent = 'Book meeting';
+          if (err.check) {
+            finish(false);
+            await showEmailScheduleDialog(ev, err.check);
+          } else {
+            await osAlert({ title: 'Booking failed', bodyHtml: escHtml(err.message) });
+          }
+        }
+      });
+      actionsEl.appendChild(bookBtn);
+    }
+
+    bodyEl.querySelectorAll('.em-book-alt-slot').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const start = btn.getAttribute('data-start');
+        if (!start) return;
+        btn.disabled = true;
+        try {
+          await confirmEmailBooking(ev, start);
+          finish(true);
+          await osAlert({
+            title: 'Meeting scheduled',
+            bodyHtml: `<p>Booked for <strong>${escHtml(btn.textContent || formatScheduleWhen(start))}</strong>.</p>`,
+          });
+        } catch (err) {
+          btn.disabled = false;
+          if (err.check) {
+            await showEmailScheduleDialog(ev, err.check);
+          } else {
+            await osAlert({ title: 'Booking failed', bodyHtml: escHtml(err.message) });
+          }
+        }
+      });
+    });
+
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+async function startEmailScheduleFlow(ev) {
+  if (isEmailBooked(ev)) {
+    await osAlert({
+      title: 'Already scheduled',
+      bodyHtml:
+        `<p>Meeting booked for <strong>${escHtml(formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart))}</strong>.</p>` +
+        (ev.bookingUid ? `<p class="em-hint">Booking ID: ${escHtml(ev.bookingUid.slice(0, 8))}…</p>` : ''),
+    });
+    return;
+  }
+  let data;
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
+      cache: 'no-store',
+    });
+    data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  } catch (e) {
+    await osAlert({ title: 'Could not check calendar', bodyHtml: escHtml(e.message) });
+    return;
+  }
+  await showEmailScheduleDialog(ev, data.check);
+}
+
 function buildEmailAgentPrompt(ev) {
   const lines = [
     '[Email triage]',
@@ -7592,6 +7761,11 @@ function createEmailListItem(ev) {
   item.innerHTML =
     `<span class="em-item-row em-item-header">` +
       `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
+      (isEmailBooked(ev)
+        ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>'
+        : isEmailBookable(ev)
+          ? '<span class="em-status em-book-pending">Book</span>'
+          : '') +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
     `</span>` +
@@ -7690,6 +7864,7 @@ function renderEmailFilterTabs() {
     { id: 'all', label: 'All', count: counts.all },
     { id: 'alert', label: 'Alerts', count: counts.alert },
     { id: 'review', label: 'Review', count: counts.review },
+    { id: 'book', label: 'Book', count: counts.book },
     { id: 'routed', label: 'Routed', count: counts.routed },
     { id: 'junk', label: 'Junk', count: counts.junk },
   ];
@@ -7725,9 +7900,11 @@ function renderEmailSidebar() {
         ? counts.alert
         : emailState.inboxFilter === 'review'
           ? counts.review
-          : emailState.inboxFilter === 'routed'
-            ? counts.routed
-            : counts.all;
+          : emailState.inboxFilter === 'book'
+            ? counts.book
+            : emailState.inboxFilter === 'routed'
+              ? counts.routed
+              : counts.all;
   const subheader = listSearchSubheader({
     search: {
       value: emailState.search,
@@ -7762,6 +7939,8 @@ function renderEmailSidebar() {
       emptyBody = 'No alerts.';
     } else if (emailState.inboxFilter === 'review') {
       emptyBody = 'No messages need review.';
+    } else if (emailState.inboxFilter === 'book') {
+      emptyBody = 'No emails with a proposed meeting time.';
     } else if (emailState.inboxFilter === 'routed') {
       emptyBody = 'No routed messages yet.';
     } else {
@@ -7821,13 +8000,36 @@ function renderEmailPanel() {
   agentBtn.textContent = 'Agent';
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
   header.appendChild(agentBtn);
+  if (isEmailBookable(ev)) {
+    const schedBtn = document.createElement('button');
+    schedBtn.type = 'button';
+    schedBtn.className = 'de-new-btn em-schedule-btn' + (isEmailBooked(ev) ? ' em-schedule-btn-done' : '');
+    schedBtn.textContent = isEmailBooked(ev) ? 'Scheduled ✓' : 'Schedule meeting';
+    schedBtn.addEventListener('click', () => startEmailScheduleFlow(ev));
+    header.appendChild(schedBtn);
+  }
   pane.appendChild(header);
 
   const detail = document.createElement('div');
   detail.className = 'em-detail';
   const summary = ev.summary || ev.bodySnippet || '';
-  detail.innerHTML =
-    `<div class="em-item-row"><span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span></div>` +
+  let detailHtml =
+    `<div class="em-item-row"><span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
+    (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
+    `</div>`;
+  if (isEmailBookable(ev)) {
+    const whenLabel = formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart);
+    detailHtml +=
+      `<div class="em-book-card">` +
+        `<div class="em-book-card-title">${isEmailBooked(ev) ? 'Meeting scheduled' : 'Meeting requested'}</div>` +
+        `<div class="em-book-card-when">${escHtml(whenLabel)}</div>` +
+        (ev.schedulingNote ? `<div class="em-book-card-note">${escHtml(ev.schedulingNote)}</div>` : '') +
+        (isEmailBooked(ev) && ev.bookingUid
+          ? `<div class="em-hint">Cal.com booking · ${escHtml(ev.bookingUid.slice(0, 8))}…</div>`
+          : `<button type="button" class="em-book-card-btn">Schedule meeting</button>`) +
+      `</div>`;
+  }
+  detailHtml +=
     (summary ? `<div class="em-detail-summary">${escHtml(summary)}</div>` : '') +
     `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
     `<div class="em-detail-meta">` +
@@ -7841,6 +8043,8 @@ function renderEmailPanel() {
     (ev.bodySnippet && ev.bodySnippet !== summary
       ? `<div class="em-detail-body">${escHtml(ev.bodySnippet)}</div>`
       : '');
+  detail.innerHTML = detailHtml;
+  detail.querySelector('.em-book-card-btn')?.addEventListener('click', () => startEmailScheduleFlow(ev));
   pane.appendChild(detail);
 
   root.appendChild(pane);

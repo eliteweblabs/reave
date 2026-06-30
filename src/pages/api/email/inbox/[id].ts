@@ -33,6 +33,12 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   }
   if (rec.action != null) patch.action = String(rec.action);
   if (rec.status != null) patch.status = String(rec.status);
+  if (rec.bookingUid !== undefined) {
+    patch.bookingUid = rec.bookingUid == null ? null : String(rec.bookingUid);
+  }
+  if (rec.bookingStart !== undefined) {
+    patch.bookingStart = rec.bookingStart == null ? null : String(rec.bookingStart);
+  }
   return Object.keys(patch).length ? patch : null;
 }
 

@@ -28,6 +28,17 @@ export type BookingEventType = {
   description?: string | null;
 };
 
+export type AvailabilitySlot = {
+  iso: string;
+  label: string;
+};
+
+export type AvailabilityDay = {
+  date: string;
+  label: string;
+  slots: AvailabilitySlot[];
+};
+
 export type DashboardEvent = {
   id: string;
   time: string;
@@ -159,6 +170,17 @@ export async function bookingGet(
   if (!out.ok) return out;
   if (!out.data.booking) return { ok: false, error: 'Booking not found', status: 404 };
   return { ok: true, data: { booking: out.data.booking } };
+}
+
+export async function bookingAvailability(): Promise<
+  BookingResult<{ days: AvailabilityDay[] }>
+> {
+  const out = await bookingFetch<{ success?: boolean; days?: AvailabilityDay[] }>(
+    '/api/booking/availability',
+    { method: 'GET' },
+  );
+  if (!out.ok) return out;
+  return { ok: true, data: { days: out.data.days ?? [] } };
 }
 
 export async function bookingEventTypes(): Promise<
