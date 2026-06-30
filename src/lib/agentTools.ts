@@ -88,6 +88,8 @@ import {
   storeDeleteEmailInbox,
   storeListEmailInbox,
   storeUpdateEmailInbox,
+  storeGetEmailInbox,
+  type EmailInboxPatch,
 } from './emailInboxStore';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
@@ -395,6 +397,22 @@ export function buildTools(): AgentToolDef[] {
         name: 'mark_email_junk',
         description:
           'Mark an inbound inbox message as junk (hidden from default inbox). Requires the message id from email triage context or list_email_inbox.',
+        parameters: {
+          type: 'object',
+          properties: {
+            email_id: { type: 'string', description: 'Inbox message UUID' },
+          },
+          required: ['email_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'mark_email_routed',
+        description:
+          'Mark an inbound inbox message as routed/processed and remove it from the review queue. Use after you have handled the email (replied, filed to a job, scheduled, etc.) — not for spam. Requires email_id from triage context or list_email_inbox.',
         parameters: {
           type: 'object',
           properties: {
@@ -1841,6 +1859,26 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
       return JSON.stringify({ ok: true, email_id: emailId, category: event.category, action: event.action });
+    }
+    if (name === 'mark_email_routed') {
+      const emailId = String(args.email_id ?? '').trim();
+      if (!emailId) return JSON.stringify({ error: 'email_id is required' });
+      const existing = await storeGetEmailInbox(emailId);
+      if (!existing) return JSON.stringify({ error: 'not found', email_id: emailId });
+      const patch: EmailInboxPatch = {
+        action: 'filed',
+        status: 'FILED',
+      };
+      if (existing.category === 'review') patch.category = 'internal';
+      const event = await storeUpdateEmailInbox(emailId, patch);
+      if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+      return JSON.stringify({
+        ok: true,
+        email_id: emailId,
+        category: event.category,
+        action: event.action,
+        routed: true,
+      });
     }
     if (name === 'delete_email') {
       const emailId = String(args.email_id ?? '').trim();

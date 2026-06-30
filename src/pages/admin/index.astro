@@ -2017,14 +2017,21 @@ const { userId } = Astro.locals.auth();
         gap: 0.35rem;
         min-width: 0;
       }
-      /* Match sidebar subheader search: one pill shell, inset send on the right. */
+      /* Inner field only — outer .admin-footer-nav-bar is the control-field shell when compose is open. */
       .footer-chat-compose .ch-input-field.control-field,
       .footer-chat-compose .ch-input-field.control-field:has(textarea) {
         flex: 1;
         min-width: 0;
+        min-height: 0;
         margin: 0;
-        border-radius: var(--radius-pill);
+        padding: 0;
+        border: none;
+        background: transparent;
+        border-radius: 0;
         align-items: center;
+      }
+      .footer-chat-compose .ch-input-field.control-field:focus-within {
+        border-color: transparent;
       }
       .footer-chat-compose .ch-input {
         min-height: 0;
@@ -2146,6 +2153,7 @@ const { userId } = Astro.locals.auth();
         color: #fff;
         background: #2563eb;
         border: none;
+        border-radius: var(--radius-pill);
       }
       .ch-send:disabled { opacity: 0.45; cursor: default; }
       .ch-send:not(:disabled):hover { background: #1d4ed8; }
@@ -3484,6 +3492,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630l"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630m"></script>
   </body>
 </html>

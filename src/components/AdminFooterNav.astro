@@ -115,35 +115,53 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     display: none !important;
   }
 
+  /* Compose open: one control-field shell wraps home + message (matches sidebar search). */
+  .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
+    flex: 1;
+    min-width: 0;
+    gap: 0;
+    padding: var(--control-inset);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-pill);
+    background: var(--card);
+    min-height: var(--control-h);
+    box-sizing: border-box;
+    transition: border-color 0.12s;
+  }
+
+  .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar:focus-within {
+    border-color: #3b82f6;
+  }
+
+  .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    gap: 0;
+    flex-shrink: 0;
+    height: auto;
+  }
+
+  .admin-footer-nav.footer-nav-compose-open #footer-nav-home {
+    width: calc(var(--control-h) - var(--control-inset) * 2);
+    height: calc(var(--control-h) - var(--control-inset) * 2);
+    max-width: calc(var(--control-h) - var(--control-inset) * 2);
+  }
+
+  .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
+    padding: 0;
+    border-left: none;
+  }
+
   /* Mobile: merge home + compose into one compact pill. */
   @media (max-width: 639px) {
     .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
       width: 100%;
       max-width: min(100%, 720px);
-      gap: 0.35rem;
-      border-radius: 0;
-      background: transparent;
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      border: none;
-      box-shadow: none;
       overflow: visible;
       align-items: center;
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
-      padding: 0;
-      border-left: none;
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
-      background: var(--card);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      border: 1px solid var(--panel-border);
-      box-shadow: none;
-      gap: 0;
-      flex-shrink: 0;
     }
 
     .admin-footer-nav.footer-nav-compose-open .footer-nav-btn:not(#footer-nav-home),
@@ -164,8 +182,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
       justify-content: flex-start;
     }
 
-    .admin-footer-nav.footer-nav-has-compose .admin-footer-nav-bar,
-    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
+    .admin-footer-nav.footer-nav-has-compose:not(.footer-nav-compose-open) .admin-footer-nav-bar {
       width: 100%;
       max-width: none;
       gap: 0.35rem;
@@ -177,24 +194,19 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
       overflow: visible;
     }
 
+    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
+      width: 100%;
+      max-width: none;
+    }
+
     .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
       flex: 1 1 auto;
       justify-content: center;
-      padding: 0;
-      border-left: none;
     }
 
     .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-compose {
       width: 100%;
       max-width: none;
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
-      background: var(--card);
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      border: 1px solid var(--panel-border);
-      box-shadow: none;
     }
 
     .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed,
