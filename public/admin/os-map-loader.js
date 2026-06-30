@@ -6,7 +6,7 @@ import {
   listSearchAddNew,
   createPanelBackBtn,
   matchesListSearch,
-} from './admin-ui.js?v=20250630b';
+} from './admin-ui.js?v=20250630c';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -516,6 +516,57 @@ function renderModelSelectOptions() {
     : balTitle
       ? `${balTitle} — chat and dashboard agent`
       : `Claude model (${agentModelState.source}) — chat and dashboard agent`;
+  if (activeKey === 'chats' && chatState?.activeId) syncTopbarPanelContext();
+}
+
+function populateModelSelectOptions(sel) {
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (const opt of agentModelState.options) {
+    const option = document.createElement('option');
+    option.value = opt.id;
+    option.textContent = modelOptionLabel(opt);
+    sel.appendChild(option);
+  }
+  if (agentModelState.model && !agentModelState.options.some((o) => o.id === agentModelState.model)) {
+    const option = document.createElement('option');
+    option.value = agentModelState.model;
+    option.textContent = agentModelState.model;
+    sel.appendChild(option);
+  }
+  sel.value = agentModelState.model;
+  sel.disabled = agentModelState.loading || agentModelState.saving;
+  const current = agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model };
+  const balTitle = anthropicBalanceTitle();
+  sel.title = agentModelState.loading
+    ? 'Loading model…'
+    : balTitle
+      ? `${balTitle} — ${modelBaseLabel(current)}`
+      : `Agent model: ${modelBaseLabel(current)} (${agentModelState.source})`;
+}
+
+function createChatModelSwitcher() {
+  const wrap = document.createElement('div');
+  wrap.className = 'ch-model-switcher';
+
+  const icon = document.createElement('span');
+  icon.className = 'ch-model-switcher-icon';
+  icon.innerHTML = IOS_ICONS.sparkles || '';
+  icon.setAttribute('aria-hidden', 'true');
+  wrap.appendChild(icon);
+
+  const sel = document.createElement('select');
+  sel.className = 'ch-model-switcher-select';
+  sel.setAttribute('aria-label', 'Agent model');
+  populateModelSelectOptions(sel);
+  if (!sel.dataset.bound) {
+    sel.dataset.bound = '1';
+    sel.addEventListener('change', () => {
+      if (sel.value && sel.value !== agentModelState.model) saveAgentModel(sel.value);
+    });
+  }
+  wrap.appendChild(sel);
+  return wrap;
 }
 
 function syncModelNodeLabels() {
@@ -4766,8 +4817,6 @@ function renderEditWorkForm(pane) {
       titleLabel.appendChild(titleInput);
       fields.appendChild(titleLabel);
 
-      pane.appendChild(fields);
-
       const ta = document.createElement('textarea');
       ta.className = 'de-textarea';
       ta.spellcheck = false;
@@ -4803,6 +4852,7 @@ function renderEditWorkForm(pane) {
       titleInput.addEventListener('input', markDirty);
       statusSelect.addEventListener('change', markDirty);
       ta.addEventListener('input', markDirty);
+      pane.appendChild(fields);
       pane.appendChild(ta);
       mountWorkCommentsSection(pane, slug);
 
@@ -6786,13 +6836,7 @@ function syncChatTopbarContext() {
     slot.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
   }
 
-  const modelBadge = document.createElement('span');
-  modelBadge.className = 'ch-model-badge';
-  modelBadge.textContent = modelOptionLabel(
-    agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model },
-  );
-  modelBadge.title = `Agent model (${agentModelState.source}) — change in top bar`;
-  slot.appendChild(modelBadge);
+  slot.appendChild(createChatModelSwitcher());
 
   const actions = document.createElement('div');
   actions.className = 'topbar-panel-actions';

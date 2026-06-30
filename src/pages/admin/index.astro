@@ -2166,6 +2166,69 @@ const { userId } = Astro.locals.auth();
         white-space: nowrap;
         flex-shrink: 0;
       }
+      .ch-model-switcher {
+        position: relative;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ch-model-switcher-icon {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: 1px solid var(--panel-border);
+        background: var(--panel, rgba(18, 23, 34, 0.9));
+        color: var(--muted);
+        pointer-events: none;
+      }
+      .ch-model-switcher-icon svg {
+        display: block;
+      }
+      .ch-model-switcher-select {
+        font: inherit;
+        font-size: 0.68rem;
+        color: var(--muted);
+        background: transparent;
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        max-width: min(11rem, 34vw);
+        cursor: pointer;
+        appearance: none;
+      }
+      .ch-model-switcher-select:hover:not(:disabled) {
+        border-color: #3b82f6;
+        color: var(--fg);
+      }
+      .ch-model-switcher-select:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      @media (max-width: 639px) {
+        .ch-model-switcher {
+          width: 36px;
+          height: 36px;
+        }
+        .ch-model-switcher-icon {
+          display: inline-flex;
+        }
+        .ch-model-switcher-select {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          width: 100%;
+          height: 100%;
+          max-width: none;
+          padding: 0;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+        }
+      }
       .ch-delete-btn {
         color: #f87171;
       }
@@ -3320,6 +3383,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630d"></script>
   </body>
 </html>
