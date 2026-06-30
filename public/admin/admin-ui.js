@@ -70,6 +70,31 @@ export function matchesListSearch(query, ...parts) {
   return hay.includes(q);
 }
 
+const SEARCH_CLEAR_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+
+function syncSearchClearBtn(input, clearBtn) {
+  if (!input || !clearBtn) return;
+  clearBtn.hidden = !input.value.length;
+}
+
+function createSearchClearBtn(input, onClear) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'panel-list-search-clear search-overlay-clear';
+  btn.setAttribute('aria-label', 'Clear search');
+  btn.innerHTML = SEARCH_CLEAR_ICON;
+  btn.hidden = !input.value.length;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    input.value = '';
+    syncSearchClearBtn(input, btn);
+    onClear?.('');
+    input.focus();
+  });
+  return btn;
+}
+
 const LIST_EMPTY_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>';
 
@@ -151,8 +176,13 @@ export function listSearchAddNew(opts = {}) {
     input.placeholder = opts.search.placeholder || 'Search…';
     input.value = opts.search.value ?? '';
     input.setAttribute('aria-label', opts.search.ariaLabel || opts.search.placeholder || 'Search');
-    input.addEventListener('input', (e) => opts.search.onInput?.(e.target.value, e));
+    const clearBtn = createSearchClearBtn(input, (value) => opts.search.onInput?.(value));
+    input.addEventListener('input', (e) => {
+      syncSearchClearBtn(input, clearBtn);
+      opts.search.onInput?.(e.target.value, e);
+    });
     field.appendChild(input);
+    field.appendChild(clearBtn);
     if (newBtn) field.appendChild(newBtn);
     wrap.appendChild(field);
     for (const node of belowNodes) wrap.appendChild(node);

@@ -95,7 +95,7 @@ const { userId } = Astro.locals.auth();
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
         --topbar-h: calc(4rem + var(--safe-top));
-        --footer-nav-pill-h: 3.4rem;
+        --footer-nav-pill-h: var(--control-h);
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
         --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
@@ -373,12 +373,14 @@ const { userId } = Astro.locals.auth();
       .control-field > .de-new-btn.ch-new-btn:active {
         transform: scale(0.94);
       }
+      .control-field > .panel-list-search-clear,
       .control-field > .search-overlay-clear,
       .control-field > .ch-send,
       .control-field > .ch-compose-actions > .ch-send {
         width: calc(var(--control-h) - var(--control-inset) * 2);
         height: calc(var(--control-h) - var(--control-inset) * 2);
         min-height: calc(var(--control-h) - var(--control-inset) * 2);
+        min-width: calc(var(--control-h) - var(--control-inset) * 2);
         padding: 0;
       }
       .control-field > .ch-stop,
@@ -926,6 +928,12 @@ const { userId } = Astro.locals.auth();
         color: var(--fg);
         font-size: 0.82rem;
         outline: none;
+      }
+      .panel-list-search::-webkit-search-cancel-button,
+      .panel-list-search::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+        display: none;
       }
       .panel-list-search-field.control-field {
         margin: 0;
@@ -1827,6 +1835,15 @@ const { userId } = Astro.locals.auth();
         color: #8b97a8;
         background: rgba(139, 151, 168, 0.12);
       }
+      .ch-item-archived-icon {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        color: #8b97a8;
+      }
+      .ch-item-archived-icon svg {
+        display: block;
+      }
       .ch-item-badge {
         flex-shrink: 0;
         font-size: 0.58rem;
@@ -2005,15 +2022,16 @@ const { userId } = Astro.locals.auth();
       .footer-chat-compose .ch-input-field.control-field:has(textarea) {
         flex: 1;
         min-width: 0;
-        min-height: var(--footer-nav-pill-h);
-        padding: var(--control-inset);
+        margin: 0;
         border-radius: var(--radius-pill);
         align-items: center;
       }
       .footer-chat-compose .ch-input {
         min-height: 0;
         max-height: 5rem;
-        padding: 0.2rem 0.35rem 0.2rem 0.5rem;
+        padding: 0.2rem 0.5rem;
+        font-size: max(16px, 0.82rem);
+        line-height: 1.35;
         align-self: center;
       }
       .footer-chat-compose .ch-compose-actions {
@@ -2022,13 +2040,9 @@ const { userId } = Astro.locals.auth();
         gap: 0.25rem;
         margin: 0;
       }
-      .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-send,
-      .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-stop {
-        width: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
-        height: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
-        min-height: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
-        min-width: calc(var(--footer-nav-pill-h) - var(--control-inset) * 2);
-        border-radius: var(--radius-pill);
+      .footer-chat-compose .ch-send svg {
+        width: 1.05rem;
+        height: 1.05rem;
       }
       .ch-compose.ch-compose-drag {
         background: rgba(59, 130, 246, 0.08);
@@ -3219,8 +3233,10 @@ const { userId } = Astro.locals.auth();
         cursor: pointer;
         display: grid;
         place-items: center;
+        border-radius: var(--radius-pill);
       }
-      .search-overlay-clear[hidden] {
+      .search-overlay-clear[hidden],
+      .panel-list-search-clear[hidden] {
         display: none !important;
       }
       .search-overlay-clear:hover { color: var(--fg); border-color: var(--border-strong-hover); }
@@ -3394,6 +3410,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630i"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630l"></script>
   </body>
 </html>
