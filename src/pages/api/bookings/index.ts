@@ -4,7 +4,12 @@
  */
 
 import type { APIContext } from 'astro';
-import { bookingList, isBookingConfigured } from '../../../lib/bookingClient';
+import {
+  bookingList,
+  calcomWebappUrl,
+  isBookingConfigured,
+  publicBookingPageUrl,
+} from '../../../lib/bookingClient';
 import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
@@ -37,10 +42,16 @@ export async function GET(context: APIContext): Promise<Response> {
   const result = await bookingList({ upcoming, status, limit });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
+  const calcomAdmin = calcomWebappUrl();
   return json({
     ok: true,
     upcoming,
     count: result.data.bookings.length,
     bookings: result.data.bookings,
+    meta: {
+      bookingFormUrl: '/form/schedule',
+      publicBookingUrl: publicBookingPageUrl() ?? null,
+      calcomAdminUrl: calcomAdmin ?? null,
+    },
   });
 }

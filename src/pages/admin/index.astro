@@ -1099,6 +1099,7 @@ const { userId } = Astro.locals.auth();
         #doc-editor:not(.de-pane-active) .de-pane,
         #knowledge-editor:not(.de-pane-active) .de-pane,
         #work-editor:not(.de-pane-active) .de-pane,
+        #schedule-panel:not(.de-pane-active) .de-pane,
         #clients-editor:not(.de-pane-active) .de-pane,
         #rule-editor:not(.de-pane-active) .de-pane {
           display: none;
@@ -1457,18 +1458,21 @@ const { userId } = Astro.locals.auth();
       @media (max-width: 639px) {
         #knowledge-editor,
         #work-editor,
+        #schedule-panel,
         #clients-editor,
         #rule-editor { flex-direction: column; }
         #knowledge-editor.de-pane-active .de-sidebar,
         #knowledge-editor.de-pane-active .ch-sidebar,
         #work-editor.de-pane-active .de-sidebar,
         #work-editor.de-pane-active .ch-sidebar,
+        #schedule-panel.de-pane-active .schedule-sidebar,
         #clients-editor.de-pane-active .de-sidebar,
         #clients-editor.de-pane-active .ch-sidebar,
         #rule-editor.de-pane-active .de-sidebar,
         #rule-editor.de-pane-active .ch-sidebar { display: none; }
         #knowledge-editor.de-pane-active .de-pane,
         #work-editor.de-pane-active .de-pane,
+        #schedule-panel.de-pane-active .de-pane,
         #clients-editor.de-pane-active .de-pane,
         #rule-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
       }
@@ -2999,17 +3003,26 @@ const { userId } = Astro.locals.auth();
 
       /* ── Schedule tab ── */
       #schedule-panel {
-        position: fixed;
-        inset: 0;
-        height: 100dvh;
-        display: none;
-        flex-direction: column;
-        background: var(--bg);
-        z-index: 10;
         overflow: hidden;
       }
-      .schedule-panel-scroll {
-        padding-top: calc(var(--topbar-h) + 1rem);
+      #schedule-panel .schedule-sidebar {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 0 0 min(100%, 22rem);
+        border-right: 1px solid var(--panel-border);
+        padding: calc(var(--topbar-h) + 1rem) 0.85rem var(--footer-scroll-pad);
+        overflow: hidden;
+      }
+      #schedule-panel .schedule-list-wrap {
+        flex: 1 1 auto;
+        overflow: auto;
+        min-height: 0;
+        padding-top: 0.35rem;
+      }
+      #schedule-panel .schedule-detail-pane {
+        min-width: 0;
+        flex: 1 1 auto;
       }
       .schedule-actions {
         display: flex;
@@ -3059,6 +3072,69 @@ const { userId } = Astro.locals.auth();
       }
       .schedule-booking {
         position: relative;
+      }
+      .dash-events > li {
+        list-style: none;
+      }
+      .dash-event-btn,
+      .schedule-booking-btn {
+        width: 100%;
+        border: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .dash-event-btn:hover,
+      .schedule-booking-btn:hover,
+      .schedule-booking-btn.is-active {
+        background: var(--surface-hover-strong);
+      }
+      .schedule-booking-btn.is-active {
+        outline: 1px solid rgba(74, 222, 128, 0.35);
+      }
+      .dash-panel-link {
+        margin-left: auto;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: #79c0ff;
+        font: inherit;
+        font-size: 0.68rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .schedule-detail-when {
+        margin: 0 0 0.75rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        line-height: 1.45;
+      }
+      .schedule-detail-fields {
+        margin: 0.85rem 0 0;
+        display: grid;
+        grid-template-columns: 5.5rem 1fr;
+        gap: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+      }
+      .schedule-detail-fields dt {
+        margin: 0;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .schedule-detail-fields dd {
+        margin: 0;
+        min-width: 0;
+        word-break: break-word;
+      }
+      .schedule-detail-link {
+        color: #79c0ff;
+      }
+      .schedule-detail-actions {
+        margin-top: 1rem;
+      }
+      .schedule-cal-link {
+        color: var(--muted);
       }
       .schedule-status {
         display: inline-block;
@@ -3492,6 +3568,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630m"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630n"></script>
   </body>
 </html>

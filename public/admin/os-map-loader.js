@@ -323,6 +323,7 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'work') {
     loadWorkTab();
   } else if (MAP.type === 'schedule') {
+    if (opts.scheduleUid) scheduleState.activeUid = opts.scheduleUid;
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
     loadClientsTab();
@@ -1716,8 +1717,15 @@ function renderHomeDashboard(data) {
   eventsPanel.innerHTML =
     `<div class="dash-panel-head">` +
       `<h2 class="dash-panel-title">Today</h2>` +
-      (data?.eventsMock ? `<span class="dash-panel-note">Preview</span>` : '') +
+      (data?.eventsMock
+        ? `<span class="dash-panel-note">Preview</span>`
+        : events.length
+          ? `<button type="button" class="dash-panel-link" data-schedule-all>View schedule</button>`
+          : '') +
     `</div>`;
+  eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
+    openScheduleTab();
+  });
   const eventsList = document.createElement('ul');
   eventsList.className = 'dash-events';
   const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
@@ -1728,14 +1736,31 @@ function renderHomeDashboard(data) {
     eventsPanel.appendChild(empty);
   } else {
     for (const ev of events) {
+      const uid = ev.uid || ev.id;
+      const canOpen = !data?.eventsMock && uid && !String(uid).startsWith('mock-');
       const li = document.createElement('li');
-      li.className = 'dash-event';
-      li.innerHTML =
-        `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-        `<div class="dash-event-body">` +
-          `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-          (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-        `</div>`;
+      if (canOpen) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dash-event dash-event-btn';
+        btn.innerHTML =
+          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+            (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
+          `</div>`;
+        btn.addEventListener('click', () => openScheduleTab({ uid }));
+        li.appendChild(btn);
+      } else {
+        li.className = 'dash-event';
+        li.innerHTML =
+          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+          `</div>`;
+      }
       eventsList.appendChild(li);
     }
     eventsPanel.appendChild(eventsList);
@@ -5052,13 +5077,23 @@ async function deleteWork(slug) {
 let scheduleState = {
   bookings: [],
   filter: 'upcoming',
-  calcomUrl: 'https://cal.reave.app',
-  bookingFormUrl: '/form/schedule',
+  activeUid: null,
+  meta: {
+    bookingFormUrl: '/form/schedule',
+    publicBookingUrl: null,
+    calcomAdminUrl: null,
+  },
   loading: false,
   error: '',
 };
 
 function getSchedulePanel() { return document.getElementById('schedule-panel'); }
+
+function openScheduleTab(opts = {}) {
+  if (opts.uid) scheduleState.activeUid = opts.uid;
+  if (opts.filter) scheduleState.filter = opts.filter;
+  setActiveMap('schedule', { force: true, scheduleUid: opts.uid || null });
+}
 
 function formatScheduleWhen(iso) {
   if (!iso) return '';
@@ -5076,12 +5111,40 @@ function formatScheduleWhen(iso) {
   }
 }
 
+function formatScheduleRange(startIso, endIso) {
+  if (!startIso) return '';
+  try {
+    const start = new Date(startIso);
+    const end = endIso ? new Date(endIso) : null;
+    const datePart = start.toLocaleString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    const timeFmt = { hour: 'numeric', minute: '2-digit' };
+    const startTime = start.toLocaleTimeString(undefined, timeFmt);
+    const endTime = end ? end.toLocaleTimeString(undefined, timeFmt) : '';
+    return endTime ? `${datePart} · ${startTime} – ${endTime}` : `${datePart} · ${startTime}`;
+  } catch {
+    return formatScheduleWhen(startIso);
+  }
+}
+
 function scheduleStatusClass(status) {
   const s = String(status || '').toLowerCase();
   if (s === 'accepted') return 'sched-status-accepted';
   if (s === 'cancelled' || s === 'rejected') return 'sched-status-cancelled';
   if (s === 'pending') return 'sched-status-pending';
   return '';
+}
+
+function scheduleBookingWho(b) {
+  return b.attendee && b.attendee !== 'Unknown' ? b.attendee : b.email || 'Guest';
+}
+
+function findScheduleBooking(uid) {
+  return scheduleState.bookings.find((b) => b.uid === uid) || null;
 }
 
 async function loadScheduleTab() {
@@ -5100,6 +5163,21 @@ async function loadScheduleTab() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     scheduleState.bookings = Array.isArray(data.bookings) ? data.bookings : [];
+    if (data.meta && typeof data.meta === 'object') {
+      scheduleState.meta = { ...scheduleState.meta, ...data.meta };
+    }
+    if (
+      scheduleState.activeUid &&
+      !findScheduleBooking(scheduleState.activeUid) &&
+      scheduleState.filter === 'upcoming'
+    ) {
+      const pastRes = await fetch('/api/bookings?upcoming=false&limit=50', { cache: 'no-store' });
+      const pastData = await pastRes.json();
+      if (pastRes.ok && Array.isArray(pastData.bookings)) {
+        const hit = pastData.bookings.find((b) => b.uid === scheduleState.activeUid);
+        if (hit) scheduleState.bookings = [hit, ...scheduleState.bookings];
+      }
+    }
   } catch (e) {
     scheduleState.error = e.message || String(e);
     scheduleState.bookings = [];
@@ -5109,38 +5187,173 @@ async function loadScheduleTab() {
   }
 }
 
+function selectScheduleBooking(uid) {
+  scheduleState.activeUid = uid;
+  getSchedulePanel()?.classList.add('de-pane-active');
+  renderSchedulePanel();
+}
+
+function closeScheduleDetail() {
+  scheduleState.activeUid = null;
+  getSchedulePanel()?.classList.remove('de-pane-active');
+  renderSchedulePanel();
+}
+
+async function cancelScheduleBooking(uid) {
+  const booking = findScheduleBooking(uid);
+  const who = booking ? scheduleBookingWho(booking) : 'this meeting';
+  const ok = await osConfirm({
+    title: 'Cancel booking',
+    bodyHtml: `<p>Cancel <strong>${escHtml(who)}</strong>? This removes it from your calendar.</p>`,
+    confirmLabel: 'Cancel booking',
+    danger: true,
+  });
+  if (!ok) return;
+
+  const res = await fetch(`/api/bookings/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    await osAlert({ title: 'Could not cancel', bodyHtml: escHtml(data.error || `HTTP ${res.status}`) });
+    return;
+  }
+  scheduleState.activeUid = null;
+  getSchedulePanel()?.classList.remove('de-pane-active');
+  await loadScheduleTab();
+}
+
+function renderScheduleDetail(pane, booking) {
+  pane.innerHTML = '';
+  const who = scheduleBookingWho(booking);
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to schedule',
+    onClick: () => closeScheduleDetail(),
+  }));
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = booking.title || 'Meeting';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll schedule-detail-scroll';
+
+  const when = document.createElement('p');
+  when.className = 'schedule-detail-when';
+  when.textContent = formatScheduleRange(booking.startTime, booking.endTime);
+  scroll.appendChild(when);
+
+  if (booking.status) {
+    const status = document.createElement('span');
+    status.className = `schedule-status ${scheduleStatusClass(booking.status)}`;
+    status.textContent = booking.status;
+    scroll.appendChild(status);
+  }
+
+  const fields = document.createElement('dl');
+  fields.className = 'schedule-detail-fields';
+  const addField = (label, value, href) => {
+    if (!value) return;
+    const dt = document.createElement('dt');
+    dt.textContent = label;
+    const dd = document.createElement('dd');
+    if (href) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = value;
+      a.className = 'schedule-detail-link';
+      if (href.startsWith('mailto:') || href.startsWith('http')) {
+        a.target = href.startsWith('http') ? '_blank' : '';
+        a.rel = 'noopener';
+      }
+      dd.appendChild(a);
+    } else {
+      dd.textContent = value;
+    }
+    fields.appendChild(dt);
+    fields.appendChild(dd);
+  };
+  addField('Guest', who);
+  addField('Email', booking.email, booking.email ? `mailto:${booking.email}` : null);
+  addField('Location', booking.location);
+  if (booking.description?.trim()) addField('Notes', booking.description.trim());
+  scroll.appendChild(fields);
+
+  const actions = document.createElement('div');
+  actions.className = 'de-actions schedule-detail-actions';
+  if (booking.email) {
+    const mailBtn = document.createElement('a');
+    mailBtn.className = 'de-btn de-btn-ghost';
+    mailBtn.href = `mailto:${encodeURIComponent(booking.email)}`;
+    mailBtn.textContent = 'Email guest';
+    actions.appendChild(mailBtn);
+  }
+  const formUrl = scheduleState.meta.bookingFormUrl || '/form/schedule';
+  const shareBtn = document.createElement('a');
+  shareBtn.className = 'de-btn de-btn-ghost';
+  shareBtn.href = scheduleState.meta.publicBookingUrl || formUrl;
+  shareBtn.target = '_blank';
+  shareBtn.rel = 'noopener';
+  shareBtn.textContent = 'Share booking link';
+  actions.appendChild(shareBtn);
+  if (scheduleState.meta.calcomAdminUrl) {
+    const calLink = document.createElement('a');
+    calLink.className = 'de-btn de-btn-ghost schedule-cal-link';
+    calLink.href = `${scheduleState.meta.calcomAdminUrl.replace(/\/+$/, '')}/bookings/${booking.uid}`;
+    calLink.target = '_blank';
+    calLink.rel = 'noopener';
+    calLink.textContent = 'Cal.com admin';
+    actions.appendChild(calLink);
+  }
+  const statusNorm = String(booking.status || '').toLowerCase();
+  if (statusNorm === 'accepted' || statusNorm === 'pending') {
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'de-btn de-btn-danger';
+    cancelBtn.textContent = 'Cancel booking';
+    cancelBtn.addEventListener('click', () => cancelScheduleBooking(booking.uid));
+    actions.appendChild(cancelBtn);
+  }
+  scroll.appendChild(actions);
+  pane.appendChild(scroll);
+}
+
 function renderSchedulePanel() {
   const root = getSchedulePanel();
   if (!root) return;
+  root.classList.toggle('de-pane-active', Boolean(scheduleState.activeUid));
   root.innerHTML = '';
 
-  const scroll = document.createElement('div');
-  scroll.className = 'home-dashboard-scroll schedule-panel-scroll';
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar schedule-sidebar';
 
   const header = document.createElement('div');
   header.className = 'dash-header schedule-header';
   header.innerHTML =
     `<h1 class="home-dashboard-title">Schedule</h1>` +
-    `<p class="dash-date">Cal.com bookings</p>`;
-  scroll.appendChild(header);
+    `<p class="dash-date">Your calendar</p>`;
+  sidebar.appendChild(header);
 
   const actions = document.createElement('div');
   actions.className = 'schedule-actions';
-  const calLink = document.createElement('a');
-  calLink.className = 'schedule-link-btn';
-  calLink.href = scheduleState.calcomUrl;
-  calLink.target = '_blank';
-  calLink.rel = 'noopener';
-  calLink.textContent = 'Open Cal.com';
-  actions.appendChild(calLink);
   const formLink = document.createElement('a');
-  formLink.className = 'schedule-link-btn schedule-link-btn-secondary';
-  formLink.href = scheduleState.bookingFormUrl;
+  formLink.className = 'schedule-link-btn';
+  formLink.href = scheduleState.meta.bookingFormUrl || '/form/schedule';
   formLink.target = '_blank';
   formLink.rel = 'noopener';
   formLink.textContent = 'Public booking form';
   actions.appendChild(formLink);
-  scroll.appendChild(actions);
+  if (scheduleState.meta.publicBookingUrl) {
+    const pubLink = document.createElement('a');
+    pubLink.className = 'schedule-link-btn schedule-link-btn-secondary';
+    pubLink.href = scheduleState.meta.publicBookingUrl;
+    pubLink.target = '_blank';
+    pubLink.rel = 'noopener';
+    pubLink.textContent = 'Direct booking page';
+    actions.appendChild(pubLink);
+  }
+  sidebar.appendChild(actions);
 
   const filters = document.createElement('div');
   filters.className = 'schedule-filters';
@@ -5155,56 +5368,74 @@ function renderSchedulePanel() {
     btn.addEventListener('click', () => {
       if (scheduleState.filter === f.id) return;
       scheduleState.filter = f.id;
+      scheduleState.activeUid = null;
+      root.classList.remove('de-pane-active');
       loadScheduleTab();
     });
     filters.appendChild(btn);
   }
-  scroll.appendChild(filters);
+  sidebar.appendChild(filters);
 
-  const panel = document.createElement('section');
-  panel.className = 'dash-panel';
+  const listWrap = document.createElement('div');
+  listWrap.className = 'schedule-list-wrap';
 
   if (scheduleState.loading) {
-    panel.innerHTML = `<p class="dash-empty">Loading bookings…</p>`;
-    scroll.appendChild(panel);
-    root.appendChild(scroll);
-    return;
-  }
-
-  if (scheduleState.error) {
-    panel.innerHTML =
+    listWrap.innerHTML = `<p class="dash-empty">Loading bookings…</p>`;
+  } else if (scheduleState.error) {
+    listWrap.innerHTML =
       `<p class="dash-empty de-error">${escHtml(scheduleState.error)}</p>` +
       `<p class="dash-empty">Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.</p>`;
-    scroll.appendChild(panel);
-    root.appendChild(scroll);
-    return;
-  }
-
-  const list = document.createElement('ul');
-  list.className = 'dash-events schedule-bookings';
-  const bookings = scheduleState.bookings;
-  if (!bookings.length) {
-    panel.innerHTML = `<p class="dash-empty">${scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.'}</p>`;
   } else {
-    for (const b of bookings) {
-      const li = document.createElement('li');
-      li.className = 'dash-event schedule-booking';
-      const who = b.attendee && b.attendee !== 'Unknown' ? b.attendee : b.email || 'Guest';
-      const meta = [who, b.email && b.attendee !== b.email ? b.email : '', b.location].filter(Boolean).join(' · ');
-      li.innerHTML =
-        `<span class="dash-event-time">${escHtml(formatScheduleWhen(b.startTime))}</span>` +
-        `<div class="dash-event-body">` +
-          `<div class="dash-event-title">${escHtml(b.title || 'Meeting')}</div>` +
-          `<div class="dash-event-type">${escHtml(meta)}</div>` +
-          (b.status ? `<span class="schedule-status ${scheduleStatusClass(b.status)}">${escHtml(b.status)}</span>` : '') +
-        `</div>`;
-      list.appendChild(li);
+    const bookings = scheduleState.bookings;
+    if (!bookings.length) {
+      listWrap.innerHTML =
+        `<p class="dash-empty">${scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.'}</p>`;
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'dash-events schedule-bookings';
+      for (const b of bookings) {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className =
+          'dash-event schedule-booking schedule-booking-btn' +
+          (scheduleState.activeUid === b.uid ? ' is-active' : '');
+        const who = scheduleBookingWho(b);
+        const meta = [who, b.email && b.attendee !== b.email ? b.email : '', b.location]
+          .filter(Boolean)
+          .join(' · ');
+        btn.innerHTML =
+          `<span class="dash-event-time">${escHtml(formatScheduleWhen(b.startTime))}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(b.title || 'Meeting')}</div>` +
+            `<div class="dash-event-type">${escHtml(meta)}</div>` +
+            (b.status ? `<span class="schedule-status ${scheduleStatusClass(b.status)}">${escHtml(b.status)}</span>` : '') +
+          `</div>`;
+        btn.addEventListener('click', () => selectScheduleBooking(b.uid));
+        li.appendChild(btn);
+        list.appendChild(li);
+      }
+      listWrap.appendChild(list);
     }
-    panel.appendChild(list);
   }
+  sidebar.appendChild(listWrap);
+  root.appendChild(sidebar);
 
-  scroll.appendChild(panel);
-  root.appendChild(scroll);
+  const pane = document.createElement('div');
+  pane.className = 'de-pane schedule-detail-pane';
+  const active = scheduleState.activeUid ? findScheduleBooking(scheduleState.activeUid) : null;
+  if (active) {
+    renderScheduleDetail(pane, active);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = placeholderHtml(
+      'calendar',
+      '<p>Select a booking to view details, or share your public booking link.</p>',
+    );
+    pane.appendChild(placeholder);
+  }
+  root.appendChild(pane);
 }
 
 // ---- clients tab ----
