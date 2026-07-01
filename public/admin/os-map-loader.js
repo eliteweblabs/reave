@@ -9592,6 +9592,9 @@ function renderEmailFilterTabs() {
 
     nav.appendChild(btn);
   }
+  requestAnimationFrame(() => {
+    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
   return nav;
 }
 

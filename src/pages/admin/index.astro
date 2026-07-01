@@ -928,9 +928,11 @@ const { userId } = Astro.locals.auth();
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
+        min-width: 0;
       }
       .panel-list-subheader--stacked .em-filter-tabs {
         margin: 0;
+        width: 100%;
       }
       .panel-list-subheader--stacked .schedule-quick-links {
         margin: 0;
@@ -2739,19 +2741,23 @@ const { userId } = Astro.locals.auth();
         display: flex;
         gap: 0.25rem;
         overflow-x: auto;
+        overflow-y: hidden;
         scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
         margin: 0 0.7rem 0.35rem;
         flex: 0 0 auto;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
       }
       .em-filter-tabs::-webkit-scrollbar { display: none; }
       .em-filter-tab {
-        flex: 1;
-        min-width: 0;
+        flex: 0 0 auto;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.35rem;
-        padding: 0.3rem 0.35rem;
+        padding: 0.3rem 0.55rem;
         border: 1px solid transparent;
         border-radius: 6px;
         background: transparent;
