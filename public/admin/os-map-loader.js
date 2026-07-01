@@ -2166,6 +2166,27 @@ function showFooterChatCompose() {
   requestAnimationFrame(() => getChatPanel()?.querySelector('.ch-input')?.focus());
 }
 
+function footerNavOccupiedHeight(nav, slot) {
+  const navH = nav.getBoundingClientRect().height;
+  const attachments = slot?.querySelector('.ch-attachments:not([hidden])');
+  if (!attachments) return navH;
+  const gapPx = parseFloat(getComputedStyle(nav).fontSize) * 0.35;
+  return navH + attachments.getBoundingClientRect().height + gapPx;
+}
+
+function syncFooterAttachmentsLayout() {
+  const slot = getFooterChatComposeSlot();
+  const nav = document.getElementById('admin-footer-nav');
+  if (!slot || !nav) return;
+  const attachments = slot.querySelector('.ch-attachments');
+  const hasAttachments = Boolean(attachments && !attachments.hidden);
+  nav.classList.toggle('footer-nav-has-attachments', hasAttachments);
+  if (nav.classList.contains('footer-nav-has-compose')) {
+    const h = footerNavOccupiedHeight(nav, slot);
+    document.documentElement.style.setProperty('--footer-nav-h', `${h}px`);
+  }
+}
+
 function syncFooterChatComposeLayout() {
   const slot = getFooterChatComposeSlot();
   const nav = document.getElementById('admin-footer-nav');
@@ -2185,9 +2206,11 @@ function syncFooterChatComposeLayout() {
   }
 
   if (hasCompose) {
-    const h = nav.getBoundingClientRect().height;
-    document.documentElement.style.setProperty('--footer-nav-h', `${h}px`);
+    requestAnimationFrame(() => {
+      syncFooterAttachmentsLayout();
+    });
   } else {
+    nav.classList.remove('footer-nav-has-attachments');
     document.documentElement.style.removeProperty('--footer-nav-h');
   }
   syncFooterChatNav();
@@ -5461,6 +5484,100 @@ let clientState = {
 };
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
+let clientFieldRegistry = [];
+
+const CLIENT_FIELD_VALID = 'de-field-valid';
+const CLIENT_FIELD_INVALID = 'de-field-invalid';
+
+function clearClientFieldRegistry() {
+  clientFieldRegistry = [];
+}
+
+function phoneDigits(value) {
+  return (value || '').replace(/\D/g, '');
+}
+
+/** Display format for tel inputs — US/Canada (+1) by default. */
+function formatPhoneInput(value) {
+  const digits = phoneDigits(value);
+  if (!digits) return '';
+  const us = (digits.startsWith('1') ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length < 4) return `+1 (${us}`;
+  if (us.length < 7) return `+1 (${us.slice(0, 3)}) ${us.slice(3)}`;
+  return `+1 (${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}`;
+}
+
+/** Store phones as E.164 for SMS/API. */
+function phoneToStorage(display) {
+  const digits = phoneDigits(display);
+  if (!digits) return '';
+  const us = (digits.startsWith('1') && digits.length >= 11 ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length === 10) return `+1${us}`;
+  return `+${digits}`;
+}
+
+function isValidClientEmail(value) {
+  const v = (value || '').trim();
+  if (!v) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function isValidClientPhone(value) {
+  const digits = phoneDigits(value);
+  if (!digits) return true;
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+function setClientFieldValidationState(el, touched, valid) {
+  el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID);
+  if (!touched) return;
+  el.classList.add(valid ? CLIENT_FIELD_VALID : CLIENT_FIELD_INVALID);
+}
+
+function registerClientField(el, validateFn) {
+  let touched = false;
+  const ctrl = {
+    el,
+    touch() { touched = true; },
+    refresh(savedOk) {
+      if (savedOk === false) {
+        touched = true;
+        setClientFieldValidationState(el, true, false);
+        return;
+      }
+      if (!touched && savedOk !== true) return;
+      if (savedOk === true) touched = true;
+      setClientFieldValidationState(el, true, validateFn());
+    },
+  };
+  el.addEventListener('blur', () => {
+    touched = true;
+    ctrl.refresh();
+  });
+  el.addEventListener('input', () => {
+    touched = true;
+    ctrl.refresh();
+  });
+  clientFieldRegistry.push(ctrl);
+  return ctrl;
+}
+
+function refreshAllClientFields(savedOk) {
+  for (const f of clientFieldRegistry) f.refresh(savedOk);
+}
+
+function attachPhoneFormatter(input) {
+  input.type = 'tel';
+  input.autocomplete = 'tel';
+  input.placeholder = '+1 (555) 000-0000';
+  input.addEventListener('input', () => {
+    const formatted = formatPhoneInput(input.value);
+    if (formatted !== input.value) {
+      input.value = formatted;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+}
 
 function getClientsEditor() { return document.getElementById('clients-editor'); }
 
@@ -5571,6 +5688,7 @@ function appendClientField(parent, label, input) {
 }
 
 function renderNewClientForm(pane) {
+  clearClientFieldRegistry();
   pane.innerHTML = '';
   const header = document.createElement('div');
   header.className = 'de-header';
@@ -5597,6 +5715,7 @@ function renderNewClientForm(pane) {
   nameInput.placeholder = 'Full name';
   nameInput.value = clientState.draft?.name || '';
   appendClientField(fields, 'Name', nameInput);
+  registerClientField(nameInput, () => !!nameInput.value.trim());
 
   const emailInput = document.createElement('input');
   emailInput.className = 'de-input';
@@ -5604,18 +5723,21 @@ function renderNewClientForm(pane) {
   emailInput.placeholder = 'email@example.com';
   emailInput.value = clientState.draft?.email || '';
   appendClientField(fields, 'Email', emailInput);
+  registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
   const phoneInput = document.createElement('input');
   phoneInput.className = 'de-input';
-  phoneInput.placeholder = '+1 …';
-  phoneInput.value = clientState.draft?.phone || '';
+  phoneInput.value = formatPhoneInput(clientState.draft?.phone || '');
   appendClientField(fields, 'Phone', phoneInput);
+  attachPhoneFormatter(phoneInput);
+  registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
   const companyInput = document.createElement('input');
   companyInput.className = 'de-input';
   companyInput.placeholder = 'Company';
   companyInput.value = clientState.draft?.company || '';
   appendClientField(fields, 'Company', companyInput);
+  registerClientField(companyInput, () => true);
 
   pane.appendChild(fields);
 
@@ -5629,6 +5751,7 @@ function renderNewClientForm(pane) {
   notesTa.value = clientState.draft?.notes || '';
   notesLabel.appendChild(notesTa);
   pane.appendChild(notesLabel);
+  registerClientField(notesTa, () => true);
 
   const actions = document.createElement('div');
   actions.className = 'de-actions';
@@ -5643,15 +5766,18 @@ function renderNewClientForm(pane) {
   const createBtn = document.createElement('button');
   createBtn.className = 'de-btn de-btn-primary';
   createBtn.textContent = 'Create';
-  createBtn.addEventListener('click', () =>
+  createBtn.addEventListener('click', () => {
+    refreshAllClientFields();
+    if (!nameInput.value.trim()) return;
+    if (!isValidClientEmail(emailInput.value) || !isValidClientPhone(phoneInput.value)) return;
     createClient({
       name: nameInput.value.trim(),
       email: emailInput.value.trim(),
-      phone: phoneInput.value.trim(),
+      phone: phoneToStorage(phoneInput.value),
       company: companyInput.value.trim(),
       notes: notesTa.value.trim(),
-    }),
-  );
+    });
+  });
   actions.appendChild(cancelBtn);
   actions.appendChild(createBtn);
   pane.appendChild(actions);
@@ -5659,6 +5785,7 @@ function renderNewClientForm(pane) {
 }
 
 function renderEditClientForm(pane) {
+  clearClientFieldRegistry();
   const uid = clientState.activeUid;
   pane.innerHTML = '<div class="de-loading">Loading…</div>';
 
@@ -5777,16 +5904,20 @@ function renderEditClientForm(pane) {
       emailInput.type = 'email';
       emailInput.value = clientState.draft.email || '';
       appendClientField(fields, 'Email', emailInput);
+      registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
       const phoneInput = document.createElement('input');
       phoneInput.className = 'de-input';
-      phoneInput.value = clientState.draft.phone || '';
+      phoneInput.value = formatPhoneInput(clientState.draft.phone || '');
       appendClientField(fields, 'Phone', phoneInput);
+      attachPhoneFormatter(phoneInput);
+      registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
       const companyInput = document.createElement('input');
       companyInput.className = 'de-input';
       companyInput.value = clientState.draft.company || '';
       appendClientField(fields, 'Company', companyInput);
+      registerClientField(companyInput, () => true);
 
       const notesLabel = document.createElement('label');
       notesLabel.className = 'de-label cl-notes-label';
@@ -5797,13 +5928,15 @@ function renderEditClientForm(pane) {
       notesTa.value = clientState.draft.notes || '';
       notesLabel.appendChild(notesTa);
       fields.appendChild(notesLabel);
+      registerClientField(notesTa, () => true);
+      registerClientField(nameInput, () => !!nameInput.value.trim());
 
       pane.appendChild(fields);
 
       const getPayload = () => ({
         name: nameInput.value.trim(),
         email: emailInput.value.trim(),
-        phone: phoneInput.value.trim(),
+        phone: phoneToStorage(phoneInput.value),
         company: companyInput.value.trim(),
         notes: notesTa.value.trim(),
       });
@@ -5813,7 +5946,7 @@ function renderEditClientForm(pane) {
         clientState.dirty =
           nameInput.value !== clientState.draft.name ||
           emailInput.value !== clientState.draft.email ||
-          phoneInput.value !== clientState.draft.phone ||
+          phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
           companyInput.value !== clientState.draft.company ||
           notesTa.value !== clientState.draft.notes;
       };
@@ -5821,9 +5954,9 @@ function renderEditClientForm(pane) {
         markDirty();
         scheduleClientAutosave(uid, getPayload);
       };
-      const saveNow = () => {
+      const saveNow = async () => {
         markDirty();
-        autosaveClient(uid, getPayload());
+        await autosaveClient(uid, getPayload());
       };
       for (const el of [nameInput, emailInput, phoneInput, companyInput, notesTa]) {
         el.addEventListener('input', queueAutosave);
@@ -5871,9 +6004,9 @@ function syncClientListRow(uid, name) {
 
 function scheduleClientAutosave(uid, getPayload) {
   clearTimeout(clientAutosaveTimer);
-  clientAutosaveTimer = setTimeout(() => {
+  clientAutosaveTimer = setTimeout(async () => {
     clientAutosaveTimer = null;
-    autosaveClient(uid, getPayload());
+    await autosaveClient(uid, getPayload());
   }, 650);
 }
 
@@ -5888,9 +6021,12 @@ async function flushClientAutosave() {
 }
 
 async function autosaveClient(uid, payload) {
-  if (!payload.name) return;
+  if (!payload.name) {
+    refreshAllClientFields();
+    return false;
+  }
   const draft = clientState.draft;
-  if (!draft) return;
+  if (!draft) return false;
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -5899,7 +6035,12 @@ async function autosaveClient(uid, payload) {
     payload.notes === draft.notes;
   if (unchanged) {
     clientState.dirty = false;
-    return;
+    refreshAllClientFields(true);
+    return true;
+  }
+  if (!isValidClientEmail(payload.email) || !isValidClientPhone(payload.phone)) {
+    refreshAllClientFields();
+    return false;
   }
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
@@ -5919,8 +6060,12 @@ async function autosaveClient(uid, payload) {
       c.company = payload.company;
     }
     syncClientListRow(uid, payload.name);
+    refreshAllClientFields(true);
+    return true;
   } catch (e) {
     console.warn('[clients] autosave failed', e);
+    refreshAllClientFields(false);
+    return false;
   }
 }
 
@@ -6789,8 +6934,6 @@ function renderChatPanel() {
   attachmentsEl.className = 'ch-attachments';
   attachmentsEl.hidden = true;
 
-  composeMain.appendChild(attachmentsEl);
-
   const inputField = document.createElement('div');
   inputField.className = 'ch-input-field control-field';
 
@@ -6842,6 +6985,7 @@ function renderChatPanel() {
       wrap.appendChild(rm);
       attachmentsEl.appendChild(wrap);
     }
+    requestAnimationFrame(() => syncFooterAttachmentsLayout());
   }
 
   function syncSendState() {
@@ -6962,6 +7106,7 @@ function renderChatPanel() {
   composeActions.appendChild(stopBtn);
   inputField.appendChild(composeActions);
   composeMain.appendChild(inputField);
+  compose.appendChild(attachmentsEl);
   compose.appendChild(composeMain);
   if (!mountChatCompose(compose)) pane.appendChild(compose);
 
