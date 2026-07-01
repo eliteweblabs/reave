@@ -6,9 +6,7 @@ import {
   listSearchSubheader,
   createPanelBackBtn,
   matchesListSearch,
-  showPortalSendSheet,
-} from './admin-ui.js?v=20250630n';
-import { SMS_CARRIER_OPTIONS } from './sms-carriers.js';
+} from './admin-ui.js?v=20250630l';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -2081,8 +2079,6 @@ function footerNavCreateModeActive(nav) {
 
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
-const FOOTER_SCROLL_ROOT_SELECTOR =
-  '.ch-list, .ch-messages, .de-list, .em-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body, .home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -2114,9 +2110,6 @@ function onPanelScrollCollapse(ev) {
   const target = ev.target;
   if (!(target instanceof Element)) return;
   if (target.closest('#wrap, #admin-footer-nav')) return;
-  // Only panel scroll regions — not nested controls (e.g. reply textareas).
-  if (target.matches('textarea, input, select')) return;
-  if (!target.matches(FOOTER_SCROLL_ROOT_SELECTOR)) return;
   const panel = target.closest(FOOTER_PANEL_SELECTOR);
   if (!panel) return;
   const style = window.getComputedStyle(panel);
@@ -4968,7 +4961,6 @@ function renderEditWorkForm(pane) {
         appendPortalShareBtn(header, data.contact_uid, {
           tab: 'work',
           title: `${data.contact_name || data.client || 'Client'} — Work`,
-          name: data.contact_name || data.client,
         });
       }
 
@@ -5809,7 +5801,6 @@ function renderEditClientForm(pane) {
         company: contact.company || '',
         notes: contact.notes || '',
         portal_url: contact.portal_url ?? data.portal_url,
-        sms_carrier: data.sms_carrier ?? contact.sms_carrier ?? '',
         createdAt: contact.createdAt ?? data.createdAt,
         archived: contact.archived ?? data.archived,
       };
@@ -5849,13 +5840,7 @@ function renderEditClientForm(pane) {
 
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
-      appendPortalShareBtn(headerActions, uid, {
-        title: `${clientState.draft.name || 'Client'} — portal`,
-        name: clientState.draft.name,
-        email: clientState.draft.email,
-        phone: clientState.draft.phone,
-        smsCarrier: clientState.draft.sms_carrier,
-      });
+      appendPortalShareBtn(headerActions, uid, { title: `${clientState.draft.name || 'Client'} — portal` });
       headerActions.appendChild(createIosIconBtn({
         iconKey: 'trash',
         label: 'Delete client',
@@ -6417,102 +6402,6 @@ function clientPortalShareUrl(uid, tab) {
   return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
 }
 
-function formatPhoneDisplay(phone) {
-  const raw = String(phone || '').trim();
-  const d = raw.replace(/\D/g, '');
-  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-  if (d.length === 11 && d[0] === '1') return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
-  return raw;
-}
-
-function nativeMailtoUrl(email, subject, body) {
-  const to = String(email || '').trim();
-  if (!to) return '';
-  return `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
-async function sendPortalViaApi(uid, channel, tab, carrier) {
-  const res = await adminFetch(`/api/clients/${encodeURIComponent(uid)}/send-portal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel, tab: tab || undefined, carrier: carrier || undefined }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Send failed');
-  return data;
-}
-
-async function openPortalSendSheet(opts = {}) {
-  let { uid, name, email, phone, smsCarrier, tab, title, btn } = opts;
-  if (!uid) return;
-
-  if (!email && !phone) {
-    try {
-      const r = await adminFetch(`/api/clients/${encodeURIComponent(uid)}`);
-      const data = await r.json();
-      if (data.ok !== false) {
-        email = data.email || email;
-        phone = data.phone || phone;
-        name = data.name || name;
-        smsCarrier = data.sms_carrier || smsCarrier;
-      }
-    } catch {
-      /* use whatever we have */
-    }
-  }
-
-  const url = clientPortalShareUrl(uid, tab);
-  const displayName = (name || 'Client').trim();
-  const phoneLabel = phone ? formatPhoneDisplay(phone) : '';
-
-  showPortalSendSheet({
-    title: `Send portal to ${displayName}`,
-    message: 'Send their client page link — billing, updates, and portal access.',
-    phone,
-    phoneLabel,
-    email,
-    carriers: SMS_CARRIER_OPTIONS,
-    defaultCarrier: smsCarrier || localStorage.getItem('reave-default-sms-carrier') || '',
-    onText: async ({ carrier }) => {
-      localStorage.setItem('reave-default-sms-carrier', carrier);
-      try {
-        const result = await sendPortalViaApi(uid, 'sms', tab, carrier);
-        showChatToast(`Texted ${formatPhoneDisplay(phone)}`);
-        return result;
-      } catch (e) {
-        showChatToast(e?.message || 'Text failed');
-        throw e;
-      }
-    },
-    onEmail: async () => {
-      try {
-        const result = await sendPortalViaApi(uid, 'email', tab);
-        showChatToast(`Emailed ${result.dest || email}`);
-        return result;
-      } catch (e) {
-        const msg = e?.message || '';
-        if (/not configured/i.test(msg)) {
-          const firstName = displayName.split(/\s+/)[0] || 'there';
-          const href = nativeMailtoUrl(
-            email,
-            'Your client page',
-            `Hi ${firstName},\n\nHere's your personal client page:\n\n${url}`
-          );
-          if (href) window.location.href = href;
-          else showChatToast(msg);
-        } else {
-          showChatToast(msg || 'Email failed');
-        }
-        throw e;
-      }
-    },
-    onCopy: () => copyChatText(url, btn),
-    onMore: navigator.share
-      ? () => sharePortalLink(url, title, btn)
-      : undefined,
-  });
-}
-
 async function sharePortalLink(url, title, btn) {
   if (!url) return false;
   const pageTitle = title || 'Client page';
@@ -6535,23 +6424,13 @@ async function sharePortalLink(url, title, btn) {
 }
 
 function appendPortalShareBtn(parent, uid, opts = {}) {
-  const { tab, title, name, email, phone, smsCarrier, className = 'ios-icon-btn de-share-btn' } = opts;
+  const { tab, title, className = 'ios-icon-btn de-share-btn' } = opts;
   if (!uid) return null;
   const btn = createIosIconBtn({
     iconKey: 'share',
-    label: 'Send client portal link',
+    label: 'Share client portal link',
     className,
-    onClick: () =>
-      openPortalSendSheet({
-        uid,
-        name,
-        email,
-        phone,
-        smsCarrier,
-        tab,
-        title: title || 'Your client page',
-        btn,
-      }),
+    onClick: () => sharePortalLink(clientPortalShareUrl(uid, tab), title || 'Your client page', btn),
   });
   parent.appendChild(btn);
   return btn;

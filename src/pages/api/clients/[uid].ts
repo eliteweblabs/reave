@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
 import {
   contactSummary,
-  extractPortal,
   getContact,
   isContactApiConfigured,
   updateContact,
@@ -36,15 +35,12 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   const res = await getContact(uid);
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 404);
 
-  const portal = extractPortal(res.data);
-
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
-    sms_carrier: portal?.smsCarrier ?? '',
   });
 };
 

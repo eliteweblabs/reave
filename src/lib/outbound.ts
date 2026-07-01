@@ -1,16 +1,10 @@
 /**
- * Outbound client messaging — send email (Resend), SMS (Telnyx), and
- * email-to-SMS via carrier gateways (Resend → 5551234567@txt.att.net).
+ * Outbound client messaging — send email (Resend) and SMS (Telnyx).
+ * Used to deliver client portal links to clients on their own device.
  */
 import { resolveEmailFrom } from './companyConfig';
 import { serverEnv } from './serverEnv';
 import { sendTelnyxSms } from './telnyxClient';
-import {
-  generateSmsEmail,
-  getCarrierInfo,
-  getCarrierKeyFromGateway,
-  isValidCarrier,
-} from './smsUtils';
 
 export type SendResult = { ok: true; id?: string } | { ok: false; error: string };
 
@@ -20,11 +14,6 @@ export function isEmailSendConfigured(): boolean {
 
 export function isSmsSendConfigured(): boolean {
   return Boolean(serverEnv('TELNYX_API_KEY') && serverEnv('TELNYX_FROM_NUMBER'));
-}
-
-/** Email-to-SMS works whenever Resend is configured (no Telnyx needed). */
-export function isEmailToSmsConfigured(): boolean {
-  return isEmailSendConfigured();
 }
 
 export async function sendEmail(opts: {
@@ -78,42 +67,4 @@ export async function sendEmail(opts: {
 
 export async function sendSms(opts: { to: string; body: string }): Promise<SendResult> {
   return sendTelnyxSms({ to: opts.to, text: opts.body });
-}
-
-/**
- * Send SMS by emailing the carrier gateway (e.g. 5551234567@txt.att.net).
- * carrier: carrier key (`att`) or gateway domain (`@txt.att.net`).
- */
-export async function sendSmsViaEmailGateway(opts: {
-  phone: string;
-  carrier: string;
-  text: string;
-  subject?: string;
-}): Promise<SendResult & { gatewayEmail?: string }> {
-  if (!isEmailSendConfigured()) {
-    return { ok: false, error: 'Email not configured. Set RESEND_API_KEY.' };
-  }
-
-  let carrierKey = opts.carrier.trim();
-  if (carrierKey.startsWith('@')) {
-    carrierKey = getCarrierKeyFromGateway(carrierKey) ?? carrierKey;
-  }
-  if (!isValidCarrier(carrierKey)) {
-    return { ok: false, error: 'Select a valid mobile carrier.' };
-  }
-
-  const gatewayEmail = generateSmsEmail(opts.phone, carrierKey);
-  if (!gatewayEmail) {
-    return { ok: false, error: 'Invalid US phone number for SMS gateway.' };
-  }
-
-  let text = opts.text.trim();
-  if (text.length > 160) text = `${text.slice(0, 157)}...`;
-
-  const carrierName = getCarrierInfo(carrierKey)?.name ?? 'SMS';
-  const subject = opts.subject?.trim() || `Message via ${carrierName}`;
-
-  const r = await sendEmail({ to: gatewayEmail, subject, text });
-  if (!r.ok) return r;
-  return { ...r, gatewayEmail };
 }

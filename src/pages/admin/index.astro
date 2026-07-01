@@ -296,24 +296,7 @@ const { userId } = Astro.locals.auth();
         :is(
           input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not(.cl-title-input),
           select,
-          button:not(
-            .de-list-item,
-            .ch-list-item,
-            .em-list-item,
-            .de-empty-action,
-            .de-placeholder-action,
-            .de-btn,
-            .de-mode-tab,
-            .ch-context-item,
-            .ios-action-sheet-btn,
-            .em-filter-tab,
-            .wk-client-option,
-            .de-sc-pop-row,
-            .tab-dropdown-item,
-            .os-dialog-btn,
-            .swipe-act,
-            .search-result-item
-          )
+          button
         ) {
         border-radius: var(--radius-pill);
       }
@@ -2055,16 +2038,13 @@ const { userId } = Astro.locals.auth();
         padding: 0;
         border-top: none;
         background: transparent;
-        gap: 0;
+        gap: 0.35rem;
         min-width: 0;
-        align-self: stretch;
       }
       .footer-chat-compose .ch-compose-main {
         flex-direction: column;
-        gap: 0;
+        gap: 0.35rem;
         min-width: 0;
-        flex: 1;
-        align-self: stretch;
       }
       /* Inner field only — outer .admin-footer-nav-bar is the control-field shell when compose is open. */
       .footer-chat-compose .ch-input-field.control-field,
@@ -2077,25 +2057,23 @@ const { userId } = Astro.locals.auth();
         border: none;
         background: transparent;
         border-radius: 0;
-        align-items: stretch;
-        align-self: stretch;
+        align-items: center;
       }
       .footer-chat-compose .ch-input-field.control-field:focus-within {
         border-color: transparent;
       }
       .footer-chat-compose .ch-input {
         min-height: 0;
-        max-height: 100%;
-        padding: 0 0.5rem;
+        max-height: 5rem;
+        padding: 0.2rem 0.5rem;
         font-size: max(16px, 0.82rem);
         line-height: 1.35;
         align-self: center;
       }
-      .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions {
-        align-self: stretch;
-        align-items: stretch;
+      .footer-chat-compose .ch-compose-actions {
+        align-self: center;
         flex-direction: row;
-        gap: 0;
+        gap: 0.25rem;
         margin: 0;
       }
       .footer-chat-compose .ch-send svg {
@@ -2225,52 +2203,6 @@ const { userId } = Astro.locals.auth();
       .ch-stop:hover { background: #b91c1c; }
       .ch-stop[hidden] { display: none !important; }
       .ch-send[hidden] { display: none !important; }
-
-      /* Footer agent input — flush end caps inside the compose pill. */
-      .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
-        align-items: stretch;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-compose-main {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        align-self: stretch;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-input-field.control-field {
-        align-self: stretch;
-        height: 100%;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-send,
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-stop {
-        align-self: stretch;
-        height: 100%;
-        border-radius: 0 !important;
-        margin: 0;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-send {
-        width: var(--control-h);
-        min-width: var(--control-h);
-        padding: 0;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-input-field.control-field > .ch-compose-actions > .ch-stop {
-        min-width: var(--control-h);
-        padding: 0 0.85rem;
-      }
-
-      /* Footer: image previews sit above the compose pill, outside the input row. */
-      .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar:has(.ch-attachments:not([hidden])) {
-        position: relative;
-        overflow: visible;
-      }
-      .admin-footer-nav.footer-nav-compose-open .footer-chat-compose .ch-attachments:not([hidden]) {
-        position: absolute;
-        bottom: calc(100% + 0.35rem);
-        left: 0;
-        right: 0;
-        margin: 0;
-        padding: 0;
-        pointer-events: auto;
-      }
       .ch-thinking {
         align-self: flex-start;
         color: var(--muted);
@@ -2388,131 +2320,6 @@ const { userId } = Astro.locals.auth();
       .ch-toast.ch-toast-visible {
         opacity: 1;
         transform: translateX(-50%) translateY(0);
-      }
-
-      /* ── iOS action sheet (portal send, etc.) ── */
-      body.ios-action-sheet-open {
-        overflow: hidden;
-      }
-      .ios-action-sheet-root {
-        position: fixed;
-        inset: 0;
-        z-index: 10050;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-        padding: 0 0.55rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
-        pointer-events: none;
-      }
-      .ios-action-sheet-root[hidden] {
-        display: none !important;
-      }
-      .ios-action-sheet-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.42);
-        opacity: 0;
-        transition: opacity 0.22s ease;
-        pointer-events: auto;
-      }
-      .ios-action-sheet-wrap {
-        position: relative;
-        width: min(100%, 26rem);
-        pointer-events: auto;
-        transform: translateY(110%);
-        transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-      }
-      .ios-action-sheet-visible .ios-action-sheet-backdrop {
-        opacity: 1;
-      }
-      .ios-action-sheet-visible .ios-action-sheet-wrap {
-        transform: translateY(0);
-      }
-      .ios-action-sheet-title,
-      .ios-action-sheet-message {
-        text-align: center;
-        padding: 0.35rem 1rem 0.15rem;
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: var(--muted);
-        line-height: 1.35;
-      }
-      .ios-action-sheet-message {
-        font-weight: 500;
-        padding-bottom: 0.45rem;
-      }
-      .ios-action-sheet-group {
-        background: var(--popover-bg);
-        border-radius: 14px;
-        overflow: hidden;
-        margin-bottom: 0.55rem;
-        box-shadow: var(--popover-shadow);
-      }
-      .ios-action-sheet-btn {
-        display: block;
-        width: 100%;
-        padding: 0.95rem 1rem;
-        min-height: 3rem;
-        border: none;
-        border-top: 1px solid var(--panel-border);
-        background: transparent;
-        color: #0a84ff;
-        font: inherit;
-        font-size: max(16px, 1.02rem);
-        font-weight: 500;
-        text-align: center;
-        cursor: pointer;
-        -webkit-tap-highlight-color: transparent;
-      }
-      .ios-action-sheet-group .ios-action-sheet-btn:first-child {
-        border-top: none;
-      }
-      .ios-action-sheet-btn:active:not(:disabled) {
-        background: rgba(10, 132, 255, 0.08);
-      }
-      .ios-action-sheet-btn:disabled {
-        color: var(--muted);
-        opacity: 0.65;
-        cursor: default;
-      }
-      .ios-action-sheet-destructive {
-        color: #ff3b30;
-      }
-      .ios-action-sheet-cancel {
-        font-weight: 600;
-      }
-      .ios-action-sheet-field {
-        padding: 0.65rem 0.85rem 0.75rem;
-        border-bottom: 1px solid var(--panel-border);
-        text-align: left;
-      }
-      .ios-action-sheet-field-label {
-        display: block;
-        font-size: 0.72rem;
-        font-weight: 600;
-        color: var(--muted);
-        margin-bottom: 0.35rem;
-      }
-      .ios-action-sheet-select {
-        display: block;
-        width: 100%;
-        padding: 0.55rem 0.65rem;
-        font: inherit;
-        font-size: max(16px, 1rem);
-        color: var(--fg);
-        background: var(--panel-bg);
-        border: 1px solid var(--panel-border);
-        border-radius: 10px;
-        appearance: none;
-        -webkit-appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.65rem center;
-        padding-right: 2rem;
-      }
-      .ios-action-sheet-select-invalid {
-        border-color: #ff3b30;
-        box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.15);
       }
       .ch-context-menu {
         position: fixed;
@@ -3792,6 +3599,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630r"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630p"></script>
   </body>
 </html>
