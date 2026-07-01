@@ -84,6 +84,7 @@ export function extractBrandFromHtml(html: string, pageUrl: string): ClientBrand
   $('img[class*="logo" i], img[id*="logo" i], img[alt*="logo" i]').each((_, el) => {
     push($(el).attr('src'));
   });
+  // og:image is usually a social banner — keep it last so logos/icons win.
   push(extractMeta($, 'og:image'));
 
   const logoUrl = candidates.find((u) => !/favicon\.ico(?:\?|$)/i.test(u)) ?? candidates[0];

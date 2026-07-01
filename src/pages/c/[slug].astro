@@ -27,6 +27,9 @@ import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
+import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
+import { requestOrigin } from '../../lib/requestOrigin';
+import { SITE } from '../../config/site';
 import PortalWorkPanel, { type PortalWorkJobItem } from '../../components/PortalWorkPanel.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -204,6 +207,11 @@ const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0a0a0a';
+const origin = requestOrigin(Astro.request);
+const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
+const ogDescription = clientTagline || `${brandTitle} client portal`;
+const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : SITE.ogImage;
+const ogImageAbsolute = ogImagePath.startsWith('http') ? ogImagePath : `${origin}${ogImagePath}`;
 
 // ?submit — show a focused data-submission form instead of the full portal.
 const submitMode = !notFound && Astro.url.searchParams.has('submit');
@@ -217,6 +225,24 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <title>{notFound ? 'Not found' : pageTitle}</title>
+    {!notFound && (
+      <>
+        <meta name="description" content={ogDescription} />
+        <link rel="canonical" href={portalUrl} />
+        <meta property="og:title" content={pageTitle} />
+        <meta property="og:description" content={ogDescription} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={portalUrl} />
+        <meta property="og:image" content={ogImageAbsolute} />
+        <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />
+        <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />
+        <meta property="og:image:alt" content={`${brandTitle} client portal`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={pageTitle} />
+        <meta name="twitter:description" content={ogDescription} />
+        <meta name="twitter:image" content={ogImageAbsolute} />
+      </>
+    )}
     <Favicon />
     {!notFound && manifestHref && <link rel="manifest" href={manifestHref} />}
     <meta name="theme-color" content={themeColor} />

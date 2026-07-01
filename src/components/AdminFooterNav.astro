@@ -99,6 +99,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   @media (max-width: 639px) {
     .admin-footer-nav.footer-nav-collapsed {
       justify-content: flex-end;
+      padding-right: calc(max(0.5rem, env(safe-area-inset-right, 0px)) + 0.35rem);
     }
 
     .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
@@ -144,7 +145,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
 
     body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed {
       left: auto;
-      right: max(0.5rem, env(safe-area-inset-right, 0px));
+      right: calc(max(0.5rem, env(safe-area-inset-right, 0px)) + 0.35rem);
       width: auto;
       padding-bottom: calc(var(--ch-compose-gap) + env(safe-area-inset-bottom, 0px));
       padding-left: 0;
