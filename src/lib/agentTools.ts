@@ -17,6 +17,7 @@ import {
   storeListWork,
   storeReadWork,
   storeWriteWork,
+  patchWorkSourceChatId,
   WORK_PRIORITIES,
   WORK_STATUSES,
   type WorkPriority,
@@ -233,7 +234,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'create_work',
         description:
-          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job.',
+          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job. When called from chat, the current thread is linked automatically — no separate link_to_work needed.',
         parameters: {
           type: 'object',
           properties: {
@@ -1764,17 +1765,21 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
       if (await storeReadWork(slug)) return JSON.stringify({ error: 'slug already exists', slug });
 
+      const ctx = getAgentContext();
+      const threadId = ctx.threadId?.trim() || '';
+
       const result = await storeWriteWork(slug, {
         title,
         client,
         status,
         body,
         record_origin: 'agent',
+        source_chat_id: threadId || undefined,
         ...workExtrasFromArgs(args),
       });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const doc = result.doc;
-      await linkWorkFromAgentContext(doc.slug);
+      const linked = await linkWorkFromAgentContext(doc.slug);
       return JSON.stringify({
         ok: true,
         slug: doc.slug,
@@ -1783,7 +1788,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         contact_uid: doc.contact_uid,
         contact_name: doc.contact_name,
         status: doc.status,
-        linked: true,
+        linked_chat: threadId || null,
+        linked: linked.chatLinked || !!threadId,
       });
     }
     if (name === 'link_to_work') {
@@ -1801,6 +1807,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!threadId && !emailId) {
         return JSON.stringify({ error: 'nothing to link — open from a chat or provide email_id' });
       }
+      if (threadId) await patchWorkSourceChatId(slug, threadId);
 
       return JSON.stringify({
         ok: true,

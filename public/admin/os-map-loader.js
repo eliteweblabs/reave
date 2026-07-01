@@ -5206,6 +5206,7 @@ function renderEditWorkForm(pane) {
 
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
+      appendWorkChatLinks(headerActions, data.related, data.source_chat_id);
       headerActions.appendChild(createIosIconBtn({
         iconKey: 'trash',
         label: 'Delete project',
@@ -5263,7 +5264,7 @@ function renderEditWorkForm(pane) {
       scroll.appendChild(fields);
       scroll.appendChild(ta);
       mountWorkCommentsSection(scroll, slug);
-      mountWorkRelatedSection(scroll, data.related);
+      mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
 
       setEditorFooterSave(() => {
         const client = clientPicker.getPayload();
@@ -7695,9 +7696,29 @@ function createProjectLinkChip(label, onClick) {
   return btn;
 }
 
-function mountWorkRelatedSection(container, related) {
+function workRelatedChats(related, sourceChatId) {
+  const chats = [...(related?.chats || [])];
+  const sourceId = sourceChatId?.trim?.() || '';
+  if (sourceId && !chats.some((c) => c.id === sourceId)) {
+    chats.unshift({ id: sourceId, title: 'Chat', updatedAt: '' });
+  }
+  return chats;
+}
+
+function appendWorkChatLinks(headerActions, related, sourceChatId) {
+  const chats = workRelatedChats(related, sourceChatId);
+  if (!chats.length) return;
+  const links = document.createElement('div');
+  links.className = 'ch-pane-project-links wk-header-chat-links';
+  for (const chat of chats) {
+    links.appendChild(createProjectLinkChip(chat.title || 'Chat', () => navigateToChat(chat.id)));
+  }
+  headerActions.insertBefore(links, headerActions.firstChild);
+}
+
+function mountWorkRelatedSection(container, related, sourceChatId) {
   const emails = related?.emails || [];
-  const chats = related?.chats || [];
+  const chats = workRelatedChats(related, sourceChatId);
   if (!emails.length && !chats.length) return;
 
   const section = document.createElement('div');

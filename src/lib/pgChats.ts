@@ -168,6 +168,25 @@ export async function pgGetChatThread(
   }
 }
 
+export async function pgGetChatSummaryById(
+  threadId: string,
+): Promise<{ id: string; title: string; updatedAt: string } | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{ id: string; title: string; updated_at: string }>(
+      `SELECT id, title, updated_at FROM chat_threads WHERE id = $1`,
+      [threadId],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return { id: row.id, title: row.title || 'Chat', updatedAt: row.updated_at };
+  } catch (e) {
+    console.error('[chats:pg] summary by id error:', e);
+    return null;
+  }
+}
+
 export async function pgAppendChatMessages(
   threadId: string,
   turns: ChatTurn[]

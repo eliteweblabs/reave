@@ -28,13 +28,14 @@ export interface JobRow {
   value: string | null;
   tags: string[];
   source: string;
+  source_chat_id: string | null;
   body: string;
   created_at: string;
   updated_at: string;
 }
 
 const JOB_COLUMNS = `
-  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, body, created_at, updated_at
+  id, slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body, created_at, updated_at
 `;
 
 const SCHEMA_SQL = `
@@ -81,6 +82,7 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS due_date DATE;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS value NUMERIC(12,2);
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT '';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_chat_id TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -123,6 +125,7 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     tags: row.tags ?? [],
     source: row.source ?? '',
     record_origin: 'db',
+    source_chat_id: row.source_chat_id?.trim() || undefined,
     created: row.created_at,
     updated: row.updated_at,
   };
@@ -142,8 +145,8 @@ async function seedJobsFromFiles(pool: pg.Pool): Promise<void> {
     const doc = fileReadWork(slug);
     if (!doc) continue;
     await pool.query(
-      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, body)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (slug) DO NOTHING`,
       [
         slug,
@@ -156,6 +159,7 @@ async function seedJobsFromFiles(pool: pg.Pool): Promise<void> {
         doc.value,
         doc.tags,
         doc.source,
+        doc.source_chat_id || null,
         doc.body,
       ],
     );
@@ -251,6 +255,7 @@ export async function dbCreateWork(input: {
   value?: number | null;
   tags?: string[];
   source?: string;
+  source_chat_id?: string | null;
   body?: string;
 }): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
   try {
@@ -258,8 +263,8 @@ export async function dbCreateWork(input: {
     if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
 
     const { rows } = await pool.query<JobRow>(
-      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, body)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO jobs (slug, title, client, client_uid, status, priority, due_date, value, tags, source, source_chat_id, body)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING ${JOB_COLUMNS}`,
       [
         input.slug,
@@ -272,6 +277,7 @@ export async function dbCreateWork(input: {
         input.value ?? null,
         input.tags ?? [],
         input.source?.trim() ?? '',
+        input.source_chat_id?.trim() || null,
         (input.body ?? '').trim(),
       ],
     );
@@ -299,6 +305,7 @@ export async function dbUpdateWork(
     value?: number | null;
     tags?: string[];
     source?: string;
+    source_chat_id?: string | null;
     body?: string;
   },
 ): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
@@ -317,6 +324,7 @@ export async function dbUpdateWork(
          value = COALESCE($8::numeric, value),
          tags = COALESCE($9, tags),
          source = COALESCE($10, source),
+         source_chat_id = COALESCE($12, source_chat_id),
          body = COALESCE($11, body),
          updated_at = NOW()
        WHERE slug = $1
@@ -333,6 +341,7 @@ export async function dbUpdateWork(
         input.tags ?? null,
         input.source?.trim() ?? null,
         input.body != null ? input.body.trim() : null,
+        input.source_chat_id === undefined ? null : input.source_chat_id,
       ],
     );
     const row = rows[0];
@@ -364,6 +373,37 @@ export async function dbAppendWorkNote(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
+  }
+}
+
+export async function dbListJobsBySourceChatId(chatId: string): Promise<WorkJobSummary[] | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<JobRow>(
+      `SELECT ${JOB_COLUMNS} FROM jobs WHERE source_chat_id = $1 ORDER BY updated_at DESC`,
+      [chatId.trim()],
+    );
+    return rows.map(rowToSummary);
+  } catch (e) {
+    console.error('[jobs:pg] list by source_chat_id error:', e);
+    return null;
+  }
+}
+
+export async function dbPatchWorkSourceChatId(slug: string, chatId: string): Promise<boolean> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return false;
+    const { rowCount } = await pool.query(
+      `UPDATE jobs SET source_chat_id = $2, updated_at = NOW()
+       WHERE slug = $1 AND (source_chat_id IS NULL OR source_chat_id = '')`,
+      [slug, chatId.trim()],
+    );
+    return (rowCount ?? 0) > 0;
+  } catch (e) {
+    console.error('[jobs:pg] patch source_chat_id error:', e);
+    return false;
   }
 }
 

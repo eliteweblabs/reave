@@ -42,6 +42,8 @@ export interface WorkJobSummary {
   source: string;
   /** Who/what created the record — manual, telegram, dashboard (file storage only). */
   record_origin?: string;
+  /** Dashboard chat thread that spawned or owns this project. */
+  source_chat_id?: string;
   created: string;
   updated: string;
 }
@@ -68,6 +70,8 @@ export interface WorkJobInput {
   body?: string;
   /** Record creation origin — manual, telegram, dashboard (not the lead source). */
   record_origin?: string;
+  /** Dashboard chat thread to link back to (set when created from chat). */
+  source_chat_id?: string;
 }
 
 const SAFE_SLUG_RE = /^[a-z0-9._-]+$/i;
@@ -229,6 +233,7 @@ function summaryFromMeta(slug: string, meta: Record<string, string>, body: strin
     tags: parseTags(meta.tags),
     source,
     record_origin: record_origin || 'manual',
+    source_chat_id: meta.source_chat_id?.trim() || undefined,
     created: meta.created?.trim() || '',
     updated: meta.updated?.trim() || '',
   };
@@ -250,6 +255,7 @@ function buildMarkdown(
   const value =
     input.value !== undefined ? input.value : existing?.value ?? null;
   const tags = input.tags ?? existing?.tags ?? [];
+  const sourceChatId = input.source_chat_id?.trim() || existing?.source_chat_id?.trim() || '';
   const created = existing?.created || now;
 
   const lines = [
@@ -266,6 +272,7 @@ function buildMarkdown(
   if (dueDate) lines.push(yamlLine('due_date', dueDate));
   if (value != null) lines.push(yamlLine('value', String(value)));
   if (tags.length) lines.push(yamlLine('tags', tags.join(', ')));
+  if (sourceChatId) lines.push(yamlLine('source_chat_id', sourceChatId));
   lines.push(
     yamlLine('created', created),
     yamlLine('updated', now),
@@ -527,6 +534,7 @@ export async function storeWriteWork(
         value: input.value,
         tags: input.tags,
         source: input.source,
+        source_chat_id: input.source_chat_id,
         body: input.body != null ? input.body.trim() : undefined,
       });
     } else {
@@ -541,6 +549,7 @@ export async function storeWriteWork(
         value: input.value ?? null,
         tags: input.tags ?? [],
         source: input.source?.trim() ?? '',
+        source_chat_id: input.source_chat_id?.trim() || null,
         body: (input.body ?? '').trim(),
       });
     }
@@ -566,6 +575,19 @@ export async function storeDeleteWork(slug: string): Promise<boolean> {
 
 export async function storeListWorkForContact(contactUid: string): Promise<WorkJobSummary[]> {
   return storeListWork({ contact_uid: contactUid });
+}
+
+export async function listJobsBySourceChatId(chatId: string): Promise<WorkJobSummary[]> {
+  const id = chatId.trim();
+  if (!id) return [];
+
+  if (isWorkDbConfigured()) {
+    const { dbListJobsBySourceChatId } = await import('./pgJobs');
+    const rows = await dbListJobsBySourceChatId(id);
+    if (rows) return rows;
+  }
+
+  return fileListWork().filter((j) => j.source_chat_id === id);
 }
 
 function formatEmailNoteBlock(
@@ -618,4 +640,48 @@ export function slugFromTitle(title: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
+}
+
+/** Set source_chat_id on a job when linking from chat (does not overwrite an existing link). */
+export async function patchWorkSourceChatId(
+  slug: string,
+  chatId: string,
+): Promise<boolean> {
+  const id = chatId.trim();
+  if (!isSafeWorkSlug(slug) || !id) return false;
+
+  const existing = await storeReadWork(slug);
+  if (!existing || existing.source_chat_id) return !!existing?.source_chat_id;
+
+  if (isWorkDbConfigured()) {
+    const { dbPatchWorkSourceChatId } = await import('./pgJobs');
+    return dbPatchWorkSourceChatId(slug, id);
+  }
+
+  const path = join(workDir(), `${slug}.md`);
+  if (!existsSync(path)) return false;
+  const content = readFileSync(path, 'utf8');
+  const { meta, body } = parseFrontmatter(content);
+  if (meta.source_chat_id?.trim()) return true;
+  meta.source_chat_id = id;
+  const summary = summaryFromMeta(slug, meta, body);
+  const markdown = buildMarkdown(
+    {
+      title: summary.title,
+      contact_uid: summary.contact_uid,
+      contact_name: summary.contact_name,
+      status: summary.status,
+      priority: summary.priority,
+      due_date: summary.due_date,
+      value: summary.value,
+      tags: summary.tags,
+      source: summary.source,
+      body,
+      source_chat_id: id,
+    },
+    { uid: summary.contact_uid, name: summary.contact_name },
+    summary,
+  );
+  writeFileSync(path, markdown.endsWith('\n') ? markdown : `${markdown}\n`, 'utf8');
+  return true;
 }

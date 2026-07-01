@@ -7,6 +7,7 @@ import {
   fileAppendChatMessages,
   fileCreateChatThread,
   fileDeleteChatThread,
+  fileGetChatSummaryById,
   fileGetChatThread,
   fileListChatThreads,
   fileSetChatArchived,
@@ -17,6 +18,7 @@ import {
   pgAppendChatMessages,
   pgCreateChatThread,
   pgDeleteChatThread,
+  pgGetChatSummaryById,
   pgGetChatThread,
   pgListChatThreads,
   pgSetChatArchived,
@@ -88,4 +90,13 @@ export async function storeSetChatArchived(
 ): Promise<boolean> {
   if (chatStorageBackend() === 'postgres') return pgSetChatArchived(userId, threadId, archived);
   return fileSetChatArchived(userId, threadId, archived);
+}
+
+export async function storeGetChatSummaryById(
+  threadId: string,
+): Promise<{ id: string; title: string; updatedAt: string } | null> {
+  const id = threadId.trim();
+  if (!id) return null;
+  if (chatStorageBackend() === 'postgres') return pgGetChatSummaryById(id);
+  return fileGetChatSummaryById(id);
 }

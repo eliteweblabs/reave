@@ -4,8 +4,9 @@
 
 import pg from 'pg';
 import { getAgentContext } from './agentContext';
+import { storeGetChatSummaryById } from './chatStore';
+import { patchWorkSourceChatId, storeReadWork, listJobsBySourceChatId } from './workStore';
 import { serverEnv } from './serverEnv';
-import { storeReadWork } from './workStore';
 
 export type ProjectLinkType = 'email' | 'chat';
 
@@ -117,7 +118,13 @@ export async function listJobsForItem(
   if (!linkId?.trim()) return [];
   try {
     const pool = await ensureSchema();
-    if (!pool) return [];
+    if (!pool) {
+      if (linkType === 'chat') {
+        const fromSource = await listJobsBySourceChatId(linkId.trim());
+        return fromSource.map((job) => ({ slug: job.slug, title: job.title }));
+      }
+      return [];
+    }
     const { rows } = await pool.query<{ job_slug: string }>(
       `SELECT job_slug FROM project_links
        WHERE link_type = $1 AND link_id = $2
@@ -127,6 +134,14 @@ export async function listJobsForItem(
     const out: LinkedJobSummary[] = [];
     for (const row of rows) {
       out.push({ slug: row.job_slug, title: await jobTitle(row.job_slug) });
+    }
+    if (linkType === 'chat') {
+      const fromSource = await listJobsBySourceChatId(linkId.trim());
+      for (const job of fromSource) {
+        if (!out.some((j) => j.slug === job.slug)) {
+          out.push({ slug: job.slug, title: job.title });
+        }
+      }
     }
     return out;
   } catch (e) {
@@ -144,7 +159,20 @@ export async function listJobsForItems(
   if (!ids.length) return out;
   try {
     const pool = await ensureSchema();
-    if (!pool) return out;
+    if (!pool) {
+      if (linkType === 'chat') {
+        for (const id of ids) {
+          const fromSource = await listJobsBySourceChatId(id);
+          if (fromSource.length) {
+            out.set(
+              id,
+              fromSource.map((job) => ({ slug: job.slug, title: job.title })),
+            );
+          }
+        }
+      }
+      return out;
+    }
     const { rows } = await pool.query<{ job_slug: string; link_id: string }>(
       `SELECT job_slug, link_id FROM project_links
        WHERE link_type = $1 AND link_id = ANY($2::text[])
@@ -161,6 +189,18 @@ export async function listJobsForItems(
       const list = out.get(row.link_id) ?? [];
       list.push({ slug: row.job_slug, title });
       out.set(row.link_id, list);
+    }
+    if (linkType === 'chat') {
+      for (const id of ids) {
+        const fromSource = await listJobsBySourceChatId(id);
+        const list = out.get(id) ?? [];
+        for (const job of fromSource) {
+          if (!list.some((j) => j.slug === job.slug)) {
+            list.push({ slug: job.slug, title: job.title });
+          }
+        }
+        if (list.length) out.set(id, list);
+      }
     }
     return out;
   } catch (e) {
@@ -181,58 +221,69 @@ export async function listRelatedForJob(jobSlug: string): Promise<{
 
   try {
     const pool = await ensureSchema();
-    if (!pool) return { emails, chats };
+    if (pool) {
+      const { rows: emailRows } = await pool.query<{
+        id: string;
+        subject: string;
+        from_address: string;
+        received_at: string;
+        summary: string;
+      }>(
+        `SELECT DISTINCT e.id, e.subject, e.from_address, e.received_at, e.summary
+         FROM email_inbox e
+         WHERE e.job_slug = $1
+            OR e.id IN (
+              SELECT link_id FROM project_links
+              WHERE job_slug = $1 AND link_type = 'email'
+            )
+         ORDER BY e.received_at DESC
+         LIMIT 50`,
+        [slug],
+      );
+      for (const row of emailRows) {
+        emails.push({
+          id: row.id,
+          subject: row.subject || '(no subject)',
+          from: row.from_address || '',
+          receivedAt: row.received_at,
+          summary: row.summary || '',
+        });
+      }
 
-    const { rows: emailRows } = await pool.query<{
-      id: string;
-      subject: string;
-      from_address: string;
-      received_at: string;
-      summary: string;
-    }>(
-      `SELECT DISTINCT e.id, e.subject, e.from_address, e.received_at, e.summary
-       FROM email_inbox e
-       WHERE e.job_slug = $1
-          OR e.id IN (
-            SELECT link_id FROM project_links
-            WHERE job_slug = $1 AND link_type = 'email'
-          )
-       ORDER BY e.received_at DESC
-       LIMIT 50`,
-      [slug],
-    );
-    for (const row of emailRows) {
-      emails.push({
-        id: row.id,
-        subject: row.subject || '(no subject)',
-        from: row.from_address || '',
-        receivedAt: row.received_at,
-        summary: row.summary || '',
-      });
-    }
-
-    const { rows: chatRows } = await pool.query<{
-      id: string;
-      title: string;
-      updated_at: string;
-    }>(
-      `SELECT c.id, c.title, c.updated_at
-       FROM chat_threads c
-       INNER JOIN project_links pl ON pl.link_id = c.id::text AND pl.link_type = 'chat'
-       WHERE pl.job_slug = $1
-       ORDER BY c.updated_at DESC
-       LIMIT 50`,
-      [slug],
-    );
-    for (const row of chatRows) {
-      chats.push({
-        id: row.id,
-        title: row.title || 'Chat',
-        updatedAt: row.updated_at,
-      });
+      const { rows: chatRows } = await pool.query<{
+        id: string;
+        title: string;
+        updated_at: string;
+      }>(
+        `SELECT c.id, c.title, c.updated_at
+         FROM chat_threads c
+         INNER JOIN project_links pl ON pl.link_id = c.id::text AND pl.link_type = 'chat'
+         WHERE pl.job_slug = $1
+         ORDER BY c.updated_at DESC
+         LIMIT 50`,
+        [slug],
+      );
+      for (const row of chatRows) {
+        chats.push({
+          id: row.id,
+          title: row.title || 'Chat',
+          updatedAt: row.updated_at,
+        });
+      }
     }
   } catch (e) {
     console.error('[project-links] list related for job failed', e);
+  }
+
+  const doc = await storeReadWork(slug);
+  const sourceChatId = doc?.source_chat_id?.trim();
+  if (sourceChatId && !chats.some((c) => c.id === sourceChatId)) {
+    const summary = await storeGetChatSummaryById(sourceChatId);
+    chats.unshift({
+      id: sourceChatId,
+      title: summary?.title || 'Chat',
+      updatedAt: summary?.updatedAt || doc?.updated || doc?.created || '',
+    });
   }
 
   return { emails, chats };
@@ -264,16 +315,22 @@ export async function assignEmailToJob(
   }
 }
 
-export async function linkWorkFromAgentContext(jobSlug: string): Promise<void> {
+export async function linkWorkFromAgentContext(jobSlug: string): Promise<{
+  chatLinked: boolean;
+  emailLinked: boolean;
+}> {
   const ctx = getAgentContext();
   const slug = jobSlug.trim();
-  if (!slug) return;
+  const out = { chatLinked: false, emailLinked: false };
+  if (!slug) return out;
 
   if (ctx.threadId) {
-    await linkProjectItem(slug, 'chat', ctx.threadId);
+    out.chatLinked = await linkProjectItem(slug, 'chat', ctx.threadId);
+    await patchWorkSourceChatId(slug, ctx.threadId);
   }
   const emailId = ctx.emailId?.trim();
   if (emailId) {
-    await assignEmailToJob(emailId, slug);
+    out.emailLinked = await assignEmailToJob(emailId, slug);
   }
+  return out;
 }

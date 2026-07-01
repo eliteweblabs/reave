@@ -163,6 +163,20 @@ export function fileCreateChatThread(userId: string): ChatThreadSummary {
   return { id, title: 'New chat', created_at: now, updated_at: now, archived: false };
 }
 
+export function fileGetChatSummaryById(
+  threadId: string,
+): { id: string; title: string; updatedAt: string } | null {
+  const path = threadPath(threadId);
+  if (!existsSync(path)) return null;
+  const parsed = parseThreadFile(readFileSync(path, 'utf8'));
+  if (!parsed) return null;
+  return {
+    id: parsed.meta.id,
+    title: parsed.title,
+    updatedAt: parsed.meta.updated,
+  };
+}
+
 export function fileGetChatThread(userId: string, threadId: string): ChatThreadDetail | null {
   const path = threadPath(threadId);
   if (!existsSync(path)) return null;
