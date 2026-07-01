@@ -452,6 +452,8 @@ export type EmailInboxPatch = Partial<
     | 'jobSlug'
     | 'jobTitle'
     | 'routeNote'
+    | 'contactUid'
+    | 'contactName'
   >
 > & {
   markSeen?: boolean;
@@ -477,6 +479,8 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.jobSlug !== undefined ? { jobSlug: patch.jobSlug } : {}),
     ...(patch.jobTitle !== undefined ? { jobTitle: patch.jobTitle } : {}),
     ...(patch.routeNote !== undefined ? { routeNote: patch.routeNote } : {}),
+    ...(patch.contactUid !== undefined ? { contactUid: patch.contactUid } : {}),
+    ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
   };
   events[idx] = next;
@@ -535,6 +539,14 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.routeNote !== undefined) {
       sets.push(`route_note = $${i++}`);
       vals.push(patch.routeNote);
+    }
+    if (patch.contactUid !== undefined) {
+      sets.push(`contact_uid = $${i++}`);
+      vals.push(patch.contactUid);
+    }
+    if (patch.contactName !== undefined) {
+      sets.push(`contact_name = $${i++}`);
+      vals.push(patch.contactName);
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);

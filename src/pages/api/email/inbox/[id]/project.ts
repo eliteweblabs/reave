@@ -11,6 +11,7 @@ import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/em
 import { emailToMergeSource, mergeEmailIntoProjectBody } from '../../../../../lib/emailProjectMerge';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
 import {
+  ensureWorkContact,
   isSafeWorkSlug,
   slugFromTitle,
   storeReadWork,
@@ -27,12 +28,19 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-async function markEmailLinked(id: string, jobTitle: string) {
+async function markEmailLinked(
+  id: string,
+  jobTitle: string,
+  contact?: { uid: string; name: string },
+) {
   return storeUpdateEmailInbox(id, {
     category: 'client',
     action: 'matched',
     status: 'MATCHED',
     routeNote: `Linked to project "${jobTitle}"`,
+    ...(contact
+      ? { contactUid: contact.uid, contactName: contact.name }
+      : {}),
   });
 }
 
@@ -112,11 +120,19 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (mode === 'create') {
     const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'New project';
+
+    const contact = await ensureWorkContact({
+      contact_uid: body.contact_uid ?? emailRecord.contactUid,
+      contact_name: body.contact_name ?? emailRecord.contactName,
+      client: body.client ?? emailRecord.contactName,
+      from: emailRecord.from,
+    });
+    if (!contact.ok) return json({ ok: false, error: contact.error }, 400);
+
     const parsed = parseWorkJobInput({
       title,
-      contact_uid: body.contact_uid ?? emailRecord.contactUid ?? '',
-      contact_name: body.contact_name ?? emailRecord.contactName ?? '',
-      client: body.client ?? emailRecord.contactName ?? '',
+      contact_uid: contact.uid,
+      contact_name: contact.name,
       status: body.status ?? 'inquiry',
       source: body.source ?? 'email',
       body: '',
@@ -143,7 +159,10 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, result.doc.title);
-    const event = await markEmailLinked(id, result.doc.title);
+    const event = await markEmailLinked(id, result.doc.title, {
+      uid: contact.uid,
+      name: contact.name,
+    });
     if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
 
     return json({
@@ -152,6 +171,7 @@ export async function POST(context: APIContext): Promise<Response> {
       slug: result.doc.slug,
       title: result.doc.title,
       usedAi,
+      contactCreated: contact.created,
       event,
     });
   }

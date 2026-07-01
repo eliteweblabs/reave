@@ -16,7 +16,8 @@ import {
   readSync,
   closeSync,
 } from 'fs';
-import { getContact, resolveContact } from './contactApi';
+import { createContact, getContact, resolveContact } from './contactApi';
+import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { serverEnv } from './serverEnv';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
@@ -317,6 +318,77 @@ export async function resolveWorkClient(
     uid,
     name: contact?.name != null ? String(contact.name) : name,
   };
+}
+
+function contactFromResolve(data: unknown): { uid: string; name: string } | null {
+  if (!data || typeof data !== 'object') return null;
+  const payload = data as Record<string, unknown>;
+  if (String(payload.match ?? '').toLowerCase() === 'none') return null;
+  const contact = payload.contact as Record<string, unknown> | undefined;
+  const uid = contact?.uid != null ? String(contact.uid) : '';
+  if (!uid) return null;
+  return {
+    uid,
+    name: contact?.name != null ? String(contact.name) : '',
+  };
+}
+
+function deriveContactName(fromHeader: string, hints: Array<string | null | undefined>): string {
+  const fromName = parseSenderName(fromHeader);
+  if (fromName) return fromName;
+  for (const h of hints) {
+    if (h?.trim()) return h.trim();
+  }
+  const email = parseSenderEmail(fromHeader);
+  if (email.includes('@')) {
+    const local = email.split('@')[0]!.replace(/[._+-]+/g, ' ').trim();
+    if (local) return local.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  }
+  return 'Unknown client';
+}
+
+/** Resolve a work contact, creating one in contact-api when missing (e.g. from inbound email). */
+export async function ensureWorkContact(opts: {
+  contact_uid?: string | null;
+  contact_name?: string | null;
+  client?: string | null;
+  from?: string | null;
+}): Promise<
+  { ok: true; uid: string; name: string; created: boolean } | { ok: false; error: string }
+> {
+  const existing = await resolveWorkContact({
+    contact_uid: opts.contact_uid ?? undefined,
+    contact_name: opts.contact_name ?? undefined,
+    client: opts.client ?? undefined,
+  });
+  if (existing.ok) return { ...existing, created: false };
+
+  const from = opts.from?.trim() ?? '';
+  const email = from ? parseSenderEmail(from) : '';
+
+  if (email.includes('@')) {
+    const byEmail = await resolveContact({ email });
+    if (byEmail.ok) {
+      const hit = contactFromResolve(byEmail.data);
+      if (hit) {
+        return {
+          ok: true,
+          uid: hit.uid,
+          name: hit.name || deriveContactName(from, [opts.contact_name, opts.client]),
+          created: false,
+        };
+      }
+    }
+  }
+
+  const name = deriveContactName(from, [opts.contact_name, opts.client]);
+  const created = await createContact({
+    name,
+    email: email.includes('@') ? email : undefined,
+  });
+  if (!created.ok) return { ok: false, error: created.error };
+
+  return { ok: true, uid: created.data.uid, name: created.data.name, created: true };
 }
 
 export function fileListWork(opts?: {

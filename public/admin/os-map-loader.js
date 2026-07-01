@@ -8335,11 +8335,7 @@ async function runEmailProjectAction(ev, payload, errorTitle) {
 }
 
 async function handleEmailProjectAddNew(ev, triggerEl) {
-  if (!ev.contactUid && !ev.contactName) {
-    closeEmailProjectMenu();
-    showEmailCreateProjectDialog(ev);
-    return;
-  }
+  closeEmailProjectMenu();
   if (triggerEl) {
     triggerEl.disabled = true;
     triggerEl.textContent = 'Creating…';
@@ -8356,86 +8352,6 @@ async function handleEmailProjectAddNew(ev, triggerEl) {
     }
     await osAlert({ title: 'Could not create project', bodyHtml: escHtml(e.message) });
   }
-}
-
-function showEmailCreateProjectDialog(ev) {
-  const backdrop = document.getElementById('os-dialog-backdrop');
-  const titleEl = document.getElementById('os-dialog-title');
-  const bodyEl = document.getElementById('os-dialog-body');
-  const actionsEl = document.getElementById('os-dialog-actions');
-  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
-
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      backdrop.classList.remove('open');
-      backdrop.setAttribute('aria-hidden', 'true');
-      document.removeEventListener('keydown', onKey);
-      resolve(value);
-    };
-    const onKey = (evKey) => {
-      if (evKey.key === 'Escape') finish(false);
-    };
-
-    titleEl.textContent = 'New project';
-    bodyEl.innerHTML =
-      `<p class="em-book-dialog-lead">${escHtml(ev.subject || '(no subject)')}</p>` +
-      `<p class="em-hint">Notes will be synthesized from this email with AI — not pasted verbatim.</p>` +
-      `<label class="de-label">Project title<input class="de-input em-project-title-input" type="text" value="${escHtml(ev.subject || 'New project')}" /></label>` +
-      `<label class="de-label">Client name<input class="de-input em-project-client-input" type="text" placeholder="Must match a contact" value="${escHtml(parseSenderEmail(ev.from) || '')}" /></label>` +
-      `<p class="em-hint">Add the sender in Clients first if the name does not resolve.</p>`;
-    actionsEl.innerHTML = '';
-
-    const mkBtn = (label, cls, value) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `os-dialog-btn ${cls}`.trim();
-      btn.textContent = label;
-      btn.addEventListener('click', () => finish(value));
-      actionsEl.appendChild(btn);
-      return btn;
-    };
-
-    mkBtn('Cancel', 'os-dialog-btn--ghost', false);
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'os-dialog-btn';
-    createBtn.textContent = 'Create';
-    actionsEl.appendChild(createBtn);
-    const titleInput = bodyEl.querySelector('.em-project-title-input');
-    const clientInput = bodyEl.querySelector('.em-project-client-input');
-
-    createBtn.addEventListener('click', async () => {
-      const title = titleInput?.value.trim();
-      const client = clientInput?.value.trim();
-      if (!title) {
-        await osAlert({ title: 'Title required', bodyHtml: '<p>Enter a project title.</p>' });
-        return;
-      }
-      if (!client) {
-        await osAlert({ title: 'Client required', bodyHtml: '<p>Enter a client name that exists in Contacts.</p>' });
-        return;
-      }
-      createBtn.disabled = true;
-      createBtn.textContent = 'Creating…';
-      try {
-        await postEmailProject(ev, { mode: 'create', title, client });
-        finish(true);
-      } catch (e) {
-        createBtn.disabled = false;
-        createBtn.textContent = 'Create';
-        await osAlert({ title: 'Could not create project', bodyHtml: escHtml(e.message) });
-      }
-    });
-
-    backdrop.classList.add('open');
-    backdrop.setAttribute('aria-hidden', 'false');
-    document.addEventListener('keydown', onKey);
-    titleInput?.focus();
-    titleInput?.select();
-  });
 }
 
 let openEmailProjectMenu = null;
