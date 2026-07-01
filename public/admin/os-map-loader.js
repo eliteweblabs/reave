@@ -7,10 +7,7 @@ import {
   createPanelBackBtn,
   matchesListSearch,
   showPortalSendSheet,
-  initSidebarLayout,
-  syncAdminSidebarLayout,
-  scanPanelSidebars,
-} from './admin-ui.js?v=20250630s';
+} from './admin-ui.js?v=20250630n';
 import { SMS_CARRIER_OPTIONS } from './sms-carriers.js';
 
 const GRID = 12;
@@ -296,7 +293,6 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
-  syncAdminSidebarLayout(MAP?.type);
   if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
 }
@@ -8637,12 +8633,7 @@ async function boot() {
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
-  MOBILE_TABS_MQ.addEventListener('change', () => {
-    syncAdminSidebarLayout(MAP?.type);
-    scanPanelSidebars();
-  });
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
-  initSidebarLayout();
   initModelSelector();
   syncCanvasVisibility();
   activateMapPanel();
@@ -8652,8 +8643,6 @@ async function boot() {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
-  syncAdminSidebarLayout(MAP?.type);
-  scanPanelSidebars();
 }
 
 boot().catch(showBootError);
