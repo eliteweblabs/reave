@@ -1961,29 +1961,7 @@ const { userId } = Astro.locals.auth();
         border-color: var(--panel-border);
       }
       .ch-header-title {
-        cursor: text;
-      }
-      .ch-header-title:hover {
-        text-decoration: underline;
-        text-decoration-color: var(--underline-fg);
-        text-underline-offset: 0.2em;
-      }
-      .ch-header-title-input {
-        flex: 1;
-        min-width: 0;
-        box-sizing: border-box;
-        font: inherit;
-        font-weight: 700;
-        font-size: max(16px, 0.95rem);
-        color: var(--fg);
-        background: var(--card);
-        border: 1px solid #3b82f6;
-        border-radius: 6px;
-        padding: 0.15rem 0.45rem;
-        outline: none;
-      }
-      @media (max-width: 639px) {
-        .ch-header-title-input { font-size: max(16px, 0.88rem); }
+        cursor: default;
       }
       .ch-pane {
         flex: 1;

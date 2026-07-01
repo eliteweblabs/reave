@@ -6716,25 +6716,10 @@ function syncSidebarChatTitle(threadId, title) {
   if (el) el.textContent = title;
 }
 
-function createHeaderChatTitle(threadId, title) {
+function createHeaderChatTitle(title) {
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name ch-header-title topbar-panel-title';
   titleEl.textContent = title;
-  titleEl.title = 'Click to rename';
-  titleEl.setAttribute('role', 'button');
-  titleEl.tabIndex = 0;
-
-  const openEdit = (e) => {
-    e.stopPropagation();
-    startChatTitleEdit(titleEl, threadId, titleEl.textContent);
-  };
-  titleEl.addEventListener('click', openEdit);
-  titleEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openEdit(e);
-    }
-  });
   return titleEl;
 }
 
@@ -6750,65 +6735,6 @@ async function readApiJson(res) {
   }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
-}
-
-async function saveChatTitle(threadId, title) {
-  const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title }),
-  });
-  const data = await readApiJson(res);
-  return data.title || title;
-}
-
-function startChatTitleEdit(titleEl, threadId, originalTitle) {
-  if (titleEl.dataset.editing === '1') return;
-  titleEl.dataset.editing = '1';
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'ch-header-title-input';
-  input.value = originalTitle;
-  titleEl.replaceWith(input);
-  input.focus();
-  input.select();
-
-  let cancelled = false;
-
-  const finish = async (save) => {
-    if (input.dataset.finishing === '1') return;
-    input.dataset.finishing = '1';
-
-    const nextTitle = input.value.trim() || 'New chat';
-    let displayTitle = originalTitle;
-
-    if (save && nextTitle !== originalTitle) {
-      try {
-        displayTitle = await saveChatTitle(threadId, nextTitle);
-        const thread = chatState.threads.find((t) => t.id === threadId);
-        if (thread) thread.title = displayTitle;
-        if (chatState.activeId === threadId) chatState.title = displayTitle;
-        syncSidebarChatTitle(threadId, displayTitle);
-      } catch (e) {
-        alert(`Could not rename chat: ${e.message}`);
-      }
-    }
-
-    input.replaceWith(createHeaderChatTitle(threadId, displayTitle));
-  };
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      input.blur();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelled = true;
-      input.blur();
-    }
-  });
-  input.addEventListener('blur', () => finish(!cancelled));
 }
 
 function createChatListItem(t) {
@@ -7426,7 +7352,7 @@ function syncChatTopbarContext() {
   }
 
   if (shouldShowChatTopbarTitle(chatState.title)) {
-    slot.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
+    slot.appendChild(createHeaderChatTitle(chatState.title));
   }
 
   slot.appendChild(createChatModelSwitcher());
