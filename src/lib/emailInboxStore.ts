@@ -533,3 +533,35 @@ export async function storeDeleteEmailInbox(id: string): Promise<boolean> {
   if (databaseUrl()) return deleteFromPg(id);
   return deleteFromFile(id);
 }
+
+async function deleteManyFromFile(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const path = inboxFilePath();
+  if (!existsSync(path)) return 0;
+  const drop = new Set(ids);
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const next = events.filter((e) => !drop.has(e.id));
+  const deleted = events.length - next.length;
+  if (deleted === 0) return 0;
+  return writeFileEvents(next) ? deleted : 0;
+}
+
+async function deleteManyFromPg(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    const { rowCount } = await pool.query(`DELETE FROM email_inbox WHERE id = ANY($1::uuid[])`, [ids]);
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[email-inbox] pg bulk delete failed', e);
+    return 0;
+  }
+}
+
+export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return 0;
+  if (databaseUrl()) return deleteManyFromPg(unique);
+  return deleteManyFromFile(unique);
+}

@@ -8272,6 +8272,58 @@ async function deleteEmail(ev) {
   }
 }
 
+function bulkDeleteConfirmHtml(tab, count) {
+  const label = tab.label.toLowerCase();
+  if (tab.id === 'junk') {
+    return (
+      `<p>Are you sure you want to delete all junk messages?</p>` +
+      `<p class="os-dialog-note">${count} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`
+    );
+  }
+  return (
+    `<p>Are you sure you want to delete all ${escHtml(label)} messages?</p>` +
+    `<p class="os-dialog-note">${count} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`
+  );
+}
+
+async function bulkDeleteInboxCategory(tab) {
+  closeOpenSwipeRow();
+  const events = inboxEventsForFilter();
+  const count = events.length;
+  if (count === 0 || tab.id === 'all') return;
+
+  const ok = await osConfirm({
+    title: `Delete all ${tab.label.toLowerCase()}?`,
+    bodyHtml: bulkDeleteConfirmHtml(tab, count),
+    confirmLabel: 'Delete all',
+    danger: true,
+  });
+  if (!ok) return;
+
+  const ids = events.map((ev) => ev.id);
+  const idSet = new Set(ids);
+  try {
+    const res = await fetch('/api/email/inbox/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await readApiJson(res);
+    emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
+    if (emailState.activeId && idSet.has(emailState.activeId)) emailState.activeId = null;
+    renderEmailPanel();
+    syncInboxAppBadge(emailState.allEvents);
+    if (data.deleted < ids.length) {
+      osAlert({
+        title: 'Partial delete',
+        bodyHtml: `<p>Removed ${data.deleted} of ${ids.length} messages. Reload to sync.</p>`,
+      });
+    }
+  } catch (e) {
+    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function createEmailListItem(ev) {
   const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
   const item = document.createElement('button');
@@ -8392,17 +8444,33 @@ function renderEmailFilterTabs() {
   for (const tab of tabs) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'em-filter-tab' + (emailState.inboxFilter === tab.id ? ' active' : '');
+    const isActive = emailState.inboxFilter === tab.id;
+    const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
+    btn.className =
+      'em-filter-tab' +
+      (isActive ? ' active' : '') +
+      (canBulkDelete ? ' em-filter-tab--purge' : '');
     btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', emailState.inboxFilter === tab.id ? 'true' : 'false');
-    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-    btn.addEventListener('click', () => {
-      if (emailState.inboxFilter === tab.id) return;
-      emailState.inboxFilter = tab.id;
-      emailState.activeId = null;
-      getEmailPanel()?.classList.remove('em-pane-active');
-      renderEmailPanel();
-    });
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+
+    if (canBulkDelete) {
+      btn.innerHTML =
+        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
+        `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
+      btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
+      btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
+      btn.addEventListener('click', () => bulkDeleteInboxCategory(tab));
+    } else {
+      btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
+      btn.addEventListener('click', () => {
+        if (emailState.inboxFilter === tab.id) return;
+        emailState.inboxFilter = tab.id;
+        emailState.activeId = null;
+        getEmailPanel()?.classList.remove('em-pane-active');
+        renderEmailPanel();
+      });
+    }
+
     nav.appendChild(btn);
   }
   return nav;

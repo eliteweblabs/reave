@@ -2488,6 +2488,25 @@ const { userId } = Astro.locals.auth();
         background: var(--surface-hover-strong);
         border-color: var(--panel-border);
       }
+      .em-filter-tab--purge {
+        color: #f87171;
+        border-color: rgba(248, 113, 113, 0.35);
+        background: rgba(248, 113, 113, 0.08);
+      }
+      .em-filter-tab--purge:hover {
+        color: #fecaca;
+        background: rgba(248, 113, 113, 0.14);
+      }
+      .em-filter-tab--purge .em-filter-purge-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .em-filter-tab--purge .em-filter-purge-icon svg {
+        width: 14px;
+        height: 14px;
+      }
       .em-filter-count {
         font-variant-numeric: tabular-nums;
         opacity: 0.85;
