@@ -84,7 +84,14 @@ function buildPortalOgTextSvg(title: string): string {
 </svg>`;
 }
 
-async function fetchLogoBuffer(url: string): Promise<Buffer | null> {
+function normalizePublicLogoPath(raw: string): string | null {
+  const t = raw.trim();
+  if (!t) return null;
+  if (t.startsWith('/')) return t;
+  return `/${t.replace(/^\/+/, '')}`;
+}
+
+async function fetchRemoteLogoBuffer(url: string): Promise<Buffer | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), LOGO_FETCH_TIMEOUT_MS);
   try {
@@ -103,42 +110,71 @@ async function fetchLogoBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-/** Render a 1200×630 PNG with the client logo contained (not cropped). */
-export async function buildPortalOgPng(meta: PortalShareMeta): Promise<Buffer> {
-  const logoUrl = safeRemoteImageUrl(meta.logoUrl);
-  const logoBuf = logoUrl ? await fetchLogoBuffer(logoUrl) : null;
-
-  if (logoBuf) {
+async function loadLogoBuffer(source: string): Promise<Buffer | null> {
+  if (source.startsWith('/')) {
     try {
-      const logoPng = await sharp(logoBuf)
-        .resize(LOGO_BOX_W, LOGO_BOX_H, {
-          fit: 'inside',
-          withoutEnlargement: true,
-          background: { r: 0, g: 0, b: 0, alpha: 0 },
-        })
-        .png()
-        .toBuffer();
-
-      const logoMeta = await sharp(logoPng).metadata();
-      const logoW = logoMeta.width ?? LOGO_BOX_W;
-      const logoH = logoMeta.height ?? LOGO_BOX_H;
-      const left = Math.round((PORTAL_OG_WIDTH - logoW) / 2);
-      const top = LOGO_BOX_TOP + Math.round((LOGO_BOX_H - logoH) / 2);
-
-      return sharp({
-        create: {
-          width: PORTAL_OG_WIDTH,
-          height: PORTAL_OG_HEIGHT,
-          channels: 4,
-          background: { r: 10, g: 10, b: 10, alpha: 1 },
-        },
-      })
-        .composite([{ input: logoPng, top, left }])
-        .png()
-        .toBuffer();
+      const { readFile } = await import('node:fs/promises');
+      const { join } = await import('node:path');
+      return await readFile(join(process.cwd(), 'public', source));
     } catch {
-      // Fall through to text-only card.
+      return null;
     }
+  }
+
+  const remote = safeRemoteImageUrl(source);
+  return remote ? fetchRemoteLogoBuffer(remote) : null;
+}
+
+async function composeLogoPng(logoBuf: Buffer): Promise<Buffer | null> {
+  try {
+    const logoPng = await sharp(logoBuf)
+      .resize(LOGO_BOX_W, LOGO_BOX_H, {
+        fit: 'inside',
+        withoutEnlargement: true,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png()
+      .toBuffer();
+
+    const logoMeta = await sharp(logoPng).metadata();
+    const logoW = logoMeta.width ?? LOGO_BOX_W;
+    const logoH = logoMeta.height ?? LOGO_BOX_H;
+    const left = Math.round((PORTAL_OG_WIDTH - logoW) / 2);
+    const top = LOGO_BOX_TOP + Math.round((LOGO_BOX_H - logoH) / 2);
+
+    return sharp({
+      create: {
+        width: PORTAL_OG_WIDTH,
+        height: PORTAL_OG_HEIGHT,
+        channels: 4,
+        background: { r: 10, g: 10, b: 10, alpha: 1 },
+      },
+    })
+      .composite([{ input: logoPng, top, left }])
+      .png()
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/** Render a 1200×630 PNG — client logo first, then the project default logo. */
+export async function buildPortalOgPng(
+  meta: PortalShareMeta,
+  opts?: { fallbackLogoPath?: string },
+): Promise<Buffer> {
+  const sources: string[] = [];
+  const clientLogo = safeRemoteImageUrl(meta.logoUrl);
+  if (clientLogo) sources.push(clientLogo);
+
+  const fallbackLogo = normalizePublicLogoPath(opts?.fallbackLogoPath ?? '');
+  if (fallbackLogo && !sources.includes(fallbackLogo)) sources.push(fallbackLogo);
+
+  for (const source of sources) {
+    const logoBuf = await loadLogoBuffer(source);
+    if (!logoBuf) continue;
+    const png = await composeLogoPng(logoBuf);
+    if (png) return png;
   }
 
   return sharp(Buffer.from(buildPortalOgTextSvg(meta.brandTitle)))
