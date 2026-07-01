@@ -4341,6 +4341,7 @@ let workState = {
   activeSlug: null,
   dirty: false,
   draft: null,
+  returnToEmailId: null,
 };
 
 function filterWorkJobs(jobs, query) {
@@ -4398,6 +4399,7 @@ async function loadWorkTab(opts = {}) {
 }
 
 function startNewProject() {
+  workState.returnToEmailId = null;
   workState.activeSlug = '__new__';
   workState.dirty = false;
   workState.draft = {
@@ -5016,10 +5018,18 @@ function renderEditWorkForm(pane) {
 
       const header = document.createElement('div');
       header.className = 'de-header';
+      const returnEmailId = workState.returnToEmailId;
       header.appendChild(createPanelBackBtn({
-        label: 'Back to jobs',
+        label: returnEmailId ? 'Back to email' : 'Back to jobs',
         onClick: () => {
           if (workState.dirty && !confirm('Discard unsaved changes?')) return;
+          if (returnEmailId) {
+            workState.returnToEmailId = null;
+            workState.activeSlug = null;
+            workState.draft = null;
+            navigateToEmail(returnEmailId);
+            return;
+          }
           workState.activeSlug = null;
           workState.draft = null;
           getWorkEditor()?.classList.remove('de-pane-active');
@@ -5113,6 +5123,7 @@ function renderEditWorkForm(pane) {
 
 async function openWork(slug) {
   if (workState.dirty && workState.activeSlug && !confirm('Discard unsaved changes?')) return;
+  workState.returnToEmailId = null;
   workState.activeSlug = slug;
   workState.dirty = false;
   renderWorkEditor();
@@ -7321,8 +7332,9 @@ function parseChatDeepLinkFromUrl() {
   }
 }
 
-function navigateToWork(slug) {
+function navigateToWork(slug, opts = {}) {
   if (!slug) return;
+  if (opts.fromEmailId) workState.returnToEmailId = opts.fromEmailId;
   pendingWorkDeepLinkSlug = slug;
   setActiveMap('work', { force: true, workSlug: slug });
 }
@@ -8315,6 +8327,7 @@ async function postEmailProject(ev, payload) {
   const data = await readApiJson(res);
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   applyEmailEventUpdate(data.event);
+  if (data.slug) navigateToWork(data.slug, { fromEmailId: ev.id });
   return data;
 }
 
@@ -9023,7 +9036,9 @@ function renderEmailPanel() {
       : '');
   detail.innerHTML = detailHtml;
   detail.querySelector('.em-book-card-btn')?.addEventListener('click', () => startEmailScheduleFlow(ev));
-  detail.querySelector('.em-project-link')?.addEventListener('click', () => navigateToWork(ev.jobSlug));
+  detail.querySelector('.em-project-link')?.addEventListener('click', () =>
+    navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
+  );
   pane.appendChild(detail);
 
   root.appendChild(pane);
