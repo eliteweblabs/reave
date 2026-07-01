@@ -474,7 +474,7 @@ export function scanPanelSidebars() {
   for (const id of SIDEBAR_PANEL_IDS) {
     const panel = document.getElementById(id);
     if (!panel) continue;
-    panel.querySelectorAll('.ch-sidebar, .de-sidebar, .schedule-sidebar').forEach(mountSidebarResizer);
+    panel.querySelectorAll('.ch-sidebar, .de-sidebar').forEach(mountSidebarResizer);
   }
 }
 

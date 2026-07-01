@@ -231,6 +231,8 @@ const { userId } = Astro.locals.auth();
       #work-editor > .de-sidebar,
       #work-editor > .de-pane,
       #work-editor > .ch-sidebar,
+      #schedule-panel > .ch-sidebar,
+      #schedule-panel > .de-pane,
       #clients-editor > .de-sidebar,
       #clients-editor > .de-pane,
       #clients-editor > .ch-sidebar,
@@ -969,6 +971,9 @@ const { userId } = Astro.locals.auth();
       .panel-list-subheader--stacked .em-filter-tabs {
         margin: 0;
       }
+      .panel-list-subheader--stacked .schedule-quick-links {
+        margin: 0;
+      }
       .de-new-btn.ch-new-btn {
         display: inline-flex;
         align-items: center;
@@ -1490,7 +1495,7 @@ const { userId } = Astro.locals.auth();
         #knowledge-editor.de-pane-active .ch-sidebar,
         #work-editor.de-pane-active .de-sidebar,
         #work-editor.de-pane-active .ch-sidebar,
-        #schedule-panel.de-pane-active .schedule-sidebar,
+        #schedule-panel.de-pane-active .ch-sidebar,
         #clients-editor.de-pane-active .de-sidebar,
         #clients-editor.de-pane-active .ch-sidebar,
         #rule-editor.de-pane-active .de-sidebar,
@@ -2819,13 +2824,6 @@ const { userId } = Astro.locals.auth();
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
         #email-panel { flex-direction: column; }
-        #schedule-panel .schedule-sidebar {
-          width: 100%;
-          flex: 1 1 auto;
-          min-height: 0;
-          border-right: none;
-          border-bottom: none;
-        }
         .ch-sidebar {
           width: 100%;
           flex: 1 1 auto;
@@ -3153,96 +3151,24 @@ const { userId } = Astro.locals.auth();
       #schedule-panel {
         overflow: hidden;
       }
-      #schedule-panel .schedule-sidebar {
+      .schedule-quick-links {
         display: flex;
-        flex-direction: column;
-        width: var(--sidebar-w);
-        min-width: 0;
-        min-height: 0;
-        flex: 0 0 var(--sidebar-w);
-        border-right: 1px solid var(--panel-border);
-        padding: calc(var(--topbar-h) + 1rem) 0.85rem var(--footer-scroll-pad);
-        overflow: hidden;
-        position: relative;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.75rem;
+        padding: 0 0.15rem 0.15rem;
       }
-      #schedule-panel .schedule-list-wrap {
-        flex: 1 1 auto;
-        overflow: auto;
-        min-height: 0;
-        padding-top: 0.35rem;
+      .schedule-quick-links a {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #79c0ff;
+        text-decoration: none;
+      }
+      .schedule-quick-links a:hover {
+        text-decoration: underline;
       }
       #schedule-panel .schedule-detail-pane {
         min-width: 0;
         flex: 1 1 auto;
-      }
-      .schedule-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-      }
-      .schedule-link-btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.45rem 0.75rem;
-        border-radius: 999px;
-        border: 1px solid var(--panel-border);
-        background: var(--surface-hover-strong);
-        color: var(--fg);
-        font-size: 0.78rem;
-        font-weight: 600;
-        text-decoration: none;
-      }
-      .schedule-link-btn:hover {
-        border-color: var(--border-strong-hover);
-        background: var(--msg-action-hover);
-      }
-      .schedule-link-btn-secondary {
-        color: var(--muted);
-      }
-      .schedule-filters {
-        display: flex;
-        gap: 0.4rem;
-        margin-bottom: 1rem;
-      }
-      .schedule-filter {
-        padding: 0.35rem 0.7rem;
-        border-radius: 999px;
-        border: 1px solid var(--panel-border);
-        background: transparent;
-        color: var(--muted);
-        font: inherit;
-        font-size: 0.75rem;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .schedule-filter.active {
-        color: var(--fg);
-        border-color: rgba(74, 222, 128, 0.45);
-        background: rgba(74, 222, 128, 0.1);
-      }
-      .schedule-booking {
-        position: relative;
-      }
-      .dash-events > li {
-        list-style: none;
-      }
-      .dash-event-btn,
-      .schedule-booking-btn {
-        width: 100%;
-        border: none;
-        font: inherit;
-        color: inherit;
-        text-align: left;
-        cursor: pointer;
-      }
-      .dash-event-btn:hover,
-      .schedule-booking-btn:hover,
-      .schedule-booking-btn.is-active {
-        background: var(--surface-hover-strong);
-      }
-      .schedule-booking-btn.is-active {
-        outline: 1px solid rgba(74, 222, 128, 0.35);
       }
       .dash-panel-link {
         margin-left: auto;
@@ -3260,6 +3186,17 @@ const { userId } = Astro.locals.auth();
         margin: 0.35rem 0 0;
         margin-left: 0;
         text-align: left;
+      }
+      .dash-event-btn {
+        width: 100%;
+        border: none;
+        font: inherit;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .dash-event-btn:hover {
+        background: var(--surface-hover-strong);
       }
       .schedule-detail-when {
         margin: 0 0 0.75rem;
@@ -3302,6 +3239,9 @@ const { userId } = Astro.locals.auth();
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+      }
+      .wk-meta-row .schedule-status {
+        margin-top: 0;
       }
       .sched-status-accepted {
         background: rgba(74, 222, 128, 0.15);

@@ -5213,6 +5213,21 @@ function formatScheduleWhen(iso) {
   }
 }
 
+function formatScheduleListWhen(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
 function formatScheduleRange(startIso, endIso) {
   if (!startIso) return '';
   try {
@@ -5421,6 +5436,83 @@ function renderScheduleDetail(pane, booking) {
   pane.appendChild(scroll);
 }
 
+function renderScheduleFilterTabs() {
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Schedule filters');
+
+  for (const tab of [
+    { id: 'upcoming', label: 'Upcoming' },
+    { id: 'past', label: 'Recent' },
+  ]) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = scheduleState.filter === tab.id;
+    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => {
+      if (scheduleState.filter === tab.id) return;
+      scheduleState.filter = tab.id;
+      scheduleState.activeUid = null;
+      getSchedulePanel()?.classList.remove('de-pane-active');
+      loadScheduleTab();
+    });
+    nav.appendChild(btn);
+  }
+  return nav;
+}
+
+function renderScheduleQuickLinks() {
+  const wrap = document.createElement('div');
+  wrap.className = 'schedule-quick-links';
+
+  const formLink = document.createElement('a');
+  formLink.href = scheduleState.meta.bookingFormUrl || '/form/schedule';
+  formLink.target = '_blank';
+  formLink.rel = 'noopener';
+  formLink.textContent = 'Public booking form';
+  wrap.appendChild(formLink);
+
+  if (scheduleState.meta.publicBookingUrl) {
+    const pubLink = document.createElement('a');
+    pubLink.href = scheduleState.meta.publicBookingUrl;
+    pubLink.target = '_blank';
+    pubLink.rel = 'noopener';
+    pubLink.textContent = 'Direct booking page';
+    wrap.appendChild(pubLink);
+  }
+
+  return wrap;
+}
+
+function createScheduleListItem(booking) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className =
+    'ch-list-item' + (booking.uid === scheduleState.activeUid ? ' active' : '');
+  item.dataset.uid = booking.uid;
+  const who = scheduleBookingWho(booking);
+  const meta = [who, booking.email && booking.attendee !== booking.email ? booking.email : '', booking.location]
+    .filter(Boolean)
+    .join(' · ');
+  item.innerHTML =
+    `<span class="ch-item-row">` +
+      `<span class="ch-item-title">${escHtml(booking.title || 'Meeting')}</span>` +
+      `<span class="ch-item-date">${escHtml(formatScheduleListWhen(booking.startTime))}</span>` +
+    `</span>` +
+    `<span class="wk-meta-row">` +
+      `<span class="wk-contact">${escHtml(meta)}</span>` +
+      (booking.status
+        ? `<span class="schedule-status ${scheduleStatusClass(booking.status)}">${escHtml(booking.status)}</span>`
+        : '') +
+    `</span>`;
+  item.addEventListener('click', () => selectScheduleBooking(booking.uid));
+  return item;
+}
+
 function renderSchedulePanel() {
   const root = getSchedulePanel();
   if (!root) return;
@@ -5428,99 +5520,45 @@ function renderSchedulePanel() {
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
-  sidebar.className = 'ch-sidebar schedule-sidebar';
+  sidebar.className = 'ch-sidebar';
 
-  const header = document.createElement('div');
-  header.className = 'dash-header schedule-header';
-  header.innerHTML =
-    `<h1 class="home-dashboard-title">Schedule</h1>` +
-    `<p class="dash-date">Your calendar</p>`;
-  sidebar.appendChild(header);
+  const bookings = scheduleState.bookings;
+  const subheader = listSearchSubheader({
+    itemCount: bookings.length,
+    below: [renderScheduleFilterTabs(), renderScheduleQuickLinks()],
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
 
-  const actions = document.createElement('div');
-  actions.className = 'schedule-actions';
-  const formLink = document.createElement('a');
-  formLink.className = 'schedule-link-btn';
-  formLink.href = scheduleState.meta.bookingFormUrl || '/form/schedule';
-  formLink.target = '_blank';
-  formLink.rel = 'noopener';
-  formLink.textContent = 'Public booking form';
-  actions.appendChild(formLink);
-  if (scheduleState.meta.publicBookingUrl) {
-    const pubLink = document.createElement('a');
-    pubLink.className = 'schedule-link-btn schedule-link-btn-secondary';
-    pubLink.href = scheduleState.meta.publicBookingUrl;
-    pubLink.target = '_blank';
-    pubLink.rel = 'noopener';
-    pubLink.textContent = 'Direct booking page';
-    actions.appendChild(pubLink);
-  }
-  sidebar.appendChild(actions);
-
-  const filters = document.createElement('div');
-  filters.className = 'schedule-filters';
-  for (const f of [
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'past', label: 'Recent' },
-  ]) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'schedule-filter' + (scheduleState.filter === f.id ? ' active' : '');
-    btn.textContent = f.label;
-    btn.addEventListener('click', () => {
-      if (scheduleState.filter === f.id) return;
-      scheduleState.filter = f.id;
-      scheduleState.activeUid = null;
-      root.classList.remove('de-pane-active');
-      loadScheduleTab();
-    });
-    filters.appendChild(btn);
-  }
-  sidebar.appendChild(filters);
-
-  const listWrap = document.createElement('div');
-  listWrap.className = 'schedule-list-wrap';
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
 
   if (scheduleState.loading) {
-    listWrap.innerHTML = `<p class="dash-empty">Loading bookings…</p>`;
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'Loading bookings…';
+    list.appendChild(empty);
   } else if (scheduleState.error) {
-    listWrap.innerHTML =
-      `<p class="dash-empty de-error">${escHtml(scheduleState.error)}</p>` +
-      `<p class="dash-empty">Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.</p>`;
+    const err = document.createElement('div');
+    err.className = 'de-empty de-error';
+    err.textContent = scheduleState.error;
+    list.appendChild(err);
+    const hint = document.createElement('div');
+    hint.className = 'de-empty';
+    hint.innerHTML = 'Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.';
+    list.appendChild(hint);
+  } else if (!bookings.length) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.';
+    list.appendChild(empty);
   } else {
-    const bookings = scheduleState.bookings;
-    if (!bookings.length) {
-      listWrap.innerHTML =
-        `<p class="dash-empty">${scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.'}</p>`;
-    } else {
-      const list = document.createElement('ul');
-      list.className = 'dash-events schedule-bookings';
-      for (const b of bookings) {
-        const li = document.createElement('li');
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className =
-          'dash-event schedule-booking schedule-booking-btn' +
-          (scheduleState.activeUid === b.uid ? ' is-active' : '');
-        const who = scheduleBookingWho(b);
-        const meta = [who, b.email && b.attendee !== b.email ? b.email : '', b.location]
-          .filter(Boolean)
-          .join(' · ');
-        btn.innerHTML =
-          `<span class="dash-event-time">${escHtml(formatScheduleWhen(b.startTime))}</span>` +
-          `<div class="dash-event-body">` +
-            `<div class="dash-event-title">${escHtml(b.title || 'Meeting')}</div>` +
-            `<div class="dash-event-type">${escHtml(meta)}</div>` +
-            (b.status ? `<span class="schedule-status ${scheduleStatusClass(b.status)}">${escHtml(b.status)}</span>` : '') +
-          `</div>`;
-        btn.addEventListener('click', () => selectScheduleBooking(b.uid));
-        li.appendChild(btn);
-        list.appendChild(li);
-      }
-      listWrap.appendChild(list);
+    for (const booking of bookings) {
+      list.appendChild(createScheduleListItem(booking));
     }
   }
-  sidebar.appendChild(listWrap);
+
+  sidebar.appendChild(list);
   root.appendChild(sidebar);
 
   const pane = document.createElement('div');
