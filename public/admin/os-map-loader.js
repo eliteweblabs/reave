@@ -2068,11 +2068,20 @@ function clearEditorFooterSave() {
   syncFooterNav();
 }
 
+/** Drop a stale save handler when the active tab no longer owns it. */
+function syncEditorFooterSaveState() {
+  if (typeof footerSaveHandler !== 'function') return;
+  const owner = footerSaveNavForEditor();
+  if (owner && owner === footerSaveNav) return;
+  footerSaveHandler = null;
+  footerSaveNav = null;
+}
+
 function footerNavShowsSave(nav) {
   if (footerNavCollapsed) return false;
   const navEl = document.getElementById('admin-footer-nav');
   if (navEl?.classList.contains('footer-nav-compose-open')) return false;
-  return footerSaveNav === nav && typeof footerSaveHandler === 'function';
+  return footerSaveNavForEditor() === nav && typeof footerSaveHandler === 'function';
 }
 
 function footerNavShowsCreate(nav) {
@@ -2568,6 +2577,7 @@ function scheduleFooterNavIndicatorSync() {
 }
 
 function syncFooterNav() {
+  syncEditorFooterSaveState();
   const activeNav = footerNavActiveKey();
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
