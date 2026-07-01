@@ -171,6 +171,25 @@ function pickJobSlug(
   return null;
 }
 
+/** Whether this triage outcome needs a phone push (skip junk, silent rules, auto-routed). */
+export function shouldSendInboxPush(opts: {
+  category: EmailCategory;
+  action: string;
+  ruleNotify: boolean;
+  ruleStatus: string;
+}): boolean {
+  const action = opts.action.toLowerCase();
+  const status = opts.ruleStatus.toUpperCase();
+
+  if (opts.category === 'junk' || action === 'junk') return false;
+  if (!opts.ruleNotify) return false;
+  if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
+  // Auto-sorted to a job — visible under Routed, no ping needed.
+  if (action === 'filed' || action === 'matched') return false;
+
+  return true;
+}
+
 export async function processInboundEmail(email: InboundEmail): Promise<ProcessedEmailResult> {
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
@@ -262,13 +281,20 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     action = category;
   }
 
+  const notify = shouldSendInboxPush({
+    category,
+    action,
+    ruleNotify: ruleResult.notify,
+    ruleStatus: ruleResult.status,
+  });
+
   const record = await storeRecordEmailInbox({
     from,
     subject: email.subject ?? '',
     bodySnippet: snippet(email.text ?? ''),
     status: ruleResult.status,
     action,
-    notified: false,
+    notified: notify,
     summary,
     category,
     contactUid,
@@ -283,7 +309,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     return null;
   });
 
-  if (record && category !== 'junk') {
+  if (record && notify) {
     const pushTitle =
       isRailwayAlertStatus(ruleResult.status)
         ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
