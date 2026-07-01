@@ -337,6 +337,11 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'chats') {
     loadChatsTab({ keepSession: opts.keepChatSession === true });
   } else if (MAP.type === 'email') {
+    if (opts.emailId) pendingEmailDeepLinkId = opts.emailId;
+    else if (!pendingEmailDeepLinkId) {
+      const fromUrl = parseEmailDeepLinkFromUrl();
+      if (fromUrl) pendingEmailDeepLinkId = fromUrl;
+    }
     loadEmailTab();
   } else if (MAP.type === 'rules') {
     loadRulesTab();
@@ -7253,6 +7258,7 @@ let emailState = {
   digest: null,
   pushConfigured: false,
 };
+let pendingEmailDeepLinkId = null;
 let emailPollTimer = null;
 let inboxBadgeTimer = null;
 
@@ -7260,6 +7266,51 @@ const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
+
+function parseEmailDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('email')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function applyEmailInboxFilterForEvent(ev) {
+  if (!ev) return;
+  if (ev.category === 'junk') emailState.inboxFilter = 'junk';
+  else if (ev.category === 'alert') emailState.inboxFilter = 'alert';
+  else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
+  else if (isEmailRouted(ev)) emailState.inboxFilter = 'routed';
+  else if (ev.category === 'review') emailState.inboxFilter = 'review';
+  else emailState.inboxFilter = 'all';
+}
+
+function openEmailFromDeepLink(id) {
+  if (!id) return false;
+  const ev = emailState.allEvents.find((e) => e.id === id);
+  if (!ev) {
+    pendingEmailDeepLinkId = id;
+    return false;
+  }
+  applyEmailInboxFilterForEvent(ev);
+  openEmailEvent(id);
+  return true;
+}
+
+function handleNotificationOpen(url) {
+  if (!url) return;
+  try {
+    const u = new URL(url, window.location.origin);
+    const tab = u.searchParams.get('tab');
+    const emailId = u.searchParams.get('email')?.trim();
+    if (tab === 'email' && emailId) {
+      pendingEmailDeepLinkId = emailId;
+      setActiveMap('email', { force: true, emailId });
+      return;
+    }
+    if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
+  } catch {}
+}
 
 function isEmailRouted(ev) {
   const action = String(ev.action || '').toLowerCase();
@@ -8406,7 +8457,11 @@ async function loadEmailTab(quiet) {
   }
   if (!quiet) inboxSessionDotIds.clear();
   seedInboxSessionDots();
-  if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
+  const deepLinkId = pendingEmailDeepLinkId || parseEmailDeepLinkFromUrl();
+  pendingEmailDeepLinkId = null;
+  if (deepLinkId) {
+    openEmailFromDeepLink(deepLinkId);
+  } else if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
     emailState.activeId = null;
   }
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -8726,12 +8781,20 @@ async function boot() {
 
 boot().catch(showBootError);
 
+window.addEventListener('pageshow', () => {
+  const emailId = parseEmailDeepLinkFromUrl();
+  if (!emailId || MAP?.type !== 'email' || emailState.activeId === emailId) return;
+  if (emailState.allEvents.length) openEmailFromDeepLink(emailId);
+  else pendingEmailDeepLinkId = emailId;
+});
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready
     .then(() => refreshInboxBadgeQuiet())
     .catch(() => undefined);
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet();
+    if (event.data?.type === 'reave-notification-open') handleNotificationOpen(event.data.url);
   });
 }
 

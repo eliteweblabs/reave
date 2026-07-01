@@ -320,6 +320,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       title: pushTitle,
       body: summary,
       tag: record.id,
+      emailId: record.id,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 
@@ -331,6 +332,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       summary,
       bodySnippet: snippet(email.text ?? ''),
       category,
+      emailId: record?.id,
     }).catch((e) => console.warn('[email] agent alert failed', e));
   }
 

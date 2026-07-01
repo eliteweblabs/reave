@@ -125,6 +125,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   summary: string;
   bodySnippet: string;
   category: string;
+  emailId?: string;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return;
@@ -137,8 +138,10 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
         ? `Railway: ${opts.subject.slice(0, 50) || 'deploy alert'}`
         : `Alert: ${opts.summary.slice(0, 60)}`,
       body: opts.summary,
-      tag: `email-${opts.status}`,
-      url: '/admin?tab=email',
+      tag: opts.emailId ?? `email-${opts.status}`,
+      url: opts.emailId
+        ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
+        : '/admin?tab=email',
     },
   });
 }

@@ -73,6 +73,12 @@ export async function sendInboxPushNotification(payload: {
   title: string;
   body: string;
   tag?: string;
+  /** Inbox record id — opens that message when the notification is tapped. */
+  emailId?: string;
 }): Promise<void> {
-  return sendPushNotification({ ...payload, url: '/admin?tab=email' });
+  const url = payload.emailId
+    ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
+    : '/admin?tab=email';
+  const { emailId: _emailId, ...rest } = payload;
+  return sendPushNotification({ ...rest, url });
 }

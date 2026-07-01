@@ -82,17 +82,25 @@ self.addEventListener('message', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/admin?tab=email';
+  const absoluteUrl = new URL(url, self.location.origin).href;
   event.waitUntil(
     Promise.all([
       decrementBadgeCount(),
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
         for (const client of clients) {
           if ('focus' in client) {
-            client.navigate(url);
+            client.postMessage({ type: 'reave-notification-open', url: absoluteUrl });
+            if ('navigate' in client) {
+              try {
+                await client.navigate(absoluteUrl);
+              } catch {
+                /* postMessage handler opens the target when navigate is unavailable */
+              }
+            }
             return client.focus();
           }
         }
-        if (self.clients.openWindow) return self.clients.openWindow(url);
+        if (self.clients.openWindow) return self.clients.openWindow(absoluteUrl);
       }),
     ]),
   );
