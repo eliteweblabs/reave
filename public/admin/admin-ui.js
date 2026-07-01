@@ -153,15 +153,26 @@ export function createPanePlaceholder(opts = {}) {
  *
  * @param {object} opts
  * @param {object} [opts.search] — `{ value, placeholder, ariaLabel?, onInput(value) }`
+ * @param {number} [opts.itemCount] — hide search when below LIST_SEARCH_MIN_ITEMS (unless query active)
  * @param {false|object} [opts.addNew=false] — `{ label, onClick }` or `false` for search-only
  * @param {Node|Node[]} [opts.below] — nodes rendered below the search row (e.g. inbox filter tabs)
  */
+export const LIST_SEARCH_MIN_ITEMS = 8;
+
+function shouldShowListSearch(search, itemCount) {
+  if (!search) return false;
+  if (String(search.value ?? '').trim()) return true;
+  if (itemCount == null) return true;
+  return itemCount >= LIST_SEARCH_MIN_ITEMS;
+}
+
 export function listSearchAddNew(opts = {}) {
   const addNew = opts.addNew === false ? null : opts.addNew;
   const newBtn = addNew ? createFabNewBtn(addNew.label || 'New', addNew.onClick) : null;
   const belowNodes = opts.below == null ? [] : [].concat(opts.below).filter(Boolean);
+  const showSearch = shouldShowListSearch(opts.search, opts.itemCount);
 
-  if (opts.search) {
+  if (showSearch) {
     const wrap = document.createElement('div');
     const stacked = belowNodes.length > 0;
     wrap.className =
@@ -187,6 +198,14 @@ export function listSearchAddNew(opts = {}) {
     wrap.appendChild(field);
     for (const node of belowNodes) wrap.appendChild(node);
     return { el: wrap, input };
+  }
+
+  if (belowNodes.length > 0) {
+    const wrap = document.createElement('div');
+    wrap.className = 'panel-list-subheader panel-list-subheader--stacked';
+    if (newBtn) wrap.appendChild(newBtn);
+    for (const node of belowNodes) wrap.appendChild(node);
+    return { el: wrap, input: null };
   }
 
   if (newBtn) {

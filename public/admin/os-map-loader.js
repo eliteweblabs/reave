@@ -2030,19 +2030,74 @@ function footerNavActiveKey() {
   return null;
 }
 
+let footerSaveHandler = null;
+let footerSaveNav = null;
+
+function footerSaveNavForEditor() {
+  if (activeKey === 'knowledge' && knowledgeState.activeSlug) return 'chat';
+  if (
+    (activeKey === 'work' && workState.activeSlug) ||
+    (activeKey === 'documents' && docState.activeSlug === '__new__') ||
+    (activeKey === 'clients' && clientState.activeUid === '__new__') ||
+    (activeKey === 'rules' && ruleState.activeId)
+  ) {
+    return 'work';
+  }
+  return null;
+}
+
+function setEditorFooterSave(submitFn) {
+  footerSaveNav = footerSaveNavForEditor();
+  footerSaveHandler = footerSaveNav && submitFn ? submitFn : null;
+  if (!footerSaveHandler) footerSaveNav = null;
+  syncFooterNav();
+}
+
+function clearEditorFooterSave() {
+  footerSaveHandler = null;
+  footerSaveNav = null;
+  syncFooterNav();
+}
+
+function footerNavShowsSave(nav) {
+  if (footerNavCollapsed) return false;
+  const navEl = document.getElementById('admin-footer-nav');
+  if (navEl?.classList.contains('footer-nav-compose-open')) return false;
+  return footerSaveNav === nav && typeof footerSaveHandler === 'function';
+}
+
 function footerNavShowsCreate(nav) {
+  if (footerNavShowsSave(nav)) return false;
   if (footerNavCollapsed) return false;
   const navEl = document.getElementById('admin-footer-nav');
   if (navEl?.classList.contains('footer-nav-compose-open')) return false;
   const activeNav = footerNavActiveKey();
-  if (nav === 'chat') return activeKey === 'chats' && activeNav === 'chat';
-  if (nav === 'work') return activeKey === 'work' && activeNav === 'work';
+  if (nav === 'chat') {
+    return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
+  }
+  if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
   return false;
+}
+
+function applyFooterNavBtnMode(btn, iconEl, opts) {
+  const { save, create, icon, label, title } = opts;
+  btn.classList.toggle('footer-nav-btn--create', save || create);
+  btn.classList.toggle('footer-nav-btn--save', save);
+  if (save) {
+    iconEl.innerHTML = '<span class="footer-nav-save-label">Save</span>';
+    btn.setAttribute('aria-label', 'Save');
+    btn.title = 'Save';
+    return;
+  }
+  iconEl.innerHTML = navIcon(create ? 'plus' : icon, 20);
+  btn.setAttribute('aria-label', create ? title : label);
+  btn.title = create ? title : label;
 }
 
 function syncFooterChatNav() {
   const btn = document.getElementById('footer-nav-chat');
   if (!btn) return;
+  const save = footerNavShowsSave('chat');
   const create = footerNavShowsCreate('chat');
   let iconEl = btn.querySelector('.footer-nav-chat-icon');
   if (!iconEl) {
@@ -2053,15 +2108,19 @@ function syncFooterChatNav() {
     btn.insertBefore(iconEl, badge || null);
     btn.querySelector(':scope > svg')?.remove();
   }
-  iconEl.innerHTML = navIcon(create ? 'plus' : 'message-circle', 20);
-  btn.classList.toggle('footer-nav-btn--create', create);
-  btn.setAttribute('aria-label', create ? 'New chat' : 'Chats');
-  btn.title = create ? 'New chat' : 'Chats';
+  applyFooterNavBtnMode(btn, iconEl, {
+    save,
+    create,
+    icon: 'message-circle',
+    label: 'Chats',
+    title: 'New chat',
+  });
 }
 
 function syncFooterWorkNav() {
   const btn = document.getElementById('footer-nav-work');
   if (!btn) return;
+  const save = footerNavShowsSave('work');
   const create = footerNavShowsCreate('work');
   let iconEl = btn.querySelector('.footer-nav-work-icon');
   if (!iconEl) {
@@ -2071,14 +2130,31 @@ function syncFooterWorkNav() {
     btn.appendChild(iconEl);
     btn.querySelector(':scope > svg')?.remove();
   }
-  iconEl.innerHTML = navIcon(create ? 'plus' : 'briefcase', 20);
-  btn.classList.toggle('footer-nav-btn--create', create);
-  btn.setAttribute('aria-label', create ? 'New project' : 'Projects');
-  btn.title = create ? 'New project' : 'Projects';
+  applyFooterNavBtnMode(btn, iconEl, {
+    save,
+    create,
+    icon: 'briefcase',
+    label: 'Projects',
+    title: 'New project',
+  });
 }
 
 function footerNavCreateModeActive(nav) {
   return footerNavShowsCreate(nav);
+}
+
+async function triggerFooterSave() {
+  if (typeof footerSaveHandler !== 'function') return;
+  const btn =
+    footerSaveNav === 'chat'
+      ? document.getElementById('footer-nav-chat')
+      : document.getElementById('footer-nav-work');
+  if (btn) btn.disabled = true;
+  try {
+    await footerSaveHandler();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 const FOOTER_PANEL_SELECTOR =
@@ -2323,6 +2399,10 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'chat') {
+    if (footerNavShowsSave('chat')) {
+      void triggerFooterSave();
+      return;
+    }
     if (activeKey === 'chats') {
       void startNewChat();
       return;
@@ -2339,6 +2419,10 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'work') {
+    if (footerNavShowsSave('work')) {
+      void triggerFooterSave();
+      return;
+    }
     if (activeKey === 'work') {
       startNewProject();
       return;
@@ -2442,8 +2526,8 @@ function syncFooterNavIndicator() {
 
   const activeNav = footerNavActiveKey();
   const hideForCreate =
-    (activeNav === 'chat' && footerNavCreateModeActive('chat')) ||
-    (activeNav === 'work' && footerNavCreateModeActive('work'));
+    (activeNav === 'chat' && (footerNavCreateModeActive('chat') || footerNavShowsSave('chat'))) ||
+    (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work')));
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
@@ -2501,6 +2585,10 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (footerNavShowsSave('chat')) {
+      void triggerFooterSave();
+      return;
+    }
     if (activeKey === 'chats') {
       if (!footerChatComposeVisible && chatState.activeId) {
         showFooterChatCompose();
@@ -2520,6 +2608,10 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-work')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (footerNavShowsSave('work')) {
+      void triggerFooterSave();
+      return;
+    }
     if (activeKey === 'work') {
       startNewProject();
       return;
@@ -2932,6 +3024,7 @@ function renderRulesEditor() {
     );
 
   const subheader = listSearchSubheader({
+    itemCount: rules.length,
     search: {
       value: ruleState.search,
       placeholder: `Search ${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}`,
@@ -3011,6 +3104,7 @@ function renderRulesEditor() {
   if (activeId) {
     renderRuleEditPane(pane);
   } else {
+    clearEditorFooterSave();
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('zap', '<p>Select a rule to edit, or create a new one.</p>');
@@ -3033,6 +3127,7 @@ function closeRuleEditor(checkDirty = true) {
   if (checkDirty && ruleState.dirty && !confirm('Discard unsaved changes?')) return;
   ruleState.activeId = null;
   ruleState.dirty = false;
+  clearEditorFooterSave();
   getRuleEditor()?.classList.remove('de-pane-active');
   renderRulesEditor();
 }
@@ -3055,6 +3150,15 @@ function renderRuleEditPane(pane) {
   statusEl.className = 'de-doc-slug';
   statusEl.textContent = rule.status || '';
   header.appendChild(statusEl);
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'trash',
+    label: 'Delete rule',
+    className: 'ios-icon-btn ch-delete-btn',
+    onClick: () => deleteRule(rule.id),
+  }));
+  header.appendChild(headerActions);
   pane.appendChild(header);
 
   const form = document.createElement('div');
@@ -3133,18 +3237,7 @@ function renderRuleEditPane(pane) {
   form.appendChild(enabledLb);
   pane.appendChild(form);
 
-  const actions = document.createElement('div');
-  actions.className = 'de-actions';
-  const delBtn = document.createElement('button');
-  delBtn.type = 'button';
-  delBtn.className = 'de-btn de-btn-danger';
-  delBtn.textContent = 'Delete';
-  delBtn.addEventListener('click', () => deleteRule(rule.id));
-  const saveBtn = document.createElement('button');
-  saveBtn.type = 'button';
-  saveBtn.className = 'de-btn de-btn-primary';
-  saveBtn.textContent = 'Save';
-  saveBtn.addEventListener('click', () =>
+  setEditorFooterSave(() =>
     saveRule(rule.id, {
       titleIn,
       statusIn,
@@ -3154,11 +3247,8 @@ function renderRuleEditPane(pane) {
       fieldsWrap,
       notifyCb,
       enabledCb,
-      saveBtn,
     })
   );
-  actions.append(delBtn, saveBtn);
-  pane.appendChild(actions);
 }
 
 function collectRulePayload(inputs) {
@@ -3184,8 +3274,10 @@ async function saveRule(id, inputs) {
     alert('Title and status tag are required.');
     return;
   }
-  inputs.saveBtn.disabled = true;
-  inputs.saveBtn.textContent = 'Saving…';
+  if (inputs.saveBtn) {
+    inputs.saveBtn.disabled = true;
+    inputs.saveBtn.textContent = 'Saving…';
+  }
   try {
     const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
       method: 'PUT',
@@ -3198,8 +3290,10 @@ async function saveRule(id, inputs) {
     await loadRulesTab();
     openRuleEditor(id);
   } catch (e) {
-    inputs.saveBtn.textContent = 'Save';
-    inputs.saveBtn.disabled = false;
+    if (inputs.saveBtn) {
+      inputs.saveBtn.textContent = 'Save';
+      inputs.saveBtn.disabled = false;
+    }
     alert(`Save failed: ${e.message}`);
   }
 }
@@ -3403,6 +3497,7 @@ async function loadDocumentsTab() {
   }
   docState.activeSlug = null;
   docState.dirty = false;
+  clearEditorFooterSave();
   getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
@@ -3422,6 +3517,7 @@ function renderDocEditor() {
   sidebar.className = 'ch-sidebar';
 
   const subheader = listSearchSubheader({
+    itemCount: templates.length,
     search: {
       value: search,
       placeholder: `Search ${templates.length} ${templates.length === 1 ? 'document' : 'documents'}`,
@@ -3498,6 +3594,7 @@ function renderDocEditor() {
   } else if (activeSlug) {
     renderEditForm(pane);
   } else {
+    clearEditorFooterSave();
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('file-text', '<p>Select a template to edit, or create a new one.</p>');
@@ -3542,23 +3639,7 @@ function renderNewForm(pane) {
   attachShortcodePopover(ta);
   pane.appendChild(ta);
 
-  const actions = document.createElement('div');
-  actions.className = 'de-actions';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'de-btn de-btn-ghost';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    docState.activeSlug = null;
-    docState.dirty = false;
-    renderDocEditor();
-  });
-  const createBtn = document.createElement('button');
-  createBtn.className = 'de-btn de-btn-primary';
-  createBtn.textContent = 'Create';
-  createBtn.addEventListener('click', () => createDocument(slugInput.value.trim(), ta.value));
-  actions.appendChild(cancelBtn);
-  actions.appendChild(createBtn);
-  pane.appendChild(actions);
+  setEditorFooterSave(() => createDocument(slugInput.value.trim(), ta.value));
 }
 
 function renderEditForm(pane) {
@@ -3755,6 +3836,7 @@ async function backToList() {
   docState.dirty = false;
   docState.savedHtml = '';
   docState.autosaveGetHtml = null;
+  clearEditorFooterSave();
   getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
@@ -3990,6 +4072,7 @@ async function loadKnowledgeTab() {
   knowledgeState.activeSlug = null;
   knowledgeState.dirty = false;
   knowledgeState.content = '';
+  clearEditorFooterSave();
   getKnowledgeEditor()?.classList.remove('de-pane-active');
   renderKnowledgeEditor();
 }
@@ -4007,6 +4090,7 @@ function renderKnowledgeEditor() {
   sidebar.className = 'ch-sidebar';
 
   const subheader = listSearchSubheader({
+    itemCount: entries.length,
     search: {
       value: search,
       placeholder: `Search ${entries.length} ${entries.length === 1 ? 'doc' : 'docs'}`,
@@ -4047,6 +4131,7 @@ function renderKnowledgeEditor() {
   } else if (activeSlug) {
     renderEditKnowledgeForm(pane);
   } else {
+    clearEditorFooterSave();
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('book-open', '<p>Select a doc to edit, or create a new one.</p>');
@@ -4092,22 +4177,7 @@ function renderNewKnowledgeForm(pane) {
   ta.placeholder = '# Title\n\nMarkdown content for the admin agent…';
   pane.appendChild(ta);
 
-  const actions = document.createElement('div');
-  actions.className = 'de-actions';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'de-btn de-btn-ghost';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    knowledgeState.activeSlug = null;
-    renderKnowledgeEditor();
-  });
-  const createBtn = document.createElement('button');
-  createBtn.className = 'de-btn de-btn-primary';
-  createBtn.textContent = 'Create';
-  createBtn.addEventListener('click', () => createKnowledge(slugInput.value.trim(), ta.value));
-  actions.appendChild(cancelBtn);
-  actions.appendChild(createBtn);
-  pane.appendChild(actions);
+  setEditorFooterSave(() => createKnowledge(slugInput.value.trim(), ta.value));
   getKnowledgeEditor()?.classList.add('de-pane-active');
 }
 
@@ -4144,6 +4214,15 @@ function renderEditKnowledgeForm(pane) {
       slugEl.className = 'de-doc-slug';
       slugEl.textContent = slug;
       header.appendChild(slugEl);
+      const headerActions = document.createElement('div');
+      headerActions.className = 'de-header-actions';
+      headerActions.appendChild(createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete knowledge doc',
+        className: 'ios-icon-btn ch-delete-btn',
+        onClick: () => deleteKnowledge(slug),
+      }));
+      header.appendChild(headerActions);
       pane.appendChild(header);
 
       const ta = document.createElement('textarea');
@@ -4155,19 +4234,7 @@ function renderEditKnowledgeForm(pane) {
       });
       pane.appendChild(ta);
 
-      const actions = document.createElement('div');
-      actions.className = 'de-actions';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'de-btn de-btn-danger';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', () => deleteKnowledge(slug));
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'de-btn de-btn-primary';
-      saveBtn.textContent = 'Save';
-      saveBtn.addEventListener('click', () => saveKnowledge(slug, ta.value));
-      actions.appendChild(delBtn);
-      actions.appendChild(saveBtn);
-      pane.appendChild(actions);
+      setEditorFooterSave(() => saveKnowledge(slug, ta.value));
       getKnowledgeEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -4326,6 +4393,7 @@ async function loadWorkTab() {
   workState.activeSlug = null;
   workState.dirty = false;
   workState.draft = null;
+  clearEditorFooterSave();
   getWorkEditor()?.classList.remove('de-pane-active');
   renderWorkEditor();
 }
@@ -4390,6 +4458,7 @@ function renderWorkEditor() {
 
   const jobLabel = jobs.length === 1 ? 'project' : 'projects';
   const subheader = listSearchSubheader({
+    itemCount: jobs.length,
     search: {
       value: search,
       placeholder: `Search ${jobs.length} ${jobLabel}`,
@@ -4416,6 +4485,7 @@ function renderWorkEditor() {
   } else if (activeSlug) {
     renderEditWorkForm(pane);
   } else {
+    clearEditorFooterSave();
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('briefcase', '<p>Select a job to edit, or create a new one.</p>');
@@ -4763,6 +4833,13 @@ function createWorkHeaderTitleInput(value, placeholder) {
   return input;
 }
 
+function createWorkFormScroll(pane) {
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll wk-form-scroll';
+  pane.appendChild(scroll);
+  return scroll;
+}
+
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const header = document.createElement('div');
@@ -4780,6 +4857,8 @@ function renderNewWorkForm(pane) {
   header.appendChild(titleInput);
   pane.appendChild(header);
 
+  const scroll = createWorkFormScroll(pane);
+
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
@@ -4795,34 +4874,21 @@ function renderNewWorkForm(pane) {
 
   const metaFields = appendWorkMetaFields(fields, workState.draft, null);
 
-  pane.appendChild(fields);
+  scroll.appendChild(fields);
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
   ta.spellcheck = false;
   ta.placeholder = '# Job details\n\nScope, notes, links…';
   ta.value = workState.draft?.body || '';
-  pane.appendChild(ta);
+  scroll.appendChild(ta);
 
-  const actions = document.createElement('div');
-  actions.className = 'de-actions';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'de-btn de-btn-ghost';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    workState.activeSlug = null;
-    workState.draft = null;
-    renderWorkEditor();
-  });
-  const createBtn = document.createElement('button');
-  createBtn.className = 'de-btn de-btn-primary';
-  createBtn.textContent = 'Create';
-  createBtn.addEventListener('click', () => {
+  setEditorFooterSave(() => {
     const title = titleInput.value.trim();
     const slug = slugifyTitle(title);
     const client = clientPicker.getPayload();
     if (!client) { alert('Select a client, or add a new one.'); return; }
-    createWork(slug, {
+    return createWork(slug, {
       title,
       ...client,
       status: statusSelect.value,
@@ -4830,9 +4896,6 @@ function renderNewWorkForm(pane) {
       body: ta.value,
     });
   });
-  actions.appendChild(cancelBtn);
-  actions.appendChild(createBtn);
-  pane.appendChild(actions);
   getWorkEditor()?.classList.add('de-pane-active');
 }
 
@@ -4968,7 +5031,19 @@ function renderEditWorkForm(pane) {
         });
       }
 
+      const headerActions = document.createElement('div');
+      headerActions.className = 'de-header-actions';
+      headerActions.appendChild(createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete project',
+        className: 'ios-icon-btn ch-delete-btn',
+        onClick: () => deleteWork(slug),
+      }));
+      header.appendChild(headerActions);
+
       pane.appendChild(header);
+
+      const scroll = createWorkFormScroll(pane);
 
       const fields = document.createElement('div');
       fields.className = 'de-fields';
@@ -5008,23 +5083,14 @@ function renderEditWorkForm(pane) {
       titleInput.addEventListener('input', markDirty);
       statusSelect.addEventListener('change', markDirty);
       ta.addEventListener('input', markDirty);
-      pane.appendChild(fields);
-      pane.appendChild(ta);
-      mountWorkCommentsSection(pane, slug);
+      scroll.appendChild(fields);
+      scroll.appendChild(ta);
+      mountWorkCommentsSection(scroll, slug);
 
-      const actions = document.createElement('div');
-      actions.className = 'de-actions';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'de-btn de-btn-danger';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', () => deleteWork(slug));
-      const saveBtn = document.createElement('button');
-      saveBtn.className = 'de-btn de-btn-primary';
-      saveBtn.textContent = 'Save';
-      saveBtn.addEventListener('click', () => {
+      setEditorFooterSave(() => {
         const client = clientPicker.getPayload();
         if (!client) { alert('Select a client, or add a new one.'); return; }
-        saveWork(slug, {
+        return saveWork(slug, {
           title: titleInput.value.trim(),
           ...client,
           status: statusSelect.value,
@@ -5032,9 +5098,6 @@ function renderEditWorkForm(pane) {
           body: ta.value,
         });
       });
-      actions.appendChild(delBtn);
-      actions.appendChild(saveBtn);
-      pane.appendChild(actions);
       getWorkEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -5613,6 +5676,7 @@ async function loadClientsTab() {
   clientState.activeUid = null;
   clientState.dirty = false;
   clientState.draft = null;
+  clearEditorFooterSave();
   getClientsEditor()?.classList.remove('de-pane-active');
   renderClientsEditor();
 }
@@ -5640,6 +5704,7 @@ function renderClientsEditor() {
 
   const clientLabel = total === 1 ? 'client' : 'clients';
   const subheader = listSearchSubheader({
+    itemCount: total,
     search: {
       value: clientState.search,
       placeholder: `Search ${total} ${clientLabel}`,
@@ -5674,6 +5739,7 @@ function renderClientsEditor() {
   } else if (activeUid) {
     renderEditClientForm(pane);
   } else {
+    clearEditorFooterSave();
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('users', '<p>Select a client to edit, or add a new one.</p>');
@@ -5757,24 +5823,11 @@ function renderNewClientForm(pane) {
   pane.appendChild(notesLabel);
   registerClientField(notesTa, () => true);
 
-  const actions = document.createElement('div');
-  actions.className = 'de-actions';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'de-btn de-btn-ghost';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    clientState.activeUid = null;
-    clientState.draft = null;
-    renderClientsEditor();
-  });
-  const createBtn = document.createElement('button');
-  createBtn.className = 'de-btn de-btn-primary';
-  createBtn.textContent = 'Create';
-  createBtn.addEventListener('click', () => {
+  setEditorFooterSave(() => {
     refreshAllClientFields();
     if (!nameInput.value.trim()) return;
     if (!isValidClientEmail(emailInput.value) || !isValidClientPhone(phoneInput.value)) return;
-    createClient({
+    return createClient({
       name: nameInput.value.trim(),
       email: emailInput.value.trim(),
       phone: phoneToStorage(phoneInput.value),
@@ -5782,9 +5835,6 @@ function renderNewClientForm(pane) {
       notes: notesTa.value.trim(),
     });
   });
-  actions.appendChild(cancelBtn);
-  actions.appendChild(createBtn);
-  pane.appendChild(actions);
   getClientsEditor()?.classList.add('de-pane-active');
 }
 
@@ -6814,6 +6864,7 @@ function renderChatSidebar() {
   sidebar.className = 'ch-sidebar';
 
   const subheader = listSearchSubheader({
+    itemCount: chatState.threads.length,
     search: {
       value: chatState.search,
       placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'chat' : 'chats'}`,
@@ -8299,6 +8350,7 @@ function renderEmailSidebar() {
               ? counts.routed
               : counts.all;
   const subheader = listSearchSubheader({
+    itemCount: countForTab,
     search: {
       value: emailState.search,
       placeholder: `Search ${countForTab} ${countForTab === 1 ? 'message' : 'messages'}`,
