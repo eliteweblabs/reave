@@ -301,7 +301,16 @@ const { userId } = Astro.locals.auth();
         :is(
           input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not(.cl-title-input),
           select,
-          button
+          button:not(
+            :is(
+              .ch-list-item,
+              .em-list-item,
+              .de-list-item,
+              .search-result-item,
+              .swipe-act,
+              .de-empty-action
+            )
+          )
         ) {
         border-radius: var(--radius-pill);
       }
@@ -2634,6 +2643,7 @@ const { userId } = Astro.locals.auth();
       .swipe-content .em-list-item.active,
       .swipe-content .ch-list-item.active {
         background: var(--list-item-active-bg);
+        border-color: var(--list-item-active-border);
       }
       .em-item-row {
         display: flex;
