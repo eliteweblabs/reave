@@ -2,15 +2,17 @@
  * POST /api/email/inbox/[id]/project — create a project from email or link to existing
  * Body: { mode: 'create', title?, contact_uid?, client?, body?, status? }
  *    | { mode: 'link', slug }
+ *
+ * Email content is merged into project notes via Claude (not raw append).
  */
 
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
+import { emailToMergeSource, mergeEmailIntoProjectBody } from '../../../../../lib/emailProjectMerge';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
 import {
   isSafeWorkSlug,
   slugFromTitle,
-  storeAppendWorkNote,
   storeReadWork,
   storeWriteWork,
 } from '../../../../../lib/workStore';
@@ -25,23 +27,6 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function emailProjectBody(ev: {
-  from: string;
-  subject: string;
-  summary: string;
-  bodySnippet: string;
-}): string {
-  const lines = ['## Source email', '', `**From:** ${ev.from || '(unknown)'}`, `**Subject:** ${ev.subject || '(no subject)'}`, ''];
-  const summary = ev.summary?.trim();
-  const snippet = ev.bodySnippet?.trim();
-  if (summary) lines.push(summary);
-  if (snippet && snippet !== summary) {
-    if (summary) lines.push('');
-    lines.push(snippet);
-  }
-  return lines.join('\n').trim();
-}
-
 async function markEmailLinked(id: string, jobTitle: string) {
   return storeUpdateEmailInbox(id, {
     category: 'client',
@@ -51,6 +36,36 @@ async function markEmailLinked(id: string, jobTitle: string) {
   });
 }
 
+async function writeMergedBody(
+  slug: string,
+  job: NonNullable<Awaited<ReturnType<typeof storeReadWork>>>,
+  email: ReturnType<typeof emailToMergeSource>,
+  isNewProject: boolean,
+) {
+  const { body, usedAi } = await mergeEmailIntoProjectBody({
+    existingBody: job.body,
+    email,
+    projectTitle: job.title,
+    isNewProject,
+  });
+
+  const result = await storeWriteWork(slug, {
+    title: job.title,
+    contact_uid: job.contact_uid,
+    contact_name: job.contact_name,
+    status: job.status,
+    priority: job.priority,
+    due_date: job.due_date,
+    value: job.value,
+    tags: job.tags,
+    source: job.source,
+    body,
+    record_origin: job.record_origin,
+  });
+
+  return { result, usedAi };
+}
+
 export async function POST(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -58,8 +73,10 @@ export async function POST(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing id' }, 400);
 
-  const email = await storeGetEmailInbox(id);
-  if (!email) return json({ ok: false, error: 'Not found' }, 404);
+  const emailRecord = await storeGetEmailInbox(id);
+  if (!emailRecord) return json({ ok: false, error: 'Not found' }, 404);
+
+  const email = emailToMergeSource(emailRecord);
 
   let body: Record<string, unknown>;
   try {
@@ -76,14 +93,10 @@ export async function POST(context: APIContext): Promise<Response> {
     const job = await storeReadWork(slug);
     if (!job) return json({ ok: false, error: 'Project not found' }, 404);
 
+    const { result, usedAi } = await writeMergedBody(slug, job, email, false);
+    if (!result.ok) return json({ ok: false, error: result.error }, 400);
+
     await assignEmailToJob(id, slug, job.title);
-    const note = email.summary?.trim() || email.bodySnippet?.trim();
-    if (note) {
-      await storeAppendWorkNote(slug, note, {
-        subject: email.subject,
-        from: email.from,
-      });
-    }
     const event = await markEmailLinked(id, job.title);
     if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
 
@@ -92,20 +105,21 @@ export async function POST(context: APIContext): Promise<Response> {
       mode: 'link',
       slug: job.slug,
       title: job.title,
+      usedAi,
       event,
     });
   }
 
   if (mode === 'create') {
-    const title = String(body.title ?? email.subject ?? '').trim() || 'New project';
+    const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'New project';
     const parsed = parseWorkJobInput({
       title,
-      contact_uid: body.contact_uid ?? email.contactUid ?? '',
-      contact_name: body.contact_name ?? email.contactName ?? '',
-      client: body.client ?? email.contactName ?? '',
+      contact_uid: body.contact_uid ?? emailRecord.contactUid ?? '',
+      contact_name: body.contact_name ?? emailRecord.contactName ?? '',
+      client: body.client ?? emailRecord.contactName ?? '',
       status: body.status ?? 'inquiry',
       source: body.source ?? 'email',
-      body: String(body.body ?? emailProjectBody(email)).trim(),
+      body: '',
       record_origin: 'dashboard',
     });
     if ('error' in parsed) return json({ ok: false, error: parsed.error }, 400);
@@ -118,7 +132,14 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
     if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists', slug }, 409);
 
-    const result = await storeWriteWork(slug, parsed);
+    const { body: mergedBody, usedAi } = await mergeEmailIntoProjectBody({
+      existingBody: '',
+      email,
+      projectTitle: title,
+      isNewProject: true,
+    });
+
+    const result = await storeWriteWork(slug, { ...parsed, body: mergedBody });
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, result.doc.title);
@@ -130,6 +151,7 @@ export async function POST(context: APIContext): Promise<Response> {
       mode: 'create',
       slug: result.doc.slug,
       title: result.doc.title,
+      usedAi,
       event,
     });
   }

@@ -2752,42 +2752,39 @@ const { userId } = Astro.locals.auth();
         overflow-wrap: anywhere;
       }
       .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
-      .em-project-split {
+      .em-project-dropdown {
         position: relative;
-        display: inline-flex;
-        align-items: stretch;
         flex: 0 0 auto;
       }
-      .em-project-btn {
+      .em-project-trigger {
         margin: 0;
-        border-top-right-radius: 0;
-        border-bottom-right-radius: 0;
-        border-right: none;
-      }
-      .em-project-menu-btn {
-        margin: 0;
-        min-width: 2rem;
-        padding: 0.45rem 0.55rem;
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
-        line-height: 1;
       }
       .em-project-menu {
         display: none;
         position: absolute;
         top: calc(100% + 4px);
         right: 0;
-        min-width: 11rem;
+        min-width: 14rem;
+        max-width: min(20rem, 70vw);
+        max-height: 16rem;
+        overflow-y: auto;
         z-index: 40;
         background: var(--dropdown-bg);
         border: 1px solid var(--card-border);
         border-radius: 8px;
         box-shadow: var(--dropdown-shadow);
-        overflow: hidden;
       }
-      .em-project-split.open .em-project-menu { display: block; }
+      .em-project-dropdown.open .em-project-menu { display: block; }
+      .em-project-menu-divider {
+        height: 1px;
+        margin: 0.2rem 0;
+        background: var(--card-border);
+      }
       .em-project-menu-item {
-        display: block;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.1rem;
         width: 100%;
         padding: 0.55rem 0.75rem;
         border: none;
@@ -2798,43 +2795,33 @@ const { userId } = Astro.locals.auth();
         text-align: left;
         cursor: pointer;
       }
-      .em-project-menu-item:hover {
+      .em-project-menu-item:hover:not(:disabled) {
         background: var(--tab-active-bg);
       }
-      .em-project-pick-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        max-height: 16rem;
-        overflow-y: auto;
-        margin-top: 0.65rem;
+      .em-project-menu-item:disabled {
+        opacity: 0.65;
+        cursor: default;
       }
-      .em-project-pick-item {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.15rem;
-        width: 100%;
-        padding: 0.6rem 0.7rem;
-        border: 1px solid var(--card-border);
-        border-radius: 8px;
-        background: var(--card);
-        color: var(--fg);
-        font: inherit;
-        text-align: left;
-        cursor: pointer;
+      .em-project-menu-item--new {
+        font-weight: 700;
+        color: color-mix(in srgb, var(--accent) 85%, var(--fg));
       }
-      .em-project-pick-item:hover {
-        border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
-      }
-      .em-project-pick-title {
-        font-size: 0.88rem;
+      .em-project-menu-title {
         font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100%;
       }
-      .em-project-pick-meta {
-        font-size: 0.72rem;
+      .em-project-menu-meta {
+        font-size: 0.68rem;
         color: var(--muted);
-        font-family: ui-monospace, monospace;
+        text-transform: capitalize;
+      }
+      .em-project-menu-empty {
+        padding: 0.55rem 0.75rem;
+        font-size: 0.75rem;
+        color: var(--muted);
       }
       .em-project-title-input,
       .em-project-client-input {
