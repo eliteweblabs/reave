@@ -1,13 +1,11 @@
 /**
  * Deliver a document-signing link to a client over a specific channel.
- *
- * Factored out so both the Telegram flow and the admin "review & send" page can
- * send the exact same email/SMS. Returns a plain result (no side-channel UI) so
- * callers can render the outcome however they like.
  */
 import type { ContactRecord } from './contactApi';
-import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
+import { extractPortal } from './contactApi';
 import { brandedEmailHtml } from './emailTemplates';
+import { isEmailSendConfigured, isEmailToSmsConfigured, sendEmail, sendSmsViaEmailGateway } from './outbound';
+import { isValidCarrier } from './smsUtils';
 
 export type SendDocumentResult =
   | { ok: true; channel: 'email' | 'sms'; dest: string }
@@ -18,6 +16,7 @@ export async function sendDocumentLink(opts: {
   docUrl: string;
   docTitle: string;
   channel: 'email' | 'sms';
+  carrier?: string;
 }): Promise<SendDocumentResult> {
   const { contact: c, docUrl, docTitle, channel } = opts;
   const firstName = (c.firstName || c.name || '').split(/\s+/)[0] || 'there';
@@ -38,9 +37,18 @@ export async function sendDocumentLink(opts: {
     return { ok: true, channel: 'email', dest: c.email };
   }
 
-  if (!isSmsSendConfigured()) return { ok: false, error: 'SMS not configured. Set TELNYX_API_KEY + TELNYX_FROM_NUMBER.' };
   if (!c.phone) return { ok: false, error: `${c.name} has no phone on file. Add one first.` };
-  const r = await sendSms({ to: c.phone, body: `Hi ${firstName}, please review and sign "${docTitle}": ${docUrl}` });
-  if (!r.ok) return { ok: false, error: `SMS failed: ${r.error}` };
-  return { ok: true, channel: 'sms', dest: c.phone };
+  const portal = extractPortal(c);
+  const carrier = (opts.carrier || portal?.smsCarrier || '').trim();
+  if (!carrier || !isValidCarrier(carrier)) {
+    return { ok: false, error: 'Select a mobile carrier to text this client.' };
+  }
+  if (!isEmailToSmsConfigured()) {
+    return { ok: false, error: 'Email not configured. Set RESEND_API_KEY.' };
+  }
+
+  const body = `Hi ${firstName}, please review and sign "${docTitle}": ${docUrl}`;
+  const r = await sendSmsViaEmailGateway({ phone: c.phone, carrier, text: body, subject: docTitle });
+  if (!r.ok) return { ok: false, error: `Text failed: ${r.error}` };
+  return { ok: true, channel: 'sms', dest: r.gatewayEmail ?? c.phone };
 }

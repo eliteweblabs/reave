@@ -240,6 +240,8 @@ export type ClientPortal = {
   documents?: PortalDocument[];
   /** ChangeDetection.io watch metadata (when site_monitoring feature is enabled). */
   siteMonitoring?: SiteMonitoringMeta;
+  /** Mobile carrier key for email-to-SMS (att, verizon, tmobile, …). */
+  smsCarrier?: string;
   updatedAt?: string;
 };
 

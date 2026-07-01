@@ -236,3 +236,243 @@ export function createPanelHeader(opts = {}) {
   }
   return header;
 }
+
+let _iosSheetEl = null;
+
+function ensureIosSheetRoot() {
+  if (_iosSheetEl) return _iosSheetEl;
+  const root = document.createElement('div');
+  root.id = 'ios-action-sheet-root';
+  root.className = 'ios-action-sheet-root';
+  root.hidden = true;
+  root.innerHTML =
+    '<div class="ios-action-sheet-backdrop" data-sheet-dismiss></div>' +
+    '<div class="ios-action-sheet-wrap" role="dialog" aria-modal="true">' +
+    '<div class="ios-action-sheet-title" id="ios-action-sheet-title"></div>' +
+    '<div class="ios-action-sheet-message" id="ios-action-sheet-message"></div>' +
+    '<div class="ios-action-sheet-group" id="ios-action-sheet-actions"></div>' +
+    '<div class="ios-action-sheet-group ios-action-sheet-cancel-group">' +
+    '<button type="button" class="ios-action-sheet-btn ios-action-sheet-cancel" data-sheet-dismiss>Cancel</button>' +
+    '</div>' +
+    '</div>';
+  document.body.appendChild(root);
+  _iosSheetEl = root;
+  return root;
+}
+
+function closeIosActionSheet() {
+  const root = ensureIosSheetRoot();
+  root.classList.remove('ios-action-sheet-visible');
+  root.hidden = true;
+  document.body.classList.remove('ios-action-sheet-open');
+}
+
+/**
+ * iOS-style bottom action sheet. actions: { label, onClick?, disabled?, destructive? }[]
+ */
+export function showIosActionSheet(opts = {}) {
+  const { title, message, actions = [] } = opts;
+  const root = ensureIosSheetRoot();
+  const titleEl = root.querySelector('#ios-action-sheet-title');
+  const messageEl = root.querySelector('#ios-action-sheet-message');
+  const actionsEl = root.querySelector('#ios-action-sheet-actions');
+
+  titleEl.textContent = title || '';
+  titleEl.hidden = !title;
+  messageEl.textContent = message || '';
+  messageEl.hidden = !message;
+  actionsEl.innerHTML = '';
+
+  for (const action of actions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ios-action-sheet-btn';
+    if (action.destructive) btn.classList.add('ios-action-sheet-destructive');
+    btn.textContent = action.label || '';
+    btn.disabled = !!action.disabled;
+    if (!action.disabled && action.onClick) {
+      btn.addEventListener('click', async () => {
+        closeIosActionSheet();
+        try {
+          await action.onClick(btn);
+        } catch (e) {
+          console.error(e);
+        }
+      });
+    }
+    actionsEl.appendChild(btn);
+  }
+
+  root.querySelectorAll('[data-sheet-dismiss]').forEach((el) => {
+    el.onclick = closeIosActionSheet;
+  });
+
+  root.hidden = false;
+  requestAnimationFrame(() => {
+    root.classList.add('ios-action-sheet-visible');
+    document.body.classList.add('ios-action-sheet-open');
+  });
+
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      closeIosActionSheet();
+      document.removeEventListener('keydown', onKey);
+    }
+  };
+  document.addEventListener('keydown', onKey);
+}
+
+/**
+ * Portal send sheet — carrier picker + text/email/copy actions.
+ */
+export function showPortalSendSheet(opts = {}) {
+  const {
+    title,
+    message,
+    phone,
+    phoneLabel,
+    email,
+    carriers = [],
+    defaultCarrier = '',
+    onText,
+    onEmail,
+    onCopy,
+    onMore,
+  } = opts;
+
+  const root = ensureIosSheetRoot();
+  const titleEl = root.querySelector('#ios-action-sheet-title');
+  const messageEl = root.querySelector('#ios-action-sheet-message');
+  const actionsEl = root.querySelector('#ios-action-sheet-actions');
+
+  titleEl.textContent = title || '';
+  titleEl.hidden = !title;
+  messageEl.textContent = message || '';
+  messageEl.hidden = !message;
+  actionsEl.innerHTML = '';
+
+  let carrierSelect = null;
+
+  if (phone && carriers.length) {
+    const carrierRow = document.createElement('div');
+    carrierRow.className = 'ios-action-sheet-field';
+    const carrierLabel = document.createElement('label');
+    carrierLabel.className = 'ios-action-sheet-field-label';
+    carrierLabel.textContent = 'Mobile carrier';
+    carrierLabel.setAttribute('for', 'ios-portal-carrier');
+    carrierSelect = document.createElement('select');
+    carrierSelect.id = 'ios-portal-carrier';
+    carrierSelect.className = 'ios-action-sheet-select';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select carrier…';
+    carrierSelect.appendChild(placeholder);
+    for (const c of carriers) {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (c.id === defaultCarrier) opt.selected = true;
+      carrierSelect.appendChild(opt);
+    }
+    carrierRow.appendChild(carrierLabel);
+    carrierRow.appendChild(carrierSelect);
+    actionsEl.appendChild(carrierRow);
+
+    const textBtn = document.createElement('button');
+    textBtn.type = 'button';
+    textBtn.className = 'ios-action-sheet-btn';
+    textBtn.textContent = `Text ${phoneLabel || phone}`;
+    textBtn.addEventListener('click', async () => {
+      const carrier = carrierSelect?.value?.trim() || '';
+      if (!carrier) {
+        carrierSelect?.focus();
+        carrierSelect?.classList.add('ios-action-sheet-select-invalid');
+        return;
+      }
+      closeIosActionSheet();
+      try {
+        await onText?.({ carrier, phone });
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    carrierSelect.addEventListener('change', () => {
+      carrierSelect.classList.remove('ios-action-sheet-select-invalid');
+    });
+    actionsEl.appendChild(textBtn);
+  }
+
+  if (email) {
+    const emailBtn = document.createElement('button');
+    emailBtn.type = 'button';
+    emailBtn.className = 'ios-action-sheet-btn';
+    emailBtn.textContent = `Email ${email}`;
+    emailBtn.addEventListener('click', async () => {
+      closeIosActionSheet();
+      try {
+        await onEmail?.({ email });
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    actionsEl.appendChild(emailBtn);
+  }
+
+  if (!phone && !email) {
+    const emptyBtn = document.createElement('button');
+    emptyBtn.type = 'button';
+    emptyBtn.className = 'ios-action-sheet-btn';
+    emptyBtn.textContent = 'Add phone or email to send';
+    emptyBtn.disabled = true;
+    actionsEl.appendChild(emptyBtn);
+  }
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'ios-action-sheet-btn';
+  copyBtn.textContent = 'Copy link';
+  copyBtn.addEventListener('click', async () => {
+    closeIosActionSheet();
+    try {
+      await onCopy?.();
+    } catch (e) {
+      console.error(e);
+    }
+  });
+  actionsEl.appendChild(copyBtn);
+
+  if (onMore) {
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'ios-action-sheet-btn';
+    moreBtn.textContent = 'More options…';
+    moreBtn.addEventListener('click', async () => {
+      closeIosActionSheet();
+      try {
+        await onMore?.();
+      } catch (e) {
+        console.error(e);
+      }
+    });
+    actionsEl.appendChild(moreBtn);
+  }
+
+  root.querySelectorAll('[data-sheet-dismiss]').forEach((el) => {
+    el.onclick = closeIosActionSheet;
+  });
+
+  root.hidden = false;
+  requestAnimationFrame(() => {
+    root.classList.add('ios-action-sheet-visible');
+    document.body.classList.add('ios-action-sheet-open');
+    if (phone && carriers.length && !defaultCarrier) carrierSelect?.focus();
+  });
+
+  const onKey = (e) => {
+    if (e.key === 'Escape') {
+      closeIosActionSheet();
+      document.removeEventListener('keydown', onKey);
+    }
+  };
+  document.addEventListener('keydown', onKey);
+}

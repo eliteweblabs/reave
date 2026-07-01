@@ -56,9 +56,7 @@ import {
 } from './craterClient';
 import {
   isEmailSendConfigured,
-  isSmsSendConfigured,
-  sendEmail,
-  sendSms,
+  isEmailToSmsConfigured,
 } from './outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from './devTaskRunner';
 import {
@@ -81,7 +79,7 @@ import {
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
-import { brandedEmailHtml } from './emailTemplates';
+import { sendPortalLink } from './portalDelivery';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
 import {
@@ -1106,13 +1104,13 @@ export function buildTools(): AgentToolDef[] {
       }
     );
 
-    if (isEmailSendConfigured() || isSmsSendConfigured()) {
+    if (isEmailSendConfigured() || isEmailToSmsConfigured()) {
       base.push({
         type: 'function',
         function: {
           name: 'send_client_portal',
           description:
-            'Send a client their portal link directly to them via email (Resend) and/or SMS (Twilio). This is the "send the client link to <name>" command. Identify by uid or name (fuzzy-resolved). channel "auto" (default) emails them if an email is on file, otherwise texts them. Use the message field to add a short personal note. The page shows their details and any outstanding Crater invoices.',
+            'Send a client their portal link directly via email or text (email-to-SMS via carrier gateway). channel "auto" (default) emails if available, otherwise texts. For SMS, uses the saved carrier on the contact or pass carrier (att, verizon, tmobile, …).',
           parameters: {
             type: 'object',
             properties: {
@@ -1124,6 +1122,10 @@ export function buildTools(): AgentToolDef[] {
                 type: 'string',
                 enum: ['auto', 'email', 'sms'],
                 description: 'auto = email if available else SMS. Defaults to auto.',
+              },
+              carrier: {
+                type: 'string',
+                description: 'Mobile carrier key for SMS: att, verizon, tmobile, sprint, boost, cricket, metropcs, uscellular, virgin.',
               },
               message: { type: 'string', description: 'Optional short personal note prepended to the message.' },
             },
@@ -2370,61 +2372,24 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
       const c = current.data;
 
-      const portal = extractPortal(c);
-      if (portal && portal.enabled === false) {
-        return JSON.stringify({ error: 'This client’s page is hidden (enabled:false). Re-enable it before sending.' });
-      }
+      const channel = String(args.channel ?? 'auto') as 'email' | 'sms' | 'auto';
+      const message = typeof args.message === 'string' ? args.message : undefined;
+      const carrier = typeof args.carrier === 'string' ? args.carrier : undefined;
+      const result = await sendPortalLink({ contact: c, channel, message, carrier });
 
-      const url = clientPortalUrl(target.uid);
-      const firstName = (c.firstName || c.name || '').trim().split(/\s+/)[0] || 'there';
-      const intro = typeof args.message === 'string' && args.message.trim() ? `${args.message.trim()}\n\n` : '';
+      if (!result.ok) return JSON.stringify({ error: result.error });
 
-      const channel = String(args.channel ?? 'auto');
-      let useEmail = false;
-      let useSms = false;
-      if (channel === 'email') useEmail = true;
-      else if (channel === 'sms') useSms = true;
-      else if (c.email) useEmail = true;
-      else if (c.phone) useSms = true;
-
-      if (useEmail && !c.email) {
-        return JSON.stringify({ error: 'No email on file for this client. Try channel "sms" or add an email.' });
-      }
-      if (useSms && !c.phone) {
-        return JSON.stringify({ error: 'No phone on file for this client. Try channel "email" or add a phone.' });
-      }
-      if (!useEmail && !useSms) {
-        return JSON.stringify({ error: 'This client has no email or phone on file to send to.' });
-      }
-
-      const sent: Record<string, unknown> = {};
-      if (useEmail) {
-        const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
-        const introLines = intro ? [intro.trim()] : [];
-        const text =
-          `${intro}Hi ${firstName},\n\n` +
-          `Here's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\n` +
-          `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-        const html = await brandedEmailHtml({
-          firstName,
-          paragraphs: [
-            ...introLines,
-            "Here's your personal client page — your details and any outstanding invoices live here:",
-          ],
-          cta: { label: 'Open your client page', url },
-          note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
-        });
-        const r = await sendEmail({ to: c.email as string, subject, text, html });
-        sent.email = r.ok ? { ok: true, to: c.email, id: r.id } : { ok: false, error: r.error };
-      }
-      if (useSms) {
-        const body = `${intro}Hi ${firstName}, here's your client page: ${url}`;
-        const r = await sendSms({ to: c.phone as string, body });
-        sent.sms = r.ok ? { ok: true, to: c.phone, id: r.id } : { ok: false, error: r.error };
-      }
-
-      const anyOk = Object.values(sent).some((v) => (v as { ok?: boolean }).ok);
-      return JSON.stringify({ success: anyOk, uid: target.uid, name: c.name, url, sent });
+      const sent =
+        result.channel === 'email'
+          ? { email: { ok: true, to: result.dest } }
+          : { sms: { ok: true, to: result.dest } };
+      return JSON.stringify({
+        success: true,
+        uid: target.uid,
+        name: c.name,
+        url: result.url,
+        sent,
+      });
     }
     if (name === 'get_site_monitoring') {
       const target = await resolvePortalTarget(args);
