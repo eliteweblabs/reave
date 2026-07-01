@@ -8,7 +8,7 @@
 
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
-import { emailToMergeSource, mergeEmailIntoProjectBody } from '../../../../../lib/emailProjectMerge';
+import { emailToMergeSource, mergeEmailIntoProjectBody, pickMergedProjectValue } from '../../../../../lib/emailProjectMerge';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
 import {
   ensureWorkContact,
@@ -50,12 +50,14 @@ async function writeMergedBody(
   email: ReturnType<typeof emailToMergeSource>,
   isNewProject: boolean,
 ) {
-  const { body, usedAi } = await mergeEmailIntoProjectBody({
+  const { body, value: extractedValue, usedAi } = await mergeEmailIntoProjectBody({
     existingBody: job.body,
     email,
     projectTitle: job.title,
     isNewProject,
   });
+
+  const mergedValue = pickMergedProjectValue(job.value, extractedValue);
 
   const result = await storeWriteWork(slug, {
     title: job.title,
@@ -64,7 +66,7 @@ async function writeMergedBody(
     status: job.status,
     priority: job.priority,
     due_date: job.due_date,
-    value: job.value,
+    ...(mergedValue !== undefined ? { value: mergedValue } : {}),
     tags: job.tags,
     source: job.source,
     body,
@@ -148,14 +150,20 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
     if (await storeReadWork(slug)) return json({ ok: false, error: 'Slug already exists', slug }, 409);
 
-    const { body: mergedBody, usedAi } = await mergeEmailIntoProjectBody({
+    const { body: mergedBody, value: extractedValue, usedAi } = await mergeEmailIntoProjectBody({
       existingBody: '',
       email,
       projectTitle: title,
       isNewProject: true,
     });
 
-    const result = await storeWriteWork(slug, { ...parsed, body: mergedBody });
+    const mergedValue = pickMergedProjectValue(null, extractedValue);
+
+    const result = await storeWriteWork(slug, {
+      ...parsed,
+      body: mergedBody,
+      ...(mergedValue !== undefined ? { value: mergedValue } : {}),
+    });
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, result.doc.title);
