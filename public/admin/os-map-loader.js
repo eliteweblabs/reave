@@ -3110,9 +3110,9 @@ function renderRulesEditor() {
   root.appendChild(pane);
 }
 
-function openRuleEditor(id) {
+async function openRuleEditor(id) {
   if (ruleState.dirty && ruleState.activeId && ruleState.activeId !== id) {
-    if (!confirm('Discard unsaved changes?')) return;
+    if (!(await confirmDiscardChanges())) return;
   }
   ruleState.activeId = id;
   ruleState.dirty = false;
@@ -3120,8 +3120,8 @@ function openRuleEditor(id) {
   renderRulesEditor();
 }
 
-function closeRuleEditor(checkDirty = true) {
-  if (checkDirty && ruleState.dirty && !confirm('Discard unsaved changes?')) return;
+async function closeRuleEditor(checkDirty = true) {
+  if (checkDirty && ruleState.dirty && !(await confirmDiscardChanges())) return;
   ruleState.activeId = null;
   ruleState.dirty = false;
   clearEditorFooterSave();
@@ -3297,7 +3297,7 @@ async function saveRule(id, inputs) {
 
 async function deleteRule(id) {
   const rule = ruleState.rules.find((r) => r.id === id);
-  if (!confirm(`Delete "${rule?.title || 'this rule'}"?`)) return;
+  if (!(await confirmDelete(rule?.title || 'this rule', { title: 'Delete rule?', cannotUndo: false }))) return;
   try {
     const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -3315,7 +3315,7 @@ async function deleteRule(id) {
 }
 
 async function startNewRule() {
-  if (ruleState.dirty && !confirm('Discard unsaved changes?')) return;
+  if (ruleState.dirty && !(await confirmDiscardChanges())) return;
   try {
     const res = await fetch('/api/email/rules', {
       method: 'POST',
@@ -3805,7 +3805,7 @@ async function autosaveDocument(slug, html) {
 
 async function openDocument(slug) {
   await flushDocAutosave();
-  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = slug;
   docState.dirty = false;
   docState.savedHtml = '';
@@ -3817,7 +3817,7 @@ async function openDocument(slug) {
 
 async function startNewDocument() {
   await flushDocAutosave();
-  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = '__new__';
   docState.dirty = false;
   docState.savedHtml = '';
@@ -3828,7 +3828,7 @@ async function startNewDocument() {
 
 async function backToList() {
   await flushDocAutosave();
-  if (docState.dirty && !confirm('Discard unsaved changes?')) return;
+  if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = null;
   docState.dirty = false;
   docState.savedHtml = '';
@@ -3862,7 +3862,7 @@ async function createDocument(slug, html) {
 async function deleteDocument(slug) {
   closeOpenSwipeRow();
   const tpl = docState.templates.find((t) => t.slug === slug);
-  if (!confirm(`Delete "${tpl?.title ?? slug}"? This cannot be undone.`)) return;
+  if (!(await confirmDelete(tpl?.title ?? slug, { title: 'Delete template?' }))) return;
   if (docAutosaveTimer) {
     clearTimeout(docAutosaveTimer);
     docAutosaveTimer = null;
@@ -4195,8 +4195,8 @@ function renderEditKnowledgeForm(pane) {
       header.className = 'de-header';
       header.appendChild(createPanelBackBtn({
         label: 'Back to knowledge',
-        onClick: () => {
-          if (knowledgeState.dirty && !confirm('Discard unsaved changes?')) return;
+        onClick: async () => {
+          if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
           knowledgeState.activeSlug = null;
           knowledgeState.dirty = false;
           getKnowledgeEditor()?.classList.remove('de-pane-active');
@@ -4240,7 +4240,7 @@ function renderEditKnowledgeForm(pane) {
 }
 
 async function openKnowledge(slug) {
-  if (knowledgeState.dirty && knowledgeState.activeSlug && !confirm('Discard unsaved changes?')) return;
+  if (knowledgeState.dirty && knowledgeState.activeSlug && !(await confirmDiscardChanges())) return;
   knowledgeState.activeSlug = slug;
   knowledgeState.dirty = false;
   renderKnowledgeEditor();
@@ -4298,7 +4298,7 @@ async function saveKnowledge(slug, content) {
 
 async function deleteKnowledge(slug) {
   closeOpenSwipeRow();
-  if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
+  if (!(await confirmDelete(`${slug}.md`, { title: 'Delete knowledge doc?' }))) return;
   try {
     const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
@@ -5021,8 +5021,8 @@ function renderEditWorkForm(pane) {
       const returnEmailId = workState.returnToEmailId;
       header.appendChild(createPanelBackBtn({
         label: returnEmailId ? 'Back to email' : 'Back to jobs',
-        onClick: () => {
-          if (workState.dirty && !confirm('Discard unsaved changes?')) return;
+        onClick: async () => {
+          if (workState.dirty && !(await confirmDiscardChanges())) return;
           if (returnEmailId) {
             workState.returnToEmailId = null;
             workState.activeSlug = null;
@@ -5122,7 +5122,7 @@ function renderEditWorkForm(pane) {
 }
 
 async function openWork(slug) {
-  if (workState.dirty && workState.activeSlug && !confirm('Discard unsaved changes?')) return;
+  if (workState.dirty && workState.activeSlug && !(await confirmDiscardChanges())) return;
   workState.returnToEmailId = null;
   workState.activeSlug = slug;
   workState.dirty = false;
@@ -5172,7 +5172,7 @@ async function saveWork(slug, payload) {
 
 async function deleteWork(slug) {
   closeOpenSwipeRow();
-  if (!confirm(`Delete "${slug}.md"? This cannot be undone.`)) return;
+  if (!(await confirmDelete(`${slug}.md`, { title: 'Delete project?' }))) return;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
@@ -5923,7 +5923,7 @@ function renderEditClientForm(pane) {
         label: 'Back to clients',
         onClick: async () => {
           await flushClientAutosave();
-          if (clientState.dirty && !confirm('Discard unsaved changes?')) return;
+          if (clientState.dirty && !(await confirmDiscardChanges())) return;
           clientState.activeUid = null;
           clientState.draft = null;
           clientState.autosaveGetPayload = null;
@@ -6081,7 +6081,7 @@ function renderEditClientForm(pane) {
 
 async function openClient(uid) {
   await flushClientAutosave();
-  if (clientState.dirty && clientState.activeUid && !confirm('Discard unsaved changes?')) return;
+  if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
   clientState.activeUid = uid;
   clientState.dirty = false;
   clientState.autosaveGetPayload = null;
@@ -6264,6 +6264,25 @@ function osConfirm(opts) {
 
 function osAlert(opts) {
   return osDialog({ ...opts, showCancel: false, confirmLabel: opts.confirmLabel || 'OK' });
+}
+
+async function confirmDiscardChanges() {
+  return osConfirm({
+    title: 'Discard changes?',
+    bodyHtml: '<p>Discard unsaved changes?</p>',
+    confirmLabel: 'Discard',
+    danger: true,
+  });
+}
+
+async function confirmDelete(label, opts = {}) {
+  const suffix = opts.cannotUndo === false ? '' : ' This cannot be undone.';
+  return osConfirm({
+    title: opts.title || 'Delete?',
+    bodyHtml: `<p>Delete <strong>${escHtml(label)}</strong>?${suffix}</p>`,
+    confirmLabel: 'Delete',
+    danger: true,
+  });
 }
 
 function buildClientDeleteConfirmHtml(name, preview) {
