@@ -10,7 +10,7 @@ import {
   syncAdminSplitView,
   scanPanelSidebars,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20250701c';
+} from './admin-ui.js?v=20250701e';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -7589,6 +7589,14 @@ function formatEmailAction(ev) {
 }
 
 // ---- swipe rows (iOS-style list actions) ----
+// Vertical scroll wins unless the gesture is clearly horizontal (avoids accidental swipes).
+const SWIPE_AXIS_SLOP = 12;
+const SWIPE_HORIZONTAL_MIN = 28;
+const SWIPE_HORIZONTAL_RATIO = 3;
+const SWIPE_VERTICAL_RATIO = 1.1;
+const SWIPE_CLOSE_HORIZONTAL_MIN = 14;
+const SWIPE_CLOSE_HORIZONTAL_RATIO = 2;
+
 let openSwipeRow = null;
 
 function closeOpenSwipeRow() {
@@ -7639,9 +7647,12 @@ function attachSwipeRow(row, contentEl, revealPx) {
   let startX = 0;
   let swipeStartY = 0;
   let baseX = 0;
+  let pending = false;
   let dragging = false;
   let moved = false;
   let open = false;
+  /** @type {'horizontal' | 'vertical' | null} */
+  let axis = null;
 
   function currentTx() {
     const m = contentEl.style.transform.match(/translate3d\(([-\d.]+)px/);
@@ -7666,38 +7677,93 @@ function attachSwipeRow(row, contentEl, revealPx) {
     }
   }
 
+  function resetGesture() {
+    pending = false;
+    dragging = false;
+    axis = null;
+    row.classList.remove('swipe-dragging');
+  }
+
+  function horizontalThresholds() {
+    if (open) {
+      return { min: SWIPE_CLOSE_HORIZONTAL_MIN, ratio: SWIPE_CLOSE_HORIZONTAL_RATIO };
+    }
+    return { min: SWIPE_HORIZONTAL_MIN, ratio: SWIPE_HORIZONTAL_RATIO };
+  }
+
   function onStart(clientX, clientY) {
     if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
     startX = clientX;
-    swipeStartY = clientY ?? swipeStartY;
+    swipeStartY = clientY;
     baseX = open ? -revealPx : 0;
-    dragging = true;
+    pending = true;
+    dragging = false;
+    axis = null;
     moved = false;
-    row.classList.add('swipe-dragging');
-    contentEl.style.transition = 'none';
   }
 
   function onMove(clientX, clientY, prevent) {
-    if (!dragging) return;
+    if (!pending && !dragging) return;
     const dx = clientX - startX;
-    const dy = clientY != null ? clientY - swipeStartY : 0;
-    const listEl = row.closest('.ch-list');
-    if (listEl && listEl.scrollTop <= 1 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
-      dragging = false;
-      row.classList.remove('swipe-dragging');
+    const dy = clientY - swipeStartY;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    const listEl = row.closest('.ch-list, .de-list, .em-list');
+    if (listEl && listEl.scrollTop <= 1 && dy > 0 && ady > adx * SWIPE_VERTICAL_RATIO) {
+      resetGesture();
       setTranslate(open ? -revealPx : 0, false);
       return;
     }
-    if (Math.abs(dx) > 6) moved = true;
-    let next = baseX + dx;
-    next = Math.min(0, Math.max(-revealPx, next));
-    setTranslate(next, false);
-    if (Math.abs(dx) > 8 && prevent) prevent();
+
+    if (axis == null) {
+      if (adx < SWIPE_AXIS_SLOP && ady < SWIPE_AXIS_SLOP) return;
+
+      if (ady >= adx * SWIPE_VERTICAL_RATIO) {
+        axis = 'vertical';
+        pending = false;
+        return;
+      }
+
+      const { min, ratio } = horizontalThresholds();
+      if (adx >= min && adx >= ady * ratio) {
+        axis = 'horizontal';
+        dragging = true;
+        pending = false;
+        row.classList.add('swipe-dragging');
+        contentEl.style.transition = 'none';
+      } else if (ady > adx) {
+        axis = 'vertical';
+        pending = false;
+        return;
+      }
+      return;
+    }
+
+    if (axis === 'vertical') return;
+
+    if (axis === 'horizontal' && dragging) {
+      if (adx > 8) moved = true;
+      let next = baseX + dx;
+      next = Math.min(0, Math.max(-revealPx, next));
+      setTranslate(next, false);
+      if (prevent) prevent();
+    }
   }
 
   function onEnd() {
-    if (!dragging) return;
+    if (!pending && !dragging) return;
+    if (axis === 'vertical' || (axis == null && pending)) {
+      resetGesture();
+      return;
+    }
+    if (!dragging) {
+      resetGesture();
+      return;
+    }
     dragging = false;
+    pending = false;
+    axis = null;
     row.classList.remove('swipe-dragging');
     const tx = currentTx();
     snap(tx <= -revealPx * 0.35);

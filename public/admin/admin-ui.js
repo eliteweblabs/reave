@@ -225,6 +225,10 @@ export function listSearchSubheader(opts = {}) {
 
 const IOS_PTR_THRESHOLD = 70;
 const IOS_PTR_MAX = 120;
+const IOS_PTR_AXIS_SLOP = 8;
+const IOS_PTR_VERTICAL_RATIO = 1.1;
+const IOS_PTR_HORIZONTAL_RATIO = 3;
+const IOS_PTR_HORIZONTAL_MIN = 28;
 
 /** iOS-style pull-to-refresh on a scroll container (touch only). Call after list children exist. */
 export function attachIosPullToRefresh(scrollEl, onRefresh) {
@@ -232,14 +236,15 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   scrollEl.dataset.ptrBound = '1';
   scrollEl.classList.add('ios-ptr-host');
 
+  const indicator = document.createElement('div');
+  indicator.className = 'ios-ptr-indicator';
+  indicator.innerHTML = '<span class="ios-ptr-spinner" aria-hidden="true"></span>';
+
   const content = document.createElement('div');
   content.className = 'ios-ptr-content';
   while (scrollEl.firstChild) content.appendChild(scrollEl.firstChild);
 
-  const indicator = document.createElement('div');
-  indicator.className = 'ios-ptr-indicator';
-  indicator.innerHTML = '<span class="ios-ptr-spinner" aria-hidden="true"></span>';
-  content.insertBefore(indicator, content.firstChild);
+  scrollEl.appendChild(indicator);
   scrollEl.appendChild(content);
 
   const spinner = indicator.querySelector('.ios-ptr-spinner');
@@ -256,12 +261,13 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
 
   function setPull(offset) {
     const y = Math.max(0, Math.min(offset, IOS_PTR_MAX));
+    const progress = Math.min(1, y / IOS_PTR_THRESHOLD);
     scrollEl.style.setProperty('--ptr-y', `${y}px`);
+    scrollEl.style.setProperty('--ptr-icon-opacity', String(Math.min(1, y / 32)));
     scrollEl.classList.toggle('ios-ptr-active', y > 0 && !refreshing);
     scrollEl.classList.toggle('ios-ptr-release', y >= IOS_PTR_THRESHOLD && !refreshing);
     if (spinner) {
-      spinner.style.setProperty('--ptr-rot', `${Math.min(1, y / IOS_PTR_THRESHOLD) * 320}deg`);
-      spinner.style.opacity = String(Math.min(1, y / 40));
+      spinner.style.setProperty('--ptr-rot', `${progress * 300}deg`);
     }
   }
 
@@ -269,10 +275,8 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
     axis = null;
     scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release', 'ios-ptr-refreshing');
     scrollEl.style.removeProperty('--ptr-y');
-    if (spinner) {
-      spinner.style.removeProperty('--ptr-rot');
-      spinner.style.opacity = '';
-    }
+    scrollEl.style.removeProperty('--ptr-icon-opacity');
+    if (spinner) spinner.style.removeProperty('--ptr-rot');
   }
 
   function finishRefresh() {
@@ -286,8 +290,8 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
     axis = null;
     scrollEl.classList.add('ios-ptr-refreshing');
     scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release');
-    setPull(IOS_PTR_THRESHOLD * 0.65);
-    if (spinner) spinner.style.opacity = '1';
+    setPull(52);
+    scrollEl.style.setProperty('--ptr-icon-opacity', '1');
     Promise.resolve(onRefresh?.()).finally(finishRefresh);
   }
 
@@ -323,10 +327,17 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
       const dy = e.touches[0].clientY - startY;
 
       if (axis == null) {
-        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
-        axis = Math.abs(dy) >= Math.abs(dx) ? 'vertical' : 'horizontal';
-        if (axis === 'horizontal' || dy <= 0) {
+        const adx = Math.abs(dx);
+        const ady = Math.abs(dy);
+        if (adx < IOS_PTR_AXIS_SLOP && ady < IOS_PTR_AXIS_SLOP) return;
+        if (ady >= adx * IOS_PTR_VERTICAL_RATIO && dy > 0) {
+          axis = 'vertical';
+        } else if (adx >= IOS_PTR_HORIZONTAL_MIN && adx >= ady * IOS_PTR_HORIZONTAL_RATIO) {
           tracking = false;
+          return;
+        } else if (ady > adx && dy > 0) {
+          axis = 'vertical';
+        } else {
           return;
         }
       }

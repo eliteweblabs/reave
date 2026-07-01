@@ -2395,32 +2395,41 @@ const { userId } = Astro.locals.auth();
         position: relative;
         overscroll-behavior-y: contain;
       }
+      .ios-ptr-indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 5;
+        height: var(--ptr-y, 0);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding-bottom: 10px;
+        pointer-events: none;
+        overflow: visible;
+      }
       .ios-ptr-content {
+        position: relative;
+        z-index: 1;
         transform: translate3d(0, var(--ptr-y, 0), 0);
         will-change: transform;
       }
       .ch-list.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
         transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .ios-ptr-indicator {
-        position: relative;
-        height: 0;
-        overflow: visible;
-        pointer-events: none;
-        z-index: 2;
+      .ch-list.ios-ptr-refreshing .ios-ptr-indicator {
+        transition: height 0.2s ease;
       }
       .ios-ptr-spinner {
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        width: 22px;
-        height: 22px;
-        margin-left: -11px;
-        border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
-        border-top-color: var(--fg);
+        width: 20px;
+        height: 20px;
+        border: 2.5px solid color-mix(in srgb, var(--muted) 30%, transparent);
+        border-top-color: color-mix(in srgb, var(--muted) 90%, var(--fg));
         border-radius: 50%;
         transform: rotate(var(--ptr-rot, 0deg));
-        opacity: 0;
+        opacity: var(--ptr-icon-opacity, 0);
+        flex-shrink: 0;
       }
       .ch-list.ios-ptr-refreshing .ios-ptr-spinner {
         animation: ios-ptr-spin 0.75s linear infinite;
@@ -3691,6 +3700,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701e"></script>
   </body>
 </html>
