@@ -8292,6 +8292,260 @@ async function startEmailScheduleFlow(ev) {
   await showEmailScheduleDialog(ev, data.check);
 }
 
+function shouldShowEmailProjectActions(ev) {
+  return String(ev.category || '').toLowerCase() === 'review' && !ev.jobSlug;
+}
+
+function applyEmailEventUpdate(event) {
+  const idx = emailState.allEvents.findIndex((e) => e.id === event.id);
+  if (idx !== -1) emailState.allEvents[idx] = event;
+  if (emailState.activeId === event.id && !filteredInboxEvents().some((e) => e.id === event.id)) {
+    emailState.activeId = null;
+  }
+  renderEmailPanel();
+  syncInboxAppBadge(emailState.allEvents);
+}
+
+async function postEmailProject(ev, payload) {
+  const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/project`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  applyEmailEventUpdate(data.event);
+  return data;
+}
+
+async function fetchOpenJobsForEmail(ev) {
+  const qs = ev.contactUid ? `?contact_uid=${encodeURIComponent(ev.contactUid)}` : '';
+  const res = await fetch(`/api/work${qs}`, { cache: 'no-store' });
+  const data = await readApiJson(res);
+  return (data.jobs || []).filter((j) => j.status === 'inquiry' || j.status === 'active');
+}
+
+function showEmailCreateProjectDialog(ev) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (evKey) => {
+      if (evKey.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'Create project';
+    bodyEl.innerHTML =
+      `<p class="em-book-dialog-lead">${escHtml(ev.subject || '(no subject)')}</p>` +
+      `<label class="de-label">Project title<input class="de-input em-project-title-input" type="text" value="${escHtml(ev.subject || 'New project')}" /></label>` +
+      (ev.contactName
+        ? `<p class="em-hint"><strong>Client:</strong> ${escHtml(ev.contactName)}</p>`
+        : `<label class="de-label">Client name<input class="de-input em-project-client-input" type="text" placeholder="Must match a contact" value="${escHtml(parseSenderEmail(ev.from) || '')}" /></label>` +
+          `<p class="em-hint">Sender is not in contacts yet — enter the client name or add them in Clients first.</p>`);
+    actionsEl.innerHTML = '';
+
+    const mkBtn = (label, cls, value) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', () => finish(value));
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', false);
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'os-dialog-btn';
+    createBtn.textContent = 'Create';
+    actionsEl.appendChild(createBtn);
+    const titleInput = bodyEl.querySelector('.em-project-title-input');
+    const clientInput = bodyEl.querySelector('.em-project-client-input');
+
+    createBtn.addEventListener('click', async () => {
+      const title = titleInput?.value.trim();
+      if (!title) {
+        await osAlert({ title: 'Title required', bodyHtml: '<p>Enter a project title.</p>' });
+        return;
+      }
+      createBtn.disabled = true;
+      createBtn.textContent = 'Creating…';
+      try {
+        const payload = {
+          mode: 'create',
+          title,
+        };
+        if (ev.contactUid) payload.contact_uid = ev.contactUid;
+        else if (clientInput?.value.trim()) payload.client = clientInput.value.trim();
+        else if (ev.contactName) payload.client = ev.contactName;
+        await postEmailProject(ev, payload);
+        finish(true);
+      } catch (e) {
+        createBtn.disabled = false;
+        createBtn.textContent = 'Create';
+        await osAlert({ title: 'Could not create project', bodyHtml: escHtml(e.message) });
+      }
+    });
+
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', onKey);
+    titleInput?.focus();
+    titleInput?.select();
+  });
+}
+
+async function showEmailAddToProjectDialog(ev) {
+  let jobs;
+  try {
+    jobs = await fetchOpenJobsForEmail(ev);
+  } catch (e) {
+    await osAlert({ title: 'Could not load projects', bodyHtml: escHtml(e.message) });
+    return;
+  }
+
+  if (!jobs.length) {
+    await osAlert({
+      title: 'No open projects',
+      bodyHtml: ev.contactUid
+        ? '<p>No inquiry or active projects for this client. Use <strong>Create project</strong> instead.</p>'
+        : '<p>No open projects found. Use <strong>Create project</strong> or pick a client-specific list after the sender is in contacts.</p>',
+    });
+    return;
+  }
+
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (evKey) => {
+      if (evKey.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'Add to project';
+    bodyEl.innerHTML =
+      `<p class="em-book-dialog-lead">${escHtml(ev.subject || '(no subject)')}</p>` +
+      '<p class="em-hint">Pick an existing project. The email summary will be appended as a note.</p>' +
+      '<div class="em-project-pick-list"></div>';
+    const list = bodyEl.querySelector('.em-project-pick-list');
+    for (const job of jobs) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'em-project-pick-item';
+      btn.innerHTML =
+        `<span class="em-project-pick-title">${escHtml(job.title)}</span>` +
+        `<span class="em-project-pick-meta">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)} · ${escHtml(job.slug)}</span>`;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          await postEmailProject(ev, { mode: 'link', slug: job.slug });
+          finish(true);
+        } catch (e) {
+          btn.disabled = false;
+          await osAlert({ title: 'Could not link project', bodyHtml: escHtml(e.message) });
+        }
+      });
+      list.appendChild(btn);
+    }
+
+    actionsEl.innerHTML = '';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => finish(false));
+    actionsEl.appendChild(cancelBtn);
+
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+let openEmailProjectMenu = null;
+
+function closeEmailProjectMenu() {
+  if (openEmailProjectMenu) {
+    openEmailProjectMenu.classList.remove('open');
+    openEmailProjectMenu = null;
+  }
+}
+
+function createEmailProjectSplitBtn(ev) {
+  const wrap = document.createElement('div');
+  wrap.className = 'em-project-split';
+
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.className = 'de-new-btn em-project-btn';
+  createBtn.textContent = 'Create project';
+  createBtn.addEventListener('click', () => {
+    closeEmailProjectMenu();
+    showEmailCreateProjectDialog(ev);
+  });
+
+  const menuBtn = document.createElement('button');
+  menuBtn.type = 'button';
+  menuBtn.className = 'de-new-btn em-project-menu-btn';
+  menuBtn.setAttribute('aria-label', 'More project actions');
+  menuBtn.innerHTML = '▾';
+
+  const menu = document.createElement('div');
+  menu.className = 'em-project-menu';
+  const addItem = document.createElement('button');
+  addItem.type = 'button';
+  addItem.className = 'em-project-menu-item';
+  addItem.textContent = 'Add to project…';
+  addItem.addEventListener('click', () => {
+    closeEmailProjectMenu();
+    showEmailAddToProjectDialog(ev);
+  });
+  menu.appendChild(addItem);
+
+  menuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (openEmailProjectMenu && openEmailProjectMenu !== wrap) closeEmailProjectMenu();
+    const open = wrap.classList.toggle('open');
+    openEmailProjectMenu = open ? wrap : null;
+  });
+
+  wrap.appendChild(createBtn);
+  wrap.appendChild(menuBtn);
+  wrap.appendChild(menu);
+  return wrap;
+}
+
+document.addEventListener('click', (e) => {
+  if (!openEmailProjectMenu) return;
+  if (openEmailProjectMenu.contains(e.target)) return;
+  closeEmailProjectMenu();
+});
+
 function buildEmailAgentPrompt(ev) {
   const lines = [
     '[Email triage]',
@@ -8801,6 +9055,9 @@ function renderEmailPanel() {
   agentBtn.textContent = 'Agent';
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
   header.appendChild(agentBtn);
+  if (shouldShowEmailProjectActions(ev)) {
+    header.appendChild(createEmailProjectSplitBtn(ev));
+  }
   if (isEmailBookable(ev)) {
     const schedBtn = document.createElement('button');
     schedBtn.type = 'button';

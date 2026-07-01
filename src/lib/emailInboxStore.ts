@@ -443,7 +443,15 @@ export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<Ema
 export type EmailInboxPatch = Partial<
   Pick<
     EmailInboxInput,
-    'category' | 'action' | 'status' | 'bookingUid' | 'bookingStart' | 'proposedMeetingStart'
+    | 'category'
+    | 'action'
+    | 'status'
+    | 'bookingUid'
+    | 'bookingStart'
+    | 'proposedMeetingStart'
+    | 'jobSlug'
+    | 'jobTitle'
+    | 'routeNote'
   >
 > & {
   markSeen?: boolean;
@@ -466,6 +474,9 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.proposedMeetingStart !== undefined
       ? { proposedMeetingStart: patch.proposedMeetingStart }
       : {}),
+    ...(patch.jobSlug !== undefined ? { jobSlug: patch.jobSlug } : {}),
+    ...(patch.jobTitle !== undefined ? { jobTitle: patch.jobTitle } : {}),
+    ...(patch.routeNote !== undefined ? { routeNote: patch.routeNote } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
   };
   events[idx] = next;
@@ -512,6 +523,18 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.proposedMeetingStart !== undefined) {
       sets.push(`proposed_meeting_start = $${i++}`);
       vals.push(patch.proposedMeetingStart);
+    }
+    if (patch.jobSlug !== undefined) {
+      sets.push(`job_slug = $${i++}`);
+      vals.push(patch.jobSlug);
+    }
+    if (patch.jobTitle !== undefined) {
+      sets.push(`job_title = $${i++}`);
+      vals.push(patch.jobTitle);
+    }
+    if (patch.routeNote !== undefined) {
+      sets.push(`route_note = $${i++}`);
+      vals.push(patch.routeNote);
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);
