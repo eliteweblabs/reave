@@ -298,6 +298,7 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
+  if (key !== 'chats') setChatComposeFocused(false);
   void refreshInboxBadgeQuiet();
 }
 
@@ -2486,8 +2487,66 @@ function syncFooterChatInlineHome() {
     isMobileTabs() &&
     footerNavCollapsed &&
     activeKey === 'chats' &&
-    Boolean(chatState.activeId);
+    Boolean(chatState.activeId) &&
+    !document.body.classList.contains('chat-compose-focused');
   document.body.classList.toggle('footer-chat-inline-home', use);
+}
+
+function syncChatComposeViewport() {
+  if (!document.body.classList.contains('chat-compose-focused')) {
+    document.documentElement.style.removeProperty('--chat-compose-bottom');
+    return;
+  }
+  const vv = window.visualViewport;
+  if (!vv) {
+    document.documentElement.style.setProperty('--chat-compose-bottom', '0px');
+    return;
+  }
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  document.documentElement.style.setProperty('--chat-compose-bottom', `${inset}px`);
+}
+
+function setChatComposeFocused(focused) {
+  if (!isMobileTabs() || activeKey !== 'chats' || !chatState.activeId) {
+    focused = false;
+  }
+  document.body.classList.toggle('chat-compose-focused', focused);
+  if (focused) syncChatComposeViewport();
+  else document.documentElement.style.removeProperty('--chat-compose-bottom');
+  syncFooterChatInlineHome();
+}
+
+function initChatComposeFocusLayout() {
+  if (document.documentElement.dataset.chatComposeFocusBound === '1') return;
+  document.documentElement.dataset.chatComposeFocusBound = '1';
+
+  document.addEventListener(
+    'focusin',
+    (ev) => {
+      if (!isMobileTabs() || activeKey !== 'chats' || !chatState.activeId) return;
+      const t = ev.target;
+      if (!(t instanceof HTMLElement) || !t.classList.contains('ch-input')) return;
+      setChatComposeFocused(true);
+    },
+    true,
+  );
+
+  document.addEventListener(
+    'focusout',
+    () => {
+      if (!isMobileTabs()) return;
+      requestAnimationFrame(() => {
+        const panel = getChatPanel();
+        if (panel?.contains(document.activeElement)) return;
+        setChatComposeFocused(false);
+      });
+    },
+    true,
+  );
+
+  window.visualViewport?.addEventListener('resize', syncChatComposeViewport);
+  window.visualViewport?.addEventListener('scroll', syncChatComposeViewport);
+  MOBILE_TABS_MQ.addEventListener('change', () => setChatComposeFocused(false));
 }
 
 function syncFooterNav() {
@@ -7184,6 +7243,7 @@ function renderChatPanel() {
     pane.appendChild(ph);
     root.appendChild(pane);
     clearTopbarPanelContext();
+    setChatComposeFocused(false);
     syncFooterChatInlineHome();
     return;
   }
@@ -7754,6 +7814,7 @@ function closeActiveChat() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   chatState.activeId = null;
   getChatPanel()?.classList.remove('ch-pane-active');
+  setChatComposeFocused(false);
   renderChatPanel();
 }
 
@@ -9341,6 +9402,7 @@ async function boot() {
   initTopbarMenus();
   initFooterNav();
   initFooterNavScrollCollapse();
+  initChatComposeFocusLayout();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);

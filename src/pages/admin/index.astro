@@ -3269,6 +3269,23 @@ const { userId } = Astro.locals.auth();
             var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
           );
         }
+
+        /* iOS-style: hide footer nav while typing; pin compose above keyboard. */
+        body.chat-compose-focused .admin-footer-nav {
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+        }
+        body.chat-compose-focused #chat-panel .ch-compose {
+          left: max(0.5rem, env(safe-area-inset-left, 0px));
+          right: max(0.5rem, env(safe-area-inset-right, 0px));
+          bottom: calc(var(--chat-compose-bottom, 0px) + var(--ch-compose-gap));
+        }
+        body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages {
+          padding-bottom: calc(
+            var(--control-h) + var(--ch-compose-gap) + 0.75rem + var(--chat-compose-bottom, 0px)
+          );
+        }
       }
 
       /* App dialog (replaces system alert/confirm on mobile) */
