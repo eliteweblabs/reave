@@ -4794,11 +4794,6 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-client-picker' + (readOnly ? ' wk-client-picker--readonly' : '');
 
-  const label = document.createElement('span');
-  label.className = 'de-label';
-  label.textContent = 'Client';
-  wrap.appendChild(label);
-
   let profileLink = null;
   let clientIconEl = null;
   let clientNameEl = null;
@@ -4821,13 +4816,8 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     clientIconEl.className = 'wk-client-icon';
     clientNameEl = document.createElement('span');
     clientNameEl.className = 'wk-client-name';
-    const chevron = document.createElement('span');
-    chevron.className = 'wk-client-link-chevron';
-    chevron.innerHTML = navIcon('chevron-right', 16);
-    chevron.setAttribute('aria-hidden', 'true');
     profileLink.appendChild(clientIconEl);
     profileLink.appendChild(clientNameEl);
-    profileLink.appendChild(chevron);
     wrap.appendChild(profileLink);
   } else {
     selectedEl.appendChild(selectedName);

@@ -1522,8 +1522,7 @@ const { userId } = Astro.locals.auth();
         grid-column: 1 / -1;
         margin-bottom: 0;
       }
-      #work-editor .de-fields .de-label,
-      #work-editor .wk-client-picker .de-label {
+      #work-editor .de-fields .de-label {
         display: flex;
         margin-bottom: 0;
         font-size: 0.72rem;
@@ -1582,7 +1581,6 @@ const { userId } = Astro.locals.auth();
       .wk-meta-row { display: flex; align-items: center; gap: 0.35rem; width: 100%; }
       .wk-contact { font-size: 0.68rem; color: var(--muted); }
       .wk-client-picker { position: relative; margin-bottom: 0.5rem; }
-      .wk-client-picker .de-label { display: block; margin-bottom: 0.35rem; }
       .wk-client-selected {
         display: flex;
         align-items: center;
@@ -1602,6 +1600,7 @@ const { userId } = Astro.locals.auth();
         box-sizing: border-box;
         display: flex;
         align-items: center;
+        justify-content: flex-start;
         gap: 0.55rem;
         padding: 0.45rem 0.55rem;
         border: 1px solid var(--panel-border);
@@ -1640,19 +1639,12 @@ const { userId } = Astro.locals.auth();
         object-fit: cover;
       }
       .wk-client-name {
-        flex: 1;
         min-width: 0;
         font-size: max(16px, 0.875rem);
         font-weight: 600;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-      .wk-client-link-chevron {
-        flex-shrink: 0;
-        display: inline-flex;
-        color: var(--muted);
-        opacity: 0.72;
       }
       .wk-client-dropdown {
         position: absolute;
