@@ -20,6 +20,7 @@ import {
 } from '../../../lib/chatStore';
 import { runKnowledgeAgent } from '../../../lib/agentRunner';
 import type { ChatTurn } from '../../../lib/chatTypes';
+import { listJobsForItem } from '../../../lib/projectLinks';
 
 export const prerender = false;
 
@@ -81,7 +82,8 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
-  return json({ ok: true, thread });
+  const linked_jobs = await listJobsForItem('chat', id);
+  return json({ ok: true, thread: { ...thread, linked_jobs } });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -116,6 +118,11 @@ export async function POST(context: APIContext): Promise<Response> {
     images,
     priorTurns: priorTurns(thread.messages),
     model: modelOverride,
+    context: {
+      userId,
+      threadId: id,
+      emailId: thread.source_email_id ?? undefined,
+    },
   });
 
   const saved = await storeAppendChatMessages(userId, id, [

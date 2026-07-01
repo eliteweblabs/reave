@@ -24,12 +24,19 @@ const CHAT_IMAGE_MEDIA_TYPES = new Set<string>([
   'image/webp',
 ]);
 
+export interface LinkedJobRef {
+  slug: string;
+  title: string;
+}
+
 export interface ChatThreadSummary {
   id: string;
   title: string;
   updated_at: string;
   created_at: string;
   archived?: boolean;
+  source_email_id?: string | null;
+  linked_jobs?: LinkedJobRef[];
 }
 
 export interface ChatMessage {

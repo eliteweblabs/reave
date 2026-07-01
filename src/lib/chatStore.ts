@@ -42,8 +42,11 @@ export async function storeListChatThreads(
   return fileListChatThreads(userId, opts);
 }
 
-export async function storeCreateChatThread(userId: string): Promise<ChatThreadSummary | null> {
-  if (chatStorageBackend() === 'postgres') return pgCreateChatThread(userId);
+export async function storeCreateChatThread(
+  userId: string,
+  opts?: { sourceEmailId?: string | null },
+): Promise<ChatThreadSummary | null> {
+  if (chatStorageBackend() === 'postgres') return pgCreateChatThread(userId, opts);
   return fileCreateChatThread(userId);
 }
 

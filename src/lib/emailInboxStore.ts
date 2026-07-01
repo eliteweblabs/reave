@@ -106,6 +106,7 @@ const MIGRATE_COLUMNS = [
 const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
+  `CREATE INDEX IF NOT EXISTS email_inbox_job_slug_idx ON email_inbox (job_slug) WHERE job_slug IS NOT NULL`,
 ];
 
 const INBOX_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,

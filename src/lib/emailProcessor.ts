@@ -10,6 +10,7 @@ import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
+import { linkProjectItem } from './projectLinks';
 import { parseProposedMeetingStart } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './adminAgentAlert';
@@ -308,6 +309,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     console.warn('[email] inbox log failed', e);
     return null;
   });
+
+  if (record?.id && jobSlug) {
+    linkProjectItem(jobSlug, 'email', record.id).catch((e) =>
+      console.warn('[email] project link failed', e),
+    );
+  }
 
   if (record && notify) {
     const pushTitle =

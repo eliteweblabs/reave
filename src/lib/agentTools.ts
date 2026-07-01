@@ -91,6 +91,8 @@ import {
   storeGetEmailInbox,
   type EmailInboxPatch,
 } from './emailInboxStore';
+import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
+import { getAgentContext } from './agentContext';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
@@ -276,6 +278,26 @@ export function buildTools(): AgentToolDef[] {
             },
           },
           required: ['title', 'client'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'link_to_work',
+        description:
+          'Link an inbox email and/or the current chat thread to an existing project/job. Use after filing mail or when a conversation relates to a job without creating a new one.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Existing job slug' },
+            email_id: {
+              type: 'string',
+              description: 'Inbox message id — defaults to the email open in this chat when omitted',
+            },
+          },
+          required: ['slug'],
           additionalProperties: false,
         },
       },
@@ -1746,6 +1768,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!result.ok) return JSON.stringify({ error: result.error });
       const doc = result.doc;
+      await linkWorkFromAgentContext(doc.slug);
       return JSON.stringify({
         ok: true,
         slug: doc.slug,
@@ -1754,6 +1777,31 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         contact_uid: doc.contact_uid,
         contact_name: doc.contact_name,
         status: doc.status,
+        linked: true,
+      });
+    }
+    if (name === 'link_to_work') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+      const doc = await storeReadWork(slug);
+      if (!doc) return JSON.stringify({ error: 'not found', slug });
+
+      const ctx = getAgentContext();
+      const emailId = String(args.email_id ?? ctx.emailId ?? '').trim();
+      const threadId = ctx.threadId?.trim() || '';
+
+      if (threadId) await linkProjectItem(slug, 'chat', threadId);
+      if (emailId) await assignEmailToJob(emailId, slug, doc.title);
+      if (!threadId && !emailId) {
+        return JSON.stringify({ error: 'nothing to link — open from a chat or provide email_id' });
+      }
+
+      return JSON.stringify({
+        ok: true,
+        slug: doc.slug,
+        title: doc.title,
+        linked_email: emailId || null,
+        linked_chat: threadId || null,
       });
     }
     if (name === 'update_work') {

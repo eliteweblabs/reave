@@ -13,6 +13,7 @@ import { serverEnv } from './serverEnv';
 import type { ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent } from './chatTypes';
 import type { ChatTurn } from './chatTypes';
+import { runWithAgentContext, type AgentRunContext } from './agentContext';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -88,6 +89,16 @@ export async function runKnowledgeAgent(opts: {
   images?: ChatImageAttachment[];
   priorTurns?: ChatTurn[];
   model?: string | null;
+  context?: AgentRunContext;
+}): Promise<string> {
+  return runWithAgentContext(opts.context ?? {}, () => runKnowledgeAgentInner(opts));
+}
+
+async function runKnowledgeAgentInner(opts: {
+  userText: string;
+  images?: ChatImageAttachment[];
+  priorTurns?: ChatTurn[];
+  model?: string | null;
 }): Promise<string> {
   const { userText, images = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
@@ -102,7 +113,7 @@ export async function runKnowledgeAgent(opts: {
     'You are a concise assistant for a solo developer business OS.',
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
-    'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. Use create_work when a client request should become a tracked job (client must exist in contact-api). Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
+    'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. Use create_work when a client request should become a tracked job (client must exist in contact-api). After create_work or when filing mail to an existing job, call link_to_work so the email/chat stays linked on the project page. Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing.',
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',

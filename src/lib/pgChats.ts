@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 const MIGRATE_COLUMNS = [
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS source_email_id TEXT`,
 ];
 
 const INDEX_SQL = [
@@ -83,7 +84,7 @@ export function isPgChatsConfigured(): boolean {
   return !!databaseUrl();
 }
 
-type ThreadRow = ChatThreadSummary & { archived?: boolean };
+type ThreadRow = ChatThreadSummary & { archived?: boolean; source_email_id?: string | null };
 
 function rowToSummary(row: ThreadRow): ChatThreadSummary {
   return {
@@ -92,6 +93,7 @@ function rowToSummary(row: ThreadRow): ChatThreadSummary {
     updated_at: row.updated_at,
     created_at: row.created_at,
     archived: !!row.archived,
+    source_email_id: row.source_email_id ?? null,
   };
 }
 
@@ -104,7 +106,7 @@ export async function pgListChatThreads(
     if (!pool) return null;
     const archivedFilter = opts?.archivedOnly ? 'AND archived = true' : 'AND archived = false';
     const { rows } = await pool.query<ThreadRow>(
-      `SELECT id, title, updated_at, created_at, archived
+      `SELECT id, title, updated_at, created_at, archived, source_email_id
        FROM chat_threads WHERE user_id = $1 ${archivedFilter}
        ORDER BY updated_at DESC`,
       [userId],
@@ -116,15 +118,19 @@ export async function pgListChatThreads(
   }
 }
 
-export async function pgCreateChatThread(userId: string): Promise<ChatThreadSummary | null> {
+export async function pgCreateChatThread(
+  userId: string,
+  opts?: { sourceEmailId?: string | null },
+): Promise<ChatThreadSummary | null> {
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
+    const sourceEmailId = opts?.sourceEmailId?.trim() || null;
     const { rows } = await pool.query<ThreadRow>(
-      `INSERT INTO chat_threads (user_id, title)
-       VALUES ($1, 'New chat')
-       RETURNING id, title, updated_at, created_at, archived`,
-      [userId],
+      `INSERT INTO chat_threads (user_id, title, source_email_id)
+       VALUES ($1, 'New chat', $2)
+       RETURNING id, title, updated_at, created_at, archived, source_email_id`,
+      [userId, sourceEmailId],
     );
     return rows[0] ? rowToSummary(rows[0]) : null;
   } catch (e) {
@@ -141,7 +147,7 @@ export async function pgGetChatThread(
     const pool = await ensureSchema();
     if (!pool) return null;
     const threadRes = await pool.query<ThreadRow>(
-      `SELECT id, title, updated_at, created_at, archived
+      `SELECT id, title, updated_at, created_at, archived, source_email_id
        FROM chat_threads WHERE id = $1 AND user_id = $2`,
       [threadId, userId],
     );

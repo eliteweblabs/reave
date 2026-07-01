@@ -328,13 +328,14 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'knowledge') {
     loadKnowledgeTab();
   } else if (MAP.type === 'work') {
-    loadWorkTab();
+    loadWorkTab({ workSlug: opts.workSlug });
   } else if (MAP.type === 'schedule') {
     if (opts.scheduleUid) scheduleState.activeUid = opts.scheduleUid;
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
     loadClientsTab();
   } else if (MAP.type === 'chats') {
+    if (opts.chatId) pendingChatDeepLinkId = opts.chatId;
     loadChatsTab({ keepSession: opts.keepChatSession === true });
   } else if (MAP.type === 'email') {
     if (opts.emailId) pendingEmailDeepLinkId = opts.emailId;
@@ -4371,7 +4372,7 @@ function slugifyTitle(title) {
     .slice(0, 60);
 }
 
-async function loadWorkTab() {
+async function loadWorkTab(opts = {}) {
   const root = getWorkEditor();
   if (!root) return;
   root.innerHTML = '<div class="de-loading">Loading work…</div>';
@@ -4386,11 +4387,13 @@ async function loadWorkTab() {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-  workState.activeSlug = null;
+  const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
+  pendingWorkDeepLinkSlug = null;
+  workState.activeSlug = deepSlug || null;
   workState.dirty = false;
   workState.draft = null;
   clearEditorFooterSave();
-  getWorkEditor()?.classList.remove('de-pane-active');
+  if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
   renderWorkEditor();
 }
 
@@ -5088,6 +5091,7 @@ function renderEditWorkForm(pane) {
       scroll.appendChild(fields);
       scroll.appendChild(ta);
       mountWorkCommentsSection(scroll, slug);
+      mountWorkRelatedSection(scroll, data.related);
 
       setEditorFooterSave(() => {
         const client = clientPicker.getPayload();
@@ -6639,6 +6643,7 @@ let chatState = {
   activeId: null,
   messages: [],
   title: '',
+  linkedJobs: [],
   sending: false,
   sendAbort: null,
   pendingDraft: null,
@@ -6717,6 +6722,14 @@ async function loadChatsTab(opts = {}) {
     getChatPanel()?.classList.remove('ch-pane-active');
   }
   renderChatPanel();
+  const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
+  pendingChatDeepLinkId = null;
+  if (deepChatId) openChat(deepChatId).catch(() => {});
+}
+
+function formatLinkedJobsSub(jobs) {
+  if (!jobs?.length) return '';
+  return jobs.length === 1 ? jobs[0].title || jobs[0].slug : `${jobs.length} projects`;
 }
 
 function createSidebarChatTitle(title) {
@@ -6765,12 +6778,17 @@ function createChatListItem(t) {
   const archivedIcon = t.archived
     ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
     : '';
+  const linkedSub = formatLinkedJobsSub(t.linked_jobs);
+  const subLine = linkedSub
+    ? `<span class="ch-item-sub project-link-sub">${escHtml(linkedSub)}</span>`
+    : '';
   item.innerHTML =
     `<span class="ch-item-row">` +
       archivedIcon +
       `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
       `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
-    `</span>`;
+    `</span>` +
+    subLine;
   item.addEventListener('click', () => openChat(t.id));
   return item;
 }
@@ -7108,6 +7126,15 @@ function renderChatPanel() {
         const thread = chatState.threads.find((t) => t.id === chatState.activeId);
         if (thread) thread.title = data.title;
       }
+      try {
+        const linkRes = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
+          cache: 'no-store',
+        });
+        const linkData = await readApiJson(linkRes);
+        chatState.linkedJobs = linkData.thread?.linked_jobs || [];
+        const thread = chatState.threads.find((t) => t.id === chatState.activeId);
+        if (thread) thread.linked_jobs = chatState.linkedJobs;
+      } catch {}
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') {
         chatState.messages.push({ role: 'assistant', content: 'Stopped.' });
@@ -7188,6 +7215,11 @@ async function openChat(id) {
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];
+    chatState.linkedJobs = data.thread.linked_jobs || [];
+    const idx = chatState.threads.findIndex((t) => t.id === id);
+    if (idx !== -1) {
+      chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
+    }
     renderChatPanel();
   } catch (e) {
     alert(`Could not load chat: ${e.message}`);
@@ -7265,11 +7297,103 @@ let emailState = {
   pushConfigured: false,
 };
 let pendingEmailDeepLinkId = null;
+let pendingWorkDeepLinkSlug = null;
+let pendingChatDeepLinkId = null;
 let emailPollTimer = null;
 let inboxBadgeTimer = null;
 
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
+
+function parseWorkDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('slug')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function parseChatDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('chat')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function navigateToWork(slug) {
+  if (!slug) return;
+  pendingWorkDeepLinkSlug = slug;
+  setActiveMap('work', { force: true, workSlug: slug });
+}
+
+function navigateToEmail(id) {
+  if (!id) return;
+  pendingEmailDeepLinkId = id;
+  setActiveMap('email', { force: true, emailId: id });
+}
+
+function navigateToChat(id) {
+  if (!id) return;
+  pendingChatDeepLinkId = id;
+  setActiveMap('chats', { force: true, chatId: id, keepChatSession: true });
+}
+
+function createProjectLinkChip(label, onClick) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'project-link-chip';
+  btn.textContent = label;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+  return btn;
+}
+
+function mountWorkRelatedSection(container, related) {
+  const emails = related?.emails || [];
+  const chats = related?.chats || [];
+  if (!emails.length && !chats.length) return;
+
+  const section = document.createElement('div');
+  section.className = 'wk-related-section';
+
+  const title = document.createElement('div');
+  title.className = 'wk-related-title';
+  title.textContent = 'Related';
+  section.appendChild(title);
+
+  const list = document.createElement('div');
+  list.className = 'wk-related-list';
+
+  for (const email of emails) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'wk-related-item';
+    row.innerHTML =
+      `<span class="wk-related-kind">Email</span>` +
+      `<span class="wk-related-label">${escHtml(email.subject || '(no subject)')}</span>` +
+      `<span class="wk-related-meta">${escHtml(new Date(email.receivedAt).toLocaleDateString())}</span>`;
+    row.addEventListener('click', () => navigateToEmail(email.id));
+    list.appendChild(row);
+  }
+
+  for (const chat of chats) {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'wk-related-item';
+    row.innerHTML =
+      `<span class="wk-related-kind">Chat</span>` +
+      `<span class="wk-related-label">${escHtml(chat.title || 'Chat')}</span>` +
+      `<span class="wk-related-meta">${escHtml(formatChatDate(chat.updatedAt))}</span>`;
+    row.addEventListener('click', () => navigateToChat(chat.id));
+    list.appendChild(row);
+  }
+
+  section.appendChild(list);
+  container.appendChild(section);
+}
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
 
@@ -7312,6 +7436,18 @@ function handleNotificationOpen(url) {
     if (tab === 'email' && emailId) {
       pendingEmailDeepLinkId = emailId;
       setActiveMap('email', { force: true, emailId });
+      return;
+    }
+    const workSlug = u.searchParams.get('slug')?.trim();
+    if (tab === 'work' && workSlug) {
+      pendingWorkDeepLinkSlug = workSlug;
+      setActiveMap('work', { force: true, workSlug });
+      return;
+    }
+    const chatId = u.searchParams.get('chat')?.trim();
+    if (tab === 'chats' && chatId) {
+      pendingChatDeepLinkId = chatId;
+      setActiveMap('chats', { force: true, chatId, keepChatSession: true });
       return;
     }
     if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
@@ -7416,6 +7552,15 @@ function syncChatTopbarContext() {
 
   if (shouldShowChatTopbarTitle(chatState.title)) {
     slot.appendChild(createHeaderChatTitle(chatState.title));
+  }
+
+  if (chatState.linkedJobs?.length) {
+    const links = document.createElement('div');
+    links.className = 'topbar-project-links';
+    for (const job of chatState.linkedJobs) {
+      links.appendChild(createProjectLinkChip(job.title || job.slug, () => navigateToWork(job.slug)));
+    }
+    slot.appendChild(links);
   }
 
   slot.appendChild(createChatModelSwitcher());
@@ -7796,19 +7941,23 @@ document.addEventListener('click', (e) => {
   closeOpenSwipeRow();
 });
 
-async function askAgentWithPrompt(prompt) {
+async function askAgentWithPrompt(prompt, opts = {}) {
   closeOpenSwipeRow();
   try {
+    const payload = {};
+    if (opts.sourceEmailId) payload.sourceEmailId = opts.sourceEmailId;
+    if (opts.sourceJobSlug) payload.sourceJobSlug = opts.sourceJobSlug;
     const res = await fetch('/api/chats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}',
+      body: JSON.stringify(payload),
     });
     const data = await readApiJson(res);
     const thread = data.thread;
     chatState.threads.unshift(thread);
     chatState.activeId = thread.id;
     chatState.title = thread.title;
+    chatState.linkedJobs = thread.linked_jobs || [];
     chatState.messages = [];
     chatState.pendingDraft = prompt;
     chatState.pendingAutoSend = true;
@@ -8172,6 +8321,10 @@ function buildEmailAgentPrompt(ev) {
     `From: ${ev.from || '(unknown)'}`,
   ];
   if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
+  if (ev.jobSlug || ev.jobTitle) {
+    lines.push(`Linked project: ${ev.jobTitle || ev.jobSlug} (${ev.jobSlug || 'unknown slug'})`);
+    lines.push('If this mail belongs to that project, call link_to_work with the slug. If it should become a new project, call create_work then link_to_work.');
+  }
   lines.push(`Subject: ${ev.subject || '(no subject)'}`);
   lines.push(`Category: ${ev.category || 'review'}`);
   if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
@@ -8183,7 +8336,10 @@ function buildEmailAgentPrompt(ev) {
 }
 
 async function askAgentAboutEmail(ev) {
-  await askAgentWithPrompt(buildEmailAgentPrompt(ev));
+  await askAgentWithPrompt(buildEmailAgentPrompt(ev), {
+    sourceEmailId: ev.id,
+    sourceJobSlug: ev.jobSlug || null,
+  });
 }
 
 async function markEmailJunk(ev) {
@@ -8680,7 +8836,9 @@ function renderEmailPanel() {
     `<div class="em-detail-meta">` +
       `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
       (ev.contactName ? `<span><strong>Client</strong> ${escHtml(ev.contactName)}</span>` : '') +
-      (ev.jobTitle ? `<span><strong>Job</strong> ${escHtml(ev.jobTitle)}</span>` : '') +
+      (ev.jobTitle || ev.jobSlug
+        ? `<span class="em-detail-project"><strong>Project</strong> <button type="button" class="project-link-chip em-project-link">${escHtml(ev.jobTitle || ev.jobSlug)}</button></span>`
+        : '') +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
@@ -8690,6 +8848,7 @@ function renderEmailPanel() {
       : '');
   detail.innerHTML = detailHtml;
   detail.querySelector('.em-book-card-btn')?.addEventListener('click', () => startEmailScheduleFlow(ev));
+  detail.querySelector('.em-project-link')?.addEventListener('click', () => navigateToWork(ev.jobSlug));
   pane.appendChild(detail);
 
   root.appendChild(pane);
