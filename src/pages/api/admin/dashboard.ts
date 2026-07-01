@@ -10,7 +10,7 @@ import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
 import { getDeployStatus } from '../../../lib/deployStatus';
-import { bookingsToday, isBookingConfigured } from '../../../lib/bookingClient';
+import { bookingsToday, isBookingConfigured, type DashboardEvent } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 
 export const prerender = false;
@@ -48,47 +48,14 @@ function countOpenTodos(): number {
   return open;
 }
 
-/** Sample events when Cal.com booking API is not configured. */
-function mockEventsToday() {
-  const today = new Date();
-  const y = today.getFullYear();
-  const mo = String(today.getMonth() + 1).padStart(2, '0');
-  const d = String(today.getDate()).padStart(2, '0');
-  const base = `${y}-${mo}-${d}`;
-  return [
-    {
-      id: 'mock-1',
-      time: `${base}T10:00:00`,
-      title: 'Client check-in — site review',
-      type: 'call',
-      mock: true,
-    },
-    {
-      id: 'mock-2',
-      time: `${base}T14:00:00`,
-      title: 'Launch QA walkthrough',
-      type: 'meeting',
-      mock: true,
-    },
-    {
-      id: 'mock-3',
-      time: `${base}T16:30:00`,
-      title: 'Send revised proposal',
-      type: 'task',
-      mock: true,
-    },
-  ];
-}
-
-async function loadEventsToday(): Promise<{ events: ReturnType<typeof mockEventsToday>; mock: boolean }> {
-  if (!isBookingConfigured()) {
-    return { events: mockEventsToday(), mock: true };
-  }
+async function loadEventsToday(): Promise<DashboardEvent[]> {
+  if (!isBookingConfigured()) return [];
   const out = await bookingsToday();
-  if (!out.ok || !out.data.configured) {
-    return { events: mockEventsToday(), mock: true };
+  if (!out.ok) {
+    console.error('[dashboard] bookingsToday failed:', out.error);
+    return [];
   }
-  return { events: out.data.events, mock: false };
+  return out.data.events;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -124,7 +91,8 @@ export async function GET(context: APIContext): Promise<Response> {
     category: e.category,
   }));
 
-  const { events: eventsToday, mock: eventsMock } = await loadEventsToday();
+  const eventsToday = await loadEventsToday();
+  const schedulingConfigured = isBookingConfigured();
 
   return json({
     ok: true,
@@ -143,8 +111,7 @@ export async function GET(context: APIContext): Promise<Response> {
     },
     recentEmails,
     eventsToday,
-    eventsMock,
-    schedulingConfigured: isBookingConfigured(),
+    schedulingConfigured,
     deploy: deploy
       ? {
           state: deploy.state,

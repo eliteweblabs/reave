@@ -1651,6 +1651,8 @@ function renderHomeDashboard(data) {
   scroll.className = 'home-dashboard-scroll';
 
   const stats = data?.stats || {};
+  const scheduleLive = data?.schedulingConfigured === true;
+  const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
 
@@ -1664,8 +1666,10 @@ function renderHomeDashboard(data) {
   statsEl.appendChild(buildDashStat({
     value: stats.eventsToday ?? 0,
     label: 'Events today',
-    hint: data?.eventsMock ? 'sample schedule' : 'on your calendar',
-    onClick: () => setActiveMap(data?.eventsMock ? 'home' : 'schedule', { force: true }),
+    hint: scheduleLive
+      ? (stats.eventsToday ? 'on your calendar' : 'open schedule')
+      : 'scheduling not configured',
+    onClick: () => openScheduleTab(),
   }));
 
   statsEl.appendChild(buildDashStat({
@@ -1717,27 +1721,34 @@ function renderHomeDashboard(data) {
   eventsPanel.innerHTML =
     `<div class="dash-panel-head">` +
       `<h2 class="dash-panel-title">Today</h2>` +
-      (data?.eventsMock
-        ? `<span class="dash-panel-note">Preview</span>`
-        : events.length
-          ? `<button type="button" class="dash-panel-link" data-schedule-all>View schedule</button>`
-          : '') +
+      (scheduleLive
+        ? `<button type="button" class="dash-panel-link" data-schedule-all>View schedule</button>`
+        : '') +
     `</div>`;
   eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
     openScheduleTab();
   });
   const eventsList = document.createElement('ul');
   eventsList.className = 'dash-events';
-  const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
   if (!events.length) {
     const empty = document.createElement('p');
     empty.className = 'dash-empty';
-    empty.textContent = 'Nothing scheduled today.';
+    empty.textContent = scheduleLive
+      ? 'Nothing scheduled today.'
+      : 'Enable scheduling and BOOKING_API_URL to show Cal.com events here.';
     eventsPanel.appendChild(empty);
+    if (scheduleLive) {
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'dash-panel-link dash-empty-link';
+      link.textContent = 'Open full schedule';
+      link.addEventListener('click', () => openScheduleTab());
+      eventsPanel.appendChild(link);
+    }
   } else {
     for (const ev of events) {
       const uid = ev.uid || ev.id;
-      const canOpen = !data?.eventsMock && uid && !String(uid).startsWith('mock-');
+      const canOpen = scheduleLive && uid;
       const li = document.createElement('li');
       if (canOpen) {
         const btn = document.createElement('button');
