@@ -17,6 +17,7 @@ import {
   closeSync,
 } from 'fs';
 import { createContact, getContact, resolveContact } from './contactApi';
+import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { serverEnv } from './serverEnv';
 
@@ -504,11 +505,19 @@ export async function storeWriteWork(
   const contact = await resolveWorkContact(input);
   if (!contact.ok) return { ok: false, error: contact.error };
 
+  const existingBefore = isWorkDbConfigured()
+    ? await (async () => {
+        const { dbReadWork } = await import('./pgJobs');
+        return dbReadWork(slug);
+      })()
+    : fileReadWork(slug);
+
+  let result: { ok: true; doc: WorkJobDoc } | { ok: false; error: string };
+
   if (isWorkDbConfigured()) {
-    const { dbReadWork, dbCreateWork, dbUpdateWork } = await import('./pgJobs');
-    const existing = await dbReadWork(slug);
-    if (existing) {
-      return dbUpdateWork(slug, {
+    const { dbCreateWork, dbUpdateWork } = await import('./pgJobs');
+    if (existingBefore) {
+      result = await dbUpdateWork(slug, {
         title: input.title.trim(),
         client: contact.name,
         client_uid: contact.uid,
@@ -520,23 +529,30 @@ export async function storeWriteWork(
         source: input.source,
         body: input.body != null ? input.body.trim() : undefined,
       });
+    } else {
+      result = await dbCreateWork({
+        slug,
+        title: input.title.trim(),
+        client: contact.name,
+        client_uid: contact.uid,
+        status: normalizeStatus(input.status),
+        priority: normalizePriority(input.priority),
+        due_date: input.due_date ?? null,
+        value: input.value ?? null,
+        tags: input.tags ?? [],
+        source: input.source?.trim() ?? '',
+        body: (input.body ?? '').trim(),
+      });
     }
-    return dbCreateWork({
-      slug,
-      title: input.title.trim(),
-      client: contact.name,
-      client_uid: contact.uid,
-      status: normalizeStatus(input.status),
-      priority: normalizePriority(input.priority),
-      due_date: input.due_date ?? null,
-      value: input.value ?? null,
-      tags: input.tags ?? [],
-      source: input.source?.trim() ?? '',
-      body: (input.body ?? '').trim(),
-    });
+  } else {
+    result = await fileWriteWork(slug, input);
   }
 
-  return fileWriteWork(slug, input);
+  if (result.ok && !existingBefore && contact.uid) {
+    void enrichClientPortalBrand(contact.uid);
+  }
+
+  return result;
 }
 
 export async function storeDeleteWork(slug: string): Promise<boolean> {

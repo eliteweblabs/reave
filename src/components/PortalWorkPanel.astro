@@ -10,7 +10,8 @@ export interface PortalWorkJobItem {
   title: string;
   status: WorkStatus;
   statusLabel: string;
-  dueLabel: string;
+  /** Rich HTML from the project description (admin body field). */
+  bodyHtml: string;
 }
 
 interface Props {
@@ -18,9 +19,11 @@ interface Props {
   commentsBySlug: Record<string, WorkJobComment[]>;
   contactUid: string;
   active?: boolean;
+  /** Auto-expand the first (or only) job on load. */
+  autoExpand?: boolean;
 }
 
-const { jobs, commentsBySlug, contactUid, active = false } = Astro.props;
+const { jobs, commentsBySlug, contactUid, active = false, autoExpand = false } = Astro.props;
 
 function escapeHtml(s: string): string {
   return s
@@ -52,27 +55,34 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
 ---
 
 <section class={`panel portal-work ${active ? 'active' : ''}`} data-tab-panel="work">
-  <p class="data-note">Your projects and requests with us. Tap a job to view updates or leave a comment.</p>
+  <p class="data-note">Your projects and requests with us. Updates and notes from our team appear below.</p>
 
   {jobs.length === 0 ? (
     <p class="muted">No active projects right now.</p>
   ) : (
     <ul class="work-list" id="portal-work-list">
-      {jobs.map((job) => {
+      {jobs.map((job, index) => {
         const comments = commentsBySlug[job.slug] ?? [];
+        const startOpen = autoExpand && index === 0;
         return (
           <li class="work-item" data-job-slug={job.slug}>
-            <button class="work-item-head" type="button" aria-expanded="false">
+            <button class="work-item-head" type="button" aria-expanded={startOpen ? 'true' : 'false'}>
               <span class="work-main">
                 <span class="work-title">{job.title}</span>
-                {job.dueLabel && <span class="work-meta">{job.dueLabel}</span>}
               </span>
               <span class={`work-status work-status-${job.status}`}>{job.statusLabel}</span>
               <span class="work-chevron" aria-hidden="true">›</span>
             </button>
 
-            <div class="work-item-body" hidden>
+            <div class="work-item-body" hidden={!startOpen || undefined}>
+              {job.bodyHtml ? (
+                <div class="work-description" set:html={job.bodyHtml} />
+              ) : (
+                <p class="work-description-empty">Project details will appear here as work progresses.</p>
+              )}
+
               <div class="work-comments" data-comments-root>
+                <span class="work-comments-label">Comments</span>
                 {comments.length === 0 ? (
                   <p class="work-comments-empty">No comments yet — say hello below.</p>
                 ) : (
@@ -307,8 +317,41 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
+  .work-description {
+    margin: 14px 0 16px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 14px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .work-description :global(a) {
+    color: #d8b4fe;
+  }
+
+  .work-description-empty {
+    margin: 14px 0 16px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .work-comments-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 10px;
+  }
+
   .work-comments {
-    margin: 14px 0 12px;
+    margin: 0 0 12px;
   }
 
   .work-comments-empty {

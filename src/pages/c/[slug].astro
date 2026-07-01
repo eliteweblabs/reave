@@ -24,8 +24,9 @@ import {
 import { getCompanyConfig, poweredByLabel } from '../../lib/companyConfig';
 import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
-import { storeListWorkForContact, type WorkJobSummary } from '../../lib/workStore';
+import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
+import { enrichClientPortalBrand } from '../../lib/clientBrand';
 import PortalWorkPanel, { type PortalWorkJobItem } from '../../components/PortalWorkPanel.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -56,6 +57,15 @@ if (uid) {
     if (!p || p.enabled !== false) {
       contact = res.data;
       portal = p ?? {};
+      // Best-effort: fetch logo + tagline from their website on first visit.
+      if (!contactStringField(portal.logoUrl)) {
+        await enrichClientPortalBrand(uid);
+        const refreshed = await getContact(uid);
+        if (refreshed.ok) {
+          contact = refreshed.data;
+          portal = extractPortal(refreshed.data) ?? portal;
+        }
+      }
     }
   }
 }
@@ -104,6 +114,10 @@ function richText(s: string): string {
 
 const displayName = contactStringField(contact?.name) || 'Client';
 const company = contactStringField(contact?.company);
+const logoUrl = contactStringField(portal?.logoUrl);
+const clientWebsite = contactStringField(portal?.website);
+const clientTagline = contactStringField(portal?.tagline);
+const brandTitle = company || displayName;
 const headline = contactStringField(portal?.headline);
 const bodyRaw = contactStringField(portal?.body);
 const bodyHtml = bodyRaw ? richText(bodyRaw) : '';
@@ -140,11 +154,18 @@ const CLIENT_WORK_STATUS: Record<string, string> = {
 // Jobs linked to this client (non-archived only — internal archive stays hidden).
 let clientJobs: WorkJobSummary[] = [];
 let commentsBySlug: Record<string, WorkJobComment[]> = {};
+const jobBodies: Record<string, string> = {};
 if (contact && uid) {
   try {
     clientJobs = (await storeListWorkForContact(uid)).filter((j) => j.status !== 'archived');
     if (clientJobs.length) {
       commentsBySlug = await storeListWorkCommentsForSlugs(clientJobs.map((j) => j.slug));
+      await Promise.all(
+        clientJobs.map(async (job) => {
+          const doc = await storeReadWork(job.slug);
+          if (doc?.body?.trim()) jobBodies[job.slug] = doc.body.trim();
+        }),
+      );
     }
   } catch {
     // Jobs are optional on the portal — never take down the page for storage drift.
@@ -156,7 +177,7 @@ const portalWorkJobs: PortalWorkJobItem[] = clientJobs.map((job) => ({
   title: job.title,
   status: job.status,
   statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
-  dueLabel: job.due_date ? `Due ${fmtDate(job.due_date)}` : '',
+  bodyHtml: jobBodies[job.slug] ? richText(jobBodies[job.slug]) : '',
 }));
 
 // Which tabs to show
@@ -180,7 +201,7 @@ const initialTab = (() => {
 })();
 
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
-const appTitle = displayName;
+const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0a0a0a';
 
@@ -252,8 +273,23 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       ) : (
         <main class="wrap">
           <header class="hero">
-            <h1>{displayName}</h1>
-            {company && <p class="company">{company}</p>}
+            {logoUrl ? (
+              <>
+                <img class="client-logo" src={logoUrl} alt={brandTitle} width="160" height="64" loading="eager" />
+                <p class="client-brand-name">{brandTitle}</p>
+              </>
+            ) : (
+              <h1>{brandTitle}</h1>
+            )}
+            {clientTagline && <p class="client-tagline">{clientTagline}</p>}
+            {clientWebsite && (
+              <a class="client-website" href={clientWebsite.startsWith('http') ? clientWebsite : `https://${clientWebsite}`} target="_blank" rel="noopener noreferrer">
+                {clientWebsite.replace(/^https?:\/\//i, '').replace(/\/$/, '')}
+              </a>
+            )}
+            {company && displayName !== company && displayName !== brandTitle && (
+              <p class="client-contact">{displayName}</p>
+            )}
           </header>
 
           {isStaff && (
@@ -314,6 +350,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               commentsBySlug={commentsBySlug}
               contactUid={uid}
               active={initialTab === 'work'}
+              autoExpand={clientJobs.length === 1}
             />
           )}
 
@@ -598,6 +635,41 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
       .hero { text-align: center; margin-bottom: 24px; }
       .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
+      .client-logo {
+        display: block;
+        max-width: min(200px, 70vw);
+        max-height: 72px;
+        width: auto;
+        height: auto;
+        margin: 18px auto 10px;
+        object-fit: contain;
+      }
+      .client-brand-name {
+        margin: 0 0 4px;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+      .client-tagline {
+        margin: 8px auto 0;
+        max-width: 420px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+      .client-website {
+        display: inline-block;
+        margin-top: 8px;
+        color: #d8b4fe;
+        font-size: 13px;
+        text-decoration: none;
+      }
+      .client-website:active { opacity: 0.8; }
+      .client-contact {
+        margin: 6px 0 0;
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 14px;
+      }
       .company { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; }
 
       .actions {

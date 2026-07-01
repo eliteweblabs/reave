@@ -233,6 +233,12 @@ export type ClientPortal = {
   headline?: string;
   /** Free text shown to the client; newlines preserved, URLs auto-linked. */
   body?: string;
+  /** Client company logo — fetched from their website or set manually. */
+  logoUrl?: string;
+  /** Public website URL shown under the logo. */
+  website?: string;
+  /** Short company blurb (often from site meta description). */
+  tagline?: string;
   fields?: ClientPortalField[];
   /** Web-design handoff data (passwords, DNS, hosting…) shown in the Data tab. */
   data?: ClientDataEntry[];
@@ -503,6 +509,9 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
     ...raw,
     headline: contactStringField(raw.headline) || undefined,
     body: contactStringField(raw.body) || undefined,
+    logoUrl: contactStringField(raw.logoUrl) || undefined,
+    website: contactStringField(raw.website) || undefined,
+    tagline: contactStringField(raw.tagline) || undefined,
     updatedAt: contactStringField(raw.updatedAt) || undefined,
     fields: Array.isArray(raw.fields)
       ? raw.fields
