@@ -189,7 +189,6 @@ let searchDebounceTimer = null;
 let footerNavCollapsed = false;
 let footerIndicatorDragging = false;
 let footerIndicatorSuppressClick = false;
-let footerChatComposeVisible = true;
 let byId = new Map();
 let nodeEls = new Map();
 let edgeEls = [];
@@ -299,7 +298,6 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
-  if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
 }
 
@@ -2082,16 +2080,12 @@ function syncEditorFooterSaveState() {
 
 function footerNavShowsSave(nav) {
   if (footerNavCollapsed) return false;
-  const navEl = document.getElementById('admin-footer-nav');
-  if (navEl?.classList.contains('footer-nav-compose-open')) return false;
   return footerSaveNavForEditor() === nav && typeof footerSaveHandler === 'function';
 }
 
 function footerNavShowsCreate(nav) {
   if (footerNavShowsSave(nav)) return false;
   if (footerNavCollapsed) return false;
-  const navEl = document.getElementById('admin-footer-nav');
-  if (navEl?.classList.contains('footer-nav-compose-open')) return false;
   const activeNav = footerNavActiveKey();
   if (nav === 'chat') {
     return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
@@ -2238,106 +2232,12 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-function getFooterChatComposeSlot() {
-  return document.getElementById('footer-chat-compose');
-}
-
-function clearFooterChatCompose() {
-  const slot = getFooterChatComposeSlot();
-  if (slot) slot.innerHTML = '';
-  footerChatComposeVisible = true;
-  syncFooterChatComposeLayout();
-}
-
-function revealFooterNavFromCompose() {
-  footerChatComposeVisible = false;
-  syncFooterChatComposeLayout();
-  const homeBtn = document.getElementById('footer-nav-home');
-  homeBtn?.setAttribute('title', 'Home');
-  homeBtn?.setAttribute('aria-label', 'Home');
-}
-
-function showFooterChatCompose() {
-  if (activeKey !== 'chats' || !chatState.activeId) return;
-  const slot = getFooterChatComposeSlot();
-  if (!slot?.childElementCount) return;
-  footerChatComposeVisible = true;
-  syncFooterChatComposeLayout();
-  const homeBtn = document.getElementById('footer-nav-home');
-  homeBtn?.setAttribute('title', 'Show navigation');
-  homeBtn?.setAttribute('aria-label', 'Show navigation');
-  requestAnimationFrame(() => getChatPanel()?.querySelector('.ch-input')?.focus());
-}
-
-function footerNavOccupiedHeight(nav, slot) {
-  const navH = nav.getBoundingClientRect().height;
-  const attachments = slot?.querySelector('.ch-attachments:not([hidden])');
-  if (!attachments) return navH;
-  const gapPx = parseFloat(getComputedStyle(nav).fontSize) * 0.35;
-  return navH + attachments.getBoundingClientRect().height + gapPx;
-}
-
-function syncFooterAttachmentsLayout() {
-  const slot = getFooterChatComposeSlot();
-  const nav = document.getElementById('admin-footer-nav');
-  if (!slot || !nav) return;
-  const attachments = slot.querySelector('.ch-attachments');
-  const hasAttachments = Boolean(attachments && !attachments.hidden);
-  nav.classList.toggle('footer-nav-has-attachments', hasAttachments);
-  if (nav.classList.contains('footer-nav-has-compose')) {
-    const h = footerNavOccupiedHeight(nav, slot);
-    document.documentElement.style.setProperty('--footer-nav-h', `${h}px`);
-  }
-}
-
-function syncFooterChatComposeLayout() {
-  const slot = getFooterChatComposeSlot();
-  const nav = document.getElementById('admin-footer-nav');
-  if (!slot || !nav) return;
-  const hasCompose = activeKey === 'chats' && Boolean(chatState.activeId) && slot.childElementCount > 0;
-  const showCompose = hasCompose && footerChatComposeVisible;
-
-  slot.hidden = !showCompose;
-  nav.classList.toggle('footer-nav-has-compose', hasCompose);
-  nav.classList.toggle('footer-nav-compose-open', showCompose);
-  nav.classList.toggle('footer-nav-compose-nav-only', hasCompose && !footerChatComposeVisible);
-
-  if (showCompose) {
-    const homeBtn = document.getElementById('footer-nav-home');
-    homeBtn?.setAttribute('title', 'Show navigation');
-    homeBtn?.setAttribute('aria-label', 'Show navigation');
-  }
-
-  if (hasCompose) {
-    requestAnimationFrame(() => {
-      syncFooterAttachmentsLayout();
-    });
-  } else {
-    nav.classList.remove('footer-nav-has-attachments');
-    document.documentElement.style.removeProperty('--footer-nav-h');
-  }
-  syncFooterChatNav();
-  scheduleFooterNavIndicatorSync();
-}
-
-function mountChatCompose(compose) {
-  const slot = getFooterChatComposeSlot();
-  if (!slot) return false;
-  slot.innerHTML = '';
-  slot.appendChild(compose);
-  footerChatComposeVisible = true;
-  syncFooterChatComposeLayout();
-  return true;
-}
-
 const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'search', 'work'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
   const indicator = document.getElementById('footer-nav-indicator');
   if (!indicator || indicator.hidden) return true;
-  const nav = document.getElementById('admin-footer-nav');
-  if (nav?.classList.contains('footer-nav-compose-open')) return true;
   return (
     (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
     (activeKey === 'work' && footerNavCreateModeActive('work'))
@@ -2594,11 +2494,6 @@ function syncFooterNav() {
 function initFooterNav() {
   document.getElementById('footer-nav-home')?.addEventListener('click', () => {
     closeSearchOverlay();
-    const nav = document.getElementById('admin-footer-nav');
-    if (nav?.classList.contains('footer-nav-compose-open')) {
-      revealFooterNavFromCompose();
-      return;
-    }
     if (footerNavCollapsed) {
       expandFooterNav();
       return;
@@ -2612,10 +2507,6 @@ function initFooterNav() {
       return;
     }
     if (activeKey === 'chats') {
-      if (!footerChatComposeVisible && chatState.activeId) {
-        showFooterChatCompose();
-        return;
-      }
       void startNewChat();
       return;
     }
@@ -2643,7 +2534,6 @@ function initFooterNav() {
   window.addEventListener('resize', () => {
     if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
     syncFooterNavIndicator();
-    syncFooterChatComposeLayout();
   }, { passive: true });
   initFooterNavIndicatorDrag();
   if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
@@ -7281,7 +7171,6 @@ function renderChatPanel() {
     ph.innerHTML = placeholderHtml('message-circle', 'Select a chat or start a new one.');
     pane.appendChild(ph);
     root.appendChild(pane);
-    clearFooterChatCompose();
     clearTopbarPanelContext();
     return;
   }
@@ -7350,7 +7239,6 @@ function renderChatPanel() {
       wrap.appendChild(rm);
       attachmentsEl.appendChild(wrap);
     }
-    requestAnimationFrame(() => syncFooterAttachmentsLayout());
   }
 
   function syncSendState() {
@@ -7485,7 +7373,7 @@ function renderChatPanel() {
   composeMain.appendChild(inputField);
   compose.appendChild(attachmentsEl);
   compose.appendChild(composeMain);
-  if (!mountChatCompose(compose)) pane.appendChild(compose);
+  pane.appendChild(compose);
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
@@ -7852,7 +7740,6 @@ function closeActiveChat() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   chatState.activeId = null;
   getChatPanel()?.classList.remove('ch-pane-active');
-  clearFooterChatCompose();
   renderChatPanel();
 }
 

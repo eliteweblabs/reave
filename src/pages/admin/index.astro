@@ -97,6 +97,9 @@ const { userId } = Astro.locals.auth();
         --topbar-h: calc(4rem + var(--safe-top));
         --footer-nav-pill-h: var(--control-h);
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
+        --ch-compose-gap: 0.35rem;
+        --ch-compose-h: 3.25rem;
+        --footer-chat-stack: calc(var(--footer-nav-h) + var(--ch-compose-gap) + var(--ch-compose-h));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
         --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
         --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
@@ -2159,7 +2162,7 @@ const { userId } = Astro.locals.auth();
         min-width: 0;
       }
       #chat-panel.ch-pane-active .ch-messages {
-        padding-bottom: calc(var(--footer-nav-h) + 0.75rem);
+        padding-bottom: calc(var(--footer-chat-stack) + 0.5rem);
       }
       .ch-msg-row {
         display: flex;
@@ -2234,18 +2237,40 @@ const { userId } = Astro.locals.auth();
         .ch-msg-actions { opacity: 1; }
       }
       .ch-compose {
+        position: fixed;
+        left: max(0.5rem, env(safe-area-inset-left, 0px));
+        right: max(0.5rem, env(safe-area-inset-right, 0px));
+        bottom: calc(var(--footer-nav-h) + var(--ch-compose-gap));
+        z-index: 1990;
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
         align-items: stretch;
-        padding: 0.75rem 1rem;
-        border-top: 1px solid var(--panel-border);
-        background: var(--bg);
+        padding: 0;
+        border-top: none;
+        background: transparent;
         transition: background 0.12s, box-shadow 0.12s;
         min-width: 0;
-        max-width: 100%;
+        max-width: none;
         box-sizing: border-box;
+        pointer-events: none;
+      }
+      body.admin-split-view #chat-panel .ch-compose {
+        left: calc(var(--sidebar-w) + max(0.5rem, env(safe-area-inset-left, 0px)));
+      }
+      .ch-compose > * {
+        pointer-events: auto;
+      }
+      .ch-compose-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        max-width: min(720px, 100%);
+        margin: 0 auto;
+        width: 100%;
       }
       .ch-input-field.control-field {
         flex: 1;
@@ -2255,69 +2280,17 @@ const { userId } = Astro.locals.auth();
       .ch-input-field.control-field:focus-within {
         border-color: #3b82f6;
       }
-      .footer-chat-compose .ch-compose {
-        flex: 1 1 auto;
-        flex-direction: column;
-        padding: 0;
-        border-top: none;
-        background: transparent;
-        gap: 0.35rem;
-        min-width: 0;
-      }
-      .footer-chat-compose .ch-compose-main {
-        flex-direction: column;
-        gap: 0.35rem;
-        min-width: 0;
-      }
-      /* Inner field only — outer .admin-footer-nav-bar is the control-field shell when compose is open. */
-      .footer-chat-compose .ch-input-field.control-field,
-      .footer-chat-compose .ch-input-field.control-field:has(textarea) {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        margin: 0;
-        padding: 0;
-        border: none;
-        background: transparent;
-        border-radius: 0;
-        align-items: center;
-      }
-      .footer-chat-compose .ch-input-field.control-field:focus-within {
-        border-color: transparent;
-      }
-      .footer-chat-compose .ch-input {
-        min-height: 0;
-        max-height: 5rem;
-        padding: 0.2rem 0.5rem;
-        font-size: max(16px, 0.82rem);
-        line-height: 1.35;
-        align-self: center;
-      }
-      .footer-chat-compose .ch-compose-actions {
-        align-self: center;
-        flex-direction: row;
-        gap: 0.25rem;
-        margin: 0;
-      }
-      .footer-chat-compose .ch-send svg {
-        width: 1.05rem;
-        height: 1.05rem;
-      }
       .ch-compose.ch-compose-drag {
         background: rgba(59, 130, 246, 0.08);
         box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.45);
-      }
-      .ch-compose-main {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 0.45rem;
       }
       .ch-attachments {
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
+        max-width: min(720px, 100%);
+        margin: 0 auto;
+        width: 100%;
       }
       .ch-attachment {
         position: relative;
@@ -3228,10 +3201,6 @@ const { userId } = Astro.locals.auth();
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
         .ch-messages { padding: 0.75rem 0.85rem var(--footer-scroll-pad); }
-        .ch-compose {
-          gap: 0.4rem;
-          padding: 0.65rem 0.75rem;
-        }
       }
 
       /* App dialog (replaces system alert/confirm on mobile) */
