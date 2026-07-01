@@ -1,10 +1,13 @@
 import type { APIRoute } from 'astro';
 import {
   contactSummary,
+  extractPortal,
   getContact,
   isContactApiConfigured,
   updateContact,
 } from '../../../lib/contactApi';
+import { portalSiteUrl } from '../../../lib/siteMonitoring';
+import { setClientPortalWebsite, websiteFromNotes } from '../../../lib/clientBrand';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
@@ -35,10 +38,18 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   const res = await getContact(uid);
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 404);
 
+  const portal = extractPortal(res.data);
+  const website =
+    portal?.website?.trim() ||
+    portalSiteUrl(portal) ||
+    websiteFromNotes(res.data.notes ?? '') ||
+    '';
+
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
+    website,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });
@@ -70,10 +81,21 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   });
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
 
+  let website = '';
+  if (typeof body.website === 'string') {
+    const saved = await setClientPortalWebsite(uid, body.website);
+    if (!saved.ok) return json({ ok: false, error: saved.error }, 502);
+    website = saved.website;
+  } else {
+    const portal = extractPortal(res.data);
+    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
+  }
+
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
+    website,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });
@@ -105,10 +127,21 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
 
+  let website = '';
+  if (typeof body.website === 'string') {
+    const saved = await setClientPortalWebsite(uid, body.website);
+    if (!saved.ok) return json({ ok: false, error: saved.error }, 502);
+    website = saved.website;
+  } else {
+    const portal = extractPortal(res.data);
+    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
+  }
+
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
+    website,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });

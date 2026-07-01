@@ -5864,6 +5864,14 @@ function renderNewClientForm(pane) {
   appendClientField(fields, 'Company', companyInput);
   registerClientField(companyInput, () => true);
 
+  const websiteInput = document.createElement('input');
+  websiteInput.className = 'de-input';
+  websiteInput.type = 'url';
+  websiteInput.placeholder = 'https://example.com';
+  websiteInput.value = clientState.draft?.website || '';
+  appendClientField(fields, 'Website', websiteInput);
+  registerClientField(websiteInput, () => true);
+
   pane.appendChild(fields);
 
   const notesLabel = document.createElement('label');
@@ -5887,6 +5895,7 @@ function renderNewClientForm(pane) {
       email: emailInput.value.trim(),
       phone: phoneToStorage(phoneInput.value),
       company: companyInput.value.trim(),
+      website: websiteInput.value.trim(),
       notes: notesTa.value.trim(),
     });
   });
@@ -5908,6 +5917,7 @@ function renderEditClientForm(pane) {
         email: contact.email || '',
         phone: contact.phone || '',
         company: contact.company || '',
+        website: data.website || contact.website || '',
         notes: contact.notes || '',
         portal_url: contact.portal_url ?? data.portal_url,
         createdAt: contact.createdAt ?? data.createdAt,
@@ -6028,6 +6038,14 @@ function renderEditClientForm(pane) {
       appendClientField(fields, 'Company', companyInput);
       registerClientField(companyInput, () => true);
 
+      const websiteInput = document.createElement('input');
+      websiteInput.className = 'de-input';
+      websiteInput.type = 'url';
+      websiteInput.placeholder = 'https://example.com';
+      websiteInput.value = clientState.draft.website || '';
+      appendClientField(fields, 'Website', websiteInput);
+      registerClientField(websiteInput, () => true);
+
       const notesLabel = document.createElement('label');
       notesLabel.className = 'de-label cl-notes-label';
       notesLabel.textContent = 'Notes (internal)';
@@ -6047,6 +6065,7 @@ function renderEditClientForm(pane) {
         email: emailInput.value.trim(),
         phone: phoneToStorage(phoneInput.value),
         company: companyInput.value.trim(),
+        website: websiteInput.value.trim(),
         notes: notesTa.value.trim(),
       });
       clientState.autosaveGetPayload = getPayload;
@@ -6057,6 +6076,7 @@ function renderEditClientForm(pane) {
           emailInput.value !== clientState.draft.email ||
           phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
           companyInput.value !== clientState.draft.company ||
+          websiteInput.value !== clientState.draft.website ||
           notesTa.value !== clientState.draft.notes;
       };
       const queueAutosave = () => {
@@ -6067,7 +6087,7 @@ function renderEditClientForm(pane) {
         markDirty();
         await autosaveClient(uid, getPayload());
       };
-      for (const el of [nameInput, emailInput, phoneInput, companyInput, notesTa]) {
+      for (const el of [nameInput, emailInput, phoneInput, companyInput, websiteInput, notesTa]) {
         el.addEventListener('input', queueAutosave);
         el.addEventListener('blur', saveNow);
       }
@@ -6098,8 +6118,16 @@ async function createClient(payload) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const uid = data.uid;
+    if (payload.website?.trim() && uid) {
+      await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website: payload.website.trim() }),
+      });
+    }
     await loadClientsTab();
-    clientState.activeUid = data.uid;
+    clientState.activeUid = uid;
     renderClientsEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
@@ -6141,6 +6169,7 @@ async function autosaveClient(uid, payload) {
     payload.email === draft.email &&
     payload.phone === draft.phone &&
     payload.company === draft.company &&
+    payload.website === draft.website &&
     payload.notes === draft.notes;
   if (unchanged) {
     clientState.dirty = false;

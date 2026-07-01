@@ -140,8 +140,11 @@ function websiteFromEmail(email: string): string | null {
   return `https://${domain}`;
 }
 
-/** Best-effort website URL for a contact (portal Site URL field, else email domain). */
+/** Best-effort website URL for a contact (portal website, Site URL field, else email domain). */
 export function guessClientWebsite(contact: ContactRecord, portal: ClientPortal | null): string | null {
+  const direct = contactStringField(portal?.website);
+  if (direct) return direct;
+
   const fromField = portalSiteUrl(portal);
   if (fromField) return fromField;
 
@@ -165,9 +168,12 @@ export async function fetchClientBrandFromWebsite(urlInput: string): Promise<Cli
 
 /**
  * When a project is linked to a client, try to populate portal branding (logo, tagline, website).
- * Skips if logo is already set. Never throws.
+ * Skips if logo is already set unless force is true. Never throws.
  */
-export async function enrichClientPortalBrand(contactUid: string): Promise<void> {
+export async function enrichClientPortalBrand(
+  contactUid: string,
+  opts?: { force?: boolean },
+): Promise<void> {
   if (!contactUid?.trim()) return;
 
   try {
@@ -175,7 +181,7 @@ export async function enrichClientPortalBrand(contactUid: string): Promise<void>
     if (!res.ok || res.data.archived) return;
 
     const portal = extractPortal(res.data) ?? {};
-    if (contactStringField(portal.logoUrl)) return;
+    if (!opts?.force && contactStringField(portal.logoUrl)) return;
 
     const website = guessClientWebsite(res.data, portal);
     if (!website) return;
@@ -186,7 +192,7 @@ export async function enrichClientPortalBrand(contactUid: string): Promise<void>
     const next: ClientPortal = {
       ...portal,
       website: portal.website || brand.website || website.replace(/\/$/, ''),
-      logoUrl: brand.logoUrl,
+      logoUrl: brand.logoUrl || portal.logoUrl,
       tagline: portal.tagline || brand.tagline,
       updatedAt: new Date().toISOString(),
     };
@@ -195,4 +201,56 @@ export async function enrichClientPortalBrand(contactUid: string): Promise<void>
   } catch (e) {
     console.warn('[client-brand] enrich failed', e);
   }
+}
+
+/** Normalize a user-entered website string to https URL form for storage/display. */
+export function normalizeClientWebsiteInput(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  if (/^https?:\/\//i.test(t)) return t.replace(/\/$/, '');
+  return `https://${t.replace(/^\/\//, '').replace(/\/$/, '')}`;
+}
+
+/** Pull a website URL from internal notes (e.g. "Website: www.example.com"). */
+export function websiteFromNotes(notes: string): string {
+  const text = notes.trim();
+  if (!text) return '';
+  const m = text.match(/(?:^|\s)(?:website|site|url)\s*:\s*(\S+)/i);
+  const candidate = (m?.[1] ?? text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9][-a-z0-9.]*\.[a-z]{2,}\/?\b/i)?.[0] ?? '').trim();
+  if (!candidate) return '';
+  return normalizeClientWebsiteInput(candidate);
+}
+
+/** Persist website on the client portal and refresh logo/tagline. */
+export async function setClientPortalWebsite(
+  uid: string,
+  websiteInput: string,
+): Promise<{ ok: true; website: string } | { ok: false; error: string }> {
+  const res = await getContact(uid);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const portal = extractPortal(res.data) ?? {};
+  const website = normalizeClientWebsiteInput(websiteInput);
+  const fields = [...(portal.fields ?? [])];
+  const idx = fields.findIndex((f) => f.label.trim().toLowerCase() === 'site url');
+
+  if (website) {
+    const row = { label: 'Site URL', value: website };
+    if (idx >= 0) fields[idx] = row;
+    else fields.push(row);
+  } else if (idx >= 0) {
+    fields.splice(idx, 1);
+  }
+
+  const saved = await setContactPortal(uid, {
+    ...portal,
+    website: website || undefined,
+    fields: fields.length ? fields : undefined,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!saved.ok) return { ok: false, error: saved.error };
+
+  if (website) await enrichClientPortalBrand(uid, { force: true });
+
+  return { ok: true, website };
 }
