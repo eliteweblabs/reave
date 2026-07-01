@@ -5737,7 +5737,7 @@ function renderScheduleDetail(pane, booking) {
 }
 
 function renderScheduleViewPicker() {
-  return createSlidingPillSelect({
+  const picker = createSlidingPillSelect({
     value: scheduleState.view,
     options: SCHEDULE_VIEWS,
     ariaLabel: 'Calendar view',
@@ -5749,6 +5749,7 @@ function renderScheduleViewPicker() {
       loadScheduleTab();
     },
   });
+  return picker.el;
 }
 
 function renderScheduleToolbar() {
