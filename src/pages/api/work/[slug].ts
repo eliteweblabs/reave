@@ -16,6 +16,7 @@ import {
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { listRelatedForJob } from '../../../lib/projectLinks';
+import { listTrackedLinksForJob } from '../../../lib/linkTracking';
 
 export const prerender = false;
 
@@ -36,7 +37,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const doc = await storeReadWork(slug);
   if (!doc) return json({ ok: false, error: 'Not found' }, 404);
   const related = await listRelatedForJob(slug);
-  return json({ ok: true, ...doc, related });
+  const tracked_links = await listTrackedLinksForJob(slug, { limit: 5 });
+  return json({ ok: true, ...doc, related, tracked_links });
 }
 
 export async function PUT(context: APIContext): Promise<Response> {

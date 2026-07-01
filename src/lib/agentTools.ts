@@ -37,6 +37,7 @@ import {
   type ClientPortalField,
   type ClientDataEntry,
 } from './contactApi';
+import { createTrackedProjectLink } from './linkTracking';
 import {
   isCraterConfigured,
   craterCreateInvoice,
@@ -1148,6 +1149,11 @@ export function buildTools(): AgentToolDef[] {
                 description: 'auto = email if available else SMS. Defaults to auto.',
               },
               message: { type: 'string', description: 'Optional short personal note prepended to the message.' },
+              job_slug: {
+                type: 'string',
+                description:
+                  'Optional work/project slug — when set, the sent link is tracked so you can see if the client opened it.',
+              },
             },
             additionalProperties: false,
           },
@@ -2423,7 +2429,9 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         return JSON.stringify({ error: 'This client’s page is hidden (enabled:false). Re-enable it before sending.' });
       }
 
-      const url = clientPortalUrl(target.uid);
+      let url = clientPortalUrl(target.uid);
+      let tracked: { token?: string; job_slug?: string } | undefined;
+
       const firstName = (c.firstName || c.name || '').trim().split(/\s+/)[0] || 'there';
       const intro = typeof args.message === 'string' && args.message.trim() ? `${args.message.trim()}\n\n` : '';
 
@@ -2443,6 +2451,23 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
       if (!useEmail && !useSms) {
         return JSON.stringify({ error: 'This client has no email or phone on file to send to.' });
+      }
+
+      const jobSlug = typeof args.job_slug === 'string' ? args.job_slug.trim() : '';
+      if (jobSlug && isSafeWorkSlug(jobSlug)) {
+        const job = await storeReadWork(jobSlug);
+        if (job && (job.contact_uid === target.uid || !job.contact_uid)) {
+          const created = await createTrackedProjectLink({
+            jobSlug,
+            contactUid: target.uid,
+            channel: useSms && !useEmail ? 'sms' : 'email',
+            sentBy: null,
+          });
+          if (created.ok) {
+            url = created.url;
+            tracked = { token: created.link.token, job_slug: jobSlug };
+          }
+        }
       }
 
       const sent: Record<string, unknown> = {};
@@ -2472,7 +2497,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
 
       const anyOk = Object.values(sent).some((v) => (v as { ok?: boolean }).ok);
-      return JSON.stringify({ success: anyOk, uid: target.uid, name: c.name, url, sent });
+      return JSON.stringify({ success: anyOk, uid: target.uid, name: c.name, url, tracked, sent });
     }
     if (name === 'get_site_monitoring') {
       const target = await resolvePortalTarget(args);

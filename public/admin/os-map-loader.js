@@ -5191,9 +5191,15 @@ function renderEditWorkForm(pane) {
       const titleInput = createWorkHeaderTitleInput(workState.draft.title);
       header.appendChild(titleInput);
 
+      const linkTrackEl = document.createElement('div');
+      linkTrackEl.className = 'wk-link-track';
+      linkTrackEl.hidden = true;
+
       if (data.contact_uid) {
         appendPortalShareBtn(header, data.contact_uid, {
           tab: 'work',
+          jobSlug: slug,
+          trackEl: linkTrackEl,
           title: `${data.contact_name || data.client || 'Client'} — Work`,
         });
       }
@@ -5238,6 +5244,8 @@ function renderEditWorkForm(pane) {
           ta.value !== workState.draft.body;
       };
       clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty, { readOnly: true });
+      fields.insertBefore(linkTrackEl, fields.firstChild);
+      renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links);
 
       statusPill = createSlidingPillSelect({
         label: 'Status',
@@ -6772,14 +6780,84 @@ async function sharePortalLink(url, title, btn) {
   return ok;
 }
 
+async function createTrackedProjectShareUrl(jobSlug, contactUid, tab) {
+  if (!jobSlug || !contactUid) return '';
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contact_uid: contactUid, tab: tab || 'work', channel: 'share' }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data.url || '';
+  } catch (e) {
+    showChatToast(e?.message || 'Could not create tracked link');
+    return clientPortalShareUrl(contactUid, tab);
+  }
+}
+
+function formatLinkTrackWhen(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function renderWorkLinkTrackStatus(container, links) {
+  if (!container) return;
+  container.innerHTML = '';
+  const latest = Array.isArray(links) && links.length ? links[0] : null;
+  if (!latest) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  const sent = formatLinkTrackWhen(latest.sent_at);
+  const opened = latest.first_clicked_at ? formatLinkTrackWhen(latest.first_clicked_at) : '';
+  const status = document.createElement('span');
+  status.className = 'wk-link-track-status' + (opened ? ' wk-link-track-status--opened' : '');
+  if (opened) {
+    status.textContent = `Link opened ${opened}${latest.click_count > 1 ? ` (${latest.click_count}×)` : ''}`;
+  } else {
+    status.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
+  }
+  container.appendChild(status);
+}
+
+async function refreshWorkLinkTrackStatus(container, jobSlug) {
+  if (!container || !jobSlug) return;
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok && data.ok) renderWorkLinkTrackStatus(container, data.links);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function shareTrackedProjectPortal(jobSlug, contactUid, tab, title, btn, trackEl) {
+  const url = jobSlug
+    ? await createTrackedProjectShareUrl(jobSlug, contactUid, tab)
+    : clientPortalShareUrl(contactUid, tab);
+  const shared = await sharePortalLink(url, title, btn);
+  if (shared && jobSlug) void refreshWorkLinkTrackStatus(trackEl, jobSlug);
+  return shared;
+}
+
 function appendPortalShareBtn(parent, uid, opts = {}) {
-  const { tab, title, className = 'ios-icon-btn de-share-btn' } = opts;
+  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl } = opts;
   if (!uid) return null;
   const btn = createIosIconBtn({
     iconKey: 'share',
     label: 'Share client portal link',
     className,
-    onClick: () => sharePortalLink(clientPortalShareUrl(uid, tab), title || 'Your client page', btn),
+    onClick: () =>
+      shareTrackedProjectPortal(jobSlug, uid, tab, title || 'Your client page', btn, trackEl),
   });
   parent.appendChild(btn);
   return btn;
