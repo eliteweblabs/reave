@@ -2890,6 +2890,65 @@ const { userId } = Astro.locals.auth();
         overflow-y: auto;
         padding: 1rem 1.2rem var(--footer-scroll-pad);
       }
+      .em-compose {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.85rem 1.2rem var(--footer-scroll-pad);
+        overflow-y: auto;
+      }
+      .em-compose-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+      }
+      .em-compose-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .em-compose-input,
+      .em-compose-textarea {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.9rem;
+      }
+      .em-compose-textarea {
+        min-height: 10rem;
+        resize: vertical;
+        line-height: 1.45;
+      }
+      .em-compose-input:focus,
+      .em-compose-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+      }
+      .em-compose-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding-top: 0.25rem;
+      }
+      .em-compose-send {
+        min-width: 5.5rem;
+      }
+      .em-compose-hint {
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.45;
+      }
       .em-detail-subject {
         font-size: 1.05rem;
         font-weight: 600;

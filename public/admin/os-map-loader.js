@@ -298,6 +298,9 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
+  if (MAP.type !== 'email') {
+    emailState.composing = false;
+  }
   if (key !== 'chats') setChatComposeFocused(false);
   void refreshInboxBadgeQuiet();
 }
@@ -2091,6 +2094,9 @@ function footerNavShowsCreate(nav) {
   if (nav === 'chat') {
     return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
   }
+  if (nav === 'inbox') {
+    return activeKey === 'email' && activeNav === 'inbox' && !emailState.activeId && !emailState.composing;
+  }
   if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
   return false;
 }
@@ -2155,6 +2161,28 @@ function syncFooterWorkNav() {
   });
 }
 
+function syncFooterInboxNav() {
+  const btn = document.getElementById('footer-nav-inbox');
+  if (!btn) return;
+  const create = footerNavShowsCreate('inbox');
+  let iconEl = btn.querySelector('.footer-nav-inbox-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-inbox-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    const badge = document.getElementById('footer-inbox-badge');
+    btn.insertBefore(iconEl, badge || null);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  applyFooterNavBtnMode(btn, iconEl, {
+    save: false,
+    create,
+    icon: 'mail',
+    label: 'Inbox',
+    title: 'Compose email',
+  });
+}
+
 function footerNavCreateModeActive(nav) {
   return footerNavShowsCreate(nav);
 }
@@ -2187,6 +2215,7 @@ function collapseFooterNav() {
   homeBtn?.setAttribute('title', 'Show navigation');
   renderFooterNavBadges();
   syncFooterChatNav();
+  syncFooterInboxNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
@@ -2200,6 +2229,7 @@ function expandFooterNav() {
   homeBtn?.setAttribute('title', 'Home');
   renderFooterNavBadges();
   syncFooterChatNav();
+  syncFooterInboxNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
@@ -2243,6 +2273,7 @@ function footerNavIndicatorHidden() {
   if (!indicator || indicator.hidden) return true;
   return (
     (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
+    (activeKey === 'email' && footerNavCreateModeActive('inbox')) ||
     (activeKey === 'work' && footerNavCreateModeActive('work'))
   );
 }
@@ -2337,6 +2368,10 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'inbox') {
+    if (activeKey === 'email') {
+      startNewEmail();
+      return;
+    }
     setActiveMap('email', { force: activeKey === 'email' });
     return;
   }
@@ -2453,6 +2488,7 @@ function syncFooterNavIndicator() {
   const activeNav = footerNavActiveKey();
   const hideForCreate =
     (activeNav === 'chat' && (footerNavCreateModeActive('chat') || footerNavShowsSave('chat'))) ||
+    (activeNav === 'inbox' && footerNavCreateModeActive('inbox')) ||
     (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work')));
 
   let targetBtn = activeNav
@@ -2558,6 +2594,7 @@ function syncFooterNav() {
   });
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
   syncFooterChatNav();
+  syncFooterInboxNav();
   syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
 }
@@ -2585,6 +2622,10 @@ function initFooterNav() {
   });
   document.getElementById('footer-nav-inbox')?.addEventListener('click', () => {
     closeSearchOverlay();
+    if (activeKey === 'email') {
+      startNewEmail();
+      return;
+    }
     setActiveMap('email', { force: activeKey === 'email' });
   });
   document.getElementById('footer-nav-search')?.addEventListener('click', () => {
@@ -7569,6 +7610,9 @@ let emailState = {
   inboxFilter: 'all',
   search: '',
   activeId: null,
+  composing: false,
+  compose: { to: '', subject: '', body: '' },
+  sending: false,
   storage: 'files',
   digest: null,
   pushConfigured: false,
@@ -9132,6 +9176,7 @@ function renderEmailFilterTabs() {
         if (emailState.inboxFilter === tab.id) return;
         emailState.inboxFilter = tab.id;
         emailState.activeId = null;
+        emailState.composing = false;
         getEmailPanel()?.classList.remove('em-pane-active');
         renderEmailPanel();
       });
@@ -9168,6 +9213,7 @@ function renderEmailSidebar() {
         emailState.search = value;
         if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
           emailState.activeId = null;
+          emailState.composing = false;
           getEmailPanel()?.classList.remove('em-pane-active');
         }
         renderEmailPanel();
@@ -9213,9 +9259,141 @@ function renderEmailSidebar() {
   return sidebar;
 }
 
+function closeEmailCompose() {
+  emailState.composing = false;
+  emailState.compose = { to: '', subject: '', body: '' };
+  emailState.sending = false;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  renderEmailPanel();
+  syncFooterNav();
+}
+
+function startNewEmail() {
+  emailState.activeId = null;
+  emailState.composing = true;
+  emailState.compose = { to: '', subject: '', body: '' };
+  emailState.sending = false;
+  getEmailPanel()?.classList.add('em-pane-active');
+  renderEmailPanel();
+  syncFooterNav();
+  requestAnimationFrame(() => {
+    getEmailPanel()?.querySelector('.em-compose-input')?.focus();
+  });
+}
+
+async function sendEmailCompose() {
+  const { to, subject, body } = emailState.compose;
+  const toTrim = to.trim();
+  const subjectTrim = subject.trim();
+  const bodyTrim = body.trim();
+  if (!toTrim || !subjectTrim || !bodyTrim || emailState.sending) return;
+
+  emailState.sending = true;
+  renderEmailPanel();
+
+  try {
+    const res = await fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: toTrim, subject: subjectTrim, text: bodyTrim }),
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    closeEmailCompose();
+    showChatToast('Email sent');
+  } catch (e) {
+    emailState.sending = false;
+    renderEmailPanel();
+    osAlert({ title: 'Could not send email', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function renderEmailComposePane(pane) {
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to inbox',
+    onClick: () => closeEmailCompose(),
+  }));
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = 'New message';
+  header.appendChild(titleEl);
+  pane.appendChild(header);
+
+  const form = document.createElement('div');
+  form.className = 'em-compose';
+
+  const toField = document.createElement('div');
+  toField.className = 'em-compose-field';
+  toField.innerHTML = '<label class="em-compose-label" for="em-compose-to">To</label>';
+  const toInput = document.createElement('input');
+  toInput.id = 'em-compose-to';
+  toInput.type = 'email';
+  toInput.className = 'em-compose-input';
+  toInput.placeholder = 'client@example.com';
+  toInput.value = emailState.compose.to;
+  toInput.disabled = emailState.sending;
+  toInput.addEventListener('input', () => {
+    emailState.compose.to = toInput.value;
+  });
+  toField.appendChild(toInput);
+
+  const subjectField = document.createElement('div');
+  subjectField.className = 'em-compose-field';
+  subjectField.innerHTML = '<label class="em-compose-label" for="em-compose-subject">Subject</label>';
+  const subjectInput = document.createElement('input');
+  subjectInput.id = 'em-compose-subject';
+  subjectInput.type = 'text';
+  subjectInput.className = 'em-compose-input';
+  subjectInput.placeholder = 'Subject';
+  subjectInput.value = emailState.compose.subject;
+  subjectInput.disabled = emailState.sending;
+  subjectInput.addEventListener('input', () => {
+    emailState.compose.subject = subjectInput.value;
+  });
+  subjectField.appendChild(subjectInput);
+
+  const bodyField = document.createElement('div');
+  bodyField.className = 'em-compose-field';
+  bodyField.innerHTML = '<label class="em-compose-label" for="em-compose-body">Message</label>';
+  const bodyInput = document.createElement('textarea');
+  bodyInput.id = 'em-compose-body';
+  bodyInput.className = 'em-compose-textarea';
+  bodyInput.placeholder = 'Write your message…';
+  bodyInput.value = emailState.compose.body;
+  bodyInput.disabled = emailState.sending;
+  bodyInput.addEventListener('input', () => {
+    emailState.compose.body = bodyInput.value;
+  });
+  bodyField.appendChild(bodyInput);
+
+  const hint = document.createElement('p');
+  hint.className = 'em-compose-hint';
+  hint.textContent = 'Sent via Resend using your configured outbound address. Reply threading is not wired yet.';
+
+  const actions = document.createElement('div');
+  actions.className = 'em-compose-actions';
+  const sendBtn = document.createElement('button');
+  sendBtn.type = 'button';
+  sendBtn.className = 'de-new-btn em-compose-send';
+  sendBtn.textContent = emailState.sending ? 'Sending…' : 'Send';
+  sendBtn.disabled = emailState.sending;
+  sendBtn.addEventListener('click', () => void sendEmailCompose());
+
+  actions.appendChild(sendBtn);
+  form.appendChild(toField);
+  form.appendChild(subjectField);
+  form.appendChild(bodyField);
+  form.appendChild(hint);
+  form.appendChild(actions);
+  pane.appendChild(form);
+}
+
 function openEmailEvent(id) {
   queueEmailSeen(id);
   emailState.activeId = id;
+  emailState.composing = false;
   renderEmailPanel();
 }
 
@@ -9228,16 +9406,26 @@ function renderEmailPanel() {
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
 
+  if (emailState.composing) {
+    renderEmailComposePane(pane);
+    root.appendChild(pane);
+    getEmailPanel()?.classList.add('em-pane-active');
+    syncFooterNav();
+    return;
+  }
+
   const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
   if (!ev) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
     ph.innerHTML = placeholderHtml(
       'mail',
-      '<p>Your inbox summaries appear here.</p><p class="em-hint">Install this app to your home screen and tap the bell icon for phone notifications.</p>',
+      '<p>Select a message or tap <strong>+</strong> in the footer to compose.</p><p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
     );
     pane.appendChild(ph);
     root.appendChild(pane);
+    getEmailPanel()?.classList.remove('em-pane-active');
+    syncFooterNav();
     return;
   }
 
@@ -9247,6 +9435,7 @@ function renderEmailPanel() {
     label: 'Back to inbox',
     onClick: () => {
       emailState.activeId = null;
+      emailState.composing = false;
       getEmailPanel()?.classList.remove('em-pane-active');
       renderEmailPanel();
     },
@@ -9332,6 +9521,7 @@ function renderEmailPanel() {
 
   root.appendChild(pane);
   getEmailPanel()?.classList.add('em-pane-active');
+  syncFooterNav();
 }
 
 // ---- persistence ----
