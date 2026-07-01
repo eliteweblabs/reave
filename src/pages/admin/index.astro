@@ -1649,16 +1649,17 @@ const { userId } = Astro.locals.auth();
         padding: 0.2rem 0.45rem;
       }
       .wk-client-picker--readonly .wk-client-selected {
-        opacity: 0.72;
         background: var(--card);
-        border-style: dashed;
+        border-style: solid;
       }
-      .wk-client-picker--readonly .wk-client-selected span {
-        color: var(--muted);
+      .wk-client-picker--readonly .wk-client-link {
+        flex: 0 1 auto;
+        max-width: 100%;
+        font-size: max(16px, 0.875rem);
       }
-      .wk-client-picker--readonly .wk-client-selected button:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
+      .wk-client-picker--readonly .wk-client-link:disabled {
+        opacity: 0.55;
+        cursor: default;
       }
       .wk-client-dropdown {
         position: absolute;

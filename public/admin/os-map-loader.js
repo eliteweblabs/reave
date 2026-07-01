@@ -333,7 +333,7 @@ function activateMapPanel(opts = {}) {
     if (opts.scheduleUid) scheduleState.activeUid = opts.scheduleUid;
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
-    loadClientsTab();
+    loadClientsTab({ clientUid: opts.clientUid });
   } else if (MAP.type === 'chats') {
     if (opts.chatId) pendingChatDeepLinkId = opts.chatId;
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -4636,16 +4636,22 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const selectedEl = document.createElement('div');
   selectedEl.className = 'wk-client-selected';
   const selectedName = document.createElement('span');
+  const selectedLink = document.createElement('button');
+  selectedLink.type = 'button';
+  selectedLink.className = 'project-link-chip wk-client-link';
+  selectedLink.addEventListener('click', () => {
+    if (selected?.uid) navigateToClient(selected.uid);
+  });
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'de-btn de-btn-ghost';
   changeBtn.textContent = 'Change';
   if (readOnly) {
-    changeBtn.disabled = true;
-    changeBtn.title = 'Client is fixed for existing projects';
+    selectedEl.appendChild(selectedLink);
+  } else {
+    selectedEl.appendChild(selectedName);
+    selectedEl.appendChild(changeBtn);
   }
-  selectedEl.appendChild(selectedName);
-  selectedEl.appendChild(changeBtn);
   wrap.appendChild(selectedEl);
 
   const searchWrap = document.createElement('div');
@@ -4695,9 +4701,21 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   function syncView() {
     const has = !!selected?.uid;
     selectedEl.style.display = has && !showingNew && !changing ? 'flex' : 'none';
-    searchWrap.style.display = showingNew ? 'none' : changing || !has ? 'block' : 'none';
+    searchWrap.style.display = readOnly ? 'none' : showingNew ? 'none' : changing || !has ? 'block' : 'none';
     newForm.style.display = showingNew ? 'flex' : 'none';
-    if (has) selectedName.textContent = selected.name;
+    if (has) {
+      if (readOnly) {
+        selectedLink.textContent = selected.name;
+        selectedLink.disabled = false;
+        selectedLink.title = `Open ${selected.name} profile`;
+      } else {
+        selectedName.textContent = selected.name;
+      }
+    } else if (readOnly) {
+      selectedLink.textContent = 'No client';
+      selectedLink.disabled = true;
+      selectedLink.removeAttribute('title');
+    }
   }
 
   function exitChangeMode() {
@@ -5718,7 +5736,7 @@ async function fetchClientsList() {
   clientState.total = data.total ?? clientState.clients.length;
 }
 
-async function loadClientsTab() {
+async function loadClientsTab(opts = {}) {
   const root = getClientsEditor();
   if (!root) return;
   root.innerHTML = '<div class="de-loading">Loading clients…</div>';
@@ -5728,12 +5746,15 @@ async function loadClientsTab() {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-  clientState.activeUid = null;
+  const deepUid = opts.clientUid || pendingClientDeepLinkUid;
+  pendingClientDeepLinkUid = null;
+  clientState.activeUid = deepUid || null;
   clientState.dirty = false;
   clientState.draft = null;
   clearEditorFooterSave();
-  getClientsEditor()?.classList.remove('de-pane-active');
+  if (!clientState.activeUid) getClientsEditor()?.classList.remove('de-pane-active');
   renderClientsEditor();
+  if (deepUid && isMobileTabs()) getClientsEditor()?.classList.add('de-pane-active');
 }
 
 function scheduleClientSearch() {
@@ -7362,6 +7383,7 @@ let emailState = {
 let pendingEmailDeepLinkId = null;
 let pendingWorkDeepLinkSlug = null;
 let pendingChatDeepLinkId = null;
+let pendingClientDeepLinkUid = null;
 let emailPollTimer = null;
 let inboxBadgeTimer = null;
 
@@ -7389,6 +7411,12 @@ function navigateToWork(slug, opts = {}) {
   if (opts.fromEmailId) workState.returnToEmailId = opts.fromEmailId;
   pendingWorkDeepLinkSlug = slug;
   setActiveMap('work', { force: true, workSlug: slug });
+}
+
+function navigateToClient(uid) {
+  if (!uid) return;
+  pendingClientDeepLinkUid = uid;
+  setActiveMap('clients', { force: true, clientUid: uid });
 }
 
 function navigateToEmail(id) {
