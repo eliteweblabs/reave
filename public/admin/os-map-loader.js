@@ -7796,15 +7796,6 @@ function buildChatPaneHeader() {
     main.appendChild(titleEl);
   }
 
-  if (chatState.linkedJobs?.length) {
-    const links = document.createElement('div');
-    links.className = 'ch-pane-project-links';
-    for (const job of chatState.linkedJobs) {
-      links.appendChild(createProjectLinkChip(job.title || job.slug, () => navigateToWork(job.slug)));
-    }
-    main.appendChild(links);
-  }
-
   header.appendChild(main);
   header.appendChild(createChatModelSwitcher());
 
@@ -7823,6 +7814,14 @@ function buildChatPaneHeader() {
     className: 'ios-icon-btn ch-share-chat-btn',
     onClick: (btn) => shareChatText(transcript, 'assistant', btn),
   }));
+  if (chatState.linkedJobs?.length) {
+    const links = document.createElement('div');
+    links.className = 'ch-pane-project-links';
+    for (const job of chatState.linkedJobs) {
+      links.appendChild(createProjectLinkChip(job.title || job.slug, () => navigateToWork(job.slug)));
+    }
+    headerActions.appendChild(links);
+  }
   headerActions.appendChild(createIosIconBtn({
     iconKey: 'trash',
     label: 'Delete chat',
