@@ -31,11 +31,12 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function historyCap(): number {
+function historyCap(): number | null {
   const raw = import.meta.env.AGENT_CHAT_HISTORY_TURNS;
-  if (!raw?.trim()) return 20;
+  if (!raw?.trim()) return null;
   const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 20;
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
 }
 
 const ALLOWED_IMAGE_MEDIA = new Set<ChatImageMediaType>([
@@ -70,6 +71,7 @@ function priorTurns(messages: { role: string; content: string }[]): ChatTurn[] {
     content: m.content,
   }));
   const cap = historyCap();
+  if (cap == null) return turns;
   return turns.length <= cap ? turns : turns.slice(-cap);
 }
 
