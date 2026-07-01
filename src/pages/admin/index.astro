@@ -309,7 +309,8 @@ const { userId } = Astro.locals.auth();
               .search-result-item,
               .swipe-act,
               .de-empty-action,
-              .em-project-menu-item
+              .em-project-menu-item,
+              .em-btn-group-segment
             )
           )
         ) {
@@ -1756,7 +1757,7 @@ const { userId } = Astro.locals.auth();
       .de-header-actions {
         display: flex;
         align-items: center;
-        gap: 0.1rem;
+        gap: 0.35rem;
         margin-left: auto;
         flex-shrink: 0;
       }
@@ -2753,12 +2754,54 @@ const { userId } = Astro.locals.auth();
         overflow-wrap: anywhere;
       }
       .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
+      .em-btn-group {
+        display: inline-flex;
+        align-items: stretch;
+        flex: 0 0 auto;
+        border: 1px solid var(--msg-user-border);
+        border-radius: var(--radius-pill);
+        overflow: visible;
+      }
+      .em-btn-group-segment {
+        margin: 0;
+        padding: 0.42rem 0.85rem;
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--fg);
+        background: var(--msg-user-bg);
+        border: none;
+        border-radius: 0;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .em-btn-group-segment:hover:not(:disabled) {
+        background: #265080;
+        color: #fff;
+      }
+      .em-btn-group-segment:disabled {
+        opacity: 0.65;
+        cursor: default;
+      }
+      .em-btn-group > .em-btn-group-segment:first-child {
+        border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+      }
+      .em-btn-group > .em-project-dropdown .em-btn-group-segment {
+        border-left: 1px solid var(--msg-user-border);
+        border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+      }
+      .em-btn-group > .em-project-dropdown.open .em-btn-group-segment {
+        background: #265080;
+        color: #fff;
+      }
+      .em-header-action-btn {
+        margin: 0;
+      }
       .em-project-dropdown {
         position: relative;
         flex: 0 0 auto;
-      }
-      .em-project-trigger {
-        margin: 0;
+        display: flex;
       }
       .em-project-menu {
         display: none;

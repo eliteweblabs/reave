@@ -8422,7 +8422,7 @@ function createEmailProjectDropdown(ev) {
 
   const trigger = document.createElement('button');
   trigger.type = 'button';
-  trigger.className = 'de-new-btn em-project-trigger';
+  trigger.className = 'em-btn-group-segment em-project-trigger';
   trigger.textContent = 'Project ▾';
   trigger.setAttribute('aria-haspopup', 'menu');
 
@@ -8953,23 +8953,37 @@ function renderEmailPanel() {
   titleEl.className = 'de-doc-name';
   titleEl.textContent = ev.subject || '(no subject)';
   header.appendChild(titleEl);
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
-  agentBtn.className = 'de-new-btn em-agent-btn';
   agentBtn.textContent = 'Agent';
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
-  header.appendChild(agentBtn);
+
   if (shouldShowEmailProjectActions(ev)) {
-    header.appendChild(createEmailProjectDropdown(ev));
+    agentBtn.className = 'em-btn-group-segment em-agent-btn';
+    const group = document.createElement('div');
+    group.className = 'em-btn-group';
+    group.appendChild(agentBtn);
+    group.appendChild(createEmailProjectDropdown(ev));
+    headerActions.appendChild(group);
+  } else {
+    agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+    headerActions.appendChild(agentBtn);
   }
+
   if (isEmailBookable(ev)) {
     const schedBtn = document.createElement('button');
     schedBtn.type = 'button';
-    schedBtn.className = 'de-new-btn em-schedule-btn' + (isEmailBooked(ev) ? ' em-schedule-btn-done' : '');
+    schedBtn.className = 'de-new-btn em-schedule-btn em-header-action-btn' + (isEmailBooked(ev) ? ' em-schedule-btn-done' : '');
     schedBtn.textContent = isEmailBooked(ev) ? 'Scheduled ✓' : 'Schedule meeting';
     schedBtn.addEventListener('click', () => startEmailScheduleFlow(ev));
-    header.appendChild(schedBtn);
+    headerActions.appendChild(schedBtn);
   }
+
+  header.appendChild(headerActions);
   pane.appendChild(header);
 
   const detail = document.createElement('div');
