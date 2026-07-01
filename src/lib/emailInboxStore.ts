@@ -31,6 +31,8 @@ export interface EmailInboxRecord {
   schedulingNote: string;
   bookingUid: string | null;
   bookingStart: string | null;
+  /** Set when the message has scrolled into view in the inbox list (server-synced). */
+  seenAt: string | null;
 }
 
 export interface EmailInboxInput {
@@ -91,6 +93,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS scheduling_note TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_uid TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`,
 ];
 
 const INDEX_SQL = [
@@ -100,7 +103,7 @@ const INDEX_SQL = [
 
 const INBOX_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
-              proposed_meeting_start, scheduling_note, booking_uid, booking_start`;
+              proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at`;
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
@@ -181,6 +184,7 @@ type InboxRow = {
   scheduling_note?: string;
   booking_uid?: string | null;
   booking_start?: Date | string | null;
+  seen_at?: Date | string | null;
 };
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
@@ -214,6 +218,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     schedulingNote: row.scheduling_note ?? '',
     bookingUid: row.booking_uid ?? null,
     bookingStart: row.booking_start ? new Date(row.booking_start).toISOString() : null,
+    seenAt: row.seen_at ? new Date(row.seen_at).toISOString() : null,
   };
 }
 
@@ -241,6 +246,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       schedulingNote: String(e.schedulingNote ?? ''),
       bookingUid: e.bookingUid ?? null,
       bookingStart: e.bookingStart ?? null,
+      seenAt: e.seenAt ?? null,
     }));
   } catch {
     return [];
@@ -309,6 +315,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     schedulingNote: input.schedulingNote ?? '',
     bookingUid: input.bookingUid ?? null,
     bookingStart: input.bookingStart ?? null,
+    seenAt: null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
@@ -430,7 +437,9 @@ export type EmailInboxPatch = Partial<
     EmailInboxInput,
     'category' | 'action' | 'status' | 'bookingUid' | 'bookingStart' | 'proposedMeetingStart'
   >
->;
+> & {
+  markSeen?: boolean;
+};
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
   const path = inboxFilePath();
@@ -449,6 +458,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.proposedMeetingStart !== undefined
       ? { proposedMeetingStart: patch.proposedMeetingStart }
       : {}),
+    ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
   };
   events[idx] = next;
   if (!writeFileEvents(events)) return null;
@@ -494,6 +504,9 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.proposedMeetingStart !== undefined) {
       sets.push(`proposed_meeting_start = $${i++}`);
       vals.push(patch.proposedMeetingStart);
+    }
+    if (patch.markSeen) {
+      sets.push(`seen_at = COALESCE(seen_at, now())`);
     }
     if (!sets.length) return null;
     vals.push(id);
@@ -564,4 +577,45 @@ export async function storeDeleteEmailInboxMany(ids: string[]): Promise<number> 
   if (!unique.length) return 0;
   if (databaseUrl()) return deleteManyFromPg(unique);
   return deleteManyFromFile(unique);
+}
+
+async function markSeenManyInFile(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  const path = inboxFilePath();
+  if (!existsSync(path)) return 0;
+  const drop = new Set(ids);
+  const events = parseFileEvents(readFileSync(path, 'utf8'));
+  const now = new Date().toISOString();
+  let marked = 0;
+  const next = events.map((e) => {
+    if (!drop.has(e.id) || e.seenAt) return e;
+    marked += 1;
+    return { ...e, seenAt: now };
+  });
+  if (marked === 0) return 0;
+  return writeFileEvents(next) ? marked : 0;
+}
+
+async function markSeenManyInPg(ids: string[]): Promise<number> {
+  if (!ids.length) return 0;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    const { rowCount } = await pool.query(
+      `UPDATE email_inbox SET seen_at = COALESCE(seen_at, now()) WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[email-inbox] pg mark seen failed', e);
+    return 0;
+  }
+}
+
+/** Mark inbox rows as seen (scroll-into-view). Idempotent per message. */
+export async function storeMarkEmailInboxSeenMany(ids: string[]): Promise<number> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return 0;
+  if (databaseUrl()) return markSeenManyInPg(unique);
+  return markSeenManyInFile(unique);
 }

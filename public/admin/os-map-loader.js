@@ -335,7 +335,6 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'chats') {
     loadChatsTab({ keepSession: opts.keepChatSession === true });
   } else if (MAP.type === 'email') {
-    markInboxSeenAndClearBadge();
     loadEmailTab();
   } else if (MAP.type === 'rules') {
     loadRulesTab();
@@ -2566,8 +2565,6 @@ function syncFooterNav() {
   syncFooterChatNav();
   syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
-  if (activeKey === 'home') syncHomeBadge(0);
-  if (activeKey === 'chats' || activeKey === 'knowledge') syncChatBadge(0);
 }
 
 function initFooterNav() {
@@ -2801,7 +2798,7 @@ function footerBadgeKey(badgeId) {
 
 function renderFooterNavBadges() {
   if (footerNavCollapsed) {
-    const total = footerBadgeCounts.home + footerBadgeCounts.chat + footerBadgeCounts.inbox;
+    const total = Math.max(footerBadgeCounts.home, footerBadgeCounts.chat, footerBadgeCounts.inbox);
     for (const entry of FOOTER_BADGE_ENTRIES) {
       const badge = document.getElementById(entry.badgeId);
       const btn = document.getElementById(entry.btnId);
@@ -2853,20 +2850,7 @@ function syncInboxBadge(count) {
   setFooterNavBadge('footer-inbox-badge', 'footer-nav-inbox', count, 'Inbox');
 }
 
-function dashboardAttentionCount(stats) {
-  if (!stats) return 0;
-  return (
-    (Number(stats.emails) || 0) +
-    (Number(stats.projectsPending) || 0) +
-    (Number(stats.todosOpen) || 0)
-  );
-}
-
 function syncHomeBadge(count) {
-  if (activeKey === 'home') {
-    setFooterNavBadge('footer-home-badge', 'footer-nav-home', 0, 'Home');
-    return;
-  }
   setFooterNavBadge('footer-home-badge', 'footer-nav-home', count, 'Home');
 }
 
@@ -7340,7 +7324,6 @@ let emailState = {
 let emailPollTimer = null;
 let inboxBadgeTimer = null;
 
-const INBOX_LAST_SEEN_KEY = 'reave-inbox-last-seen';
 const BADGE_CACHE = 'reave-badge-v1';
 const BADGE_URL = '/badge-count';
 
@@ -7479,18 +7462,18 @@ function syncTopbarPanelContext() {
   clearTopbarPanelContext();
 }
 
-function inboxLastSeenIso() {
-  try {
-    return localStorage.getItem(INBOX_LAST_SEEN_KEY) || '';
-  } catch {
-    return '';
-  }
+function unseenInboxCount(events) {
+  return (events || []).filter((ev) => ev.category !== 'junk' && !ev.seenAt).length;
 }
 
-function markInboxLastSeen() {
-  try {
-    localStorage.setItem(INBOX_LAST_SEEN_KEY, new Date().toISOString());
-  } catch {}
+function syncInboxBadges(count) {
+  const n = Math.max(0, Number(count) || 0);
+  syncHomeBadge(n);
+  syncInboxBadge(n);
+}
+
+function updateInboxBadgesFromState() {
+  syncInboxBadges(unseenInboxCount(emailState.allEvents));
 }
 
 async function clearCachedBadgeCount() {
@@ -7531,70 +7514,21 @@ async function setAppIconBadge(n) {
   }
 }
 
-function unreadInboxCount(events) {
-  const last = inboxLastSeenIso() ? new Date(inboxLastSeenIso()).getTime() : 0;
-  return (events || []).filter((ev) => {
-    if (ev.category === 'junk') return false;
-    return new Date(ev.receivedAt).getTime() > last;
-  }).length;
-}
-
-async function readCachedBadgeCount() {
-  try {
-    const cache = await caches.open(BADGE_CACHE);
-    const res = await cache.match(BADGE_URL);
-    if (!res) return 0;
-    return parseInt(await res.text(), 10) || 0;
-  } catch {
-    return 0;
-  }
-}
-
 async function syncInboxAppBadge(events) {
-  if (MAP.type === 'email') {
-    markInboxLastSeen();
-    await clearCachedBadgeCount();
-    await setAppIconBadge(0);
-    syncInboxBadge(0);
-    return;
-  }
-  const cached = await readCachedBadgeCount();
-  const unread = unreadInboxCount(events);
-  const n = Math.max(unread, cached);
+  const n = unseenInboxCount(events);
   await setAppIconBadge(n);
-  syncInboxBadge(n);
-}
-
-async function markInboxSeenAndClearBadge() {
-  markInboxLastSeen();
-  await clearCachedBadgeCount();
-  await setAppIconBadge(0);
-  syncInboxBadge(0);
+  syncInboxBadges(n);
 }
 
 async function refreshInboxBadgeQuiet() {
-  if (MAP.type === 'email') {
-    await markInboxSeenAndClearBadge();
-    try {
-      const dashRes = await fetch('/api/admin/dashboard', { cache: 'no-store' });
-      const dashData = dashRes.ok ? await dashRes.json() : null;
-      syncHomeBadge(dashboardAttentionCount(dashData?.stats));
-    } catch {}
-    return;
-  }
   try {
-    const [inboxRes, dashRes] = await Promise.all([
-      fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
-      fetch('/api/admin/dashboard', { cache: 'no-store' }),
-    ]);
-    const inboxData = inboxRes.ok ? await inboxRes.json() : null;
-    const dashData = dashRes.ok ? await dashRes.json() : null;
-    if (dashData) syncHomeBadge(dashboardAttentionCount(dashData?.stats));
-    if (!inboxRes.ok || !inboxData) return;
+    const inboxRes = await fetch('/api/email/inbox?limit=100', { cache: 'no-store' });
+    if (!inboxRes.ok) return;
+    const inboxData = await inboxRes.json();
     const events = inboxData.events || [];
-    const cached = await readCachedBadgeCount();
-    const inboxCount = Math.max(unreadInboxCount(events), cached);
-    syncInboxBadge(inboxCount);
+    if (MAP.type === 'email' && emailState.allEvents.length) {
+      mergeEmailSeenFromServer(events);
+    }
     await syncInboxAppBadge(events);
   } catch {}
 }
@@ -8362,6 +8296,70 @@ async function bulkDeleteInboxCategory(tab) {
   }
 }
 
+function isEmailUnseen(ev) {
+  return ev.category !== 'junk' && !ev.seenAt;
+}
+
+let emailSeenObserver = null;
+let pendingSeenIds = new Set();
+let flushSeenTimer = null;
+
+function mergeEmailSeenFromServer(serverEvents) {
+  const byId = new Map((serverEvents || []).map((ev) => [ev.id, ev]));
+  for (const local of emailState.allEvents) {
+    const remote = byId.get(local.id);
+    if (remote?.seenAt) local.seenAt = remote.seenAt;
+  }
+}
+
+function markEmailSeenLocal(id) {
+  const ev = emailState.allEvents.find((e) => e.id === id);
+  if (!ev || !isEmailUnseen(ev)) return false;
+  ev.seenAt = new Date().toISOString();
+  return true;
+}
+
+async function flushPendingEmailSeen() {
+  flushSeenTimer = null;
+  const ids = [...pendingSeenIds];
+  pendingSeenIds.clear();
+  if (!ids.length) return;
+  try {
+    await fetch('/api/email/inbox/mark-seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+  } catch {}
+}
+
+function queueEmailSeen(id) {
+  if (!id || !markEmailSeenLocal(id)) return;
+  pendingSeenIds.add(id);
+  document.querySelector(`.em-list-item[data-id="${CSS.escape(id)}"] .em-unseen-dot`)?.remove();
+  updateInboxBadgesFromState();
+  void setAppIconBadge(unseenInboxCount(emailState.allEvents));
+  clearTimeout(flushSeenTimer);
+  flushSeenTimer = setTimeout(() => { void flushPendingEmailSeen(); }, 400);
+}
+
+function bindEmailListSeenObserver(listEl) {
+  emailSeenObserver?.disconnect();
+  emailSeenObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const id = entry.target.dataset.id;
+        if (id) queueEmailSeen(id);
+      }
+    },
+    { root: listEl, threshold: 0.55 },
+  );
+  listEl.querySelectorAll('.em-list-item').forEach((el) => {
+    if (el.querySelector('.em-unseen-dot')) emailSeenObserver.observe(el);
+  });
+}
+
 function createEmailListItem(ev) {
   const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
   const item = document.createElement('button');
@@ -8370,6 +8368,7 @@ function createEmailListItem(ev) {
   item.dataset.id = ev.id;
   item.innerHTML =
     `<span class="em-item-row em-item-header">` +
+      (isEmailUnseen(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
       (isEmailBooked(ev)
         ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>'
@@ -8444,6 +8443,10 @@ async function loadEmailTab(quiet) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     emailState.allEvents = data.events || [];
+    for (const id of pendingSeenIds) {
+      const ev = emailState.allEvents.find((e) => e.id === id);
+      if (ev && !ev.seenAt) ev.seenAt = new Date().toISOString();
+    }
     emailState.storage = data.storage || 'files';
     emailState.digest = data.digest || null;
     emailState.pushConfigured = !!data.pushConfigured;
@@ -8456,11 +8459,7 @@ async function loadEmailTab(quiet) {
   }
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
-  if (MAP.type === 'email') {
-    markInboxSeenAndClearBadge();
-  } else {
-    syncInboxAppBadge(emailState.allEvents);
-  }
+  syncInboxAppBadge(emailState.allEvents);
 }
 
 function renderEmailFilterTabs() {
@@ -8581,10 +8580,12 @@ function renderEmailSidebar() {
     return loadEmailTab(true);
   });
   sidebar.appendChild(list);
+  bindEmailListSeenObserver(list);
   return sidebar;
 }
 
 function openEmailEvent(id) {
+  queueEmailSeen(id);
   emailState.activeId = id;
   renderEmailPanel();
 }
