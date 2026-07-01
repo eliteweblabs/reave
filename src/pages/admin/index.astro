@@ -1012,9 +1012,19 @@ const { userId } = Astro.locals.auth();
         color: var(--muted);
       }
       .ch-list:has(> .list-empty-state:only-child),
-      .de-list:has(> .list-empty-state:only-child) {
+      .de-list:has(> .list-empty-state:only-child),
+      .ch-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child),
+      .de-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child) {
         display: flex;
         flex-direction: column;
+      }
+      .ch-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child) .ios-ptr-content,
+      .de-list.ios-ptr-host:has(.ios-ptr-content > .list-empty-state:only-child) .ios-ptr-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+        padding-top: 0;
       }
       .list-empty-state {
         flex: 1;
@@ -1834,6 +1844,7 @@ const { userId } = Astro.locals.auth();
       }
       .ch-list {
         flex: 1;
+        min-height: 0;
         min-width: 0;
         overflow-x: hidden;
         overflow-y: auto;
