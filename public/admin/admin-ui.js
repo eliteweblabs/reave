@@ -223,6 +223,112 @@ export function listSearchSubheader(opts = {}) {
   return listSearchAddNew({ ...opts, addNew: false });
 }
 
+const IOS_PTR_THRESHOLD = 70;
+
+/** iOS-style pull-to-refresh on a scroll container (touch only). */
+export function attachIosPullToRefresh(scrollEl, onRefresh) {
+  if (!scrollEl) return;
+
+  const indicator = document.createElement('div');
+  indicator.className = 'ios-ptr';
+  indicator.innerHTML = '<span class="ios-ptr-spinner" aria-hidden="true"></span>';
+  scrollEl.insertBefore(indicator, scrollEl.firstChild);
+
+  const spinner = indicator.querySelector('.ios-ptr-spinner');
+  let startY = 0;
+  let tracking = false;
+  let refreshing = false;
+
+  function pullOffset() {
+    return parseFloat(scrollEl.style.getPropertyValue('--ptr-y')) || 0;
+  }
+
+  function setPull(offset) {
+    const y = Math.max(0, offset);
+    scrollEl.style.setProperty('--ptr-y', `${y}px`);
+    scrollEl.classList.toggle('ios-ptr-active', y > 0 && !refreshing);
+    scrollEl.classList.toggle('ios-ptr-release', y >= IOS_PTR_THRESHOLD && !refreshing);
+    if (spinner) {
+      spinner.style.setProperty('--ptr-rot', `${Math.min(1, y / IOS_PTR_THRESHOLD) * 320}deg`);
+      spinner.style.opacity = String(Math.min(1, y / 36));
+    }
+  }
+
+  function resetPull() {
+    scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release', 'ios-ptr-refreshing');
+    scrollEl.style.removeProperty('--ptr-y');
+    if (spinner) {
+      spinner.style.removeProperty('--ptr-rot');
+      spinner.style.opacity = '';
+    }
+  }
+
+  function finishRefresh() {
+    refreshing = false;
+    resetPull();
+  }
+
+  function startRefresh() {
+    refreshing = true;
+    tracking = false;
+    scrollEl.classList.add('ios-ptr-refreshing');
+    scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release');
+    scrollEl.style.setProperty('--ptr-y', '44px');
+    if (spinner) spinner.style.opacity = '1';
+    Promise.resolve(onRefresh?.()).finally(finishRefresh);
+  }
+
+  scrollEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (refreshing || scrollEl.scrollTop > 1) return;
+      tracking = true;
+      startY = e.touches[0].clientY;
+    },
+    { passive: true },
+  );
+
+  scrollEl.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!tracking || refreshing) return;
+      if (scrollEl.scrollTop > 1) {
+        tracking = false;
+        resetPull();
+        return;
+      }
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0) {
+        setPull(dy * 0.5);
+        if (dy > 8) e.preventDefault();
+      } else {
+        setPull(0);
+      }
+    },
+    { passive: false },
+  );
+
+  scrollEl.addEventListener(
+    'touchend',
+    () => {
+      if (!tracking || refreshing) return;
+      tracking = false;
+      if (pullOffset() >= IOS_PTR_THRESHOLD) startRefresh();
+      else resetPull();
+    },
+    { passive: true },
+  );
+
+  scrollEl.addEventListener(
+    'touchcancel',
+    () => {
+      tracking = false;
+      if (!refreshing) resetPull();
+    },
+    { passive: true },
+  );
+}
+
 /**
  * Detail-pane subheader (.de-header): optional back chevron + title/subtitle/actions.
  */

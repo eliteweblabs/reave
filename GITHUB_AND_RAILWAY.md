@@ -47,7 +47,12 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```sh
   npm run railway:vars
   ```
-  Then merge what you need into `.env` for offline work.
+  Then merge what you need into `.env` for offline work, or run:
+  ```sh
+  railway service reave   # once, if not linked
+  npm run sync:env      # appends missing production keys (DATABASE_URL, FEATURES, …)
+  ```
+  Local dev uses `PUBLIC_BOOKING_API_URL` for Cal.com (not the Railway-private `BOOKING_API_URL`).
 
 ## Other repos on the same Railway project
 

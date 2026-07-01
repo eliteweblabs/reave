@@ -2390,6 +2390,46 @@ const { userId } = Astro.locals.auth();
         background: var(--msg-action-hover);
       }
 
+      /* iOS pull-to-refresh (inbox list) */
+      .ch-list.ios-ptr-active,
+      .ch-list.ios-ptr-refreshing {
+        overscroll-behavior-y: contain;
+      }
+      .ios-ptr {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 0;
+        overflow: visible;
+        pointer-events: none;
+        margin-bottom: calc(-1 * var(--ptr-y, 0px));
+        padding-bottom: var(--ptr-y, 0px);
+        transition: padding-bottom 0.25s ease, margin-bottom 0.25s ease;
+      }
+      .ch-list.ios-ptr-active .ios-ptr {
+        transition: none;
+      }
+      .ch-list.ios-ptr-refreshing .ios-ptr {
+        padding-bottom: 44px;
+        margin-bottom: -44px;
+      }
+      .ios-ptr-spinner {
+        width: 22px;
+        height: 22px;
+        border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+        border-top-color: var(--fg);
+        border-radius: 50%;
+        transform: rotate(var(--ptr-rot, 0deg));
+        opacity: 0;
+      }
+      .ch-list.ios-ptr-refreshing .ios-ptr-spinner {
+        animation: ios-ptr-spin 0.75s linear infinite;
+        opacity: 1;
+      }
+      @keyframes ios-ptr-spin {
+        to { transform: rotate(360deg); }
+      }
+
       /* ── Email tab ── */
       #email-panel {
         position: fixed;
@@ -2745,6 +2785,13 @@ const { userId } = Astro.locals.auth();
       @media (max-width: 639px) {
         #chat-panel { flex-direction: column; }
         #email-panel { flex-direction: column; }
+        #schedule-panel .schedule-sidebar {
+          width: 100%;
+          flex: 1 1 auto;
+          min-height: 0;
+          border-right: none;
+          border-bottom: none;
+        }
         .ch-sidebar {
           width: 100%;
           flex: 1 1 auto;
@@ -3077,6 +3124,7 @@ const { userId } = Astro.locals.auth();
         flex-direction: column;
         width: var(--sidebar-w);
         min-width: 0;
+        min-height: 0;
         flex: 0 0 var(--sidebar-w);
         border-right: 1px solid var(--panel-border);
         padding: calc(var(--topbar-h) + 1rem) 0.85rem var(--footer-scroll-pad);
@@ -3643,6 +3691,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701b"></script>
   </body>
 </html>

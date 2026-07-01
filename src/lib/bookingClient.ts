@@ -54,9 +54,13 @@ type BookingResult<T> =
   | { ok: false; error: string; status?: number };
 
 function bookingBaseUrl(): string | null {
+  const privateUrl = serverEnv('BOOKING_API_URL')?.trim();
+  const publicUrl = serverEnv('PUBLIC_BOOKING_API_URL')?.trim();
+  // Railway private network URLs are unreachable from localhost — prefer public in dev.
   const raw =
-    serverEnv('BOOKING_API_URL')?.trim() ||
-    serverEnv('PUBLIC_BOOKING_API_URL')?.trim();
+    import.meta.env.DEV && publicUrl
+      ? publicUrl
+      : privateUrl || publicUrl;
   if (!raw) return null;
   return raw.replace(/\/+$/, '');
 }

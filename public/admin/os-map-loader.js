@@ -9,7 +9,8 @@ import {
   initSidebarLayout,
   syncAdminSplitView,
   scanPanelSidebars,
-} from './admin-ui.js?v=20250701a';
+  attachIosPullToRefresh,
+} from './admin-ui.js?v=20250701b';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -292,7 +293,6 @@ function setActiveMap(key, opts = {}) {
   syncHealthLifecycle();
   syncEmailPoll();
   syncFooterNav();
-  syncInboxHeaderControls();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
   if (key !== 'chats') clearFooterChatCompose();
@@ -7348,12 +7348,6 @@ function filteredInboxEvents() {
   );
 }
 
-function syncInboxHeaderControls() {
-  const btn = document.getElementById('inbox-refresh-btn');
-  if (!btn) return;
-  btn.hidden = MAP.type !== 'email';
-}
-
 function clearTopbarPanelContext() {
   const slot = document.getElementById('topbar-panel-context');
   const topbar = document.getElementById('topbar');
@@ -7430,15 +7424,6 @@ function syncTopbarPanelContext() {
     return;
   }
   clearTopbarPanelContext();
-}
-
-function initInboxHeaderRefresh() {
-  const btn = document.getElementById('inbox-refresh-btn');
-  if (!btn || btn.dataset.bound) return;
-  btn.dataset.bound = '1';
-  btn.addEventListener('click', () => {
-    if (MAP.type === 'email') loadEmailTab();
-  });
 }
 
 function inboxLastSeenIso() {
@@ -8371,6 +8356,10 @@ function renderEmailSidebar() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   list.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
+  attachIosPullToRefresh(list, () => {
+    if (MAP.type !== 'email') return;
+    return loadEmailTab(true);
+  });
   for (const ev of events) {
     list.appendChild(createEmailSwipeRow(ev));
   }
@@ -8564,7 +8553,6 @@ async function boot() {
   initTopbarMenus();
   initFooterNav();
   initFooterNavScrollCollapse();
-  initInboxHeaderRefresh();
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
@@ -8581,7 +8569,6 @@ async function boot() {
   syncEmailPoll();
   syncInboxBadgePoll();
   syncFooterNav();
-  syncInboxHeaderControls();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
