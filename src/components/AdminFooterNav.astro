@@ -122,63 +122,61 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     display: none !important;
   }
 
-  /* Compose open: one control-field shell wraps home + message (matches sidebar search). */
+  /* Compose open: collapsed nav circle + separate input field. */
   .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
     flex: 1;
     min-width: 0;
-    gap: 0;
-    padding: var(--control-inset);
-    border: 1px solid var(--panel-border);
-    border-radius: var(--radius-pill);
-    background: var(--card);
-    min-height: var(--control-h);
+    gap: 0.45rem;
+    padding: 0;
+    border: none;
+    background: transparent;
+    min-height: 0;
+    align-items: center;
     box-sizing: border-box;
-    transition: border-color 0.12s;
-  }
-
-  .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar:focus-within {
-    border-color: #3b82f6;
   }
 
   .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-pill {
-    background: transparent;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    border: none;
+    flex-shrink: 0;
+    width: var(--footer-nav-pill-h);
+    height: var(--footer-nav-pill-h);
+    background: var(--footer-nav-glass-bg);
+    backdrop-filter: var(--footer-nav-glass-blur);
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur);
+    border: var(--footer-nav-glass-border);
     box-shadow: none;
     gap: 0;
-    flex-shrink: 0;
-    height: auto;
+    overflow: hidden;
   }
 
   .admin-footer-nav.footer-nav-compose-open #footer-nav-home {
-    width: calc(var(--control-h) - var(--control-inset) * 2);
-    height: calc(var(--control-h) - var(--control-inset) * 2);
-    max-width: calc(var(--control-h) - var(--control-inset) * 2);
+    width: var(--footer-nav-pill-h);
+    height: var(--footer-nav-pill-h);
+    max-width: var(--footer-nav-pill-h);
+  }
+
+  .admin-footer-nav.footer-nav-compose-open .footer-nav-btn:not(#footer-nav-home),
+  .admin-footer-nav.footer-nav-compose-open #footer-nav-work {
+    width: 0;
+    max-width: 0;
+    opacity: 0;
+    margin: 0;
+    overflow: hidden;
+    pointer-events: none;
   }
 
   .admin-footer-nav.footer-nav-compose-open .footer-chat-compose {
+    flex: 1 1 auto;
+    min-width: 0;
     padding: 0;
-    border-left: none;
+    border: none;
   }
 
-  /* Mobile: merge home + compose into one compact pill. */
   @media (max-width: 639px) {
     .admin-footer-nav.footer-nav-compose-open .admin-footer-nav-bar {
       width: 100%;
       max-width: min(100%, 720px);
       overflow: visible;
       align-items: center;
-    }
-
-    .admin-footer-nav.footer-nav-compose-open .footer-nav-btn:not(#footer-nav-home),
-    .admin-footer-nav.footer-nav-compose-open #footer-nav-work {
-      width: 0;
-      max-width: 0;
-      opacity: 0;
-      margin: 0;
-      overflow: hidden;
-      pointer-events: none;
     }
   }
 
