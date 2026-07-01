@@ -224,37 +224,49 @@ export function listSearchSubheader(opts = {}) {
 }
 
 const IOS_PTR_THRESHOLD = 70;
+const IOS_PTR_MAX = 120;
 
-/** iOS-style pull-to-refresh on a scroll container (touch only). */
+/** iOS-style pull-to-refresh on a scroll container (touch only). Call after list children exist. */
 export function attachIosPullToRefresh(scrollEl, onRefresh) {
-  if (!scrollEl) return;
+  if (!scrollEl || scrollEl.dataset.ptrBound) return;
+  scrollEl.dataset.ptrBound = '1';
+  scrollEl.classList.add('ios-ptr-host');
+
+  const content = document.createElement('div');
+  content.className = 'ios-ptr-content';
+  while (scrollEl.firstChild) content.appendChild(scrollEl.firstChild);
 
   const indicator = document.createElement('div');
-  indicator.className = 'ios-ptr';
+  indicator.className = 'ios-ptr-indicator';
   indicator.innerHTML = '<span class="ios-ptr-spinner" aria-hidden="true"></span>';
-  scrollEl.insertBefore(indicator, scrollEl.firstChild);
+  content.insertBefore(indicator, content.firstChild);
+  scrollEl.appendChild(content);
 
   const spinner = indicator.querySelector('.ios-ptr-spinner');
+  let startX = 0;
   let startY = 0;
   let tracking = false;
   let refreshing = false;
+  /** @type {'vertical' | 'horizontal' | null} */
+  let axis = null;
 
   function pullOffset() {
     return parseFloat(scrollEl.style.getPropertyValue('--ptr-y')) || 0;
   }
 
   function setPull(offset) {
-    const y = Math.max(0, offset);
+    const y = Math.max(0, Math.min(offset, IOS_PTR_MAX));
     scrollEl.style.setProperty('--ptr-y', `${y}px`);
     scrollEl.classList.toggle('ios-ptr-active', y > 0 && !refreshing);
     scrollEl.classList.toggle('ios-ptr-release', y >= IOS_PTR_THRESHOLD && !refreshing);
     if (spinner) {
       spinner.style.setProperty('--ptr-rot', `${Math.min(1, y / IOS_PTR_THRESHOLD) * 320}deg`);
-      spinner.style.opacity = String(Math.min(1, y / 36));
+      spinner.style.opacity = String(Math.min(1, y / 40));
     }
   }
 
   function resetPull() {
+    axis = null;
     scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release', 'ios-ptr-refreshing');
     scrollEl.style.removeProperty('--ptr-y');
     if (spinner) {
@@ -271,41 +283,61 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   function startRefresh() {
     refreshing = true;
     tracking = false;
+    axis = null;
     scrollEl.classList.add('ios-ptr-refreshing');
     scrollEl.classList.remove('ios-ptr-active', 'ios-ptr-release');
-    scrollEl.style.setProperty('--ptr-y', '44px');
+    setPull(IOS_PTR_THRESHOLD * 0.65);
     if (spinner) spinner.style.opacity = '1';
     Promise.resolve(onRefresh?.()).finally(finishRefresh);
+  }
+
+  function dampedPull(rawDy) {
+    const y = rawDy * 0.52;
+    if (y <= IOS_PTR_MAX) return y;
+    return IOS_PTR_MAX + (y - IOS_PTR_MAX) * 0.15;
   }
 
   scrollEl.addEventListener(
     'touchstart',
     (e) => {
-      if (refreshing || scrollEl.scrollTop > 1) return;
+      if (refreshing || scrollEl.scrollTop > 1 || e.touches.length !== 1) return;
       tracking = true;
+      axis = null;
+      startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 
   scrollEl.addEventListener(
     'touchmove',
     (e) => {
-      if (!tracking || refreshing) return;
+      if (!tracking || refreshing || e.touches.length !== 1) return;
       if (scrollEl.scrollTop > 1) {
         tracking = false;
         resetPull();
         return;
       }
+
+      const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
-      if (dy > 0) {
-        setPull(dy * 0.5);
-        if (dy > 8) e.preventDefault();
-      } else {
-        setPull(0);
+
+      if (axis == null) {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        axis = Math.abs(dy) >= Math.abs(dx) ? 'vertical' : 'horizontal';
+        if (axis === 'horizontal' || dy <= 0) {
+          tracking = false;
+          return;
+        }
       }
+
+      if (axis !== 'vertical' || dy <= 0) return;
+
+      setPull(dampedPull(dy));
+      e.preventDefault();
+      e.stopPropagation();
     },
-    { passive: false },
+    { passive: false, capture: true },
   );
 
   scrollEl.addEventListener(
@@ -313,10 +345,10 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
     () => {
       if (!tracking || refreshing) return;
       tracking = false;
-      if (pullOffset() >= IOS_PTR_THRESHOLD) startRefresh();
+      if (axis === 'vertical' && pullOffset() >= IOS_PTR_THRESHOLD) startRefresh();
       else resetPull();
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 
   scrollEl.addEventListener(
@@ -325,7 +357,7 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
       tracking = false;
       if (!refreshing) resetPull();
     },
-    { passive: true },
+    { passive: true, capture: true },
   );
 }
 

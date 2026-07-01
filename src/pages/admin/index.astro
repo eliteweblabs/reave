@@ -2391,31 +2391,31 @@ const { userId } = Astro.locals.auth();
       }
 
       /* iOS pull-to-refresh (inbox list) */
-      .ch-list.ios-ptr-active,
-      .ch-list.ios-ptr-refreshing {
+      .ch-list.ios-ptr-host {
+        position: relative;
         overscroll-behavior-y: contain;
       }
-      .ios-ptr {
-        display: flex;
-        justify-content: center;
-        align-items: center;
+      .ios-ptr-content {
+        transform: translate3d(0, var(--ptr-y, 0), 0);
+        will-change: transform;
+      }
+      .ch-list.ios-ptr-host:not(.ios-ptr-active):not(.ios-ptr-refreshing) .ios-ptr-content {
+        transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .ios-ptr-indicator {
+        position: relative;
         height: 0;
         overflow: visible;
         pointer-events: none;
-        margin-bottom: calc(-1 * var(--ptr-y, 0px));
-        padding-bottom: var(--ptr-y, 0px);
-        transition: padding-bottom 0.25s ease, margin-bottom 0.25s ease;
-      }
-      .ch-list.ios-ptr-active .ios-ptr {
-        transition: none;
-      }
-      .ch-list.ios-ptr-refreshing .ios-ptr {
-        padding-bottom: 44px;
-        margin-bottom: -44px;
+        z-index: 2;
       }
       .ios-ptr-spinner {
+        position: absolute;
+        top: 10px;
+        left: 50%;
         width: 22px;
         height: 22px;
+        margin-left: -11px;
         border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
         border-top-color: var(--fg);
         border-radius: 50%;
@@ -3691,6 +3691,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701c"></script>
   </body>
 </html>

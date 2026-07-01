@@ -10,7 +10,7 @@ import {
   syncAdminSplitView,
   scanPanelSidebars,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20250701b';
+} from './admin-ui.js?v=20250701c';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -7637,6 +7637,7 @@ function createSwipeRow(contentEl, actions) {
 
 function attachSwipeRow(row, contentEl, revealPx) {
   let startX = 0;
+  let swipeStartY = 0;
   let baseX = 0;
   let dragging = false;
   let moved = false;
@@ -7665,9 +7666,10 @@ function attachSwipeRow(row, contentEl, revealPx) {
     }
   }
 
-  function onStart(clientX) {
+  function onStart(clientX, clientY) {
     if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
     startX = clientX;
+    swipeStartY = clientY ?? swipeStartY;
     baseX = open ? -revealPx : 0;
     dragging = true;
     moved = false;
@@ -7675,9 +7677,17 @@ function attachSwipeRow(row, contentEl, revealPx) {
     contentEl.style.transition = 'none';
   }
 
-  function onMove(clientX, prevent) {
+  function onMove(clientX, clientY, prevent) {
     if (!dragging) return;
     const dx = clientX - startX;
+    const dy = clientY != null ? clientY - swipeStartY : 0;
+    const listEl = row.closest('.ch-list');
+    if (listEl && listEl.scrollTop <= 1 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
+      dragging = false;
+      row.classList.remove('swipe-dragging');
+      setTranslate(open ? -revealPx : 0, false);
+      return;
+    }
     if (Math.abs(dx) > 6) moved = true;
     let next = baseX + dx;
     next = Math.min(0, Math.max(-revealPx, next));
@@ -7697,13 +7707,13 @@ function attachSwipeRow(row, contentEl, revealPx) {
     'touchstart',
     (e) => {
       if (e.touches.length !== 1) return;
-      onStart(e.touches[0].clientX);
+      onStart(e.touches[0].clientX, e.touches[0].clientY);
     },
     { passive: true },
   );
   contentEl.addEventListener(
     'touchmove',
-    (e) => onMove(e.touches[0].clientX, () => e.preventDefault()),
+    (e) => onMove(e.touches[0].clientX, e.touches[0].clientY, () => e.preventDefault()),
     { passive: false },
   );
   contentEl.addEventListener('touchend', onEnd);
@@ -7711,7 +7721,7 @@ function attachSwipeRow(row, contentEl, revealPx) {
 
   contentEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    onStart(e.clientX);
+    onStart(e.clientX, e.clientY);
     const onMouseMove = (ev) => onMove(ev.clientX, null);
     const onMouseUp = () => {
       document.removeEventListener('mousemove', onMouseMove);
@@ -8356,10 +8366,6 @@ function renderEmailSidebar() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   list.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
-  attachIosPullToRefresh(list, () => {
-    if (MAP.type !== 'email') return;
-    return loadEmailTab(true);
-  });
   for (const ev of events) {
     list.appendChild(createEmailSwipeRow(ev));
   }
@@ -8383,6 +8389,10 @@ function renderEmailSidebar() {
     }
     list.appendChild(createCenteredListEmpty({ innerHtml: emptyBody }));
   }
+  attachIosPullToRefresh(list, () => {
+    if (MAP.type !== 'email') return;
+    return loadEmailTab(true);
+  });
   sidebar.appendChild(list);
   return sidebar;
 }
