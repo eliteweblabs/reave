@@ -6047,29 +6047,6 @@ function renderScheduleCalendarBody(parent) {
   }
 }
 
-function renderScheduleQuickLinks() {
-  const wrap = document.createElement('div');
-  wrap.className = 'schedule-quick-links';
-
-  const formLink = document.createElement('a');
-  formLink.href = scheduleState.meta.bookingFormUrl || '/form/schedule';
-  formLink.target = '_blank';
-  formLink.rel = 'noopener';
-  formLink.textContent = 'Public booking form';
-  wrap.appendChild(formLink);
-
-  if (scheduleState.meta.publicBookingUrl) {
-    const pubLink = document.createElement('a');
-    pubLink.href = scheduleState.meta.publicBookingUrl;
-    pubLink.target = '_blank';
-    pubLink.rel = 'noopener';
-    pubLink.textContent = 'Direct booking page';
-    wrap.appendChild(pubLink);
-  }
-
-  return wrap;
-}
-
 function renderSchedulePanel() {
   const root = getSchedulePanel();
   if (!root) return;
@@ -6086,7 +6063,6 @@ function renderSchedulePanel() {
   pickerWrap.className = 'cal-view-picker';
   pickerWrap.appendChild(renderScheduleViewPicker());
   sidebar.appendChild(pickerWrap);
-  sidebar.appendChild(renderScheduleQuickLinks());
 
   const body = document.createElement('div');
   body.className = 'cal-body';
