@@ -7123,6 +7123,10 @@ function renderChatPanel() {
   input.addEventListener('input', syncSendState);
 
   renderChatMessages(messagesEl, input);
+
+  if (isMobileTabs()) {
+    pane.appendChild(buildChatPaneHeader());
+  }
   pane.appendChild(messagesEl);
 
   async function doSend() {
@@ -7555,6 +7559,46 @@ function shouldShowChatTopbarTitle(title) {
   return t.length > 0 && t !== 'New chat';
 }
 
+function closeActiveChat() {
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  chatState.activeId = null;
+  getChatPanel()?.classList.remove('ch-pane-active');
+  clearFooterChatCompose();
+  renderChatPanel();
+}
+
+function chatTranscriptText() {
+  return chatState.messages
+    .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`)
+    .join('\n\n');
+}
+
+function buildChatPaneHeader() {
+  const header = document.createElement('div');
+  header.className = 'de-header ch-pane-header';
+
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to chats',
+    onClick: () => closeActiveChat(),
+  }));
+
+  const titleEl = document.createElement('span');
+  titleEl.className = 'de-doc-name';
+  titleEl.textContent = (chatState.title || '').trim() || 'New chat';
+  header.appendChild(titleEl);
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'trash',
+    label: 'Delete chat',
+    className: 'ios-icon-btn ch-delete-btn',
+    onClick: () => deleteChat(chatState.activeId, chatState.title),
+  }));
+  header.appendChild(headerActions);
+  return header;
+}
+
 function syncChatTopbarContext() {
   const slot = document.getElementById('topbar-panel-context');
   const topbar = document.getElementById('topbar');
@@ -7563,23 +7607,16 @@ function syncChatTopbarContext() {
     return;
   }
 
+  if (isMobileTabs()) {
+    clearTopbarPanelContext();
+    return;
+  }
+
   slot.innerHTML = '';
   slot.hidden = false;
   topbar.classList.add('topbar-has-panel-context');
 
-  const chatTranscript = () =>
-    chatState.messages.map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${chatMsgPlainText(m.content)}`).join('\n\n');
-
-  if (isMobileTabs()) {
-    slot.appendChild(createPanelBackBtn({
-      label: 'Back to chats',
-      onClick: () => {
-        chatState.activeId = null;
-        getChatPanel()?.classList.remove('ch-pane-active');
-        renderChatPanel();
-      },
-    }));
-  }
+  const transcript = chatTranscriptText();
 
   if (shouldShowChatTopbarTitle(chatState.title)) {
     slot.appendChild(createHeaderChatTitle(chatState.title));
@@ -7602,13 +7639,13 @@ function syncChatTopbarContext() {
     iconKey: 'copy',
     label: 'Copy entire conversation',
     className: 'ios-icon-btn ch-copy-chat-btn',
-    onClick: (btn) => copyChatText(chatTranscript(), btn),
+    onClick: (btn) => copyChatText(transcript, btn),
   }));
   actions.appendChild(createIosIconBtn({
     iconKey: 'share',
     label: 'Share entire conversation',
     className: 'ios-icon-btn ch-share-chat-btn',
-    onClick: (btn) => shareChatText(chatTranscript(), 'assistant', btn),
+    onClick: (btn) => shareChatText(transcript, 'assistant', btn),
   }));
   actions.appendChild(createIosIconBtn({
     iconKey: 'trash',

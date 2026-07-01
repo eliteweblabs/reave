@@ -3087,6 +3087,10 @@ const { userId } = Astro.locals.auth();
         .ch-pane { display: none; }
         #chat-panel.ch-pane-active .ch-sidebar { display: none; }
         #chat-panel.ch-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
+        #chat-panel.ch-pane-active .ch-pane-header {
+          flex-shrink: 0;
+          background: var(--bg);
+        }
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
         .ch-messages { padding: 0.75rem 0.85rem var(--footer-scroll-pad); }
