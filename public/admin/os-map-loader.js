@@ -448,8 +448,7 @@ function updateChecked() {
   el.dataset.tooltip = `Health checked at ${lastChecked.toLocaleTimeString()}`;
 }
 
-// ---- agent model picker (System / Chats) ----
-const MODEL_TABS = new Set(['system', 'chats']);
+// ---- agent model picker (System tab legacy select; chats use pane subheader) ----
 const MODEL_NODE_IDS = ['anthropic', 'tc_claude', 'tc_svc_anthropic'];
 
 let agentModelState = {
@@ -494,7 +493,8 @@ function modelSelectEl() {
 function syncModelSelectorVisibility() {
   const el = modelSelectEl();
   if (!el) return;
-  el.style.display = MODEL_TABS.has(activeKey) ? '' : 'none';
+  // Chats use the model switcher in the pane subheader, not the legacy topbar select.
+  el.style.display = activeKey === 'system' ? '' : 'none';
 }
 
 function modelBaseLabel(opt) {
@@ -531,7 +531,10 @@ function renderModelSelectOptions() {
     : balTitle
       ? `${balTitle} — chat and dashboard agent`
       : `Claude model (${agentModelState.source}) — chat and dashboard agent`;
-  if (activeKey === 'chats' && chatState?.activeId) syncTopbarPanelContext();
+  const paneModelSel = document.querySelector(
+    '#chat-panel .ch-pane-header .ch-model-switcher-select',
+  );
+  if (paneModelSel) populateModelSelectOptions(paneModelSel);
 }
 
 function populateModelSelectOptions(sel) {
@@ -7403,9 +7406,8 @@ function renderChatPanel() {
 
   renderChatMessages(messagesEl, input);
 
-  if (isMobileTabs()) {
-    pane.appendChild(buildChatPaneHeader());
-  }
+  if (chatHasConversation()) pane.appendChild(buildChatPaneHeader());
+  else if (isMobileTabs()) pane.appendChild(buildChatPaneNavHeader());
   pane.appendChild(messagesEl);
 
   async function doSend() {
@@ -7860,6 +7862,20 @@ function chatTranscriptText() {
     .join('\n\n');
 }
 
+function chatHasConversation() {
+  return chatState.messages.length > 0 || chatState.sending;
+}
+
+function buildChatPaneNavHeader() {
+  const header = document.createElement('div');
+  header.className = 'de-header ch-pane-header ch-pane-header--nav-only';
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to chats',
+    onClick: () => closeActiveChat(),
+  }));
+  return header;
+}
+
 function buildChatPaneHeader() {
   const header = document.createElement('div');
   header.className = 'de-header ch-pane-header';
@@ -7869,13 +7885,43 @@ function buildChatPaneHeader() {
     onClick: () => closeActiveChat(),
   }));
 
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = (chatState.title || '').trim() || 'New chat';
-  header.appendChild(titleEl);
+  const main = document.createElement('div');
+  main.className = 'ch-pane-header-main';
 
+  if (shouldShowChatTopbarTitle(chatState.title)) {
+    const titleEl = document.createElement('span');
+    titleEl.className = 'de-doc-name';
+    titleEl.textContent = chatState.title.trim();
+    main.appendChild(titleEl);
+  }
+
+  if (chatState.linkedJobs?.length) {
+    const links = document.createElement('div');
+    links.className = 'ch-pane-project-links';
+    for (const job of chatState.linkedJobs) {
+      links.appendChild(createProjectLinkChip(job.title || job.slug, () => navigateToWork(job.slug)));
+    }
+    main.appendChild(links);
+  }
+
+  header.appendChild(main);
+  header.appendChild(createChatModelSwitcher());
+
+  const transcript = chatTranscriptText();
   const headerActions = document.createElement('div');
   headerActions.className = 'de-header-actions';
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'copy',
+    label: 'Copy entire conversation',
+    className: 'ios-icon-btn ch-copy-chat-btn',
+    onClick: (btn) => copyChatText(transcript, btn),
+  }));
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'share',
+    label: 'Share entire conversation',
+    className: 'ios-icon-btn ch-share-chat-btn',
+    onClick: (btn) => shareChatText(transcript, 'assistant', btn),
+  }));
   headerActions.appendChild(createIosIconBtn({
     iconKey: 'trash',
     label: 'Delete chat',
@@ -7886,70 +7932,7 @@ function buildChatPaneHeader() {
   return header;
 }
 
-function syncChatTopbarContext() {
-  const slot = document.getElementById('topbar-panel-context');
-  const topbar = document.getElementById('topbar');
-  if (!slot || !topbar || !chatState.activeId) {
-    clearTopbarPanelContext();
-    return;
-  }
-
-  if (isMobileTabs()) {
-    clearTopbarPanelContext();
-    return;
-  }
-
-  slot.innerHTML = '';
-  slot.hidden = false;
-  topbar.classList.add('topbar-has-panel-context');
-
-  const transcript = chatTranscriptText();
-
-  if (shouldShowChatTopbarTitle(chatState.title)) {
-    slot.appendChild(createHeaderChatTitle(chatState.title));
-  }
-
-  if (chatState.linkedJobs?.length) {
-    const links = document.createElement('div');
-    links.className = 'topbar-project-links';
-    for (const job of chatState.linkedJobs) {
-      links.appendChild(createProjectLinkChip(job.title || job.slug, () => navigateToWork(job.slug)));
-    }
-    slot.appendChild(links);
-  }
-
-  slot.appendChild(createChatModelSwitcher());
-
-  const end = document.querySelector('.topbar-end');
-  end?.querySelector('.topbar-panel-actions')?.remove();
-  const actions = document.createElement('div');
-  actions.className = 'topbar-panel-actions';
-  actions.appendChild(createIosIconBtn({
-    iconKey: 'copy',
-    label: 'Copy entire conversation',
-    className: 'ios-icon-btn ch-copy-chat-btn',
-    onClick: (btn) => copyChatText(transcript, btn),
-  }));
-  actions.appendChild(createIosIconBtn({
-    iconKey: 'share',
-    label: 'Share entire conversation',
-    className: 'ios-icon-btn ch-share-chat-btn',
-    onClick: (btn) => shareChatText(transcript, 'assistant', btn),
-  }));
-  actions.appendChild(createIosIconBtn({
-    iconKey: 'trash',
-    label: 'Delete chat',
-    className: 'ios-icon-btn ch-delete-btn',
-    onClick: () => deleteChat(chatState.activeId, chatState.title),
-  }));
-  end?.insertBefore(actions, end.firstChild);
-}
-
 function syncTopbarPanelContext() {
-  if (activeKey === 'chats' && chatState.activeId) {
-    syncChatTopbarContext();
-    return;
-  }
   clearTopbarPanelContext();
 }
 

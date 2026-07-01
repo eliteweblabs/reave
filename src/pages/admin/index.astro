@@ -2126,6 +2126,28 @@ const { userId } = Astro.locals.auth();
         overflow: hidden;
         min-width: 0;
       }
+      .ch-pane-header {
+        flex-shrink: 0;
+        background: var(--bg);
+      }
+      .ch-pane-header-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .ch-pane-project-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.25rem;
+      }
+      .ch-pane-header .ch-model-switcher {
+        flex-shrink: 0;
+      }
+      .ch-pane-header--nav-only {
+        border-bottom: 1px solid var(--panel-border);
+      }
       .ch-messages {
         flex: 1;
         overflow-x: hidden;
