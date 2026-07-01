@@ -7823,6 +7823,7 @@ function filteredInboxEvents() {
 function clearTopbarPanelContext() {
   const slot = document.getElementById('topbar-panel-context');
   const topbar = document.getElementById('topbar');
+  document.querySelector('.topbar-end .topbar-panel-actions')?.remove();
   if (slot) {
     slot.innerHTML = '';
     slot.hidden = true;
@@ -7909,6 +7910,8 @@ function syncChatTopbarContext() {
 
   slot.appendChild(createChatModelSwitcher());
 
+  const end = document.querySelector('.topbar-end');
+  end?.querySelector('.topbar-panel-actions')?.remove();
   const actions = document.createElement('div');
   actions.className = 'topbar-panel-actions';
   actions.appendChild(createIosIconBtn({
@@ -7929,7 +7932,7 @@ function syncChatTopbarContext() {
     className: 'ios-icon-btn ch-delete-btn',
     onClick: () => deleteChat(chatState.activeId, chatState.title),
   }));
-  slot.appendChild(actions);
+  end?.insertBefore(actions, end.firstChild);
 }
 
 function syncTopbarPanelContext() {

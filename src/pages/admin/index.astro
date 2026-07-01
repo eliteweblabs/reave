@@ -1862,7 +1862,9 @@ const { userId } = Astro.locals.auth();
         display: flex;
         flex-direction: column;
         align-items: flex-start;
+        justify-content: flex-start;
         gap: 0.45rem;
+        aspect-ratio: 1;
         min-width: 0;
         width: 100%;
         padding: 0.65rem 0.75rem;
@@ -1874,6 +1876,7 @@ const { userId } = Astro.locals.auth();
         cursor: pointer;
         font: inherit;
         transition: background 0.12s, border-color 0.12s;
+        box-sizing: border-box;
       }
       .cl-job-card:hover {
         background: var(--surface-hover);
@@ -1895,30 +1898,45 @@ const { userId } = Astro.locals.auth();
         align-items: center;
         gap: 0.28rem 0.4rem;
         width: 100%;
+        margin-top: auto;
+        padding-top: 0.15rem;
       }
       .cl-job-card-meta .wk-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.125rem;
+        line-height: 1;
         font-size: 0.62rem;
         font-weight: 700;
         letter-spacing: 0.03em;
         text-transform: uppercase;
-        padding: 0.12rem 0.38rem;
+        padding: 0 0.38rem;
+        box-sizing: border-box;
       }
       .cl-job-card-date,
       .cl-job-card-due,
       .cl-job-card-value,
       .cl-job-card-source {
         font-size: 0.68rem;
+        line-height: 1.125rem;
         color: var(--muted);
       }
       .cl-job-card-priority {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 1.125rem;
+        line-height: 1;
         font-size: 0.62rem;
         font-weight: 600;
         letter-spacing: 0.02em;
         text-transform: uppercase;
-        padding: 0.1rem 0.34rem;
+        padding: 0 0.34rem;
         border-radius: var(--radius-input);
         color: var(--muted);
         background: rgba(139, 151, 168, 0.12);
+        box-sizing: border-box;
       }
       .cl-job-card-priority--high {
         color: #fbbf24;
