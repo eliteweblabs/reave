@@ -13,6 +13,16 @@ export default defineConfig({
     host: true,
   },
   vite: {
+    optimizeDeps: {
+      // Pre-bundle Three.js + postprocessing so dep cache stays stable across restarts.
+      include: [
+        'three',
+        'three/examples/jsm/postprocessing/EffectComposer.js',
+        'three/examples/jsm/postprocessing/RenderPass.js',
+        'three/examples/jsm/postprocessing/ShaderPass.js',
+        'three/examples/jsm/postprocessing/UnrealBloomPass.js',
+      ],
+    },
     server: {
       watch: {
         ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
