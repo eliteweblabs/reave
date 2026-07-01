@@ -372,6 +372,12 @@ export function attachIosPullToRefresh(scrollEl, onRefresh) {
   );
 }
 
+/** Scroll list body used by pull-to-refresh (content wrapper if present). */
+export function pullRefreshContentRoot(scrollEl) {
+  if (!scrollEl) return scrollEl;
+  return scrollEl.querySelector(':scope > .ios-ptr-content') || scrollEl;
+}
+
 /**
  * Detail-pane subheader (.de-header): optional back chevron + title/subtitle/actions.
  */

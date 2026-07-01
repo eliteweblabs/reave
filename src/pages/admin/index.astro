@@ -2390,22 +2390,28 @@ const { userId } = Astro.locals.auth();
         background: var(--msg-action-hover);
       }
 
-      /* iOS pull-to-refresh (inbox list) */
+      /* iOS pull-to-refresh (sidebar lists) */
       .ch-list.ios-ptr-host {
         position: relative;
         overscroll-behavior-y: contain;
+        padding-top: 0;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-bottom: var(--footer-scroll-pad);
+      }
+      .ch-list.ios-ptr-host .ios-ptr-content {
+        padding-top: 0.5rem;
       }
       .ios-ptr-indicator {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 5;
+        z-index: 0;
         height: var(--ptr-y, 0);
         display: flex;
-        align-items: flex-end;
+        align-items: center;
         justify-content: center;
-        padding-bottom: 10px;
         pointer-events: none;
         overflow: visible;
       }
@@ -3700,6 +3706,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701e"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701f"></script>
   </body>
 </html>

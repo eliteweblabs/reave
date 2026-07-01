@@ -10,7 +10,8 @@ import {
   syncAdminSplitView,
   scanPanelSidebars,
   attachIosPullToRefresh,
-} from './admin-ui.js?v=20250701e';
+  pullRefreshContentRoot,
+} from './admin-ui.js?v=20250701f';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -6831,16 +6832,26 @@ function visibleChatThreads() {
 }
 
 function fillChatSidebarList(list) {
+  const target = pullRefreshContentRoot(list);
   const visibleThreads = visibleChatThreads();
-  list.innerHTML = '';
+  target.innerHTML = '';
   for (const t of visibleThreads) {
-    list.appendChild(createChatSwipeRow(t));
+    target.appendChild(createChatSwipeRow(t));
   }
   if (visibleThreads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
     empty.textContent = chatState.search.trim() ? 'No matches.' : 'No chats yet.';
-    list.appendChild(empty);
+    target.appendChild(empty);
+  }
+}
+
+async function refreshChatsListQuiet() {
+  try {
+    chatState.threads = await fetchChatThreads();
+    refreshChatSidebarList();
+  } catch {
+    /* keep current list on refresh failure */
   }
 }
 
@@ -6880,6 +6891,10 @@ function renderChatSidebar() {
   list.className = 'ch-list';
   bindSwipeListScroll(list);
   fillChatSidebarList(list);
+  attachIosPullToRefresh(list, () => {
+    if (MAP.type !== 'chats') return;
+    return refreshChatsListQuiet();
+  });
   sidebar.appendChild(list);
   return sidebar;
 }
