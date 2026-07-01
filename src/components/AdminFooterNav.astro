@@ -141,6 +141,39 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     .admin-footer-nav.footer-nav-collapsed #footer-nav-work .footer-nav-badge {
       display: none !important;
     }
+
+    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed {
+      left: auto;
+      right: max(0.5rem, env(safe-area-inset-right, 0px));
+      width: auto;
+      padding-bottom: calc(var(--ch-compose-gap) + env(safe-area-inset-bottom, 0px));
+      padding-left: 0;
+      justify-content: flex-end;
+      align-items: flex-end;
+    }
+
+    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-bar {
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
+      height: var(--ch-inline-home-w, 2.25rem);
+    }
+
+    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+      width: var(--ch-inline-home-w, 2.25rem);
+      max-width: var(--ch-inline-home-w, 2.25rem);
+      height: var(--ch-inline-home-w, 2.25rem);
+      border: 1px solid var(--panel-border);
+      background: var(--card);
+      box-shadow: var(--shadow-lg);
+    }
+
+    body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed #footer-nav-home svg {
+      width: 17px;
+      height: 17px;
+    }
   }
 
   .admin-footer-nav-pill {

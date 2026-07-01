@@ -2187,6 +2187,7 @@ function collapseFooterNav() {
   renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterWorkNav();
+  syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2199,6 +2200,7 @@ function expandFooterNav() {
   renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterWorkNav();
+  syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2479,8 +2481,18 @@ function scheduleFooterNavIndicatorSync() {
   window.setTimeout(syncFooterNavIndicator, 340);
 }
 
+function syncFooterChatInlineHome() {
+  const use =
+    isMobileTabs() &&
+    footerNavCollapsed &&
+    activeKey === 'chats' &&
+    Boolean(chatState.activeId);
+  document.body.classList.toggle('footer-chat-inline-home', use);
+}
+
 function syncFooterNav() {
   syncEditorFooterSaveState();
+  syncFooterChatInlineHome();
   const activeNav = footerNavActiveKey();
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
@@ -7172,6 +7184,7 @@ function renderChatPanel() {
     pane.appendChild(ph);
     root.appendChild(pane);
     clearTopbarPanelContext();
+    syncFooterChatInlineHome();
     return;
   }
 
@@ -7378,6 +7391,7 @@ function renderChatPanel() {
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
   syncTopbarPanelContext();
+  syncFooterChatInlineHome();
   syncSendState();
   if (chatState.pendingDraft) {
     input.value = chatState.pendingDraft;

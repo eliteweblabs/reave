@@ -99,6 +99,8 @@ const { userId } = Astro.locals.auth();
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
         --ch-compose-gap: 0.35rem;
         --ch-compose-h: 3.25rem;
+        --ch-inline-home-w: 2.25rem;
+        --ch-inline-home-gap: 0.4rem;
         --footer-chat-stack: calc(var(--footer-nav-h) + var(--ch-compose-gap) + var(--ch-compose-h));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
         --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
@@ -3201,6 +3203,25 @@ const { userId } = Astro.locals.auth();
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
         .ch-messages { padding: 0.75rem 0.85rem var(--footer-scroll-pad); }
+
+        /* Collapsed footer: home sits on the same row as chat input (right, small). */
+        body.footer-chat-inline-home #chat-panel .ch-compose {
+          bottom: calc(var(--ch-compose-gap) + env(safe-area-inset-bottom, 0px));
+          right: calc(
+            var(--ch-inline-home-w) + var(--ch-inline-home-gap) +
+            max(0.5rem, env(safe-area-inset-right, 0px))
+          );
+        }
+        body.footer-chat-inline-home #chat-panel .ch-compose-main,
+        body.footer-chat-inline-home #chat-panel .ch-attachments {
+          max-width: none;
+          margin: 0;
+        }
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages {
+          padding-bottom: calc(
+            var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
+          );
+        }
       }
 
       /* App dialog (replaces system alert/confirm on mobile) */
