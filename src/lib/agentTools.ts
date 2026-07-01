@@ -23,6 +23,20 @@ import {
   type WorkPriority,
   type WorkStatus,
 } from './workStore';
+import {
+  isTodoDbConfigured,
+  normalizeTodoPriority,
+  normalizeTodoStatus,
+  storeCreateTodo,
+  storeDeleteTodo,
+  storeListTodos,
+  storeMarkTodoDone,
+  storeUpdateTodo,
+  TODO_PRIORITIES,
+  TODO_STATUSES,
+  type TodoPriority,
+  type TodoStatus,
+} from './todoStore';
 import { getContactDeleteBlockers, executeContactDelete } from './contactDeleteGuard';
 import {
   isContactApiConfigured,
@@ -234,7 +248,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'create_work',
         description:
-          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job. When called from chat, the current thread is linked automatically — no separate link_to_work needed.',
+          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job — not for personal to-do items (use create_todo instead). When called from chat, the current thread is linked automatically — no separate link_to_work needed.',
         parameters: {
           type: 'object',
           properties: {
@@ -932,6 +946,130 @@ export function buildTools(): AgentToolDef[] {
       },
     },
   );
+
+  if (isTodoDbConfigured()) {
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'list_todos',
+          description:
+            'List personal to-do items (not client jobs). Use for the user\'s own task list — open items, due dates, priorities. Do not use list_work for personal tasks.',
+          parameters: {
+            type: 'object',
+            properties: {
+              status: {
+                type: 'string',
+                enum: [...TODO_STATUSES],
+                description: 'Optional filter — open or done',
+              },
+              priority: {
+                type: 'string',
+                enum: [...TODO_PRIORITIES],
+                description: 'Optional priority filter',
+              },
+              due_before: {
+                type: 'string',
+                description: 'Optional — only items due on or before this date (YYYY-MM-DD)',
+              },
+              due_after: {
+                type: 'string',
+                description: 'Optional — only items due on or after this date (YYYY-MM-DD)',
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'create_todo',
+          description:
+            'Add a personal to-do item (not a client job). Use when the user asks to add something to their to-do list and it is not tied to a client/project. Never use create_work for personal tasks.',
+          parameters: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Task title' },
+              due_date: {
+                type: 'string',
+                description: 'Optional deadline (YYYY-MM-DD)',
+              },
+              priority: {
+                type: 'string',
+                enum: [...TODO_PRIORITIES],
+                description: 'Defaults to normal',
+              },
+            },
+            required: ['title'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'update_todo',
+          description:
+            'Update a personal to-do by id (title, due date, priority, or status). Use list_todos first if you need the id.',
+          parameters: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', description: 'To-do id from list_todos' },
+              title: { type: 'string', description: 'New title' },
+              due_date: {
+                type: 'string',
+                description: 'New deadline (YYYY-MM-DD), or empty string to clear',
+              },
+              priority: {
+                type: 'string',
+                enum: [...TODO_PRIORITIES],
+                description: 'New priority',
+              },
+              status: {
+                type: 'string',
+                enum: [...TODO_STATUSES],
+                description: 'open or done',
+              },
+            },
+            required: ['id'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'mark_todo_done',
+          description: 'Mark a personal to-do item as done by id.',
+          parameters: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', description: 'To-do id from list_todos' },
+            },
+            required: ['id'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'delete_todo',
+          description:
+            'Permanently delete a personal to-do by id. Use only when the user explicitly asks to remove a to-do.',
+          parameters: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', description: 'To-do id from list_todos' },
+            },
+            required: ['id'],
+            additionalProperties: false,
+          },
+        },
+      },
+    );
+  }
 
   if (isContactApiConfigured()) {
     base.push({
@@ -1874,6 +2012,121 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         return JSON.stringify({ error: 'not found', known });
       }
       return JSON.stringify({ ok: true, slug, deleted: true });
+    }
+    if (name === 'list_todos') {
+      if (!isTodoDbConfigured()) {
+        return JSON.stringify({
+          error: 'To-do list is not available — DATABASE_URL is not configured.',
+        });
+      }
+      const statusRaw = String(args.status ?? '').trim().toLowerCase();
+      const priorityRaw = String(args.priority ?? '').trim().toLowerCase();
+      const status = normalizeTodoStatus(statusRaw);
+      const priority = normalizeTodoPriority(priorityRaw);
+      if (statusRaw && !status) return JSON.stringify({ error: 'invalid status' });
+      if (priorityRaw && !priority) return JSON.stringify({ error: 'invalid priority' });
+      const todos = await storeListTodos({
+        status,
+        priority,
+        due_before: typeof args.due_before === 'string' ? args.due_before.trim() : undefined,
+        due_after: typeof args.due_after === 'string' ? args.due_after.trim() : undefined,
+      });
+      return JSON.stringify({ todos, count: todos.length });
+    }
+    if (name === 'create_todo') {
+      if (!isTodoDbConfigured()) {
+        return JSON.stringify({
+          error: 'To-do list is not available — DATABASE_URL is not configured.',
+        });
+      }
+      const title = String(args.title ?? '').trim();
+      if (!title) return JSON.stringify({ error: 'title is required' });
+      const priorityRaw = String(args.priority ?? '').trim().toLowerCase();
+      const priority = priorityRaw
+        ? normalizeTodoPriority(priorityRaw)
+        : ('normal' as TodoPriority);
+      if (priorityRaw && !priority) return JSON.stringify({ error: 'invalid priority' });
+      const dueRaw = args.due_date;
+      const due_date =
+        dueRaw == null || dueRaw === '' ? null : String(dueRaw).trim();
+      const result = await storeCreateTodo({ title, due_date, priority });
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ok: true, ...result.todo });
+    }
+    if (name === 'update_todo') {
+      if (!isTodoDbConfigured()) {
+        return JSON.stringify({
+          error: 'To-do list is not available — DATABASE_URL is not configured.',
+        });
+      }
+      const id = Number(args.id);
+      if (!Number.isInteger(id) || id < 1) return JSON.stringify({ error: 'invalid id' });
+      const patch: {
+        title?: string;
+        due_date?: string | null;
+        priority?: TodoPriority;
+        status?: TodoStatus;
+      } = {};
+      if (args.title != null) patch.title = String(args.title).trim();
+      if (args.due_date !== undefined) {
+        patch.due_date =
+          args.due_date == null || args.due_date === '' ? null : String(args.due_date).trim();
+      }
+      if (args.priority != null) {
+        const priority = normalizeTodoPriority(args.priority);
+        if (!priority) return JSON.stringify({ error: 'invalid priority' });
+        patch.priority = priority;
+      }
+      if (args.status != null) {
+        const status = normalizeTodoStatus(args.status);
+        if (!status) return JSON.stringify({ error: 'invalid status' });
+        patch.status = status;
+      }
+      const result = await storeUpdateTodo(id, patch);
+      if (!result.ok) {
+        if (result.error === 'Not found') {
+          const known = (await storeListTodos()).map((t) => t.id);
+          return JSON.stringify({ error: 'not found', known_ids: known });
+        }
+        return JSON.stringify({ error: result.error });
+      }
+      return JSON.stringify({ ok: true, ...result.todo });
+    }
+    if (name === 'mark_todo_done') {
+      if (!isTodoDbConfigured()) {
+        return JSON.stringify({
+          error: 'To-do list is not available — DATABASE_URL is not configured.',
+        });
+      }
+      const id = Number(args.id);
+      if (!Number.isInteger(id) || id < 1) return JSON.stringify({ error: 'invalid id' });
+      const result = await storeMarkTodoDone(id);
+      if (!result.ok) {
+        if (result.error === 'Not found') {
+          const known = (await storeListTodos()).map((t) => t.id);
+          return JSON.stringify({ error: 'not found', known_ids: known });
+        }
+        return JSON.stringify({ error: result.error });
+      }
+      return JSON.stringify({ ok: true, ...result.todo });
+    }
+    if (name === 'delete_todo') {
+      if (!isTodoDbConfigured()) {
+        return JSON.stringify({
+          error: 'To-do list is not available — DATABASE_URL is not configured.',
+        });
+      }
+      const id = Number(args.id);
+      if (!Number.isInteger(id) || id < 1) return JSON.stringify({ error: 'invalid id' });
+      const result = await storeDeleteTodo(id);
+      if (!result.ok) {
+        if (result.error === 'Not found') {
+          const known = (await storeListTodos()).map((t) => t.id);
+          return JSON.stringify({ error: 'not found', known_ids: known });
+        }
+        return JSON.stringify({ error: result.error });
+      }
+      return JSON.stringify({ ok: true, id, deleted: true });
     }
     if (name === 'write_knowledge') {
       const slug = String(args.slug ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '-');
