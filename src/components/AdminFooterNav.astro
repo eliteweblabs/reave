@@ -216,18 +216,60 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
       max-width: none;
     }
 
-    .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed,
     .admin-footer-nav.footer-nav-compose-nav-only {
       justify-content: flex-end;
     }
   }
 
-  .admin-footer-nav.footer-nav-collapsed {
-    justify-content: flex-end;
-  }
+  @media (max-width: 639px) {
+    .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed {
+      justify-content: stretch;
+    }
 
-  .admin-footer-nav.footer-nav-has-compose.footer-nav-collapsed {
-    justify-content: stretch;
+    .admin-footer-nav.footer-nav-collapsed {
+      justify-content: flex-end;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
+      gap: 0;
+      overflow: visible;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-bar {
+      overflow: visible;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home),
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-work {
+      width: 0;
+      max-width: 0;
+      opacity: 0;
+      margin: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+      color: var(--nav-icon-active);
+      background: transparent;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn.footer-nav-btn--save {
+      width: 0;
+      max-width: 0;
+      padding: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge {
+      z-index: 10;
+    }
+
+    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home) .footer-nav-badge,
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-work .footer-nav-badge {
+      display: none !important;
+    }
   }
 
   .admin-footer-nav.footer-nav-compose-nav-only {
@@ -256,15 +298,6 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     box-shadow: none;
     transition: gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
-  }
-
-  .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-pill {
-    gap: 0;
-    overflow: visible;
-  }
-
-  .admin-footer-nav.footer-nav-collapsed .admin-footer-nav-bar {
-    overflow: visible;
   }
 
   .footer-nav-indicator {
@@ -342,25 +375,20 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     -webkit-tap-highlight-color: transparent;
   }
 
-  .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home),
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-work {
-    width: 0;
-    max-width: 0;
-    opacity: 0;
-    margin: 0;
-    overflow: hidden;
-    pointer-events: none;
-  }
-
   .footer-nav-btn:hover {
     color: var(--nav-icon-hover);
   }
 
   .footer-nav-btn.active,
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-home,
   .footer-nav-btn.footer-nav-btn--create,
   .footer-nav-btn.footer-nav-btn--create.active {
     border-radius: 999px;
+  }
+
+  @media (max-width: 639px) {
+    .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
+      border-radius: 999px;
+    }
   }
 
   .footer-nav-btn.active {
@@ -401,19 +429,6 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     white-space: nowrap;
   }
 
-  .admin-footer-nav.footer-nav-collapsed .footer-nav-btn.footer-nav-btn--save {
-    width: 0;
-    max-width: 0;
-    padding: 0;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
-    color: var(--nav-icon-active);
-    background: transparent;
-  }
-
   .footer-nav-btn svg,
   .footer-nav-chat-icon svg,
   .footer-nav-work-icon svg {
@@ -439,15 +454,6 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     z-index: 5;
     box-shadow: 0 0 0 2px var(--badge-ring);
     transition: opacity 0.2s ease;
-  }
-
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge {
-    z-index: 10;
-  }
-
-  .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home) .footer-nav-badge,
-  .admin-footer-nav.footer-nav-collapsed #footer-nav-work .footer-nav-badge {
-    display: none !important;
   }
 
   .footer-nav-badge[hidden] {

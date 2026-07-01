@@ -281,6 +281,7 @@ function setActiveMap(key, opts = {}) {
     updateTabs();
     return;
   }
+  const prevType = MAP?.type;
   expandFooterNav();
   activeKey = key;
   MAP = MAPS[key];
@@ -290,6 +291,7 @@ function setActiveMap(key, opts = {}) {
   syncCanvasVisibility();
   syncModelSelectorVisibility();
   if (key !== 'search') closeSearchOverlay();
+  if (prevType === 'email' && MAP.type !== 'email') clearInboxSessionDots();
   activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
@@ -2163,6 +2165,7 @@ const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
 function collapseFooterNav() {
+  if (!isMobileTabs()) return;
   if (footerNavCollapsed) return;
   footerNavCollapsed = true;
   document.getElementById('admin-footer-nav')?.classList.add('footer-nav-collapsed');
@@ -2187,6 +2190,7 @@ function expandFooterNav() {
 }
 
 function onPanelScrollCollapse(ev) {
+  if (!isMobileTabs()) return;
   const target = ev.target;
   if (!(target instanceof Element)) return;
   if (target.closest('#wrap, #admin-footer-nav')) return;
@@ -2617,10 +2621,12 @@ function initFooterNav() {
     setActiveMap('work', { force: activeKey === 'work' });
   });
   window.addEventListener('resize', () => {
+    if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
     syncFooterNavIndicator();
     syncFooterChatComposeLayout();
   }, { passive: true });
   initFooterNavIndicatorDrag();
+  if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
   void refreshInboxBadgeQuiet();
 }
 
@@ -8226,9 +8232,28 @@ function isEmailUnseen(ev) {
   return ev.category !== 'junk' && !ev.seenAt;
 }
 
+/** Dot ids for the current inbox visit — cleared when leaving the email tab. */
+let inboxSessionDotIds = new Set();
 let emailSeenObserver = null;
 let pendingSeenIds = new Set();
 let flushSeenTimer = null;
+
+function seedInboxSessionDots() {
+  for (const ev of emailState.allEvents) {
+    if (isEmailUnseen(ev)) inboxSessionDotIds.add(ev.id);
+  }
+}
+
+function showEmailNewDot(ev) {
+  return inboxSessionDotIds.has(ev.id);
+}
+
+function clearInboxSessionDots() {
+  void flushPendingEmailSeen();
+  inboxSessionDotIds.clear();
+  emailSeenObserver?.disconnect();
+  emailSeenObserver = null;
+}
 
 function mergeEmailSeenFromServer(serverEvents) {
   const byId = new Map((serverEvents || []).map((ev) => [ev.id, ev]));
@@ -8262,7 +8287,6 @@ async function flushPendingEmailSeen() {
 function queueEmailSeen(id) {
   if (!id || !markEmailSeenLocal(id)) return;
   pendingSeenIds.add(id);
-  document.querySelector(`.em-list-item[data-id="${CSS.escape(id)}"] .em-unseen-dot`)?.remove();
   updateInboxBadgesFromState();
   void setAppIconBadge(unseenInboxCount(emailState.allEvents));
   clearTimeout(flushSeenTimer);
@@ -8294,7 +8318,7 @@ function createEmailListItem(ev) {
   item.dataset.id = ev.id;
   item.innerHTML =
     `<span class="em-item-row em-item-header">` +
-      (isEmailUnseen(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
+      (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
       (isEmailBooked(ev)
         ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>'
@@ -8380,6 +8404,8 @@ async function loadEmailTab(quiet) {
     if (!quiet) root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
   }
+  if (!quiet) inboxSessionDotIds.clear();
+  seedInboxSessionDots();
   if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
     emailState.activeId = null;
   }
