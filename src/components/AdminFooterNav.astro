@@ -290,7 +290,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     gap: 0.15rem;
     height: var(--footer-nav-pill-h);
     padding: 0;
-    border-radius: 999px;
+    border-radius: var(--radius-input);
     background: var(--footer-nav-glass-bg);
     backdrop-filter: var(--footer-nav-glass-blur);
     -webkit-backdrop-filter: var(--footer-nav-glass-blur);
@@ -306,7 +306,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     bottom: 0;
     left: 0;
     width: 0;
-    border-radius: 999px;
+    border-radius: var(--radius-input);
     background: var(--nav-indicator-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -357,7 +357,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     max-width: var(--footer-nav-pill-h);
     padding: 0;
     border: none;
-    border-radius: 999px;
+    border-radius: var(--radius-input);
     -webkit-appearance: none;
     appearance: none;
     background: transparent;
@@ -382,12 +382,12 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   .footer-nav-btn.active,
   .footer-nav-btn.footer-nav-btn--create,
   .footer-nav-btn.footer-nav-btn--create.active {
-    border-radius: 999px;
+    border-radius: var(--radius-input);
   }
 
   @media (max-width: 639px) {
     .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
-      border-radius: 999px;
+      border-radius: var(--radius-input);
     }
   }
 
@@ -443,7 +443,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     min-width: 16px;
     height: 16px;
     padding: 0 4px;
-    border-radius: 999px;
+    border-radius: var(--radius-input);
     background: #ef4444;
     color: #fff;
     font-size: 0.58rem;

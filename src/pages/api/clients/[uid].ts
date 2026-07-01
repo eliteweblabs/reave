@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import {
+  contactStringField,
   contactSummary,
   extractPortal,
   getContact,
@@ -50,6 +51,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
     website,
+    logoUrl: contactStringField(portal?.logoUrl) || '',
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });

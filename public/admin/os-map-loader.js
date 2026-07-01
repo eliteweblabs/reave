@@ -117,6 +117,7 @@ const NAV_ICON_PATHS = {
   phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  'chevron-right': '<path d="m9 18 6-6-6-6"/>',
 };
 
 function navIcon(name, size = 20) {
@@ -4365,6 +4366,126 @@ function workStatusClass(status) {
   return `wk-status wk-status-${status || 'inquiry'}`;
 }
 
+function formatWorkCardDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return String(iso);
+  }
+}
+
+function formatWorkCardValue(value) {
+  if (value == null || value === '') return '';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+}
+
+function createClientWorkCard(job) {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'cl-job-card';
+
+  const title = document.createElement('span');
+  title.className = 'cl-job-card-title';
+  title.textContent = job.title || job.slug || 'Untitled';
+
+  const meta = document.createElement('div');
+  meta.className = 'cl-job-card-meta';
+
+  const status = document.createElement('span');
+  status.className = workStatusClass(job.status);
+  status.textContent = WORK_STATUS_LABELS[job.status] || job.status || 'Inquiry';
+  meta.appendChild(status);
+
+  if (job.created) {
+    const created = document.createElement('span');
+    created.className = 'cl-job-card-date';
+    created.textContent = formatWorkCardDate(job.created);
+    meta.appendChild(created);
+  }
+
+  if (job.priority && job.priority !== 'normal') {
+    const prio = document.createElement('span');
+    prio.className = `cl-job-card-priority cl-job-card-priority--${job.priority}`;
+    prio.textContent = WORK_PRIORITY_LABELS[job.priority] || job.priority;
+    meta.appendChild(prio);
+  }
+
+  if (job.due_date) {
+    const due = document.createElement('span');
+    due.className = 'cl-job-card-due';
+    due.textContent = `Due ${job.due_date}`;
+    meta.appendChild(due);
+  }
+
+  const valueLabel = formatWorkCardValue(job.value);
+  if (valueLabel) {
+    const val = document.createElement('span');
+    val.className = 'cl-job-card-value';
+    val.textContent = valueLabel;
+    meta.appendChild(val);
+  }
+
+  if (job.source) {
+    const source = document.createElement('span');
+    source.className = 'cl-job-card-source';
+    source.textContent = job.source;
+    meta.appendChild(source);
+  }
+
+  card.appendChild(title);
+  card.appendChild(meta);
+  card.addEventListener('click', async () => {
+    setActiveMap('work');
+    await loadWorkTab();
+    openWork(job.slug);
+  });
+  return card;
+}
+
+function renderClientWorkSection(jobsWrap, jobs) {
+  jobsWrap.innerHTML = '';
+  const jobsLabel = document.createElement('div');
+  jobsLabel.className = 'de-label cl-jobs-label';
+  jobsLabel.textContent = `Work (${jobs.length})`;
+  jobsWrap.appendChild(jobsLabel);
+  if (jobs.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty cl-jobs-empty';
+    empty.textContent = 'No active jobs for this client.';
+    jobsWrap.appendChild(empty);
+    return;
+  }
+  const grid = document.createElement('div');
+  grid.className = 'cl-jobs-grid';
+  for (const job of jobs) {
+    grid.appendChild(createClientWorkCard(job));
+  }
+  jobsWrap.appendChild(grid);
+}
+
+function mountClientWorkSection(pane, uid) {
+  const jobsWrap = document.createElement('div');
+  jobsWrap.className = 'cl-jobs-section';
+  jobsWrap.innerHTML = '<div class="de-loading">Loading jobs…</div>';
+  pane.appendChild(jobsWrap);
+  fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
+    .then((r) => r.json())
+    .then((jobData) => {
+      const jobs = (jobData.jobs || [])
+        .filter((j) => j.status !== 'archived')
+        .sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0));
+      renderClientWorkSection(jobsWrap, jobs);
+    })
+    .catch(() => {
+      jobsWrap.innerHTML = '';
+    });
+}
+
 function slugifyTitle(title) {
   return title
     .toLowerCase()
@@ -4613,6 +4734,32 @@ function workClientSubline(c) {
   return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
 }
 
+function renderWorkClientIcon(el, logoUrl) {
+  el.innerHTML = '';
+  if (logoUrl) {
+    const img = document.createElement('img');
+    img.src = logoUrl;
+    img.alt = '';
+    img.className = 'wk-client-icon-img';
+    img.addEventListener('error', () => {
+      el.innerHTML = navIcon('users', 18);
+    }, { once: true });
+    el.appendChild(img);
+  } else {
+    el.innerHTML = navIcon('users', 18);
+  }
+}
+
+async function fetchClientLogoUrl(uid) {
+  if (!uid) return '';
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok && data.logoUrl) return data.logoUrl;
+  } catch {}
+  return '';
+}
+
 /**
  * Client combobox: search existing contacts, pick one, or add new inline.
  * Returns { getPayload, isValid } — save uses contact_uid (no resolve on save).
@@ -4620,7 +4767,11 @@ function workClientSubline(c) {
 function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const readOnly = opts.readOnly === true;
   let selected = initial?.contact_uid
-    ? { uid: initial.contact_uid, name: initial.contact_name || initial.client || '' }
+    ? {
+        uid: initial.contact_uid,
+        name: initial.contact_name || initial.client || '',
+        logoUrl: initial.contact_logo_url || '',
+      }
     : null;
   let changing = false;
   let showingNew = false;
@@ -4633,26 +4784,41 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   label.textContent = 'Client';
   wrap.appendChild(label);
 
+  let profileLink = null;
+  let clientIconEl = null;
+  let clientNameEl = null;
   const selectedEl = document.createElement('div');
   selectedEl.className = 'wk-client-selected';
   const selectedName = document.createElement('span');
-  const selectedLink = document.createElement('button');
-  selectedLink.type = 'button';
-  selectedLink.className = 'project-link-chip wk-client-link';
-  selectedLink.addEventListener('click', () => {
-    if (selected?.uid) navigateToClient(selected.uid);
-  });
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'de-btn de-btn-ghost';
   changeBtn.textContent = 'Change';
+
   if (readOnly) {
-    selectedEl.appendChild(selectedLink);
+    profileLink = document.createElement('button');
+    profileLink.type = 'button';
+    profileLink.className = 'wk-client-selected wk-client-profile-link';
+    profileLink.addEventListener('click', () => {
+      if (selected?.uid) navigateToClient(selected.uid);
+    });
+    clientIconEl = document.createElement('span');
+    clientIconEl.className = 'wk-client-icon';
+    clientNameEl = document.createElement('span');
+    clientNameEl.className = 'wk-client-name';
+    const chevron = document.createElement('span');
+    chevron.className = 'wk-client-link-chevron';
+    chevron.innerHTML = navIcon('chevron-right', 16);
+    chevron.setAttribute('aria-hidden', 'true');
+    profileLink.appendChild(clientIconEl);
+    profileLink.appendChild(clientNameEl);
+    profileLink.appendChild(chevron);
+    wrap.appendChild(profileLink);
   } else {
     selectedEl.appendChild(selectedName);
     selectedEl.appendChild(changeBtn);
+    wrap.appendChild(selectedEl);
   }
-  wrap.appendChild(selectedEl);
 
   const searchWrap = document.createElement('div');
   searchWrap.className = 'wk-client-search-wrap';
@@ -4698,24 +4864,42 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   parent.appendChild(wrap);
 
+  function syncReadOnlyClientLink() {
+    const has = !!selected?.uid;
+    searchWrap.style.display = 'none';
+    newForm.style.display = 'none';
+    profileLink.style.display = !showingNew && !changing ? 'flex' : 'none';
+    if (has) {
+      clientNameEl.textContent = selected.name;
+      profileLink.disabled = false;
+      profileLink.title = `Open ${selected.name} profile`;
+      renderWorkClientIcon(clientIconEl, selected.logoUrl);
+      if (!selected.logoUrl) {
+        const uid = selected.uid;
+        void fetchClientLogoUrl(uid).then((url) => {
+          if (selected?.uid !== uid || !url) return;
+          selected.logoUrl = url;
+          renderWorkClientIcon(clientIconEl, url);
+        });
+      }
+    } else {
+      clientNameEl.textContent = 'No client';
+      profileLink.disabled = true;
+      profileLink.removeAttribute('title');
+      renderWorkClientIcon(clientIconEl, '');
+    }
+  }
+
   function syncView() {
     const has = !!selected?.uid;
-    selectedEl.style.display = has && !showingNew && !changing ? 'flex' : 'none';
-    searchWrap.style.display = readOnly ? 'none' : showingNew ? 'none' : changing || !has ? 'block' : 'none';
-    newForm.style.display = showingNew ? 'flex' : 'none';
-    if (has) {
-      if (readOnly) {
-        selectedLink.textContent = selected.name;
-        selectedLink.disabled = false;
-        selectedLink.title = `Open ${selected.name} profile`;
-      } else {
-        selectedName.textContent = selected.name;
-      }
-    } else if (readOnly) {
-      selectedLink.textContent = 'No client';
-      selectedLink.disabled = true;
-      selectedLink.removeAttribute('title');
+    if (readOnly) {
+      syncReadOnlyClientLink();
+      return;
     }
+    selectedEl.style.display = has && !showingNew && !changing ? 'flex' : 'none';
+    searchWrap.style.display = showingNew ? 'none' : changing || !has ? 'block' : 'none';
+    newForm.style.display = showingNew ? 'flex' : 'none';
+    if (has) selectedName.textContent = selected.name;
   }
 
   function exitChangeMode() {
@@ -4727,7 +4911,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   function pick(client) {
     const prevUid = selected?.uid || '';
-    selected = { uid: client.uid, name: client.name };
+    selected = { uid: client.uid, name: client.name, logoUrl: client.logoUrl || '' };
     showingNew = false;
     changing = false;
     dropdown.style.display = 'none';
@@ -5668,42 +5852,57 @@ function isValidClientPhone(value) {
   return digits.length >= 10 && digits.length <= 15;
 }
 
-function setClientFieldValidationState(el, touched, valid) {
+function setClientFieldValidationState(el, show, valid) {
   el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID);
-  if (!touched) return;
+  if (!show) return;
   el.classList.add(valid ? CLIENT_FIELD_VALID : CLIENT_FIELD_INVALID);
 }
 
 function registerClientField(el, validateFn) {
   let touched = false;
+
+  const applyValidation = () => {
+    if (!touched) {
+      setClientFieldValidationState(el, false, true);
+      return;
+    }
+    const valid = validateFn();
+    const focused = document.activeElement === el;
+    // Show green only on the field being edited; keep red after blur when invalid.
+    const show = focused || !valid;
+    setClientFieldValidationState(el, show, valid);
+  };
+
   const ctrl = {
     el,
-    touch() { touched = true; },
-    refresh(savedOk) {
-      if (savedOk === false) {
-        touched = true;
-        setClientFieldValidationState(el, true, false);
-        return;
-      }
-      if (!touched && savedOk !== true) return;
-      if (savedOk === true) touched = true;
-      setClientFieldValidationState(el, true, validateFn());
+    touch() {
+      touched = true;
+      applyValidation();
+    },
+    refresh: applyValidation,
+    reset() {
+      touched = false;
+      applyValidation();
     },
   };
+
   el.addEventListener('blur', () => {
     touched = true;
-    ctrl.refresh();
+    applyValidation();
   });
   el.addEventListener('input', () => {
+    if (document.activeElement !== el) return;
     touched = true;
-    ctrl.refresh();
+    applyValidation();
   });
+  el.addEventListener('focus', applyValidation);
+
   clientFieldRegistry.push(ctrl);
   return ctrl;
 }
 
-function refreshAllClientFields(savedOk) {
-  for (const f of clientFieldRegistry) f.refresh(savedOk);
+function refreshAllClientFields() {
+  for (const f of clientFieldRegistry) f.refresh();
 }
 
 function attachPhoneFormatter(input) {
@@ -5825,12 +6024,84 @@ function renderClientsEditor() {
   root.appendChild(pane);
 }
 
+function syncClTitleInputWidth(input) {
+  if (!input) return;
+  const text = input.value || input.placeholder || 'M';
+  input.style.width = `${Math.max(text.length, 4)}ch`;
+}
+
 function appendClientField(parent, label, input) {
   const wrap = document.createElement('label');
   wrap.className = 'de-label';
   wrap.textContent = label;
   wrap.appendChild(input);
   parent.appendChild(wrap);
+}
+
+function normalizeWebsiteUrl(raw) {
+  const v = (raw || '').trim();
+  if (!v) return '';
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://${v}`;
+}
+
+function isOpenableWebsiteUrl(raw) {
+  try {
+    const url = new URL(normalizeWebsiteUrl(raw));
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function mountClientWebsiteField(parent, value) {
+  const wrap = document.createElement('label');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Website';
+
+  const field = document.createElement('div');
+  field.className = 'control-field cl-website-field';
+
+  const input = document.createElement('input');
+  input.className = 'de-input';
+  input.type = 'url';
+  input.placeholder = 'https://example.com';
+  input.value = value || '';
+
+  const openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.className = 'ios-icon-btn cl-website-open-btn';
+  openBtn.setAttribute('aria-label', 'Open website');
+  openBtn.title = 'Open website';
+  openBtn.innerHTML = navIcon('external-link', 18);
+  openBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!isOpenableWebsiteUrl(input.value)) return;
+    window.open(normalizeWebsiteUrl(input.value), '_blank', 'noopener,noreferrer');
+  });
+
+  function syncOpenBtn() {
+    const ok = isOpenableWebsiteUrl(input.value);
+    openBtn.disabled = !ok;
+    openBtn.hidden = !ok;
+    if (ok) {
+      const url = normalizeWebsiteUrl(input.value);
+      openBtn.title = `Open ${url}`;
+      openBtn.setAttribute('aria-label', `Open ${url} in new tab`);
+    } else {
+      openBtn.title = 'Open website';
+      openBtn.setAttribute('aria-label', 'Open website');
+    }
+  }
+
+  input.addEventListener('input', syncOpenBtn);
+  syncOpenBtn();
+
+  field.appendChild(input);
+  field.appendChild(openBtn);
+  wrap.appendChild(field);
+  parent.appendChild(wrap);
+  return input;
 }
 
 function renderNewClientForm(pane) {
@@ -5885,12 +6156,7 @@ function renderNewClientForm(pane) {
   appendClientField(fields, 'Company', companyInput);
   registerClientField(companyInput, () => true);
 
-  const websiteInput = document.createElement('input');
-  websiteInput.className = 'de-input';
-  websiteInput.type = 'url';
-  websiteInput.placeholder = 'https://example.com';
-  websiteInput.value = clientState.draft?.website || '';
-  appendClientField(fields, 'Website', websiteInput);
+  const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
 
   pane.appendChild(fields);
@@ -5965,6 +6231,8 @@ function renderEditClientForm(pane) {
 
       const titleWrap = document.createElement('div');
       titleWrap.className = 'cl-title-wrap';
+      const titleField = document.createElement('div');
+      titleField.className = 'cl-title-field';
       const nameInput = document.createElement('input');
       nameInput.className = 'cl-title-input';
       nameInput.value = clientState.draft.name || '';
@@ -5974,9 +6242,12 @@ function renderEditClientForm(pane) {
       editHint.className = 'cl-title-edit-hint';
       editHint.innerHTML = IOS_ICONS.edit;
       editHint.setAttribute('aria-hidden', 'true');
-      titleWrap.appendChild(nameInput);
-      titleWrap.appendChild(editHint);
+      titleField.appendChild(nameInput);
+      titleField.appendChild(editHint);
+      titleWrap.appendChild(titleField);
       header.appendChild(titleWrap);
+      syncClTitleInputWidth(nameInput);
+      nameInput.addEventListener('input', () => syncClTitleInputWidth(nameInput));
 
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
@@ -5989,52 +6260,6 @@ function renderEditClientForm(pane) {
       }));
       header.appendChild(headerActions);
       pane.appendChild(header);
-
-      const jobsWrap = document.createElement('div');
-      jobsWrap.className = 'cl-jobs-section';
-      jobsWrap.innerHTML = '<div class="de-loading">Loading jobs…</div>';
-      pane.appendChild(jobsWrap);
-      fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
-        .then((r) => r.json())
-        .then((jobData) => {
-          const jobs = (jobData.jobs || []).filter((j) => j.status !== 'archived');
-          jobsWrap.innerHTML = '';
-          const jobsLabel = document.createElement('div');
-          jobsLabel.className = 'de-label';
-          jobsLabel.textContent = `Work (${jobs.length})`;
-          jobsWrap.appendChild(jobsLabel);
-          if (jobs.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'de-empty';
-            empty.style.padding = '0.5rem 0';
-            empty.textContent = 'No active jobs for this client.';
-            jobsWrap.appendChild(empty);
-          } else {
-            const list = document.createElement('div');
-            list.className = 'cl-jobs-list';
-            for (const job of jobs) {
-              const row = document.createElement('button');
-              row.type = 'button';
-              row.className = 'cl-job-row';
-              row.innerHTML =
-                `<span class="de-item-title">${escHtml(job.title)}</span>` +
-                `<span class="wk-meta-row">` +
-                `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
-                (job.due_date ? `<span class="wk-contact">Due ${escHtml(job.due_date)}</span>` : '') +
-                `</span>`;
-              row.addEventListener('click', async () => {
-                setActiveMap('work');
-                await loadWorkTab();
-                openWork(job.slug);
-              });
-              list.appendChild(row);
-            }
-            jobsWrap.appendChild(list);
-          }
-        })
-        .catch(() => {
-          jobsWrap.innerHTML = '';
-        });
 
       const fields = document.createElement('div');
       fields.className = 'de-fields';
@@ -6059,12 +6284,7 @@ function renderEditClientForm(pane) {
       appendClientField(fields, 'Company', companyInput);
       registerClientField(companyInput, () => true);
 
-      const websiteInput = document.createElement('input');
-      websiteInput.className = 'de-input';
-      websiteInput.type = 'url';
-      websiteInput.placeholder = 'https://example.com';
-      websiteInput.value = clientState.draft.website || '';
-      appendClientField(fields, 'Website', websiteInput);
+      const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
       const notesLabel = document.createElement('label');
@@ -6080,6 +6300,7 @@ function renderEditClientForm(pane) {
       registerClientField(nameInput, () => !!nameInput.value.trim());
 
       pane.appendChild(fields);
+      mountClientWorkSection(pane, uid);
 
       const getPayload = () => ({
         name: nameInput.value.trim(),
@@ -6194,7 +6415,6 @@ async function autosaveClient(uid, payload) {
     payload.notes === draft.notes;
   if (unchanged) {
     clientState.dirty = false;
-    refreshAllClientFields(true);
     return true;
   }
   if (!isValidClientEmail(payload.email) || !isValidClientPhone(payload.phone)) {
@@ -6219,11 +6439,10 @@ async function autosaveClient(uid, payload) {
       c.company = payload.company;
     }
     syncClientListRow(uid, payload.name);
-    refreshAllClientFields(true);
     return true;
   } catch (e) {
     console.warn('[clients] autosave failed', e);
-    refreshAllClientFields(false);
+    refreshAllClientFields();
     return false;
   }
 }
