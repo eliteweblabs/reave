@@ -1663,15 +1663,14 @@ const { userId } = Astro.locals.auth();
         box-sizing: border-box;
         display: flex;
         align-items: center;
-        justify-content: flex-start;
-        gap: 0.55rem;
+        justify-content: center;
         padding: 0.45rem 0.55rem;
         border: 1px solid var(--panel-border);
         border-radius: 7px;
         background: var(--card);
         font: inherit;
         color: var(--fg);
-        text-align: left;
+        text-align: center;
         cursor: pointer;
         transition: background 0.12s, border-color 0.12s;
       }
@@ -1705,6 +1704,7 @@ const { userId } = Astro.locals.auth();
         min-width: 0;
         font-size: max(16px, 0.875rem);
         font-weight: 600;
+        text-align: center;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -4231,6 +4231,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701h"></script>
   </body>
 </html>

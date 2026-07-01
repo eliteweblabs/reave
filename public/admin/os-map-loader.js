@@ -4733,32 +4733,6 @@ function workClientSubline(c) {
   return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
 }
 
-function renderWorkClientIcon(el, logoUrl) {
-  el.innerHTML = '';
-  if (logoUrl) {
-    const img = document.createElement('img');
-    img.src = logoUrl;
-    img.alt = '';
-    img.className = 'wk-client-icon-img';
-    img.addEventListener('error', () => {
-      el.innerHTML = navIcon('users', 18);
-    }, { once: true });
-    el.appendChild(img);
-  } else {
-    el.innerHTML = navIcon('users', 18);
-  }
-}
-
-async function fetchClientLogoUrl(uid) {
-  if (!uid) return '';
-  try {
-    const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' });
-    const data = await res.json();
-    if (res.ok && data.logoUrl) return data.logoUrl;
-  } catch {}
-  return '';
-}
-
 /**
  * Client combobox: search existing contacts, pick one, or add new inline.
  * Returns { getPayload, isValid } — save uses contact_uid (no resolve on save).
@@ -4779,7 +4753,6 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   wrap.className = 'wk-client-picker' + (readOnly ? ' wk-client-picker--readonly' : '');
 
   let profileLink = null;
-  let clientIconEl = null;
   let clientNameEl = null;
   const selectedEl = document.createElement('div');
   selectedEl.className = 'wk-client-selected';
@@ -4796,11 +4769,8 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     profileLink.addEventListener('click', () => {
       if (selected?.uid) navigateToClient(selected.uid);
     });
-    clientIconEl = document.createElement('span');
-    clientIconEl.className = 'wk-client-icon';
     clientNameEl = document.createElement('span');
     clientNameEl.className = 'wk-client-name';
-    profileLink.appendChild(clientIconEl);
     profileLink.appendChild(clientNameEl);
     wrap.appendChild(profileLink);
   } else {
@@ -4862,20 +4832,10 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       clientNameEl.textContent = selected.name;
       profileLink.disabled = false;
       profileLink.title = `Open ${selected.name} profile`;
-      renderWorkClientIcon(clientIconEl, selected.logoUrl);
-      if (!selected.logoUrl) {
-        const uid = selected.uid;
-        void fetchClientLogoUrl(uid).then((url) => {
-          if (selected?.uid !== uid || !url) return;
-          selected.logoUrl = url;
-          renderWorkClientIcon(clientIconEl, url);
-        });
-      }
     } else {
       clientNameEl.textContent = 'No client';
       profileLink.disabled = true;
       profileLink.removeAttribute('title');
-      renderWorkClientIcon(clientIconEl, '');
     }
   }
 
