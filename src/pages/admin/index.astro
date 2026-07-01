@@ -1558,11 +1558,41 @@ const { userId } = Astro.locals.auth();
       .re-form-scroll .de-input { max-width: none; }
       #work-editor .re-form-scroll.wk-form-scroll .de-fields {
         padding: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem 1rem;
+      }
+      @media (max-width: 639px) {
+        #work-editor .re-form-scroll.wk-form-scroll .de-fields {
+          grid-template-columns: 1fr;
+        }
+      }
+      #work-editor .re-form-scroll.wk-form-scroll .de-fields > .wk-client-picker {
+        grid-column: 1 / -1;
+        margin-bottom: 0;
+      }
+      #work-editor .de-fields .de-label,
+      #work-editor .wk-client-picker .de-label {
+        display: flex;
+        margin-bottom: 0;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      #work-editor .de-input,
+      #work-editor .de-textarea,
+      #work-editor .wk-client-selected span {
+        font-family: inherit;
+        font-size: max(16px, 0.875rem);
+        line-height: 1.45;
       }
       #work-editor .re-form-scroll.wk-form-scroll .de-textarea {
         flex: none;
         min-height: 12rem;
         margin: 0;
+        white-space: pre-wrap;
+        overflow-x: hidden;
+        tab-size: 2;
       }
       #work-editor .re-form-scroll.wk-form-scroll .wk-comments-section {
         margin-top: 0.25rem;
@@ -1611,10 +1641,22 @@ const { userId } = Astro.locals.auth();
         border-radius: 7px;
         background: var(--card);
       }
-      .wk-client-selected span { flex: 1; font-size: 0.88rem; }
+      .wk-client-selected span { flex: 1; font-size: max(16px, 0.875rem); }
       .wk-client-selected button {
         font-size: 0.72rem;
         padding: 0.2rem 0.45rem;
+      }
+      .wk-client-picker--readonly .wk-client-selected {
+        opacity: 0.72;
+        background: var(--card);
+        border-style: dashed;
+      }
+      .wk-client-picker--readonly .wk-client-selected span {
+        color: var(--muted);
+      }
+      .wk-client-picker--readonly .wk-client-selected button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .wk-client-dropdown {
         position: absolute;

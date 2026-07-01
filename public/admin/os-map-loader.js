@@ -4612,7 +4612,8 @@ function workClientSubline(c) {
  * Client combobox: search existing contacts, pick one, or add new inline.
  * Returns { getPayload, isValid } — save uses contact_uid (no resolve on save).
  */
-function mountWorkClientPicker(parent, initial, onChange) {
+function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
+  const readOnly = opts.readOnly === true;
   let selected = initial?.contact_uid
     ? { uid: initial.contact_uid, name: initial.contact_name || initial.client || '' }
     : null;
@@ -4620,7 +4621,7 @@ function mountWorkClientPicker(parent, initial, onChange) {
   let showingNew = false;
 
   const wrap = document.createElement('div');
-  wrap.className = 'wk-client-picker';
+  wrap.className = 'wk-client-picker' + (readOnly ? ' wk-client-picker--readonly' : '');
 
   const label = document.createElement('span');
   label.className = 'de-label';
@@ -4634,6 +4635,10 @@ function mountWorkClientPicker(parent, initial, onChange) {
   changeBtn.type = 'button';
   changeBtn.className = 'de-btn de-btn-ghost';
   changeBtn.textContent = 'Change';
+  if (readOnly) {
+    changeBtn.disabled = true;
+    changeBtn.title = 'Client is fixed for existing projects';
+  }
   selectedEl.appendChild(selectedName);
   selectedEl.appendChild(changeBtn);
   wrap.appendChild(selectedEl);
@@ -4758,6 +4763,7 @@ function mountWorkClientPicker(parent, initial, onChange) {
   }
 
   changeBtn.addEventListener('click', () => {
+    if (readOnly) return;
     showingNew = false;
     changing = true;
     syncView();
@@ -5065,7 +5071,7 @@ function renderEditWorkForm(pane) {
           meta.source !== (workState.draft.source || '') ||
           ta.value !== workState.draft.body;
       };
-      clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty);
+      clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty, { readOnly: true });
 
       const statusLabel = document.createElement('label');
       statusLabel.className = 'de-label';
