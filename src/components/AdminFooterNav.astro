@@ -78,7 +78,14 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;
-    transition: justify-content 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      left 0.18s ease,
+      justify-content 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Desktop split view: center footer in the main pane, not under the sidebar. */
+  body.admin-split-view .admin-footer-nav {
+    left: var(--sidebar-w);
   }
 
   .admin-footer-nav.footer-nav-has-compose {

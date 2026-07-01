@@ -236,3 +236,132 @@ export function createPanelHeader(opts = {}) {
   }
   return header;
 }
+
+const SIDEBAR_W_STORE = 'reave-sidebar-w';
+const SIDEBAR_DEFAULT_W = 260;
+const SIDEBAR_MIN_W = 200;
+const SIDEBAR_MAX_W = 520;
+const SPLIT_VIEW_TYPES = new Set([
+  'email',
+  'chats',
+  'clients',
+  'work',
+  'knowledge',
+  'documents',
+  'rules',
+  'schedule',
+]);
+const SIDEBAR_PANEL_IDS = [
+  'email-panel',
+  'chat-panel',
+  'clients-editor',
+  'work-editor',
+  'knowledge-editor',
+  'doc-editor',
+  'rule-editor',
+  'schedule-panel',
+];
+const SIDEBAR_MQ = window.matchMedia('(min-width: 640px)');
+
+let _sidebarDrag = null;
+
+function readSidebarWidthVar() {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w').trim();
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : SIDEBAR_DEFAULT_W;
+}
+
+function applySidebarWidth(px) {
+  const w = Math.round(Math.max(SIDEBAR_MIN_W, Math.min(SIDEBAR_MAX_W, px)));
+  document.documentElement.style.setProperty('--sidebar-w', `${w}px`);
+  return w;
+}
+
+/** Desktop split-view panels: sidebar + main pane both visible. */
+export function syncAdminSplitView(mapType) {
+  const use = SIDEBAR_MQ.matches && SPLIT_VIEW_TYPES.has(mapType);
+  document.body.classList.toggle('admin-split-view', use);
+}
+
+export function mountSidebarResizer(sidebar) {
+  if (!sidebar || sidebar.dataset.resizerMounted === '1') return;
+  if (!SIDEBAR_MQ.matches) return;
+  sidebar.dataset.resizerMounted = '1';
+  const handle = document.createElement('div');
+  handle.className = 'ch-sidebar-resizer';
+  handle.setAttribute('role', 'separator');
+  handle.setAttribute('aria-orientation', 'vertical');
+  handle.setAttribute('aria-label', 'Resize sidebar');
+  sidebar.appendChild(handle);
+}
+
+export function scanPanelSidebars() {
+  if (!SIDEBAR_MQ.matches) return;
+  for (const id of SIDEBAR_PANEL_IDS) {
+    const panel = document.getElementById(id);
+    if (!panel) continue;
+    panel.querySelectorAll('.ch-sidebar, .de-sidebar, .schedule-sidebar').forEach(mountSidebarResizer);
+  }
+}
+
+function bindSidebarResizeDrag() {
+  if (document.documentElement.dataset.sidebarResizeBound === '1') return;
+  document.documentElement.dataset.sidebarResizeBound = '1';
+
+  document.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest?.('.ch-sidebar-resizer');
+    if (!handle) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    handle.classList.add('dragging');
+    document.body.classList.add('sidebar-resize-active');
+    _sidebarDrag = { startX: e.clientX, startW: readSidebarWidthVar() };
+  });
+
+  document.addEventListener('pointermove', (e) => {
+    if (!_sidebarDrag) return;
+    applySidebarWidth(_sidebarDrag.startW + (e.clientX - _sidebarDrag.startX));
+  });
+
+  const finishDrag = (e) => {
+    if (!_sidebarDrag) return;
+    document.querySelectorAll('.ch-sidebar-resizer.dragging').forEach((el) => {
+      if (el.hasPointerCapture?.(e.pointerId)) el.releasePointerCapture(e.pointerId);
+      el.classList.remove('dragging');
+    });
+    document.body.classList.remove('sidebar-resize-active');
+    try {
+      localStorage.setItem(SIDEBAR_W_STORE, String(readSidebarWidthVar()));
+    } catch {
+      /* ignore */
+    }
+    _sidebarDrag = null;
+  };
+
+  document.addEventListener('pointerup', finishDrag);
+  document.addEventListener('pointercancel', finishDrag);
+}
+
+function observePanelSidebars() {
+  if (document.documentElement.dataset.sidebarObserverBound === '1') return;
+  document.documentElement.dataset.sidebarObserverBound = '1';
+  const observer = new MutationObserver(() => scanPanelSidebars());
+  for (const id of SIDEBAR_PANEL_IDS) {
+    const panel = document.getElementById(id);
+    if (panel) observer.observe(panel, { childList: true, subtree: true });
+  }
+}
+
+export function initSidebarLayout() {
+  let saved = SIDEBAR_DEFAULT_W;
+  try {
+    const n = parseInt(localStorage.getItem(SIDEBAR_W_STORE), 10);
+    if (Number.isFinite(n)) saved = n;
+  } catch {
+    /* ignore */
+  }
+  applySidebarWidth(saved);
+  bindSidebarResizeDrag();
+  observePanelSidebars();
+  scanPanelSidebars();
+}

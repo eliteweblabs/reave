@@ -6,7 +6,10 @@ import {
   listSearchSubheader,
   createPanelBackBtn,
   matchesListSearch,
-} from './admin-ui.js?v=20250630l';
+  initSidebarLayout,
+  syncAdminSplitView,
+  scanPanelSidebars,
+} from './admin-ui.js?v=20250701a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -291,6 +294,7 @@ function setActiveMap(key, opts = {}) {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
+  syncAdminSplitView(MAP?.type);
   if (key !== 'chats') clearFooterChatCompose();
   void refreshInboxBadgeQuiet();
 }
@@ -8512,7 +8516,12 @@ async function boot() {
   initSearchOverlay();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
+  MOBILE_TABS_MQ.addEventListener('change', () => {
+    syncAdminSplitView(MAP?.type);
+    scanPanelSidebars();
+  });
   COMPACT_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
+  initSidebarLayout();
   initModelSelector();
   syncCanvasVisibility();
   activateMapPanel();
@@ -8522,6 +8531,8 @@ async function boot() {
   syncFooterNav();
   syncInboxHeaderControls();
   syncTopbarPanelContext();
+  syncAdminSplitView(MAP?.type);
+  scanPanelSidebars();
 }
 
 boot().catch(showBootError);

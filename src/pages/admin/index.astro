@@ -104,6 +104,9 @@ const { userId } = Astro.locals.auth();
         --radius-input: 8px;
         --control-h: 2.75rem;
         --control-inset: 0.22rem;
+        --sidebar-w: 260px;
+        --sidebar-min-w: 200px;
+        --sidebar-max-w: 520px;
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -858,13 +861,14 @@ const { userId } = Astro.locals.auth();
 
       /* Sidebar */
       .de-sidebar {
-        width: 260px;
-        flex: 0 0 260px;
+        width: var(--sidebar-w);
+        flex: 0 0 var(--sidebar-w);
         border-right: 1px solid var(--panel-border);
         display: flex;
         flex-direction: column;
         background: var(--bg);
         overflow: hidden;
+        position: relative;
       }
 
       /* Mobile: single-pane navigation */
@@ -1776,14 +1780,36 @@ const { userId } = Astro.locals.auth();
         z-index: 10;
       }
       .ch-sidebar {
-        width: 260px;
-        flex: 0 0 260px;
+        width: var(--sidebar-w);
+        flex: 0 0 var(--sidebar-w);
         min-width: 0;
         border-right: 1px solid var(--panel-border);
         display: flex;
         flex-direction: column;
         background: var(--bg);
         overflow: hidden;
+        position: relative;
+      }
+      .ch-sidebar-resizer {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 12;
+        touch-action: none;
+      }
+      .ch-sidebar-resizer:hover,
+      .ch-sidebar-resizer.dragging {
+        background: rgba(10, 132, 255, 0.22);
+      }
+      body.sidebar-resize-active {
+        cursor: col-resize;
+        user-select: none;
+      }
+      body.sidebar-resize-active * {
+        cursor: col-resize !important;
       }
       .ch-list {
         flex: 1;
@@ -3033,11 +3059,13 @@ const { userId } = Astro.locals.auth();
       #schedule-panel .schedule-sidebar {
         display: flex;
         flex-direction: column;
+        width: var(--sidebar-w);
         min-width: 0;
-        flex: 0 0 min(100%, 22rem);
+        flex: 0 0 var(--sidebar-w);
         border-right: 1px solid var(--panel-border);
         padding: calc(var(--topbar-h) + 1rem) 0.85rem var(--footer-scroll-pad);
         overflow: hidden;
+        position: relative;
       }
       #schedule-panel .schedule-list-wrap {
         flex: 1 1 auto;
@@ -3599,6 +3627,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250630p"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701a"></script>
   </body>
 </html>
