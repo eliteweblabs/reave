@@ -12,7 +12,7 @@ import {
   scanPanelSidebars,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20250701g';
+} from './admin-ui.js?v=20250701h';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -5357,7 +5357,9 @@ async function deleteWork(slug) {
 
 let scheduleState = {
   bookings: [],
-  filter: 'upcoming',
+  view: 'month',
+  focusDate: null,
+  selectedDate: null,
   activeUid: null,
   meta: {
     bookingFormUrl: '/form/schedule',
@@ -5368,11 +5370,129 @@ let scheduleState = {
   error: '',
 };
 
+const SCHEDULE_VIEWS = [
+  { value: 'month', label: 'Month' },
+  { value: 'week', label: 'Week' },
+  { value: 'day', label: 'Day' },
+];
+
+const CAL_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const CAL_HOUR_PX = 48;
+const CAL_HOURS = 24;
+
 function getSchedulePanel() { return document.getElementById('schedule-panel'); }
+
+function scheduleDateKey(d) {
+  const dt = d instanceof Date ? d : new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function scheduleTodayKey() {
+  return scheduleDateKey(new Date());
+}
+
+function scheduleParseDateKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function scheduleAddDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function scheduleStartOfWeek(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay());
+  return d;
+}
+
+function scheduleBookingDateKey(iso) {
+  if (!iso) return '';
+  return scheduleDateKey(new Date(iso));
+}
+
+function scheduleBookingsForDay(key) {
+  return scheduleState.bookings
+    .filter((b) => scheduleBookingDateKey(b.startTime) === key)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+function scheduleVisibleRange(view, focusKey) {
+  const focus = scheduleParseDateKey(focusKey);
+  if (view === 'month') {
+    const first = new Date(focus.getFullYear(), focus.getMonth(), 1);
+    const gridStart = scheduleStartOfWeek(first);
+    const gridEnd = scheduleAddDays(gridStart, 41);
+    return { from: scheduleDateKey(gridStart), to: scheduleDateKey(gridEnd) };
+  }
+  if (view === 'week') {
+    const ws = scheduleStartOfWeek(focus);
+    const we = scheduleAddDays(ws, 6);
+    return { from: scheduleDateKey(ws), to: scheduleDateKey(we) };
+  }
+  return { from: focusKey, to: focusKey };
+}
+
+function scheduleEnsureFocusDate() {
+  if (!scheduleState.focusDate) scheduleState.focusDate = scheduleTodayKey();
+  if (!scheduleState.selectedDate) scheduleState.selectedDate = scheduleState.focusDate;
+}
+
+function scheduleToolbarTitle(view, focusKey) {
+  const d = scheduleParseDateKey(focusKey);
+  if (view === 'month') {
+    return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  }
+  if (view === 'week') {
+    const start = scheduleStartOfWeek(d);
+    const end = scheduleAddDays(start, 6);
+    const sameMonth = start.getMonth() === end.getMonth();
+    const startFmt = start.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+    });
+    const endFmt = end.toLocaleDateString(undefined, {
+      month: sameMonth ? undefined : 'short',
+      day: 'numeric',
+      year: start.getFullYear() === end.getFullYear() ? undefined : 'numeric',
+    });
+    return `${startFmt} – ${endFmt}`;
+  }
+  return d.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function scheduleShiftFocus(delta) {
+  scheduleEnsureFocusDate();
+  const d = scheduleParseDateKey(scheduleState.focusDate);
+  if (scheduleState.view === 'month') {
+    d.setMonth(d.getMonth() + delta);
+  } else if (scheduleState.view === 'week') {
+    d.setDate(d.getDate() + delta * 7);
+  } else {
+    d.setDate(d.getDate() + delta);
+  }
+  scheduleState.focusDate = scheduleDateKey(d);
+  scheduleState.selectedDate = scheduleState.focusDate;
+  loadScheduleTab();
+}
 
 function openScheduleTab(opts = {}) {
   if (opts.uid) scheduleState.activeUid = opts.uid;
-  if (opts.filter) scheduleState.filter = opts.filter;
+  if (opts.view) scheduleState.view = opts.view;
+  if (opts.date) {
+    scheduleState.focusDate = opts.date;
+    scheduleState.selectedDate = opts.date;
+  }
   setActiveMap('schedule', { force: true, scheduleUid: opts.uid || null });
 }
 
@@ -5446,16 +5566,15 @@ function findScheduleBooking(uid) {
 async function loadScheduleTab() {
   const root = getSchedulePanel();
   if (!root) return;
+  scheduleEnsureFocusDate();
   scheduleState.loading = true;
   scheduleState.error = '';
   renderSchedulePanel();
 
   try {
-    const upcoming = scheduleState.filter !== 'past';
-    const res = await fetch(
-      `/api/bookings?upcoming=${upcoming ? 'true' : 'false'}&limit=50`,
-      { cache: 'no-store' },
-    );
+    const range = scheduleVisibleRange(scheduleState.view, scheduleState.focusDate);
+    const qs = new URLSearchParams({ from: range.from, to: range.to });
+    const res = await adminFetch(`/api/bookings?${qs.toString()}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     scheduleState.bookings = Array.isArray(data.bookings) ? data.bookings : [];
@@ -5464,14 +5583,16 @@ async function loadScheduleTab() {
     }
     if (
       scheduleState.activeUid &&
-      !findScheduleBooking(scheduleState.activeUid) &&
-      scheduleState.filter === 'upcoming'
+      !findScheduleBooking(scheduleState.activeUid)
     ) {
-      const pastRes = await fetch('/api/bookings?upcoming=false&limit=50', { cache: 'no-store' });
-      const pastData = await pastRes.json();
-      if (pastRes.ok && Array.isArray(pastData.bookings)) {
-        const hit = pastData.bookings.find((b) => b.uid === scheduleState.activeUid);
-        if (hit) scheduleState.bookings = [hit, ...scheduleState.bookings];
+      const oneRes = await adminFetch(
+        `/api/bookings/${encodeURIComponent(scheduleState.activeUid)}`,
+      );
+      const oneData = await oneRes.json();
+      if (oneRes.ok && oneData.booking) {
+        scheduleState.bookings = [oneData.booking, ...scheduleState.bookings];
+        scheduleState.selectedDate = scheduleBookingDateKey(oneData.booking.startTime);
+        scheduleState.focusDate = scheduleState.selectedDate;
       }
     }
   } catch (e) {
@@ -5615,33 +5736,314 @@ function renderScheduleDetail(pane, booking) {
   pane.appendChild(scroll);
 }
 
-function renderScheduleFilterTabs() {
-  const nav = document.createElement('div');
-  nav.className = 'em-filter-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Schedule filters');
+function renderScheduleViewPicker() {
+  return createSlidingPillSelect({
+    value: scheduleState.view,
+    options: SCHEDULE_VIEWS,
+    ariaLabel: 'Calendar view',
+    className: 'cal-view-pill',
+    onChange: (next) => {
+      if (scheduleState.view === next) return;
+      scheduleState.view = next;
+      scheduleEnsureFocusDate();
+      loadScheduleTab();
+    },
+  });
+}
 
-  for (const tab of [
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'past', label: 'Recent' },
-  ]) {
+function renderScheduleToolbar() {
+  scheduleEnsureFocusDate();
+  const bar = document.createElement('div');
+  bar.className = 'cal-toolbar';
+
+  const nav = document.createElement('div');
+  nav.className = 'cal-toolbar-nav';
+
+  const prevBtn = createIosIconBtn({
+    iconKey: 'chevron-left',
+    label: 'Previous',
+    onClick: () => scheduleShiftFocus(-1),
+  });
+  nav.appendChild(prevBtn);
+
+  const title = document.createElement('h2');
+  title.className = 'cal-toolbar-title';
+  title.textContent = scheduleToolbarTitle(scheduleState.view, scheduleState.focusDate);
+  nav.appendChild(title);
+
+  const nextBtn = createIosIconBtn({
+    iconKey: 'chevron-right',
+    label: 'Next',
+    onClick: () => scheduleShiftFocus(1),
+  });
+  nav.appendChild(nextBtn);
+
+  bar.appendChild(nav);
+
+  const todayBtn = document.createElement('button');
+  todayBtn.type = 'button';
+  todayBtn.className = 'cal-toolbar-today';
+  todayBtn.textContent = 'Today';
+  todayBtn.addEventListener('click', () => {
+    scheduleState.focusDate = scheduleTodayKey();
+    scheduleState.selectedDate = scheduleState.focusDate;
+    loadScheduleTab();
+  });
+  bar.appendChild(todayBtn);
+
+  return bar;
+}
+
+function formatScheduleAgendaTime(iso) {
+  if (!iso) return '';
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+function createCalAgendaItem(booking) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className =
+    'cal-agenda-item' + (booking.uid === scheduleState.activeUid ? ' active' : '');
+  const who = scheduleBookingWho(booking);
+  item.innerHTML =
+    `<span class="cal-agenda-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>` +
+    `<span class="cal-agenda-main">` +
+      `<span class="cal-agenda-title">${escHtml(booking.title || 'Meeting')}</span>` +
+      `<span class="cal-agenda-sub">${escHtml(who)}</span>` +
+    `</span>`;
+  item.addEventListener('click', () => selectScheduleBooking(booking.uid));
+  return item;
+}
+
+function renderCalDayAgenda(parent, dayKey, title) {
+  const bookings = scheduleBookingsForDay(dayKey);
+  const wrap = document.createElement('div');
+  wrap.className = 'cal-day-agenda';
+  const heading = document.createElement('p');
+  heading.className = 'cal-day-agenda-title';
+  heading.textContent = title;
+  wrap.appendChild(heading);
+  if (!bookings.length) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = 'No events';
+    wrap.appendChild(empty);
+  } else {
+    for (const booking of bookings) {
+      wrap.appendChild(createCalAgendaItem(booking));
+    }
+  }
+  parent.appendChild(wrap);
+}
+
+function renderCalMonthView(parent) {
+  const focus = scheduleParseDateKey(scheduleState.focusDate);
+  const month = focus.getMonth();
+  const year = focus.getFullYear();
+  const first = new Date(year, month, 1);
+  const gridStart = scheduleStartOfWeek(first);
+
+  const weekdays = document.createElement('div');
+  weekdays.className = 'cal-weekdays';
+  for (const label of CAL_WEEKDAYS) {
+    const span = document.createElement('span');
+    span.textContent = label;
+    weekdays.appendChild(span);
+  }
+  parent.appendChild(weekdays);
+
+  const grid = document.createElement('div');
+  grid.className = 'cal-month-grid';
+  const today = scheduleTodayKey();
+
+  for (let i = 0; i < 42; i++) {
+    const dayDate = scheduleAddDays(gridStart, i);
+    const key = scheduleDateKey(dayDate);
+    const dayBookings = scheduleBookingsForDay(key);
     const btn = document.createElement('button');
     btn.type = 'button';
-    const isActive = scheduleState.filter === tab.id;
-    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.textContent = tab.label;
+    btn.className = 'cal-day';
+    if (dayDate.getMonth() !== month) btn.classList.add('cal-day--other');
+    if (key === today) btn.classList.add('cal-day--today');
+    if (key === scheduleState.selectedDate) btn.classList.add('cal-day--selected');
+
+    const num = document.createElement('span');
+    num.className = 'cal-day-num';
+    num.textContent = String(dayDate.getDate());
+    btn.appendChild(num);
+
+    if (dayBookings.length) {
+      const dots = document.createElement('span');
+      dots.className = 'cal-day-dots';
+      const maxDots = Math.min(dayBookings.length, 3);
+      for (let d = 0; d < maxDots; d++) {
+        const dot = document.createElement('span');
+        dot.className = 'cal-day-dot';
+        dots.appendChild(dot);
+      }
+      btn.appendChild(dots);
+    }
+
     btn.addEventListener('click', () => {
-      if (scheduleState.filter === tab.id) return;
-      scheduleState.filter = tab.id;
-      scheduleState.activeUid = null;
-      getSchedulePanel()?.classList.remove('de-pane-active');
-      loadScheduleTab();
+      scheduleState.selectedDate = key;
+      if (scheduleState.view === 'month') {
+        renderSchedulePanel();
+      } else {
+        scheduleState.view = 'day';
+        scheduleState.focusDate = key;
+        loadScheduleTab();
+      }
     });
-    nav.appendChild(btn);
+    grid.appendChild(btn);
   }
-  return nav;
+  parent.appendChild(grid);
+
+  const agendaTitle = scheduleParseDateKey(scheduleState.selectedDate).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  renderCalDayAgenda(parent, scheduleState.selectedDate, agendaTitle);
+}
+
+function scheduleEventLayout(booking) {
+  const start = new Date(booking.startTime);
+  const end = booking.endTime ? new Date(booking.endTime) : new Date(start.getTime() + 30 * 60 * 1000);
+  const startMin = start.getHours() * 60 + start.getMinutes();
+  const endMin = end.getHours() * 60 + end.getMinutes();
+  const top = (startMin / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX);
+  const height = Math.max(((endMin - startMin) / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX), 22);
+  return { top, height };
+}
+
+function renderCalTimeGrid(parent, dayKeys, opts = {}) {
+  const { singleDay = false } = opts;
+  const totalHeight = CAL_HOURS * CAL_HOUR_PX;
+
+  if (!singleDay) {
+    const header = document.createElement('div');
+    header.className = 'cal-week-header';
+    const today = scheduleTodayKey();
+    for (const key of dayKeys) {
+      const d = scheduleParseDateKey(key);
+      const col = document.createElement('button');
+      col.type = 'button';
+      col.className = 'cal-week-header-col';
+      if (key === today) col.classList.add('cal-week-header-col--today');
+      if (key === scheduleState.selectedDate) col.classList.add('cal-week-header-col--selected');
+      col.innerHTML =
+        `<span class="cal-week-header-dow">${escHtml(d.toLocaleDateString(undefined, { weekday: 'short' }))}</span>` +
+        `<span class="cal-week-header-daynum">${d.getDate()}</span>`;
+      col.addEventListener('click', () => {
+        scheduleState.selectedDate = key;
+        scheduleState.focusDate = key;
+        scheduleState.view = 'day';
+        loadScheduleTab();
+      });
+      header.appendChild(col);
+    }
+    parent.appendChild(header);
+  } else {
+    const sub = document.createElement('div');
+    sub.className = 'cal-day-view-header';
+    sub.textContent = scheduleParseDateKey(dayKeys[0]).toLocaleDateString(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+    parent.appendChild(sub);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'cal-time-grid-wrap';
+  wrap.style.height = `${totalHeight}px`;
+
+  const gutter = document.createElement('div');
+  gutter.className = 'cal-time-gutter';
+  for (let h = 0; h < CAL_HOURS; h++) {
+    const label = document.createElement('span');
+    label.className = 'cal-time-label';
+    label.style.top = `${h * CAL_HOUR_PX}px`;
+    if (h === 0) {
+      label.textContent = '';
+    } else {
+      const dt = new Date();
+      dt.setHours(h, 0, 0, 0);
+      label.textContent = dt.toLocaleTimeString(undefined, { hour: 'numeric' });
+    }
+    gutter.appendChild(label);
+  }
+  wrap.appendChild(gutter);
+
+  const cols = document.createElement('div');
+  cols.className = 'cal-time-columns';
+
+  for (const key of dayKeys) {
+    const col = document.createElement('div');
+    col.className = 'cal-time-col';
+    for (let h = 0; h < CAL_HOURS; h++) {
+      const line = document.createElement('div');
+      line.className = 'cal-hour-line';
+      line.style.top = `${h * CAL_HOUR_PX}px`;
+      col.appendChild(line);
+    }
+    for (const booking of scheduleBookingsForDay(key)) {
+      const { top, height } = scheduleEventLayout(booking);
+      const block = document.createElement('button');
+      block.type = 'button';
+      block.className =
+        'cal-event-block' + (booking.uid === scheduleState.activeUid ? ' active' : '');
+      block.style.top = `${top}px`;
+      block.style.height = `${height}px`;
+      block.innerHTML =
+        `<span class="cal-event-block-title">${escHtml(booking.title || 'Meeting')}</span>` +
+        `<span class="cal-event-block-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>`;
+      block.addEventListener('click', () => selectScheduleBooking(booking.uid));
+      col.appendChild(block);
+    }
+    cols.appendChild(col);
+  }
+
+  wrap.appendChild(cols);
+  parent.appendChild(wrap);
+
+  if (singleDay) {
+    renderCalDayAgenda(parent, dayKeys[0], 'All day list');
+  }
+}
+
+function renderCalWeekView(parent) {
+  const focus = scheduleParseDateKey(scheduleState.focusDate);
+  const start = scheduleStartOfWeek(focus);
+  const dayKeys = [];
+  for (let i = 0; i < 7; i++) {
+    dayKeys.push(scheduleDateKey(scheduleAddDays(start, i)));
+  }
+  scheduleState.selectedDate = scheduleState.selectedDate || dayKeys[0];
+  renderCalTimeGrid(parent, dayKeys);
+}
+
+function renderCalDayView(parent) {
+  const key = scheduleState.focusDate || scheduleTodayKey();
+  scheduleState.selectedDate = key;
+  renderCalTimeGrid(parent, [key], { singleDay: true });
+}
+
+function renderScheduleCalendarBody(parent) {
+  if (scheduleState.view === 'week') {
+    renderCalWeekView(parent);
+  } else if (scheduleState.view === 'day') {
+    renderCalDayView(parent);
+  } else {
+    renderCalMonthView(parent);
+  }
 }
 
 function renderScheduleQuickLinks() {
@@ -5667,77 +6069,46 @@ function renderScheduleQuickLinks() {
   return wrap;
 }
 
-function createScheduleListItem(booking) {
-  const item = document.createElement('button');
-  item.type = 'button';
-  item.className =
-    'ch-list-item' + (booking.uid === scheduleState.activeUid ? ' active' : '');
-  item.dataset.uid = booking.uid;
-  const who = scheduleBookingWho(booking);
-  const meta = [who, booking.email && booking.attendee !== booking.email ? booking.email : '', booking.location]
-    .filter(Boolean)
-    .join(' · ');
-  item.innerHTML =
-    `<span class="ch-item-row">` +
-      `<span class="ch-item-title">${escHtml(booking.title || 'Meeting')}</span>` +
-      `<span class="ch-item-date">${escHtml(formatScheduleListWhen(booking.startTime))}</span>` +
-    `</span>` +
-    `<span class="wk-meta-row">` +
-      `<span class="wk-contact">${escHtml(meta)}</span>` +
-      (booking.status
-        ? `<span class="schedule-status ${scheduleStatusClass(booking.status)}">${escHtml(booking.status)}</span>`
-        : '') +
-    `</span>`;
-  item.addEventListener('click', () => selectScheduleBooking(booking.uid));
-  return item;
-}
-
 function renderSchedulePanel() {
   const root = getSchedulePanel();
   if (!root) return;
+  scheduleEnsureFocusDate();
   root.classList.toggle('de-pane-active', Boolean(scheduleState.activeUid));
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
-  sidebar.className = 'ch-sidebar';
+  sidebar.className = 'ch-sidebar schedule-panel-scroll';
 
-  const bookings = scheduleState.bookings;
-  const subheader = listSearchSubheader({
-    itemCount: bookings.length,
-    below: [renderScheduleFilterTabs(), renderScheduleQuickLinks()],
-  });
-  if (subheader) sidebar.appendChild(subheader.el);
+  sidebar.appendChild(renderScheduleToolbar());
 
-  const list = document.createElement('div');
-  list.className = 'ch-list';
-  bindSwipeListScroll(list);
+  const pickerWrap = document.createElement('div');
+  pickerWrap.className = 'cal-view-picker';
+  pickerWrap.appendChild(renderScheduleViewPicker());
+  sidebar.appendChild(pickerWrap);
+  sidebar.appendChild(renderScheduleQuickLinks());
+
+  const body = document.createElement('div');
+  body.className = 'cal-body';
 
   if (scheduleState.loading) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = 'Loading bookings…';
-    list.appendChild(empty);
+    empty.textContent = 'Loading calendar…';
+    body.appendChild(empty);
   } else if (scheduleState.error) {
     const err = document.createElement('div');
     err.className = 'de-empty de-error';
     err.textContent = scheduleState.error;
-    list.appendChild(err);
+    body.appendChild(err);
     const hint = document.createElement('div');
     hint.className = 'de-empty';
     hint.innerHTML = 'Enable <code>scheduling</code> in FEATURES and set BOOKING_API_URL on Railway.';
-    list.appendChild(hint);
-  } else if (!bookings.length) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = scheduleState.filter === 'past' ? 'No recent bookings.' : 'Nothing scheduled yet.';
-    list.appendChild(empty);
+    body.appendChild(hint);
   } else {
-    for (const booking of bookings) {
-      list.appendChild(createScheduleListItem(booking));
-    }
+    renderScheduleCalendarBody(body);
   }
 
-  sidebar.appendChild(list);
+  sidebar.appendChild(body);
   root.appendChild(sidebar);
 
   const pane = document.createElement('div');
@@ -5750,7 +6121,7 @@ function renderSchedulePanel() {
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml(
       'calendar',
-      '<p>Select a booking to view details, or share your public booking link.</p>',
+      '<p>Select an event to view details, or share your public booking link.</p>',
     );
     pane.appendChild(placeholder);
   }
