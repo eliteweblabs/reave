@@ -82,6 +82,13 @@ CREATE TABLE IF NOT EXISTS email_inbox (
 `;
 
 const MIGRATE_COLUMNS = [
+  // Base columns — older partial tables may exist without these (CREATE TABLE IF NOT EXISTS skips them).
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS from_address TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS subject TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_snippet TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'UNMATCHED'`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS action TEXT NOT NULL DEFAULT 'classified'`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS notified BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS summary TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'review'`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS contact_uid TEXT`,
