@@ -308,7 +308,8 @@ const { userId } = Astro.locals.auth();
               .de-list-item,
               .search-result-item,
               .swipe-act,
-              .de-empty-action
+              .de-empty-action,
+              .em-project-menu-item
             )
           )
         ) {
@@ -2788,6 +2789,7 @@ const { userId } = Astro.locals.auth();
         width: 100%;
         padding: 0.55rem 0.75rem;
         border: none;
+        border-radius: 0;
         background: transparent;
         color: var(--fg);
         font: inherit;
