@@ -149,6 +149,113 @@ export function createPanePlaceholder(opts = {}) {
 }
 
 /**
+ * Segmented control with a sliding indicator (status, priority, etc.).
+ *
+ * @param {object} opts
+ * @param {string} [opts.label] — optional field label above the pill
+ * @param {string} opts.value — initial selected value
+ * @param {{ value: string, label: string }[]} opts.options
+ * @param {string} [opts.ariaLabel]
+ * @param {(value: string) => void} [opts.onChange]
+ * @param {string} [opts.className] — extra class on the pill track
+ * @returns {{ el: HTMLElement, getValue: () => string, setValue: (value: string) => void }}
+ */
+export function createSlidingPillSelect(opts = {}) {
+  const {
+    label = '',
+    value,
+    options = [],
+    ariaLabel = '',
+    onChange,
+    className = '',
+  } = opts;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'sliding-pill-select';
+
+  if (label) {
+    const labelEl = document.createElement('span');
+    labelEl.className = 'de-label';
+    labelEl.textContent = label;
+    wrap.appendChild(labelEl);
+  }
+
+  const pill = document.createElement('div');
+  pill.className = `sliding-pill${className ? ` ${className}` : ''}`.trim();
+  pill.setAttribute('role', 'tablist');
+  if (ariaLabel) pill.setAttribute('aria-label', ariaLabel);
+
+  const indicator = document.createElement('span');
+  indicator.className = 'sliding-pill-indicator';
+  indicator.setAttribute('aria-hidden', 'true');
+  pill.appendChild(indicator);
+
+  let currentValue = value ?? options[0]?.value ?? '';
+
+  function syncIndicator(animate) {
+    const activeBtn = pill.querySelector(`.sliding-pill-btn[data-value="${CSS.escape(currentValue)}"]`);
+    if (!(activeBtn instanceof HTMLElement)) {
+      indicator.hidden = true;
+      return;
+    }
+    indicator.hidden = false;
+    indicator.classList.toggle('sliding-pill-indicator--static', !animate);
+    const pillRect = pill.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    indicator.style.width = `${btnRect.width}px`;
+    indicator.style.transform = `translateX(${btnRect.left - pillRect.left}px)`;
+  }
+
+  function syncActive() {
+    pill.querySelectorAll('.sliding-pill-btn').forEach((btn) => {
+      const active = btn instanceof HTMLElement && btn.dataset.value === currentValue;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  for (const opt of options) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sliding-pill-btn';
+    btn.dataset.value = opt.value;
+    btn.textContent = opt.label;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', opt.value === currentValue ? 'true' : 'false');
+    if (opt.value === currentValue) btn.classList.add('is-active');
+    btn.addEventListener('click', () => {
+      if (currentValue === opt.value) return;
+      currentValue = opt.value;
+      syncActive();
+      syncIndicator(true);
+      onChange?.(currentValue);
+    });
+    pill.appendChild(btn);
+  }
+
+  wrap.appendChild(pill);
+
+  const onResize = () => syncIndicator(false);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(onResize);
+    ro.observe(pill);
+  }
+  window.addEventListener('resize', onResize);
+  requestAnimationFrame(() => syncIndicator(false));
+
+  return {
+    el: wrap,
+    getValue: () => currentValue,
+    setValue: (next) => {
+      if (!options.some((o) => o.value === next)) return;
+      currentValue = next;
+      syncActive();
+      syncIndicator(true);
+    },
+  };
+}
+
+/**
  * Sidebar list subheader — search field with optional create FAB (mobile only via CSS).
  *
  * @param {object} opts

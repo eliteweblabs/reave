@@ -4,6 +4,7 @@ import {
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
+  createSlidingPillSelect,
   createPanelBackBtn,
   matchesListSearch,
   initSidebarLayout,
@@ -11,7 +12,7 @@ import {
   scanPanelSidebars,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20250701f';
+} from './admin-ui.js?v=20250701g';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -4632,39 +4633,23 @@ function renderWorkEditor() {
   root.appendChild(pane);
 }
 
-function buildStatusSelect(value) {
-  const select = document.createElement('select');
-  select.className = 'de-input';
-  for (const s of workState.statuses) {
-    const opt = document.createElement('option');
-    opt.value = s;
-    opt.textContent = WORK_STATUS_LABELS[s] || s;
-    if (s === value) opt.selected = true;
-    select.appendChild(opt);
-  }
-  return select;
+function workStatusPillOptions() {
+  return workState.statuses.map((s) => ({ value: s, label: WORK_STATUS_LABELS[s] || s }));
 }
 
-function buildPrioritySelect(value) {
-  const select = document.createElement('select');
-  select.className = 'de-input';
-  for (const p of workState.priorities) {
-    const opt = document.createElement('option');
-    opt.value = p;
-    opt.textContent = WORK_PRIORITY_LABELS[p] || p;
-    if (p === (value || 'normal')) opt.selected = true;
-    select.appendChild(opt);
-  }
-  return select;
+function workPriorityPillOptions() {
+  return workState.priorities.map((p) => ({ value: p, label: WORK_PRIORITY_LABELS[p] || p }));
 }
 
 function appendWorkMetaFields(fields, draft, markDirty) {
-  const priorityLabel = document.createElement('label');
-  priorityLabel.className = 'de-label';
-  priorityLabel.textContent = 'Priority';
-  const prioritySelect = buildPrioritySelect(draft?.priority || 'normal');
-  priorityLabel.appendChild(prioritySelect);
-  fields.appendChild(priorityLabel);
+  const priorityPill = createSlidingPillSelect({
+    label: 'Priority',
+    value: draft?.priority || 'normal',
+    options: workPriorityPillOptions(),
+    ariaLabel: 'Priority',
+    onChange: markDirty || undefined,
+  });
+  fields.appendChild(priorityPill.el);
 
   const dueLabel = document.createElement('label');
   dueLabel.className = 'de-label';
@@ -4722,7 +4707,6 @@ function appendWorkMetaFields(fields, draft, markDirty) {
   }
 
   if (markDirty) {
-    prioritySelect.addEventListener('change', markDirty);
     dueInput.addEventListener('input', markDirty);
     valueInput.addEventListener('input', markDirty);
     tagsInput.addEventListener('input', markDirty);
@@ -4733,7 +4717,7 @@ function appendWorkMetaFields(fields, draft, markDirty) {
     getPayload() {
       const valueRaw = valueInput.value.trim();
       return {
-        priority: prioritySelect.value,
+        priority: priorityPill.getValue(),
         due_date: dueInput.value.trim() || null,
         value: valueRaw === '' ? null : Number(valueRaw),
         tags: tagsInput.value.split(',').map((t) => t.trim()).filter(Boolean),
@@ -5079,12 +5063,13 @@ function renderNewWorkForm(pane) {
   let clientPicker;
   clientPicker = mountWorkClientPicker(fields, workState.draft, () => { workState.dirty = true; });
 
-  const statusLabel = document.createElement('label');
-  statusLabel.className = 'de-label';
-  statusLabel.textContent = 'Status';
-  const statusSelect = buildStatusSelect(workState.draft?.status || 'inquiry');
-  statusLabel.appendChild(statusSelect);
-  fields.appendChild(statusLabel);
+  const statusPill = createSlidingPillSelect({
+    label: 'Status',
+    value: workState.draft?.status || 'inquiry',
+    options: workStatusPillOptions(),
+    ariaLabel: 'Status',
+  });
+  fields.appendChild(statusPill.el);
 
   const metaFields = appendWorkMetaFields(fields, workState.draft, null);
 
@@ -5105,7 +5090,7 @@ function renderNewWorkForm(pane) {
     return createWork(slug, {
       title,
       ...client,
-      status: statusSelect.value,
+      status: statusPill.getValue(),
       ...metaFields.getPayload(),
       body: ta.value,
     });
@@ -5277,13 +5262,14 @@ function renderEditWorkForm(pane) {
 
       let clientPicker;
       let metaFields;
+      let statusPill;
       const markDirty = () => {
         const client = clientPicker.getPayload();
         const meta = metaFields.getPayload();
         workState.dirty =
           titleInput.value !== workState.draft.title ||
           (client?.contact_uid || '') !== (workState.draft.contact_uid || '') ||
-          statusSelect.value !== workState.draft.status ||
+          statusPill.getValue() !== workState.draft.status ||
           meta.priority !== (workState.draft.priority || 'normal') ||
           (meta.due_date || '') !== (workState.draft.due_date || '') ||
           String(meta.value ?? '') !== String(workState.draft.value ?? '') ||
@@ -5293,17 +5279,18 @@ function renderEditWorkForm(pane) {
       };
       clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty, { readOnly: true });
 
-      const statusLabel = document.createElement('label');
-      statusLabel.className = 'de-label';
-      statusLabel.textContent = 'Status';
-      const statusSelect = buildStatusSelect(workState.draft.status);
-      statusLabel.appendChild(statusSelect);
-      fields.appendChild(statusLabel);
+      statusPill = createSlidingPillSelect({
+        label: 'Status',
+        value: workState.draft.status,
+        options: workStatusPillOptions(),
+        ariaLabel: 'Status',
+        onChange: markDirty,
+      });
+      fields.appendChild(statusPill.el);
 
       metaFields = appendWorkMetaFields(fields, workState.draft, markDirty);
 
       titleInput.addEventListener('input', markDirty);
-      statusSelect.addEventListener('change', markDirty);
       ta.addEventListener('input', markDirty);
       scroll.appendChild(fields);
       scroll.appendChild(ta);
@@ -5316,7 +5303,7 @@ function renderEditWorkForm(pane) {
         return saveWork(slug, {
           title: titleInput.value.trim(),
           ...client,
-          status: statusSelect.value,
+          status: statusPill.getValue(),
           ...metaFields.getPayload(),
           body: ta.value,
         });

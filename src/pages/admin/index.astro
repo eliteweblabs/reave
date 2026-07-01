@@ -1529,6 +1529,69 @@ const { userId } = Astro.locals.auth();
         font-weight: 600;
         letter-spacing: 0.01em;
       }
+      .sliding-pill-select {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        min-width: 0;
+      }
+      .sliding-pill {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        padding: 0.15rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--surface-subtle);
+        overflow: hidden;
+      }
+      .sliding-pill-indicator {
+        position: absolute;
+        top: 0.15rem;
+        bottom: 0.15rem;
+        left: 0;
+        width: 0;
+        border-radius: calc(var(--radius-input) - 2px);
+        background: var(--card);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        pointer-events: none;
+        z-index: 0;
+        transition:
+          transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+          width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .sliding-pill-indicator--static {
+        transition: none !important;
+      }
+      .sliding-pill-btn {
+        position: relative;
+        z-index: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        margin: 0;
+        padding: 0.38rem 0.45rem;
+        border: none;
+        border-radius: calc(var(--radius-input) - 2px);
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: max(15px, 0.76rem);
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .sliding-pill-btn.is-active {
+        color: var(--fg);
+      }
+      .sliding-pill-btn:hover:not(.is-active) {
+        color: var(--fg-secondary);
+      }
+      #work-editor .sliding-pill-select {
+        min-width: 0;
+      }
       #work-editor .de-input,
       #work-editor .de-textarea,
       #work-editor .wk-client-selected span {
@@ -4168,6 +4231,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701f"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701g"></script>
   </body>
 </html>
