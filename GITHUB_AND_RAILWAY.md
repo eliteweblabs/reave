@@ -42,6 +42,7 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```sh
   railway run -- npm run dev
   ```
+  **Do not use this for day-to-day local admin work.** It injects Railway’s *internal* URLs (`*.railway.internal`), which do not resolve on your Mac. Use `npm run sync:env` + plain `npm run dev` instead.
 
 - **Snapshot variables to a local file** (file is gitignored):
   ```sh
@@ -49,10 +50,11 @@ Use the CLI for **deployments, logs, and variables** — not as a substitute for
   ```
   Then merge what you need into `.env` for offline work, or run:
   ```sh
-  railway service reave   # once, if not linked
-  npm run sync:env      # appends missing production keys (DATABASE_URL, FEATURES, …)
+  npm run sync:env      # pulls Reave App (reave.app) prod keys + public DATABASE_URL
   ```
   Local dev uses `PUBLIC_BOOKING_API_URL` for Cal.com (not the Railway-private `BOOKING_API_URL`).
+
+  **Important:** This repo’s Railway CLI may be linked to **Reave Demo** (`reave-production.up.railway.app`) — a separate project with empty databases. Production lives on **Reave App** (`reave.app`). Always run `npm run sync:env` so `.env` targets Reave App’s public Postgres proxy, not Demo.
 
 ## Other repos on the same Railway project
 
