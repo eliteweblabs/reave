@@ -3989,6 +3989,83 @@ const { userId } = Astro.locals.auth();
         text-transform: uppercase;
         color: var(--muted);
       }
+      .cal-day-agenda-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0 0.25rem;
+      }
+      .cal-day-agenda-head .cal-day-agenda-title {
+        margin: 0.55rem 0 0.35rem;
+      }
+      .cal-new-event-btn {
+        flex: 0 0 auto;
+        margin-top: 0.35rem;
+        padding: 0.22rem 0.55rem;
+        border: none;
+        border-radius: 999px;
+        background: rgba(121, 192, 255, 0.14);
+        color: #79c0ff;
+        font: inherit;
+        font-size: 0.68rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .cal-new-event-btn:hover {
+        background: rgba(121, 192, 255, 0.22);
+      }
+      .cal-day-empty-btn {
+        width: 100%;
+        border: none;
+        font: inherit;
+        cursor: pointer;
+        text-align: center;
+      }
+      .cal-day-empty-btn:hover {
+        color: #79c0ff;
+      }
+      .sched-create-form {
+        display: grid;
+        gap: 0.65rem;
+      }
+      .sched-create-field {
+        display: grid;
+        gap: 0.25rem;
+      }
+      .sched-create-field > span {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .sched-create-input {
+        width: 100%;
+        padding: 0.45rem 0.55rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        background: var(--surface-muted);
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.84rem;
+      }
+      .sched-create-input:focus {
+        outline: none;
+        border-color: rgba(121, 192, 255, 0.55);
+      }
+      .sched-create-notes {
+        resize: vertical;
+        min-height: 3rem;
+      }
+      .sched-create-hint {
+        margin: 0;
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .sched-create-error {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #fca5a5;
+      }
       .cal-agenda-item {
         display: flex;
         align-items: flex-start;
@@ -4059,6 +4136,7 @@ const { userId } = Astro.locals.auth();
         min-width: 0;
         position: relative;
         border-left: 1px solid var(--panel-border);
+        cursor: pointer;
       }
       .cal-time-col:first-child {
         border-left: none;
@@ -4592,6 +4670,6 @@ const { userId } = Astro.locals.auth();
       })();
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701l"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701m"></script>
   </body>
 </html>

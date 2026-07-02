@@ -5638,6 +5638,202 @@ async function cancelScheduleBooking(uid) {
   await loadScheduleTab();
 }
 
+function scheduleStartFromParts(dateKey, hour = 9, minute = 0) {
+  const d = scheduleParseDateKey(dateKey);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
+function scheduleSnapMinute(minute) {
+  return Math.min(45, Math.max(0, Math.round(minute / 15) * 15));
+}
+
+function scheduleTimeFromClickY(clientY, colTop) {
+  const y = Math.max(0, clientY - colTop);
+  const totalMin = (y / (CAL_HOURS * CAL_HOUR_PX)) * CAL_HOURS * 60;
+  const hour = Math.min(CAL_HOURS - 1, Math.floor(totalMin / 60));
+  const minute = scheduleSnapMinute(totalMin % 60);
+  return { hour, minute };
+}
+
+function scheduleDateInputValue(dateKey) {
+  return dateKey;
+}
+
+function scheduleTimeInputValue(date) {
+  const h = String(date.getHours()).padStart(2, '0');
+  const m = String(date.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+async function submitScheduleCreate(payload) {
+  const res = await adminFetch('/api/bookings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    if (data.check) err.check = data.check;
+    throw err;
+  }
+  return data;
+}
+
+function openScheduleCreateDialog(initial = {}) {
+  const dateKey = initial.dateKey || scheduleState.selectedDate || scheduleTodayKey();
+  const startDate = scheduleStartFromParts(
+    dateKey,
+    initial.hour ?? 9,
+    initial.minute ?? 0,
+  );
+
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (evKey) => {
+      if (evKey.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'New event';
+    bodyEl.innerHTML =
+      `<form class="sched-create-form" id="sched-create-form">` +
+        `<label class="sched-create-field">` +
+          `<span>Guest name</span>` +
+          `<input class="sched-create-input" name="name" type="text" autocomplete="name" required>` +
+        `</label>` +
+        `<label class="sched-create-field">` +
+          `<span>Email</span>` +
+          `<input class="sched-create-input" name="email" type="email" autocomplete="email" required>` +
+        `</label>` +
+        `<label class="sched-create-field">` +
+          `<span>Date</span>` +
+          `<input class="sched-create-input" name="date" type="date" required>` +
+        `</label>` +
+        `<label class="sched-create-field">` +
+          `<span>Time</span>` +
+          `<input class="sched-create-input" name="time" type="time" required>` +
+        `</label>` +
+        `<label class="sched-create-field">` +
+          `<span>Notes</span>` +
+          `<textarea class="sched-create-input sched-create-notes" name="notes" rows="2"></textarea>` +
+        `</label>` +
+        `<p class="sched-create-hint">Creates a Cal.com booking on an open slot.</p>` +
+        `<p class="sched-create-error" id="sched-create-error" hidden></p>` +
+        `<div class="em-book-alt-slots" id="sched-create-alts" hidden></div>` +
+      `</form>`;
+    actionsEl.innerHTML = '';
+
+    const form = bodyEl.querySelector('#sched-create-form');
+    const errEl = bodyEl.querySelector('#sched-create-error');
+    const altsEl = bodyEl.querySelector('#sched-create-alts');
+    const dateInput = form.querySelector('[name="date"]');
+    const timeInput = form.querySelector('[name="time"]');
+    dateInput.value = scheduleDateInputValue(dateKey);
+    timeInput.value = scheduleTimeInputValue(startDate);
+
+    function readStartIso() {
+      const [y, m, d] = dateInput.value.split('-').map(Number);
+      const [hh, mm] = timeInput.value.split(':').map(Number);
+      const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
+      return dt.toISOString();
+    }
+
+    function showConflict(check) {
+      if (!check) return;
+      errEl.hidden = false;
+      errEl.textContent = check.conflictReason || 'That time is not available.';
+      if (check.alternatives?.length && altsEl) {
+        altsEl.hidden = false;
+        altsEl.innerHTML = '<p class="em-book-alt-label">Open slots nearby:</p>';
+        for (const slot of check.alternatives) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'em-book-alt-slot';
+          btn.textContent = slot.label || formatScheduleWhen(slot.iso);
+          btn.addEventListener('click', () => {
+            const slotDate = new Date(slot.iso);
+            dateInput.value = scheduleDateInputValue(scheduleDateKey(slotDate));
+            timeInput.value = scheduleTimeInputValue(slotDate);
+            errEl.hidden = true;
+            altsEl.hidden = true;
+            altsEl.innerHTML = '';
+          });
+          altsEl.appendChild(btn);
+        }
+      }
+    }
+
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
+
+    const saveBtn = mkBtn('Add event', '', async () => {
+      if (!form.reportValidity()) return;
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      errEl.hidden = true;
+      if (altsEl) {
+        altsEl.hidden = true;
+        altsEl.innerHTML = '';
+      }
+      try {
+        const data = await submitScheduleCreate({
+          name: form.name.value.trim(),
+          email: form.email.value.trim(),
+          start: readStartIso(),
+          notes: form.notes.value.trim(),
+        });
+        finish(true);
+        scheduleState.selectedDate = scheduleBookingDateKey(data.booking?.startTime);
+        scheduleState.focusDate = scheduleState.selectedDate;
+        if (data.booking?.uid) scheduleState.activeUid = data.booking.uid;
+        await loadScheduleTab();
+        await osAlert({
+          title: 'Event scheduled',
+          bodyHtml: `<p>Booked for <strong>${escHtml(formatScheduleWhen(data.booking?.startTime))}</strong>.</p>`,
+        });
+      } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Add event';
+        if (err.check) {
+          showConflict(err.check);
+        } else {
+          errEl.hidden = false;
+          errEl.textContent = err.message || String(err);
+        }
+      }
+    });
+
+    backdrop.classList.add('open');
+    backdrop.setAttribute('aria-hidden', 'false');
+    document.addEventListener('keydown', onKey);
+    form.name.focus();
+  });
+}
+
 function renderScheduleDetail(pane, booking) {
   pane.innerHTML = '';
   const who = scheduleBookingWho(booking);
@@ -5781,6 +5977,16 @@ function renderScheduleToolbar() {
 
   bar.appendChild(nav);
 
+  const newBtn = createIosIconBtn({
+    iconKey: 'plus',
+    label: 'New event',
+    onClick: () => {
+      scheduleEnsureFocusDate();
+      openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
+    },
+  });
+  bar.appendChild(newBtn);
+
   const todayBtn = document.createElement('button');
   todayBtn.type = 'button';
   todayBtn.className = 'cal-toolbar-today';
@@ -5827,14 +6033,27 @@ function renderCalDayAgenda(parent, dayKey, title) {
   const bookings = scheduleBookingsForDay(dayKey);
   const wrap = document.createElement('div');
   wrap.className = 'cal-day-agenda';
+
+  const head = document.createElement('div');
+  head.className = 'cal-day-agenda-head';
   const heading = document.createElement('p');
   heading.className = 'cal-day-agenda-title';
   heading.textContent = title;
-  wrap.appendChild(heading);
+  head.appendChild(heading);
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'cal-new-event-btn';
+  addBtn.textContent = 'New event';
+  addBtn.addEventListener('click', () => openScheduleCreateDialog({ dateKey: dayKey }));
+  head.appendChild(addBtn);
+  wrap.appendChild(head);
+
   if (!bookings.length) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = 'No events';
+    const empty = document.createElement('button');
+    empty.type = 'button';
+    empty.className = 'de-empty cal-day-empty-btn';
+    empty.textContent = 'No events — tap to add';
+    empty.addEventListener('click', () => openScheduleCreateDialog({ dateKey: dayKey }));
     wrap.appendChild(empty);
   } else {
     for (const booking of bookings) {
@@ -5894,13 +6113,8 @@ function renderCalMonthView(parent) {
 
     btn.addEventListener('click', () => {
       scheduleState.selectedDate = key;
-      if (scheduleState.view === 'month') {
-        renderSchedulePanel();
-      } else {
-        scheduleState.view = 'day';
-        scheduleState.focusDate = key;
-        loadScheduleTab();
-      }
+      renderSchedulePanel();
+      openScheduleCreateDialog({ dateKey: key });
     });
     grid.appendChild(btn);
   }
@@ -5995,6 +6209,12 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       line.style.top = `${h * CAL_HOUR_PX}px`;
       col.appendChild(line);
     }
+    col.addEventListener('click', (e) => {
+      if (e.target.closest('.cal-event-block')) return;
+      const rect = col.getBoundingClientRect();
+      const { hour, minute } = scheduleTimeFromClickY(e.clientY, rect.top);
+      openScheduleCreateDialog({ dateKey: key, hour, minute });
+    });
     for (const booking of scheduleBookingsForDay(key)) {
       const { top, height } = scheduleEventLayout(booking);
       const block = document.createElement('button');
@@ -6006,7 +6226,10 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       block.innerHTML =
         `<span class="cal-event-block-title">${escHtml(booking.title || 'Meeting')}</span>` +
         `<span class="cal-event-block-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>`;
-      block.addEventListener('click', () => selectScheduleBooking(booking.uid));
+      block.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectScheduleBooking(booking.uid);
+      });
       col.appendChild(block);
     }
     cols.appendChild(col);

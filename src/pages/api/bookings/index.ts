@@ -1,10 +1,13 @@
 /**
- * GET /api/bookings — upcoming/recent Cal.com bookings (admin).
+ * GET  /api/bookings — upcoming/recent Cal.com bookings (admin).
+ * POST /api/bookings — create a Cal.com booking (admin).
  * Query: ?upcoming=true|false (default true), ?status=ACCEPTED, ?limit=50
+ *        ?from=YYYY-MM-DD&to=YYYY-MM-DD for calendar range
  */
 
 import type { APIContext } from 'astro';
 import {
+  bookingCreate,
   bookingList,
   calcomWebappUrl,
   dateKeyInTimezone,
@@ -12,6 +15,7 @@ import {
   publicBookingPageUrl,
   type BookingSummary,
 } from '../../../lib/bookingClient';
+import { checkEmailMeetingSlot } from '../../../lib/emailScheduling';
 import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
@@ -84,6 +88,82 @@ export async function GET(context: APIContext): Promise<Response> {
       bookingFormUrl: '/form/schedule',
       publicBookingUrl: publicBookingPageUrl() ?? null,
       calcomAdminUrl: calcomAdmin ?? null,
+    },
+  });
+}
+
+export async function POST(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  if (!hasFeature('scheduling')) {
+    return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
+  }
+
+  if (!isBookingConfigured()) {
+    return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
+  }
+
+  let body: unknown;
+  try {
+    body = await context.request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON body' }, 400);
+  }
+
+  const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+  const name = String(rec.name ?? '').trim();
+  const email = String(rec.email ?? '').trim();
+  const startRaw = String(rec.start ?? '').trim();
+  const notes = rec.notes != null ? String(rec.notes).trim().slice(0, 500) : '';
+  const phone = rec.phone != null ? String(rec.phone).trim() : undefined;
+
+  if (!name) return json({ ok: false, error: 'Guest name is required' }, 400);
+  if (!email.includes('@')) return json({ ok: false, error: 'Valid guest email is required' }, 400);
+
+  const start = new Date(startRaw);
+  if (Number.isNaN(start.getTime())) {
+    return json({ ok: false, error: 'Invalid start time' }, 400);
+  }
+
+  const checkRes = await checkEmailMeetingSlot({
+    proposedStart: start.toISOString(),
+    from: `${name} <${email}>`,
+    contactName: name,
+  });
+  if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
+  if (!checkRes.check.available) {
+    return json(
+      {
+        ok: false,
+        error: checkRes.check.conflictReason || 'Time slot is not available',
+        check: checkRes.check,
+      },
+      409,
+    );
+  }
+
+  const created = await bookingCreate({
+    name,
+    email,
+    start: start.toISOString(),
+    notes: notes || undefined,
+    phone,
+  });
+  if (!created.ok) {
+    return json({ ok: false, error: created.error }, created.status ?? 502);
+  }
+
+  const booking = created.data.booking;
+  if (!booking?.uid) {
+    return json({ ok: false, error: 'Booking API did not return a booking id' }, 502);
+  }
+
+  return json({
+    ok: true,
+    booking: {
+      uid: booking.uid,
+      startTime: booking.startTime ?? start.toISOString(),
     },
   });
 }
