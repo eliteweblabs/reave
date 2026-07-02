@@ -2240,12 +2240,12 @@ function collapseFooterNav() {
   document.getElementById('admin-footer-nav')?.classList.add('footer-nav-collapsed');
   const homeBtn = document.getElementById('footer-nav-home');
   homeBtn?.setAttribute('title', 'Show navigation');
-  renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2255,12 +2255,12 @@ function expandFooterNav() {
   document.getElementById('admin-footer-nav')?.classList.remove('footer-nav-collapsed');
   const homeBtn = document.getElementById('footer-nav-home');
   homeBtn?.setAttribute('title', 'Home');
-  renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2637,6 +2637,7 @@ function syncFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -2874,6 +2875,11 @@ function footerBadgeKey(badgeId) {
   return null;
 }
 
+function footerNavBadgeSuppressed(key) {
+  if (footerNavCollapsed) return key !== 'home';
+  return footerNavShowsCreate(key) || footerNavShowsSave(key);
+}
+
 function renderFooterNavBadges() {
   if (footerNavCollapsed) {
     const total = Math.max(footerBadgeCounts.home, footerBadgeCounts.chat, footerBadgeCounts.inbox);
@@ -2905,6 +2911,10 @@ function renderFooterNavBadges() {
     const badge = document.getElementById(entry.badgeId);
     const btn = document.getElementById(entry.btnId);
     if (!badge || !btn) continue;
+    if (footerNavBadgeSuppressed(entry.key)) {
+      badge.hidden = true;
+      continue;
+    }
     const n = footerBadgeCounts[entry.key];
     if (n > 0) {
       badge.hidden = false;

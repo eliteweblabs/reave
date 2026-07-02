@@ -168,6 +168,24 @@ const userId = auth?.userId ?? null;
 <style is:global>
   :root {
     --app-header-h: 4rem;
+    --radius-input: 8px;
+    --control-h: 2.75rem;
+    --footer-nav-pill-h: var(--control-h);
+    --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
+    --footer-nav-glass-bg: transparent;
+    --footer-nav-glass-blur: blur(18px) saturate(1.15);
+    --nav-icon: rgba(0, 0, 0, 0.45);
+    --nav-icon-hover: rgba(0, 0, 0, 0.72);
+    --nav-icon-active: #0f172a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
+      --nav-icon: rgba(255, 255, 255, 0.58);
+      --nav-icon-hover: rgba(255, 255, 255, 0.88);
+      --nav-icon-active: #ffffff;
+    }
   }
 
   .app-header {
@@ -342,23 +360,24 @@ const userId = auth?.userId ?? null;
 
   .app-header-admin-entry {
     margin-left: auto;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
-    background: var(--panel, rgba(18, 23, 34, 0.9));
-    color: var(--muted, rgba(255, 255, 255, 0.55));
+    width: var(--footer-nav-pill-h, var(--control-h, 2.75rem));
+    height: var(--footer-nav-pill-h, var(--control-h, 2.75rem));
+    border-radius: var(--radius-input, 8px);
+    border: var(--footer-nav-glass-border, 1px solid rgba(255, 255, 255, 0.08));
+    background: var(--footer-nav-glass-bg, transparent);
+    backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
     display: flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
     flex-shrink: 0;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
 
   .app-header-admin-entry:hover {
-    color: var(--fg, #e9eef6);
-    border-color: #4b5563;
+    color: var(--nav-icon-hover, var(--fg, #e9eef6));
   }
 
   .app-header-admin-entry svg {
@@ -425,11 +444,13 @@ const userId = auth?.userId ?? null;
 
   .app-header-profile-btn,
   .topbar-profile-btn {
-    width: 36px;
-    height: 36px;
-    border: none;
+    width: var(--footer-nav-pill-h, var(--control-h, 2.75rem));
+    height: var(--footer-nav-pill-h, var(--control-h, 2.75rem));
+    border: var(--footer-nav-glass-border, 1px solid rgba(255, 255, 255, 0.08));
     border-radius: var(--radius-input, 8px);
-    background: transparent;
+    background: var(--footer-nav-glass-bg, transparent);
+    backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
+    -webkit-backdrop-filter: var(--footer-nav-glass-blur, blur(18px) saturate(1.15));
     color: var(--nav-icon, var(--muted, rgba(255, 255, 255, 0.55)));
     cursor: pointer;
     padding: 0;
@@ -438,12 +459,16 @@ const userId = auth?.userId ?? null;
     justify-content: center;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-    transition: color 0.15s;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
   }
 
   .app-header-profile-btn:hover,
   .topbar-profile-btn:hover {
     color: var(--nav-icon-hover, var(--fg, #e9eef6));
+  }
+
+  .topbar-profile-menu:has(.topbar-dropdown.open) .topbar-profile-btn {
+    color: var(--nav-icon-active, var(--fg, #e9eef6));
   }
 
   .topbar-profile-btn svg {
