@@ -3922,14 +3922,21 @@ const { userId } = Astro.locals.auth();
         min-height: 2.65rem;
         padding: 0.35rem 0.1rem 0.25rem;
         border: none;
-        border-radius: 10px;
+        border-radius: 0;
         background: transparent;
         color: var(--fg);
         font: inherit;
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
       }
-      .cal-day:hover {
+      .cal-day:hover:not(.cal-day--selected) {
+        background: transparent;
+      }
+      .cal-day:hover:not(.cal-day--selected):not(.cal-day--today) .cal-day-num {
         background: var(--surface-hover);
+      }
+      .cal-day:focus {
+        outline: none;
       }
       .cal-day-num {
         display: inline-flex;
@@ -3951,11 +3958,12 @@ const { userId } = Astro.locals.auth();
         color: #fff;
       }
       .cal-day--selected:not(.cal-day--today) .cal-day-num {
-        background: rgba(121, 192, 255, 0.22);
-        color: #79c0ff;
+        background: #007aff;
+        color: #fff;
       }
       .cal-day--selected.cal-day--today .cal-day-num {
-        box-shadow: 0 0 0 2px rgba(121, 192, 255, 0.45);
+        background: #ff3b30;
+        color: #fff;
       }
       .cal-day-dots {
         display: flex;
@@ -4109,18 +4117,29 @@ const { userId } = Astro.locals.auth();
         font: inherit;
         text-align: center;
         cursor: pointer;
-        border-radius: 8px;
+        border-radius: 0;
+        -webkit-tap-highlight-color: transparent;
       }
-      .cal-week-header-col:hover {
+      .cal-week-header-col:hover:not(.cal-week-header-col--selected) {
+        background: transparent;
+      }
+      .cal-week-header-col:hover:not(.cal-week-header-col--selected):not(.cal-week-header-col--today) .cal-week-header-daynum {
         background: var(--surface-hover);
+      }
+      .cal-week-header-col:focus {
+        outline: none;
       }
       .cal-week-header-col--today .cal-week-header-daynum {
         background: #ff3b30;
         color: #fff;
       }
       .cal-week-header-col--selected:not(.cal-week-header-col--today) .cal-week-header-daynum {
-        background: rgba(121, 192, 255, 0.22);
-        color: #79c0ff;
+        background: #007aff;
+        color: #fff;
+      }
+      .cal-week-header-col--selected.cal-week-header-col--today .cal-week-header-daynum {
+        background: #ff3b30;
+        color: #fff;
       }
       .cal-week-header-dow {
         display: block;
