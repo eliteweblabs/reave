@@ -5746,19 +5746,42 @@ async function submitScheduleCreate(payload) {
 let schedGuestSearchTimer = null;
 
 function mountScheduleGuestAutocomplete(nameInput, emailInput) {
-  const wrap = nameInput.closest('.sched-create-field');
-  if (!wrap) return;
+  const portal = document.getElementById('os-dialog-backdrop');
+  if (!portal || !nameInput) return () => {};
 
-  wrap.classList.add('sched-guest-search-wrap');
   const dropdown = document.createElement('div');
-  dropdown.className = 'wk-client-dropdown';
-  dropdown.hidden = true;
-  wrap.appendChild(dropdown);
+  dropdown.className = 'sched-guest-dropdown';
+  dropdown.style.display = 'none';
+  portal.appendChild(dropdown);
+
+  let repositionHandler = null;
+
+  function positionDropdown() {
+    const rect = nameInput.getBoundingClientRect();
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.width = `${rect.width}px`;
+  }
 
   function setDropdownOpen(open) {
-    dropdown.hidden = !open;
-    dropdown.style.display = open ? 'block' : 'none';
-    nameInput.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      positionDropdown();
+      dropdown.style.display = 'block';
+      nameInput.setAttribute('aria-expanded', 'true');
+      if (!repositionHandler) {
+        repositionHandler = () => positionDropdown();
+        window.addEventListener('resize', repositionHandler);
+        window.addEventListener('scroll', repositionHandler, true);
+      }
+      return;
+    }
+    dropdown.style.display = 'none';
+    nameInput.setAttribute('aria-expanded', 'false');
+    if (repositionHandler) {
+      window.removeEventListener('resize', repositionHandler);
+      window.removeEventListener('scroll', repositionHandler, true);
+      repositionHandler = null;
+    }
   }
 
   function pick(client) {
@@ -5780,7 +5803,7 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
     for (const c of clients) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'wk-client-option';
+      btn.className = 'sched-guest-option';
       btn.innerHTML =
         `${escHtml(c.name || 'Client')}` +
         `<span class="sub">${escHtml(workClientSubline(c))}</span>`;
@@ -5797,11 +5820,12 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
       const params = new URLSearchParams();
       if (q.trim()) params.set('q', q.trim());
       params.set('limit', '20');
-      const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
+      const res = await adminFetch(`/api/clients?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       renderDropdown(data.clients || [], q);
     } catch (e) {
+      if (e.message === 'Session expired') return;
       dropdown.innerHTML = `<div class="sched-guest-empty">${escHtml(e.message)}</div>`;
       setDropdownOpen(true);
     }
@@ -5812,17 +5836,30 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
     schedGuestSearchTimer = setTimeout(runSearch, 250);
   }
 
+  const onFocus = () => scheduleSearch();
+  const onInput = () => scheduleSearch();
+  const onBlur = () => {
+    setTimeout(() => {
+      if (!dropdown.contains(document.activeElement)) setDropdownOpen(false);
+    }, 150);
+  };
+
   nameInput.autocomplete = 'off';
   nameInput.setAttribute('role', 'combobox');
   nameInput.setAttribute('aria-autocomplete', 'list');
   nameInput.setAttribute('aria-expanded', 'false');
-  nameInput.addEventListener('focus', () => scheduleSearch());
-  nameInput.addEventListener('input', () => scheduleSearch());
-  nameInput.addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!wrap.contains(document.activeElement)) setDropdownOpen(false);
-    }, 150);
-  });
+  nameInput.addEventListener('focus', onFocus);
+  nameInput.addEventListener('input', onInput);
+  nameInput.addEventListener('blur', onBlur);
+
+  return () => {
+    clearTimeout(schedGuestSearchTimer);
+    nameInput.removeEventListener('focus', onFocus);
+    nameInput.removeEventListener('input', onInput);
+    nameInput.removeEventListener('blur', onBlur);
+    setDropdownOpen(false);
+    dropdown.remove();
+  };
 }
 
 function openScheduleCreateDialog(initial = {}) {
@@ -5841,9 +5878,11 @@ function openScheduleCreateDialog(initial = {}) {
 
   return new Promise((resolve) => {
     let settled = false;
+    let destroyGuestAutocomplete = () => {};
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      destroyGuestAutocomplete();
       backdrop.classList.remove('open');
       backdrop.setAttribute('aria-hidden', 'true');
       document.removeEventListener('keydown', onKey);
@@ -5891,7 +5930,7 @@ function openScheduleCreateDialog(initial = {}) {
     const timeInput = form.querySelector('[name="time"]');
     dateInput.value = scheduleDateInputValue(dateKey);
     timeInput.value = scheduleTimeInputValue(startDate);
-    mountScheduleGuestAutocomplete(nameInput, emailInput);
+    destroyGuestAutocomplete = mountScheduleGuestAutocomplete(nameInput, emailInput);
 
     function readStartIso() {
       const [y, m, d] = dateInput.value.split('-').map(Number);

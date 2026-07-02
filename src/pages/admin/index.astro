@@ -4069,8 +4069,33 @@ const { userId } = Astro.locals.auth();
         display: grid;
         gap: 0.25rem;
       }
-      .sched-guest-search-wrap {
-        position: relative;
+      .sched-guest-dropdown {
+        position: fixed;
+        z-index: 5100;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow-lg);
+      }
+      .sched-guest-option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border: none;
+        background: transparent;
+        color: var(--fg);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      .sched-guest-option:hover { background: var(--surface-hover-strong); }
+      .sched-guest-option .sub {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
       }
       .sched-guest-empty {
         padding: 0.45rem 0.6rem;
@@ -4717,6 +4742,6 @@ const { userId } = Astro.locals.auth();
       import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701m"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250702a"></script>
   </body>
 </html>
