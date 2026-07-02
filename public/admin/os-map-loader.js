@@ -1849,6 +1849,7 @@ async function loadHomeDashboard() {
     const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    syncDashboardFooterBadges(data.stats);
     renderHomeDashboard(data);
   } catch (e) {
     root.innerHTML =
@@ -2155,7 +2156,8 @@ function syncFooterWorkNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-work-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    btn.appendChild(iconEl);
+    const badge = document.getElementById('footer-work-badge');
+    btn.insertBefore(iconEl, badge || null);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -2198,7 +2200,8 @@ function syncFooterScheduleNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-schedule-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    btn.insertBefore(iconEl, btn.firstChild);
+    const badge = document.getElementById('footer-schedule-badge');
+    btn.insertBefore(iconEl, badge || null);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -2860,19 +2863,31 @@ async function buildMobileToolsMenu(order) {
   if (activeKey === 'home') loadHomeDashboard();
 }
 
-const footerBadgeCounts = { home: 0, chat: 0, inbox: 0 };
+const footerBadgeCounts = { inbox: 0, schedule: 0, work: 0, chat: 0 };
 
 const FOOTER_BADGE_ENTRIES = [
   { badgeId: 'footer-home-badge', btnId: 'footer-nav-home', key: 'home', label: 'Home' },
-  { badgeId: 'footer-chat-badge', btnId: 'footer-nav-chat', key: 'chat', label: 'Chats' },
   { badgeId: 'footer-inbox-badge', btnId: 'footer-nav-inbox', key: 'inbox', label: 'Inbox' },
+  { badgeId: 'footer-schedule-badge', btnId: 'footer-nav-schedule', key: 'schedule', label: 'Schedule' },
+  { badgeId: 'footer-work-badge', btnId: 'footer-nav-work', key: 'work', label: 'Projects' },
+  { badgeId: 'footer-chat-badge', btnId: 'footer-nav-chat', key: 'chat', label: 'Chats' },
 ];
 
+function footerBadgeCountFor(key) {
+  if (key === 'home') {
+    return (
+      footerBadgeCounts.inbox +
+      footerBadgeCounts.schedule +
+      footerBadgeCounts.work +
+      footerBadgeCounts.chat
+    );
+  }
+  return footerBadgeCounts[key] ?? 0;
+}
+
 function footerBadgeKey(badgeId) {
-  if (badgeId === 'footer-home-badge') return 'home';
-  if (badgeId === 'footer-chat-badge') return 'chat';
-  if (badgeId === 'footer-inbox-badge') return 'inbox';
-  return null;
+  const entry = FOOTER_BADGE_ENTRIES.find((e) => e.badgeId === badgeId);
+  return entry?.key && entry.key !== 'home' ? entry.key : null;
 }
 
 function footerNavBadgeSuppressed(key) {
@@ -2882,7 +2897,7 @@ function footerNavBadgeSuppressed(key) {
 
 function renderFooterNavBadges() {
   if (footerNavCollapsed) {
-    const total = Math.max(footerBadgeCounts.home, footerBadgeCounts.chat, footerBadgeCounts.inbox);
+    const total = footerBadgeCountFor('home');
     for (const entry of FOOTER_BADGE_ENTRIES) {
       const badge = document.getElementById(entry.badgeId);
       const btn = document.getElementById(entry.btnId);
@@ -2915,7 +2930,7 @@ function renderFooterNavBadges() {
       badge.hidden = true;
       continue;
     }
-    const n = footerBadgeCounts[entry.key];
+    const n = footerBadgeCountFor(entry.key);
     if (n > 0) {
       badge.hidden = false;
       badge.textContent = n > 99 ? '99+' : String(n);
@@ -2938,8 +2953,23 @@ function syncInboxBadge(count) {
   setFooterNavBadge('footer-inbox-badge', 'footer-nav-inbox', count, 'Inbox');
 }
 
-function syncHomeBadge(count) {
-  setFooterNavBadge('footer-home-badge', 'footer-nav-home', count, 'Home');
+function syncScheduleBadge(count) {
+  setFooterNavBadge('footer-schedule-badge', 'footer-nav-schedule', count, 'Schedule');
+}
+
+function syncWorkBadge(count) {
+  setFooterNavBadge('footer-work-badge', 'footer-nav-work', count, 'Projects');
+}
+
+function syncDashboardFooterBadges(stats) {
+  if (!stats || typeof stats !== 'object') return;
+  syncScheduleBadge(stats.eventsToday ?? 0);
+  syncWorkBadge(stats.projectsPending ?? 0);
+}
+
+function syncWorkBadgeFromJobs(jobs) {
+  const n = (jobs || []).filter((j) => j.status === 'inquiry' || j.status === 'active').length;
+  syncWorkBadge(n);
 }
 
 function syncChatBadge(count) {
@@ -4580,6 +4610,7 @@ async function loadWorkTab(opts = {}) {
     workState.jobs = data.jobs || [];
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
+    syncWorkBadgeFromJobs(workState.jobs);
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
@@ -8607,13 +8638,12 @@ function unseenInboxCount(events) {
 }
 
 function syncInboxBadges(count) {
-  const n = Math.max(0, Number(count) || 0);
-  syncHomeBadge(n);
-  syncInboxBadge(n);
+  syncInboxBadge(Math.max(0, Number(count) || 0));
 }
 
 function updateInboxBadgesFromState() {
   syncInboxBadges(unseenInboxCount(emailState.allEvents));
+  void setAppIconBadge(footerBadgeCountFor('home'));
 }
 
 async function clearCachedBadgeCount() {
@@ -8656,21 +8686,35 @@ async function setAppIconBadge(n) {
 
 async function syncInboxAppBadge(events) {
   const n = unseenInboxCount(events);
-  await setAppIconBadge(n);
   syncInboxBadges(n);
+  await setAppIconBadge(footerBadgeCountFor('home'));
+}
+
+async function refreshFooterBadgesQuiet() {
+  try {
+    const [dashRes, inboxRes] = await Promise.all([
+      fetch('/api/admin/dashboard', { cache: 'no-store' }),
+      fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
+    ]);
+    if (dashRes.ok) {
+      const dash = await dashRes.json();
+      if (dash.ok) syncDashboardFooterBadges(dash.stats);
+    }
+    if (inboxRes.ok) {
+      const inboxData = await inboxRes.json();
+      const events = inboxData.events || [];
+      if (MAP.type === 'email' && emailState.allEvents.length) {
+        mergeEmailSeenFromServer(events);
+      }
+      await syncInboxAppBadge(events);
+      return;
+    }
+    await setAppIconBadge(footerBadgeCountFor('home'));
+  } catch {}
 }
 
 async function refreshInboxBadgeQuiet() {
-  try {
-    const inboxRes = await fetch('/api/email/inbox?limit=100', { cache: 'no-store' });
-    if (!inboxRes.ok) return;
-    const inboxData = await inboxRes.json();
-    const events = inboxData.events || [];
-    if (MAP.type === 'email' && emailState.allEvents.length) {
-      mergeEmailSeenFromServer(events);
-    }
-    await syncInboxAppBadge(events);
-  } catch {}
+  await refreshFooterBadgesQuiet();
 }
 
 function stopInboxBadgePoll() {
@@ -9666,7 +9710,6 @@ function queueEmailSeen(id) {
   if (!id || !markEmailSeenLocal(id)) return;
   pendingSeenIds.add(id);
   updateInboxBadgesFromState();
-  void setAppIconBadge(unseenInboxCount(emailState.allEvents));
   clearTimeout(flushSeenTimer);
   flushSeenTimer = setTimeout(() => { void flushPendingEmailSeen(); }, 400);
 }
