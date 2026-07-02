@@ -54,8 +54,6 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no" />
-		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-		<meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
 		<meta name="generator" content={Astro.generator} />
 
 		<!-- Favicons -->
@@ -92,38 +90,6 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 </html>
 
 <style is:global>
-	:root {
-		color-scheme: light dark;
-		--bg: #ffffff;
-		--fg: #0f172a;
-		--muted: #64748b;
-		--panel-border: #e2e8f0;
-		--elabel-bg: rgba(255, 255, 255, 0.92);
-		--footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
-		--footer-nav-glass-bg: transparent;
-		--footer-nav-glass-blur: blur(18px) saturate(1.15);
-		--nav-icon: rgba(0, 0, 0, 0.45);
-		--nav-icon-hover: rgba(0, 0, 0, 0.72);
-		--nav-icon-active: #0f172a;
-		--radius-input: 8px;
-		--control-h: 2.75rem;
-		--footer-nav-pill-h: var(--control-h);
-	}
-
-	@media (prefers-color-scheme: dark) {
-		:root {
-			--bg: #0a0d14;
-			--fg: #e9eef6;
-			--muted: #8b97a8;
-			--panel-border: #283142;
-			--elabel-bg: rgba(10, 13, 20, 0.82);
-			--footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
-			--nav-icon: rgba(255, 255, 255, 0.58);
-			--nav-icon-hover: rgba(255, 255, 255, 0.88);
-			--nav-icon-active: #ffffff;
-		}
-	}
-
 	* {
 		box-sizing: border-box;
 	}

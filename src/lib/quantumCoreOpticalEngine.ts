@@ -131,32 +131,10 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     (matchMedia("(pointer: coarse)").matches ||
       matchMedia("(max-width: 768px)").matches);
 
-  function isDarkMode(): boolean {
-    return (
-      typeof matchMedia !== "undefined" &&
-      matchMedia("(prefers-color-scheme: dark)").matches
-    );
-  }
-
-  function sceneThemeColors(dark: boolean): { bg: number; fog: number; fogDensity: number } {
-    if (dark) {
-      return {
-        bg: 0x050505,
-        fog: 0x030308,
-        fogDensity: isMobileLike ? 0.006 : 0.0095,
-      };
-    }
-    return {
-      bg: 0xf8fafc,
-      fog: 0xe2e8f0,
-      fogDensity: isMobileLike ? 0.0045 : 0.0065,
-    };
-  }
-
   const scene = new THREE.Scene();
-  const initialTheme = sceneThemeColors(isDarkMode());
-  scene.background = new THREE.Color(initialTheme.bg);
-  scene.fog = new THREE.FogExp2(initialTheme.fog, initialTheme.fogDensity);
+  scene.background = new THREE.Color(0x050505);
+  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. Lighter fog on mobile so edge particles don’t fade to black. */
+  scene.fog = new THREE.FogExp2(0x030308, isMobileLike ? 0.006 : 0.0095);
 
   const camera = new THREE.PerspectiveCamera(
     VIEW_FOV,
@@ -436,30 +414,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   bloomPass.threshold = isMobileLike ? 0.025 : 0.031;
   bloomPass.strength = 1.05;
   bloomPass.radius = 0.66;
-
-  function applySceneTheme(): void {
-    const theme = sceneThemeColors(isDarkMode());
-    scene.background = new THREE.Color(theme.bg);
-    if (scene.fog instanceof THREE.FogExp2) {
-      scene.fog.color.setHex(theme.fog);
-      scene.fog.density = theme.fogDensity;
-    }
-    bloomPass.threshold = isDarkMode()
-      ? isMobileLike
-        ? 0.025
-        : 0.031
-      : isMobileLike
-        ? 0.018
-        : 0.022;
-  }
-
-  applySceneTheme();
-  const colorSchemeMq =
-    typeof matchMedia !== "undefined"
-      ? matchMedia("(prefers-color-scheme: dark)")
-      : null;
-  const onColorSchemeChange = () => applySceneTheme();
-  colorSchemeMq?.addEventListener("change", onColorSchemeChange);
   const hpUniforms = bloomPass.highPassUniforms as Record<
     string,
     { value: number }
@@ -796,7 +750,6 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     cancelAnimationFrame(resizeRaf);
     resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
-    colorSchemeMq?.removeEventListener("change", onColorSchemeChange);
     window.removeEventListener("audioLevel", onAudioLevel);
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);

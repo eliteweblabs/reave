@@ -62,44 +62,18 @@ import TextFallback from "../components/TextFallback.astro";
 </Layout>
 
 <style>
-  :global(:root) {
+  :root {
     --quantum-neon-blue: #00f3ff;
     --quantum-neon-purple: #bc13fe;
     --quantum-neon-red: #ff0055;
-    --quantum-page-bg: #f8fafc;
-    --quantum-glass: rgba(255, 255, 255, 0.72);
-    --quantum-border: rgba(0, 0, 0, 0.08);
-    --quantum-vignette-inner: transparent;
-    --quantum-vignette-outer: rgba(15, 23, 42, 0.14);
-    --quantum-logo-glow: drop-shadow(0 0 12px rgba(15, 23, 42, 0.08))
-      drop-shadow(0 0 28px rgba(99, 102, 241, 0.14));
-    --quantum-controls-fade: rgba(248, 250, 252, 0.88);
-    --quantum-btn-bg: rgba(15, 23, 42, 0.04);
-    --quantum-btn-border: rgba(15, 23, 42, 0.1);
-    --quantum-btn-fg: #0f172a;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :global(:root) {
-      --quantum-page-bg: #050505;
-      --quantum-glass: rgba(10, 10, 12, 0.6);
-      --quantum-border: rgba(255, 255, 255, 0.1);
-      --quantum-vignette-inner: transparent;
-      --quantum-vignette-outer: rgba(0, 0, 0, 0.8);
-      --quantum-logo-glow: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
-        drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
-      --quantum-controls-fade: rgba(5, 5, 5, 0.85);
-      --quantum-btn-bg: rgba(255, 255, 255, 0.03);
-      --quantum-btn-border: rgba(255, 255, 255, 0.1);
-      --quantum-btn-fg: #ffffff;
-    }
+    --quantum-glass: rgba(10, 10, 12, 0.6);
+    --quantum-border: rgba(255, 255, 255, 0.1);
   }
 
   :global(html),
   :global(body) {
     min-height: 100%;
-    background: var(--quantum-page-bg, var(--bg, #050505));
-    color: var(--fg, #e9eef6);
+    background: #050505;
   }
 
   /* Let drags reach the scene on iOS (otherwise Safari keeps scroll/rubber-band). */
@@ -130,7 +104,8 @@ import TextFallback from "../components/TextFallback.astro";
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-    filter: var(--quantum-logo-glow);
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
+      drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
     animation: quantumLogoIntro 1.4s ease-out forwards;
   }
 
@@ -160,8 +135,8 @@ import TextFallback from "../components/TextFallback.astro";
     z-index: 2;
     background: radial-gradient(
       circle at center,
-      var(--quantum-vignette-inner) 40%,
-      var(--quantum-vignette-outer) 110%
+      transparent 40%,
+      rgba(0, 0, 0, 0.8) 110%
     );
   }
 
@@ -184,8 +159,8 @@ import TextFallback from "../components/TextFallback.astro";
     pointer-events: none;
     background: linear-gradient(
       to top,
-      var(--quantum-controls-fade) 0%,
-      color-mix(in srgb, var(--quantum-controls-fade) 40%, transparent) 55%,
+      rgba(5, 5, 5, 0.85) 0%,
+      rgba(5, 5, 5, 0.35) 55%,
       transparent 100%
     );
   }
@@ -205,9 +180,9 @@ import TextFallback from "../components/TextFallback.astro";
   }
 
   .quantum-btn {
-    background: var(--quantum-btn-bg);
-    border: 1px solid var(--quantum-btn-border);
-    color: var(--quantum-btn-fg);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
     font-family: ui-sans-serif, system-ui, sans-serif;
     font-size: 10px;
     font-weight: 700;
@@ -298,23 +273,11 @@ import TextFallback from "../components/TextFallback.astro";
   /* On phones the logo edges fall in the vignette's dark band, killing the
      effect. Push the falloff outward and lighten it so the tint stays visible. */
   @media screen and (max-width: 768px) {
-    :global(:root) {
-      --quantum-vignette-outer: rgba(15, 23, 42, 0.1);
-    }
-  }
-
-  @media screen and (max-width: 768px) and (prefers-color-scheme: dark) {
-    :global(:root) {
-      --quantum-vignette-outer: rgba(0, 0, 0, 0.6);
-    }
-  }
-
-  @media screen and (max-width: 768px) {
     .quantum-vignette {
       background: radial-gradient(
         circle at center,
-        var(--quantum-vignette-inner) 55%,
-        var(--quantum-vignette-outer) 120%
+        transparent 55%,
+        rgba(0, 0, 0, 0.6) 120%
       );
     }
   }
