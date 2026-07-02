@@ -3394,10 +3394,39 @@ const { userId } = Astro.locals.auth();
         }
         .ch-pane { display: none; }
         #chat-panel.ch-pane-active .ch-sidebar { display: none; }
-        #chat-panel.ch-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
+        #chat-panel.ch-pane-active .ch-pane {
+          display: flex;
+          flex: 1 1 auto;
+          padding-top: calc(var(--topbar-h) - 0.85rem);
+        }
         #chat-panel.ch-pane-active .ch-pane-header {
           flex-shrink: 0;
           background: var(--bg);
+          gap: 0.3rem;
+          padding: 0.15rem 0.45rem 0.2rem;
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn:not(.ch-delete-btn),
+        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
+          color: hsl(0 0% 75%);
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn:not(.ch-delete-btn):hover {
+          background: transparent;
+          color: hsl(0 0% 75%);
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher,
+        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
+          width: 32px;
+          height: 32px;
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
+          border-color: hsl(0 0% 75% / 0.35);
+        }
+        #chat-panel.ch-pane-active .ch-pane-header .de-header-actions {
+          gap: 0.15rem;
         }
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
