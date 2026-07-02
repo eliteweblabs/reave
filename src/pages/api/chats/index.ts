@@ -67,6 +67,8 @@ export async function POST(context: APIContext): Promise<Response> {
         await assignEmailToJob(sourceEmailId, jobSlug);
       }
     }
+  } else if (sourceJobSlug) {
+    await linkProjectItem(sourceJobSlug, 'chat', thread.id);
   }
 
   const [enriched] = await enrichThreadsWithLinks([thread]);

@@ -3471,7 +3471,8 @@ const { userId } = Astro.locals.auth();
         .ch-messages { padding: 0.75rem 0.85rem var(--footer-scroll-pad); }
 
         /* Collapsed footer: home sits on the same row as chat input (right, small). */
-        body.footer-chat-inline-home #chat-panel .ch-compose {
+        body.footer-chat-inline-home #chat-panel .ch-compose,
+        body.footer-chat-inline-home #chat-panel .aui-compose-footer {
           bottom: calc(var(--ch-compose-gap) + env(safe-area-inset-bottom, 0px));
           right: calc(
             var(--ch-inline-home-w) + var(--ch-inline-home-gap) +
@@ -3483,7 +3484,9 @@ const { userId } = Astro.locals.auth();
           max-width: none;
           margin: 0;
         }
-        body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages {
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages,
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport > [data-radix-scroll-area-viewport],
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport > div {
           padding-bottom: calc(
             var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
           );
@@ -3495,12 +3498,15 @@ const { userId } = Astro.locals.auth();
           visibility: hidden;
           pointer-events: none;
         }
-        body.chat-compose-focused #chat-panel .ch-compose {
+        body.chat-compose-focused #chat-panel .ch-compose,
+        body.chat-compose-focused #chat-panel .aui-compose-footer {
           left: max(0.5rem, env(safe-area-inset-left, 0px));
           right: max(0.5rem, env(safe-area-inset-right, 0px));
           bottom: calc(var(--chat-compose-bottom, 0px) + var(--ch-compose-gap));
         }
-        body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages {
+        body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages,
+        body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport > [data-radix-scroll-area-viewport],
+        body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport > div {
           padding-bottom: calc(
             var(--control-h) + var(--ch-compose-gap) + 0.75rem + var(--chat-compose-bottom, 0px)
           );

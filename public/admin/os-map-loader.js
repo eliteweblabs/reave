@@ -9024,13 +9024,16 @@ async function askAgentAboutDocument(tpl) {
 
 async function askAgentAboutWork(job) {
   try {
-    const res = await fetch(`/api/work/${encodeURIComponent(job.slug)}`, { cache: 'no-store' });
-    const data = await readApiJson(res);
-    const meta = [`Title: ${job.title}`, `Slug: ${job.slug}`];
-    if (job.contact_name || job.client) meta.push(`Client: ${job.contact_name || job.client}`);
-    if (job.status) meta.push(`Status: ${WORK_STATUS_LABELS[job.status] || job.status}`);
-    const prompt = buildAgentContentPrompt('Help me work with this job:', meta, data.content || data.body);
-    await askAgentWithPrompt(prompt);
+    const lines = [
+      'Help me work on this job.',
+      '',
+      `Title: ${job.title}`,
+      `Slug: ${job.slug}`,
+    ];
+    if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
+    if (job.status) lines.push(`Status: ${WORK_STATUS_LABELS[job.status] || job.status}`);
+    lines.push('', 'Use read_work on the slug above if you need the full project notes.');
+    await askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
     osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
   }

@@ -282,28 +282,28 @@ function AgentChatThread({
               ),
             }}
           />
-          <ThreadPrimitive.ViewportFooter className="aui-compose-footer">
-            <ComposerPrimitive.Root className="aui-compose">
-              <ComposerPrimitive.Attachments />
-              <div className="aui-compose-row">
-                <ComposerPrimitive.Input
-                  className="aui-input"
-                  placeholder="Message the agent…"
-                  rows={1}
-                  autoFocus
-                  onFocus={() => propsRef.current?.onComposeFocus?.(true)}
-                  onBlur={() => propsRef.current?.onComposeFocus?.(false)}
-                />
-                <ComposerPrimitive.Send className="aui-send" aria-label="Send message">
-                  ↑
-                </ComposerPrimitive.Send>
-                <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
-                  Stop
-                </ComposerPrimitive.Cancel>
-              </div>
-            </ComposerPrimitive.Root>
-          </ThreadPrimitive.ViewportFooter>
         </ThreadPrimitive.Viewport>
+        <div className="aui-compose-footer">
+          <ComposerPrimitive.Root className="aui-compose">
+            <ComposerPrimitive.Attachments />
+            <div className="aui-compose-row">
+              <ComposerPrimitive.Input
+                className="aui-input"
+                placeholder="Message the agent…"
+                rows={1}
+                autoFocus={!pendingAutoSend}
+                onFocus={() => propsRef.current?.onComposeFocus?.(true)}
+                onBlur={() => propsRef.current?.onComposeFocus?.(false)}
+              />
+              <ComposerPrimitive.Send className="aui-send" aria-label="Send message">
+                ↑
+              </ComposerPrimitive.Send>
+              <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
+                Stop
+              </ComposerPrimitive.Cancel>
+            </div>
+          </ComposerPrimitive.Root>
+        </div>
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
   );
