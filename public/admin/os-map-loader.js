@@ -2562,7 +2562,7 @@ function initChatComposeFocusLayout() {
     (ev) => {
       if (!isMobileTabs() || activeKey !== 'chats' || !chatState.activeId) return;
       const t = ev.target;
-      if (!(t instanceof HTMLElement) || !t.classList.contains('ch-input')) return;
+      if (!(t instanceof HTMLElement) || !t.classList.contains('aui-input')) return;
       setChatComposeFocused(true);
     },
     true,
@@ -7854,9 +7854,74 @@ function scrollChatToBottom(container, smooth = true) {
   requestAnimationFrame(() => requestAnimationFrame(run));
 }
 
+function getAgentModelForChat() {
+  return agentModelState.model || undefined;
+}
+
+async function refreshChatLinkedJobs() {
+  if (!chatState.activeId) return;
+  try {
+    const linkRes = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
+      cache: 'no-store',
+    });
+    const linkData = await readApiJson(linkRes);
+    chatState.linkedJobs = linkData.thread?.linked_jobs || [];
+    const thread = chatState.threads.find((t) => t.id === chatState.activeId);
+    if (thread) thread.linked_jobs = chatState.linkedJobs;
+  } catch {
+    /* ignore */
+  }
+}
+
+function unmountChatThreadRoot(root) {
+  const host = root?.querySelector('#ch-thread-root');
+  if (host) window.__reaveAgentChat?.unmount(host);
+}
+
+function mountChatThreadRoot(threadHost) {
+  const chatApi = window.__reaveAgentChat;
+  if (!chatApi) {
+    threadHost.innerHTML =
+      '<div class="de-loading de-error">Chat UI failed to load. Hard-refresh the page.</div>';
+    return;
+  }
+  const pendingDraft = chatState.pendingDraft;
+  const pendingAutoSend = chatState.pendingAutoSend;
+  chatState.pendingDraft = null;
+  chatState.pendingAutoSend = false;
+  chatApi.mount(threadHost, {
+    threadId: chatState.activeId,
+    initialMessages: chatState.messages,
+    pendingDraft,
+    pendingAutoSend,
+    getModel: getAgentModelForChat,
+    onComposeFocus: (focused) => setChatComposeFocused(focused),
+    onTitleUpdate: (title) => {
+      chatState.title = title;
+      const thread = chatState.threads.find((t) => t.id === chatState.activeId);
+      if (thread) thread.title = title;
+      syncSidebarChatTitle(chatState.activeId, title);
+    },
+    onMessagesPersist: (userContent, assistantContent) => {
+      chatState.messages.push({ role: 'user', content: userContent });
+      chatState.messages.push({ role: 'assistant', content: assistantContent });
+    },
+    onLinkedJobsRefresh: () => {
+      void refreshChatLinkedJobs().then(() => {
+        const header = getChatPanel()?.querySelector('.ch-pane-header');
+        if (header && chatHasConversation()) {
+          const next = buildChatPaneHeader();
+          header.replaceWith(next);
+        }
+      });
+    },
+  });
+}
+
 function renderChatPanel() {
   const root = getChatPanel();
   if (!root) return;
+  unmountChatThreadRoot(root);
   root.innerHTML = '';
 
   root.appendChild(renderChatSidebar());
@@ -7876,222 +7941,19 @@ function renderChatPanel() {
     return;
   }
 
-  const messagesEl = document.createElement('div');
-  messagesEl.className = 'ch-messages';
-
-  const compose = document.createElement('div');
-  compose.className = 'ch-compose';
-
-  const composeMain = document.createElement('div');
-  composeMain.className = 'ch-compose-main';
-
-  const attachmentsEl = document.createElement('div');
-  attachmentsEl.className = 'ch-attachments';
-  attachmentsEl.hidden = true;
-
-  const inputField = document.createElement('div');
-  inputField.className = 'ch-input-field control-field';
-
-  const input = document.createElement('textarea');
-  input.className = 'ch-input';
-  input.placeholder = 'Message the agent…';
-  input.rows = 1;
-  input.disabled = chatState.sending;
-
-  inputField.appendChild(input);
-
-  const sendBtn = document.createElement('button');
-  sendBtn.type = 'button';
-  sendBtn.className = 'ch-send';
-  sendBtn.setAttribute('aria-label', 'Send message');
-  sendBtn.title = 'Send message';
-  sendBtn.innerHTML = IOS_ICONS.send || '';
-  sendBtn.disabled = chatState.sending;
-
-  const stopBtn = document.createElement('button');
-  stopBtn.className = 'ch-stop';
-  stopBtn.type = 'button';
-  stopBtn.textContent = 'Stop';
-  stopBtn.hidden = true;
-  stopBtn.setAttribute('aria-label', 'Stop generating');
-
-  let pendingImages = [];
-
-  function renderPendingAttachments() {
-    attachmentsEl.innerHTML = '';
-    attachmentsEl.hidden = pendingImages.length === 0;
-    for (const img of pendingImages) {
-      const wrap = document.createElement('div');
-      wrap.className = 'ch-attachment';
-      const thumb = document.createElement('img');
-      thumb.src = img.previewUrl;
-      thumb.alt = img.name || 'Attached image';
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.className = 'ch-attachment-remove';
-      rm.setAttribute('aria-label', 'Remove image');
-      rm.textContent = '×';
-      rm.addEventListener('click', () => {
-        pendingImages = pendingImages.filter((item) => item !== img);
-        renderPendingAttachments();
-        syncSendState();
-      });
-      wrap.appendChild(thumb);
-      wrap.appendChild(rm);
-      attachmentsEl.appendChild(wrap);
-    }
-  }
-
-  function syncSendState() {
-    const canSend = Boolean(
-      (input.value.trim() || pendingImages.length) && !chatState.sending && chatState.activeId,
-    );
-    sendBtn.disabled = !canSend;
-    sendBtn.hidden = chatState.sending;
-    stopBtn.hidden = !chatState.sending;
-  }
-
-  async function addPendingImages(files) {
-    if (chatState.sending || !files?.length) return;
-    const room = CHAT_MAX_IMAGES - pendingImages.length;
-    if (room <= 0) {
-      showChatToast(`Max ${CHAT_MAX_IMAGES} images per message`);
-      return;
-    }
-    const slice = Array.from(files).slice(0, room);
-    const added = await collectChatImageFiles(slice);
-    if (!added.length) return;
-    pendingImages.push(...added);
-    if (files.length > room) showChatToast(`Only ${CHAT_MAX_IMAGES} images per message`);
-    renderPendingAttachments();
-    syncSendState();
-    input.focus();
-  }
-
-  compose.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    if (chatState.sending) return;
-    compose.classList.add('ch-compose-drag');
-  });
-  compose.addEventListener('dragleave', (e) => {
-    if (!compose.contains(e.relatedTarget)) compose.classList.remove('ch-compose-drag');
-  });
-  compose.addEventListener('drop', (e) => {
-    e.preventDefault();
-    compose.classList.remove('ch-compose-drag');
-    if (chatState.sending) return;
-    addPendingImages([...(e.dataTransfer?.files || [])]);
-  });
-  input.addEventListener('paste', (e) => {
-    const files = [...(e.clipboardData?.items || [])]
-      .filter((item) => item.type.startsWith('image/'))
-      .map((item) => item.getAsFile())
-      .filter(Boolean);
-    if (!files.length) return;
-    e.preventDefault();
-    addPendingImages(files);
-  });
-  input.addEventListener('input', syncSendState);
-
-  renderChatMessages(messagesEl, input);
-
   if (chatHasConversation()) pane.appendChild(buildChatPaneHeader());
   else if (isMobileTabs()) pane.appendChild(buildChatPaneNavHeader());
-  pane.appendChild(messagesEl);
 
-  async function doSend() {
-    const text = input.value.trim();
-    const images = pendingImages.map(({ mediaType, data }) => ({ mediaType, data }));
-    if ((!text && !images.length) || chatState.sending || !chatState.activeId) return;
-    const userContent = serializeChatMsgContent(text, images);
-    chatState.sending = true;
-    input.value = '';
-    pendingImages = [];
-    renderPendingAttachments();
-    input.disabled = true;
-    syncSendState();
-    chatState.messages.push({ role: 'user', content: userContent });
-    renderChatMessages(messagesEl, input);
-
-    const abort = new AbortController();
-    chatState.sendAbort = abort;
-
-    try {
-      const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, images }),
-        signal: abort.signal,
-      });
-      const data = await readApiJson(res);
-      chatState.messages.push({ role: 'assistant', content: data.assistantMessage.content });
-      if (data.title) {
-        chatState.title = data.title;
-        const thread = chatState.threads.find((t) => t.id === chatState.activeId);
-        if (thread) thread.title = data.title;
-      }
-      try {
-        const linkRes = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
-          cache: 'no-store',
-        });
-        const linkData = await readApiJson(linkRes);
-        chatState.linkedJobs = linkData.thread?.linked_jobs || [];
-        const thread = chatState.threads.find((t) => t.id === chatState.activeId);
-        if (thread) thread.linked_jobs = chatState.linkedJobs;
-      } catch {}
-    } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
-        chatState.messages.push({ role: 'assistant', content: 'Stopped.' });
-      } else {
-        chatState.messages.push({ role: 'assistant', content: `Error: ${e.message}` });
-      }
-    } finally {
-      chatState.sending = false;
-      chatState.sendAbort = null;
-      input.disabled = false;
-      renderChatPanel();
-      const newInput = getChatPanel()?.querySelector('.ch-input');
-      newInput?.focus();
-    }
-  }
-
-  sendBtn.addEventListener('click', doSend);
-  stopBtn.addEventListener('click', () => {
-    chatState.sendAbort?.abort();
-  });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (chatState.sending) return;
-      doSend();
-    }
-  });
-  const composeActions = document.createElement('div');
-  composeActions.className = 'ch-compose-actions';
-  composeActions.appendChild(sendBtn);
-  composeActions.appendChild(stopBtn);
-  inputField.appendChild(composeActions);
-  composeMain.appendChild(inputField);
-  compose.appendChild(attachmentsEl);
-  compose.appendChild(composeMain);
-  pane.appendChild(compose);
+  const threadHost = document.createElement('div');
+  threadHost.className = 'ch-thread-root';
+  threadHost.id = 'ch-thread-root';
+  pane.appendChild(threadHost);
 
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
   syncTopbarPanelContext();
   syncFooterChatInlineHome();
-  syncSendState();
-  if (chatState.pendingDraft) {
-    input.value = chatState.pendingDraft;
-    chatState.pendingDraft = null;
-    syncSendState();
-    if (chatState.pendingAutoSend) {
-      chatState.pendingAutoSend = false;
-      void doSend();
-      return;
-    }
-  }
-  input.focus();
+  mountChatThreadRoot(threadHost);
 }
 
 async function startNewChat() {

@@ -18,7 +18,7 @@ const { userId } = Astro.locals.auth();
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
@@ -2212,6 +2212,13 @@ const { userId } = Astro.locals.auth();
         flex-direction: column;
         overflow: hidden;
         min-width: 0;
+      }
+      .ch-thread-root {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
       }
       .ch-pane-header {
         flex-shrink: 0;
@@ -4668,6 +4675,9 @@ const { userId } = Astro.locals.auth();
           showAdminLoadError(msg);
         });
       })();
+    </script>
+    <script>
+      import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20250701m"></script>
