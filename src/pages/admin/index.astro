@@ -883,7 +883,7 @@ const { userId } = Astro.locals.auth();
       /* Sidebar list subheader — search-only (see admin-ui.js listSearchSubheader) */
       .panel-list-subheader {
         position: relative;
-        margin: 0.35rem 0.7rem 0.5rem;
+        margin: 0.35rem 0.5rem 0.5rem;
         flex: 0 0 auto;
       }
       .panel-list-subheader--fab-only {
@@ -1140,6 +1140,8 @@ const { userId } = Astro.locals.auth();
         padding: 0.75rem 1rem 0.6rem;
         border-bottom: 1px solid var(--panel-border);
         flex: 0 0 auto;
+        min-width: 0;
+        overflow: hidden;
       }
       .de-back-btn {
         display: none;
@@ -1168,6 +1170,9 @@ const { userId } = Astro.locals.auth();
         padding: 0;
         outline: none;
         width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .de-header-title-input::placeholder {
         color: var(--muted);
@@ -1456,10 +1461,14 @@ const { userId } = Astro.locals.auth();
       #rule-editor {
         position: fixed;
         inset: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         height: 100dvh;
         display: flex;
         flex-direction: row;
         background: var(--bg);
+        overflow: hidden;
         z-index: 10;
       }
       @media (max-width: 639px) {
@@ -1507,7 +1516,9 @@ const { userId } = Astro.locals.auth();
       .re-form-scroll {
         flex: 1 1 auto;
         min-height: 0;
-        overflow: auto;
+        min-width: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
         padding: 0.7rem 1rem var(--footer-scroll-pad);
         display: flex;
         flex-direction: column;
@@ -1517,12 +1528,12 @@ const { userId } = Astro.locals.auth();
       #work-editor .re-form-scroll.wk-form-scroll .de-fields {
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.75rem 1rem;
       }
-      @media (max-width: 639px) {
+      @media (min-width: 980px) {
         #work-editor .re-form-scroll.wk-form-scroll .de-fields {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
       #work-editor .re-form-scroll.wk-form-scroll .de-fields > .wk-client-picker {
@@ -1587,6 +1598,8 @@ const { userId } = Astro.locals.auth();
         font-weight: 600;
         cursor: pointer;
         white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         transition: color 0.15s;
         -webkit-tap-highlight-color: transparent;
       }
@@ -1612,6 +1625,8 @@ const { userId } = Astro.locals.auth();
         margin: 0;
         white-space: pre-wrap;
         overflow-x: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
         tab-size: 2;
       }
       #work-editor .re-form-scroll.wk-form-scroll .wk-comments-section {
@@ -1648,8 +1663,22 @@ const { userId } = Astro.locals.auth();
       .wk-status-active { color: #3fb950; background: rgba(63, 185, 80, 0.12); }
       .wk-status-done { color: #8b97a8; background: rgba(139, 151, 168, 0.12); }
       .wk-status-archived { color: #d29922; background: rgba(210, 153, 34, 0.12); }
-      .wk-meta-row { display: flex; align-items: center; gap: 0.35rem; width: 100%; }
-      .wk-contact { font-size: 0.68rem; color: var(--muted); }
+      .wk-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: 100%;
+        min-width: 0;
+      }
+      .wk-contact {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.68rem;
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .wk-client-picker { position: relative; margin-bottom: 0.5rem; }
       .wk-client-selected {
         display: flex;
@@ -2104,10 +2133,13 @@ const { userId } = Astro.locals.auth();
       }
       .ch-list-item {
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
         display: flex;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         gap: 0.2rem;
+        overflow: hidden;
         padding: 0.55rem 0.65rem;
         font: inherit;
         font-size: 0.8rem;
@@ -2833,6 +2865,9 @@ const { userId } = Astro.locals.auth();
       /* iOS-style swipe actions on email list rows */
       .swipe-row {
         position: relative;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         overflow: hidden;
         border-radius: 8px;
         margin-bottom: 0.15rem;
@@ -2888,6 +2923,9 @@ const { userId } = Astro.locals.auth();
       .swipe-content {
         position: relative;
         z-index: 1;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         will-change: transform;
         background: var(--swipe-row-bg);
         border-radius: 8px;
