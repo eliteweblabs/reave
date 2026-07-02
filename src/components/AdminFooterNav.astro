@@ -71,7 +71,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     justify-content: center;
     padding:
       0 max(0.5rem, env(safe-area-inset-right, 0px))
-      env(safe-area-inset-bottom, 0px)
+      calc(env(safe-area-inset-bottom, 0px) + var(--footer-nav-bottom-gap, 0px))
       max(0.5rem, env(safe-area-inset-left, 0px));
     background: transparent;
     pointer-events: none;

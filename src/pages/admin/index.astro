@@ -96,7 +96,8 @@ const { userId } = Astro.locals.auth();
         --safe-bottom: env(safe-area-inset-bottom, 0px);
         --topbar-h: calc(4rem + var(--safe-top));
         --footer-nav-pill-h: var(--control-h);
-        --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom));
+        --footer-nav-bottom-gap: 0px;
+        --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
         --ch-compose-gap: 0.35rem;
         --ch-compose-h: 3.25rem;
         --ch-inline-home-w: 2.25rem;
@@ -112,6 +113,11 @@ const { userId } = Astro.locals.auth();
         --sidebar-w: 260px;
         --sidebar-min-w: 200px;
         --sidebar-max-w: 520px;
+      }
+      @media (min-width: 640px) {
+        :root {
+          --footer-nav-bottom-gap: 1.25rem;
+        }
       }
       @media (prefers-color-scheme: dark) {
         :root {
@@ -3516,12 +3522,6 @@ const { userId } = Astro.locals.auth();
         overflow-x: hidden;
         overflow-y: auto;
         padding: calc(var(--topbar-h) + 0.65rem) 1rem var(--footer-scroll-pad);
-      }
-      @media (min-width: 640px) {
-        .home-dashboard-scroll {
-          padding-bottom: calc(var(--footer-scroll-pad) + 1.25rem);
-          scroll-padding-bottom: calc(var(--footer-scroll-pad) + 1.25rem);
-        }
       }
       .home-dashboard-title {
         margin: 0 0 0.25rem;
