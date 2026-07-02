@@ -31,11 +31,13 @@
   .transcript-line {
     font-size: 14px;
     line-height: 1.4;
-    color: #ffffff !important; /* Force white text */
+    color: var(--fg, #ffffff);
     padding: 4px 12px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.6) !important; /* Darker background for better contrast */
-    backdrop-filter: blur(4px);
+    border-radius: var(--radius-input, 8px);
+    background: var(--elabel-bg, rgba(0, 0, 0, 0.6));
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.08));
     max-width: 100%;
     word-wrap: break-word;
     opacity: 1;
@@ -44,7 +46,7 @@
     animation: slideUpFade 3s ease-out forwards, streaming 2s ease-in-out infinite;
     overflow: hidden;
     position: relative;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); /* Add text shadow for better visibility */
+    text-shadow: none;
   }
 
   /* Streaming/flowing text effect */
@@ -83,14 +85,10 @@
     }
   }
 
-  .transcript-line.user {
-    color: #ffffff !important; /* Force white text */
-    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
-  }
-
+  .transcript-line.user,
   .transcript-line.assistant {
-    color: #ffffff !important; /* Force white text */
-    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
+    color: var(--fg, #ffffff);
+    background: var(--elabel-bg, rgba(0, 0, 0, 0.6));
   }
 
   @keyframes slideUpFade {

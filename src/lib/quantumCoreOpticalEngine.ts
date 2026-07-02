@@ -436,6 +436,30 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   bloomPass.threshold = isMobileLike ? 0.025 : 0.031;
   bloomPass.strength = 1.05;
   bloomPass.radius = 0.66;
+
+  function applySceneTheme(): void {
+    const theme = sceneThemeColors(isDarkMode());
+    scene.background = new THREE.Color(theme.bg);
+    if (scene.fog instanceof THREE.FogExp2) {
+      scene.fog.color.setHex(theme.fog);
+      scene.fog.density = theme.fogDensity;
+    }
+    bloomPass.threshold = isDarkMode()
+      ? isMobileLike
+        ? 0.025
+        : 0.031
+      : isMobileLike
+        ? 0.018
+        : 0.022;
+  }
+
+  applySceneTheme();
+  const colorSchemeMq =
+    typeof matchMedia !== "undefined"
+      ? matchMedia("(prefers-color-scheme: dark)")
+      : null;
+  const onColorSchemeChange = () => applySceneTheme();
+  colorSchemeMq?.addEventListener("change", onColorSchemeChange);
   const hpUniforms = bloomPass.highPassUniforms as Record<
     string,
     { value: number }
@@ -772,6 +796,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     cancelAnimationFrame(resizeRaf);
     resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
+    colorSchemeMq?.removeEventListener("change", onColorSchemeChange);
     window.removeEventListener("audioLevel", onAudioLevel);
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
