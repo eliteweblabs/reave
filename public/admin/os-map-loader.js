@@ -5815,11 +5815,14 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   }
 
   async function runSearch() {
-    const q = nameInput.value;
+    const q = nameInput.value.trim();
+    if (!q) {
+      setDropdownOpen(false);
+      dropdown.innerHTML = '';
+      return;
+    }
     try {
-      const params = new URLSearchParams();
-      if (q.trim()) params.set('q', q.trim());
-      params.set('limit', '20');
+      const params = new URLSearchParams({ q, limit: '20' });
       const res = await adminFetch(`/api/clients?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -5833,10 +5836,15 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
 
   function scheduleSearch() {
     clearTimeout(schedGuestSearchTimer);
+    const q = nameInput.value.trim();
+    if (!q) {
+      setDropdownOpen(false);
+      dropdown.innerHTML = '';
+      return;
+    }
     schedGuestSearchTimer = setTimeout(runSearch, 250);
   }
 
-  const onFocus = () => scheduleSearch();
   const onInput = () => scheduleSearch();
   const onBlur = () => {
     setTimeout(() => {
@@ -5848,13 +5856,11 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   nameInput.setAttribute('role', 'combobox');
   nameInput.setAttribute('aria-autocomplete', 'list');
   nameInput.setAttribute('aria-expanded', 'false');
-  nameInput.addEventListener('focus', onFocus);
   nameInput.addEventListener('input', onInput);
   nameInput.addEventListener('blur', onBlur);
 
   return () => {
     clearTimeout(schedGuestSearchTimer);
-    nameInput.removeEventListener('focus', onFocus);
     nameInput.removeEventListener('input', onInput);
     nameInput.removeEventListener('blur', onBlur);
     setDropdownOpen(false);
