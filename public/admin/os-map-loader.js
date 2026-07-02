@@ -5743,6 +5743,88 @@ async function submitScheduleCreate(payload) {
   return data;
 }
 
+let schedGuestSearchTimer = null;
+
+function mountScheduleGuestAutocomplete(nameInput, emailInput) {
+  const wrap = nameInput.closest('.sched-create-field');
+  if (!wrap) return;
+
+  wrap.classList.add('sched-guest-search-wrap');
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.hidden = true;
+  wrap.appendChild(dropdown);
+
+  function setDropdownOpen(open) {
+    dropdown.hidden = !open;
+    dropdown.style.display = open ? 'block' : 'none';
+    nameInput.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function pick(client) {
+    nameInput.value = client.name || '';
+    if (emailInput && client.email) emailInput.value = client.email;
+    setDropdownOpen(false);
+  }
+
+  function renderDropdown(clients, query) {
+    dropdown.innerHTML = '';
+    if (!clients.length) {
+      const empty = document.createElement('div');
+      empty.className = 'sched-guest-empty';
+      empty.textContent = query.trim() ? 'No matching clients.' : 'No clients yet.';
+      dropdown.appendChild(empty);
+      setDropdownOpen(true);
+      return;
+    }
+    for (const c of clients) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.innerHTML =
+        `${escHtml(c.name || 'Client')}` +
+        `<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('click', () => pick(c));
+      dropdown.appendChild(btn);
+    }
+    setDropdownOpen(true);
+  }
+
+  async function runSearch() {
+    const q = nameInput.value;
+    try {
+      const params = new URLSearchParams();
+      if (q.trim()) params.set('q', q.trim());
+      params.set('limit', '20');
+      const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      renderDropdown(data.clients || [], q);
+    } catch (e) {
+      dropdown.innerHTML = `<div class="sched-guest-empty">${escHtml(e.message)}</div>`;
+      setDropdownOpen(true);
+    }
+  }
+
+  function scheduleSearch() {
+    clearTimeout(schedGuestSearchTimer);
+    schedGuestSearchTimer = setTimeout(runSearch, 250);
+  }
+
+  nameInput.autocomplete = 'off';
+  nameInput.setAttribute('role', 'combobox');
+  nameInput.setAttribute('aria-autocomplete', 'list');
+  nameInput.setAttribute('aria-expanded', 'false');
+  nameInput.addEventListener('focus', () => scheduleSearch());
+  nameInput.addEventListener('input', () => scheduleSearch());
+  nameInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!wrap.contains(document.activeElement)) setDropdownOpen(false);
+    }, 150);
+  });
+}
+
 function openScheduleCreateDialog(initial = {}) {
   const dateKey = initial.dateKey || scheduleState.selectedDate || scheduleTodayKey();
   const startDate = scheduleStartFromParts(
@@ -5776,7 +5858,7 @@ function openScheduleCreateDialog(initial = {}) {
       `<form class="sched-create-form" id="sched-create-form">` +
         `<label class="sched-create-field">` +
           `<span>Guest name</span>` +
-          `<input class="sched-create-input" name="name" type="text" autocomplete="name" required>` +
+          `<input class="sched-create-input" name="name" type="text" autocomplete="off" required>` +
         `</label>` +
         `<label class="sched-create-field">` +
           `<span>Email</span>` +
@@ -5803,10 +5885,13 @@ function openScheduleCreateDialog(initial = {}) {
     const form = bodyEl.querySelector('#sched-create-form');
     const errEl = bodyEl.querySelector('#sched-create-error');
     const altsEl = bodyEl.querySelector('#sched-create-alts');
+    const nameInput = form.querySelector('[name="name"]');
+    const emailInput = form.querySelector('[name="email"]');
     const dateInput = form.querySelector('[name="date"]');
     const timeInput = form.querySelector('[name="time"]');
     dateInput.value = scheduleDateInputValue(dateKey);
     timeInput.value = scheduleTimeInputValue(startDate);
+    mountScheduleGuestAutocomplete(nameInput, emailInput);
 
     function readStartIso() {
       const [y, m, d] = dateInput.value.split('-').map(Number);
@@ -5892,7 +5977,7 @@ function openScheduleCreateDialog(initial = {}) {
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
     document.addEventListener('keydown', onKey);
-    form.name.focus();
+    nameInput.focus();
   });
 }
 

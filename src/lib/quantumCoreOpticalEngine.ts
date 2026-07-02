@@ -131,10 +131,32 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     (matchMedia("(pointer: coarse)").matches ||
       matchMedia("(max-width: 768px)").matches);
 
+  function isDarkMode(): boolean {
+    return (
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-color-scheme: dark)").matches
+    );
+  }
+
+  function sceneThemeColors(dark: boolean): { bg: number; fog: number; fogDensity: number } {
+    if (dark) {
+      return {
+        bg: 0x050505,
+        fog: 0x030308,
+        fogDensity: isMobileLike ? 0.006 : 0.0095,
+      };
+    }
+    return {
+      bg: 0xf8fafc,
+      fog: 0xe2e8f0,
+      fogDensity: isMobileLike ? 0.0045 : 0.0065,
+    };
+  }
+
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050505);
-  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. Lighter fog on mobile so edge particles don’t fade to black. */
-  scene.fog = new THREE.FogExp2(0x030308, isMobileLike ? 0.006 : 0.0095);
+  const initialTheme = sceneThemeColors(isDarkMode());
+  scene.background = new THREE.Color(initialTheme.bg);
+  scene.fog = new THREE.FogExp2(initialTheme.fog, initialTheme.fogDensity);
 
   const camera = new THREE.PerspectiveCamera(
     VIEW_FOV,
