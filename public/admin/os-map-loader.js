@@ -6200,16 +6200,6 @@ function renderScheduleToolbar() {
 
   bar.appendChild(nav);
 
-  const newBtn = createIosIconBtn({
-    iconKey: 'plus',
-    label: 'New event',
-    onClick: () => {
-      scheduleEnsureFocusDate();
-      openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
-    },
-  });
-  bar.appendChild(newBtn);
-
   const todayBtn = document.createElement('button');
   todayBtn.type = 'button';
   todayBtn.className = 'cal-toolbar-today';
@@ -6252,36 +6242,14 @@ function createCalAgendaItem(booking) {
   return item;
 }
 
-function renderCalDayAgenda(parent, dayKey, title) {
+function renderCalDayAgenda(parent, dayKey) {
   const bookings = scheduleBookingsForDay(dayKey);
+  if (!bookings.length) return;
+
   const wrap = document.createElement('div');
   wrap.className = 'cal-day-agenda';
-
-  const head = document.createElement('div');
-  head.className = 'cal-day-agenda-head';
-  const heading = document.createElement('p');
-  heading.className = 'cal-day-agenda-title';
-  heading.textContent = title;
-  head.appendChild(heading);
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'cal-new-event-btn';
-  addBtn.textContent = 'New event';
-  addBtn.addEventListener('click', () => openScheduleCreateDialog({ dateKey: dayKey }));
-  head.appendChild(addBtn);
-  wrap.appendChild(head);
-
-  if (!bookings.length) {
-    const empty = document.createElement('button');
-    empty.type = 'button';
-    empty.className = 'de-empty cal-day-empty-btn';
-    empty.textContent = 'No events — tap to add';
-    empty.addEventListener('click', () => openScheduleCreateDialog({ dateKey: dayKey }));
-    wrap.appendChild(empty);
-  } else {
-    for (const booking of bookings) {
-      wrap.appendChild(createCalAgendaItem(booking));
-    }
+  for (const booking of bookings) {
+    wrap.appendChild(createCalAgendaItem(booking));
   }
   parent.appendChild(wrap);
 }
@@ -6343,12 +6311,7 @@ function renderCalMonthView(parent) {
   }
   parent.appendChild(grid);
 
-  const agendaTitle = scheduleParseDateKey(scheduleState.selectedDate).toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-  renderCalDayAgenda(parent, scheduleState.selectedDate, agendaTitle);
+  renderCalDayAgenda(parent, scheduleState.selectedDate);
 }
 
 function scheduleEventLayout(booking) {
@@ -6462,7 +6425,7 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
   parent.appendChild(wrap);
 
   if (singleDay) {
-    renderCalDayAgenda(parent, dayKeys[0], 'All day list');
+    renderCalDayAgenda(parent, dayKeys[0]);
   }
 }
 
