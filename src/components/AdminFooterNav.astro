@@ -1,5 +1,5 @@
 ---
-import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
+import { Home, MessageCircle, Mail, Calendar, Search, Briefcase } from "lucide-astro";
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
@@ -35,6 +35,15 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
     >
       <Mail size={20} strokeWidth={1.75} />
       <span id="footer-inbox-badge" class="footer-nav-badge" hidden>0</span>
+    </button>
+    <button
+      type="button"
+      id="footer-nav-schedule"
+      class="footer-nav-btn"
+      data-nav="schedule"
+      aria-label="Schedule"
+    >
+      <Calendar size={20} strokeWidth={1.75} />
     </button>
     <button
       type="button"
@@ -328,6 +337,7 @@ import { Home, MessageCircle, Mail, Search, Briefcase } from "lucide-astro";
   .footer-nav-btn svg,
   .footer-nav-chat-icon svg,
   .footer-nav-inbox-icon svg,
+  .footer-nav-schedule-icon svg,
   .footer-nav-work-icon svg {
     display: block;
     pointer-events: none;

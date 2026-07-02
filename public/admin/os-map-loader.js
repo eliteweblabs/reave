@@ -107,6 +107,7 @@ const NAV_ICON_PATHS = {
   'book-open': '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  calendar: '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
@@ -2041,6 +2042,7 @@ function footerNavActiveKey() {
   if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
+  if (activeKey === 'schedule') return 'schedule';
   if (activeKey === 'work') return 'work';
   return null;
 }
@@ -2097,6 +2099,9 @@ function footerNavShowsCreate(nav) {
   }
   if (nav === 'inbox') {
     return activeKey === 'email' && activeNav === 'inbox' && !emailState.activeId && !emailState.composing;
+  }
+  if (nav === 'schedule') {
+    return activeKey === 'schedule' && activeNav === 'schedule' && !scheduleState.activeUid;
   }
   if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
   return false;
@@ -2184,6 +2189,27 @@ function syncFooterInboxNav() {
   });
 }
 
+function syncFooterScheduleNav() {
+  const btn = document.getElementById('footer-nav-schedule');
+  if (!btn) return;
+  const create = footerNavShowsCreate('schedule');
+  let iconEl = btn.querySelector('.footer-nav-schedule-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-schedule-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    btn.insertBefore(iconEl, btn.firstChild);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  applyFooterNavBtnMode(btn, iconEl, {
+    save: false,
+    create,
+    icon: 'calendar',
+    label: 'Schedule',
+    title: 'New event',
+  });
+}
+
 function footerNavCreateModeActive(nav) {
   return footerNavShowsCreate(nav);
 }
@@ -2217,6 +2243,7 @@ function collapseFooterNav() {
   renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterInboxNav();
+  syncFooterScheduleNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
@@ -2231,6 +2258,7 @@ function expandFooterNav() {
   renderFooterNavBadges();
   syncFooterChatNav();
   syncFooterInboxNav();
+  syncFooterScheduleNav();
   syncFooterWorkNav();
   syncFooterChatInlineHome();
   scheduleFooterNavIndicatorSync();
@@ -2266,7 +2294,7 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'search', 'work'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'search', 'work'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -2275,6 +2303,7 @@ function footerNavIndicatorHidden() {
   return (
     (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
     (activeKey === 'email' && footerNavCreateModeActive('inbox')) ||
+    (activeKey === 'schedule' && footerNavCreateModeActive('schedule')) ||
     (activeKey === 'work' && footerNavCreateModeActive('work'))
   );
 }
@@ -2374,6 +2403,15 @@ function activateFooterNavFromDrag(nav) {
       return;
     }
     setActiveMap('email', { force: activeKey === 'email' });
+    return;
+  }
+  if (nav === 'schedule') {
+    if (activeKey === 'schedule') {
+      scheduleEnsureFocusDate();
+      void openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
+      return;
+    }
+    setActiveMap('schedule', { force: activeKey === 'schedule' });
     return;
   }
   if (nav === 'search') {
@@ -2490,6 +2528,7 @@ function syncFooterNavIndicator() {
   const hideForCreate =
     (activeNav === 'chat' && (footerNavCreateModeActive('chat') || footerNavShowsSave('chat'))) ||
     (activeNav === 'inbox' && footerNavCreateModeActive('inbox')) ||
+    (activeNav === 'schedule' && footerNavCreateModeActive('schedule')) ||
     (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work')));
 
   let targetBtn = activeNav
@@ -2596,6 +2635,7 @@ function syncFooterNav() {
   document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
   syncFooterChatNav();
   syncFooterInboxNav();
+  syncFooterScheduleNav();
   syncFooterWorkNav();
   scheduleFooterNavIndicatorSync();
 }
@@ -2628,6 +2668,15 @@ function initFooterNav() {
       return;
     }
     setActiveMap('email', { force: activeKey === 'email' });
+  });
+  document.getElementById('footer-nav-schedule')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    if (activeKey === 'schedule') {
+      scheduleEnsureFocusDate();
+      void openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
+      return;
+    }
+    setActiveMap('schedule', { force: activeKey === 'schedule' });
   });
   document.getElementById('footer-nav-search')?.addEventListener('click', () => {
     toggleSearchOverlay();
@@ -5608,12 +5657,14 @@ function selectScheduleBooking(uid) {
   scheduleState.activeUid = uid;
   getSchedulePanel()?.classList.add('de-pane-active');
   renderSchedulePanel();
+  syncFooterNav();
 }
 
 function closeScheduleDetail() {
   scheduleState.activeUid = null;
   getSchedulePanel()?.classList.remove('de-pane-active');
   renderSchedulePanel();
+  syncFooterNav();
 }
 
 async function cancelScheduleBooking(uid) {
@@ -5636,6 +5687,7 @@ async function cancelScheduleBooking(uid) {
   scheduleState.activeUid = null;
   getSchedulePanel()?.classList.remove('de-pane-active');
   await loadScheduleTab();
+  syncFooterNav();
 }
 
 function scheduleStartFromParts(dateKey, hour = 9, minute = 0) {
