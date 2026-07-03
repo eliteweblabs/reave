@@ -3959,6 +3959,27 @@ const company = await getCompanyConfig(Astro.request);
       .cal-toolbar-today:hover {
         background: rgba(121, 192, 255, 0.22);
       }
+      .cal-toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex: 0 0 auto;
+      }
+      .cal-toolbar-new {
+        flex: 0 0 auto;
+        padding: 0.28rem 0.65rem;
+        border: 1px solid rgba(121, 192, 255, 0.35);
+        border-radius: 999px;
+        background: transparent;
+        color: #79c0ff;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .cal-toolbar-new:hover {
+        background: rgba(121, 192, 255, 0.12);
+      }
       .cal-view-picker {
         padding: 0 0.75rem 0.35rem;
         flex: 0 0 auto;
@@ -4060,6 +4081,39 @@ const company = await getCompanyConfig(Astro.request);
         margin-top: 0.65rem;
         padding: 0 0.25rem 0.5rem;
         border-top: 1px solid var(--panel-border);
+      }
+      .cal-day-agenda-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.55rem 0.45rem 0.35rem;
+      }
+      .cal-day-agenda-date {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--fg-secondary);
+      }
+      .cal-day-agenda-action {
+        flex: 0 0 auto;
+        padding: 0.18rem 0.5rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--surface-hover);
+        color: #79c0ff;
+        font: inherit;
+        font-size: 0.68rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .cal-day-agenda-action:hover {
+        background: var(--surface-hover-strong);
+      }
+      .cal-day-agenda-empty {
+        margin: 0;
+        padding: 0.35rem 0.45rem 0.55rem;
+        font-size: 0.78rem;
+        color: var(--muted);
       }
       .sched-create-form {
         display: grid;
@@ -4216,6 +4270,17 @@ const company = await getCompanyConfig(Astro.request);
         right: 0;
         height: 1px;
         background: var(--panel-border);
+        pointer-events: none;
+      }
+      .cal-slot-marker {
+        position: absolute;
+        left: 0.12rem;
+        right: 0.12rem;
+        height: 2px;
+        z-index: 0;
+        border-radius: 999px;
+        background: #79c0ff;
+        box-shadow: 0 0 0 3px rgba(121, 192, 255, 0.18);
         pointer-events: none;
       }
       .cal-event-block {

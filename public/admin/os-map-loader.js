@@ -2411,7 +2411,7 @@ function activateFooterNavFromDrag(nav) {
   if (nav === 'schedule') {
     if (activeKey === 'schedule') {
       scheduleEnsureFocusDate();
-      void openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
+      scheduleOpenCreateDialog();
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
@@ -2677,7 +2677,7 @@ function initFooterNav() {
     closeSearchOverlay();
     if (activeKey === 'schedule') {
       scheduleEnsureFocusDate();
-      void openScheduleCreateDialog({ dateKey: scheduleState.selectedDate || scheduleState.focusDate });
+      scheduleOpenCreateDialog();
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
@@ -5450,6 +5450,7 @@ let scheduleState = {
   view: 'month',
   focusDate: null,
   selectedDate: null,
+  selectedSlot: null,
   activeUid: null,
   meta: {
     bookingFormUrl: '/form/schedule',
@@ -5696,6 +5697,7 @@ async function loadScheduleTab() {
 
 function selectScheduleBooking(uid) {
   scheduleState.activeUid = uid;
+  scheduleState.selectedSlot = null;
   getSchedulePanel()?.classList.add('de-pane-active');
   renderSchedulePanel();
   syncFooterNav();
@@ -5897,6 +5899,18 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
     setDropdownOpen(false);
     dropdown.remove();
   };
+}
+
+function scheduleOpenCreateDialog() {
+  scheduleEnsureFocusDate();
+  const dateKey = scheduleState.selectedDate || scheduleState.focusDate;
+  const slot = scheduleState.selectedSlot;
+  const useSlot = slot && slot.dateKey === dateKey;
+  void openScheduleCreateDialog({
+    dateKey,
+    hour: useSlot ? slot.hour : 9,
+    minute: useSlot ? slot.minute : 0,
+  });
 }
 
 function openScheduleCreateDialog(initial = {}) {
@@ -6207,9 +6221,21 @@ function renderScheduleToolbar() {
   todayBtn.addEventListener('click', () => {
     scheduleState.focusDate = scheduleTodayKey();
     scheduleState.selectedDate = scheduleState.focusDate;
+    scheduleState.selectedSlot = null;
     loadScheduleTab();
   });
-  bar.appendChild(todayBtn);
+
+  const newBtn = document.createElement('button');
+  newBtn.type = 'button';
+  newBtn.className = 'cal-toolbar-new';
+  newBtn.textContent = 'New event';
+  newBtn.addEventListener('click', () => scheduleOpenCreateDialog());
+
+  const actions = document.createElement('div');
+  actions.className = 'cal-toolbar-actions';
+  actions.appendChild(todayBtn);
+  actions.appendChild(newBtn);
+  bar.appendChild(actions);
 
   return bar;
 }
@@ -6242,14 +6268,48 @@ function createCalAgendaItem(booking) {
   return item;
 }
 
-function renderCalDayAgenda(parent, dayKey) {
+function renderCalDayAgenda(parent, dayKey, opts = {}) {
+  const { showDayViewAction = false } = opts;
   const bookings = scheduleBookingsForDay(dayKey);
-  if (!bookings.length) return;
 
   const wrap = document.createElement('div');
   wrap.className = 'cal-day-agenda';
-  for (const booking of bookings) {
-    wrap.appendChild(createCalAgendaItem(booking));
+
+  const header = document.createElement('div');
+  header.className = 'cal-day-agenda-header';
+  const dateLabel = document.createElement('span');
+  dateLabel.className = 'cal-day-agenda-date';
+  dateLabel.textContent = scheduleParseDateKey(dayKey).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+  header.appendChild(dateLabel);
+
+  if (showDayViewAction) {
+    const dayBtn = document.createElement('button');
+    dayBtn.type = 'button';
+    dayBtn.className = 'cal-day-agenda-action';
+    dayBtn.textContent = 'Day view';
+    dayBtn.addEventListener('click', () => {
+      scheduleState.focusDate = dayKey;
+      scheduleState.selectedDate = dayKey;
+      scheduleState.view = 'day';
+      loadScheduleTab();
+    });
+    header.appendChild(dayBtn);
+  }
+  wrap.appendChild(header);
+
+  if (!bookings.length) {
+    const empty = document.createElement('p');
+    empty.className = 'cal-day-agenda-empty';
+    empty.textContent = 'No events scheduled for this day.';
+    wrap.appendChild(empty);
+  } else {
+    for (const booking of bookings) {
+      wrap.appendChild(createCalAgendaItem(booking));
+    }
   }
   parent.appendChild(wrap);
 }
@@ -6304,14 +6364,23 @@ function renderCalMonthView(parent) {
 
     btn.addEventListener('click', () => {
       scheduleState.selectedDate = key;
+      scheduleState.selectedSlot = null;
+      scheduleState.activeUid = null;
+      getSchedulePanel()?.classList.remove('de-pane-active');
       renderSchedulePanel();
-      openScheduleCreateDialog({ dateKey: key });
+    });
+    btn.addEventListener('dblclick', () => {
+      scheduleState.selectedDate = key;
+      scheduleState.focusDate = key;
+      scheduleState.selectedSlot = null;
+      scheduleState.view = 'day';
+      loadScheduleTab();
     });
     grid.appendChild(btn);
   }
   parent.appendChild(grid);
 
-  renderCalDayAgenda(parent, scheduleState.selectedDate);
+  renderCalDayAgenda(parent, scheduleState.selectedDate, { showDayViewAction: true });
 }
 
 function scheduleEventLayout(booking) {
@@ -6399,8 +6468,23 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       if (e.target.closest('.cal-event-block')) return;
       const rect = col.getBoundingClientRect();
       const { hour, minute } = scheduleTimeFromClickY(e.clientY, rect.top);
-      openScheduleCreateDialog({ dateKey: key, hour, minute });
+      scheduleState.selectedDate = key;
+      scheduleState.selectedSlot = { dateKey: key, hour, minute };
+      scheduleState.activeUid = null;
+      getSchedulePanel()?.classList.remove('de-pane-active');
+      renderSchedulePanel();
     });
+    if (
+      scheduleState.selectedSlot?.dateKey === key &&
+      !scheduleState.activeUid
+    ) {
+      const { hour, minute } = scheduleState.selectedSlot;
+      const top = ((hour * 60 + minute) / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX);
+      const marker = document.createElement('div');
+      marker.className = 'cal-slot-marker';
+      marker.style.top = `${top}px`;
+      col.appendChild(marker);
+    }
     for (const booking of scheduleBookingsForDay(key)) {
       const { top, height } = scheduleEventLayout(booking);
       const block = document.createElement('button');
@@ -6507,7 +6591,7 @@ function renderSchedulePanel() {
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml(
       'calendar',
-      '<p>Select an event to view details, or share your public booking link.</p>',
+      '<p>Select an event to view guest details, or use <strong>New event</strong> to book a time.</p>',
     );
     pane.appendChild(placeholder);
   }
