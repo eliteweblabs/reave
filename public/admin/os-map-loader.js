@@ -6224,18 +6224,7 @@ function renderScheduleToolbar() {
     scheduleState.selectedSlot = null;
     loadScheduleTab();
   });
-
-  const newBtn = document.createElement('button');
-  newBtn.type = 'button';
-  newBtn.className = 'cal-toolbar-new';
-  newBtn.textContent = 'New event';
-  newBtn.addEventListener('click', () => scheduleOpenCreateDialog());
-
-  const actions = document.createElement('div');
-  actions.className = 'cal-toolbar-actions';
-  actions.appendChild(todayBtn);
-  actions.appendChild(newBtn);
-  bar.appendChild(actions);
+  bar.appendChild(todayBtn);
 
   return bar;
 }
@@ -6591,7 +6580,7 @@ function renderSchedulePanel() {
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml(
       'calendar',
-      '<p>Select an event to view guest details, or use <strong>New event</strong> to book a time.</p>',
+      '<p>Select an event to view guest details. Use the <strong>+</strong> button in the nav to book a new time.</p>',
     );
     pane.appendChild(placeholder);
   }
