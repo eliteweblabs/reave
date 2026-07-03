@@ -40,10 +40,9 @@ const poweredBy = poweredByLabel(org);
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
 
-// Staff vs client. The portal link is shared with the client, so by default a
-// viewer is the client. Quick-contact actions (call/text/email/save vCard) all
-// target the contact's OWN details — useful for staff reaching out, nonsensical
-// for the client viewing their own page — so they are gated behind Clerk auth.
+// Staff vs client. The portal link is shared with the client. Quick-contact
+// actions (call/text/email) target the contact's own details — useful when
+// staff preview the page, nonsensical for the client — gated behind Clerk auth.
 const { userId } = Astro.locals.auth?.() ?? {};
 const isStaff = Boolean(userId);
 
@@ -318,7 +317,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             )}
           </header>
 
-          {isStaff && (
+          {isStaff && (telHref || email) && (
             <nav class="actions" aria-label="Quick contact">
               {telHref && (
                 <a class="action" href={`tel:${telHref}`}>
@@ -335,9 +334,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                   <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span>Email</span>
                 </a>
               )}
-              <a class="action" href={`/c/${encodeURIComponent(uid)}.vcf`}>
-                <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span>Save</span>
-              </a>
             </nav>
           )}
 

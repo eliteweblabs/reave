@@ -34,8 +34,9 @@ client's name).
 }
 ```
 
-The page also shows tap-to-**Call / Text / Email** actions from the contact's
-phone/email, a **Save** action, plus the client name and company.
+The page also shows tap-to-**Call / Text / Email** actions (staff-only preview
+when signed in to `/admin`) from the contact's phone/email, plus the client
+name and company.
 
 ## Tabs
 
@@ -78,11 +79,12 @@ link straight to the client:
 
 ## vCard export (`/c/<uid>.vcf`)
 
-The **Save** button (and the direct URL `https://reave.app/c/<uid>.vcf`) returns a
-vCard 3.0 that opens natively in **iOS Contacts** ("Add to Contacts"). It includes
-only client-safe fields — name, company, phone, email, and the portal URL — never
-the internal `notes`. Same gating as the page (portal must exist and not be
-revoked).
+Direct URL `https://reave.app/c/<uid>.vcf` returns a vCard 3.0 that opens
+natively in **iOS Contacts** ("Add to Contacts"). It includes only client-safe
+fields — name, company, phone, email, and the portal URL — never the internal
+`notes`. Same gating as the page (portal must exist and not be revoked). Not
+linked from the client portal UI — use CardDAV or admin when staff need the
+contact on their phone.
 
 ## Manage it from Telegram
 
