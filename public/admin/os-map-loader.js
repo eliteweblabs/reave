@@ -4489,6 +4489,149 @@ function formatWorkCardValue(value) {
   return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 }
 
+const WORK_CHECKBOX_RE = /^- \[([ xX])\] (.+)$/;
+
+function parseWorkChecklistFromBody(body) {
+  const lines = String(body || '').split('\n');
+  const items = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(WORK_CHECKBOX_RE);
+    if (!m) continue;
+    items.push({
+      lineIndex: i,
+      text: m[2].trim(),
+      checked: m[1].toLowerCase() === 'x',
+    });
+  }
+  return items;
+}
+
+function renderWorkChecklistPanel(mountEl, opts) {
+  const { slug, title, clientName, getBody, setBody } = opts;
+  const items = parseWorkChecklistFromBody(getBody());
+  mountEl.innerHTML = '';
+  if (!items.length) {
+    mountEl.hidden = true;
+    return;
+  }
+  mountEl.hidden = false;
+
+  const section = document.createElement('div');
+  section.className = 'wk-checklist-section';
+
+  const head = document.createElement('div');
+  head.className = 'wk-checklist-head';
+  const label = document.createElement('span');
+  label.className = 'wk-checklist-label';
+  label.textContent = 'Action items';
+  head.appendChild(label);
+  const doneCount = items.filter((i) => i.checked).length;
+  if (doneCount) {
+    const badge = document.createElement('span');
+    badge.className = 'wk-checklist-progress';
+    badge.textContent = `${doneCount}/${items.length} done`;
+    head.appendChild(badge);
+  }
+  section.appendChild(head);
+
+  const list = document.createElement('ul');
+  list.className = 'wk-checklist';
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.className = 'wk-checklist-item' + (item.checked ? ' wk-checklist-item--done' : '');
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'wk-checklist-btn';
+    btn.setAttribute('aria-pressed', item.checked ? 'true' : 'false');
+    btn.title = item.checked ? 'Mark as not done' : 'Mark as done';
+
+    const box = document.createElement('span');
+    box.className = 'wk-checklist-box';
+    box.setAttribute('aria-hidden', 'true');
+    box.textContent = item.checked ? '✓' : '';
+
+    const text = document.createElement('span');
+    text.className = 'wk-checklist-text';
+    text.textContent = item.text;
+
+    btn.append(box, text);
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      const nextChecked = !item.checked;
+      fetch(`/api/work/${encodeURIComponent(slug)}/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineIndex: item.lineIndex, checked: nextChecked }),
+      })
+        .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || !data.ok) throw new Error(data.error || 'Toggle failed');
+          setBody(data.body);
+          renderWorkChecklistPanel(mountEl, opts);
+        })
+        .catch((err) => {
+          osAlert({ title: 'Could not update item', bodyHtml: escHtml(err.message) });
+        })
+        .finally(() => {
+          btn.disabled = false;
+        });
+    });
+
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+  section.appendChild(list);
+
+  const doneItems = items.filter((i) => i.checked);
+  if (doneItems.length) {
+    const bill = document.createElement('div');
+    bill.className = 'wk-billable-section';
+
+    const billHead = document.createElement('div');
+    billHead.className = 'wk-billable-head';
+    const billLabel = document.createElement('span');
+    billLabel.className = 'wk-billable-label';
+    billLabel.textContent = 'Ready to invoice';
+    billHead.appendChild(billLabel);
+
+    const copyBtn = createIosIconBtn({
+      iconKey: 'copy',
+      label: 'Copy line descriptions',
+      className: 'ios-icon-btn wk-billable-copy',
+      onClick: () => {
+        const lines = doneItems.map((i) => i.text).join('\n');
+        navigator.clipboard.writeText(lines).then(
+          () => osAlert({ title: 'Copied', bodyHtml: '<p>Completed item descriptions copied — paste into invoice line items or ask the agent to invoice.</p>' }),
+          () => osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
+        );
+      },
+    });
+    billHead.appendChild(copyBtn);
+    bill.appendChild(billHead);
+
+    const billList = document.createElement('ul');
+    billList.className = 'wk-billable-list';
+    for (const item of doneItems) {
+      const li = document.createElement('li');
+      li.className = 'wk-billable-item';
+      li.textContent = item.text;
+      billList.appendChild(li);
+    }
+    bill.appendChild(billList);
+
+    const hint = document.createElement('p');
+    hint.className = 'wk-billable-hint';
+    hint.textContent = `Use these as Crater line-item descriptions for ${clientName || title || 'this client'}.`;
+    bill.appendChild(hint);
+
+    section.appendChild(bill);
+  }
+
+  mountEl.appendChild(section);
+}
+
 function createClientWorkCard(job) {
   const card = document.createElement('button');
   card.type = 'button';
@@ -5351,8 +5494,26 @@ function renderEditWorkForm(pane) {
 
       titleInput.addEventListener('input', markDirty);
       ta.addEventListener('input', markDirty);
+
+      const checklistMount = document.createElement('div');
+      checklistMount.className = 'wk-checklist-mount';
+      const checklistOpts = {
+        slug,
+        get title() { return titleInput.value.trim() || workState.draft.title; },
+        get clientName() { return clientPicker.getPayload()?.contact_name || workState.draft.contact_name; },
+        getBody: () => ta.value,
+        setBody: (v) => {
+          ta.value = v;
+          workState.draft.body = v;
+          markDirty();
+        },
+      };
+      ta.addEventListener('input', () => renderWorkChecklistPanel(checklistMount, checklistOpts));
+
       scroll.appendChild(fields);
+      scroll.appendChild(checklistMount);
       scroll.appendChild(ta);
+      renderWorkChecklistPanel(checklistMount, checklistOpts);
       mountWorkCommentsSection(scroll, slug);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
 

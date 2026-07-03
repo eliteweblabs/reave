@@ -143,10 +143,16 @@ export async function mergeEmailIntoProjectBody(opts: {
     '- body: markdown project notes as described above\n' +
     '- value: total project budget in USD as a number when clearly stated in the email (e.g. "$8,500 budget"), otherwise null';
 
+  const checkboxRules =
+    '- Action items MUST use GitHub-flavored markdown checkboxes under a "## Action items" heading: `- [ ] Task description` (always unchecked when new).\n' +
+    '- Do not use plain bullets for actionable tasks — only `- [ ]` / `- [x]` checkboxes.\n' +
+    '- Preserve existing `[x]` checked state when merging; add new tasks as `- [ ]`.';
+
   const system = isNewProject
     ? `You write project notes for a web design/dev business. Given a new inbound client email, produce concise markdown project notes — NOT a transcript.
 Use short sections only when they add clarity (e.g. Overview, Scope, Timeline, Budget, Open questions).
 Extract facts: what they want, deadlines, budget, links, decisions, action items.
+${checkboxRules}
 Omit fluff, greetings, and duplicate lines.
 ${jsonFooter}`
     : `You maintain project notes for a web design/dev business. Merge a new inbound email into EXISTING notes intelligently.
@@ -155,6 +161,7 @@ Rules:
 - Do NOT append raw email dumps or growing "email log" sections.
 - Deduplicate — if the email repeats what's already captured, make minimal or no changes.
 - Keep notes scannable: bullets, short paragraphs, clear headings.
+${checkboxRules}
 - You may add one brief "Correspondence" line at the end with date + subject if useful for audit.
 ${jsonFooter}`;
 

@@ -619,6 +619,54 @@ function fileAppendWorkNote(
   return { ok: true, doc: updated };
 }
 
+/** Toggle a GFM checkbox line in a job body by line index. */
+export async function storeToggleWorkCheckbox(
+  slug: string,
+  lineIndex: number,
+  checked: boolean,
+): Promise<{ ok: true; doc: WorkJobDoc } | { ok: false; error: string }> {
+  if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
+
+  const { toggleCheckboxLine } = await import('./markdownCheckboxes');
+  const existing = await storeReadWork(slug);
+  if (!existing) return { ok: false, error: 'Not found' };
+
+  const nextBody = toggleCheckboxLine(existing.body, lineIndex, checked);
+  if (nextBody === null) return { ok: false, error: 'Line is not a checkbox item' };
+
+  if (isWorkDbConfigured()) {
+    const { dbUpdateWork } = await import('./pgJobs');
+    return dbUpdateWork(slug, { body: nextBody });
+  }
+
+  const path = join(workDir(), `${slug}.md`);
+  if (!existsSync(path)) return { ok: false, error: 'Not found' };
+  const content = readFileSync(path, 'utf8');
+  const { meta } = parseFrontmatter(content);
+  const summary = summaryFromMeta(slug, meta, nextBody);
+  const markdown = buildMarkdown(
+    {
+      title: summary.title,
+      contact_uid: summary.contact_uid,
+      contact_name: summary.contact_name,
+      status: summary.status,
+      priority: summary.priority,
+      due_date: summary.due_date,
+      value: summary.value,
+      tags: summary.tags,
+      source: summary.source,
+      body: nextBody,
+      source_chat_id: summary.source_chat_id,
+    },
+    { uid: summary.contact_uid, name: summary.contact_name },
+    summary,
+  );
+  writeFileSync(path, markdown.endsWith('\n') ? markdown : `${markdown}\n`, 'utf8');
+  const updated = fileReadWork(slug);
+  if (!updated) return { ok: false, error: 'Failed to read back' };
+  return { ok: true, doc: updated };
+}
+
 /** Append a timestamped email note to a job body (Postgres or markdown file). */
 export async function storeAppendWorkNote(
   slug: string,

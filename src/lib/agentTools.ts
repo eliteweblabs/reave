@@ -17,12 +17,19 @@ import {
   storeListWork,
   storeReadWork,
   storeWriteWork,
+  storeToggleWorkCheckbox,
   patchWorkSourceChatId,
   WORK_PRIORITIES,
   WORK_STATUSES,
   type WorkPriority,
   type WorkStatus,
 } from './workStore';
+import {
+  completedItemsToInvoiceSuggestions,
+  groupedInvoiceDescription,
+  parseMarkdownCheckboxes,
+} from './workChecklist';
+import { findCheckboxByText } from './markdownCheckboxes';
 import {
   isTodoDbConfigured,
   normalizeTodoPriority,
@@ -358,6 +365,47 @@ export function buildTools(): AgentToolDef[] {
               type: 'string',
               description: 'Lead source — instagram, email, referral, phone, etc.',
             },
+          },
+          required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'toggle_work_item',
+        description:
+          'Check or uncheck a project action-item checkbox in job notes. Match by line_index (from read_work checklist) or item_text (substring). Use when the user says work was completed or to undo a check-off.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug' },
+            line_index: { type: 'number', description: '0-based line index of the `- [ ]` row in body' },
+            item_text: {
+              type: 'string',
+              description: 'Substring match on checklist item text (when line_index unknown)',
+            },
+            checked: {
+              type: 'boolean',
+              description: 'true to mark done `[x]`, false to reopen. Defaults to true.',
+            },
+          },
+          required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_work_invoice_suggestions',
+        description:
+          'List completed project checklist items formatted as Crater invoice line-item suggestions (name + description). Use before create_invoice or add_invoice_items when billing for work tracked on a job.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug' },
           },
           required: ['slug'],
           additionalProperties: false,
@@ -2002,6 +2050,81 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         contact_name: doc.contact_name,
         status: doc.status,
         updated: doc.updated,
+      });
+    }
+    if (name === 'toggle_work_item') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+
+      const existing = await storeReadWork(slug);
+      if (!existing) {
+        const known = (await storeListWork()).map((j) => j.slug);
+        return JSON.stringify({ error: 'not found', known });
+      }
+
+      const checked = args.checked === false ? false : true;
+      let lineIndex: number | null =
+        typeof args.line_index === 'number' ? args.line_index : null;
+
+      if (lineIndex == null && args.item_text != null) {
+        const match = findCheckboxByText(existing.body, String(args.item_text));
+        if (!match) {
+          const items = parseMarkdownCheckboxes(existing.body);
+          return JSON.stringify({
+            error: 'no matching checklist item',
+            checklist: items.map((i) => ({ line_index: i.lineIndex, text: i.text, checked: i.checked })),
+          });
+        }
+        lineIndex = match.lineIndex;
+      }
+
+      if (lineIndex == null) {
+        return JSON.stringify({ error: 'line_index or item_text is required' });
+      }
+
+      const result = await storeToggleWorkCheckbox(slug, lineIndex, checked);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+
+      const invoice_suggestions = completedItemsToInvoiceSuggestions(
+        result.doc.body,
+        result.doc.title,
+      );
+      return JSON.stringify({
+        ok: true,
+        slug: result.doc.slug,
+        line_index: lineIndex,
+        checked,
+        invoice_suggestions,
+        grouped_line_item: groupedInvoiceDescription(result.doc.body, result.doc.title),
+      });
+    }
+    if (name === 'get_work_invoice_suggestions') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+
+      const doc = await storeReadWork(slug);
+      if (!doc) {
+        const known = (await storeListWork()).map((j) => j.slug);
+        return JSON.stringify({ error: 'not found', known });
+      }
+
+      const checklist = parseMarkdownCheckboxes(doc.body);
+      const invoice_suggestions = completedItemsToInvoiceSuggestions(doc.body, doc.title);
+      const grouped_line_item = groupedInvoiceDescription(doc.body, doc.title);
+
+      return JSON.stringify({
+        ok: true,
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.contact_name || doc.client,
+        checklist: checklist.map((i) => ({
+          line_index: i.lineIndex,
+          text: i.text,
+          checked: i.checked,
+        })),
+        invoice_suggestions,
+        grouped_line_item,
+        hint: 'Use each suggestion description on a Crater line item (create_invoice / add_invoice_items). User still sets price.',
       });
     }
     if (name === 'delete_work') {
