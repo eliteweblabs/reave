@@ -114,6 +114,7 @@ import {
   storeGetEmailInbox,
   type EmailInboxPatch,
 } from './emailInboxStore';
+import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
 import { getAgentContext } from './agentContext';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
@@ -483,6 +484,22 @@ export function buildTools(): AgentToolDef[] {
         name: 'mark_email_junk',
         description:
           'Mark an inbound inbox message as junk (hidden from default inbox). Requires the message id from email triage context or list_email_inbox.',
+        parameters: {
+          type: 'object',
+          properties: {
+            email_id: { type: 'string', description: 'Inbox message UUID' },
+          },
+          required: ['email_id'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'mark_email_receipt',
+        description:
+          'File an inbound inbox message as a tax receipt (payment confirmation, vendor charge, etc.). Use when the email shows a dollar amount and the user wants it kept for taxes — not junk/delete.',
         parameters: {
           type: 'object',
           properties: {
@@ -2296,6 +2313,30 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
       if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
       return JSON.stringify({ ok: true, email_id: emailId, category: event.category, action: event.action });
+    }
+    if (name === 'mark_email_receipt') {
+      const emailId = String(args.email_id ?? '').trim();
+      if (!emailId) return JSON.stringify({ error: 'email_id is required' });
+      const existing = await storeGetEmailInbox(emailId);
+      if (!existing) return JSON.stringify({ error: 'not found', email_id: emailId });
+      const amount = extractMonetaryAmountFromEmail(existing);
+      const routeNote =
+        amount != null ? `Tax receipt — ${formatUsdAmount(amount)}` : 'Tax receipt';
+      const event = await storeUpdateEmailInbox(emailId, {
+        category: 'receipt',
+        action: 'receipt',
+        status: 'RECEIPT',
+        routeNote,
+      });
+      if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+      return JSON.stringify({
+        ok: true,
+        email_id: emailId,
+        category: event.category,
+        action: event.action,
+        routeNote: event.routeNote,
+        monetary_amount: amount,
+      });
     }
     if (name === 'mark_email_routed') {
       const emailId = String(args.email_id ?? '').trim();

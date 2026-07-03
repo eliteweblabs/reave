@@ -7,10 +7,21 @@ import {
   emailInboxStorageBackend,
   storeListEmailInbox,
   computeInboxDigest,
+  type EmailInboxRecord,
 } from '../../../lib/emailInboxStore';
+import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { isPushConfigured } from '../../../lib/webPush';
 
 export const prerender = false;
+
+function enrichEmailEvent(event: EmailInboxRecord) {
+  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  return {
+    ...event,
+    monetaryAmount,
+    hasMonetaryValue: monetaryAmount != null,
+  };
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -34,7 +45,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   return json({
     ok: true,
-    events,
+    events: events.map(enrichEmailEvent),
     digest: computeInboxDigest(allForDigest, !showJunk),
     storage: emailInboxStorageBackend(),
     pushConfigured: isPushConfigured(),

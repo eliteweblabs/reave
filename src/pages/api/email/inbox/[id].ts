@@ -10,6 +10,7 @@ import {
   type EmailInboxPatch,
 } from '../../../../lib/emailInboxStore';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
+import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 
 export const prerender = false;
 
@@ -20,7 +21,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const CATEGORIES = new Set<EmailCategory>(['junk', 'client', 'alert', 'internal', 'review']);
+const CATEGORIES = new Set<EmailCategory>(['junk', 'client', 'alert', 'internal', 'review', 'receipt']);
 
 function parsePatch(body: unknown): EmailInboxPatch | null {
   if (!body || typeof body !== 'object') return null;
@@ -62,7 +63,11 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   const event = await storeUpdateEmailInbox(id, patch);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
-  return json({ ok: true, event });
+  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  return json({
+    ok: true,
+    event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+  });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {

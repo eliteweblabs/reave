@@ -15,7 +15,7 @@ import { parseProposedMeetingStart } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './adminAgentAlert';
 
-export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review';
+export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt';
 
 export interface ProcessedEmailResult {
   ok: boolean;
@@ -83,7 +83,7 @@ Respond with ONLY valid JSON (no markdown fences):
   "scheduling_note": "short human phrase for the proposed meeting time, or null when not scheduling"
 }
 Categories:
-- junk: marketing, newsletters, spam, bulk receipts, list mail
+- junk: marketing, newsletters, spam, bulk list mail (not tax receipts — those may be filed separately)
 - client: client project updates, requests, files, approvals
 - alert: uptime, security, monitoring, auth warnings
 - internal: personal/admin not tied to a client job

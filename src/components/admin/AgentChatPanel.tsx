@@ -5,9 +5,10 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useComposerRuntime,
   useLocalRuntime,
   useMessage,
+  useAui,
+  useAuiState,
   type ChatModelAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
@@ -226,6 +227,55 @@ function AssistantMessageActions() {
   );
 }
 
+/** Send on first tap — touch blur was collapsing compose before click fired. */
+function ComposerSendButton() {
+  const aui = useAui();
+  const disabled = useAuiState(
+    (s) =>
+      !s.composer.canSend ||
+      (s.thread.isRunning && !s.thread.capabilities.queue),
+  );
+
+  const activateSend = () => {
+    const composer = aui.composer();
+    let state = composer.getState();
+    if (!state.canSend) {
+      const ta = document.querySelector('#chat-panel .aui-input');
+      if (ta instanceof HTMLTextAreaElement && ta.value.trim()) {
+        composer.setText(ta.value);
+        state = composer.getState();
+      }
+    }
+    if (
+      !state.canSend ||
+      (aui.thread().getState().isRunning && !aui.thread().getState().capabilities.queue)
+    ) {
+      return;
+    }
+    composer.send();
+  };
+
+  return (
+    <button
+      type="button"
+      className="aui-send"
+      aria-label="Send message"
+      disabled={disabled}
+      onPointerDown={(e) => {
+        if (disabled || e.pointerType !== 'touch') return;
+        e.preventDefault();
+        activateSend();
+      }}
+      onClick={(e) => {
+        if (e.pointerType === 'touch') return;
+        activateSend();
+      }}
+    >
+      ↑
+    </button>
+  );
+}
+
 function AgentChatThread({
   threadId,
   propsRef,
@@ -292,11 +342,8 @@ function AgentChatThread({
                   rows={1}
                   autoFocus={!pendingAutoSend}
                   onFocus={() => propsRef.current?.onComposeFocus?.(true)}
-                  onBlur={() => propsRef.current?.onComposeFocus?.(false)}
                 />
-                <ComposerPrimitive.Send className="aui-send" aria-label="Send message">
-                  ↑
-                </ComposerPrimitive.Send>
+                <ComposerSendButton />
                 <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
                   Stop
                 </ComposerPrimitive.Cancel>

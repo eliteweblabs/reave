@@ -2612,8 +2612,12 @@ function initChatComposeFocusLayout() {
 
   document.addEventListener(
     'focusout',
-    () => {
+    (ev) => {
       if (!isMobileTabs()) return;
+      const related = ev.relatedTarget;
+      if (related instanceof HTMLElement && related.closest('.aui-compose, .ch-compose')) {
+        return;
+      }
       requestAnimationFrame(() => {
         const panel = getChatPanel();
         if (panel?.contains(document.activeElement)) return;
@@ -5966,6 +5970,8 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
         repositionHandler = () => positionDropdown();
         window.addEventListener('resize', repositionHandler);
         window.addEventListener('scroll', repositionHandler, true);
+        window.visualViewport?.addEventListener('resize', repositionHandler);
+        window.visualViewport?.addEventListener('scroll', repositionHandler);
       }
       return;
     }
@@ -5974,6 +5980,8 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
     if (repositionHandler) {
       window.removeEventListener('resize', repositionHandler);
       window.removeEventListener('scroll', repositionHandler, true);
+      window.visualViewport?.removeEventListener('resize', repositionHandler);
+      window.visualViewport?.removeEventListener('scroll', repositionHandler);
       repositionHandler = null;
     }
   }
@@ -6095,6 +6103,7 @@ function openScheduleCreateDialog(initial = {}) {
       if (settled) return;
       settled = true;
       destroyGuestAutocomplete();
+      releaseOsDialogKeyboardLayout();
       backdrop.classList.remove('open');
       backdrop.setAttribute('aria-hidden', 'true');
       document.removeEventListener('keydown', onKey);
@@ -6107,25 +6116,37 @@ function openScheduleCreateDialog(initial = {}) {
     titleEl.textContent = 'New event';
     bodyEl.innerHTML =
       `<form class="sched-create-form" id="sched-create-form">` +
-        `<label class="sched-create-field">` +
+        `<label class="de-label sched-create-field">` +
           `<span>Guest name</span>` +
-          `<input class="sched-create-input" name="name" type="text" autocomplete="off" required>` +
+          `<div class="control-field">` +
+            `<input name="name" type="text" autocapitalize="words" enterkeyhint="next" required>` +
+          `</div>` +
         `</label>` +
-        `<label class="sched-create-field">` +
+        `<label class="de-label sched-create-field">` +
           `<span>Email</span>` +
-          `<input class="sched-create-input" name="email" type="email" autocomplete="email" required>` +
+          `<div class="control-field">` +
+            `<input name="email" type="email" autocomplete="email" autocapitalize="none" enterkeyhint="next" required>` +
+          `</div>` +
         `</label>` +
-        `<label class="sched-create-field">` +
-          `<span>Date</span>` +
-          `<input class="sched-create-input" name="date" type="date" required>` +
-        `</label>` +
-        `<label class="sched-create-field">` +
-          `<span>Time</span>` +
-          `<input class="sched-create-input" name="time" type="time" required>` +
-        `</label>` +
-        `<label class="sched-create-field">` +
+        `<div class="sched-create-row">` +
+          `<label class="de-label sched-create-field">` +
+            `<span>Date</span>` +
+            `<div class="control-field">` +
+              `<input name="date" type="date" required>` +
+            `</div>` +
+          `</label>` +
+          `<label class="de-label sched-create-field">` +
+            `<span>Time</span>` +
+            `<div class="control-field">` +
+              `<input name="time" type="time" required>` +
+            `</div>` +
+          `</label>` +
+        `</div>` +
+        `<label class="de-label sched-create-field">` +
           `<span>Notes</span>` +
-          `<textarea class="sched-create-input sched-create-notes" name="notes" rows="2"></textarea>` +
+          `<div class="control-field">` +
+            `<textarea name="notes" rows="2" enterkeyhint="done"></textarea>` +
+          `</div>` +
         `</label>` +
         `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict with an existing appointment.</p>` +
         `<p class="sched-create-error" id="sched-create-error" hidden></p>` +
@@ -6228,6 +6249,7 @@ function openScheduleCreateDialog(initial = {}) {
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
     document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
     nameInput.focus();
   });
 }
@@ -7439,6 +7461,7 @@ function osDialog(opts) {
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      releaseOsDialogKeyboardLayout();
       backdrop.classList.remove('open');
       backdrop.setAttribute('aria-hidden', 'true');
       document.removeEventListener('keydown', onKey);
@@ -7475,8 +7498,60 @@ function osDialog(opts) {
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
     document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
     primary.focus();
   });
+}
+
+let osDialogKeyboardBound = false;
+let osDialogKeyboardSync = null;
+
+function syncOsDialogKeyboardLayout() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (!backdrop?.classList.contains('open')) return;
+  const vv = window.visualViewport;
+  const active = document.activeElement;
+  const inDialog =
+    active instanceof HTMLElement &&
+    (active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement ||
+      active instanceof HTMLSelectElement) &&
+    backdrop.contains(active);
+  if (!inDialog || !vv) {
+    backdrop.classList.remove('os-dialog-keyboard');
+    document.documentElement.style.removeProperty('--os-dialog-keyboard-inset');
+    return;
+  }
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  backdrop.classList.add('os-dialog-keyboard');
+  document.documentElement.style.setProperty('--os-dialog-keyboard-inset', `${inset}px`);
+  requestAnimationFrame(() => {
+    active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+}
+
+function bindOsDialogKeyboardLayout() {
+  if (osDialogKeyboardBound) {
+    syncOsDialogKeyboardLayout();
+    return;
+  }
+  osDialogKeyboardBound = true;
+  osDialogKeyboardSync = syncOsDialogKeyboardLayout;
+  document.addEventListener('focusin', osDialogKeyboardSync, true);
+  window.visualViewport?.addEventListener('resize', osDialogKeyboardSync);
+  window.visualViewport?.addEventListener('scroll', osDialogKeyboardSync);
+}
+
+function releaseOsDialogKeyboardLayout() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  backdrop?.classList.remove('os-dialog-keyboard');
+  document.documentElement.style.removeProperty('--os-dialog-keyboard-inset');
+  if (!osDialogKeyboardBound || !osDialogKeyboardSync) return;
+  document.removeEventListener('focusin', osDialogKeyboardSync, true);
+  window.visualViewport?.removeEventListener('resize', osDialogKeyboardSync);
+  window.visualViewport?.removeEventListener('scroll', osDialogKeyboardSync);
+  osDialogKeyboardBound = false;
+  osDialogKeyboardSync = null;
 }
 
 function osConfirm(opts) {
@@ -8626,6 +8701,7 @@ function parseEmailDeepLinkFromUrl() {
 function applyEmailInboxFilterForEvent(ev) {
   if (!ev) return;
   if (ev.category === 'junk') emailState.inboxFilter = 'junk';
+  else if (ev.category === 'receipt') emailState.inboxFilter = 'receipt';
   else if (ev.category === 'alert') emailState.inboxFilter = 'alert';
   else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
   else if (isEmailRouted(ev)) emailState.inboxFilter = 'routed';
@@ -8688,11 +8764,12 @@ function isEmailBooked(ev) {
 function inboxTabCounts() {
   const all = emailState.allEvents;
   return {
-    all: all.filter((e) => e.category !== 'junk').length,
+    all: all.filter((e) => e.category !== 'junk' && e.category !== 'receipt').length,
     alert: all.filter((e) => e.category === 'alert').length,
     review: all.filter((e) => e.category === 'review').length,
     book: all.filter((e) => isEmailBookable(e)).length,
     routed: all.filter(isEmailRouted).length,
+    receipt: all.filter((e) => e.category === 'receipt').length,
     junk: all.filter((e) => e.category === 'junk').length,
   };
 }
@@ -8701,11 +8778,12 @@ function inboxEventsForFilter() {
   const all = emailState.allEvents;
   const f = emailState.inboxFilter;
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
+  if (f === 'receipt') return all.filter((e) => e.category === 'receipt');
   if (f === 'alert') return all.filter((e) => e.category === 'alert');
   if (f === 'review') return all.filter((e) => e.category === 'review');
   if (f === 'book') return all.filter(isEmailBookable);
   if (f === 'routed') return all.filter(isEmailRouted);
-  return all.filter((e) => e.category !== 'junk');
+  return all.filter((e) => e.category !== 'junk' && e.category !== 'receipt');
 }
 
 function filteredInboxEvents() {
@@ -8831,7 +8909,9 @@ function syncTopbarPanelContext() {
 }
 
 function unseenInboxCount(events) {
-  return (events || []).filter((ev) => ev.category !== 'junk' && !ev.seenAt).length;
+  return (events || []).filter(
+    (ev) => ev.category !== 'junk' && ev.category !== 'receipt' && !ev.seenAt,
+  ).length;
 }
 
 function syncInboxBadges(count) {
@@ -8931,8 +9011,22 @@ function syncInboxBadgePoll() {
 
 function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
-  const known = new Set(['junk', 'client', 'alert', 'internal', 'review']);
+  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt']);
   return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
+}
+
+function emailMonetaryAmount(ev) {
+  const n = Number(ev.monetaryAmount);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function formatEmailUsd(amount) {
+  return Number(amount).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+function emailShowsReceiptAction(ev) {
+  if (ev.category === 'receipt') return false;
+  return emailMonetaryAmount(ev) != null;
 }
 
 function parseSenderEmail(from) {
@@ -9757,18 +9851,60 @@ async function markEmailJunk(ev) {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: 'junk', action: 'junk' }),
+      body: JSON.stringify({ category: 'junk', action: 'junk', status: 'JUNK' }),
     });
     const data = await readApiJson(res);
-    const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
-    if (idx !== -1) emailState.allEvents[idx] = data.event;
-    if (emailState.activeId === ev.id && !filteredInboxEvents().some((e) => e.id === ev.id)) {
-      emailState.activeId = null;
-    }
-    renderEmailPanel();
-    syncInboxAppBadge(emailState.allEvents);
+    applyEmailPatchResult(ev.id, data.event);
   } catch (e) {
     osAlert({ title: 'Could not mark junk', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function applyEmailPatchResult(id, event) {
+  if (!event) return;
+  const idx = emailState.allEvents.findIndex((e) => e.id === id);
+  if (idx !== -1) emailState.allEvents[idx] = event;
+  if (emailState.activeId === id && !filteredInboxEvents().some((e) => e.id === id)) {
+    emailState.activeId = null;
+  }
+  renderEmailPanel();
+  syncInboxAppBadge(emailState.allEvents);
+}
+
+async function markEmailReceipt(ev) {
+  closeOpenSwipeRow();
+  const amount = emailMonetaryAmount(ev);
+  const routeNote = amount != null ? `Tax receipt — ${formatEmailUsd(amount)}` : 'Tax receipt';
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        category: 'receipt',
+        action: 'receipt',
+        status: 'RECEIPT',
+        routeNote,
+      }),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not file receipt', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function unmarkEmailReceipt(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED', routeNote: '' }),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Update failed', bodyHtml: escHtml(e.message) });
   }
 }
 
@@ -9941,6 +10077,9 @@ function createEmailListItem(ev) {
     `<span class="em-item-row em-item-header">` +
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>` +
+      (emailMonetaryAmount(ev) && ev.category !== 'receipt'
+        ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
+        : '') +
       (isEmailBooked(ev)
         ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>'
         : isEmailBookable(ev)
@@ -9954,41 +10093,61 @@ function createEmailListItem(ev) {
   return item;
 }
 
-function createEmailSwipeRow(ev) {
-  return createSwipeRow(createEmailListItem(ev), [
+function buildEmailSwipeActions(ev) {
+  const actions = [
     {
       label: 'Agent',
       className: 'swipe-act swipe-act-agent',
       onClick: () => askAgentAboutEmail(ev),
     },
-    {
-      label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+  ];
+
+  if (ev.category === 'receipt') {
+    actions.push({
+      label: 'Not receipt',
+      className: 'swipe-act swipe-act-archive',
+      onClick: () => unmarkEmailReceipt(ev),
+    });
+    actions.push({
+      label: 'Junk',
       className: 'swipe-act swipe-act-junk',
-      onClick: () => {
-        if (ev.category === 'junk') {
-          fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category: 'review', action: 'review' }),
-          })
-            .then(readApiJson)
-            .then((data) => {
-              const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
-              if (idx !== -1) emailState.allEvents[idx] = data.event;
-              renderEmailPanel();
-            })
-            .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
-        } else {
-          markEmailJunk(ev);
-        }
-      },
+      onClick: () => markEmailJunk(ev),
+    });
+    return actions;
+  }
+
+  actions.push({
+    label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+    className: 'swipe-act swipe-act-junk',
+    onClick: () => {
+      if (ev.category === 'junk') {
+        fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
+        })
+          .then(readApiJson)
+          .then((data) => applyEmailPatchResult(ev.id, data.event))
+          .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
+      } else {
+        markEmailJunk(ev);
+      }
     },
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
-      onClick: () => deleteEmail(ev),
-    },
-  ]);
+  });
+
+  if (emailShowsReceiptAction(ev)) {
+    actions.push({
+      label: 'Receipt',
+      className: 'swipe-act swipe-act-receipt',
+      onClick: () => markEmailReceipt(ev),
+    });
+  }
+
+  return actions;
+}
+
+function createEmailSwipeRow(ev) {
+  return createSwipeRow(createEmailListItem(ev), buildEmailSwipeActions(ev));
 }
 
 function stopEmailPoll() {
@@ -10052,6 +10211,7 @@ function renderEmailFilterTabs() {
     { id: 'review', label: 'Review', count: counts.review },
     { id: 'book', label: 'Book', count: counts.book },
     { id: 'routed', label: 'Routed', count: counts.routed },
+    { id: 'receipt', label: 'Receipts', count: counts.receipt },
     { id: 'junk', label: 'Junk', count: counts.junk },
   ];
 
@@ -10102,7 +10262,9 @@ function renderEmailSidebar() {
   const countForTab =
     emailState.inboxFilter === 'junk'
       ? counts.junk
-      : emailState.inboxFilter === 'alert'
+      : emailState.inboxFilter === 'receipt'
+        ? counts.receipt
+        : emailState.inboxFilter === 'alert'
         ? counts.alert
         : emailState.inboxFilter === 'review'
           ? counts.review
@@ -10151,6 +10313,8 @@ function renderEmailSidebar() {
       emptyBody = 'No emails with a proposed meeting time.';
     } else if (emailState.inboxFilter === 'routed') {
       emptyBody = 'No routed messages yet.';
+    } else if (emailState.inboxFilter === 'receipt') {
+      emptyBody = 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt.';
     } else {
       emptyBody =
         'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
