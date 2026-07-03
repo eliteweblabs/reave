@@ -1,3 +1,4 @@
+import '@vitejs/plugin-react/preamble';
 import { createRoot, type Root } from 'react-dom/client';
 import { AgentChatPanel, type AgentChatPanelProps } from '../components/admin/AgentChatPanel';
 

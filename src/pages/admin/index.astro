@@ -8,10 +8,12 @@
 import Favicon from "../../components/Favicon.astro";
 import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
 
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
+const company = await getCompanyConfig(Astro.request);
 ---
 
 <!doctype html>
@@ -25,7 +27,7 @@ const { userId } = Astro.locals.auth();
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/admin/manifest.webmanifest" />
-    <title>Business OS — map</title>
+    <title>{company.name} Admin</title>
     <Favicon />
     <style is:global>
       :root {
