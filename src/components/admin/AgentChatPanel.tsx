@@ -5,6 +5,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useComposerRuntime,
   useLocalRuntime,
   useMessage,
   useAui,
