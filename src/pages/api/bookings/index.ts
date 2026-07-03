@@ -13,6 +13,7 @@ import {
   dateKeyInTimezone,
   isBookingConfigured,
   publicBookingPageUrl,
+  resolveBookingAddress,
   type BookingSummary,
 } from '../../../lib/bookingClient';
 import { checkEmailMeetingSlot } from '../../../lib/emailScheduling';
@@ -117,9 +118,20 @@ export async function POST(context: APIContext): Promise<Response> {
   const startRaw = String(rec.start ?? '').trim();
   const notes = rec.notes != null ? String(rec.notes).trim().slice(0, 500) : '';
   const phone = rec.phone != null ? String(rec.phone).trim() : undefined;
+  const address = resolveBookingAddress(rec.address);
 
   if (!name) return json({ ok: false, error: 'Guest name is required' }, 400);
   if (!email.includes('@')) return json({ ok: false, error: 'Valid guest email is required' }, 400);
+  if (!address) {
+    return json(
+      {
+        ok: false,
+        error: 'Meeting address is required',
+        hint: 'Every booking must include a street address for the job site.',
+      },
+      400,
+    );
+  }
 
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
@@ -149,6 +161,7 @@ export async function POST(context: APIContext): Promise<Response> {
     start: start.toISOString(),
     notes: notes || undefined,
     phone,
+    address,
   });
   if (!created.ok) {
     return json({ ok: false, error: created.error }, created.status ?? 502);

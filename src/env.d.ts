@@ -123,6 +123,8 @@ interface ImportMetaEnv {
   CALCOM_EVENT_TYPE_ID?: string;
   /** Timezone for schedule display (default America/New_York). */
   BOOKING_TIMEZONE?: string;
+  /** Default job-site address when callers omit one (optional). */
+  BOOKING_DEFAULT_ADDRESS?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */

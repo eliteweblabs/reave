@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { bookingCreate } from '../../../../../lib/bookingClient';
+import { bookingCreate, resolveBookingAddress } from '../../../../../lib/bookingClient';
 import {
   storeGetEmailInbox,
   storeUpdateEmailInbox,
@@ -129,6 +129,18 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
   }
 
+  const address = resolveBookingAddress(rec.address);
+  if (!address) {
+    return json(
+      {
+        ok: false,
+        error: 'Meeting address is required',
+        hint: 'Every booking must include a street address for the job site.',
+      },
+      400,
+    );
+  }
+
   const notes = [
     `From inbox: ${event.subject || '(no subject)'}`,
     event.schedulingNote ? `Requested: ${event.schedulingNote}` : '',
@@ -142,6 +154,7 @@ export async function POST(context: APIContext): Promise<Response> {
     email: attendee.email,
     start: start.toISOString(),
     notes: notes.slice(0, 500),
+    address,
   });
   if (!created.ok) {
     return json({ ok: false, error: created.error }, created.status ?? 502);

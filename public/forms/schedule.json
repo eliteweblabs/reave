@@ -13,6 +13,11 @@
       "cf-questions": "Nice to meet you! What's your email address?"
     },
     {
+      "name": "address",
+      "type": "text",
+      "cf-questions": "What's the street address for the visit?"
+    },
+    {
       "name": "start",
       "type": "availability",
       "cf-questions": "Let me check the calendar for you..."
