@@ -3485,8 +3485,7 @@ const { userId } = Astro.locals.auth();
           margin: 0;
         }
         body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages,
-        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport > [data-radix-scroll-area-viewport],
-        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport > div {
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport {
           padding-bottom: calc(
             var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
           );
@@ -3505,8 +3504,7 @@ const { userId } = Astro.locals.auth();
           bottom: calc(var(--chat-compose-bottom, 0px) + var(--ch-compose-gap));
         }
         body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages,
-        body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport > [data-radix-scroll-area-viewport],
-        body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport > div {
+        body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport {
           padding-bottom: calc(
             var(--control-h) + var(--ch-compose-gap) + 0.75rem + var(--chat-compose-bottom, 0px)
           );
