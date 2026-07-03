@@ -43,12 +43,6 @@ function formatWhen(iso: string): string {
   }
 }
 
-function slotMatches(proposed: Date, slotIso: string): boolean {
-  const slot = new Date(slotIso);
-  if (Number.isNaN(slot.getTime())) return false;
-  return Math.abs(slot.getTime() - proposed.getTime()) <= SLOT_MATCH_MS;
-}
-
 function overlapsExisting(
   start: Date,
   durationMinutes: number,
@@ -151,25 +145,21 @@ export async function checkEmailMeetingSlot(input: {
   const openSlots = availRes.ok ? flattenOpenSlots(availRes.data.days) : [];
 
   const onCalendar = overlapsExisting(proposed, durationMinutes, bookings);
-  const inAvailability =
-    openSlots.length === 0 ? null : openSlots.some((slot) => slotMatches(proposed, slot.iso));
 
   let available = false;
   let conflictReason: string | null = null;
 
   if (onCalendar) {
     conflictReason = `Conflicts with ${onCalendar.attendee || 'another booking'} at ${formatWhen(onCalendar.startTime)}`;
-  } else if (inAvailability === false) {
-    conflictReason = 'That time is not an open slot on your Cal.com calendar';
-  } else if (inAvailability === true) {
-    available = true;
-  } else if (!availRes.ok && !onCalendar) {
-    // Availability API unavailable — allow booking attempt if no direct overlap.
+  } else {
+    // Only block on overlapping bookings. Cal.com availability slots can be
+    // incomplete (hours, buffers, API limits) — let bookingCreate be final.
     available = true;
   }
 
-  const alternatives =
-    available ? [] : pickAlternatives(proposed, openSlots, bookings, durationMinutes);
+  const alternatives = available
+    ? []
+    : pickAlternatives(proposed, openSlots, bookings, durationMinutes);
 
   return {
     ok: true,

@@ -5952,7 +5952,7 @@ function openScheduleCreateDialog(initial = {}) {
           `<span>Notes</span>` +
           `<textarea class="sched-create-input sched-create-notes" name="notes" rows="2"></textarea>` +
         `</label>` +
-        `<p class="sched-create-hint">Creates a Cal.com booking on an open slot.</p>` +
+        `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict with an existing appointment.</p>` +
         `<p class="sched-create-error" id="sched-create-error" hidden></p>` +
         `<div class="em-book-alt-slots" id="sched-create-alts" hidden></div>` +
       `</form>`;
