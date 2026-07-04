@@ -11,6 +11,7 @@
  *   AGENT_ALERT_USER_ID   — Clerk user id; call alerts post to System alerts chat.
  *   VOICE_GREETING         — Custom greeting prompt (optional).
  */
+import { ANTHROPIC_PROMPT_CACHE, createAnthropicMessage } from './anthropicMessages';
 import { serverEnv } from './serverEnv';
 import { hasFeature } from './features';
 
@@ -138,28 +139,20 @@ export async function runVoiceAgent(
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 300,
-        system: voiceSystemPrompt(),
-        messages: [...priorMessages, { role: 'user', content: userText }],
-      }),
+    const result = await createAnthropicMessage({
+      model,
+      max_tokens: 300,
+      cache_control: ANTHROPIC_PROMPT_CACHE,
+      system: voiceSystemPrompt(),
+      messages: [...priorMessages, { role: 'user', content: userText }],
     });
 
-    if (!res.ok) {
-      const err = await res.text().catch(() => res.statusText);
-      console.error('[voice] Anthropic error', res.status, err.slice(0, 200));
+    if (!result.ok) {
+      console.error('[voice] Anthropic error', result.status, result.text.slice(0, 200));
       return null;
     }
 
-    const j = (await res.json()) as { content?: Array<{ type: string; text: string }> };
+    const j = result.data as { content?: Array<{ type: string; text: string }> };
     const block = j.content?.find((b) => b.type === 'text');
     const reply = block?.text?.trim() || null;
 

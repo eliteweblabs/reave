@@ -13,6 +13,12 @@ import { serverEnv } from './serverEnv';
 import type { ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent } from './chatTypes';
 import type { ChatTurn } from './chatTypes';
+import {
+  ANTHROPIC_PROMPT_CACHE,
+  cachedSystemBlocks,
+  createAnthropicMessage,
+  withToolPromptCaching,
+} from './anthropicMessages';
 import { runWithAgentContext, type AgentRunContext } from './agentContext';
 
 type AnthropicContentBlock =
@@ -190,7 +196,8 @@ async function runKnowledgeAgentInner(opts: {
     'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
   );
 
-  const system = `${currentDateTimeLine()}\n\n${sysParts.join('\n')}`;
+  const system = cachedSystemBlocks(sysParts.join('\n'), currentDateTimeLine());
+  const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = [
     ...priorTurns.map((turn) => ({
       role: turn.role,
@@ -202,28 +209,20 @@ async function runKnowledgeAgentInner(opts: {
   const maxRounds = 25;
 
   for (let round = 0; round < maxRounds; round++) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1024,
-        system,
-        messages,
-        tools,
-      }),
+    const result = await createAnthropicMessage({
+      model,
+      max_tokens: 1024,
+      cache_control: ANTHROPIC_PROMPT_CACHE,
+      system,
+      messages,
+      tools: cachedTools,
     });
 
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      return `Anthropic error (${res.status}): ${t.slice(0, 500)}`;
+    if (!result.ok) {
+      return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
     }
 
-    const data = (await res.json()) as {
+    const data = result.data as {
       stop_reason?: string;
       content?: AnthropicContentBlock[];
     };
