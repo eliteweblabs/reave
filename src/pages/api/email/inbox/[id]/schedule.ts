@@ -130,16 +130,6 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const address = resolveBookingAddress(rec.address);
-  if (!address) {
-    return json(
-      {
-        ok: false,
-        error: 'Meeting address is required',
-        hint: 'Every booking must include a street address for the job site.',
-      },
-      400,
-    );
-  }
 
   const notes = [
     `From inbox: ${event.subject || '(no subject)'}`,
@@ -154,7 +144,7 @@ export async function POST(context: APIContext): Promise<Response> {
     email: attendee.email,
     start: start.toISOString(),
     notes: notes.slice(0, 500),
-    address,
+    ...(address ? { address } : {}),
   });
   if (!created.ok) {
     return json({ ok: false, error: created.error }, created.status ?? 502);

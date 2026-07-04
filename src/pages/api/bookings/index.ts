@@ -122,16 +122,6 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!name) return json({ ok: false, error: 'Guest name is required' }, 400);
   if (!email.includes('@')) return json({ ok: false, error: 'Valid guest email is required' }, 400);
-  if (!address) {
-    return json(
-      {
-        ok: false,
-        error: 'Meeting address is required',
-        hint: 'Every booking must include a street address for the job site.',
-      },
-      400,
-    );
-  }
 
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
@@ -161,7 +151,7 @@ export async function POST(context: APIContext): Promise<Response> {
     start: start.toISOString(),
     notes: notes || undefined,
     phone,
-    address,
+    ...(address ? { address } : {}),
   });
   if (!created.ok) {
     return json({ ok: false, error: created.error }, created.status ?? 502);

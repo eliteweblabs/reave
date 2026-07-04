@@ -85,15 +85,14 @@ export function calcomUsername(): string {
   return serverEnv('CALCOM_USERNAME')?.trim() || 'reave';
 }
 
-/** Street address for in-person bookings (required by calcom-booking-api). */
+/** Optional job-site address when the caller has one (omit to skip geocoding). */
 export function bookingDefaultAddress(): string | undefined {
   return serverEnv('BOOKING_DEFAULT_ADDRESS')?.trim() || undefined;
 }
 
 export function resolveBookingAddress(raw: unknown): string | undefined {
   const fromBody = raw != null ? String(raw).trim() : '';
-  if (fromBody) return fromBody;
-  return bookingDefaultAddress();
+  return fromBody || undefined;
 }
 
 /** Public Cal.com booking page for the default event type slug. */

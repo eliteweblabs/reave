@@ -6162,9 +6162,9 @@ function openScheduleCreateDialog(initial = {}) {
           `</label>` +
         `</div>` +
         `<label class="de-label sched-create-field">` +
-          `<span>Address</span>` +
+          `<span>Address <span class="de-label-optional">(optional)</span></span>` +
           `<div class="control-field">` +
-            `<input name="address" type="text" autocomplete="street-address" autocapitalize="words" enterkeyhint="next" required placeholder="123 Main St, City, MA 02134">` +
+            `<input name="address" type="text" autocomplete="street-address" autocapitalize="words" enterkeyhint="next" placeholder="123 Main St, City, MA 02134">` +
           `</div>` +
         `</label>` +
         `<label class="de-label sched-create-field">` +
@@ -6173,7 +6173,7 @@ function openScheduleCreateDialog(initial = {}) {
             `<textarea name="notes" rows="2" enterkeyhint="done"></textarea>` +
           `</div>` +
         `</label>` +
-        `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict. Include the job-site street address — it is required for scheduling.</p>` +
+        `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict. Address can be added later if needed.</p>` +
         `<p class="sched-create-error" id="sched-create-error" hidden></p>` +
         `<div class="em-book-alt-slots" id="sched-create-alts" hidden></div>` +
       `</form>`;
@@ -6248,14 +6248,15 @@ function openScheduleCreateDialog(initial = {}) {
         altsEl.innerHTML = '';
       }
       try {
+        const address = form.address.value.trim();
         const data = await submitScheduleCreate({
           name: form.name.value.trim(),
           email: form.email.value.trim(),
           start: readStartIso(),
-          address: form.address.value.trim(),
+          ...(address ? { address } : {}),
           notes: form.notes.value.trim(),
         });
-        rememberScheduleAddress(form.address.value);
+        if (address) rememberScheduleAddress(address);
         finish(true);
         scheduleState.selectedDate = scheduleBookingDateKey(data.booking?.startTime);
         scheduleState.focusDate = scheduleState.selectedDate;
@@ -9506,7 +9507,10 @@ async function confirmEmailBooking(ev, startIso, address) {
   const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ start: startIso, address }),
+    body: JSON.stringify({
+      start: startIso,
+      ...(address ? { address } : {}),
+    }),
   });
   const data = await readApiJson(res);
   if (!res.ok) {
@@ -9564,9 +9568,9 @@ function showEmailScheduleDialog(ev, check) {
     }
     parts.push(
       '<label class="de-label sched-create-field em-book-address-field">' +
-        '<span>Meeting address</span>' +
+        '<span>Meeting address <span class="de-label-optional">(optional)</span></span>' +
         '<div class="control-field">' +
-          `<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" required placeholder="123 Main St, City, MA 02134" value="${escHtml(readScheduleLastAddress())}">` +
+          `<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="123 Main St, City, MA 02134" value="${escHtml(readScheduleLastAddress())}">` +
         '</div>' +
       '</label>',
     );
@@ -9593,16 +9597,11 @@ function showEmailScheduleDialog(ev, check) {
       bookBtn.textContent = 'Book meeting';
       bookBtn.addEventListener('click', async () => {
         const address = addressInput?.value.trim() || '';
-        if (!address) {
-          addressInput?.focus();
-          addressInput?.reportValidity?.();
-          return;
-        }
         bookBtn.disabled = true;
         bookBtn.textContent = 'Booking…';
         try {
           await confirmEmailBooking(ev, check.proposedStart, address);
-          rememberScheduleAddress(address);
+          if (address) rememberScheduleAddress(address);
           finish(true);
           await osAlert({
             title: 'Meeting scheduled',
@@ -9627,15 +9626,10 @@ function showEmailScheduleDialog(ev, check) {
         const start = btn.getAttribute('data-start');
         if (!start) return;
         const address = addressInput?.value.trim() || '';
-        if (!address) {
-          addressInput?.focus();
-          addressInput?.reportValidity?.();
-          return;
-        }
         btn.disabled = true;
         try {
           await confirmEmailBooking(ev, start, address);
-          rememberScheduleAddress(address);
+          if (address) rememberScheduleAddress(address);
           finish(true);
           await osAlert({
             title: 'Meeting scheduled',
