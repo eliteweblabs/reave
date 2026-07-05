@@ -21,16 +21,30 @@ export async function sendEmail(opts: {
   subject: string;
   text: string;
   html?: string;
+  cc?: string | string[];
+  bcc?: string | string[];
+  from?: string;
 }): Promise<SendResult> {
   const key = serverEnv('RESEND_API_KEY')?.trim();
   if (!key) return { ok: false, error: 'RESEND_API_KEY is not set' };
   const to = opts.to.trim();
   if (!to) return { ok: false, error: 'recipient email is required' };
 
-  const from = await resolveEmailFrom();
+  const from = opts.from?.trim() || (await resolveEmailFrom());
   if (!from) {
     return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
   }
+
+  const normalizeList = (raw?: string | string[]): string[] | undefined => {
+    if (!raw) return undefined;
+    const items = (Array.isArray(raw) ? raw : raw.split(/[,;]+/))
+      .map((v) => v.trim())
+      .filter(Boolean);
+    return items.length ? items : undefined;
+  };
+
+  const cc = normalizeList(opts.cc);
+  const bcc = normalizeList(opts.bcc);
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -42,6 +56,8 @@ export async function sendEmail(opts: {
         subject: opts.subject,
         text: opts.text,
         ...(opts.html ? { html: opts.html } : {}),
+        ...(cc ? { cc } : {}),
+        ...(bcc ? { bcc } : {}),
       }),
     });
     const text = await res.text();

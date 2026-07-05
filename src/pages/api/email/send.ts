@@ -31,14 +31,26 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const to = String(body.to ?? '').trim();
   const subject = String(body.subject ?? '').trim();
+  const html = String(body.html ?? '').trim() || undefined;
   const text = String(body.text ?? body.body ?? '').trim();
+  const from = String(body.from ?? '').trim() || undefined;
+  const cc = body.cc;
+  const bcc = body.bcc;
 
-  if (!to) return json({ ok: false, error: 'Recipient (to) is required' }, 400);
-  if (!subject) return json({ ok: false, error: 'Subject is required' }, 400);
-  if (!text) return json({ ok: false, error: 'Message body is required' }, 400);
+  if (!to) return json({ ok: false, success: false, error: 'Recipient (to) is required' }, 400);
+  if (!subject) return json({ ok: false, success: false, error: 'Subject is required' }, 400);
+  if (!text && !html) return json({ ok: false, success: false, error: 'Message body is required' }, 400);
 
-  const result = await sendEmail({ to, subject, text });
-  if (!result.ok) return json({ ok: false, error: result.error }, 502);
+  const result = await sendEmail({
+    to,
+    subject,
+    text: text || html || '',
+    html,
+    cc: typeof cc === 'string' || Array.isArray(cc) ? cc : undefined,
+    bcc: typeof bcc === 'string' || Array.isArray(bcc) ? bcc : undefined,
+    from,
+  });
+  if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
 
-  return json({ ok: true, id: result.id });
+  return json({ ok: true, success: true, id: result.id });
 }

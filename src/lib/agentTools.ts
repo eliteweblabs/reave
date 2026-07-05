@@ -164,6 +164,28 @@ const lineItemSchema = {
   additionalProperties: false,
 };
 
+function parseEmailListArg(raw: unknown): string[] | undefined {
+  if (raw == null || raw === '') return undefined;
+  const items = String(raw)
+    .split(/[,;]+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return items.length ? items : undefined;
+}
+
+function isLikelyEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function plainTextFromHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function buildTools(): AgentToolDef[] {
   const base: AgentToolDef[] = [
     {
@@ -1738,6 +1760,33 @@ export function buildTools(): AgentToolDef[] {
     });
   }
 
+  if (isEmailSendConfigured()) {
+    base.push({
+      type: 'function',
+      function: {
+        name: 'send_email',
+        description:
+          'Send an outbound email via Resend (same backend as POST /api/email/send). Use when the user asks you to email someone directly — not for delivering client portal links (use send_client_portal for that).',
+        parameters: {
+          type: 'object',
+          properties: {
+            to: { type: 'string', description: 'Recipient email address' },
+            subject: { type: 'string', description: 'Email subject line' },
+            body: { type: 'string', description: 'Message body (plain text or HTML)' },
+            cc: { type: 'string', description: 'Optional CC — comma-separated addresses' },
+            bcc: { type: 'string', description: 'Optional BCC — comma-separated addresses' },
+            from: {
+              type: 'string',
+              description: 'Optional From address (defaults to RESEND_FROM / company outbound email)',
+            },
+          },
+          required: ['to', 'subject', 'body'],
+          additionalProperties: false,
+        },
+      },
+    });
+  }
+
   return base;
 }
 
@@ -2408,6 +2457,44 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         ok: true,
         rule: { id: rule.id, title: rule.title, status: rule.status, phrases: rule.phrases, fields: rule.fields },
       });
+    }
+    if (name === 'send_email') {
+      if (!isEmailSendConfigured()) {
+        return JSON.stringify({ success: false, error: 'Outbound email is not configured (RESEND_API_KEY)' });
+      }
+
+      const to = String(args.to ?? '').trim();
+      const subject = String(args.subject ?? '').trim();
+      const body = String(args.body ?? '').trim();
+      if (!to) return JSON.stringify({ success: false, error: 'to is required' });
+      if (!subject) return JSON.stringify({ success: false, error: 'subject is required' });
+      if (!body) return JSON.stringify({ success: false, error: 'body is required' });
+      if (!isLikelyEmail(to)) {
+        return JSON.stringify({ success: false, error: 'invalid to address' });
+      }
+
+      const cc = parseEmailListArg(args.cc);
+      const bcc = parseEmailListArg(args.bcc);
+      for (const addr of [...(cc ?? []), ...(bcc ?? [])]) {
+        if (!isLikelyEmail(addr)) {
+          return JSON.stringify({ success: false, error: `invalid address: ${addr}` });
+        }
+      }
+
+      const from = String(args.from ?? '').trim() || undefined;
+      const looksHtml = /<[a-z][\s\S]*>/i.test(body);
+      const result = await sendEmail({
+        to,
+        subject,
+        text: looksHtml ? plainTextFromHtml(body) || body : body,
+        html: looksHtml ? body : undefined,
+        cc,
+        bcc,
+        from,
+      });
+
+      if (!result.ok) return JSON.stringify({ success: false, error: result.error });
+      return JSON.stringify({ success: true, id: result.id, to, subject });
     }
     if (name === 'run_dev_task') {
       const task = String(args.task ?? '').trim();
