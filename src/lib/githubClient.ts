@@ -129,7 +129,14 @@ async function ghFetch<T>(
       (res.status === 401 ? 'Bad credentials (check GITHUB_TOKEN)' : `HTTP ${res.status}`);
     const rate = res.headers.get('x-ratelimit-remaining');
     const hint = res.status === 403 && rate === '0' ? ' (rate limited — set GITHUB_TOKEN)' : '';
-    return { ok: false, error: `${msg}${hint}`, status: res.status };
+    const requiredPerms = res.headers.get('x-accepted-github-permissions');
+    const permHint =
+      res.status === 403 && requiredPerms
+        ? ` Required: ${requiredPerms}. For fine-grained PATs, set Repository access to this repo and grant Contents (read+write) + Pull requests (read+write).`
+        : res.status === 403 && /resource not accessible/i.test(msg)
+          ? ' Fine-grained PAT likely missing repo access or Contents/Pull requests write on eliteweblabs/reave.'
+          : '';
+    return { ok: false, error: `${msg}${hint}${permHint}`, status: res.status };
   }
 
   return { ok: true, data: (parsed as T) ?? ([] as unknown as T) };
@@ -403,11 +410,19 @@ function isSafeBranchName(name: string): boolean {
 export type GithubRepoAccess = {
   repo: string;
   authenticated: boolean;
+  token_user: string | null;
+  token_type: 'fine-grained' | 'classic' | 'unknown' | null;
   permissions: { pull: boolean; push: boolean; admin: boolean } | null;
   can_write_files: boolean;
   can_open_prs: boolean;
   note: string | null;
 };
+
+function tokenType(tok: string): GithubRepoAccess['token_type'] {
+  if (tok.startsWith('github_pat_')) return 'fine-grained';
+  if (tok.startsWith('ghp_') || tok.startsWith('gho_') || tok.startsWith('ghu_')) return 'classic';
+  return 'unknown';
+}
 
 /** Inspect token access to the configured repo (for service_status / troubleshooting). */
 export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<GithubRepoAccess>> {
@@ -422,6 +437,8 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
       data: {
         repo: slug,
         authenticated: false,
+        token_user: null,
+        token_type: null,
         permissions: null,
         can_write_files: false,
         can_open_prs: false,
@@ -437,6 +454,8 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
       data: {
         repo: slug,
         authenticated: false,
+        token_user: null,
+        token_type: tokenType(tok),
         permissions: null,
         can_write_files: false,
         can_open_prs: false,
@@ -444,6 +463,9 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
       },
     };
   }
+
+  const tokenUser = userRes.data.login ?? null;
+  const [repoOwner] = slug.split('/');
 
   const repoRes2 = await ghFetch<{ permissions?: { pull?: boolean; push?: boolean; admin?: boolean } }>(
     `/repos/${slug}`
@@ -454,6 +476,8 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
       data: {
         repo: slug,
         authenticated: true,
+        token_user: tokenUser,
+        token_type: tokenType(tok),
         permissions: null,
         can_write_files: false,
         can_open_prs: false,
@@ -466,19 +490,33 @@ export async function githubGetRepoAccess(repo?: string): Promise<GithubResult<G
   const push = Boolean(perms?.push || perms?.admin);
   const pull = Boolean(perms?.pull || push);
 
+  let note: string;
+  if (push) {
+    note = 'Token can push — write_github_file and create_pull_request should work.';
+  } else if (tokenType(tok) === 'fine-grained') {
+    note =
+      'Fine-grained PAT is read-only on this repo. In GitHub → Developer settings → Fine-grained tokens: Resource owner = eliteweblabs, Repository access includes eliteweblabs/reave, Contents = Read and write, Pull requests = Read and write. Then update GITHUB_TOKEN on Railway.';
+  } else {
+    note = 'Token is read-only on this repo — use a classic PAT with repo scope, or upgrade fine-grained permissions.';
+  }
+
+  if (tokenUser && repoOwner && tokenUser.toLowerCase() !== repoOwner.toLowerCase()) {
+    note += ` Token user "${tokenUser}" is not repo owner "${repoOwner}".`;
+  }
+
   return {
     ok: true,
     data: {
       repo: slug,
       authenticated: true,
+      token_user: tokenUser,
+      token_type: tokenType(tok),
       permissions: perms
         ? { pull, push, admin: Boolean(perms.admin) }
         : null,
       can_write_files: push,
       can_open_prs: push,
-      note: push
-        ? 'Token can push — write_github_file and create_pull_request should work.'
-        : 'Token is read-only on this repo — upgrade to Contents write + Pull requests write.',
+      note,
     },
   };
 }
