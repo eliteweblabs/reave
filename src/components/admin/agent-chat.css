@@ -131,15 +131,14 @@
 }
 
 .aui-compose-footer {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   z-index: 2;
   flex-shrink: 0;
   padding:
     0.35rem max(0.5rem, env(safe-area-inset-right, 0px))
-    calc(0.35rem + env(safe-area-inset-bottom, 0px))
+    0.35rem
     max(0.5rem, env(safe-area-inset-left, 0px));
-  background: linear-gradient(to top, var(--bg) 75%, transparent);
+  background: var(--bg);
 }
 
 .aui-compose {

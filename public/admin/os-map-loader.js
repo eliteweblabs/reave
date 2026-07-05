@@ -2585,11 +2585,23 @@ function syncChatComposeViewport() {
   document.documentElement.style.setProperty('--chat-compose-bottom', `${inset}px`);
 }
 
+function syncChatComposeFormNav(focused) {
+  const header = getChatPanel()?.querySelector('.ch-pane-header');
+  if (header instanceof HTMLElement) {
+    header.inert = Boolean(focused);
+  }
+  const searchInput = document.getElementById('search-overlay-input');
+  if (searchInput instanceof HTMLInputElement && !searchOverlayOpen) {
+    searchInput.disabled = Boolean(focused);
+  }
+}
+
 function setChatComposeFocused(focused) {
   if (!isMobileTabs() || activeKey !== 'chats' || !chatState.activeId) {
     focused = false;
   }
   document.body.classList.toggle('chat-compose-focused', focused);
+  syncChatComposeFormNav(focused);
   if (focused) syncChatComposeViewport();
   else document.documentElement.style.removeProperty('--chat-compose-bottom');
   syncFooterChatInlineHome();
@@ -2630,6 +2642,20 @@ function initChatComposeFocusLayout() {
   window.visualViewport?.addEventListener('resize', syncChatComposeViewport);
   window.visualViewport?.addEventListener('scroll', syncChatComposeViewport);
   MOBILE_TABS_MQ.addEventListener('change', () => setChatComposeFocused(false));
+
+  document.addEventListener(
+    'pointerdown',
+    (ev) => {
+      if (!document.body.classList.contains('chat-compose-focused')) return;
+      const t = ev.target;
+      if (t instanceof HTMLElement && t.closest('.aui-compose, .aui-compose-footer, .ch-compose')) {
+        return;
+      }
+      const input = document.querySelector('#chat-panel .aui-input');
+      if (input instanceof HTMLElement) input.blur();
+    },
+    true,
+  );
 }
 
 function syncFooterNav() {
@@ -2718,6 +2744,7 @@ function openSearchOverlay() {
   expandFooterNav();
   overlay.classList.add('open');
   overlay.setAttribute('aria-hidden', 'false');
+  if (input instanceof HTMLInputElement) input.disabled = false;
   renderSearchResults('');
   syncSearchOverlayClearBtn();
   syncFooterNav();
@@ -2739,7 +2766,10 @@ function closeSearchOverlay() {
   overlay.classList.remove('open');
   overlay.setAttribute('aria-hidden', 'true');
   const input = document.getElementById('search-overlay-input');
-  if (input) input.value = '';
+  if (input instanceof HTMLInputElement) {
+    input.value = '';
+    input.disabled = true;
+  }
   syncSearchOverlayClearBtn();
   syncFooterNav();
 }
@@ -2839,6 +2869,7 @@ async function renderSearchResults(query) {
 function initSearchOverlay() {
   const input = document.getElementById('search-overlay-input');
   const clearBtn = document.getElementById('search-overlay-clear');
+  if (input instanceof HTMLInputElement) input.disabled = !searchOverlayOpen;
 
   input?.addEventListener('input', () => {
     syncSearchOverlayClearBtn();
