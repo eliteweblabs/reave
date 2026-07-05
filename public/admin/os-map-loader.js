@@ -1734,6 +1734,23 @@ function renderHomeDashboard(data) {
     onClick: () => setActiveMap('system', { force: activeKey === 'system' }),
   }));
 
+  const uptimeSummary = data?.uptime?.summary;
+  const uptimeConfigured = data?.uptime?.configured === true;
+  if (uptimeConfigured || uptimeSummary) {
+    const downCount = uptimeSummary?.down ?? stats.uptimeDown ?? 0;
+    statsEl.appendChild(buildDashStat({
+      value: downCount,
+      label: 'Sites down',
+      hint: uptimeSummary
+        ? `${uptimeSummary.up}/${uptimeSummary.total} up · ${uptimeSummary.open_incidents ?? 0} open incidents`
+        : uptimeConfigured
+          ? 'sync pending'
+          : 'not configured',
+      tone: downCount > 0 ? 'failed' : uptimeSummary?.total ? 'live' : 'muted',
+      muted: !uptimeConfigured,
+    }));
+  }
+
   scroll.appendChild(statsEl);
 
   const eventsPanel = document.createElement('section');
@@ -1797,6 +1814,76 @@ function renderHomeDashboard(data) {
     eventsPanel.appendChild(eventsList);
   }
   scroll.appendChild(eventsPanel);
+
+  if (uptimeConfigured || uptimeSummary) {
+    const uptimePanel = document.createElement('section');
+    uptimePanel.className = 'dash-panel dash-uptime-panel';
+    uptimePanel.innerHTML =
+      `<div class="dash-panel-head">` +
+        `<h2 class="dash-panel-title">Site uptime</h2>` +
+        (uptimeSummary?.avg_uptime_7d != null
+          ? `<span class="dash-panel-note">${Number(uptimeSummary.avg_uptime_7d).toFixed(2)}% avg (7d)</span>`
+          : '') +
+      `</div>`;
+
+    if (!uptimeConfigured) {
+      const note = document.createElement('p');
+      note.className = 'dash-empty';
+      note.textContent = 'Set UPTIMEROBOT_API_KEY and add uptime_monitoring to FEATURES.';
+      uptimePanel.appendChild(note);
+    } else if (!uptimeSummary?.total) {
+      const note = document.createElement('p');
+      note.className = 'dash-empty';
+      note.textContent = 'No monitors synced yet — webhook or poll will populate this.';
+      uptimePanel.appendChild(note);
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'dash-uptime-list';
+      const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+      if (!monitors.length) {
+        const empty = document.createElement('p');
+        empty.className = 'dash-empty';
+        empty.textContent = 'Waiting for first sync…';
+        uptimePanel.appendChild(empty);
+      } else {
+        for (const m of monitors) {
+          const li = document.createElement('li');
+          const down = m.is_down || m.status === 8 || m.status === 9;
+          li.className = `dash-uptime-item${down ? ' dash-uptime-item--down' : ''}`;
+          li.innerHTML =
+            `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
+            `<div class="dash-uptime-body">` +
+              `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
+              `<div class="dash-uptime-meta">${escHtml(m.status === 2 ? 'up' : m.status === 8 || m.status === 9 ? 'down' : `status ${m.status}`)}` +
+                (m.uptime_ratio_7d != null ? ` · ${Number(m.uptime_ratio_7d).toFixed(2)}% (7d)` : '') +
+              `</div>` +
+            `</div>`;
+          list.appendChild(li);
+        }
+        uptimePanel.appendChild(list);
+      }
+
+      const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
+      if (recent.length) {
+        const incHead = document.createElement('h3');
+        incHead.className = 'dash-uptime-inc-head';
+        incHead.textContent = 'Recent incidents';
+        uptimePanel.appendChild(incHead);
+        const incList = document.createElement('ul');
+        incList.className = 'dash-uptime-incidents';
+        for (const inc of recent.slice(0, 5)) {
+          const li = document.createElement('li');
+          li.className = 'dash-uptime-incident';
+          li.innerHTML =
+            `<span class="dash-uptime-inc-title">${escHtml(inc.monitor_name || 'Monitor')} — ${escHtml(inc.alert_type || 'incident')}</span>` +
+            `<span class="dash-uptime-inc-when">${escHtml(formatEmailWhen(inc.created_at))}</span>`;
+          incList.appendChild(li);
+        }
+        uptimePanel.appendChild(incList);
+      }
+    }
+    scroll.appendChild(uptimePanel);
+  }
 
   const inboxPanel = document.createElement('section');
   inboxPanel.className = 'dash-panel';

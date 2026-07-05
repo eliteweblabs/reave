@@ -27,6 +27,8 @@ import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
+import { getClientUptimeView } from '../../lib/uptimeMonitoring';
+import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
 import { SITE } from '../../config/site';
@@ -181,6 +183,19 @@ const portalWorkJobs: PortalWorkJobItem[] = clientJobs.map((job) => ({
   statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
   bodyHtml: jobBodies[job.slug] ? richText(jobBodies[job.slug]) : '',
 }));
+
+let clientUptimeMonitors: Awaited<ReturnType<typeof getClientUptimeView>>['monitors'] = [];
+let clientUptimeIncidents: Awaited<ReturnType<typeof getClientUptimeView>>['incidents'] = [];
+if (contact && uid && hasFeature('uptime_monitoring')) {
+  try {
+    const uptimeView = await getClientUptimeView(uid);
+    clientUptimeMonitors = uptimeView.monitors;
+    clientUptimeIncidents = uptimeView.incidents;
+  } catch {
+    // Uptime is optional on the portal.
+  }
+}
+const hasUptime = clientUptimeMonitors.length > 0 || clientUptimeIncidents.length > 0;
 
 // Which tabs to show
 const hasOverview = Boolean(headline || bodyHtml || fields.length > 0);
@@ -361,8 +376,40 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 ))}
               </div>
             )}
-            {!hasOverview && !hasWork && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
-            {!hasOverview && hasWork && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Work tab for your active projects.</p>}
+            {!hasOverview && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
+            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Work tab for your active projects.</p>}
+            {hasUptime && (
+              <div class="uptime-block">
+                <h3 class="group-title">Site uptime</h3>
+                {clientUptimeMonitors.length > 0 && (
+                  <ul class="uptime-monitors">
+                    {clientUptimeMonitors.map((m) => (
+                      <li class={`uptime-monitor ${m.status === 8 || m.status === 9 ? 'down' : m.status === 2 ? 'up' : ''}`}>
+                        <span class="uptime-dot" aria-hidden="true" />
+                        <div class="uptime-main">
+                          <span class="uptime-name">{m.friendly_name}</span>
+                          <span class="uptime-meta">
+                            {uptimeStatusLabel(m.status)}
+                            {m.uptime_ratio_7d != null ? ` · ${Number(m.uptime_ratio_7d).toFixed(2)}% (7d)` : ''}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {clientUptimeIncidents.length > 0 && (
+                  <ul class="uptime-incidents">
+                    {clientUptimeIncidents.slice(0, 8).map((inc) => (
+                      <li class="uptime-incident">
+                        <span class="uptime-incident-type">{inc.alert_type || 'incident'}</span>
+                        <span class="uptime-incident-when">{fmtDate(inc.created_at)}</span>
+                        {inc.message && <span class="uptime-incident-msg">{inc.message}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Work (client-visible jobs + comments) */}
@@ -769,6 +816,30 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
         color: rgba(255, 255, 255, 0.4); margin: 0 0 8px 2px;
       }
+      .uptime-block { margin-top: 20px; }
+      .uptime-monitors, .uptime-incidents {
+        list-style: none; margin: 0 0 12px; padding: 0;
+        border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .uptime-monitor, .uptime-incident {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 12px 16px; background: rgba(255, 255, 255, 0.04);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .uptime-monitor:first-child, .uptime-incident:first-child { border-top: none; }
+      .uptime-dot {
+        width: 10px; height: 10px; border-radius: 50%; margin-top: 5px;
+        background: rgba(255, 255, 255, 0.35); flex-shrink: 0;
+      }
+      .uptime-monitor.up .uptime-dot { background: #86efac; }
+      .uptime-monitor.down .uptime-dot { background: #fca5a5; }
+      .uptime-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .uptime-name { font-weight: 600; font-size: 15px; }
+      .uptime-meta { font-size: 13px; color: rgba(255, 255, 255, 0.55); }
+      .uptime-incident { flex-direction: column; gap: 4px; }
+      .uptime-incident-type { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+      .uptime-incident-when { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+      .uptime-incident-msg { font-size: 13px; color: rgba(255, 255, 255, 0.7); }
       .invoices {
         list-style: none; margin: 0; padding: 0;
         border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);

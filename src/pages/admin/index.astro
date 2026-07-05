@@ -3978,6 +3978,46 @@ const company = await getCompanyConfig(Astro.request);
         font-weight: 600;
         cursor: pointer;
       }
+      .dash-uptime-list, .dash-uptime-incidents {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+      .dash-uptime-item, .dash-uptime-incident {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.55rem 0.75rem;
+        background: var(--card);
+        border-top: 1px solid var(--border);
+      }
+      .dash-uptime-item:first-child, .dash-uptime-incident:first-child { border-top: none; }
+      .dash-uptime-item--down { background: rgba(248, 113, 113, 0.08); }
+      .dash-uptime-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-top: 0.35rem;
+        background: #3fb950;
+        flex-shrink: 0;
+      }
+      .dash-uptime-item--down .dash-uptime-dot { background: #f85149; }
+      .dash-uptime-body { min-width: 0; }
+      .dash-uptime-name { font-size: 0.82rem; font-weight: 600; }
+      .dash-uptime-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+      .dash-uptime-inc-head {
+        margin: 0.85rem 0 0.35rem;
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+      .dash-uptime-incident { flex-direction: column; gap: 0.15rem; }
+      .dash-uptime-inc-title { font-size: 0.78rem; font-weight: 600; }
+      .dash-uptime-inc-when { font-size: 0.68rem; color: var(--muted); }
       .dash-empty-link {
         display: block;
         margin: 0.35rem 0 0;

@@ -81,12 +81,12 @@ export const DEFAULT_RULES: EmailRule[] = [
   },
   {
     status: 'DOWN',
-    description: 'UptimeRobot down alert — real-time push ping.',
+    description: 'UptimeRobot down alert — disabled; use uptime_monitoring + /api/uptime/webhook instead.',
     phrases: ['UptimeRobot'],
     matchMode: 'any',
     fields: ['subject', 'body'],
-    notify: true,
-    enabled: true,
+    notify: false,
+    enabled: false,
   },
   {
     status: 'NEEDS_CHECK',

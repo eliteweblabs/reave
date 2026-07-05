@@ -1,7 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
-import { enabledFeatures, FEATURE_LABELS, type FeatureId } from '../../lib/features';
+import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../../lib/features';
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
+import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
 import { serverEnv } from '../../lib/serverEnv';
 
@@ -174,6 +175,11 @@ export const GET: APIRoute = async () => {
       ? configured(`TELNYX_API_KEY set${serverEnv('VOICE_AGENT_ENABLED') === '1' ? ' · voice enabled' : ''}`)
       : unconfigured('TELNYX_API_KEY not set'),
     changedetection: cdProbe,
+    uptimerobot: hasFeature('uptime_monitoring')
+      ? isUptimeRobotConfigured()
+        ? configured('UPTIMEROBOT_API_KEY set')
+        : unconfigured('UPTIMEROBOT_API_KEY not set')
+      : unconfigured('uptime_monitoring not in FEATURES'),
     calcom_booking: bookingProbe,
     calcom_web: calWebProbe,
     clerk: serverEnv('CLERK_SECRET_KEY')

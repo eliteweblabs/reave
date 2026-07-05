@@ -12,6 +12,8 @@ import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInbox
 import { getDeployStatus } from '../../../lib/deployStatus';
 import { bookingsToday, isBookingConfigured, type DashboardEvent } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
+import { getUptimeSummaryView, getUptimeMonitorsView } from '../../../lib/uptimeMonitoring';
+import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
 
@@ -94,6 +96,14 @@ export async function GET(context: APIContext): Promise<Response> {
   const eventsToday = await loadEventsToday();
   const schedulingConfigured = isBookingConfigured();
 
+  let uptime: Awaited<ReturnType<typeof getUptimeSummaryView>> | null = null;
+  let uptimeMonitors: Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] = [];
+  if (hasFeature('uptime_monitoring')) {
+    uptime = await getUptimeSummaryView();
+    const monitorsView = await getUptimeMonitorsView();
+    uptimeMonitors = monitorsView.monitors;
+  }
+
   return json({
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -108,10 +118,14 @@ export async function GET(context: APIContext): Promise<Response> {
       chats: threads.filter((t) => !t.archived).length,
       deployState: deploy?.state ?? 'unknown',
       deployUpToDate: deploy?.up_to_date ?? null,
+      uptimeDown: uptime?.summary?.down ?? null,
+      uptimeOpenIncidents: uptime?.summary?.open_incidents ?? null,
     },
     recentEmails,
     eventsToday,
     schedulingConfigured,
+    uptime,
+    uptimeMonitors,
     deploy: deploy
       ? {
           state: deploy.state,

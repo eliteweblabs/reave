@@ -107,6 +107,16 @@ interface ImportMetaEnv {
   CHANGEDETECTION_CHECK_HOURS?: string;
   /** Minutes to suppress change alerts after a deploy (default 20). */
   CHANGEDETECTION_POST_DEPLOY_SUPPRESS_MINUTES?: string;
+  /** UptimeRobot account API key (Integrations → API). */
+  UPTIMEROBOT_API_KEY?: string;
+  /** Shared secret for /api/uptime/webhook?key= and optional Authorization header. */
+  UPTIMEROBOT_WEBHOOK_SECRET?: string;
+  /** Optional secret for /api/uptime/poll?key= (defaults to UPTIMEROBOT_WEBHOOK_SECRET). */
+  UPTIMEROBOT_POLL_SECRET?: string;
+  /** API poll interval in minutes (default 5). */
+  UPTIMEROBOT_POLL_MINUTES?: string;
+  /** JSON map of UptimeRobot monitor id → contact-api client uid, e.g. {"798092635":"uuid"}. */
+  UPTIMEROBOT_MONITOR_CLIENT_MAP?: string;
   /** calcom-booking-api base URL — server-side (Railway internal or public). */
   BOOKING_API_URL?: string;
   /** Optional X-API-Key when calcom-booking-api has API_KEY set. */
