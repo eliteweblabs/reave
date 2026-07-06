@@ -1,143 +1,83 @@
-/**
- * Email triage rule engine (Reave).
- *
- * Ported from the retired `openclaw-email-tools` IMAP monitor. Instead of
- * polling a mailbox, inbound mail now arrives via a Resend webhook
- * (`/api/email/inbound`). Each message is matched against keyword/phrase rules
- * that resolve to a `status` and decide whether to notify the owner (Web Push).
- *
- * This is intentionally lightweight: no mailbox mutation (mark/archive/delete)
- * since Resend receiving is read-only — a rule only decides classification and
- * whether the owner is notified.
- */
+// Email classification and auto-routing rules
+// Used by POST /api/email/triage to classify inbound messages
 
-export type MatchMode = 'any' | 'all';
-export type RuleField = 'subject' | 'body' | 'from';
+export type EmailStatus = 
+  | "ROUTED"         // processed, cleared from inbox
+  | "RECEIPT"        // tax/payment receipt, filed
+  | "JUNK"           // spam, marked for deletion
+  | "DELETE"         // permanently removed
+  | "NOTIFY"         // unmatched, notify user
+  | "RAILWAY_ALERT"  // Railway deployment alerts
+  | "DOWN"           // UptimeRobot monitor alerts
 
 export interface EmailRule {
-  /** Short status label surfaced in the notification, e.g. "DOWN". */
-  status: string;
-  description?: string;
-  /** Case-insensitive substrings; matched against the selected `fields`. */
-  phrases: string[];
-  /** "any" = at least one phrase, "all" = every phrase. */
-  matchMode: MatchMode;
-  fields: RuleField[];
-  /** Whether a match should send a push/inbox alert. */
-  notify: boolean;
-  enabled: boolean;
+  status: EmailStatus
+  phrases: string[]        // phrases to match in subject/body
+  fields: ("subject" | "body")[]
+  notify: boolean          // send Telegram alert?
 }
 
-export interface InboundEmail {
-  from: string;
-  subject: string;
-  text: string;
-}
-
-export interface Classification {
-  /** Resolved status, or "UNMATCHED" when no enabled rule matched. */
-  status: string;
-  matched: EmailRule | null;
-  notify: boolean;
-}
-
-/**
- * Default rule table — ported from the openclaw `status-rules.json` snapshot.
- * Edit here (or swap for a DB/JSON loader later) to tune triage.
- */
 export const DEFAULT_RULES: EmailRule[] = [
+  // UptimeRobot monitoring alerts
   {
-    status: 'DELETE',
-    description: 'Clear marketing trash — file silently, no alert.',
-    phrases: ['unsubscribe', 'you received this because'],
-    matchMode: 'any',
-    fields: ['subject', 'body'],
+    status: "DOWN",
+    phrases: ["uptimerobot", "monitor is down", "monitor is up"],
+    fields: ["subject"],
     notify: false,
-    enabled: true,
   },
+
+  // Railway deployment crash notifications
   {
-    status: 'AUTO_ARCHIVED',
-    description: 'Google Workspace monthly invoices — file silently.',
-    phrases: ['Your Google Workspace monthly invoice'],
-    matchMode: 'any',
-    fields: ['subject'],
+    status: "RAILWAY_ALERT",
+    phrases: ["build failed", "deployment crashed", "deploy crashed", "railway"],
+    fields: ["subject", "body"],
     notify: false,
-    enabled: true,
   },
+
+  // Tax receipts and payment confirmations
   {
-    status: 'RAILWAY_ALERT',
-    description: 'Railway deploy/build crash emails — inbox alert + admin agent.',
+    status: "RECEIPT",
+    phrases: ["invoice", "receipt", "payment", "charge", "transaction", "order"],
+    fields: ["subject", "body"],
+    notify: false,
+  },
+
+  // Auto-spam (phishing, obvious spam)
+  {
+    status: "JUNK",
     phrases: [
-      'noreply@railway.app',
-      'Deployment crashed',
-      'Build failed for',
-      'Uh oh. Your deployment',
-      'crashed within the production environment',
+      "verify your account",
+      "confirm your identity",
+      "click here immediately",
+      "urgent action required",
+      "unsubscribe",
     ],
-    matchMode: 'any',
-    fields: ['from', 'subject', 'body'],
-    notify: true,
-    enabled: true,
-  },
-  {
-    status: 'DOWN',
-    description: 'UptimeRobot down alert — disabled; use uptime_monitoring + /api/uptime/webhook instead.',
-    phrases: ['UptimeRobot'],
-    matchMode: 'any',
-    fields: ['subject', 'body'],
+    fields: ["subject", "body"],
     notify: false,
-    enabled: false,
   },
-  {
-    status: 'NEEDS_CHECK',
-    description: 'Security alerts — flag for review.',
-    phrases: ['Security alert', 'sign in was removed', 'App password used'],
-    matchMode: 'any',
-    fields: ['subject', 'body'],
-    notify: true,
-    enabled: true,
-  },
-];
+]
 
-/**
- * When no rule matches, should the owner still be notified? Defaults to true so
- * nothing slips through silently while rules are being tuned.
- */
-export const NOTIFY_ON_UNMATCHED = true;
-
-function fieldValue(email: InboundEmail, field: RuleField): string {
-  switch (field) {
-    case 'subject':
-      return email.subject;
-    case 'body':
-      return email.text;
-    case 'from':
-      return email.from;
-    default:
-      return '';
-  }
-}
-
-function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
-  if (!rule.enabled || rule.phrases.length === 0) return false;
-  const haystack = rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
-  const hits = rule.phrases.map((p) => haystack.includes(p.toLowerCase()));
-  return rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
-}
-
-/**
- * Classify an inbound email against the rule table. First matching enabled rule
- * (in table order) wins.
- */
 export function classifyEmail(
-  email: InboundEmail,
-  rules: EmailRule[] = DEFAULT_RULES,
-  notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED
-): Classification {
-  for (const rule of rules) {
-    if (ruleMatches(rule, email)) {
-      return { status: rule.status, matched: rule, notify: rule.notify };
+  subject: string,
+  body: string,
+  from: string
+): EmailStatus {
+  const text = `${subject} ${body}`.toLowerCase()
+
+  // Check each rule in order
+  for (const rule of DEFAULT_RULES) {
+    for (const phrase of rule.phrases) {
+      if (text.includes(phrase.toLowerCase())) {
+        return rule.status
+      }
     }
   }
-  return { status: 'UNMATCHED', matched: null, notify: notifyOnUnmatched };
+
+  // No rule matched
+  return "NOTIFY"
+}
+
+export function shouldNotify(status: EmailStatus): boolean {
+  const rule = DEFAULT_RULES.find(r => r.status === status)
+  return rule?.notify ?? true
 }
