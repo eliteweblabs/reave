@@ -16,7 +16,9 @@ export type StoredCompanyConfig = {
   domain?: string | null;
   supportEmail?: string | null;
   fromEmail?: string | null;
+  /** Empty string = explicitly hidden; null = unset (use site default). */
   logoPath?: string | null;
+  updatedAt?: string | null;
 };
 
 const SCHEMA_SQL = `
@@ -108,7 +110,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     domain: str('domain') || null,
     supportEmail: str('supportEmail') || null,
     fromEmail: str('fromEmail') || null,
-    logoPath: str('logoPath') || null,
+    logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
   };
 }
 
@@ -126,7 +128,8 @@ function writeFileConfig(config: StoredCompanyConfig): boolean {
   try {
     const path = configFilePath();
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, JSON.stringify(config, null, 2) + '\n', 'utf8');
+    const payload = { ...config, updatedAt: new Date().toISOString() };
+    writeFileSync(path, JSON.stringify(payload, null, 2) + '\n', 'utf8');
     return true;
   } catch (e) {
     console.error('[company-config] file write failed', e);
@@ -145,8 +148,9 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     support_email: string | null;
     from_email: string | null;
     logo_path: string | null;
+    updated_at: Date | string | null;
   }>(
-    `SELECT name, legal_name, description, domain, support_email, from_email, logo_path
+    `SELECT name, legal_name, description, domain, support_email, from_email, logo_path, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -159,6 +163,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     supportEmail: row.support_email,
     fromEmail: row.from_email,
     logoPath: row.logo_path,
+    updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
 

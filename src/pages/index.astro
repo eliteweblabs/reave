@@ -3,13 +3,19 @@ import Layout from "../layouts/Layout.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
+import { getCompanyConfig, homepageHeroMask } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const heroMask = homepageHeroMask(company);
 ---
 
 <Layout>
+  {heroMask && (
   <!-- Mask clips the WebGL layer (mask on the painted content, not an empty box). -->
-  <div class="quantum-logo-stack" aria-hidden="true">
+  <div class="quantum-logo-stack" style={`--hero-logo-mask: url("${heroMask}")`} aria-hidden="true">
     <div id="quantumCanvasHost" class="quantum-host"></div>
   </div>
+  )}
   <div class="quantum-vignette" aria-hidden="true"></div>
 
   <div class="quantum-controls-dock" aria-label="Background controls">
@@ -93,8 +99,8 @@ import TextFallback from "../components/TextFallback.astro";
     cursor: default;
     touch-action: none;
     overflow: hidden;
-    mask-image: url("/logo-mask.svg");
-    -webkit-mask-image: url("/logo-mask.svg");
+    mask-image: var(--hero-logo-mask, url("/logo-mask.svg"));
+    -webkit-mask-image: var(--hero-logo-mask, url("/logo-mask.svg"));
     /* Resolved size/position are read in JS so the WebGL camera matches this box (tight fit in the letters). */
     mask-size: min(92vmin, 96vw, 820px);
     -webkit-mask-size: min(92vmin, 96vw, 820px);

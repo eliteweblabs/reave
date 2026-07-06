@@ -2079,13 +2079,12 @@ function renderProfilePanel(profile, company) {
           `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
           `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
           `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
-          `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="company-domain">Website domain</label>` +
-            `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocomplete="url" /></div>` +
-            `<div class="prof-field"><label for="company-logoPath">Logo path</label>` +
-            `<input id="company-logoPath" name="logoPath" type="text" value="${escHtml(c.logoPath || '')}" placeholder="/logo.png" /></div>` +
-          `</div>` +
-          `<span class="prof-hint prof-hint--block">Upload your logo to <code>/public</code> and enter the path here (e.g. <code>/logo.png</code>).</span>` +
+          `<div class="prof-field"><label for="company-logoPath">Logo path</label>` +
+          `<input id="company-logoPath" name="logoPath" type="text" value="${escHtml(c.logoPath || '')}" placeholder="/logo.png" /></div>` +
+          (c.domain
+            ? `<span class="prof-hint prof-hint--block">Website domain: <code>${escHtml(c.domain)}</code> (from this deployment)</span>`
+            : '') +
+          `<span class="prof-hint prof-hint--block">Logo path: root-relative (<code>/logo.png</code>), full URL, or leave empty to hide. Static files must be in the repo under <code>public/</code> and redeployed — this field does not upload files.</span>` +
           `<div class="prof-field-row">` +
             `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
             `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +

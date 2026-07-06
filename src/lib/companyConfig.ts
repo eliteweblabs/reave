@@ -19,8 +19,12 @@ export type CompanyConfig = {
   supportEmail: string;
   /** Default outbound From address (local part + domain). */
   fromEmail: string;
-  /** Root-relative logo path, e.g. /logo.png */
+  /** Root-relative or absolute logo URL; empty = hidden. */
   logoPath: string;
+  /** Where logoPath came from — drives homepage hero behavior. */
+  logoSource: 'admin' | 'default' | 'hidden';
+  /** Bust browser cache after admin logo changes. */
+  logoVersion: string;
 };
 
 function trim(s: string | null | undefined): string {
@@ -58,8 +62,45 @@ function pick(...values: (string | null | undefined)[]): string {
   return '';
 }
 
+function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'logoPath' | 'logoSource' | 'logoVersion'> {
+  const version = trim(stored?.updatedAt) || '';
+  const storedLogo = stored?.logoPath;
+  if (storedLogo === '') {
+    return { logoPath: '', logoSource: 'hidden', logoVersion: version };
+  }
+  if (storedLogo) {
+    return { logoPath: storedLogo, logoSource: 'admin', logoVersion: version };
+  }
+  return {
+    logoPath: pick(serverEnv('COMPANY_LOGO_PATH'), SITE.logoPath),
+    logoSource: 'default',
+    logoVersion: version,
+  };
+}
+
+/** Cache-safe logo URL for img/mask tags. */
+export function companyLogoUrl(path: string, version?: string | null): string {
+  const p = trim(path);
+  if (!p) return '';
+  if (/^https?:\/\//i.test(p)) return p;
+  const v = trim(version);
+  if (!v) return p.startsWith('/') ? p : `/${p}`;
+  const base = p.startsWith('/') ? p : `/${p}`;
+  return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(v)}`;
+}
+
+/** Homepage quantum mask — custom admin logo, default silhouette, or hidden. */
+export function homepageHeroMask(company: CompanyConfig): string | null {
+  if (company.logoSource === 'hidden') return null;
+  if (company.logoSource === 'admin') {
+    return companyLogoUrl(company.logoPath, company.logoVersion);
+  }
+  return '/logo-mask.svg';
+}
+
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
-  const domain = pick(stored?.domain, serverEnv('COMPANY_DOMAIN'), domainFromEnvOrRequest(request));
+  const domain = domainFromEnvOrRequest(request);
+  const logo = resolveLogo(stored);
 
   const name = pick(stored?.name, serverEnv('COMPANY_NAME'), SITE.name);
   const legalName = pick(stored?.legalName, serverEnv('COMPANY_LEGAL_NAME'), name);
@@ -74,9 +115,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     serverEnv('COMPANY_FROM_EMAIL'),
     domain ? `noreply@${domain}` : '',
   );
-  const logoPath = pick(stored?.logoPath, serverEnv('COMPANY_LOGO_PATH'), SITE.logoPath);
 
-  return { name, legalName, description, domain, supportEmail, fromEmail, logoPath };
+  return { name, legalName, description, domain, supportEmail, fromEmail, ...logo };
 }
 
 /** Full resolved branding for the current deployment. */
@@ -116,9 +156,9 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     name: trim(input.name) || null,
     legalName: trim(input.legalName) || null,
     description: trim(input.description) || null,
-    domain: trim(input.domain).replace(/^https?:\/\//, '').replace(/\/+$/, '').split('/')[0] || null,
+    domain: null,
     supportEmail: trim(input.supportEmail) || null,
     fromEmail: trim(input.fromEmail) || null,
-    logoPath: trim(input.logoPath) || null,
+    logoPath: input.logoPath !== undefined ? trim(input.logoPath) : null,
   };
 }

@@ -1,5 +1,5 @@
 ---
-import { getCompanyConfig } from "../lib/companyConfig";
+import { getCompanyConfig, companyLogoUrl } from "../lib/companyConfig";
 import {
   MessageCircle,
   BookOpen,
@@ -26,7 +26,7 @@ interface Props {
 const { adminShell = false, hideLogo = false, homeAdminEntry = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-const logoPath = company.logoPath || "/logo.png";
+const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
 
 const adminSpaTabs = [
   { tab: "chats", label: "Chats", Icon: MessageCircle },
@@ -49,9 +49,9 @@ const userId = auth?.userId ?? null;
   class:list={["app-header", { "app-header--admin": adminShell }]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!hideLogo && (
+  {!hideLogo && logoSrc && (
     <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
-      <img src={logoPath} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+      <img src={logoSrc} alt={company.name} class="app-header-logo-img brand-img logo-img" />
     </a>
   )}
 
