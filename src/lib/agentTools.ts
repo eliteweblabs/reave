@@ -123,6 +123,7 @@ import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
 import { sslCheck, formatSslCheckResults } from './sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from './dnsCheckClient';
+import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from './resendDnsSync';
 import { hasFeature } from './features';
 import {
   isChangeDetectionConfigured,
@@ -928,13 +929,32 @@ export function buildTools(): AgentToolDef[] {
         function: {
           name: 'dns_check',
           description:
-            'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers.',
+            'Check domain DNS health, nameservers, email authentication (SPF, DKIM, DMARC), WHOIS basics, and A-record propagation across public resolvers. Read-only — does not change Cloudflare.',
           parameters: {
             type: 'object',
             properties: {
               domain: { type: 'string', description: 'Domain name (no protocol), e.g. example.com' },
             },
             required: ['domain'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'sync_resend_dns',
+          description:
+            'Ensure Resend domain DNS records (DKIM, SPF, MX, receiving) exist in Cloudflare — check and create/update as needed. Requires CLOUDFLARE_API_TOKEN + RESEND_API_KEY. Use when the user asks to verify or set Resend email DNS at Cloudflare.',
+          parameters: {
+            type: 'object',
+            properties: {
+              domain: {
+                type: 'string',
+                description:
+                  'Resend domain to sync, e.g. reave.app or inbound.reave.app. Omit or set "all" to sync every Resend domain.',
+              },
+            },
             additionalProperties: false,
           },
         },
@@ -3299,6 +3319,17 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await dnsCheck(domain);
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({ ...result, summary: formatDnsCheckResults(result) });
+    }
+    if (name === 'sync_resend_dns') {
+      const domain = String(args.domain ?? 'reave.app').trim().toLowerCase();
+      if (!domain || domain === 'all') {
+        const result = await syncAllResendDnsToCloudflare();
+        if (!result.ok) return JSON.stringify({ error: result.error });
+        return JSON.stringify({ ok: true, summary: result.summary, domains: result.domains });
+      }
+      const result = await syncResendDnsToCloudflare(domain);
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({ ok: true, ...result });
     }
 
     return JSON.stringify({ error: `unknown tool ${name}` });

@@ -8,7 +8,9 @@ import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured, craterListInvoices } from './craterClient';
 import { isGithubConfigured, githubGetRepoAccess, githubRepoSlug } from './githubClient';
 import { listKnowledgeSlugs } from './localKnowledge';
+import { cloudflareVerifyToken, isCloudflareConfigured } from './cloudflareClient';
 import { isRailwayConfigured, railwayListProjectNetworking, railwayPing } from './railwayClient';
+import { isResendDnsSyncConfigured, syncResendDnsToCloudflare } from './resendDnsSync';
 import { isKinstaConfigured, kinstaListSites, kinstaPing } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 
@@ -22,6 +24,8 @@ export const DEV_TASK_NAMES = [
   'list_kinsta_sites',
   'list_knowledge_slugs',
   'ping_booking',
+  'ping_cloudflare',
+  'sync_resend_dns',
 ] as const;
 
 export type DevTaskName = (typeof DEV_TASK_NAMES)[number];
@@ -48,6 +52,8 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           kinsta: isKinstaConfigured(),
           booking: isBookingConfigured(),
           resend_inbound: Boolean(serverEnv('RESEND_WEBHOOK_SECRET')?.trim()),
+          cloudflare: isCloudflareConfigured(),
+          resend_dns_sync: isResendDnsSyncConfigured(),
           github_token: isGithubConfigured(),
           github_repo: githubRepoSlug(),
           github_write: githubAccess?.ok ? githubAccess.data : null,
@@ -121,6 +127,27 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
       const out = await bookingPing();
       if (!out.ok) return { ok: false, error: out.error };
       return { ok: true, task, result: out.data };
+    }
+
+    case 'ping_cloudflare': {
+      if (!isCloudflareConfigured()) {
+        return { ok: false, error: 'Cloudflare not configured (CLOUDFLARE_API_TOKEN)' };
+      }
+      const out = await cloudflareVerifyToken();
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: { token_status: out.data.status, id: out.data.id } };
+    }
+
+    case 'sync_resend_dns': {
+      if (!isResendDnsSyncConfigured()) {
+        return {
+          ok: false,
+          error: 'Need CLOUDFLARE_API_TOKEN and RESEND_API_KEY for Resend → Cloudflare DNS sync',
+        };
+      }
+      const out = await syncResendDnsToCloudflare('reave.app');
+      if (!out.ok) return { ok: false, error: out.error };
+      return { ok: true, task, result: { ...out, summary: out.summary } };
     }
 
     default: {

@@ -77,6 +77,10 @@ interface ImportMetaEnv {
   RESEND_API_KEY?: string;
   /** Resend webhook signing secret (whsec_…) for verifying inbound events */
   RESEND_WEBHOOK_SECRET?: string;
+  /** Cloudflare API token — DNS edit on reave.app (Resend email records). Set on Railway reave service. */
+  CLOUDFLARE_API_TOKEN?: string;
+  /** Optional Cloudflare zone UUID for reave.app (auto-detected if omitted) */
+  CLOUDFLARE_ZONE_ID?: string;
   /** Optional comma-separated allowlist of sender addresses */
   EMAIL_ALLOWED_SENDERS?: string;
   /** Optional comma-separated allowlist of sender domains */

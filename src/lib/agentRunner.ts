@@ -128,7 +128,7 @@ async function runKnowledgeAgentInner(opts: {
   ];
   if (isRailwayConfigured()) {
     sysParts.push(
-      'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Note: email DNS (mail.reave.app MX/TXT for Resend) is NOT Railway — see read_knowledge email-rules.',
+      'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs reave.app. Inbound receiving uses inbound.reave.app — see read_knowledge email-rules.',
     );
   } else {
     sysParts.push(
