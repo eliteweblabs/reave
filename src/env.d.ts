@@ -19,6 +19,8 @@ interface ImportMetaEnv {
   GOOGLE_PAGESPEED_API_KEY?: string;
   /** Optional: max user+assistant turns kept per admin chat (default 20) */
   AGENT_CHAT_HISTORY_TURNS?: string;
+  /** Set to "1" on test/staging to expose /sign-up and link from sign-in (production stays sign-in only). */
+  PUBLIC_CLERK_ALLOW_SIGN_UP?: string;
   /** eliteweblabs/contact-api base URL (no trailing slash), e.g. Railway public URL */
   CONTACT_API_BASE_URL?: string;
   /** Optional X-API-Key when contact-api has API_KEY set */

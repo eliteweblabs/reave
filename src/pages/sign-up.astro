@@ -1,12 +1,16 @@
 ---
-import { SignIn } from "@clerk/astro/components";
+import { SignUp } from "@clerk/astro/components";
 import { dark } from "@clerk/ui/themes";
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
-const company = await getCompanyConfig(Astro.request);
 const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === "1";
+if (!allowSignUp) {
+  return Astro.redirect("/sign-in");
+}
+
+const company = await getCompanyConfig(Astro.request);
 ---
 
 <!doctype html>
@@ -17,15 +21,15 @@ const allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === "1";
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <title>Sign In — {company.name}</title>
+    <title>Sign Up — {company.name}</title>
     <Favicon />
   </head>
   <body>
     <Header />
     <div class="page">
       <div class="card">
-        <SignIn
-          signUpUrl={allowSignUp ? "/sign-up" : "/sign-in"}
+        <SignUp
+          signInUrl="/sign-in"
           fallbackRedirectUrl="/admin/"
           appearance={{ theme: dark }}
         />
