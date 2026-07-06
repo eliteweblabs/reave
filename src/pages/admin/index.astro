@@ -4741,6 +4741,43 @@ const company = await getCompanyConfig(Astro.request);
         opacity: 0.6;
         cursor: not-allowed;
       }
+      .prof-btn-secondary {
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: var(--fg, #e9eef6);
+        background: transparent;
+        border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.15));
+        border-radius: 8px;
+        padding: 0.45rem 0.85rem;
+        cursor: pointer;
+      }
+      .prof-btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .prof-btn-secondary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .prof-logo-upload {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.65rem;
+      }
+      .prof-logo-preview {
+        max-width: 220px;
+        max-height: 72px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 0.35rem;
+      }
+      .prof-logo-preview[hidden] {
+        display: none !important;
+      }
 
       /* ── Search overlay ── */
       #search-overlay {

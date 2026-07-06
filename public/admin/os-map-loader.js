@@ -1986,6 +1986,72 @@ function showProfileAlert(el, msg, type) {
   el.dataset.timerId = String(timerId);
 }
 
+function companyLogoPreviewUrl(company) {
+  if (!company?.logoPath || company.logoSource === 'hidden') return '';
+  const path = String(company.logoPath);
+  const v = company.logoVersion ? `?v=${encodeURIComponent(company.logoVersion)}` : '';
+  if (/^https?:\/\//i.test(path)) return path + (company.logoVersion ? v : '');
+  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+}
+
+function bindCompanyLogoUpload(root, companyAlert) {
+  const fileInput = root.querySelector('#company-logo-file');
+  const preview = root.querySelector('#company-logo-preview');
+  const removeBtn = root.querySelector('#company-logo-remove');
+
+  const refreshPreview = (company) => {
+    if (!(preview instanceof HTMLImageElement)) return;
+    const url = companyLogoPreviewUrl(company);
+    preview.src = url || '';
+    preview.hidden = !url;
+    if (removeBtn instanceof HTMLButtonElement) {
+      removeBtn.hidden = !url || company?.logoSource === 'default';
+    }
+  };
+
+  fileInput?.addEventListener('change', async () => {
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    const file = fileInput.files[0];
+    const fd = new FormData();
+    fd.append('logo', file);
+    if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/company/logo', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        showProfileAlert(companyAlert, 'Logo updated.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Logo upload failed.', 'error');
+      }
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      fileInput.value = '';
+      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
+    }
+  });
+
+  removeBtn?.addEventListener('click', async () => {
+    if (!(removeBtn instanceof HTMLButtonElement)) return;
+    removeBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/company/logo', { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        showProfileAlert(companyAlert, 'Logo removed — using site default.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Could not remove logo.', 'error');
+      }
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      removeBtn.disabled = false;
+    }
+  });
+}
+
 function bindProfileForms(root) {
   const profileForm = root.querySelector('#profile-form');
   const profileBtn = root.querySelector('#profile-save-btn');
@@ -2037,6 +2103,8 @@ function bindProfileForms(root) {
       companyBtn.textContent = 'Save Company Details';
     }
   });
+
+  bindCompanyLogoUpload(root, companyAlert);
 }
 
 function renderProfilePanel(profile, company) {
@@ -2079,12 +2147,16 @@ function renderProfilePanel(profile, company) {
           `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
           `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
           `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
-          `<div class="prof-field"><label for="company-logoPath">Logo path</label>` +
-          `<input id="company-logoPath" name="logoPath" type="text" value="${escHtml(c.logoPath || '')}" placeholder="/logo.png" /></div>` +
+          `<div class="prof-field"><label for="company-logo-file">Logo</label>` +
+          `<div class="prof-logo-upload">` +
+            `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(companyLogoPreviewUrl(c))}" alt="" ${companyLogoPreviewUrl(c) ? '' : 'hidden'} />` +
+            `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
+            `<button type="button" id="company-logo-remove" class="prof-btn-secondary"${c.logoSource === 'admin' && companyLogoPreviewUrl(c) ? '' : ' hidden'}>Remove logo</button>` +
+          `</div>` +
+          `<span class="prof-hint prof-hint--block">PNG, JPEG, or WebP — max 2 MB. Updates the header and homepage immediately.</span>` +
           (c.domain
             ? `<span class="prof-hint prof-hint--block">Website domain: <code>${escHtml(c.domain)}</code> (from this deployment)</span>`
             : '') +
-          `<span class="prof-hint prof-hint--block">Logo path: root-relative (<code>/logo.png</code>), full URL, or leave empty to hide. Static files must be in the repo under <code>public/</code> and redeployed — this field does not upload files.</span>` +
           `<div class="prof-field-row">` +
             `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
             `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +

@@ -4,6 +4,7 @@
  */
 import { SITE } from '../config/site';
 import { requestOrigin, siteOriginFallback } from './requestOrigin';
+import { BRANDING_LOGO_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
 
@@ -64,6 +65,9 @@ function pick(...values: (string | null | undefined)[]): string {
 
 function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'logoPath' | 'logoSource' | 'logoVersion'> {
   const version = trim(stored?.updatedAt) || '';
+  if (stored?.logoData && stored?.logoMediaType) {
+    return { logoPath: BRANDING_LOGO_PATH, logoSource: 'admin', logoVersion: version };
+  }
   const storedLogo = stored?.logoPath;
   if (storedLogo === '') {
     return { logoPath: '', logoSource: 'hidden', logoVersion: version };
@@ -145,10 +149,8 @@ export type CompanyConfigInput = {
   name?: string;
   legalName?: string;
   description?: string;
-  domain?: string;
   supportEmail?: string;
   fromEmail?: string;
-  logoPath?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -159,6 +161,5 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     domain: null,
     supportEmail: trim(input.supportEmail) || null,
     fromEmail: trim(input.fromEmail) || null,
-    logoPath: input.logoPath !== undefined ? trim(input.logoPath) : null,
   };
 }

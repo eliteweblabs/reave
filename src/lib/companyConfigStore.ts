@@ -9,6 +9,11 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
 
+export type StoredCompanyLogo = {
+  dataBase64: string;
+  mediaType: string;
+};
+
 export type StoredCompanyConfig = {
   name?: string | null;
   legalName?: string | null;
@@ -16,8 +21,10 @@ export type StoredCompanyConfig = {
   domain?: string | null;
   supportEmail?: string | null;
   fromEmail?: string | null;
-  /** Empty string = explicitly hidden; null = unset (use site default). */
+  /** Legacy external/path override; empty string = hide default logo. */
   logoPath?: string | null;
+  logoData?: string | null;
+  logoMediaType?: string | null;
   updatedAt?: string | null;
 };
 
@@ -35,6 +42,11 @@ CREATE TABLE IF NOT EXISTS company_config (
 );
 INSERT INTO company_config (id) VALUES (1)
   ON CONFLICT (id) DO NOTHING;
+`;
+
+const SCHEMA_MIGRATE_SQL = `
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_data TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_media_type TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -69,6 +81,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   if (!_schemaReady) {
     _schemaReady = pool
       .query(SCHEMA_SQL)
+      .then(() => pool.query(SCHEMA_MIGRATE_SQL))
       .then(() => undefined)
       .catch((e) => {
         _schemaReady = null;
@@ -111,6 +124,9 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     supportEmail: str('supportEmail') || null,
     fromEmail: str('fromEmail') || null,
     logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
+    logoData: typeof o.logoData === 'string' && o.logoData ? o.logoData : null,
+    logoMediaType: typeof o.logoMediaType === 'string' && o.logoMediaType ? o.logoMediaType.trim() : null,
+    updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
 
@@ -148,9 +164,12 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     support_email: string | null;
     from_email: string | null;
     logo_path: string | null;
+    logo_data: string | null;
+    logo_media_type: string | null;
     updated_at: Date | string | null;
   }>(
-    `SELECT name, legal_name, description, domain, support_email, from_email, logo_path, updated_at
+    `SELECT name, legal_name, description, domain, support_email, from_email,
+            logo_path, logo_data, logo_media_type, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -163,6 +182,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     supportEmail: row.support_email,
     fromEmail: row.from_email,
     logoPath: row.logo_path,
+    logoData: row.logo_data,
+    logoMediaType: row.logo_media_type,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -179,6 +200,8 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        support_email = $5,
        from_email = $6,
        logo_path = $7,
+       logo_data = $8,
+       logo_media_type = $9,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -189,9 +212,15 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.supportEmail ?? null,
       config.fromEmail ?? null,
       config.logoPath ?? null,
+      config.logoData ?? null,
+      config.logoMediaType ?? null,
     ],
   );
   return true;
+}
+
+function mergeStored(existing: StoredCompanyConfig | null, patch: StoredCompanyConfig): StoredCompanyConfig {
+  return { ...(existing ?? {}), ...patch };
 }
 
 export function companyConfigStorageBackend(): 'postgres' | 'files' {
@@ -213,19 +242,59 @@ export async function getStoredCompanyConfig(): Promise<StoredCompanyConfig | nu
   return _cached;
 }
 
-export async function setStoredCompanyConfig(config: StoredCompanyConfig): Promise<boolean> {
-  const normalized = normalizeStored(config);
+export async function setStoredCompanyConfig(patch: StoredCompanyConfig): Promise<boolean> {
+  const existing = _cached !== undefined ? _cached : await getStoredCompanyConfig();
+  const merged = mergeStored(existing, patch);
   try {
     const ok =
       companyConfigStorageBackend() === 'postgres'
-        ? await writePgConfig(normalized)
-        : writeFileConfig(normalized);
-    if (ok) _cached = normalized;
+        ? await writePgConfig(merged)
+        : writeFileConfig(merged);
+    if (ok) {
+      _cached = merged;
+      const fresh = await readStoredFresh();
+      if (fresh) _cached = fresh;
+    }
     return ok;
   } catch (e) {
     console.error('[company-config] write failed', e);
     return false;
   }
+}
+
+async function readStoredFresh(): Promise<StoredCompanyConfig | null> {
+  if (companyConfigStorageBackend() === 'postgres') {
+    return readPgConfig();
+  }
+  return readFileConfig();
+}
+
+export async function getStoredCompanyLogo(): Promise<
+  (StoredCompanyLogo & { updatedAt: string | null }) | null
+> {
+  const stored = await getStoredCompanyConfig();
+  if (!stored?.logoData || !stored.logoMediaType) return null;
+  return {
+    dataBase64: stored.logoData,
+    mediaType: stored.logoMediaType,
+    updatedAt: stored.updatedAt ?? null,
+  };
+}
+
+export async function setStoredCompanyLogo(logo: StoredCompanyLogo): Promise<boolean> {
+  return setStoredCompanyConfig({
+    logoData: logo.dataBase64,
+    logoMediaType: logo.mediaType,
+    logoPath: null,
+  });
+}
+
+export async function clearStoredCompanyLogo(): Promise<boolean> {
+  return setStoredCompanyConfig({
+    logoData: null,
+    logoMediaType: null,
+    logoPath: null,
+  });
 }
 
 export function clearCompanyConfigCache(): void {
