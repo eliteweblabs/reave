@@ -8051,17 +8051,11 @@ function clientPortalShareUrl(uid, tab) {
   return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
 }
 
-async function sharePortalLink(url, title, btn) {
+async function sharePortalLink(url, _title, btn) {
   if (!url) return false;
-  const pageTitle = title || 'Client page';
-  const payload = {
-    title: pageTitle,
-    text: pageTitle,
-    url,
-  };
   if (navigator.share) {
     try {
-      await navigator.share(payload);
+      await navigator.share({ url });
       return true;
     } catch (e) {
       if (e?.name === 'AbortError') return false;
