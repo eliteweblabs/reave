@@ -34,9 +34,9 @@ client's name).
 }
 ```
 
-The page shows tap-to-**Call / Text / Email** for clients to reach **your business**
-(support phone + email from admin → Company details). Staff signed in to `/admin`
-also see the client's own phone/email for preview.
+The page shows tap-to-**Call / Text / Email** so clients can reach **your business**
+(support phone + email from admin → Company details). The portal always shows the
+same client-facing view — staff preview matches what the client sees.
 
 ## Tabs
 

@@ -42,12 +42,6 @@ const poweredBy = poweredByLabel(org);
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
 
-// Staff vs client. The portal link is shared with the client. Quick-contact
-// actions for clients target your business (support phone/email from Company
-// details). Signed-in staff also see the client's phone/email for preview.
-const { userId } = Astro.locals.auth?.() ?? {};
-const isStaff = Boolean(userId);
-
 let contact: ContactRecord | null = null;
 let portal: ClientPortal = {};
 let notFound = false;
@@ -142,10 +136,6 @@ const portalDocs = hasFeature('documents')
         return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at);
       })
   : [];
-
-const email = contactStringField(contact?.email);
-const phone = contactStringField(contact?.phone);
-const telHref = contactTelHref(contact?.phone);
 
 const providerTelHref = contactTelHref(org.supportPhone);
 const providerEmail = org.supportEmail?.trim() || '';
@@ -336,7 +326,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             )}
           </header>
 
-          {!isStaff && (providerTelHref || providerEmail) && (
+          {(providerTelHref || providerEmail) && (
             <nav class="actions" aria-label={`Contact ${providerName}`}>
               {providerTelHref && (
                 <a class="action" href={`tel:${providerTelHref}`}>
@@ -350,26 +340,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               )}
               {providerEmail && (
                 <a class="action" href={`mailto:${providerEmail}`}>
-                  <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span>Email</span>
-                </a>
-              )}
-            </nav>
-          )}
-
-          {isStaff && (telHref || email) && (
-            <nav class="actions actions--staff" aria-label="Client contact (staff preview)">
-              {telHref && (
-                <a class="action" href={`tel:${telHref}`}>
-                  <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Call</span>
-                </a>
-              )}
-              {telHref && (
-                <a class="action" href={`sms:${telHref}`}>
-                  <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg></span><span>Text</span>
-                </a>
-              )}
-              {email && (
-                <a class="action" href={`mailto:${email}`}>
                   <span class="ico" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span><span>Email</span>
                 </a>
               )}
