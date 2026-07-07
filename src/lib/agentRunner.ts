@@ -1,4 +1,4 @@
-import { resolveAgentModel } from './agentModel';
+import { labelForAgentModel, resolveAgentModel } from './agentModel';
 import { isBraveConfigured } from './braveClient';
 import { buildTools, runTool } from './agentTools';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
@@ -83,6 +83,13 @@ function currentDateTimeLine(): string {
     minute: '2-digit',
     timeZone: 'America/New_York',
   })}`;
+}
+
+function runtimeContextLine(model: string): string {
+  return [
+    currentDateTimeLine(),
+    `Runtime model: ${labelForAgentModel(model)} (${model}). If asked which model or version you are, report this exactly — do not guess.`,
+  ].join('\n');
 }
 
 /**
@@ -196,7 +203,7 @@ async function runKnowledgeAgentInner(opts: {
     'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
   );
 
-  const system = cachedSystemBlocks(sysParts.join('\n'), currentDateTimeLine());
+  const system = cachedSystemBlocks(sysParts.join('\n'), runtimeContextLine(model));
   const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = [
     ...priorTurns.map((turn) => ({

@@ -631,6 +631,8 @@ async function loadAgentModel() {
 
 async function saveAgentModel(model) {
   if (!model || agentModelState.saving) return;
+  const previous = agentModelState.model;
+  agentModelState.model = model;
   agentModelState.saving = true;
   renderModelSelectOptions();
   try {
@@ -648,6 +650,7 @@ async function saveAgentModel(model) {
     syncModelNodeLabels();
     if (activeKey === 'system') pollHealth();
   } catch (e) {
+    agentModelState.model = previous;
     alert(`Could not save model: ${e.message}`);
     renderModelSelectOptions();
   } finally {
@@ -8570,6 +8573,12 @@ function scrollChatToBottom(container, smooth = true) {
 }
 
 function getAgentModelForChat() {
+  const sel = document.querySelector(
+    '#chat-panel .ch-pane-header .ch-model-switcher-select',
+  );
+  if (sel?.value) return sel.value;
+  const legacy = modelSelectEl();
+  if (legacy?.value) return legacy.value;
   return agentModelState.model || undefined;
 }
 
