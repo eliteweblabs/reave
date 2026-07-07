@@ -18,6 +18,8 @@ export type CompanyConfig = {
   /** Hostname only, e.g. example.com */
   domain: string;
   supportEmail: string;
+  /** Tap-to-call / text number shown on client portals. */
+  supportPhone: string;
   /** Default outbound From address (local part + domain). */
   fromEmail: string;
   /** Root-relative or absolute logo URL; empty = hidden. */
@@ -114,13 +116,18 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     serverEnv('COMPANY_SUPPORT_EMAIL'),
     domain ? `support@${domain}` : '',
   );
+  const supportPhone = pick(
+    stored?.supportPhone,
+    serverEnv('COMPANY_SUPPORT_PHONE'),
+    serverEnv('TWILIO_FROM_NUMBER'),
+  );
   const fromEmail = pick(
     stored?.fromEmail,
     serverEnv('COMPANY_FROM_EMAIL'),
     domain ? `noreply@${domain}` : '',
   );
 
-  return { name, legalName, description, domain, supportEmail, fromEmail, ...logo };
+  return { name, legalName, description, domain, supportEmail, supportPhone, fromEmail, ...logo };
 }
 
 /** Full resolved branding for the current deployment. */
@@ -150,6 +157,7 @@ export type CompanyConfigInput = {
   legalName?: string;
   description?: string;
   supportEmail?: string;
+  supportPhone?: string;
   fromEmail?: string;
 };
 
@@ -160,6 +168,7 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     description: trim(input.description) || null,
     domain: null,
     supportEmail: trim(input.supportEmail) || null,
+    supportPhone: trim(input.supportPhone) || null,
     fromEmail: trim(input.fromEmail) || null,
   };
 }

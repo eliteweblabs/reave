@@ -34,9 +34,9 @@ client's name).
 }
 ```
 
-The page also shows tap-to-**Call / Text / Email** actions (staff-only preview
-when signed in to `/admin`) from the contact's phone/email, plus the client
-name and company.
+The page shows tap-to-**Call / Text / Email** for clients to reach **your business**
+(support phone + email from admin → Company details). Staff signed in to `/admin`
+also see the client's own phone/email for preview.
 
 ## Tabs
 

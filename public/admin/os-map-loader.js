@@ -2163,10 +2163,12 @@ function renderProfilePanel(profile, company) {
           `<div class="prof-field-row">` +
             `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
             `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +
-            `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
-            `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
+            `<div class="prof-field"><label for="company-supportPhone">Support phone</label>` +
+            `<input id="company-supportPhone" name="supportPhone" type="tel" value="${escHtml(c.supportPhone || '')}" placeholder="+1 (555) 000-0000" autocomplete="tel" /></div>` +
           `</div>` +
-          `<span class="prof-hint prof-hint--block">Outbound email is used when <code>RESEND_FROM</code> is not set. Domain must be verified in Resend.</span>` +
+          `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
+          `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
+          `<span class="prof-hint prof-hint--block">Support email and phone appear as Call / Text / Email on client portal pages. Outbound email is used when <code>RESEND_FROM</code> is not set.</span>` +
           `<div class="prof-actions"><button type="submit" id="company-save-btn" class="prof-btn-primary">Save Company Details</button></div>` +
         `</form>` +
       `</div>` +

@@ -20,6 +20,7 @@ export type StoredCompanyConfig = {
   description?: string | null;
   domain?: string | null;
   supportEmail?: string | null;
+  supportPhone?: string | null;
   fromEmail?: string | null;
   /** Legacy external/path override; empty string = hide default logo. */
   logoPath?: string | null;
@@ -36,6 +37,7 @@ CREATE TABLE IF NOT EXISTS company_config (
   description     TEXT,
   domain          TEXT,
   support_email   TEXT,
+  support_phone   TEXT,
   from_email      TEXT,
   logo_path       TEXT,
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -47,6 +49,7 @@ INSERT INTO company_config (id) VALUES (1)
 const SCHEMA_MIGRATE_SQL = `
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_media_type TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -122,6 +125,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     description: str('description') || null,
     domain: str('domain') || null,
     supportEmail: str('supportEmail') || null,
+    supportPhone: str('supportPhone') || null,
     fromEmail: str('fromEmail') || null,
     logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
     logoData: typeof o.logoData === 'string' && o.logoData ? o.logoData : null,
@@ -162,13 +166,14 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     description: string | null;
     domain: string | null;
     support_email: string | null;
+    support_phone: string | null;
     from_email: string | null;
     logo_path: string | null;
     logo_data: string | null;
     logo_media_type: string | null;
     updated_at: Date | string | null;
   }>(
-    `SELECT name, legal_name, description, domain, support_email, from_email,
+    `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
             logo_path, logo_data, logo_media_type, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
@@ -180,6 +185,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     description: row.description,
     domain: row.domain,
     supportEmail: row.support_email,
+    supportPhone: row.support_phone,
     fromEmail: row.from_email,
     logoPath: row.logo_path,
     logoData: row.logo_data,
@@ -198,10 +204,11 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        description = $3,
        domain = $4,
        support_email = $5,
-       from_email = $6,
-       logo_path = $7,
-       logo_data = $8,
-       logo_media_type = $9,
+       support_phone = $6,
+       from_email = $7,
+       logo_path = $8,
+       logo_data = $9,
+       logo_media_type = $10,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -210,6 +217,7 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.description ?? null,
       config.domain ?? null,
       config.supportEmail ?? null,
+      config.supportPhone ?? null,
       config.fromEmail ?? null,
       config.logoPath ?? null,
       config.logoData ?? null,
