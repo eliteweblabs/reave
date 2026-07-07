@@ -1,7 +1,8 @@
-import type { CSSProperties, RefObject } from 'react';
+import type { ClipboardEvent, ComponentProps, CSSProperties, RefObject } from 'react';
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
+  AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -18,7 +19,7 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   parseStoredChatContent,
   storedChatPlainText,
@@ -228,6 +229,81 @@ function AssistantMessageActions() {
   );
 }
 
+const CHAT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const CHAT_MAX_IMAGES = 5;
+
+function imageFilesFromClipboard(data: DataTransfer | null): File[] {
+  if (!data) return [];
+  const fromFiles = Array.from(data.files).filter((f) => f.type.startsWith('image/'));
+  if (fromFiles.length) return fromFiles;
+  return [...data.items]
+    .filter((item) => item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((f): f is File => f !== null);
+}
+
+function AttachmentImagePreview({ file, alt }: { file: File; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+  if (!url) return null;
+  return <img src={url} alt={alt} />;
+}
+
+function ChatAttachmentPreviews() {
+  return (
+    <ComposerPrimitive.Attachments>
+      {({ attachment }) => (
+        <AttachmentPrimitive.Root className="aui-attachment">
+          {attachment.type === 'image' && attachment.file ? (
+            <AttachmentImagePreview file={attachment.file} alt={attachment.name || 'Attached image'} />
+          ) : (
+            <span className="aui-attachment-name">{attachment.name}</span>
+          )}
+          <AttachmentPrimitive.Remove className="aui-attachment-remove" aria-label="Remove image" />
+        </AttachmentPrimitive.Root>
+      )}
+    </ComposerPrimitive.Attachments>
+  );
+}
+
+/** macOS screenshots land in clipboardData.items, not files — handle both. */
+function ChatImagePasteInput(
+  props: ComponentProps<typeof ComposerPrimitive.Input>,
+) {
+  const aui = useAui();
+
+  const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!aui.thread().getState().capabilities.attachments) return;
+    const files = imageFilesFromClipboard(e.clipboardData).filter((f) =>
+      CHAT_IMAGE_TYPES.has(f.type),
+    );
+    if (!files.length) return;
+
+    const current = aui.composer().getState().attachments.length;
+    const room = CHAT_MAX_IMAGES - current;
+    if (room <= 0) return;
+
+    e.preventDefault();
+    try {
+      await Promise.all(files.slice(0, room).map((file) => aui.composer().addAttachment(file)));
+    } catch (error) {
+      console.error('Error adding image attachment:', error);
+    }
+  };
+
+  return (
+    <ComposerPrimitive.Input
+      {...props}
+      addAttachmentOnPaste={false}
+      onPaste={handlePaste}
+    />
+  );
+}
+
 /** Send on first tap — touch blur was collapsing compose before click fired. */
 function ComposerSendButton() {
   const aui = useAui();
@@ -335,24 +411,26 @@ function AgentChatThread({
           />
         </ThreadPrimitive.Viewport>
         <div className="aui-compose-footer">
-          <ComposerPrimitive.Root className="aui-compose">
-            <ComposerPrimitive.Attachments />
-            <div className="aui-compose-row">
-              <ComposerPrimitive.Input
-                className="aui-input"
-                placeholder="Message the agent…"
-                rows={1}
-                autoFocus={!pendingAutoSend}
-                enterKeyHint="send"
-                onFocus={() => propsRef.current?.onComposeFocus?.(true)}
-                onBlur={() => propsRef.current?.onComposeFocus?.(false)}
-              />
-              <ComposerSendButton />
-              <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
-                Stop
-              </ComposerPrimitive.Cancel>
-            </div>
-          </ComposerPrimitive.Root>
+          <ComposerPrimitive.AttachmentDropzone className="aui-compose-dropzone">
+            <ComposerPrimitive.Root className="aui-compose">
+              <ChatAttachmentPreviews />
+              <div className="aui-compose-row">
+                <ChatImagePasteInput
+                  className="aui-input"
+                  placeholder="Message the agent… (paste or drop images)"
+                  rows={1}
+                  autoFocus={!pendingAutoSend}
+                  enterKeyHint="send"
+                  onFocus={() => propsRef.current?.onComposeFocus?.(true)}
+                  onBlur={() => propsRef.current?.onComposeFocus?.(false)}
+                />
+                <ComposerSendButton />
+                <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
+                  Stop
+                </ComposerPrimitive.Cancel>
+              </div>
+            </ComposerPrimitive.Root>
+          </ComposerPrimitive.AttachmentDropzone>
         </div>
       </ThreadPrimitive.Root>
     </AssistantRuntimeProvider>
