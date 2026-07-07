@@ -11,7 +11,8 @@ const PUBLIC_RESOLVERS = [
   { name: 'cloudflare', servers: ['1.1.1.1', '1.0.0.1'] },
 ];
 
-const DKIM_SELECTORS = ['default', 'google', 'k1', 'selector1', 's1', 'dkim', 'mail'];
+// Resend uses selector "resend" (resend._domainkey.<domain>); check it first.
+const DKIM_SELECTORS = ['resend', 'default', 'google', 'k1', 'selector1', 's1', 'dkim', 'mail'];
 
 export type DnsRecordSet = {
   A: string[];
@@ -24,6 +25,8 @@ export type DnsRecordSet = {
 
 export type EmailAuthResult = {
   spf: { present: boolean; valid: boolean; record?: string };
+  /** Resend publishes SPF on send.<domain>, not the apex — separate from apex SPF. */
+  resend_bounce_spf?: { present: boolean; valid: boolean; record?: string };
   dkim: { selectors_checked: string[]; found: { selector: string; record: string }[] };
   dmarc: { present: boolean; policy?: string; record?: string };
 };
@@ -112,7 +115,10 @@ async function checkDkim(domain: string): Promise<EmailAuthResult['dkim']> {
     try {
       const rows = await r.resolveTxt(host);
       const flat = rows.map((p) => p.join('')).join('');
-      if (flat && /v=DKIM1/i.test(flat)) {
+      // Resend publishes `p=<rsa-key>` without a v=DKIM1 prefix; other providers use v=DKIM1.
+      const isDkim =
+        /v=DKIM1/i.test(flat) || (selector === 'resend' && /^p=[A-Za-z0-9+/=]/i.test(flat));
+      if (flat && isDkim) {
         found.push({ selector, record: flat.slice(0, 400) });
       }
     } catch {
@@ -183,8 +189,16 @@ export async function dnsCheck(domainInput: string): Promise<DnsCheckResponse> {
     return rows.map((p) => p.join(''));
   }, [] as string[]);
 
+  const sendHost = `send.${domain}`;
+  const sendTxt = await safeResolve(async () => {
+    const r = resolverFor();
+    const rows = await r.resolveTxt(sendHost);
+    return rows.map((p) => p.join(''));
+  }, [] as string[]);
+
   const email_auth: EmailAuthResult = {
     spf: parseSpf(records.TXT),
+    resend_bounce_spf: parseSpf(sendTxt),
     dkim: await checkDkim(domain),
     dmarc: parseDmarc(dmarcTxt),
   };
@@ -217,7 +231,13 @@ export function formatDnsCheckResults(result: Extract<DnsCheckResponse, { ok: tr
   if (result.nameservers.length) lines.push(`NS: ${result.nameservers.join(', ')}`);
 
   lines.push('');
-  lines.push(`SPF: ${result.email_auth.spf.present ? (result.email_auth.spf.valid ? 'present (valid)' : 'present (weak/missing -all)') : 'missing'}`);
+  lines.push(`SPF (apex): ${result.email_auth.spf.present ? (result.email_auth.spf.valid ? 'present (valid)' : 'present (weak/missing -all)') : 'missing'}`);
+  const bounce = result.email_auth.resend_bounce_spf;
+  if (bounce) {
+    lines.push(
+      `SPF (send.${result.domain} — Resend bounce path): ${bounce.present ? (bounce.valid ? 'present (valid)' : 'present (weak/missing -all)') : 'missing'}`,
+    );
+  }
   lines.push(`DKIM: ${result.email_auth.dkim.found.length ? `found (${result.email_auth.dkim.found.map((d) => d.selector).join(', ')})` : 'not found (common selectors checked)'}`);
   lines.push(`DMARC: ${result.email_auth.dmarc.present ? `present (p=${result.email_auth.dmarc.policy ?? '?'})` : 'missing'}`);
 
