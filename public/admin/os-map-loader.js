@@ -5632,7 +5632,6 @@ function renderEditWorkForm(pane) {
 
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
-      appendWorkChatLinks(headerActions, data.related, data.source_chat_id);
       headerActions.appendChild(createIosIconBtn({
         iconKey: 'trash',
         label: 'Delete project',
@@ -8852,17 +8851,6 @@ function workRelatedChats(related, sourceChatId) {
     chats.unshift({ id: sourceId, title: 'Chat', updatedAt: '' });
   }
   return chats;
-}
-
-function appendWorkChatLinks(headerActions, related, sourceChatId) {
-  const chats = workRelatedChats(related, sourceChatId);
-  if (!chats.length) return;
-  const links = document.createElement('div');
-  links.className = 'ch-pane-project-links wk-header-chat-links';
-  for (const chat of chats) {
-    links.appendChild(createProjectLinkChip(chat.title || 'Chat', () => navigateToChat(chat.id)));
-  }
-  headerActions.insertBefore(links, headerActions.firstChild);
 }
 
 function mountWorkRelatedSection(container, related, sourceChatId) {
