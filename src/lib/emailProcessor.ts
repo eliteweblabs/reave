@@ -13,7 +13,9 @@ import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore'
 import { linkProjectItem } from './projectLinks';
 import { parseProposedMeetingStart } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
-import { notifyAdminAgentOfEmailAlert, isRailwayAlertStatus } from './adminAgentAlert';
+import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
+import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
+import { detectProjectClientReply } from './emailProjectReply';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt';
 
@@ -27,8 +29,7 @@ export interface ProcessedEmailResult {
 }
 
 function snippet(text: string, max = 500): string {
-  const clean = text.replace(/\s+/g, ' ').trim();
-  return clean.length > max ? `${clean.slice(0, max)}…` : clean;
+  return inboxPreviewSnippet(text, max);
 }
 
 function aiEnabled(): boolean {
@@ -91,6 +92,7 @@ Categories:
 Pick job_slug only when confident; prefer active/inquiry jobs.
 For proposed_meeting_start: require BOTH a specific date and time. Vague availability requests ("let's find a time", "next week") must be null. Deadlines and launch dates are NOT meetings.`;
 
+  const triageBody = normalizeEmailBody(email.text, email.html);
   const user = [
     `From: ${email.from ?? ''}`,
     `Subject: ${email.subject ?? ''}`,
@@ -98,7 +100,7 @@ For proposed_meeting_start: require BOTH a specific date and time. Vague availab
     `Open jobs for this sender:\n${jobLines}`,
     '',
     'Body:',
-    (email.text ?? '').slice(0, 4000),
+    triageBody.slice(0, 4000),
   ]
     .filter(Boolean)
     .join('\n');
@@ -129,7 +131,7 @@ For proposed_meeting_start: require BOTH a specific date and time. Vague availab
     if (!['junk', 'client', 'alert', 'internal', 'review'].includes(cat)) {
       parsed.category = 'review';
     }
-    parsed.summary = String(parsed.summary ?? '').trim() || snippet(email.text ?? email.subject ?? '');
+    parsed.summary = String(parsed.summary ?? '').trim() || snippet(triageBody || email.subject || '');
     parsed.scheduling_note = parsed.scheduling_note
       ? String(parsed.scheduling_note).trim()
       : null;
@@ -178,14 +180,17 @@ export function shouldSendInboxPush(opts: {
   action: string;
   ruleNotify: boolean;
   ruleStatus: string;
+  isProjectReply?: boolean;
 }): boolean {
+  if (opts.isProjectReply) return true;
+
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
 
   if (opts.category === 'junk' || action === 'junk') return false;
   if (!opts.ruleNotify) return false;
   if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
-  // Auto-sorted to a job — visible under Routed, no ping needed.
+  // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
   if (action === 'filed' || action === 'matched') return false;
 
   return true;
@@ -194,11 +199,12 @@ export function shouldSendInboxPush(opts: {
 export async function processInboundEmail(email: InboundEmail): Promise<ProcessedEmailResult> {
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
+  const bodyText = normalizeEmailBody(email.text, email.html);
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
   let category: EmailCategory = ruleCategory(ruleResult.status);
-  let summary = snippet(email.text ?? '') || email.subject || '(no subject)';
+  let summary = snippet(bodyText) || email.subject || '(no subject)';
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
   let contactUid: string | null = null;
@@ -212,6 +218,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     ? await resolveContact({ email: senderEmail })
     : null;
   const contact = contactRes?.ok ? extractContact(contactRes.data) : null;
+  const contactEmailOnRecord = contactRes?.ok ? contactRes.data.email ?? null : null;
   if (contact) {
     contactUid = contact.uid;
     contactName = contact.name;
@@ -223,6 +230,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           (j) => j.status !== 'done' && j.status !== 'archived',
         )
       : [];
+
+  let isProjectReply = false;
 
   if (category !== 'junk' && aiEnabled()) {
     const ai = await runAiTriage(email, jobs, contactName);
@@ -282,18 +291,51 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     action = category;
   }
 
+  const suppressedAsJunk =
+    category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE';
+  if (!suppressedAsJunk) {
+    const replyMatch = await detectProjectClientReply({
+      senderEmail,
+      contactUid,
+      contactEmailOnRecord,
+      subject: email.subject ?? '',
+      headers: email.headers,
+      jobs,
+    });
+    if (replyMatch) {
+      isProjectReply = true;
+      category = 'client';
+      action = 'project_reply';
+      jobSlug = replyMatch.jobSlug;
+      jobTitle = replyMatch.jobTitle;
+      routeNote = `🚨 Client replied on "${replyMatch.jobTitle}" — follow up ASAP. ${replyMatch.reason}`;
+      if (!summary.toLowerCase().includes('client replied')) {
+        summary = `Client replied on project ${replyMatch.jobTitle}: ${summary}`;
+      }
+    }
+  }
+
   const notify = shouldSendInboxPush({
     category,
     action,
     ruleNotify: ruleResult.notify,
     ruleStatus: ruleResult.status,
+    isProjectReply,
   });
 
   const record = await storeRecordEmailInbox({
     from,
     subject: email.subject ?? '',
-    bodySnippet: snippet(email.text ?? ''),
-    status: ruleResult.status,
+    bodySnippet: snippet(bodyText),
+    bodyText,
+    to: email.to,
+    cc: email.cc,
+    bcc: email.bcc,
+    replyTo: email.replyTo,
+    headers: email.headers,
+    messageId: email.messageId,
+    resendEmailId: email.resendEmailId,
+    status: isProjectReply ? 'PROJECT_REPLY' : ruleResult.status,
     action,
     notified: notify,
     summary,
@@ -317,31 +359,41 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   if (record && notify) {
-    const pushTitle =
-      isRailwayAlertStatus(ruleResult.status)
+    const pushTitle = isProjectReply
+      ? `🚨 Client reply: ${contactName ?? senderEmail}`
+      : isRailwayAlertStatus(ruleResult.status)
         ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
         : category === 'client'
           ? `Client: ${contactName ?? senderEmail}`
           : summary.slice(0, 60);
+    const pushBody = isProjectReply
+      ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
+      : summary;
     sendInboxPushNotification({
       title: pushTitle,
-      body: summary,
+      body: pushBody,
       tag: record.id,
       emailId: record.id,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 
-  if (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) {
+  if (record && isProjectReply) {
+    notifyAdminAgentOfProjectReply({
+      contactName: contactName ?? senderEmail,
+      jobTitle: jobTitle ?? 'project',
+      summary,
+      emailId: record.id,
+    }).catch((e) => console.warn('[email] project reply agent alert failed', e));
+  } else if (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) {
     notifyAdminAgentOfEmailAlert({
       status: ruleResult.status,
       from,
       subject: email.subject ?? '',
       summary,
-      bodySnippet: snippet(email.text ?? ''),
       category,
       emailId: record?.id,
     }).catch((e) => console.warn('[email] agent alert failed', e));
   }
 
-  return { ok: true, category, status: ruleResult.status, action, from, record };
+  return { ok: true, category, status: isProjectReply ? 'PROJECT_REPLY' : ruleResult.status, action, from, record };
 }

@@ -46,8 +46,9 @@ export function extractMonetaryAmountFromEmail(ev: {
   subject?: string;
   summary?: string;
   bodySnippet?: string;
+  bodyText?: string;
 }): number | null {
-  const text = [ev.subject, ev.summary, ev.bodySnippet].filter(Boolean).join('\n');
+  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
   return extractMonetaryAmountFromText(text);
 }
 

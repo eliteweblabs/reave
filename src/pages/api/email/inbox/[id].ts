@@ -1,4 +1,5 @@
 /**
+ * GET    /api/email/inbox/[id] — full stored email (body + headers)
  * PATCH  /api/email/inbox/[id] — update category/action (e.g. mark junk)
  * DELETE /api/email/inbox/[id] — remove from inbox log
  */
@@ -6,6 +7,7 @@
 import type { APIContext } from 'astro';
 import {
   storeDeleteEmailInbox,
+  storeGetEmailInbox,
   storeUpdateEmailInbox,
   type EmailInboxPatch,
 } from '../../../../lib/emailInboxStore';
@@ -42,6 +44,22 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   }
   if (rec.seen === true || rec.markSeen === true) patch.markSeen = true;
   return Object.keys(patch).length ? patch : null;
+}
+
+export async function GET(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing id' }, 400);
+
+  const event = await storeGetEmailInbox(id);
+  if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  return json({
+    ok: true,
+    event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+  });
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {

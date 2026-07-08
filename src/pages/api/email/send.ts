@@ -4,6 +4,7 @@
 
 import type { APIContext } from 'astro';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
+import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 
 export const prerender = false;
 
@@ -51,6 +52,18 @@ export async function POST(context: APIContext): Promise<Response> {
     from,
   });
   if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
+
+  const jobSlug = String(body.jobSlug ?? body.job_slug ?? '').trim() || null;
+  const contactUid = String(body.contactUid ?? body.contact_uid ?? '').trim() || null;
+  void logOutboundEmailForProject({
+    toEmail: to,
+    subject,
+    resendId: result.id,
+    sentBy: userId,
+    source: 'admin_compose',
+    jobSlug,
+    contactUid,
+  });
 
   return json({ ok: true, success: true, id: result.id });
 }

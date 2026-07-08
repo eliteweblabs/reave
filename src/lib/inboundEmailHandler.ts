@@ -16,6 +16,14 @@ export async function handleInboundEmail(email: {
   from?: string;
   subject?: string;
   text?: string;
+  html?: string;
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  replyTo?: string[];
+  headers?: Record<string, string>;
+  messageId?: string;
+  resendEmailId?: string;
 }): Promise<InboundEmailResult> {
   const { isAllowedSender } = await import('./inboundEmailAllowlist');
   const from = email.from ?? '';
@@ -39,6 +47,14 @@ export async function handleInboundEmail(email: {
     from,
     subject: email.subject ?? '',
     text: email.text ?? '',
+    html: email.html,
+    to: email.to,
+    cc: email.cc,
+    bcc: email.bcc,
+    replyTo: email.replyTo,
+    headers: email.headers,
+    messageId: email.messageId,
+    resendEmailId: email.resendEmailId,
   });
 
   return {

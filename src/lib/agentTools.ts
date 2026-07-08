@@ -116,6 +116,8 @@ import {
 } from './emailInboxStore';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
+import { logOutboundEmailForProject } from './logOutboundEmailForProject';
+import { recordProjectOutboundEmail } from './projectOutboundEmail';
 import { getAgentContext } from './agentContext';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
@@ -486,7 +488,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'read_email_inbox',
         description:
-          'Read one inbound inbox message (summary, body snippet, route note). Use when you need domain names or other specifics from an email. Defaults to the email linked to this chat when email_id is omitted.',
+          'Read one inbound inbox message with full headers and body. Use when you need domain names or other specifics. Defaults to the email linked to this chat when email_id is omitted.',
         parameters: {
           type: 'object',
           properties: {
@@ -1817,6 +1819,10 @@ export function buildTools(): AgentToolDef[] {
               type: 'string',
               description: 'Optional From address (defaults to RESEND_FROM / company outbound email)',
             },
+            job_slug: {
+              type: 'string',
+              description: 'Optional project slug — logs outbound mail so client replies trigger urgent alerts',
+            },
           },
           required: ['to', 'subject', 'body'],
           additionalProperties: false,
@@ -2375,10 +2381,17 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       return JSON.stringify({
         id: event.id,
         from: event.from,
+        to: event.to,
+        cc: event.cc,
+        bcc: event.bcc,
+        replyTo: event.replyTo,
+        messageId: event.messageId,
         subject: event.subject,
         category: event.category,
         summary: event.summary,
+        bodyText: event.bodyText,
         bodySnippet: event.bodySnippet,
+        headers: event.headers,
         routeNote: event.routeNote,
         receivedAt: event.receivedAt,
         jobSlug: event.jobSlug,
@@ -2393,7 +2406,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       let events = await storeListEmailInbox(Math.max(limit, 100), { hideJunk: !includeJunk });
       if (q) {
         events = events.filter((e) => {
-          const hay = `${e.from} ${e.subject} ${e.summary} ${e.bodySnippet}`.toLowerCase();
+          const hay = `${e.from} ${e.subject} ${e.summary} ${e.bodySnippet} ${e.bodyText}`.toLowerCase();
           return hay.includes(q);
         });
       }
@@ -2552,6 +2565,15 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       });
 
       if (!result.ok) return JSON.stringify({ success: false, error: result.error });
+      const jobSlug = String(args.job_slug ?? '').trim() || null;
+      void logOutboundEmailForProject({
+        toEmail: to,
+        subject,
+        resendId: result.id,
+        sentBy: getAgentContext().userId ?? null,
+        source: 'agent_send_email',
+        jobSlug,
+      });
       return JSON.stringify({ success: true, id: result.id, to, subject });
     }
     if (name === 'run_dev_task') {
@@ -3023,8 +3045,10 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
 
       const jobSlug = typeof args.job_slug === 'string' ? args.job_slug.trim() : '';
+      let linkedJobTitle = '';
       if (jobSlug && isSafeWorkSlug(jobSlug)) {
         const job = await storeReadWork(jobSlug);
+        if (job) linkedJobTitle = job.title;
         if (job && (job.contact_uid === target.uid || !job.contact_uid)) {
           const created = await createTrackedProjectLink({
             jobSlug,
@@ -3058,6 +3082,28 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         });
         const r = await sendEmail({ to: c.email as string, subject, text, html });
         sent.email = r.ok ? { ok: true, to: c.email, id: r.id } : { ok: false, error: r.error };
+        if (r.ok && tracked?.job_slug) {
+          void recordProjectOutboundEmail({
+            jobSlug: tracked.job_slug,
+            jobTitle: linkedJobTitle,
+            contactUid: target.uid,
+            toEmail: c.email as string,
+            subject,
+            resendId: r.id,
+            sentBy: getAgentContext().userId ?? null,
+            source: 'agent_send_client_portal',
+          });
+        } else if (r.ok) {
+          void logOutboundEmailForProject({
+            toEmail: c.email as string,
+            subject,
+            resendId: r.id,
+            sentBy: getAgentContext().userId ?? null,
+            source: 'agent_send_client_portal',
+            contactUid: target.uid,
+            jobSlug: jobSlug || null,
+          });
+        }
       }
       if (useSms) {
         const body = `${intro}Hi ${firstName}, here's your client page: ${url}`;

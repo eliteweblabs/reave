@@ -62,6 +62,14 @@ export const POST: APIRoute = async ({ request }) => {
     let from = meta.from ?? '';
     let subject = meta.subject ?? '';
     let text = '';
+    let html = '';
+    let to: string[] = [];
+    let cc: string[] = [];
+    let bcc: string[] = [];
+    let replyTo: string[] = [];
+    let headers: Record<string, string> = {};
+    let messageId = '';
+    let resendEmailId = meta.email_id ?? '';
 
     // The webhook payload carries metadata only; fetch the full email for the body.
     if (meta.email_id) {
@@ -71,11 +79,39 @@ export const POST: APIRoute = async ({ request }) => {
       } else if (data) {
         from = data.from || from;
         subject = data.subject || subject;
-        text = data.text || data.html || '';
+        text = data.text ?? '';
+        html = data.html ?? '';
+        to = Array.isArray(data.to) ? data.to.map(String) : [];
+        cc = Array.isArray(data.cc) ? data.cc.map(String) : [];
+        bcc = Array.isArray(data.bcc) ? data.bcc.map(String) : [];
+        replyTo = Array.isArray(data.reply_to) ? data.reply_to.map(String) : [];
+        headers =
+          data.headers && typeof data.headers === 'object'
+            ? Object.fromEntries(
+                Object.entries(data.headers as Record<string, unknown>).map(([k, v]) => [
+                  k,
+                  String(v),
+                ]),
+              )
+            : {};
+        messageId = data.message_id ?? '';
+        resendEmailId = data.id ?? resendEmailId;
       }
     }
 
-    const result = await handleInboundEmail({ from, subject, text });
+    const result = await handleInboundEmail({
+      from,
+      subject,
+      text,
+      html,
+      to,
+      cc,
+      bcc,
+      replyTo,
+      headers,
+      messageId,
+      resendEmailId,
+    });
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

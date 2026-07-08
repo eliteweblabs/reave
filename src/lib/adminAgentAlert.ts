@@ -13,6 +13,8 @@ import {
 import { runKnowledgeAgent } from './agentRunner';
 import type { ChatTurn } from './chatTypes';
 import { sendPushNotification } from './webPush';
+import { storeGetEmailInbox } from './emailInboxStore';
+import { formatEmailForAgent } from './emailAgentContext';
 
 const ALERT_THREAD_TITLE = 'System alerts';
 
@@ -89,34 +91,87 @@ export async function postToSystemAlertsThread(opts: {
   }
 }
 
-function formatAlertMessage(opts: {
+async function formatAlertMessage(opts: {
   status: string;
   from: string;
   subject: string;
   summary: string;
-  bodySnippet: string;
-}): string {
+  emailId?: string;
+}): Promise<string> {
   const railway = isRailwayAlertStatus(opts.status);
   const intro = railway
     ? 'Railway alert email received (deploy/build crash notification). This is sometimes a false alarm during rollout while the new deployment is still starting — verify in the Railway dashboard before acting.'
     : 'Inbound alert email received.';
 
-  return [
+  const lines = [
     intro,
     '',
     `Status: ${opts.status}`,
+    railway
+      ? 'Check Railway deploy logs, distinguish rollout teardown vs a real crash, and suggest next steps.'
+      : 'Read the full email below (headers + body) and suggest concrete next steps.',
+  ];
+
+  if (opts.emailId) {
+    const stored = await storeGetEmailInbox(opts.emailId);
+    if (stored) {
+      lines.push('', '---', formatEmailForAgent(stored));
+      return lines.join('\n');
+    }
+  }
+
+  lines.push(
+    '',
     `From: ${opts.from}`,
     `Subject: ${opts.subject}`,
     '',
     opts.summary,
-    opts.bodySnippet ? `\nSnippet:\n${opts.bodySnippet.slice(0, 1200)}` : '',
+  );
+  return lines.join('\n');
+}
+
+/** Fire-and-forget — logs failures, never throws to inbound email handler. */
+export async function notifyAdminAgentOfProjectReply(opts: {
+  contactName: string;
+  jobTitle: string;
+  summary: string;
+  emailId?: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  let emailBlock = opts.summary;
+  if (opts.emailId) {
+    const stored = await storeGetEmailInbox(opts.emailId);
+    if (stored) emailBlock = formatEmailForAgent(stored);
+  }
+
+  const message = [
+    '🚨 URGENT — Client replied on a project',
     '',
-    railway
-      ? 'Check Railway deploy logs, distinguish rollout teardown vs a real crash, and suggest next steps.'
-      : 'Summarize severity and suggest next steps.',
-  ]
-    .filter((line) => line !== undefined)
-    .join('\n');
+    `Client: ${opts.contactName}`,
+    `Project: ${opts.jobTitle}`,
+    '',
+    'This is new work that needs ASAP follow-up. Read the full email below and:',
+    '1. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule)',
+    '2. Link this thread to the project if not already linked',
+    '3. Do NOT treat this as low priority or ask what domain/project they mean — use the email content',
+    '',
+    '---',
+    emailBlock,
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    emailId: opts.emailId,
+    push: {
+      title: `🚨 Client reply: ${opts.jobTitle}`,
+      body: `${opts.contactName} — follow up ASAP`,
+      tag: opts.emailId ?? 'project-reply',
+      url: opts.emailId
+        ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
+        : '/admin?tab=email',
+    },
+  });
 }
 
 /** Fire-and-forget — logs failures, never throws to inbound email handler. */
@@ -125,14 +180,13 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   from: string;
   subject: string;
   summary: string;
-  bodySnippet: string;
   category: string;
   emailId?: string;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return;
 
-  const message = formatAlertMessage(opts);
+  const message = await formatAlertMessage(opts);
   await postToSystemAlertsThread({
     message,
     emailId: opts.emailId,

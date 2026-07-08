@@ -21,6 +21,7 @@ import {
 } from './anthropicMessages';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
 import { storeGetEmailInbox } from './emailInboxStore';
+import { formatEmailForAgent } from './emailAgentContext';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -97,16 +98,9 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
   const email = await storeGetEmailInbox(emailId.trim());
   if (!email) return null;
   return [
-    'This chat is linked to an inbox email — use these details (domain names, expiry dates, senders, etc.) when answering; do not say you lack the domain or subject.',
-    `Message ID: ${email.id}`,
-    `From: ${email.from || '(unknown)'}`,
-    `Subject: ${email.subject || '(no subject)'}`,
-    email.summary ? `Summary: ${email.summary}` : '',
-    email.bodySnippet ? `Body snippet: ${email.bodySnippet}` : '',
-    email.routeNote ? `Route: ${email.routeNote}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+    'This chat is linked to an inbox email. The full message (headers + body) is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
+    formatEmailForAgent(email),
+  ].join('\n\n');
 }
 
 /**
@@ -147,7 +141,7 @@ async function runKnowledgeAgentInner(opts: {
     'Project checklists: action items in job notes use markdown checkboxes (`- [ ]` / `- [x]`). Use toggle_work_item to check off completed work (by item_text or line_index). When invoicing for completed project work, call get_work_invoice_suggestions and use each item\'s description field on Crater line items (user provides price).',
     'Personal to-dos: separate from jobs (create_todo / list_todos / update_todo / mark_todo_done / delete_todo). When the user asks to add something to "the to-do list" or mentions a personal task, decide whether it is a client job (has a client), a project, or a personal task. Personal tasks use the to-do tools — never create_work for them. If to-do tools are unavailable (DATABASE_URL not set), say you do not have a to-do list tool yet and ask whether to build it or handle it manually — do not fake it with a job.',
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
-    'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full summary and body snippet for one message (defaults to the linked email in this chat). To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
+    'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
     'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
   ];
   if (isRailwayConfigured()) {

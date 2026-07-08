@@ -32,6 +32,14 @@ export interface InboundEmail {
   from: string;
   subject: string;
   text: string;
+  html?: string;
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  replyTo?: string[];
+  headers?: Record<string, string>;
+  messageId?: string;
+  resendEmailId?: string;
 }
 
 export interface Classification {

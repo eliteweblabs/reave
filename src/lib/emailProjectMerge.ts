@@ -10,25 +10,29 @@ export interface EmailMergeSource {
   subject: string;
   summary: string;
   bodySnippet: string;
+  bodyText?: string;
   receivedAt: string;
 }
 
+function emailBodyForMerge(email: EmailMergeSource): string {
+  return email.bodyText?.trim() || email.bodySnippet?.trim() || '';
+}
+
 function emailContextBlock(email: EmailMergeSource): string {
+  const body = emailBodyForMerge(email);
   return [
     `From: ${email.from || '(unknown)'}`,
     `Subject: ${email.subject || '(no subject)'}`,
     `Received: ${email.receivedAt || 'unknown'}`,
     email.summary?.trim() ? `Summary: ${email.summary.trim()}` : '',
-    email.bodySnippet?.trim() && email.bodySnippet.trim() !== email.summary?.trim()
-      ? `Body excerpt:\n${email.bodySnippet.trim()}`
-      : '',
+    body && body !== email.summary?.trim() ? `Body:\n${body}` : '',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
 function fallbackCreateBody(email: EmailMergeSource): string {
-  const summary = email.summary?.trim() || email.bodySnippet?.trim() || '';
+  const summary = email.summary?.trim() || emailBodyForMerge(email) || '';
   const lines = ['## Overview', ''];
   if (summary) lines.push(summary);
   else lines.push('_No summary available._');
@@ -40,7 +44,7 @@ function fallbackCreateBody(email: EmailMergeSource): string {
 
 function fallbackMergeBody(existingBody: string, email: EmailMergeSource): string {
   const base = existingBody.trim();
-  const incoming = email.summary?.trim() || email.bodySnippet?.trim() || '';
+  const incoming = email.summary?.trim() || emailBodyForMerge(email) || '';
   if (!incoming) return base;
   if (base.toLowerCase().includes(incoming.slice(0, 80).toLowerCase())) return base;
   const date = email.receivedAt
@@ -84,7 +88,7 @@ export function extractBudgetFromText(text: string): number | null {
 }
 
 function emailFullText(email: EmailMergeSource): string {
-  return [email.summary, email.bodySnippet, email.subject].filter(Boolean).join('\n');
+  return [email.summary, email.bodyText, email.bodySnippet, email.subject].filter(Boolean).join('\n');
 }
 
 function parseMergeResponse(raw: string): { body: string; value: number | null } | null {
@@ -223,6 +227,7 @@ export function emailToMergeSource(ev: {
   subject: string;
   summary: string;
   bodySnippet: string;
+  bodyText?: string;
   receivedAt: string;
 }): EmailMergeSource {
   return {
@@ -230,6 +235,7 @@ export function emailToMergeSource(ev: {
     subject: ev.subject,
     summary: ev.summary,
     bodySnippet: ev.bodySnippet,
+    bodyText: ev.bodyText,
     receivedAt: ev.receivedAt,
   };
 }

@@ -17,6 +17,15 @@ export interface EmailInboxRecord {
   from: string;
   subject: string;
   bodySnippet: string;
+  /** Full normalized plain-text body (up to 100k chars). */
+  bodyText: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  replyTo: string[];
+  headers: Record<string, string>;
+  messageId: string;
+  resendEmailId: string;
   status: string;
   action: string;
   notified: boolean;
@@ -39,6 +48,14 @@ export interface EmailInboxInput {
   from: string;
   subject: string;
   bodySnippet: string;
+  bodyText?: string;
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  replyTo?: string[];
+  headers?: Record<string, string>;
+  messageId?: string;
+  resendEmailId?: string;
   status: string;
   action: string;
   notified: boolean;
@@ -53,6 +70,27 @@ export interface EmailInboxInput {
   schedulingNote?: string;
   bookingUid?: string | null;
   bookingStart?: string | null;
+}
+
+/** List API shape — omits full body/headers to keep payloads small. */
+export type EmailInboxListRecord = Omit<
+  EmailInboxRecord,
+  'bodyText' | 'headers' | 'to' | 'cc' | 'bcc' | 'replyTo' | 'messageId' | 'resendEmailId'
+>;
+
+export function toEmailInboxListRecord(record: EmailInboxRecord): EmailInboxListRecord {
+  const {
+    bodyText: _bodyText,
+    headers: _headers,
+    to: _to,
+    cc: _cc,
+    bcc: _bcc,
+    replyTo: _replyTo,
+    messageId: _messageId,
+    resendEmailId: _resendEmailId,
+    ...list
+  } = record;
+  return list;
 }
 
 export interface EmailInboxDigest {
@@ -101,6 +139,14 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_uid TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS to_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS cc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS bcc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS reply_to_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS headers_json JSONB NOT NULL DEFAULT '{}'::jsonb`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS message_id TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS resend_email_id TEXT NOT NULL DEFAULT ''`,
 ];
 
 const INDEX_SQL = [
@@ -109,9 +155,12 @@ const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_job_slug_idx ON email_inbox (job_slug) WHERE job_slug IS NOT NULL`,
 ];
 
-const INBOX_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
+const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at`;
+
+const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
+              headers_json, message_id, resend_email_id`;
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
@@ -178,6 +227,14 @@ type InboxRow = {
   from_address: string;
   subject: string;
   body_snippet: string;
+  body_text?: string;
+  to_addrs?: string[] | null;
+  cc_addrs?: string[] | null;
+  bcc_addrs?: string[] | null;
+  reply_to_addrs?: string[] | null;
+  headers_json?: Record<string, string> | null;
+  message_id?: string;
+  resend_email_id?: string;
   status: string;
   action: string;
   notified: boolean;
@@ -203,6 +260,18 @@ function normalizeCategory(raw: string | undefined): EmailCategory {
   return 'review';
 }
 
+function parseJsonStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(String).filter(Boolean);
+}
+
+function parseHeadersJson(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+  );
+}
+
 function rowToRecord(row: InboxRow): EmailInboxRecord {
   return {
     id: row.id,
@@ -210,6 +279,14 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     from: row.from_address,
     subject: row.subject,
     bodySnippet: row.body_snippet,
+    bodyText: row.body_text ?? row.body_snippet ?? '',
+    to: parseJsonStringArray(row.to_addrs),
+    cc: parseJsonStringArray(row.cc_addrs),
+    bcc: parseJsonStringArray(row.bcc_addrs),
+    replyTo: parseJsonStringArray(row.reply_to_addrs),
+    headers: parseHeadersJson(row.headers_json),
+    messageId: row.message_id ?? '',
+    resendEmailId: row.resend_email_id ?? '',
     status: row.status,
     action: row.action,
     notified: !!row.notified,
@@ -240,6 +317,14 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       from: String(e.from ?? ''),
       subject: String(e.subject ?? ''),
       bodySnippet: String(e.bodySnippet ?? ''),
+      bodyText: String(e.bodyText ?? e.bodySnippet ?? ''),
+      to: Array.isArray(e.to) ? e.to.map(String) : [],
+      cc: Array.isArray(e.cc) ? e.cc.map(String) : [],
+      bcc: Array.isArray(e.bcc) ? e.bcc.map(String) : [],
+      replyTo: Array.isArray(e.replyTo) ? e.replyTo.map(String) : [],
+      headers: e.headers && typeof e.headers === 'object' ? parseHeadersJson(e.headers) : {},
+      messageId: String(e.messageId ?? ''),
+      resendEmailId: String(e.resendEmailId ?? ''),
       status: String(e.status ?? 'UNMATCHED'),
       action: String(e.action ?? 'classified'),
       notified: !!e.notified,
@@ -309,6 +394,14 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     from: input.from,
     subject: input.subject,
     bodySnippet: input.bodySnippet,
+    bodyText: input.bodyText ?? input.bodySnippet,
+    to: input.to ?? [],
+    cc: input.cc ?? [],
+    bcc: input.bcc ?? [],
+    replyTo: input.replyTo ?? [],
+    headers: input.headers ?? {},
+    messageId: input.messageId ?? '',
+    resendEmailId: input.resendEmailId ?? '',
     status: input.status,
     action: input.action,
     notified: input.notified,
@@ -336,7 +429,7 @@ async function listFromPg(limit: number, hideJunk: boolean): Promise<EmailInboxR
     if (!pool) return [];
     const junkFilter = hideJunk ? `AND category <> 'junk'` : '';
     const { rows } = await pool.query(
-      `SELECT ${INBOX_SELECT}
+      `SELECT ${INBOX_LIST_SELECT}
        FROM email_inbox WHERE 1=1 ${junkFilter}
        ORDER BY received_at DESC LIMIT $1`,
       [limit],
@@ -353,7 +446,7 @@ async function listAllFromPg(limit: number): Promise<EmailInboxRecord[]> {
     const pool = await ensureSchema();
     if (!pool) return [];
     const { rows } = await pool.query(
-      `SELECT ${INBOX_SELECT}
+      `SELECT ${INBOX_LIST_SELECT}
        FROM email_inbox ORDER BY received_at DESC LIMIT $1`,
       [limit],
     );
@@ -371,16 +464,26 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const id = randomUUID();
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
-        (id, from_address, subject, body_snippet, status, action, notified,
-         summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
-         proposed_meeting_start, scheduling_note, booking_uid, booking_start)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        (id, from_address, subject, body_snippet, body_text, to_addrs, cc_addrs, bcc_addrs,
+         reply_to_addrs, headers_json, message_id, resend_email_id,
+         status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
+         route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12,
+               $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
         input.from,
         input.subject,
         input.bodySnippet,
+        input.bodyText ?? input.bodySnippet,
+        JSON.stringify(input.to ?? []),
+        JSON.stringify(input.cc ?? []),
+        JSON.stringify(input.bcc ?? []),
+        JSON.stringify(input.replyTo ?? []),
+        JSON.stringify(input.headers ?? {}),
+        input.messageId ?? '',
+        input.resendEmailId ?? '',
         input.status,
         input.action,
         input.notified,

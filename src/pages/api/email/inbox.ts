@@ -7,6 +7,7 @@ import {
   emailInboxStorageBackend,
   storeListEmailInbox,
   computeInboxDigest,
+  toEmailInboxListRecord,
   type EmailInboxRecord,
 } from '../../../lib/emailInboxStore';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
@@ -45,7 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   return json({
     ok: true,
-    events: events.map(enrichEmailEvent),
+    events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
     digest: computeInboxDigest(allForDigest, !showJunk),
     storage: emailInboxStorageBackend(),
     pushConfigured: isPushConfigured(),
