@@ -10053,9 +10053,13 @@ function buildEmailAgentPrompt(ev) {
   lines.push(`Subject: ${ev.subject || '(no subject)'}`);
   lines.push(`Category: ${ev.category || 'review'}`);
   if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
+  const summary = (ev.summary || '').trim();
   const body = (ev.bodySnippet || '').trim();
-  if (body) {
-    lines.push('', body);
+  if (summary) {
+    lines.push('', 'Summary:', summary);
+  }
+  if (body && body !== summary) {
+    lines.push('', 'Body snippet:', body);
   }
   return lines.join('\n');
 }

@@ -39,6 +39,7 @@ async function getOrCreateAlertThread(userId: string): Promise<string | null> {
 export async function postToSystemAlertsThread(opts: {
   message: string;
   autoRun?: boolean;
+  emailId?: string;
   push?: { title: string; body: string; tag?: string; url?: string };
 }): Promise<void> {
   const userId = agentAlertUserId();
@@ -63,6 +64,7 @@ export async function postToSystemAlertsThread(opts: {
       const reply = await runKnowledgeAgent({
         userText: opts.message,
         priorTurns,
+        context: opts.emailId ? { userId, emailId: opts.emailId } : { userId },
       });
       await storeAppendChatMessages(userId, threadId, [
         { role: 'user', content: opts.message },
@@ -133,6 +135,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   const message = formatAlertMessage(opts);
   await postToSystemAlertsThread({
     message,
+    emailId: opts.emailId,
     push: {
       title: isRailwayAlertStatus(opts.status)
         ? `Railway: ${opts.subject.slice(0, 50) || 'deploy alert'}`

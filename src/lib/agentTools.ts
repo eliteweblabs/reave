@@ -484,6 +484,24 @@ export function buildTools(): AgentToolDef[] {
     {
       type: 'function',
       function: {
+        name: 'read_email_inbox',
+        description:
+          'Read one inbound inbox message (summary, body snippet, route note). Use when you need domain names or other specifics from an email. Defaults to the email linked to this chat when email_id is omitted.',
+        parameters: {
+          type: 'object',
+          properties: {
+            email_id: {
+              type: 'string',
+              description: 'Inbox message UUID — omit to use the email linked to this chat',
+            },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
         name: 'list_email_inbox',
         description:
           'List recent inbound emails from the Reave inbox log (admin Email tab). Use when triaging mail or finding a message id by sender/subject.',
@@ -2346,6 +2364,26 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'bot' });
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({ ok: true, slug, title, db: isKnowledgeDbConfigured() });
+    }
+    if (name === 'read_email_inbox') {
+      const emailId = String(args.email_id ?? ctx.emailId ?? '').trim();
+      if (!emailId) {
+        return JSON.stringify({ error: 'email_id is required (or open this chat from an inbox message)' });
+      }
+      const event = await storeGetEmailInbox(emailId);
+      if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+      return JSON.stringify({
+        id: event.id,
+        from: event.from,
+        subject: event.subject,
+        category: event.category,
+        summary: event.summary,
+        bodySnippet: event.bodySnippet,
+        routeNote: event.routeNote,
+        receivedAt: event.receivedAt,
+        jobSlug: event.jobSlug,
+        jobTitle: event.jobTitle,
+      });
     }
     if (name === 'list_email_inbox') {
       const q = String(args.q ?? '').trim().toLowerCase();
