@@ -4340,6 +4340,24 @@ function escHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+const LINKIFY_TRAILING_PUNCT = /[.,;:!?)]+$/;
+
+function linkifyPlainText(str) {
+  const escaped = escHtml(str);
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (raw) => {
+    let url = raw;
+    let trailing = '';
+    if (!raw.endsWith('...')) {
+      const m = raw.match(LINKIFY_TRAILING_PUNCT);
+      if (m) {
+        trailing = m[0];
+        url = raw.slice(0, -trailing.length);
+      }
+    }
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
+  });
+}
+
 // ---- knowledge tab ----
 
 let knowledgeState = {
@@ -10836,7 +10854,7 @@ function renderEmailPanel() {
       `</div>`;
   }
   detailHtml +=
-    (summary ? `<div class="em-detail-summary">${escHtml(summary)}</div>` : '') +
+    (summary ? `<div class="em-detail-summary">${linkifyPlainText(summary)}</div>` : '') +
     `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
     `<div class="em-detail-meta">` +
       `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
@@ -10852,7 +10870,7 @@ function renderEmailPanel() {
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>` +
     ((ev.bodyText || ev.bodySnippet) && (ev.bodyText || ev.bodySnippet) !== summary
-      ? `<div class="em-detail-body">${escHtml(ev.bodyText || ev.bodySnippet)}</div>`
+      ? `<div class="em-detail-body">${linkifyPlainText(ev.bodyText || ev.bodySnippet)}</div>`
       : '');
   detail.innerHTML = detailHtml;
   if (!ev._fullLoaded) {

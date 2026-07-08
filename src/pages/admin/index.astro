@@ -3434,6 +3434,13 @@ const company = await getCompanyConfig(Astro.request);
         border: 1px solid var(--card-border);
         border-radius: 8px;
       }
+      .em-detail-body a,
+      .em-detail-summary a {
+        color: #79c0ff;
+        text-decoration: underline;
+        overflow-wrap: anywhere;
+        word-break: break-all;
+      }
       .em-item-summary {
         font-size: 0.82rem;
         font-weight: 600;
