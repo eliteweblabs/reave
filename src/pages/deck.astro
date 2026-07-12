@@ -1,8 +1,7 @@
 ---
 /**
- * /deck — macOS-style desktop sales experience.
- * Sections from everything.json open as draggable windows;
- * each shows a recorded GIF mapped into a device frame.
+ * /deck — scroll-snap sales narrative.
+ * Left: scene copy. Right (sm+): section nav controller.
  */
 import Favicon from '../components/Favicon.astro';
 import Header from '../components/Header.astro';
@@ -59,35 +58,17 @@ const DOCK_LABELS: Record<string, string> = {
   billing: 'Billing',
 };
 
-const sections = script.sections.map((section, i) => {
+const sections = script.sections.map((section) => {
   const feature = section.features[0];
-  const setAction = feature?.actions.find((a) => a.type === 'stage.set');
-  const gif = setAction && setAction.type === 'stage.set' ? setAction.gif : undefined;
-  const device =
-    setAction && setAction.type === 'stage.set'
-      ? setAction.device ?? (setAction.surface === 'desktop' ? 'laptop' : 'phone-hand')
-      : 'phone-hand';
   return {
     id: section.id,
-    name: section.title,
     label: DOCK_LABELS[section.id] ?? section.title,
-    summary: section.summary ?? '',
     featureTitle: feature?.title ?? section.title,
-    featureBody: feature?.body ?? '',
-    scrollHeight: feature?.scrollHeight ?? 100,
-    gif: gif ?? `/deck/gifs/${section.id}.gif`,
-    device,
-    w: device === 'laptop' ? 720 : 520,
-    h: device === 'laptop' ? 520 : 640,
-    top: 72 + (i % 4) * 28,
-    left: 48 + (i % 5) * 36,
+    featureBody: feature?.body ?? section.summary ?? '',
   };
 });
 
-const deckPayload = {
-  companyName: company.name,
-  sections,
-};
+const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
 ---
 
 <!doctype html>
@@ -130,47 +111,33 @@ const deckPayload = {
       </div>
     </div>
 
-    <div id="desktop" aria-hidden="false">
-      <div id="wins"></div>
-
-      <div id="ctx" hidden>
+    <nav id="dock-wrap" aria-label="Deck sections">
+      <div id="dock">
         {
-          sections.slice(0, 6).map((s) => (
-            <button type="button" class="ctx-i" data-app={s.id}>
-              Open {s.label}
-            </button>
-          ))
+          sections.map((s, i) => {
+            const Icon = DOCK_ICONS[s.id] ?? Home;
+            return (
+              <>
+                {i === 2 && <div class="d-sep" aria-hidden="true" />}
+                <button
+                  type="button"
+                  class="d-item"
+                  id={`d-${s.id}`}
+                  data-app={s.id}
+                  aria-label={s.label}
+                >
+                  <span class={`ico ico-${s.id}`} aria-hidden="true">
+                    <Icon size={22} strokeWidth={1.75} />
+                  </span>
+                  <span class="d-dot" aria-hidden="true"></span>
+                  <span class="d-tooltip" role="tooltip">{s.label}</span>
+                </button>
+              </>
+            );
+          })
         }
       </div>
-
-      <div id="dock-wrap">
-        <div id="dock">
-          {
-            sections.map((s, i) => {
-              const Icon = DOCK_ICONS[s.id] ?? Home;
-              return (
-                <>
-                  {i === 2 && <div class="d-sep" aria-hidden="true" />}
-                  <button
-                    type="button"
-                    class="d-item"
-                    id={`d-${s.id}`}
-                    data-app={s.id}
-                    aria-label={s.label}
-                  >
-                    <span class={`ico ico-${s.id}`} aria-hidden="true">
-                      <Icon size={22} strokeWidth={1.75} />
-                    </span>
-                    <span class="d-dot" aria-hidden="true"></span>
-                    <span class="d-tooltip" role="tooltip">{s.label}</span>
-                  </button>
-                </>
-              );
-            })
-          }
-        </div>
-      </div>
-    </div>
+    </nav>
 
     <main id="scroll-track" data-deck-scroll>
       {
@@ -183,7 +150,7 @@ const deckPayload = {
             <div class="deck-scene-copy">
               <p class="deck-scene-kicker">{s.label}</p>
               <h2 class="deck-scene-title">{s.featureTitle}</h2>
-              <p class="deck-scene-body">{s.featureBody || s.summary}</p>
+              <p class="deck-scene-body">{s.featureBody}</p>
             </div>
           </section>
         ))
@@ -191,20 +158,16 @@ const deckPayload = {
     </main>
 
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
+
     <style is:global>
       * {
         box-sizing: border-box;
       }
       :root {
-        --win-bg: rgba(22, 22, 26, 0.88);
         --dock-bg: rgba(30, 30, 34, 0.5);
         --accent: #5eead4;
-        --accent-dim: rgba(94, 234, 212, 0.18);
-        --green: #34d399;
         --text: #e8eef8;
-        --dim: #8b97a8;
         --border: rgba(255, 255, 255, 0.1);
-        --card: rgba(255, 255, 255, 0.04);
         --font: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
         --display: 'Syne', ui-sans-serif, system-ui, sans-serif;
       }
@@ -227,7 +190,6 @@ const deckPayload = {
           radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
       }
 
-      /* Site header above dock/windows so menus stay usable */
       .app-header {
         z-index: 7000;
       }
@@ -239,7 +201,6 @@ const deckPayload = {
         z-index: 100000;
         transition: opacity 0.7s ease;
       }
-      /* Same plasma-mask treatment as homepage, sized just above the progress bar. */
       .boot-logo-stack {
         position: absolute;
         inset: 0;
@@ -300,25 +261,6 @@ const deckPayload = {
         background: #fff;
         border-radius: 3px;
         transition: width 2.4s ease-in-out;
-      }
-
-      #desktop {
-        position: fixed;
-        inset: 0;
-        z-index: 40;
-        pointer-events: none;
-      }
-      #wins {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-      #wins .win {
-        pointer-events: auto;
-      }
-      #dock-wrap,
-      #ctx {
-        pointer-events: auto;
       }
 
       #scroll-track {
@@ -394,7 +336,7 @@ const deckPayload = {
       }
 
       #dock-wrap {
-        position: absolute;
+        position: fixed;
         bottom: 10px;
         left: 0;
         right: 0;
@@ -404,8 +346,10 @@ const deckPayload = {
         z-index: 6000;
         padding: 40px 12px 0;
         overflow: visible;
+        pointer-events: none;
       }
       #dock {
+        pointer-events: auto;
         background: var(--dock-bg);
         backdrop-filter: blur(30px);
         -webkit-backdrop-filter: blur(30px);
@@ -461,9 +405,6 @@ const deckPayload = {
         transform: translateX(-50%);
         display: none;
       }
-      .d-item.open .d-dot {
-        display: block;
-      }
       .d-item.active .ico {
         box-shadow:
           0 0 0 2px rgba(94, 234, 212, 0.95),
@@ -507,7 +448,6 @@ const deckPayload = {
           visibility 0.15s ease;
       }
 
-      /* Bigger than small: vertical dock on the right */
       @media (min-width: 640px) {
         #dock-wrap {
           top: 0;
@@ -524,7 +464,7 @@ const deckPayload = {
           flex-direction: column;
           align-items: center;
           height: auto;
-          max-height: calc(100vh - 96px);
+          max-height: calc(100dvh - 96px);
           width: 68px;
           padding: 10px 6px;
           overflow-y: auto;
@@ -581,244 +521,6 @@ const deckPayload = {
       .ico-monitoring { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; }
       .ico-billing { background: linear-gradient(135deg, #fde68a, #fbbf24); color: #1c1408; }
 
-      @keyframes bounce {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-18px);
-        }
-      }
-      .bouncing {
-        animation: bounce 0.55s ease infinite;
-      }
-
-      .win {
-        position: absolute;
-        background: var(--win-bg);
-        backdrop-filter: blur(28px);
-        -webkit-backdrop-filter: blur(28px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        min-width: 280px;
-        min-height: 200px;
-      }
-      .win.opening {
-        animation: wOpen 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-      }
-      @keyframes wOpen {
-        from {
-          transform: scale(0.86);
-          opacity: 0;
-        }
-        to {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
-      .win.inactive {
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-        border-color: rgba(255, 255, 255, 0.06);
-      }
-      .win.inactive .tl span {
-        background-color: #555 !important;
-      }
-      .win-head {
-        height: 32px;
-        background: rgba(255, 255, 255, 0.05);
-        display: flex;
-        align-items: center;
-        position: relative;
-        cursor: grab;
-        flex-shrink: 0;
-        user-select: none;
-      }
-      .win-head:active {
-        cursor: grabbing;
-      }
-      .tl {
-        display: flex;
-        gap: 7px;
-        margin-left: 12px;
-        z-index: 2;
-      }
-      .tl span {
-        width: 11px;
-        height: 11px;
-        border-radius: 50%;
-        cursor: pointer;
-      }
-      .tl .c {
-        background: #ff5f56;
-      }
-      .tl .m {
-        background: #ffbd2e;
-      }
-      .tl .x {
-        background: #27c93f;
-      }
-      .win-title {
-        position: absolute;
-        width: 100%;
-        text-align: center;
-        font-size: 12.5px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.8);
-        pointer-events: none;
-      }
-      .win-body {
-        flex: 1;
-        overflow: auto;
-        position: relative;
-        background: rgba(0, 0, 0, 0.18);
-      }
-
-      .s-home {
-        padding: 1.75rem 1.5rem;
-        display: grid;
-        grid-template-columns: minmax(180px, 42%) 1fr;
-        gap: 1.25rem;
-        min-height: 100%;
-        align-items: center;
-      }
-      @media (max-width: 700px) {
-        .s-home {
-          grid-template-columns: 1fr;
-        }
-      }
-      .s-home .copy h2 {
-        margin: 0 0 0.5rem;
-        font-family: var(--display);
-        font-size: clamp(1.35rem, 2.5vw, 1.85rem);
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        line-height: 1.15;
-      }
-      .s-home .tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: var(--accent-dim);
-        border: 1px solid rgba(94, 234, 212, 0.3);
-        padding: 3px 12px;
-        border-radius: 100px;
-        font-size: 11px;
-        color: var(--accent);
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-      }
-      .s-home .tag .pulse {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--green);
-        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
-        animation: pulse 2s ease infinite;
-      }
-      @keyframes pulse {
-        0%,
-        100% {
-          box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
-        }
-        50% {
-          box-shadow: 0 0 0 6px transparent;
-        }
-      }
-      .s-home p {
-        margin: 0;
-        font-size: 0.92rem;
-        color: var(--dim);
-        line-height: 1.55;
-      }
-      .s-home .preview {
-        display: flex;
-        justify-content: center;
-      }
-
-      /* Device preview inside windows */
-      .gif-device {
-        width: 100%;
-        max-width: 220px;
-      }
-      .gif-device--laptop {
-        max-width: 100%;
-      }
-      .gif-device-shell {
-        position: relative;
-        background: #0a0a0c;
-        overflow: hidden;
-        border: 2px solid #2a2a30;
-      }
-      .gif-device--phone-hand .gif-device-shell,
-      .gif-device--phone-desk .gif-device-shell {
-        aspect-ratio: 9 / 19.5;
-        border-radius: 20px;
-        margin: 0 auto;
-        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
-      }
-      .gif-device--laptop .gif-device-shell {
-        aspect-ratio: 16 / 10;
-        border-radius: 8px;
-        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-      }
-      .gif-device-shell img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        object-position: top center;
-        display: block;
-      }
-      .gif-ph {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 1rem;
-        text-align: center;
-        font-size: 0.72rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.55);
-        background: linear-gradient(160deg, #1a2438, #0d121c);
-      }
-      .gif-ph[hidden] {
-        display: none;
-      }
-
-      #ctx {
-        position: absolute;
-        background: rgba(28, 30, 38, 0.94);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 8px;
-        padding: 5px 0;
-        min-width: 180px;
-        z-index: 99999;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-        font-size: 13px;
-      }
-      .ctx-i {
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding: 7px 14px;
-        border: 0;
-        background: transparent;
-        color: var(--text);
-        font: inherit;
-        cursor: pointer;
-      }
-      .ctx-i:hover {
-        background: rgba(94, 234, 212, 0.18);
-        color: #fff;
-      }
-
       @media (max-width: 639px) {
         #dock {
           height: 58px;
@@ -828,15 +530,10 @@ const deckPayload = {
           width: 44px;
           height: 44px;
         }
-        .win {
-          left: 8px !important;
-          right: 8px;
-          width: auto !important;
-          max-width: calc(100vw - 16px);
-        }
       }
     </style>
-    <script src="/deck/macos-desktop.js" defer></script>
+
+    <script src="/deck/deck-nav.js" defer></script>
     <script>
       import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
