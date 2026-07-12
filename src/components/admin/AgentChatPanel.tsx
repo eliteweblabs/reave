@@ -16,7 +16,12 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  filterHelperCommands,
+  matchHelperCommand,
+  type AgentHelperCommand,
+} from '../../lib/agentHelperCommands';
 import {
   parseStoredChatContent,
   storedChatPlainText,
@@ -275,6 +280,135 @@ function ComposerSendButton() {
   );
 }
 
+function HelperCommandGuide({ command }: { command: AgentHelperCommand }) {
+  return (
+    <div className="aui-helper-guide">
+      <div className="aui-helper-guide-title">{command.slash}</div>
+      <ol className="aui-helper-guide-steps">
+        {command.steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ol>
+      <p className="aui-helper-guide-example">
+        <span className="aui-helper-guide-example-label">Example</span>
+        {command.example}
+      </p>
+    </div>
+  );
+}
+
+function HelperCommandsPanel({
+  commands,
+  activeGuide,
+  onPick,
+}: {
+  commands: AgentHelperCommand[];
+  activeGuide: AgentHelperCommand | null;
+  onPick: (command: AgentHelperCommand) => void;
+}) {
+  return (
+    <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
+      {activeGuide ? <HelperCommandGuide command={activeGuide} /> : null}
+      <ul className="aui-helper-list" role="listbox" aria-label="Helper commands">
+        {commands.map((command) => (
+          <li key={command.slash}>
+            <button
+              type="button"
+              className="aui-helper-item"
+              role="option"
+              onClick={() => onPick(command)}
+            >
+              <span className="aui-helper-item-slash">{command.slash}</span>
+              <span className="aui-helper-item-body">
+                <span className="aui-helper-item-label">{command.label}</span>
+                <span className="aui-helper-item-summary">{command.summary}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function useComposeHelpers() {
+  const composer = useComposerRuntime();
+  const [composeText, setComposeText] = useState('');
+  const [helpersOpen, setHelpersOpen] = useState(false);
+  const [pickedCommand, setPickedCommand] = useState<AgentHelperCommand | null>(null);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const filtered = filterHelperCommands(composeText);
+  const matched = matchHelperCommand(composeText);
+  const activeGuide = matched ?? pickedCommand;
+  const showHelpers = helpersOpen && filtered.length > 0;
+
+  const clearBlurTimer = () => {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
+  };
+
+  const openHelpers = () => {
+    clearBlurTimer();
+    setHelpersOpen(true);
+  };
+
+  const scheduleCloseHelpers = () => {
+    clearBlurTimer();
+    blurTimer.current = setTimeout(() => setHelpersOpen(false), 120);
+  };
+
+  const focusInput = () => {
+    const ta = document.querySelector('#chat-panel .aui-input');
+    if (ta instanceof HTMLTextAreaElement) ta.focus();
+  };
+
+  const applyCommand = (command: AgentHelperCommand) => {
+    composer.setText(command.template);
+    setComposeText(command.template);
+    setPickedCommand(command);
+    openHelpers();
+    focusInput();
+  };
+
+  const toggleHelpers = () => {
+    if (helpersOpen) {
+      setHelpersOpen(false);
+      return;
+    }
+    openHelpers();
+    if (!composeText.trim()) {
+      composer.setText('/');
+      setComposeText('/');
+    }
+    focusInput();
+  };
+
+  useEffect(() => () => clearBlurTimer(), []);
+
+  useEffect(() => {
+    if (pickedCommand && !composeText.trim().toLowerCase().startsWith(pickedCommand.slash)) {
+      setPickedCommand(null);
+    }
+  }, [composeText, pickedCommand]);
+
+  return {
+    composeText,
+    setComposeText,
+    helpersOpen,
+    filtered,
+    activeGuide,
+    showHelpers,
+    openHelpers,
+    scheduleCloseHelpers,
+    clearBlurTimer,
+    applyCommand,
+    toggleHelpers,
+  };
+}
+
 /** One user message per thread — hide compose after the exchange; stop only while running. */
 function AgentChatCompose({
   propsRef,
@@ -288,6 +422,7 @@ function AgentChatCompose({
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const locked = initialLocked || hasMessages;
+  const helpers = useComposeHelpers();
 
   useEffect(() => {
     if (locked && !isRunning) propsRef.current?.onComposeFocus?.(false);
@@ -310,15 +445,44 @@ function AgentChatCompose({
   return (
     <div className="aui-compose-footer">
       <ComposerPrimitive.Root className="aui-compose">
+        {helpers.showHelpers ? (
+          <HelperCommandsPanel
+            commands={helpers.filtered}
+            activeGuide={helpers.activeGuide}
+            onPick={helpers.applyCommand}
+          />
+        ) : null}
         <div className="aui-compose-row">
+          <button
+            type="button"
+            className={`aui-helper-btn${helpers.helpersOpen ? ' active' : ''}`}
+            aria-label="Show helper commands"
+            aria-expanded={helpers.helpersOpen}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={helpers.toggleHelpers}
+          >
+            /
+          </button>
           <ComposerPrimitive.Input
             className="aui-input"
             placeholder=""
             rows={1}
             autoFocus={autoFocus}
             enterKeyHint="send"
-            onFocus={() => propsRef.current?.onComposeFocus?.(true)}
-            onBlur={() => propsRef.current?.onComposeFocus?.(false)}
+            onFocus={() => {
+              helpers.clearBlurTimer();
+              helpers.openHelpers();
+              propsRef.current?.onComposeFocus?.(true);
+            }}
+            onBlur={() => {
+              helpers.scheduleCloseHelpers();
+              propsRef.current?.onComposeFocus?.(false);
+            }}
+            onInput={(e) => {
+              const value = e.currentTarget.value;
+              helpers.setComposeText(value);
+              if (value.trim()) helpers.openHelpers();
+            }}
           />
           <ComposerSendButton />
         </div>

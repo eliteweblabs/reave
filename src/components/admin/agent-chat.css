@@ -141,6 +141,131 @@
   background: var(--bg);
 }
 
+.aui-helper-panel {
+  margin-bottom: 0.35rem;
+  max-height: min(42vh, 16rem);
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+
+.aui-helper-guide {
+  padding: 0.55rem 0.65rem 0.45rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.aui-helper-guide-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--fg);
+  margin-bottom: 0.35rem;
+}
+
+.aui-helper-guide-steps {
+  margin: 0 0 0.45rem;
+  padding-left: 1.1rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.aui-helper-guide-steps li + li {
+  margin-top: 0.2rem;
+}
+
+.aui-helper-guide-example {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+.aui-helper-guide-example-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.aui-helper-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.2rem;
+}
+
+.aui-helper-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.aui-helper-item:hover,
+.aui-helper-item:focus-visible {
+  background: var(--surface-hover-strong);
+  outline: none;
+}
+
+.aui-helper-item-slash {
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #0a84ff;
+}
+
+.aui-helper-item-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.aui-helper-item-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.aui-helper-item-summary {
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.aui-helper-btn {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface-hover-strong);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.aui-helper-btn:hover,
+.aui-helper-btn.active {
+  color: #0a84ff;
+  background: rgba(10, 132, 255, 0.12);
+}
+
 .aui-compose {
   display: flex;
   flex-direction: column;
