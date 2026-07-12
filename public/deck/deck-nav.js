@@ -1,5 +1,5 @@
 /**
- * /deck scroll + right-nav controller (no fake OS windows).
+ * /deck scroll + right-nav controller + optional module toggles / quote summary.
  */
 (function () {
   'use strict';
@@ -22,6 +22,12 @@
   }
 
   var sections = readPayload().sections || [];
+  /** @type {Record<string, boolean>} id → included (default true) */
+  var included = {};
+  sections.forEach(function (s) {
+    included[s.id] = true;
+  });
+
   var activeSceneId = null;
   var scrollingTo = null;
 
@@ -38,6 +44,90 @@
     $$('[data-deck-scene]').forEach(function (el) {
       el.classList.toggle('is-active', el.getAttribute('data-deck-scene') === id);
     });
+  }
+
+  function applyDeclinedUi() {
+    sections.forEach(function (s) {
+      var on = included[s.id] !== false;
+      var scene = $('#scene-' + s.id);
+      var dock = $('#d-' + s.id);
+      var note = $('[data-opt-note="' + s.id + '"]');
+      var input = $('[data-opt-toggle="' + s.id + '"]');
+      var labelText = input && input.closest('.deck-opt')
+        ? input.closest('.deck-opt').querySelector('.deck-opt-label')
+        : null;
+
+      if (scene) scene.classList.toggle('is-declined', s.optional && !on);
+      if (dock) {
+        dock.classList.toggle('is-declined', s.optional && !on);
+        if (s.optional) {
+          dock.title = on
+            ? s.label || s.id
+            : (s.label || s.id) + ' — excluded (open to turn back on)';
+        }
+      }
+      if (note) note.hidden = !(s.optional && !on);
+      if (input) {
+        input.checked = on;
+        input.disabled = false;
+        input.setAttribute('aria-checked', on ? 'true' : 'false');
+      }
+      if (labelText) {
+        labelText.textContent = on ? 'Include in quote' : 'Excluded — turn back on';
+      }
+    });
+    refreshQuoteSummary();
+  }
+
+  function refreshQuoteSummary() {
+    var includedEl = $('#quote-included');
+    var declinedEl = $('#quote-declined');
+    var desc = $('#quote-description');
+    if (!includedEl || !declinedEl) return;
+
+    var inList = [];
+    var outList = [];
+    sections.forEach(function (s) {
+      var label = s.quoteLabel || s.label || s.id;
+      if (included[s.id] !== false) inList.push(label);
+      else if (s.optional) outList.push(label);
+    });
+
+    includedEl.innerHTML = inList.length
+      ? inList.map(function (t) {
+          return '<li>' + escapeHtml(t) + '</li>';
+        }).join('')
+      : '<li class="deck-quote-empty">Nothing included</li>';
+
+    declinedEl.innerHTML = outList.length
+      ? outList.map(function (t) {
+          return '<li>' + escapeHtml(t) + '</li>';
+        }).join('')
+      : '<li class="deck-quote-empty">None opted out</li>';
+
+    if (desc) {
+      var lines = ['Business OS quote package', '', 'Included:'];
+      inList.forEach(function (t) {
+        lines.push('- ' + t);
+      });
+      if (outList.length) {
+        lines.push('', 'Opted out (excluded from quote):');
+        outList.forEach(function (t) {
+          lines.push('- ' + t);
+        });
+      } else {
+        lines.push('', 'Opted out: none');
+      }
+      desc.value = lines.join('\n');
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function activateScene(id, opts) {
@@ -108,14 +198,50 @@
     });
   }
 
+  function bindOptionalToggles() {
+    $$('[data-opt-toggle]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        var id = input.getAttribute('data-opt-toggle');
+        if (!id) return;
+        included[id] = !!input.checked;
+        applyDeclinedUi();
+      });
+    });
+  }
+
   $$('.d-item[data-app]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       scrollToScene(btn.getAttribute('data-app'));
     });
   });
 
+  var copyBtn = $('#quote-copy');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function () {
+      var desc = $('#quote-description');
+      if (!desc) return;
+      var text = desc.value || '';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(
+          function () {
+            copyBtn.textContent = 'Copied';
+            setTimeout(function () {
+              copyBtn.textContent = 'Copy description';
+            }, 1400);
+          },
+          function () {},
+        );
+      } else {
+        desc.focus();
+        desc.select();
+      }
+    });
+  }
+
   function startDeck() {
     bindScrollEngagement();
+    bindOptionalToggles();
+    applyDeclinedUi();
     var first = sections[0] && sections[0].id;
     if (first) activateScene(first, { force: true });
   }

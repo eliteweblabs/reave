@@ -20,6 +20,7 @@ import {
   BookOpen,
   Monitor,
   Wallet,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-astro';
 
@@ -63,12 +64,22 @@ const sections = script.sections.map((section) => {
   return {
     id: section.id,
     label: DOCK_LABELS[section.id] ?? section.title,
+    title: section.title,
+    quoteLabel: section.quoteLabel?.trim() || section.title,
+    optional: section.optional === true,
     featureTitle: feature?.title ?? section.title,
     featureBody: feature?.body ?? section.summary ?? '',
   };
 });
 
-const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
+const deckPayload = {
+  sections: sections.map((s) => ({
+    id: s.id,
+    label: s.label,
+    quoteLabel: s.quoteLabel,
+    optional: s.optional,
+  })),
+};
 ---
 
 <!doctype html>
@@ -136,6 +147,20 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
             );
           })
         }
+        <div class="d-sep" aria-hidden="true"></div>
+        <button
+          type="button"
+          class="d-item"
+          id="d-quote"
+          data-app="quote"
+          aria-label="Quote package"
+        >
+          <span class="ico ico-quote" aria-hidden="true">
+            <ClipboardList size={22} strokeWidth={1.75} />
+          </span>
+          <span class="d-dot" aria-hidden="true"></span>
+          <span class="d-tooltip" role="tooltip">Quote</span>
+        </button>
       </div>
     </nav>
 
@@ -146,15 +171,63 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
             class:list={['deck-scene', { 'deck-scene--lead': i === 0 }]}
             id={`scene-${s.id}`}
             data-deck-scene={s.id}
+            data-optional={s.optional ? 'true' : 'false'}
           >
             <div class="deck-scene-copy">
-              <p class="deck-scene-kicker">{s.label}</p>
+              <div class="deck-scene-top">
+                <p class="deck-scene-kicker">{s.label}</p>
+                {
+                  s.optional && (
+                    <label class="deck-opt">
+                      <input
+                        type="checkbox"
+                        class="deck-opt-input"
+                        data-opt-toggle={s.id}
+                        checked
+                      />
+                      <span class="deck-opt-ui" aria-hidden="true"></span>
+                      <span class="deck-opt-label">Include in quote</span>
+                    </label>
+                  )
+                }
+              </div>
               <h2 class="deck-scene-title">{s.featureTitle}</h2>
               <p class="deck-scene-body">{s.featureBody}</p>
+              {
+                s.optional && (
+                  <p class="deck-opt-note" data-opt-note={s.id} hidden>
+                    Opted out of the quote — flip the switch to include it again.
+                  </p>
+                )
+              }
             </div>
           </section>
         ))
       }
+
+      <section class="deck-scene deck-scene--quote" id="scene-quote" data-deck-scene="quote">
+        <div class="deck-scene-copy deck-quote">
+          <p class="deck-scene-kicker">Quote package</p>
+          <h2 class="deck-scene-title">Ready for a quote</h2>
+          <p class="deck-scene-body">
+            Included modules and anything you opted out of are listed below. Copy this
+            summary when you request a quote.
+          </p>
+          <div class="deck-quote-cols">
+            <div>
+              <h3 class="deck-quote-h">Included</h3>
+              <ul id="quote-included" class="deck-quote-list"></ul>
+            </div>
+            <div>
+              <h3 class="deck-quote-h">Opted out</h3>
+              <ul id="quote-declined" class="deck-quote-list deck-quote-list--out"></ul>
+            </div>
+          </div>
+          <label class="deck-quote-desc-label" for="quote-description">Quote description</label>
+          <textarea id="quote-description" class="deck-quote-desc" rows="8" readonly></textarea>
+          <button type="button" id="quote-copy" class="deck-quote-copy">Copy description</button>
+        </div>
+      </section>
     </main>
 
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
@@ -305,19 +378,96 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
         transform: translateY(28px);
         transition:
           opacity 0.45s ease,
-          transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+          transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+          filter 0.3s ease;
       }
       .deck-scene.is-active .deck-scene-copy {
         opacity: 1;
         transform: translateY(0);
       }
+      .deck-scene.is-declined .deck-scene-copy {
+        filter: grayscale(1) brightness(0.72);
+      }
+      .deck-scene.is-active.is-declined .deck-scene-copy {
+        opacity: 0.55;
+      }
+      .deck-scene-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.65rem 1rem;
+        margin-bottom: 0.5rem;
+        pointer-events: auto;
+      }
       .deck-scene-kicker {
-        margin: 0 0 0.5rem;
+        margin: 0;
         font-size: 0.7rem;
         font-weight: 600;
         letter-spacing: 0.16em;
         text-transform: uppercase;
         color: rgba(255, 255, 255, 0.45);
+      }
+      .deck-opt {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-left: auto;
+        cursor: pointer;
+        user-select: none;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: rgba(232, 238, 248, 0.78);
+        pointer-events: auto;
+        position: relative;
+        z-index: 2;
+      }
+      .deck-scene.is-declined .deck-opt {
+        color: rgba(94, 234, 212, 0.95);
+      }
+      .deck-opt-input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+        pointer-events: none;
+      }
+      .deck-opt-ui {
+        width: 2.4rem;
+        height: 1.3rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+      .deck-opt-ui::after {
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 0.95rem;
+        height: 0.95rem;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.2s ease;
+      }
+      .deck-opt-input:checked + .deck-opt-ui {
+        background: rgba(94, 234, 212, 0.35);
+        border-color: rgba(94, 234, 212, 0.55);
+      }
+      .deck-opt-input:checked + .deck-opt-ui::after {
+        transform: translateX(1.05rem);
+        background: #5eead4;
+      }
+      .deck-opt-input:focus-visible + .deck-opt-ui {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .deck-opt-note {
+        margin: 0.85rem 0 0;
+        font-size: 0.85rem;
+        color: rgba(251, 191, 36, 0.9);
       }
       .deck-scene-title {
         margin: 0 0 0.75rem;
@@ -333,6 +483,94 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
         font-size: 1.02rem;
         line-height: 1.55;
         color: rgba(233, 238, 246, 0.72);
+      }
+
+      .deck-quote {
+        pointer-events: auto;
+        max-width: 40rem;
+      }
+      .deck-quote-cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem 1.5rem;
+        margin: 1.25rem 0 1rem;
+      }
+      @media (max-width: 560px) {
+        .deck-quote-cols {
+          grid-template-columns: 1fr;
+        }
+      }
+      .deck-quote-h {
+        margin: 0 0 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .deck-quote-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .deck-quote-list li {
+        font-size: 0.92rem;
+        color: rgba(233, 238, 246, 0.88);
+        padding: 0.35rem 0.55rem;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .deck-quote-list--out li {
+        color: rgba(233, 238, 246, 0.45);
+        text-decoration: line-through;
+      }
+      .deck-quote-list .deck-quote-empty {
+        color: rgba(233, 238, 246, 0.4);
+        font-style: italic;
+        text-decoration: none;
+        background: transparent;
+        border-style: dashed;
+      }
+      .deck-quote-desc-label {
+        display: block;
+        margin: 0.5rem 0 0.4rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .deck-quote-desc {
+        width: 100%;
+        resize: vertical;
+        min-height: 9rem;
+        padding: 0.75rem 0.85rem;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(0, 0, 0, 0.35);
+        color: #e8eef8;
+        font: inherit;
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+      .deck-quote-copy {
+        margin-top: 0.75rem;
+        border: 0;
+        border-radius: 10px;
+        padding: 0.65rem 1rem;
+        font: inherit;
+        font-weight: 700;
+        font-size: 0.88rem;
+        cursor: pointer;
+        color: #041016;
+        background: linear-gradient(135deg, #5eead4, #38bdf8);
+      }
+      .deck-quote-copy:hover {
+        filter: brightness(1.06);
       }
 
       #dock-wrap {
@@ -414,6 +652,13 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
       .d-item.active .d-dot {
         display: block;
         background: var(--accent);
+      }
+      .d-item.is-declined {
+        opacity: 0.38;
+        filter: grayscale(1);
+      }
+      .d-item.is-declined .ico {
+        box-shadow: none;
       }
       .d-sep {
         width: 1px;
@@ -520,6 +765,7 @@ const deckPayload = { sections: sections.map((s) => ({ id: s.id })) };
       .ico-knowledge { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
       .ico-monitoring { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; }
       .ico-billing { background: linear-gradient(135deg, #fde68a, #fbbf24); color: #1c1408; }
+      .ico-quote { background: linear-gradient(135deg, #e2e8f0, #94a3b8); color: #0f172a; }
 
       @media (max-width: 639px) {
         #dock {

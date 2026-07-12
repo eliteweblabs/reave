@@ -132,6 +132,12 @@ function validateSection(raw: unknown, path: string): string[] {
   if (raw.summary !== undefined && typeof raw.summary !== 'string') {
     errors.push(`${path}: summary must be a string`);
   }
+  if (raw.optional !== undefined && typeof raw.optional !== 'boolean') {
+    errors.push(`${path}: optional must be a boolean`);
+  }
+  if (raw.quoteLabel !== undefined && typeof raw.quoteLabel !== 'string') {
+    errors.push(`${path}: quoteLabel must be a string`);
+  }
   if (!Array.isArray(raw.features) || raw.features.length === 0) {
     errors.push(`${path}: features must be a non-empty array`);
   } else {

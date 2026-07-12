@@ -46,6 +46,16 @@ export type DeckSection = {
   id: string;
   title: string;
   summary?: string;
+  /**
+   * When true, the prospect can toggle this section off (still on by default).
+   * Hardcode per section in the JSON script.
+   */
+  optional?: boolean;
+  /**
+   * Short line used in the quote package description (defaults to title).
+   * Hardcode when the quote wording should differ from the section title.
+   */
+  quoteLabel?: string;
   features: DeckFeature[];
 };
 
