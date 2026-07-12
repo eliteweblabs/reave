@@ -207,6 +207,125 @@
       ]
     },
     {
+      "id": "pwa",
+      "title": "PWA alerts & notices",
+      "summary": "Installable Progressive Web App — iOS-style push banners, permission alerts, and home-screen badges. Not just a website.",
+      "features": [
+        {
+          "id": "pwa-install",
+          "title": "Install as a PWA",
+          "body": "Add to Home Screen turns the Business OS into a full-screen app on iPhone — no App Store. Same URL, native shell.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=install"
+            },
+            {
+              "type": "stage.caption",
+              "text": "PWA — Add to Home Screen"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#install-sheet"
+            },
+            {
+              "type": "wait",
+              "ms": 400
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#install-row"
+            }
+          ]
+        },
+        {
+          "id": "pwa-banner",
+          "title": "iOS-style push notices",
+          "body": "Inbox, bookings, and monitoring land as lock-screen style banners — the same Web Push stack that powers the admin PWA.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=banner"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Push notice — lock-screen banner"
+            },
+            {
+              "type": "wait",
+              "ms": 350
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#push-banner"
+            }
+          ]
+        },
+        {
+          "id": "pwa-alert",
+          "title": "Permission alerts",
+          "body": "Classic iOS alert chrome for notification permission — clear choices, familiar UX, no browser chrome surprises.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=alert"
+            },
+            {
+              "type": "stage.caption",
+              "text": "iOS-style alert — Allow notifications?"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#ios-alert"
+            },
+            {
+              "type": "wait",
+              "ms": 450
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#alert-allow"
+            }
+          ]
+        },
+        {
+          "id": "pwa-badge",
+          "title": "Home-screen badges",
+          "body": "Unread counts show on the app icon — inbox and alerts stay visible even when the tab is closed.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=badge"
+            },
+            {
+              "type": "stage.caption",
+              "text": "App badge — unread at a glance"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#pwa-icon"
+            },
+            {
+              "type": "wait",
+              "ms": 400
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#app-badge"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "clients",
       "title": "Clients",
       "summary": "CRM-light contact records, portals, and CardDAV sync.",

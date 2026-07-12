@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PWA alerts surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+        background: #0a0c12;
+        color: #fff;
+        overflow: hidden;
+      }
+
+      .phone {
+        position: relative;
+        height: 100%;
+        background:
+          linear-gradient(165deg, #1a2744 0%, #0d1320 42%, #121018 100%);
+        padding: 1.1rem 0.85rem 1.25rem;
+      }
+
+      .status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        opacity: 0.9;
+        margin-bottom: 0.85rem;
+        padding: 0 0.15rem;
+      }
+
+      .wallpaper {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 50% at 50% 20%, rgba(120, 160, 255, 0.25), transparent 55%),
+          radial-gradient(ellipse 70% 45% at 70% 80%, rgba(255, 120, 180, 0.12), transparent 50%),
+          linear-gradient(180deg, #1e3a5f 0%, #0a1020 100%);
+        z-index: 0;
+      }
+
+      .layer {
+        position: relative;
+        z-index: 1;
+        height: calc(100% - 1.5rem);
+      }
+
+      /* —— Lock-screen style push banner —— */
+      .banner {
+        background: rgba(255, 255, 255, 0.72);
+        -webkit-backdrop-filter: blur(28px) saturate(1.4);
+        backdrop-filter: blur(28px) saturate(1.4);
+        color: #111;
+        border-radius: 18px;
+        padding: 0.7rem 0.8rem;
+        box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+        display: grid;
+        grid-template-columns: 36px 1fr auto;
+        gap: 0.65rem;
+        align-items: start;
+        transform: translateY(-120%);
+        opacity: 0;
+        transition: transform 0.55s cubic-bezier(0.2, 0.9, 0.2, 1), opacity 0.4s ease;
+      }
+      .banner.is-in {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .banner.deck-highlight {
+        box-shadow: 0 0 0 3px #5eead4, 0 12px 36px rgba(0, 0, 0, 0.35);
+      }
+      .banner-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: linear-gradient(145deg, #0ea5e9, #6366f1);
+        display: grid;
+        place-items: center;
+        font-size: 0.85rem;
+        color: #fff;
+        font-weight: 700;
+      }
+      .banner-copy { min-width: 0; }
+      .banner-app {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: rgba(0, 0, 0, 0.45);
+        margin-bottom: 0.15rem;
+      }
+      .banner-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        line-height: 1.2;
+        margin-bottom: 0.12rem;
+      }
+      .banner-body {
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: rgba(0, 0, 0, 0.62);
+      }
+      .banner-time {
+        font-size: 0.68rem;
+        color: rgba(0, 0, 0, 0.4);
+        padding-top: 0.1rem;
+      }
+
+      /* —— Home screen icons + badge —— */
+      .homescreen {
+        display: none;
+        margin-top: 2.5rem;
+        justify-content: center;
+        gap: 1.4rem;
+      }
+      .homescreen.is-on { display: flex; }
+      .app-icon {
+        width: 58px;
+        height: 58px;
+        border-radius: 14px;
+        background: linear-gradient(145deg, #38bdf8, #6366f1);
+        position: relative;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 1.2rem;
+      }
+      .app-icon.deck-highlight {
+        box-shadow: 0 0 0 3px #5eead4, 0 8px 24px rgba(0, 0, 0, 0.4);
+      }
+      .badge {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 999px;
+        background: #ff3b30;
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+        transform: scale(0);
+        transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.2, 1);
+      }
+      .badge.is-in { transform: scale(1); }
+      .badge.deck-highlight { outline: 2px solid #fff; }
+      .app-label {
+        text-align: center;
+        font-size: 0.65rem;
+        margin-top: 0.4rem;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+      .icon-wrap { display: flex; flex-direction: column; align-items: center; }
+
+      /* —— In-app iOS alert —— */
+      .dim {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 5;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+      }
+      .dim.is-on { display: flex; }
+      .alert {
+        width: 100%;
+        max-width: 270px;
+        background: rgba(242, 242, 247, 0.94);
+        -webkit-backdrop-filter: blur(40px) saturate(1.6);
+        backdrop-filter: blur(40px) saturate(1.6);
+        border-radius: 14px;
+        overflow: hidden;
+        color: #000;
+        text-align: center;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+        transform: scale(0.92);
+        opacity: 0;
+        transition: transform 0.28s ease, opacity 0.28s ease;
+      }
+      .dim.is-on .alert {
+        transform: scale(1);
+        opacity: 1;
+      }
+      .alert.deck-highlight {
+        box-shadow: 0 0 0 3px #007aff, 0 16px 48px rgba(0, 0, 0, 0.45);
+      }
+      .alert-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        padding: 1.05rem 1rem 0.35rem;
+        letter-spacing: -0.02em;
+      }
+      .alert-msg {
+        font-size: 0.82rem;
+        line-height: 1.4;
+        color: rgba(0, 0, 0, 0.7);
+        padding: 0 1rem 1rem;
+      }
+      .alert-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border-top: 0.5px solid rgba(60, 60, 67, 0.29);
+      }
+      .alert-btn {
+        font: inherit;
+        font-size: 1.02rem;
+        padding: 0.72rem 0.5rem;
+        border: 0;
+        background: transparent;
+        color: #007aff;
+        cursor: default;
+      }
+      .alert-btn + .alert-btn {
+        border-left: 0.5px solid rgba(60, 60, 67, 0.29);
+        font-weight: 600;
+      }
+      .alert-btn.deck-highlight {
+        background: rgba(0, 122, 255, 0.08);
+      }
+
+      /* —— Add to Home Screen sheet —— */
+      .sheet {
+        display: none;
+        position: absolute;
+        left: 0.5rem;
+        right: 0.5rem;
+        bottom: 0.5rem;
+        z-index: 6;
+        background: rgba(28, 28, 30, 0.94);
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+        border-radius: 14px;
+        padding: 0.85rem;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        transform: translateY(110%);
+        transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+      }
+      .sheet.is-on {
+        display: block;
+        transform: translateY(0);
+      }
+      .sheet.deck-highlight {
+        box-shadow: 0 0 0 2px #5eead4, 0 12px 40px rgba(0, 0, 0, 0.5);
+      }
+      .sheet-title {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.55);
+        text-align: center;
+        margin-bottom: 0.65rem;
+      }
+      .sheet-row {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        padding: 0.65rem 0.55rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+      .sheet-row.deck-highlight {
+        outline: 2px solid #5eead4;
+      }
+      .sheet-glyph {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        background: #007aff;
+        display: grid;
+        place-items: center;
+        font-size: 0.95rem;
+      }
+      .pwa-pill {
+        margin-top: 0.65rem;
+        text-align: center;
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+      }
+      .pwa-pill strong {
+        color: #5eead4;
+        font-weight: 700;
+      }
+
+      /* Scene visibility */
+      .scene-banner #homescreen { display: none; }
+      .scene-badge .banner { display: none; }
+      .scene-alert .banner,
+      .scene-alert .homescreen { opacity: 0.35; }
+      .scene-install .banner { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="phone" id="phone" data-deck-surface="pwa">
+      <div class="wallpaper" aria-hidden="true"></div>
+      <div class="layer">
+        <div class="status">
+          <span>9:41</span>
+          <span>●●● LTE</span>
+        </div>
+
+        <div class="banner" id="push-banner">
+          <div class="banner-icon" id="banner-icon">R</div>
+          <div class="banner-copy">
+            <div class="banner-app">Business OS</div>
+            <div class="banner-title" id="banner-title">New email</div>
+            <div class="banner-body" id="banner-body">
+              Jordan replied on Northside Studio — “Looks good to ship.”
+            </div>
+          </div>
+          <div class="banner-time">now</div>
+        </div>
+
+        <div class="homescreen" id="homescreen">
+          <div class="icon-wrap">
+            <div class="app-icon" id="pwa-icon">R
+              <span class="badge" id="app-badge">3</span>
+            </div>
+            <div class="app-label">Business OS</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dim" id="alert-dim">
+        <div class="alert" id="ios-alert" role="alertdialog" aria-labelledby="alert-title" aria-describedby="alert-msg">
+          <div class="alert-title" id="alert-title">Allow Notifications?</div>
+          <div class="alert-msg" id="alert-msg">
+            Business OS would like to send you alerts for inbox, bookings, and site monitoring.
+          </div>
+          <div class="alert-actions">
+            <button type="button" class="alert-btn" id="alert-deny">Don't Allow</button>
+            <button type="button" class="alert-btn" id="alert-allow">Allow</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet" id="install-sheet">
+        <div class="sheet-title">Add to Home Screen</div>
+        <div class="sheet-row" id="install-row">
+          <span class="sheet-glyph">＋</span>
+          <span>Install as a PWA — full-screen app, badges &amp; push</span>
+        </div>
+        <p class="pwa-pill">Not just a site — a <strong>PWA</strong></p>
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const scene = params.get('scene') || 'banner';
+      const phone = document.getElementById('phone');
+      phone.classList.add('scene-' + scene);
+
+      const banner = document.getElementById('push-banner');
+      const homescreen = document.getElementById('homescreen');
+      const badge = document.getElementById('app-badge');
+      const dim = document.getElementById('alert-dim');
+      const sheet = document.getElementById('install-sheet');
+
+      function showBanner() {
+        homescreen.classList.remove('is-on');
+        requestAnimationFrame(() => banner.classList.add('is-in'));
+      }
+      function showBadge() {
+        banner.classList.remove('is-in');
+        homescreen.classList.add('is-on');
+        requestAnimationFrame(() => badge.classList.add('is-in'));
+      }
+      function showAlert() {
+        banner.classList.add('is-in');
+        dim.classList.add('is-on');
+      }
+      function showInstall() {
+        homescreen.classList.add('is-on');
+        badge.classList.add('is-in');
+        sheet.classList.add('is-on');
+      }
+
+      const run = {
+        banner: showBanner,
+        badge: showBadge,
+        alert: showAlert,
+        install: showInstall,
+      };
+      (run[scene] || showBanner)();
+    </script>
+  </body>
+</html>
