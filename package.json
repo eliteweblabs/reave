@@ -11,6 +11,7 @@
     "sync:resend-dns": "node --experimental-strip-types scripts/sync-resend-dns.ts",
     "build": "astro build",
     "check": "astro check",
+    "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
     "astro": "astro"

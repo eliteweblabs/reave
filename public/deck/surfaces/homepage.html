@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Homepage surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #050505;
+        color: #fff;
+        overflow: hidden;
+      }
+      .hero {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        position: relative;
+        background:
+          radial-gradient(circle at 40% 40%, rgba(0, 243, 255, 0.18), transparent 42%),
+          radial-gradient(circle at 65% 55%, rgba(188, 19, 254, 0.22), transparent 38%),
+          #050505;
+      }
+      .mark {
+        width: min(52vw, 160px);
+        height: min(52vw, 160px);
+        border: 3px solid rgba(255, 255, 255, 0.85);
+        border-radius: 28%;
+        display: grid;
+        place-items: center;
+        font-size: clamp(2rem, 10vw, 3.2rem);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        box-shadow: 0 0 40px rgba(0, 243, 255, 0.35);
+        transition: transform 0.4s ease, box-shadow 0.4s ease;
+      }
+      .mark.deck-highlight {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 3px #00f3ff, 0 0 48px rgba(0, 243, 255, 0.55);
+      }
+      .dock {
+        position: absolute;
+        left: 50%;
+        bottom: 12%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.5rem;
+      }
+      .chip {
+        padding: 0.55rem 0.9rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(10, 10, 12, 0.65);
+        backdrop-filter: blur(12px);
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        border-radius: 999px;
+      }
+      .chip.deck-highlight {
+        border-color: #00f3ff;
+        box-shadow: 0 0 0 2px rgba(0, 243, 255, 0.4);
+      }
+      .voice {
+        position: absolute;
+        left: 50%;
+        bottom: 4%;
+        transform: translateX(-50%);
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.08);
+        display: grid;
+        place-items: center;
+        font-size: 1.25rem;
+      }
+      .voice.deck-highlight {
+        border-color: #bc13fe;
+        box-shadow: 0 0 0 3px rgba(188, 19, 254, 0.45);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hero" data-deck-surface="homepage">
+      <div class="mark" id="brand-mark">R</div>
+      <div class="dock" id="hero-controls">
+        <span class="chip">Focus</span>
+        <span class="chip">Warp</span>
+      </div>
+      <div class="voice" id="voice-affordance" aria-hidden="true">🎙</div>
+    </div>
+  </body>
+</html>

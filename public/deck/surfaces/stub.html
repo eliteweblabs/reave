@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin stub surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #0a0d14;
+        color: #e9eef6;
+        padding: 0.85rem;
+      }
+      .bar {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.65rem;
+        border-bottom: 1px solid #232c3a;
+      }
+      .tab {
+        font-size: 0.68rem;
+        padding: 0.35rem 0.55rem;
+        border-radius: 8px;
+        color: #8b97a8;
+        background: transparent;
+      }
+      .tab.active, .tab.deck-nav-pulse, .tab.deck-highlight {
+        background: #1b2230;
+        color: #fff;
+        outline: 2px solid #58a6ff;
+      }
+      .panel {
+        background: #11151d;
+        border: 1px solid #232c3a;
+        border-radius: 12px;
+        padding: 0.9rem;
+        min-height: 70%;
+      }
+      .panel.deck-highlight { border-color: #58a6ff; box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.35); }
+      h1 { font-size: 0.95rem; margin-bottom: 0.35rem; }
+      p { font-size: 0.78rem; color: #8b97a8; line-height: 1.45; }
+      .row {
+        margin-top: 0.75rem;
+        padding: 0.65rem;
+        border-radius: 8px;
+        background: #161b26;
+        border: 1px solid #283142;
+        font-size: 0.78rem;
+      }
+      .row.deck-highlight { border-color: #58a6ff; }
+    </style>
+  </head>
+  <body>
+    <div class="bar" id="admin-tabs">
+      <span class="tab" data-deck-nav="clients" id="nav-clients">Clients</span>
+      <span class="tab" data-deck-nav="email" id="nav-email">Inbox</span>
+      <span class="tab" data-deck-nav="work" id="nav-work">Work</span>
+      <span class="tab" data-deck-nav="documents" id="nav-documents">Documents</span>
+      <span class="tab" data-deck-nav="knowledge" id="nav-knowledge">Knowledge</span>
+      <span class="tab" data-deck-nav="monitoring" id="nav-monitoring">Monitoring</span>
+      <span class="tab" data-deck-nav="finance" id="nav-finance">Billing</span>
+    </div>
+    <div class="panel" id="stub-panel">
+      <h1 id="stub-title">Module</h1>
+      <p id="stub-body">Placeholder showcase — polish coming next.</p>
+      <div class="row" id="stub-row-1">Item one</div>
+      <div class="row" id="stub-row-2">Item two</div>
+    </div>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const tab = params.get('tab') || 'clients';
+      const title = params.get('title') || 'Module';
+      const body = params.get('body') || 'Placeholder showcase — polish coming next.';
+      document.getElementById('stub-title').textContent = title;
+      document.getElementById('stub-body').textContent = body;
+      document.querySelectorAll('[data-deck-nav]').forEach((el) => {
+        el.classList.toggle('active', el.getAttribute('data-deck-nav') === tab);
+      });
+    </script>
+  </body>
+</html>

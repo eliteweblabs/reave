@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Schedule surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #0a0a0a;
+        color: #fff;
+        padding: 1.1rem;
+      }
+      h1 { font-size: 1.1rem; margin-bottom: 0.25rem; }
+      .sub { color: #9ca3af; font-size: 0.78rem; margin-bottom: 1rem; }
+      .month {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.35rem;
+        margin-bottom: 1rem;
+      }
+      .dow { text-align: center; font-size: 0.65rem; color: #6b7280; }
+      .day {
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        background: #141414;
+        border: 1px solid #222;
+      }
+      .day.muted { opacity: 0.35; }
+      .day.selected { background: #fff; color: #000; font-weight: 700; }
+      .day.deck-highlight { box-shadow: 0 0 0 2px #34d399; }
+      .slots { display: flex; flex-direction: column; gap: 0.4rem; }
+      .slot {
+        padding: 0.65rem 0.8rem;
+        border-radius: 10px;
+        border: 1px solid #2a2a2a;
+        background: #121212;
+        font-size: 0.8rem;
+      }
+      .slot.deck-highlight { border-color: #34d399; box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.4); }
+      .confirm {
+        margin-top: 0.85rem;
+        width: 100%;
+        padding: 0.75rem;
+        border: 0;
+        border-radius: 10px;
+        background: #34d399;
+        color: #052e1c;
+        font-weight: 700;
+      }
+      .confirm.deck-highlight { box-shadow: 0 0 0 3px #fff; }
+    </style>
+  </head>
+  <body>
+    <h1 id="sched-title">Book a time</h1>
+    <p class="sub">Live availability from Cal.com</p>
+    <div class="month" id="sched-month">
+      <span>July 2026</span>
+      <span>›</span>
+    </div>
+    <div class="grid" id="sched-calendar">
+      <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+      <div class="day muted">28</div><div class="day muted">29</div><div class="day muted">30</div>
+      <div class="day">1</div><div class="day">2</div><div class="day">3</div><div class="day">4</div>
+      <div class="day">5</div><div class="day">6</div><div class="day">7</div><div class="day">8</div>
+      <div class="day">9</div><div class="day">10</div><div class="day selected" id="day-12">12</div><div class="day">13</div>
+      <div class="day">14</div><div class="day">15</div><div class="day">16</div><div class="day">17</div>
+      <div class="day">18</div><div class="day">19</div><div class="day">20</div><div class="day">21</div>
+    </div>
+    <div class="slots" id="sched-slots">
+      <div class="slot" id="slot-1">10:00 AM — Intro call</div>
+      <div class="slot" id="slot-2">1:30 PM — Intro call</div>
+      <div class="slot" id="slot-3">4:00 PM — Intro call</div>
+    </div>
+    <button class="confirm" id="sched-confirm" type="button">Confirm booking</button>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+---
+/**
+ * Sticky showcase frame for the scroll deck.
+ * Surface mode (phone | desktop) is toggled by the player via data-surface.
+ */
+---
+
+<aside class="deck-stage deck-stage--phone" data-deck-stage data-surface="phone" aria-label="Product showcase">
+  <div class="deck-stage-chrome">
+    <div class="deck-stage-notch" aria-hidden="true"></div>
+    <div class="deck-stage-viewport" data-deck-viewport>
+      <iframe
+        class="deck-stage-frame"
+        data-deck-frame
+        title="Deck showcase"
+        sandbox="allow-scripts allow-same-origin"
+      ></iframe>
+    </div>
+  </div>
+  <p class="deck-stage-caption" data-deck-caption hidden></p>
+</aside>
+
+<style>
+  .deck-stage {
+    --stage-w: min(100%, 320px);
+    --stage-h: min(68vh, 640px);
+    --stage-radius: 28px;
+    width: var(--stage-w);
+    margin: 0 auto;
+  }
+
+  .deck-stage--desktop {
+    --stage-w: min(100%, 560px);
+    --stage-h: min(58vh, 420px);
+    --stage-radius: 14px;
+  }
+
+  .deck-stage--desktop .deck-stage-notch {
+    display: none;
+  }
+
+  .deck-stage-chrome {
+    position: relative;
+    background: #11151d;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--stage-radius);
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+    height: var(--stage-h);
+    transition: height 0.35s ease, border-radius 0.35s ease;
+  }
+
+  .deck-stage-notch {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 72px;
+    height: 8px;
+    border-radius: 999px;
+    background: #000;
+    z-index: 2;
+    opacity: 0.55;
+  }
+
+  .deck-stage-viewport {
+    position: absolute;
+    inset: 0;
+    background: #050505;
+  }
+
+  .deck-stage-frame,
+  .deck-stage-viewport :global(.deck-stage-html) {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: #050505;
+  }
+
+  .deck-stage-viewport :global(.deck-stage-html) {
+    overflow: auto;
+  }
+
+  .deck-stage-caption {
+    margin: 0.75rem 0 0;
+    text-align: center;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.55);
+    min-height: 1.2em;
+  }
+
+  @media (min-width: 960px) {
+    .deck-stage {
+      --stage-w: 340px;
+      --stage-h: min(72vh, 680px);
+      margin: 0;
+    }
+    .deck-stage--desktop {
+      --stage-w: min(100%, 520px);
+      --stage-h: min(62vh, 460px);
+    }
+  }
+</style>

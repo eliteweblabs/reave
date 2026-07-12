@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Contact surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #0a0a0a;
+        color: #fff;
+        padding: 1.25rem;
+      }
+      h1 { font-size: 1.15rem; margin-bottom: 0.35rem; }
+      .sub { color: #9ca3af; font-size: 0.8rem; margin-bottom: 1.25rem; }
+      .bubble {
+        max-width: 88%;
+        padding: 0.75rem 0.9rem;
+        border-radius: 14px;
+        margin-bottom: 0.65rem;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+      .bot { background: #1a1a1a; border: 1px solid #2a2a2a; }
+      .user { background: #2563eb; margin-left: auto; }
+      .bubble.deck-highlight { box-shadow: 0 0 0 2px #00f3ff; }
+      .field {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+      }
+      input {
+        flex: 1;
+        background: #141414;
+        border: 1px solid #2a2a2a;
+        color: #fff;
+        border-radius: 10px;
+        padding: 0.7rem 0.85rem;
+        font-size: 0.85rem;
+      }
+      input.deck-highlight { border-color: #00f3ff; box-shadow: 0 0 0 2px rgba(0, 243, 255, 0.35); }
+      button {
+        border: 0;
+        background: #fff;
+        color: #000;
+        border-radius: 10px;
+        padding: 0 0.9rem;
+        font-weight: 600;
+      }
+      button.deck-highlight { box-shadow: 0 0 0 3px #00f3ff; }
+    </style>
+  </head>
+  <body>
+    <h1 id="contact-title">Get in touch</h1>
+    <p class="sub">Conversational intake — mobile first</p>
+    <div class="bubble bot" id="q1">What should we call you?</div>
+    <div class="bubble user" id="a1">Alex</div>
+    <div class="bubble bot" id="q2">Great — what’s the best email?</div>
+    <div class="field" id="contact-input-row">
+      <input id="contact-input" placeholder="you@studio.com" />
+      <button id="contact-send" type="button">Send</button>
+    </div>
+  </body>
+</html>

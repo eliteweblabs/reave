@@ -1,0 +1,312 @@
+---
+/**
+ * Public scroll sales deck — driven by src/deck/scripts/everything.json
+ */
+import Layout from '../layouts/Layout.astro';
+import DeckStage from '../components/deck/DeckStage.astro';
+import DeckBeat from '../components/deck/DeckBeat.astro';
+import { assertDeckScript } from '../deck/validate';
+import { getCompanyConfig } from '../lib/companyConfig';
+import everythingRaw from '../deck/scripts/everything.json';
+
+export const prerender = false;
+
+const script = assertDeckScript(everythingRaw);
+const company = await getCompanyConfig(Astro.request);
+---
+
+<Layout
+  title={script.title}
+  description="Scroll through the Business OS — homepage, portals, scheduling, voice, and every module."
+>
+  <div class="deck" data-deck-root>
+    <header class="deck-hero">
+      <p class="deck-hero-brand">{company.name}</p>
+      <h1 class="deck-hero-title">See the Business OS in motion</h1>
+      <p class="deck-hero-sub">
+        Scroll the full catalog — section by section, feature by feature.
+      </p>
+      <a class="deck-hero-cta" href={`#beat-${script.sections[0]?.features[0]?.id ?? ''}`}>
+        Start scrolling
+      </a>
+    </header>
+
+    <div class="deck-layout">
+      <div class="deck-stage-col">
+        <div class="deck-stage-sticky">
+          <DeckStage />
+        </div>
+      </div>
+
+      <div class="deck-copy-col">
+        {
+          script.sections.map((section, sectionIndex) => (
+            <section
+              class="deck-section"
+              data-deck-section={section.id}
+              aria-labelledby={`section-${section.id}`}
+            >
+              <div class="deck-section-head">
+                <h2 class="deck-section-title" id={`section-${section.id}`}>
+                  {section.title}
+                </h2>
+                {section.summary && <p class="deck-section-summary">{section.summary}</p>}
+              </div>
+              {section.features.map((feature, featureIndex) => (
+                <DeckBeat
+                  section={section}
+                  feature={feature}
+                  sectionIndex={sectionIndex}
+                  featureIndex={featureIndex}
+                />
+              ))}
+            </section>
+          ))
+        }
+      </div>
+    </div>
+
+    <nav class="deck-toc" aria-label="Deck sections">
+      {
+        script.sections.map((section) => (
+          <a href={`#beat-${section.features[0]?.id ?? ''}`} data-toc-section={section.id}>
+            {section.title}
+          </a>
+        ))
+      }
+    </nav>
+  </div>
+</Layout>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap');
+
+  :global(html),
+  :global(body) {
+    min-height: 100%;
+    background: #07090e;
+  }
+
+  .deck {
+    --deck-ink: #f4f7fb;
+    --deck-muted: rgba(233, 238, 246, 0.62);
+    --deck-line: rgba(255, 255, 255, 0.08);
+    --deck-accent: #5eead4;
+    color: var(--deck-ink);
+    padding-bottom: 4rem;
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .deck-hero {
+    min-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 6rem 1.25rem 3.5rem;
+    max-width: 40rem;
+    background:
+      radial-gradient(ellipse 80% 55% at 20% 20%, rgba(94, 234, 212, 0.12), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(99, 102, 241, 0.14), transparent 50%),
+      #07090e;
+  }
+
+  .deck-hero-brand {
+    margin: 0 0 1rem;
+    font-family: 'Syne', ui-sans-serif, system-ui, sans-serif;
+    font-size: clamp(2.4rem, 8vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.05em;
+    line-height: 0.95;
+  }
+
+  .deck-hero-title {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.15rem, 2.8vw, 1.45rem);
+    font-weight: 500;
+    color: var(--deck-muted);
+    letter-spacing: -0.01em;
+  }
+
+  .deck-hero-sub {
+    margin: 0 0 1.75rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: rgba(233, 238, 246, 0.5);
+    max-width: 28rem;
+  }
+
+  .deck-hero-cta {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.7rem 1.1rem;
+    border-radius: 999px;
+    background: var(--deck-ink);
+    color: #07090e;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .deck-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0 1.25rem;
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  .deck-stage-col {
+    order: -1;
+  }
+
+  .deck-stage-sticky {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 5;
+    padding: 0.5rem 0 1rem;
+    background: linear-gradient(to bottom, #07090e 70%, transparent);
+  }
+
+  .deck-section {
+    border-top: 1px solid var(--deck-line);
+    padding-top: 1rem;
+  }
+
+  .deck-section.is-active .deck-section-title {
+    color: var(--deck-accent);
+  }
+
+  .deck-section-head {
+    padding: 1.5rem 0 0.25rem;
+  }
+
+  .deck-section-title {
+    margin: 0 0 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.3s ease;
+  }
+
+  .deck-section-summary {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--deck-muted);
+    max-width: 34rem;
+    line-height: 1.45;
+  }
+
+  .deck-toc {
+    position: fixed;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-width: 9rem;
+    z-index: 20;
+  }
+
+  .deck-toc a {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.35);
+    text-decoration: none;
+    text-align: right;
+    line-height: 1.25;
+  }
+
+  .deck-toc a.is-active {
+    color: var(--deck-accent);
+  }
+
+  @media (min-width: 960px) {
+    .deck-hero {
+      padding: 7rem 2rem 4rem;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .deck-layout {
+      grid-template-columns: minmax(300px, 42%) 1fr;
+      gap: 2.5rem;
+      padding: 0 2rem 2rem;
+      align-items: start;
+    }
+
+    .deck-stage-col {
+      order: 0;
+    }
+
+    .deck-stage-sticky {
+      top: 5.5rem;
+      padding-top: 1rem;
+      background: transparent;
+    }
+
+    .deck-toc {
+      display: flex;
+    }
+  }
+</style>
+
+<script>
+  import { attachDeckPlayer } from '../deck/player';
+  import { assertDeckScript } from '../deck/validate';
+  import everythingRaw from '../deck/scripts/everything.json';
+
+  const script = assertDeckScript(everythingRaw);
+
+  function boot(): () => void {
+    const root = document.querySelector<HTMLElement>('[data-deck-root]');
+    const stage = document.querySelector<HTMLElement>('[data-deck-stage]');
+    const viewport = document.querySelector<HTMLElement>('[data-deck-viewport]');
+    const frame = document.querySelector<HTMLIFrameElement>('[data-deck-frame]');
+    const caption = document.querySelector<HTMLElement>('[data-deck-caption]');
+    if (!root || !stage || !viewport || !caption) return () => {};
+
+    return attachDeckPlayer({
+      script,
+      root,
+      stage,
+      viewport,
+      frame,
+      caption,
+      onBeatChange(_feature, sectionId) {
+        root.querySelectorAll('[data-toc-section]').forEach((a) => {
+          a.classList.toggle(
+            'is-active',
+            a.getAttribute('data-toc-section') === sectionId,
+          );
+        });
+      },
+    });
+  }
+
+  let cleanup: (() => void) | undefined;
+
+  function start() {
+    cleanup?.();
+    cleanup = boot();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+
+  window.addEventListener(
+    'pagehide',
+    () => {
+      cleanup?.();
+      cleanup = undefined;
+    },
+    { once: true },
+  );
+</script>

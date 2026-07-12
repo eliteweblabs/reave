@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client portal surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #0b0f16;
+        color: #e8eef8;
+      }
+      .portal { min-height: 100%; padding: 1rem 1rem 2rem; }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+      }
+      .logo {
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: linear-gradient(145deg, #38bdf8, #6366f1);
+      }
+      .logo.deck-highlight { box-shadow: 0 0 0 3px #38bdf8; }
+      .name { font-weight: 700; font-size: 1.05rem; }
+      .tag { color: #8b97a8; font-size: 0.8rem; }
+      .tabs {
+        display: flex;
+        gap: 0.35rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        padding-bottom: 0.5rem;
+      }
+      .tab {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.75rem;
+        color: #8b97a8;
+        border-radius: 8px;
+      }
+      .tab.active { background: rgba(255, 255, 255, 0.06); color: #fff; }
+      .tab.deck-highlight, .tab.deck-nav-pulse {
+        outline: 2px solid #38bdf8;
+        color: #fff;
+      }
+      .card {
+        background: #121722;
+        border: 1px solid #283142;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+      }
+      .card.deck-highlight { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35); }
+      .card h2 { font-size: 0.95rem; margin-bottom: 0.35rem; }
+      .card p { font-size: 0.8rem; color: #9aa8bc; line-height: 1.45; }
+      .cta {
+        display: inline-block;
+        margin-top: 0.75rem;
+        padding: 0.55rem 0.9rem;
+        background: #fff;
+        color: #0b0f16;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .cta.deck-highlight { box-shadow: 0 0 0 3px #38bdf8; }
+    </style>
+  </head>
+  <body>
+    <div class="portal">
+      <div class="brand">
+        <div class="logo" id="portal-logo"></div>
+        <div>
+          <div class="name" id="portal-name">Northside Studio</div>
+          <div class="tag">Client portal</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab active" data-deck-nav="overview" id="tab-overview">Overview</span>
+        <span class="tab" data-deck-nav="work" id="tab-work">Work</span>
+        <span class="tab" data-deck-nav="billing" id="tab-billing">Billing</span>
+      </div>
+      <div class="card" id="portal-overview">
+        <h2>Project status</h2>
+        <p>Your site is live. Share feedback anytime — replies land in the team inbox.</p>
+        <a class="cta" id="portal-cta" href="#">Message the team</a>
+      </div>
+      <div class="card" id="portal-work-preview">
+        <h2>Open work</h2>
+        <p>Homepage refresh · In review</p>
+      </div>
+    </div>
+  </body>
+</html>

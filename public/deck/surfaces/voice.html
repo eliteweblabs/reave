@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice / call routing surface</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { height: 100%; }
+      body {
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        background: #050508;
+        color: #fff;
+        padding: 1rem;
+      }
+      h1 { font-size: 1.05rem; margin-bottom: 0.25rem; }
+      .sub { color: #9ca3af; font-size: 0.75rem; margin-bottom: 1rem; }
+      .flow {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        margin-bottom: 1.25rem;
+      }
+      .node {
+        padding: 0.7rem 0.85rem;
+        border-radius: 12px;
+        border: 1px solid #2a2a36;
+        background: #12121a;
+        font-size: 0.8rem;
+      }
+      .node small { display: block; color: #8b97a8; margin-top: 0.2rem; font-size: 0.7rem; }
+      .node.deck-highlight { border-color: #bc13fe; box-shadow: 0 0 0 2px rgba(188, 19, 254, 0.4); }
+      .arrow { text-align: center; color: #4b5563; font-size: 0.75rem; }
+      .mic-wrap {
+        display: grid;
+        place-items: center;
+        padding: 1.25rem 0 0.5rem;
+      }
+      .mic {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: radial-gradient(circle at 40% 35%, rgba(188, 19, 254, 0.45), rgba(10, 10, 16, 0.9));
+        display: grid;
+        place-items: center;
+        font-size: 1.5rem;
+      }
+      .mic.deck-highlight { box-shadow: 0 0 0 3px #bc13fe, 0 0 36px rgba(188, 19, 254, 0.45); }
+      .transcript {
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 12px;
+        background: #101018;
+        border: 1px solid #262636;
+        font-size: 0.78rem;
+        color: #c8d0e0;
+        line-height: 1.45;
+        min-height: 4.5rem;
+      }
+      .transcript.deck-highlight { border-color: #00f3ff; }
+    </style>
+  </head>
+  <body>
+    <h1 id="voice-title">Voice & call routing</h1>
+    <p class="sub">Showcase — live mic runs on production only</p>
+    <div class="flow" id="voice-flow">
+      <div class="node" id="route-inbound">Inbound call / tap-to-talk<small>Vapi web widget · Telnyx number</small></div>
+      <div class="arrow">↓</div>
+      <div class="node" id="route-agent">AI agent answers<small>Greets · qualifies · routes</small></div>
+      <div class="arrow">↓</div>
+      <div class="node" id="route-handoff">Handoff or book<small>SMS · email · calendar</small></div>
+    </div>
+    <div class="mic-wrap">
+      <div class="mic" id="voice-mic" aria-hidden="true">🎙</div>
+    </div>
+    <div class="transcript" id="voice-transcript">
+      Agent: Thanks for calling — are you looking to book, or talk to someone on the team?
+    </div>
+  </body>
+</html>

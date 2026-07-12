@@ -1,0 +1,434 @@
+{
+  "id": "everything",
+  "title": "Business OS — everything",
+  "sections": [
+    {
+      "id": "homepage",
+      "title": "Dynamic mobile-forward homepage",
+      "summary": "Custom-designed, mobile-first public surfaces that feel like the brand — not a template.",
+      "features": [
+        {
+          "id": "homepage-hero",
+          "title": "Brand-first homepage",
+          "body": "A dynamic, mobile-forward homepage built around the brand mark — interactive presence, not a brochure layout.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/homepage.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Homepage — brand mark as the hero"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#brand-mark"
+            }
+          ]
+        },
+        {
+          "id": "homepage-portal",
+          "title": "Client pages that work",
+          "body": "Every client gets a shareable portal — overview, work, and billing when enabled. iOS-first, on-brand, no login friction.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/portal.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Client portal — /c/:uid"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#portal-overview"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "overview"
+            }
+          ]
+        },
+        {
+          "id": "homepage-contact",
+          "title": "Contact & intake",
+          "body": "Conversational contact flows capture the right details on mobile — then route into the team inbox and CRM.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/contact.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Conversational contact form"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#contact-input"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scheduling",
+      "title": "Scheduling",
+      "summary": "Live availability and bookings wired to Cal.com — public book links and admin schedule views.",
+      "features": [
+        {
+          "id": "scheduling-calendar",
+          "title": "Pick a day",
+          "body": "Prospects see real availability. The calendar is the product — not a “request a time” dead end.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/schedule.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Scheduling — live calendar"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#day-12"
+            }
+          ]
+        },
+        {
+          "id": "scheduling-slots",
+          "title": "Confirm a slot",
+          "body": "Time slots and confirmation flow straight into the booking API — reminders and admin visibility follow.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/schedule.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Choose a slot · confirm"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#slot-2"
+            },
+            {
+              "type": "wait",
+              "ms": 400
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#sched-confirm"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "voice",
+      "title": "Voice & call routing",
+      "summary": "Vapi on the homepage plus Telnyx call routing — answer, qualify, hand off, or book.",
+      "features": [
+        {
+          "id": "voice-routing",
+          "title": "Call path",
+          "body": "Inbound voice hits an AI agent that greets, qualifies, and routes — to a human, SMS, email, or the calendar.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/voice.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Call routing — inbound → agent → handoff"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#route-inbound"
+            },
+            {
+              "type": "wait",
+              "ms": 500
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#route-agent"
+            },
+            {
+              "type": "wait",
+              "ms": 500
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#route-handoff"
+            }
+          ]
+        },
+        {
+          "id": "voice-widget",
+          "title": "Tap-to-talk showcase",
+          "body": "The homepage voice widget is the same stack — tap, talk, transcript. Live mic on production; this deck shows the flow.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/voice.html"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Vapi widget · transcript (demo-safe)"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#voice-mic"
+            },
+            {
+              "type": "wait",
+              "ms": 450
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#voice-transcript"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clients",
+      "title": "Clients",
+      "summary": "CRM-light contact records, portals, and CardDAV sync.",
+      "features": [
+        {
+          "id": "clients-list",
+          "title": "Client roster",
+          "body": "Every contact lives in one place — portal links, notes, and project context for the team.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=clients&title=Clients&body=Roster%2C%20portal%20links%2C%20and%20contact%20detail."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Clients — coming into focus next"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "clients"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inbox",
+      "title": "Inbox",
+      "summary": "Unified email with rules, triage, and project threading.",
+      "features": [
+        {
+          "id": "inbox-triage",
+          "title": "Inbox & rules",
+          "body": "Inbound email lands here — AI triage and rules keep threads tied to the right client and work.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=email&title=Inbox&body=Unified%20inbox%20with%20rules%20and%20AI%20triage."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Inbox — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "email"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-row-1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "title": "Work",
+      "summary": "Jobs, checklists, comments — shared with the client portal when useful.",
+      "features": [
+        {
+          "id": "work-jobs",
+          "title": "Jobs & checklists",
+          "body": "Track delivery as work jobs — status, checklists, and client-visible progress.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=work&title=Work&body=Jobs%2C%20checklists%2C%20and%20client-visible%20progress."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Work — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "work"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "documents",
+      "title": "Documents",
+      "summary": "Templates and signing flows for proposals, contracts, and handoffs.",
+      "features": [
+        {
+          "id": "documents-sign",
+          "title": "Sign & send",
+          "body": "Generate from templates, send for signature, and keep a record on the client.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=documents&title=Documents&body=Templates%20and%20signing%20flows."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Documents — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "documents"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "knowledge",
+      "title": "Knowledge",
+      "summary": "Team knowledge the agent and humans can both use.",
+      "features": [
+        {
+          "id": "knowledge-base",
+          "title": "Knowledge base",
+          "body": "Store SOPs and reference material — available to the agent and the admin UI.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=knowledge&title=Knowledge&body=SOPs%20and%20reference%20for%20humans%20and%20agents."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Knowledge — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "knowledge"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "monitoring",
+      "title": "Monitoring",
+      "summary": "Uptime, site change detection, and audit tooling.",
+      "features": [
+        {
+          "id": "monitoring-uptime",
+          "title": "Uptime & changes",
+          "body": "Watch client sites for downtime and unexpected changes — alerts into the same OS.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=monitoring&title=Monitoring&body=Uptime%2C%20change%20detection%2C%20and%20audits."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Monitoring — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "monitoring"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "billing",
+      "title": "Billing",
+      "summary": "Invoicing via Crater — visible on the client portal when enabled.",
+      "features": [
+        {
+          "id": "billing-invoices",
+          "title": "Invoices",
+          "body": "Send invoices and surface status on the client portal without a separate billing login.",
+          "scrollHeight": 100,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "desktop",
+              "url": "/deck/surfaces/stub.html?tab=finance&title=Billing&body=Crater%20invoices%20on%20the%20portal%20and%20admin."
+            },
+            {
+              "type": "stage.caption",
+              "text": "Billing — placeholder showcase"
+            },
+            {
+              "type": "nav.pulse",
+              "tab": "finance"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#stub-panel"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+---
+import type { DeckFeature, DeckSection } from '../../deck/types';
+
+interface Props {
+  section: DeckSection;
+  feature: DeckFeature;
+  sectionIndex: number;
+  featureIndex: number;
+}
+
+const { section, feature, sectionIndex, featureIndex } = Astro.props;
+const vh = feature.scrollHeight ?? 100;
+const isFirst = sectionIndex === 0 && featureIndex === 0;
+---
+
+<article
+  class:list={['deck-beat', { 'deck-beat--lead': isFirst }]}
+  id={`beat-${feature.id}`}
+  data-deck-feature={feature.id}
+  data-deck-section-ref={section.id}
+  style={`min-height: ${vh}vh`}
+>
+  <p class="deck-beat-kicker">{section.title}</p>
+  <h2 class="deck-beat-title">{feature.title}</h2>
+  <p class="deck-beat-body">{feature.body}</p>
+</article>
+
+<style>
+  .deck-beat {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2.5rem 0;
+    scroll-margin-top: 20vh;
+    opacity: 0.38;
+    transition: opacity 0.35s ease;
+  }
+
+  .deck-beat.is-active {
+    opacity: 1;
+  }
+
+  .deck-beat-kicker {
+    margin: 0 0 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .deck-beat-title {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.45rem, 3.2vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    color: #f4f7fb;
+  }
+
+  .deck-beat-body {
+    margin: 0;
+    max-width: 34rem;
+    font-size: 1.02rem;
+    line-height: 1.55;
+    color: rgba(233, 238, 246, 0.72);
+  }
+</style>
