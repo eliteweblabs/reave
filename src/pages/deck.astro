@@ -7,7 +7,7 @@
 import Favicon from '../components/Favicon.astro';
 import Header from '../components/Header.astro';
 import { assertDeckScript } from '../deck/validate';
-import { getCompanyConfig } from '../lib/companyConfig';
+import { getCompanyConfig, homepageHeroMask } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
   Home,
@@ -28,6 +28,7 @@ export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
+const heroMask = homepageHeroMask(company);
 
 /** Same Lucide set as admin header/footer nav, mapped to deck sections. */
 const DOCK_ICONS: Record<string, LucideIcon> = {
@@ -110,9 +111,22 @@ const deckPayload = {
     <Header />
 
     <div id="boot" aria-hidden="true">
-      <div class="boot-mark">{company.name.slice(0, 1)}</div>
-      <div class="boot-name">{company.name}</div>
-      <div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
+      {
+        heroMask ? (
+          <div
+            class="boot-logo-stack"
+            style={`--hero-logo-mask: url("${heroMask}")`}
+            aria-hidden="true"
+          >
+            <div id="bootQuantumHost" class="boot-quantum-host"></div>
+          </div>
+        ) : (
+          <div class="boot-logo-fallback" aria-hidden="true">{company.name}</div>
+        )
+      }
+      <div class="boot-bar-wrap">
+        <div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
+      </div>
     </div>
 
     <div id="desktop">
@@ -158,7 +172,6 @@ const deckPayload = {
     </div>
 
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
-
     <style is:global>
       * {
         box-sizing: border-box;
@@ -202,33 +215,57 @@ const deckPayload = {
       #boot {
         position: fixed;
         inset: 0;
-        background: #000;
+        background: #050505;
         z-index: 100000;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
         transition: opacity 0.7s ease;
       }
-      .boot-mark {
-        width: 72px;
-        height: 72px;
-        border-radius: 18px;
-        display: grid;
-        place-items: center;
-        font-family: var(--display);
-        font-size: 2rem;
-        font-weight: 800;
-        background: linear-gradient(145deg, #5eead4, #38bdf8);
-        color: #041016;
-        margin-bottom: 1rem;
+      /* Same plasma-mask treatment as homepage, sized just above the progress bar. */
+      .boot-logo-stack {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
+        -webkit-mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
+        mask-size: 210px;
+        -webkit-mask-size: 210px;
+        mask-position: center calc(50% - 28px);
+        -webkit-mask-position: center calc(50% - 28px);
+        mask-repeat: no-repeat;
+        -webkit-mask-repeat: no-repeat;
+        mask-mode: alpha;
+        -webkit-mask-mode: alpha;
+        filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.4))
+          drop-shadow(0 0 28px rgba(255, 100, 200, 0.24));
       }
-      .boot-name {
+      .boot-quantum-host {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .boot-quantum-host canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      .boot-logo-fallback {
+        position: absolute;
+        left: 50%;
+        top: calc(50% - 40px);
+        transform: translate(-50%, -50%);
+        max-width: 210px;
         font-family: var(--display);
-        font-weight: 700;
-        font-size: 1.1rem;
-        letter-spacing: -0.02em;
-        margin-bottom: 2rem;
+        font-weight: 800;
+        font-size: 1.35rem;
+        letter-spacing: -0.03em;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .boot-bar-wrap {
+        position: absolute;
+        left: 50%;
+        top: calc(50% + 96px);
+        transform: translateX(-50%);
       }
       .boot-bar {
         width: 180px;
@@ -638,7 +675,25 @@ const deckPayload = {
         }
       }
     </style>
-
     <script src="/deck/macos-desktop.js" defer></script>
+    <script>
+      import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
+
+      const host = document.getElementById('bootQuantumHost');
+      if (host) {
+        const detach = attachQuantumCoreOpticalEngine(host);
+        const boot = document.getElementById('boot');
+        const parent = boot?.parentElement;
+        if (parent) {
+          const obs = new MutationObserver(() => {
+            if (!document.getElementById('boot')) {
+              detach();
+              obs.disconnect();
+            }
+          });
+          obs.observe(parent, { childList: true });
+        }
+      }
+    </script>
   </body>
 </html>
