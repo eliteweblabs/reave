@@ -207,9 +207,20 @@ export const ACTION_HANDLERS: Record<DeckActionType, ActionHandler> = {
       url: a.url,
       html: a.html,
       gif: a.gif,
-      label: a.gif ? a.gif.split('/').pop()?.replace(/\.gif$/i, '') : undefined,
+      label: undefined,
     });
-  },
+    
+    // Prefer caption-friendly placeholder label from filename only as fallback;
+    // nicer labels come from stage.caption that typically follows.
+    if (a.gif && ctx.placeholder && !ctx.placeholder.hidden) {
+      const fileLabel = a.gif.split('/').pop()?.replace(/\.gif$/i, '')?.replace(/-/g, ' ');
+      const labelEl = ctx.placeholder.querySelector<HTMLElement>(
+        '[data-deck-placeholder-label]',
+      );
+      if (labelEl && fileLabel) {
+        labelEl.textContent = fileLabel;
+      }
+    }
 
   'stage.highlight': async (action, ctx) => {
     await highlightInStageAsync(ctx, asHighlight(action).selector);

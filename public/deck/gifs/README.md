@@ -1,14 +1,15 @@
 # Deck screen recordings
 
-Drop one animated GIF per section. The deck maps each GIF into a device frame
-(phone in hand, phone on desk, or laptop) — no finger overlays.
+Drop one animated GIF per section into this folder. The `/deck` page maps each
+GIF into a device frame so it reads like someone using the product in context.
+Finger movement is not shown — screen recording only.
 
-| File | Device situation | Section |
-|------|------------------|---------|
+| File | Device | Section |
+|------|--------|---------|
 | `homepage.gif` | phone-hand | Homepage |
-| `pwa.gif` | phone-desk | PWA alerts |
+| `pwa.gif` | phone-desk | PWA alerts & notices |
 | `scheduling.gif` | phone-hand | Scheduling |
-| `voice.gif` | phone-hand | Voice |
+| `voice.gif` | phone-hand | Voice & call routing |
 | `clients.gif` | laptop | Clients |
 | `inbox.gif` | laptop | Inbox |
 | `work.gif` | laptop | Work |
@@ -17,9 +18,11 @@ Drop one animated GIF per section. The deck maps each GIF into a device frame
 | `monitoring.gif` | laptop | Monitoring |
 | `billing.gif` | laptop | Billing |
 
-Tips:
+## Recording tips
 
-- Record the screen only (portrait for phone sections, landscape for laptop).
-- Keep loops short (4–12s) and under ~5–8 MB when possible.
-- Until a file exists, the stage shows a labeled placeholder in the device.
-- Paths are set in `src/deck/scripts/everything.json` (`stage.set` → `gif` + `device`).
+- Capture the product UI only (the frame supplies the device chrome).
+- Phone sections: portrait. Laptop sections: landscape.
+- Prefer short loops (about 4–12 seconds).
+- Until a file is present, a placeholder label appears inside the device screen.
+
+Paths are referenced from [`src/deck/scripts/everything.json`](../../src/deck/scripts/everything.json) via `stage.set` → `gif` + `device`.

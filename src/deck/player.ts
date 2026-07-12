@@ -109,6 +109,15 @@ export function attachDeckPlayer(opts: DeckPlayerOptions): () => void {
     abort = new AbortController();
     const token = ++runToken;
     if (!feature) return;
+
+    // Use feature title on the placeholder while a GIF is missing / loading.
+    if (ctx.placeholder) {
+      const labelEl = ctx.placeholder.querySelector<HTMLElement>(
+        '[data-deck-placeholder-label]',
+      );
+      if (labelEl) labelEl.textContent = feature.title;
+    }
+
     await runActions(feature.actions, ctx, abort.signal);
     if (token !== runToken) return;
   }
