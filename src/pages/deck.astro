@@ -24,7 +24,7 @@ const company = await getCompanyConfig(Astro.request);
       <p class="deck-hero-brand">{company.name}</p>
       <h1 class="deck-hero-title">See the Business OS in motion</h1>
       <p class="deck-hero-sub">
-        Scroll the full catalog — section by section, feature by feature.
+        First the design and feel — then how every piece interacts.
       </p>
       <a class="deck-hero-cta" href={`#beat-${script.sections[0]?.features[0]?.id ?? ''}`}>
         Start scrolling

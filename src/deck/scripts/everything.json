@@ -1,16 +1,16 @@
 {
   "id": "everything",
-  "title": "Business OS — everything",
+  "title": "Business OS \u2014 everything",
   "sections": [
     {
       "id": "homepage",
       "title": "Dynamic mobile-forward homepage",
-      "summary": "Custom-designed, mobile-first public surfaces that feel like the brand — not a template.",
+      "summary": "Design first \u2014 custom, mobile-forward surfaces that feel like the brand, not a template.",
       "features": [
         {
           "id": "homepage-hero",
           "title": "Brand-first homepage",
-          "body": "A dynamic, mobile-forward homepage built around the brand mark — interactive presence, not a brochure layout.",
+          "body": "A dynamic, mobile-forward homepage built around the brand mark \u2014 interactive presence, not a brochure layout.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -20,7 +20,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Homepage — brand mark as the hero"
+              "text": "Homepage \u2014 brand mark as the hero"
             },
             {
               "type": "stage.highlight",
@@ -31,7 +31,7 @@
         {
           "id": "homepage-portal",
           "title": "Client pages that work",
-          "body": "Every client gets a shareable portal — overview, work, and billing when enabled. iOS-first, on-brand, no login friction.",
+          "body": "Every client gets a shareable portal \u2014 overview, work, and billing when enabled. iOS-first, on-brand, no login friction.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -41,7 +41,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Client portal — /c/:uid"
+              "text": "Client portal \u2014 /c/:uid"
             },
             {
               "type": "stage.highlight",
@@ -56,7 +56,7 @@
         {
           "id": "homepage-contact",
           "title": "Contact & intake",
-          "body": "Conversational contact flows capture the right details on mobile — then route into the team inbox and CRM.",
+          "body": "Conversational contact flows capture the right details on mobile \u2014 then route into the team inbox and CRM.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -77,14 +77,133 @@
       ]
     },
     {
+      "id": "pwa",
+      "title": "PWA \u2014 alerts & home screen",
+      "summary": "iOS-style push banners, permission alerts, and home-screen badges. Installable Progressive Web App \u2014 the visual pattern of a real phone app.",
+      "features": [
+        {
+          "id": "pwa-install",
+          "title": "Install as a PWA",
+          "body": "Add to Home Screen turns the Business OS into a full-screen app on iPhone \u2014 no App Store. Same URL, native shell.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=install"
+            },
+            {
+              "type": "stage.caption",
+              "text": "PWA \u2014 Add to Home Screen"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#install-sheet"
+            },
+            {
+              "type": "wait",
+              "ms": 400
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#install-row"
+            }
+          ]
+        },
+        {
+          "id": "pwa-banner",
+          "title": "iOS-style push notices",
+          "body": "Inbox, bookings, and monitoring land as lock-screen style banners \u2014 the same Web Push stack that powers the admin PWA.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=banner"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Push notice \u2014 lock-screen banner"
+            },
+            {
+              "type": "wait",
+              "ms": 350
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#push-banner"
+            }
+          ]
+        },
+        {
+          "id": "pwa-alert",
+          "title": "Permission alerts",
+          "body": "Classic iOS alert chrome for notification permission \u2014 clear choices, familiar UX, no browser chrome surprises.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=alert"
+            },
+            {
+              "type": "stage.caption",
+              "text": "iOS-style alert \u2014 Allow notifications?"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#ios-alert"
+            },
+            {
+              "type": "wait",
+              "ms": 450
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#alert-allow"
+            }
+          ]
+        },
+        {
+          "id": "pwa-badge",
+          "title": "Home-screen badges",
+          "body": "Unread counts show on the app icon \u2014 inbox and alerts stay visible even when the tab is closed.",
+          "scrollHeight": 110,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "url": "/deck/surfaces/pwa-alerts.html?scene=badge"
+            },
+            {
+              "type": "stage.caption",
+              "text": "App badge \u2014 unread at a glance"
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#pwa-icon"
+            },
+            {
+              "type": "wait",
+              "ms": 400
+            },
+            {
+              "type": "stage.highlight",
+              "selector": "#app-badge"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "scheduling",
       "title": "Scheduling",
-      "summary": "Live availability and bookings wired to Cal.com — public book links and admin schedule views.",
+      "summary": "Once the look lands \u2014 live booking and the rest of the OS start interacting.",
       "features": [
         {
           "id": "scheduling-calendar",
           "title": "Pick a day",
-          "body": "Prospects see real availability. The calendar is the product — not a “request a time” dead end.",
+          "body": "Prospects see real availability. The calendar is the product \u2014 not a \u201crequest a time\u201d dead end.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -94,7 +213,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Scheduling — live calendar"
+              "text": "Scheduling \u2014 live calendar"
             },
             {
               "type": "stage.highlight",
@@ -105,7 +224,7 @@
         {
           "id": "scheduling-slots",
           "title": "Confirm a slot",
-          "body": "Time slots and confirmation flow straight into the booking API — reminders and admin visibility follow.",
+          "body": "Time slots and confirmation flow straight into the booking API \u2014 reminders and admin visibility follow.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -115,7 +234,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Choose a slot · confirm"
+              "text": "Choose a slot \u00b7 confirm"
             },
             {
               "type": "stage.highlight",
@@ -136,12 +255,12 @@
     {
       "id": "voice",
       "title": "Voice & call routing",
-      "summary": "Vapi on the homepage plus Telnyx call routing — answer, qualify, hand off, or book.",
+      "summary": "Vapi on the homepage plus Telnyx call routing \u2014 answer, qualify, hand off, or book.",
       "features": [
         {
           "id": "voice-routing",
           "title": "Call path",
-          "body": "Inbound voice hits an AI agent that greets, qualifies, and routes — to a human, SMS, email, or the calendar.",
+          "body": "Inbound voice hits an AI agent that greets, qualifies, and routes \u2014 to a human, SMS, email, or the calendar.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -151,7 +270,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Call routing — inbound → agent → handoff"
+              "text": "Call routing \u2014 inbound \u2192 agent \u2192 handoff"
             },
             {
               "type": "stage.highlight",
@@ -178,7 +297,7 @@
         {
           "id": "voice-widget",
           "title": "Tap-to-talk showcase",
-          "body": "The homepage voice widget is the same stack — tap, talk, transcript. Live mic on production; this deck shows the flow.",
+          "body": "The homepage voice widget is the same stack \u2014 tap, talk, transcript. Live mic on production; this deck shows the flow.",
           "scrollHeight": 110,
           "actions": [
             {
@@ -188,7 +307,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Vapi widget · transcript (demo-safe)"
+              "text": "Vapi widget \u00b7 transcript (demo-safe)"
             },
             {
               "type": "stage.highlight",
@@ -207,125 +326,6 @@
       ]
     },
     {
-      "id": "pwa",
-      "title": "PWA alerts & notices",
-      "summary": "Installable Progressive Web App — iOS-style push banners, permission alerts, and home-screen badges. Not just a website.",
-      "features": [
-        {
-          "id": "pwa-install",
-          "title": "Install as a PWA",
-          "body": "Add to Home Screen turns the Business OS into a full-screen app on iPhone — no App Store. Same URL, native shell.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=install"
-            },
-            {
-              "type": "stage.caption",
-              "text": "PWA — Add to Home Screen"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#install-sheet"
-            },
-            {
-              "type": "wait",
-              "ms": 400
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#install-row"
-            }
-          ]
-        },
-        {
-          "id": "pwa-banner",
-          "title": "iOS-style push notices",
-          "body": "Inbox, bookings, and monitoring land as lock-screen style banners — the same Web Push stack that powers the admin PWA.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=banner"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Push notice — lock-screen banner"
-            },
-            {
-              "type": "wait",
-              "ms": 350
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#push-banner"
-            }
-          ]
-        },
-        {
-          "id": "pwa-alert",
-          "title": "Permission alerts",
-          "body": "Classic iOS alert chrome for notification permission — clear choices, familiar UX, no browser chrome surprises.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=alert"
-            },
-            {
-              "type": "stage.caption",
-              "text": "iOS-style alert — Allow notifications?"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#ios-alert"
-            },
-            {
-              "type": "wait",
-              "ms": 450
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#alert-allow"
-            }
-          ]
-        },
-        {
-          "id": "pwa-badge",
-          "title": "Home-screen badges",
-          "body": "Unread counts show on the app icon — inbox and alerts stay visible even when the tab is closed.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=badge"
-            },
-            {
-              "type": "stage.caption",
-              "text": "App badge — unread at a glance"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#pwa-icon"
-            },
-            {
-              "type": "wait",
-              "ms": 400
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#app-badge"
-            }
-          ]
-        }
-      ]
-    },
-    {
       "id": "clients",
       "title": "Clients",
       "summary": "CRM-light contact records, portals, and CardDAV sync.",
@@ -333,7 +333,7 @@
         {
           "id": "clients-list",
           "title": "Client roster",
-          "body": "Every contact lives in one place — portal links, notes, and project context for the team.",
+          "body": "Every contact lives in one place \u2014 portal links, notes, and project context for the team.",
           "scrollHeight": 100,
           "actions": [
             {
@@ -343,7 +343,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Clients — coming into focus next"
+              "text": "Clients \u2014 coming into focus next"
             },
             {
               "type": "nav.pulse",
@@ -365,7 +365,7 @@
         {
           "id": "inbox-triage",
           "title": "Inbox & rules",
-          "body": "Inbound email lands here — AI triage and rules keep threads tied to the right client and work.",
+          "body": "Inbound email lands here \u2014 AI triage and rules keep threads tied to the right client and work.",
           "scrollHeight": 100,
           "actions": [
             {
@@ -375,7 +375,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Inbox — placeholder showcase"
+              "text": "Inbox \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
@@ -392,12 +392,12 @@
     {
       "id": "work",
       "title": "Work",
-      "summary": "Jobs, checklists, comments — shared with the client portal when useful.",
+      "summary": "Jobs, checklists, comments \u2014 shared with the client portal when useful.",
       "features": [
         {
           "id": "work-jobs",
           "title": "Jobs & checklists",
-          "body": "Track delivery as work jobs — status, checklists, and client-visible progress.",
+          "body": "Track delivery as work jobs \u2014 status, checklists, and client-visible progress.",
           "scrollHeight": 100,
           "actions": [
             {
@@ -407,7 +407,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Work — placeholder showcase"
+              "text": "Work \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
@@ -439,7 +439,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Documents — placeholder showcase"
+              "text": "Documents \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
@@ -461,7 +461,7 @@
         {
           "id": "knowledge-base",
           "title": "Knowledge base",
-          "body": "Store SOPs and reference material — available to the agent and the admin UI.",
+          "body": "Store SOPs and reference material \u2014 available to the agent and the admin UI.",
           "scrollHeight": 100,
           "actions": [
             {
@@ -471,7 +471,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Knowledge — placeholder showcase"
+              "text": "Knowledge \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
@@ -493,7 +493,7 @@
         {
           "id": "monitoring-uptime",
           "title": "Uptime & changes",
-          "body": "Watch client sites for downtime and unexpected changes — alerts into the same OS.",
+          "body": "Watch client sites for downtime and unexpected changes \u2014 alerts into the same OS.",
           "scrollHeight": 100,
           "actions": [
             {
@@ -503,7 +503,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Monitoring — placeholder showcase"
+              "text": "Monitoring \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
@@ -520,7 +520,7 @@
     {
       "id": "billing",
       "title": "Billing",
-      "summary": "Invoicing via Crater — visible on the client portal when enabled.",
+      "summary": "Invoicing via Crater \u2014 visible on the client portal when enabled.",
       "features": [
         {
           "id": "billing-invoices",
@@ -535,7 +535,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Billing — placeholder showcase"
+              "text": "Billing \u2014 placeholder showcase"
             },
             {
               "type": "nav.pulse",
