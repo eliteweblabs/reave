@@ -2,6 +2,7 @@ export type {
   DeckAction,
   DeckActionContext,
   DeckActionType,
+  DeckDevice,
   DeckFeature,
   DeckScript,
   DeckSection,

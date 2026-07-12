@@ -1,20 +1,45 @@
 ---
 /**
- * Sticky showcase frame for the scroll deck.
- * Surface mode (phone | desktop) is toggled by the player via data-surface.
+ * Sticky showcase — recorded GIF mapped into a real-world device situation.
+ * Drop GIFs in /public/deck/gifs/{id}.gif (see everything.json paths).
  */
 ---
 
-<aside class="deck-stage deck-stage--phone" data-deck-stage data-surface="phone" aria-label="Product showcase">
-  <div class="deck-stage-chrome">
-    <div class="deck-stage-notch" aria-hidden="true"></div>
-    <div class="deck-stage-viewport" data-deck-viewport>
-      <iframe
-        class="deck-stage-frame"
-        data-deck-frame
-        title="Deck showcase"
-        sandbox="allow-scripts allow-same-origin"
-      ></iframe>
+<aside
+  class="deck-stage deck-stage--phone-hand"
+  data-deck-stage
+  data-surface="phone"
+  data-device="phone-hand"
+  aria-label="Product showcase"
+>
+  <div class="deck-situation" data-deck-situation>
+    <div class="deck-prop deck-prop-cup" aria-hidden="true"></div>
+    <div class="deck-prop deck-prop-notebook" aria-hidden="true"></div>
+    <div class="deck-hand" aria-hidden="true"></div>
+
+    <div class="deck-device" data-deck-device>
+      <div class="deck-laptop-camera" aria-hidden="true"></div>
+      <div class="deck-phone-notch" aria-hidden="true"></div>
+      <div class="deck-screen" data-deck-viewport>
+        <img class="deck-gif" data-deck-gif alt="" hidden />
+        <div class="deck-gif-placeholder" data-deck-placeholder>
+          <span class="deck-gif-placeholder-label" data-deck-placeholder-label
+            >Recording coming soon</span
+          >
+          <span class="deck-gif-placeholder-hint">Drop GIF in /public/deck/gifs/</span>
+        </div>
+        <iframe
+          class="deck-stage-frame"
+          data-deck-frame
+          title="Deck showcase"
+          sandbox="allow-scripts allow-same-origin"
+          hidden
+        ></iframe>
+      </div>
+    </div>
+
+    <div class="deck-laptop-base" aria-hidden="true">
+      <div class="deck-laptop-trackpad"></div>
     </div>
   </div>
   <p class="deck-stage-caption" data-deck-caption hidden></p>
@@ -22,57 +47,276 @@
 
 <style>
   .deck-stage {
-    --stage-w: min(100%, 320px);
-    --stage-h: min(68vh, 640px);
-    --stage-radius: 28px;
+    --stage-w: min(100%, 360px);
     width: var(--stage-w);
     margin: 0 auto;
   }
 
-  .deck-stage--desktop {
-    --stage-w: min(100%, 560px);
-    --stage-h: min(58vh, 420px);
-    --stage-radius: 14px;
+  .deck-situation {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    border-radius: 18px;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% 0%, rgba(94, 234, 212, 0.08), transparent 55%),
+      linear-gradient(165deg, #1a2230 0%, #0c1018 55%, #151018 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 28px 64px rgba(0, 0, 0, 0.45);
+    display: grid;
+    place-items: center;
   }
 
-  .deck-stage--desktop .deck-stage-notch {
+  .deck-stage--phone-desk .deck-situation,
+  .deck-stage--laptop .deck-situation {
+    background:
+      linear-gradient(180deg, rgba(20, 28, 40, 0.25) 0%, transparent 40%),
+      repeating-linear-gradient(
+        90deg,
+        #3d2a1c 0px,
+        #4a3424 2px,
+        #3a281c 4px,
+        #453020 7px
+      );
+  }
+
+  .deck-prop-cup {
+    display: none;
+    position: absolute;
+    right: 7%;
+    bottom: 16%;
+    width: 40px;
+    height: 46px;
+    border-radius: 6px 6px 10px 10px;
+    background: linear-gradient(180deg, #e8e4dc, #c4b8a8);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    z-index: 2;
+  }
+  .deck-prop-cup::before {
+    content: '';
+    position: absolute;
+    right: -10px;
+    top: 10px;
+    width: 12px;
+    height: 18px;
+    border: 3px solid #c4b8a8;
+    border-left: 0;
+    border-radius: 0 10px 10px 0;
+  }
+
+  .deck-prop-notebook {
+    display: none;
+    position: absolute;
+    left: 5%;
+    bottom: 12%;
+    width: 70px;
+    height: 52px;
+    border-radius: 3px;
+    background: #f3efe6;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: rotate(-8deg);
+    z-index: 1;
+  }
+  .deck-prop-notebook::after {
+    content: '';
+    position: absolute;
+    inset: 8px 10px;
+    background: repeating-linear-gradient(
+      transparent 0 6px,
+      rgba(0, 0, 0, 0.08) 6px 7px
+    );
+  }
+
+  .deck-stage--phone-desk .deck-prop-cup,
+  .deck-stage--phone-desk .deck-prop-notebook,
+  .deck-stage--laptop .deck-prop-cup {
+    display: block;
+  }
+
+  .deck-hand {
+    display: none;
+    position: absolute;
+    bottom: -6%;
+    left: 50%;
+    width: 80%;
+    height: 44%;
+    transform: translateX(-44%) rotate(-6deg);
+    background:
+      radial-gradient(ellipse 55% 70% at 55% 30%, #e8b89a 0%, #c48a6a 55%, transparent 70%),
+      radial-gradient(ellipse 40% 50% at 28% 72%, #d4a07e 0%, transparent 70%);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .deck-stage--phone-hand .deck-hand {
+    display: block;
+  }
+
+  .deck-device {
+    position: relative;
+    z-index: 3;
+    background: #0a0a0c;
+    overflow: hidden;
+    transition:
+      width 0.4s ease,
+      aspect-ratio 0.4s ease,
+      border-radius 0.4s ease,
+      transform 0.45s ease;
+  }
+
+  /* Phone defaults */
+  .deck-stage--phone-hand .deck-device,
+  .deck-stage--phone-desk .deck-device,
+  .deck-stage--phone .deck-device,
+  .deck-stage--tablet .deck-device {
+    width: min(56%, 196px);
+    aspect-ratio: 9 / 19.5;
+    border-radius: 22px;
+    border: 2px solid #2a2a30;
+    box-shadow:
+      0 0 0 1px #111,
+      0 20px 50px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .deck-stage--phone-hand .deck-device {
+    transform: translateY(-6%) rotate(-4deg);
+  }
+
+  .deck-stage--phone-desk .deck-device {
+    transform: translateY(2%) rotate(2deg);
+  }
+
+  .deck-stage--tablet .deck-device {
+    width: min(72%, 260px);
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
+    transform: rotate(-1deg);
+  }
+
+  /* Laptop */
+  .deck-stage--laptop .deck-device {
+    width: 88%;
+    aspect-ratio: 16 / 10;
+    border-radius: 8px 8px 0 0;
+    border: 2px solid #2c3038;
+    border-bottom-width: 0;
+    padding: 0;
+    transform: none;
+    align-self: end;
+    margin-bottom: 14px;
+  }
+
+  .deck-stage--laptop .deck-situation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 4%;
+  }
+
+  .deck-phone-notch {
+    display: none;
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38%;
+    height: 9px;
+    border-radius: 999px;
+    background: #000;
+    z-index: 4;
+  }
+
+  .deck-stage--phone-hand .deck-phone-notch,
+  .deck-stage--phone-desk .deck-phone-notch,
+  .deck-stage--phone .deck-phone-notch {
+    display: block;
+  }
+
+  .deck-laptop-camera {
+    display: none;
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #333;
+    z-index: 4;
+  }
+
+  .deck-stage--laptop .deck-laptop-camera {
+    display: block;
+  }
+
+  .deck-screen {
+    position: absolute;
+    inset: 10px 6px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #111;
+  }
+
+  .deck-stage--laptop .deck-screen {
+    inset: 14px 6px 6px;
+    border-radius: 2px;
+  }
+
+  .deck-stage--tablet .deck-screen {
+    inset: 10px;
+    border-radius: 8px;
+  }
+
+  .deck-gif {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  .deck-gif-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 1rem;
+    text-align: center;
+    background:
+      linear-gradient(160deg, #1a2438, #0d121c),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 8px,
+        rgba(255, 255, 255, 0.03) 8px,
+        rgba(255, 255, 255, 0.03) 16px
+      );
+  }
+
+  .deck-gif-placeholder[hidden] {
     display: none;
   }
 
-  .deck-stage-chrome {
-    position: relative;
-    background: #11151d;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--stage-radius);
-    box-shadow:
-      0 24px 60px rgba(0, 0, 0, 0.45),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    overflow: hidden;
-    height: var(--stage-h);
-    transition: height 0.35s ease, border-radius 0.35s ease;
+  .deck-gif-placeholder-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
   }
 
-  .deck-stage-notch {
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 72px;
-    height: 8px;
-    border-radius: 999px;
-    background: #000;
-    z-index: 2;
-    opacity: 0.55;
+  .deck-gif-placeholder-hint {
+    font-size: 0.6rem;
+    color: rgba(255, 255, 255, 0.4);
+    line-height: 1.35;
   }
 
-  .deck-stage-viewport {
-    position: absolute;
-    inset: 0;
-    background: #050505;
-  }
-
-  .deck-stage-frame,
-  .deck-stage-viewport :global(.deck-stage-html) {
+  .deck-stage-frame {
     width: 100%;
     height: 100%;
     border: 0;
@@ -80,8 +324,31 @@
     background: #050505;
   }
 
-  .deck-stage-viewport :global(.deck-stage-html) {
-    overflow: auto;
+  .deck-laptop-base {
+    display: none;
+    position: absolute;
+    left: 3%;
+    right: 3%;
+    bottom: 4%;
+    height: 12px;
+    background: linear-gradient(180deg, #2a2e36, #1a1c22);
+    border-radius: 0 0 10px 10px;
+    z-index: 2;
+  }
+
+  .deck-stage--laptop .deck-laptop-base {
+    display: block;
+  }
+
+  .deck-laptop-trackpad {
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    transform: translateX(-50%);
+    width: 28%;
+    height: 5px;
+    border-radius: 3px;
+    background: #252830;
   }
 
   .deck-stage-caption {
@@ -95,13 +362,11 @@
 
   @media (min-width: 960px) {
     .deck-stage {
-      --stage-w: 340px;
-      --stage-h: min(72vh, 680px);
+      --stage-w: 380px;
       margin: 0;
     }
-    .deck-stage--desktop {
-      --stage-w: min(100%, 520px);
-      --stage-h: min(62vh, 460px);
+    .deck-stage--laptop {
+      --stage-w: min(100%, 500px);
     }
   }
 </style>

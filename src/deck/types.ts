@@ -3,10 +3,31 @@
  * Source of truth for `/deck` — edit JSON scripts; player runs actions per beat.
  */
 
+/** Bezel / surface size hint (legacy + layout). */
 export type DeckSurface = 'phone' | 'desktop';
 
+/**
+ * Real-world placement for the recorded GIF.
+ * GIF is mapped into the device screen — no finger tracking.
+ */
+export type DeckDevice =
+  | 'phone-hand'
+  | 'phone-desk'
+  | 'laptop'
+  | 'tablet';
+
 export type DeckAction =
-  | { type: 'stage.set'; surface: DeckSurface; url?: string; html?: string }
+  | {
+      type: 'stage.set';
+      surface: DeckSurface;
+      /** Real-world device situation (defaults from surface). */
+      device?: DeckDevice;
+      /** Recorded screen GIF mapped into the device. */
+      gif?: string;
+      /** Legacy interactive surface (iframe). Prefer gif. */
+      url?: string;
+      html?: string;
+    }
   | { type: 'stage.highlight'; selector: string }
   | { type: 'stage.caption'; text: string }
   | { type: 'nav.pulse'; tab: string }
@@ -43,6 +64,9 @@ export type DeckActionContext = {
   frame: HTMLIFrameElement | null;
   viewport: HTMLElement;
   caption: HTMLElement;
+  gif: HTMLImageElement | null;
+  placeholder: HTMLElement | null;
   setSurface: (surface: DeckSurface) => void;
+  setDevice: (device: DeckDevice) => void;
   clearHighlight: () => void;
 };

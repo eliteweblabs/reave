@@ -268,6 +268,8 @@ const company = await getCompanyConfig(Astro.request);
     const viewport = document.querySelector<HTMLElement>('[data-deck-viewport]');
     const frame = document.querySelector<HTMLIFrameElement>('[data-deck-frame]');
     const caption = document.querySelector<HTMLElement>('[data-deck-caption]');
+    const gif = document.querySelector<HTMLImageElement>('[data-deck-gif]');
+    const placeholder = document.querySelector<HTMLElement>('[data-deck-placeholder]');
     if (!root || !stage || !viewport || !caption) return () => {};
 
     return attachDeckPlayer({
@@ -277,6 +279,8 @@ const company = await getCompanyConfig(Astro.request);
       viewport,
       frame,
       caption,
+      gif,
+      placeholder,
       onBeatChange(_feature, sectionId) {
         root.querySelectorAll('[data-toc-section]').forEach((a) => {
           a.classList.toggle(

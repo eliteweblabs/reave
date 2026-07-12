@@ -18,6 +18,15 @@ function isSurface(v: unknown): v is DeckSurface {
   return v === 'phone' || v === 'desktop';
 }
 
+function isDevice(v: unknown): boolean {
+  return (
+    v === 'phone-hand' ||
+    v === 'phone-desk' ||
+    v === 'laptop' ||
+    v === 'tablet'
+  );
+}
+
 function validateAction(raw: unknown, path: string): string[] {
   const errors: string[] = [];
   if (!isRecord(raw)) {
@@ -34,14 +43,22 @@ function validateAction(raw: unknown, path: string): string[] {
       if (!isSurface(raw.surface)) {
         errors.push(`${path}: surface must be "phone" | "desktop"`);
       }
+      if (raw.device !== undefined && !isDevice(raw.device)) {
+        errors.push(
+          `${path}: device must be "phone-hand" | "phone-desk" | "laptop" | "tablet"`,
+        );
+      }
       if (raw.url !== undefined && typeof raw.url !== 'string') {
         errors.push(`${path}: url must be a string`);
       }
       if (raw.html !== undefined && typeof raw.html !== 'string') {
         errors.push(`${path}: html must be a string`);
       }
-      if (raw.url === undefined && raw.html === undefined) {
-        errors.push(`${path}: stage.set requires url or html`);
+      if (raw.gif !== undefined && typeof raw.gif !== 'string') {
+        errors.push(`${path}: gif must be a string`);
+      }
+      if (raw.url === undefined && raw.html === undefined && raw.gif === undefined) {
+        errors.push(`${path}: stage.set requires gif, url, or html`);
       }
       break;
     case 'stage.highlight':

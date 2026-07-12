@@ -1,7 +1,13 @@
 /**
  * Deck action handlers — map action type → async runner.
  */
-import type { DeckAction, DeckActionContext, DeckActionType } from './types';
+import type {
+  DeckAction,
+  DeckActionContext,
+  DeckActionType,
+  DeckDevice,
+  DeckSurface,
+} from './types';
 
 type ActionHandler = (
   action: DeckAction,
@@ -42,13 +48,85 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, duration));
 }
 
-/** Clear iframe / inject HTML into the stage viewport. */
+function defaultDevice(surface: DeckSurface, device?: DeckDevice): DeckDevice {
+  if (device) return device;
+  return surface === 'desktop' ? 'laptop' : 'phone-hand';
+}
+
+function showPlaceholder(ctx: DeckActionContext, label?: string): void {
+  if (ctx.gif) {
+    ctx.gif.hidden = true;
+    ctx.gif.removeAttribute('src');
+  }
+  if (ctx.frame) {
+    ctx.frame.hidden = true;
+    ctx.frame.removeAttribute('src');
+  }
+  if (ctx.placeholder) {
+    ctx.placeholder.hidden = false;
+    const labelEl = ctx.placeholder.querySelector<HTMLElement>(
+      '[data-deck-placeholder-label]',
+    );
+    if (labelEl && label) labelEl.textContent = label;
+  }
+}
+
+function loadGif(ctx: DeckActionContext, src: string, label?: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (!ctx.gif) {
+      showPlaceholder(ctx, label);
+      resolve();
+      return;
+    }
+    if (ctx.frame) {
+      ctx.frame.hidden = true;
+      ctx.frame.removeAttribute('src');
+    }
+
+    const img = ctx.gif;
+    const done = (ok: boolean) => {
+      img.onload = null;
+      img.onerror = null;
+      if (ok) {
+        img.hidden = false;
+        if (ctx.placeholder) ctx.placeholder.hidden = true;
+      } else {
+        showPlaceholder(ctx, label ?? 'Recording coming soon');
+      }
+      resolve();
+    };
+
+    if (img.getAttribute('src') === src && img.complete && img.naturalWidth > 0) {
+      done(true);
+      return;
+    }
+
+    img.onload = () => done(true);
+    img.onerror = () => done(false);
+    img.alt = label ?? '';
+    img.src = src;
+  });
+}
+
+/** Clear iframe / inject HTML / load GIF into the stage viewport. */
 async function loadStageContent(
   ctx: DeckActionContext,
-  opts: { url?: string; html?: string },
+  opts: { url?: string; html?: string; gif?: string; label?: string },
 ): Promise<void> {
   const { viewport, frame } = ctx;
   ctx.clearHighlight();
+
+  if (opts.gif) {
+    viewport.querySelectorAll('[data-deck-html]').forEach((el) => el.remove());
+    await loadGif(ctx, opts.gif, opts.label);
+    return;
+  }
+
+  if (ctx.gif) {
+    ctx.gif.hidden = true;
+    ctx.gif.removeAttribute('src');
+  }
+  if (ctx.placeholder) ctx.placeholder.hidden = true;
 
   if (opts.url) {
     viewport.querySelectorAll('[data-deck-html]').forEach((el) => el.remove());
@@ -62,7 +140,6 @@ async function loadStageContent(
           };
           frame.addEventListener('load', onLoad);
           frame.src = opts.url!;
-          // Same-origin instant loads may not fire load if already cached with same src
           window.setTimeout(() => resolve(), 800);
         });
       }
@@ -114,7 +191,6 @@ async function highlightInStageAsync(
   selector: string,
 ): Promise<void> {
   highlightInStage(ctx, selector);
-  // Iframe paint can lag one frame after src set
   if (ctx.frame && !ctx.frame.hidden) {
     await new Promise<void>((r) => requestAnimationFrame(() => r()));
     highlightInStage(ctx, selector);
@@ -124,8 +200,15 @@ async function highlightInStageAsync(
 export const ACTION_HANDLERS: Record<DeckActionType, ActionHandler> = {
   'stage.set': async (action, ctx) => {
     const a = asSet(action);
+    const device = defaultDevice(a.surface, a.device);
     ctx.setSurface(a.surface);
-    await loadStageContent(ctx, { url: a.url, html: a.html });
+    ctx.setDevice(device);
+    await loadStageContent(ctx, {
+      url: a.url,
+      html: a.html,
+      gif: a.gif,
+      label: a.gif ? a.gif.split('/').pop()?.replace(/\.gif$/i, '') : undefined,
+    });
   },
 
   'stage.highlight': async (action, ctx) => {
@@ -142,7 +225,10 @@ export const ACTION_HANDLERS: Record<DeckActionType, ActionHandler> = {
     const tab = asNavPulse(action).tab;
     const root = ctx.frame?.contentDocument ?? ctx.viewport;
     root.querySelectorAll('[data-deck-nav]').forEach((el) => {
-      el.classList.toggle('deck-nav-pulse', el.getAttribute('data-deck-nav') === tab);
+      el.classList.toggle(
+        'deck-nav-pulse',
+        el.getAttribute('data-deck-nav') === tab,
+      );
     });
   },
 

@@ -3,7 +3,13 @@
  * and runs their action lists against the sticky stage.
  */
 import { runActions } from './actions';
-import type { DeckActionContext, DeckFeature, DeckScript, DeckSurface } from './types';
+import type {
+  DeckActionContext,
+  DeckDevice,
+  DeckFeature,
+  DeckScript,
+  DeckSurface,
+} from './types';
 
 export type DeckPlayerOptions = {
   script: DeckScript;
@@ -12,8 +18,19 @@ export type DeckPlayerOptions = {
   viewport: HTMLElement;
   frame: HTMLIFrameElement | null;
   caption: HTMLElement;
+  gif?: HTMLImageElement | null;
+  placeholder?: HTMLElement | null;
   onBeatChange?: (feature: DeckFeature | null, sectionId: string | null) => void;
 };
+
+const DEVICE_CLASSES = [
+  'deck-stage--phone-hand',
+  'deck-stage--phone-desk',
+  'deck-stage--laptop',
+  'deck-stage--tablet',
+  'deck-stage--phone',
+  'deck-stage--desktop',
+] as const;
 
 function createContext(opts: DeckPlayerOptions): DeckActionContext {
   return {
@@ -21,10 +38,20 @@ function createContext(opts: DeckPlayerOptions): DeckActionContext {
     frame: opts.frame,
     viewport: opts.viewport,
     caption: opts.caption,
+    gif: opts.gif ?? null,
+    placeholder: opts.placeholder ?? null,
     setSurface(surface: DeckSurface) {
       opts.stage.dataset.surface = surface;
-      opts.stage.classList.toggle('deck-stage--phone', surface === 'phone');
-      opts.stage.classList.toggle('deck-stage--desktop', surface === 'desktop');
+    },
+    setDevice(device: DeckDevice) {
+      opts.stage.dataset.device = device;
+      for (const c of DEVICE_CLASSES) opts.stage.classList.remove(c);
+      opts.stage.classList.add(`deck-stage--${device}`);
+      if (device === 'laptop') {
+        opts.stage.classList.add('deck-stage--desktop');
+      } else {
+        opts.stage.classList.add('deck-stage--phone');
+      }
     },
     clearHighlight() {
       const roots: Array<Document | Element> = [opts.viewport];

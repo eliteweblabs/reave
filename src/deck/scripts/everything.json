@@ -1,76 +1,27 @@
 {
   "id": "everything",
-  "title": "Business OS \u2014 everything",
+  "title": "Business OS — everything",
   "sections": [
     {
       "id": "homepage",
       "title": "Dynamic mobile-forward homepage",
-      "summary": "Design first \u2014 custom, mobile-forward surfaces that feel like the brand, not a template.",
+      "summary": "Design first — custom, mobile-forward surfaces that feel like the brand, not a template.",
       "features": [
         {
-          "id": "homepage-hero",
+          "id": "homepage-reel",
           "title": "Brand-first homepage",
-          "body": "A dynamic, mobile-forward homepage built around the brand mark \u2014 interactive presence, not a brochure layout.",
-          "scrollHeight": 110,
+          "body": "A dynamic, mobile-forward homepage built around the brand — interactive presence, not a brochure. Drop your recording as homepage.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "phone",
-              "url": "/deck/surfaces/homepage.html"
+              "device": "phone-hand",
+              "gif": "/deck/gifs/homepage.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Homepage \u2014 brand mark as the hero"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#brand-mark"
-            }
-          ]
-        },
-        {
-          "id": "homepage-portal",
-          "title": "Client pages that work",
-          "body": "Every client gets a shareable portal \u2014 overview, work, and billing when enabled. iOS-first, on-brand, no login friction.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/portal.html"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Client portal \u2014 /c/:uid"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#portal-overview"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "overview"
-            }
-          ]
-        },
-        {
-          "id": "homepage-contact",
-          "title": "Contact & intake",
-          "body": "Conversational contact flows capture the right details on mobile \u2014 then route into the team inbox and CRM.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/contact.html"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Conversational contact form"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#contact-input"
+              "text": "Homepage — phone in hand"
             }
           ]
         }
@@ -78,118 +29,24 @@
     },
     {
       "id": "pwa",
-      "title": "PWA \u2014 alerts & home screen",
-      "summary": "iOS-style push banners, permission alerts, and home-screen badges. Installable Progressive Web App \u2014 the visual pattern of a real phone app.",
+      "title": "PWA — alerts & home screen",
+      "summary": "iOS-style push banners, permission alerts, and home-screen badges. Installable Progressive Web App.",
       "features": [
         {
-          "id": "pwa-install",
-          "title": "Install as a PWA",
-          "body": "Add to Home Screen turns the Business OS into a full-screen app on iPhone \u2014 no App Store. Same URL, native shell.",
-          "scrollHeight": 110,
+          "id": "pwa-reel",
+          "title": "Alerts on a real device",
+          "body": "Push notices and install flow on the home screen — the visual pattern of a real phone app. Record as pwa.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=install"
+              "device": "phone-desk",
+              "gif": "/deck/gifs/pwa.gif"
             },
             {
               "type": "stage.caption",
-              "text": "PWA \u2014 Add to Home Screen"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#install-sheet"
-            },
-            {
-              "type": "wait",
-              "ms": 400
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#install-row"
-            }
-          ]
-        },
-        {
-          "id": "pwa-banner",
-          "title": "iOS-style push notices",
-          "body": "Inbox, bookings, and monitoring land as lock-screen style banners \u2014 the same Web Push stack that powers the admin PWA.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=banner"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Push notice \u2014 lock-screen banner"
-            },
-            {
-              "type": "wait",
-              "ms": 350
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#push-banner"
-            }
-          ]
-        },
-        {
-          "id": "pwa-alert",
-          "title": "Permission alerts",
-          "body": "Classic iOS alert chrome for notification permission \u2014 clear choices, familiar UX, no browser chrome surprises.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=alert"
-            },
-            {
-              "type": "stage.caption",
-              "text": "iOS-style alert \u2014 Allow notifications?"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#ios-alert"
-            },
-            {
-              "type": "wait",
-              "ms": 450
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#alert-allow"
-            }
-          ]
-        },
-        {
-          "id": "pwa-badge",
-          "title": "Home-screen badges",
-          "body": "Unread counts show on the app icon \u2014 inbox and alerts stay visible even when the tab is closed.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/pwa-alerts.html?scene=badge"
-            },
-            {
-              "type": "stage.caption",
-              "text": "App badge \u2014 unread at a glance"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#pwa-icon"
-            },
-            {
-              "type": "wait",
-              "ms": 400
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#app-badge"
+              "text": "PWA alerts — phone on the desk"
             }
           ]
         }
@@ -198,55 +55,23 @@
     {
       "id": "scheduling",
       "title": "Scheduling",
-      "summary": "Once the look lands \u2014 live booking and the rest of the OS start interacting.",
+      "summary": "Once the look lands — live booking and the rest of the OS start interacting.",
       "features": [
         {
-          "id": "scheduling-calendar",
-          "title": "Pick a day",
-          "body": "Prospects see real availability. The calendar is the product \u2014 not a \u201crequest a time\u201d dead end.",
-          "scrollHeight": 110,
+          "id": "scheduling-reel",
+          "title": "Book a time",
+          "body": "Prospects pick a real slot. Record the booking flow as scheduling.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "phone",
-              "url": "/deck/surfaces/schedule.html"
+              "device": "phone-hand",
+              "gif": "/deck/gifs/scheduling.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Scheduling \u2014 live calendar"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#day-12"
-            }
-          ]
-        },
-        {
-          "id": "scheduling-slots",
-          "title": "Confirm a slot",
-          "body": "Time slots and confirmation flow straight into the booking API \u2014 reminders and admin visibility follow.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/schedule.html"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Choose a slot \u00b7 confirm"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#slot-2"
-            },
-            {
-              "type": "wait",
-              "ms": 400
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#sched-confirm"
+              "text": "Scheduling — phone in hand"
             }
           ]
         }
@@ -255,71 +80,23 @@
     {
       "id": "voice",
       "title": "Voice & call routing",
-      "summary": "Vapi on the homepage plus Telnyx call routing \u2014 answer, qualify, hand off, or book.",
+      "summary": "Vapi on the homepage plus Telnyx call routing — answer, qualify, hand off, or book.",
       "features": [
         {
-          "id": "voice-routing",
-          "title": "Call path",
-          "body": "Inbound voice hits an AI agent that greets, qualifies, and routes \u2014 to a human, SMS, email, or the calendar.",
-          "scrollHeight": 110,
+          "id": "voice-reel",
+          "title": "Voice in the wild",
+          "body": "Tap-to-talk and call routing as someone would actually use it. Record as voice.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "phone",
-              "url": "/deck/surfaces/voice.html"
+              "device": "phone-hand",
+              "gif": "/deck/gifs/voice.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Call routing \u2014 inbound \u2192 agent \u2192 handoff"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#route-inbound"
-            },
-            {
-              "type": "wait",
-              "ms": 500
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#route-agent"
-            },
-            {
-              "type": "wait",
-              "ms": 500
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#route-handoff"
-            }
-          ]
-        },
-        {
-          "id": "voice-widget",
-          "title": "Tap-to-talk showcase",
-          "body": "The homepage voice widget is the same stack \u2014 tap, talk, transcript. Live mic on production; this deck shows the flow.",
-          "scrollHeight": 110,
-          "actions": [
-            {
-              "type": "stage.set",
-              "surface": "phone",
-              "url": "/deck/surfaces/voice.html"
-            },
-            {
-              "type": "stage.caption",
-              "text": "Vapi widget \u00b7 transcript (demo-safe)"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#voice-mic"
-            },
-            {
-              "type": "wait",
-              "ms": 450
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#voice-transcript"
+              "text": "Voice — phone in hand"
             }
           ]
         }
@@ -331,27 +108,20 @@
       "summary": "CRM-light contact records, portals, and CardDAV sync.",
       "features": [
         {
-          "id": "clients-list",
+          "id": "clients-reel",
           "title": "Client roster",
-          "body": "Every contact lives in one place \u2014 portal links, notes, and project context for the team.",
-          "scrollHeight": 100,
+          "body": "Contacts and portals on the desktop OS. Record as clients.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=clients&title=Clients&body=Roster%2C%20portal%20links%2C%20and%20contact%20detail."
+              "device": "laptop",
+              "gif": "/deck/gifs/clients.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Clients \u2014 coming into focus next"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "clients"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Clients — laptop on the desk"
             }
           ]
         }
@@ -363,27 +133,20 @@
       "summary": "Unified email with rules, triage, and project threading.",
       "features": [
         {
-          "id": "inbox-triage",
+          "id": "inbox-reel",
           "title": "Inbox & rules",
-          "body": "Inbound email lands here \u2014 AI triage and rules keep threads tied to the right client and work.",
-          "scrollHeight": 100,
+          "body": "Triage and reply in the admin inbox. Record as inbox.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=email&title=Inbox&body=Unified%20inbox%20with%20rules%20and%20AI%20triage."
+              "device": "laptop",
+              "gif": "/deck/gifs/inbox.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Inbox \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "email"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-row-1"
+              "text": "Inbox — laptop on the desk"
             }
           ]
         }
@@ -392,30 +155,23 @@
     {
       "id": "work",
       "title": "Work",
-      "summary": "Jobs, checklists, comments \u2014 shared with the client portal when useful.",
+      "summary": "Jobs, checklists, comments — shared with the client portal when useful.",
       "features": [
         {
-          "id": "work-jobs",
+          "id": "work-reel",
           "title": "Jobs & checklists",
-          "body": "Track delivery as work jobs \u2014 status, checklists, and client-visible progress.",
-          "scrollHeight": 100,
+          "body": "Delivery tracked as work jobs. Record as work.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=work&title=Work&body=Jobs%2C%20checklists%2C%20and%20client-visible%20progress."
+              "device": "laptop",
+              "gif": "/deck/gifs/work.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Work \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "work"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Work — laptop on the desk"
             }
           ]
         }
@@ -427,27 +183,20 @@
       "summary": "Templates and signing flows for proposals, contracts, and handoffs.",
       "features": [
         {
-          "id": "documents-sign",
+          "id": "documents-reel",
           "title": "Sign & send",
-          "body": "Generate from templates, send for signature, and keep a record on the client.",
-          "scrollHeight": 100,
+          "body": "Generate, send, sign. Record as documents.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=documents&title=Documents&body=Templates%20and%20signing%20flows."
+              "device": "laptop",
+              "gif": "/deck/gifs/documents.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Documents \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "documents"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Documents — laptop on the desk"
             }
           ]
         }
@@ -459,27 +208,20 @@
       "summary": "Team knowledge the agent and humans can both use.",
       "features": [
         {
-          "id": "knowledge-base",
+          "id": "knowledge-reel",
           "title": "Knowledge base",
-          "body": "Store SOPs and reference material \u2014 available to the agent and the admin UI.",
-          "scrollHeight": 100,
+          "body": "SOPs and reference for humans and agents. Record as knowledge.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=knowledge&title=Knowledge&body=SOPs%20and%20reference%20for%20humans%20and%20agents."
+              "device": "laptop",
+              "gif": "/deck/gifs/knowledge.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Knowledge \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "knowledge"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Knowledge — laptop on the desk"
             }
           ]
         }
@@ -491,27 +233,20 @@
       "summary": "Uptime, site change detection, and audit tooling.",
       "features": [
         {
-          "id": "monitoring-uptime",
+          "id": "monitoring-reel",
           "title": "Uptime & changes",
-          "body": "Watch client sites for downtime and unexpected changes \u2014 alerts into the same OS.",
-          "scrollHeight": 100,
+          "body": "Watch client sites for downtime and changes. Record as monitoring.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=monitoring&title=Monitoring&body=Uptime%2C%20change%20detection%2C%20and%20audits."
+              "device": "laptop",
+              "gif": "/deck/gifs/monitoring.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Monitoring \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "monitoring"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Monitoring — laptop on the desk"
             }
           ]
         }
@@ -520,30 +255,23 @@
     {
       "id": "billing",
       "title": "Billing",
-      "summary": "Invoicing via Crater \u2014 visible on the client portal when enabled.",
+      "summary": "Invoicing via Crater — visible on the client portal when enabled.",
       "features": [
         {
-          "id": "billing-invoices",
+          "id": "billing-reel",
           "title": "Invoices",
-          "body": "Send invoices and surface status on the client portal without a separate billing login.",
-          "scrollHeight": 100,
+          "body": "Send invoices and surface status on the portal. Record as billing.gif.",
+          "scrollHeight": 120,
           "actions": [
             {
               "type": "stage.set",
               "surface": "desktop",
-              "url": "/deck/surfaces/stub.html?tab=finance&title=Billing&body=Crater%20invoices%20on%20the%20portal%20and%20admin."
+              "device": "laptop",
+              "gif": "/deck/gifs/billing.gif"
             },
             {
               "type": "stage.caption",
-              "text": "Billing \u2014 placeholder showcase"
-            },
-            {
-              "type": "nav.pulse",
-              "tab": "finance"
-            },
-            {
-              "type": "stage.highlight",
-              "selector": "#stub-panel"
+              "text": "Billing — laptop on the desk"
             }
           ]
         }
