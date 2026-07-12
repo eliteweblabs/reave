@@ -290,6 +290,7 @@
   }
 
   function scrollToScene(id) {
+    var track = $('#scroll-track');
     var el = $('#scene-' + id);
     if (!el) {
       activateScene(id, { force: true });
@@ -297,13 +298,18 @@
     }
     scrollingTo = id;
     activateScene(id, { force: true });
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (track) {
+      track.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     window.setTimeout(function () {
       if (scrollingTo === id) scrollingTo = null;
     }, 900);
   }
 
   function bindScrollEngagement() {
+    var track = $('#scroll-track');
     var scenes = $$('[data-deck-scene]');
     if (!scenes.length) return;
 
@@ -326,15 +332,15 @@
             best = scene;
           }
         });
-        if (best && bestRatio > 0.15) {
+        if (best && bestRatio > 0.35) {
           var id = best.getAttribute('data-deck-scene');
           if (id) activateScene(id);
         }
       },
       {
-        root: null,
-        threshold: [0, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1],
-        rootMargin: '-12% 0px -38% 0px',
+        root: track || null,
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+        rootMargin: '0px',
       },
     );
 

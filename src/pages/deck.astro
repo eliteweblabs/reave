@@ -179,7 +179,6 @@ const deckPayload = {
             class:list={['deck-scene', { 'deck-scene--lead': i === 0 }]}
             id={`scene-${s.id}`}
             data-deck-scene={s.id}
-            style={`min-height: ${s.scrollHeight}vh`}
           >
             <div class="deck-scene-copy">
               <p class="deck-scene-kicker">{s.label}</p>
@@ -212,15 +211,14 @@ const deckPayload = {
       html,
       body {
         width: 100%;
-        min-height: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
         margin: 0;
+        overflow: hidden;
         font-family: var(--font);
         color: var(--text);
         background: #07090e;
         cursor: default;
-      }
-      html {
-        scroll-behavior: smooth;
       }
       body {
         background-image:
@@ -324,33 +322,52 @@ const deckPayload = {
       }
 
       #scroll-track {
-        position: relative;
+        position: fixed;
+        inset: 0;
         z-index: 10;
-        padding:
-          calc(var(--app-header-h, 4rem) + env(safe-area-inset-top, 0px) + 1.5rem)
-          clamp(1rem, 4vw, 2.5rem)
-          6rem;
-      }
-      @media (min-width: 640px) {
-        #scroll-track {
-          padding-right: calc(88px + clamp(1rem, 4vw, 2.5rem));
-          max-width: min(42rem, calc(100% - 7rem));
-        }
+        height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
       }
       .deck-scene {
+        box-sizing: border-box;
+        height: 100dvh;
+        min-height: 100dvh;
+        max-height: 100dvh;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        scroll-margin-top: 22vh;
-        opacity: 0.34;
-        transition: opacity 0.35s ease;
+        padding:
+          calc(var(--app-header-h, 4rem) + env(safe-area-inset-top, 0px) + 1.25rem)
+          clamp(1rem, 4vw, 2.5rem)
+          5.5rem;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
       }
-      .deck-scene.is-active {
-        opacity: 1;
+      @media (min-width: 640px) {
+        .deck-scene {
+          padding-right: calc(88px + clamp(1rem, 4vw, 2.5rem));
+        }
+        .deck-scene-copy {
+          max-width: min(34rem, calc(100% - 7rem));
+        }
       }
       .deck-scene-copy {
         max-width: 34rem;
         pointer-events: none;
+        opacity: 0;
+        transform: translateY(28px);
+        transition:
+          opacity 0.45s ease,
+          transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .deck-scene.is-active .deck-scene-copy {
+        opacity: 1;
+        transform: translateY(0);
       }
       .deck-scene-kicker {
         margin: 0 0 0.5rem;
