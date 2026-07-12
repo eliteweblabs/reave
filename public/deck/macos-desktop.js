@@ -82,6 +82,7 @@
     var $w = $('#w-' + id);
     if (!$w) return;
     var top = headerOffset();
+    var rightDock = window.matchMedia('(min-width: 640px)').matches;
     if ($w.classList.contains('maxed')) {
       $w.style.top = $w.dataset.ot || top + 'px';
       $w.style.left = $w.dataset.ol || '48px';
@@ -95,8 +96,13 @@
       $w.dataset.oh = $w.style.height;
       $w.style.top = top + 'px';
       $w.style.left = '0';
-      $w.style.width = '100%';
-      $w.style.height = 'calc(100% - ' + (top + 90) + 'px)';
+      if (rightDock) {
+        $w.style.width = 'calc(100% - 88px)';
+        $w.style.height = 'calc(100% - ' + top + 'px)';
+      } else {
+        $w.style.width = '100%';
+        $w.style.height = 'calc(100% - ' + (top + 90) + 'px)';
+      }
       $w.classList.add('maxed');
     }
   }

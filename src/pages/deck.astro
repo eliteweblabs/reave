@@ -299,6 +299,8 @@ const deckPayload = {
       #dock-wrap {
         position: absolute;
         bottom: 10px;
+        left: 0;
+        right: 0;
         width: 100%;
         display: flex;
         justify-content: center;
@@ -315,6 +317,7 @@ const deckPayload = {
         padding: 6px 10px;
         border-radius: 18px;
         display: flex;
+        flex-direction: row;
         align-items: flex-end;
         gap: 6px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
@@ -395,6 +398,57 @@ const deckPayload = {
           opacity 0.15s ease,
           transform 0.15s ease,
           visibility 0.15s ease;
+      }
+
+      /* Bigger than small: vertical dock on the right */
+      @media (min-width: 640px) {
+        #dock-wrap {
+          top: 0;
+          bottom: 0;
+          left: auto;
+          right: 10px;
+          width: auto;
+          height: 100%;
+          align-items: center;
+          justify-content: center;
+          padding: 72px 0 16px;
+        }
+        #dock {
+          flex-direction: column;
+          align-items: center;
+          height: auto;
+          max-height: calc(100vh - 96px);
+          width: 68px;
+          padding: 10px 6px;
+          overflow-y: auto;
+          overflow-x: visible;
+        }
+        .d-item:hover {
+          transform: scale(1.14) translateX(-6px);
+          margin: 4px 0;
+        }
+        .d-item:focus-visible .d-tooltip,
+        .d-item:hover .d-tooltip {
+          transform: translateY(-50%) translateX(0);
+        }
+        .d-dot {
+          bottom: 50%;
+          left: auto;
+          right: -7px;
+          transform: translateY(50%);
+        }
+        .d-sep {
+          width: 36px;
+          height: 1px;
+          margin: 4px 0;
+        }
+        .d-tooltip {
+          bottom: auto;
+          top: 50%;
+          left: auto;
+          right: calc(100% + 12px);
+          transform: translateY(-50%) translateX(4px);
+        }
       }
       .ico {
         width: 100%;
@@ -658,7 +712,7 @@ const deckPayload = {
         color: #fff;
       }
 
-      @media (max-width: 768px) {
+      @media (max-width: 639px) {
         #dock {
           height: 58px;
           padding: 4px 8px;
