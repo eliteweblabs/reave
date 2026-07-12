@@ -4775,6 +4775,55 @@ const company = await getCompanyConfig(Astro.request);
         opacity: 0.6;
         cursor: not-allowed;
       }
+      .ind-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        margin: 0.75rem 0 1rem;
+      }
+      .ind-row {
+        display: grid;
+        grid-template-columns: 1fr minmax(5.5rem, 7rem) auto auto;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .ind-row input[type="text"] {
+        font: inherit;
+        font-size: 0.85rem;
+        color: var(--fg, #e9eef6);
+        background: var(--panel, #121722);
+        border: 1px solid var(--panel-border, #283142);
+        border-radius: 8px;
+        padding: 0.45rem 0.6rem;
+        width: 100%;
+      }
+      .ind-enabled {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.78rem;
+        color: var(--muted, #8b97a8);
+        white-space: nowrap;
+        user-select: none;
+      }
+      .ind-empty {
+        font-size: 0.85rem;
+        color: var(--muted, #8b97a8);
+        padding: 0.35rem 0;
+      }
+      .ind-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      @media (max-width: 640px) {
+        .ind-row {
+          grid-template-columns: 1fr 1fr;
+        }
+        .ind-row .ind-remove {
+          grid-column: 1 / -1;
+        }
+      }
       .prof-logo-upload {
         display: flex;
         flex-direction: column;
@@ -5016,6 +5065,6 @@ const company = await getCompanyConfig(Astro.request);
       import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250705a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250712a"></script>
   </body>
 </html>

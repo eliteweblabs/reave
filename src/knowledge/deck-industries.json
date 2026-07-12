@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "slug": "salon",
+    "label": "Salon",
+    "sortOrder": 0,
+    "enabled": true,
+    "updatedAt": null
+  },
+  {
+    "id": 2,
+    "slug": "content",
+    "label": "Content",
+    "sortOrder": 1,
+    "enabled": true,
+    "updatedAt": null
+  },
+  {
+    "id": 3,
+    "slug": "engineer",
+    "label": "Engineer",
+    "sortOrder": 2,
+    "enabled": true,
+    "updatedAt": null
+  },
+  {
+    "id": 4,
+    "slug": "principal",
+    "label": "Principal",
+    "sortOrder": 3,
+    "enabled": true,
+    "updatedAt": null
+  },
+  {
+    "id": 5,
+    "slug": "marketing",
+    "label": "Marketing",
+    "sortOrder": 4,
+    "enabled": true,
+    "updatedAt": null
+  },
+  {
+    "id": 6,
+    "slug": "real-estate",
+    "label": "Real estate",
+    "sortOrder": 5,
+    "enabled": true,
+    "updatedAt": null
+  }
+]

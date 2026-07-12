@@ -2108,9 +2108,95 @@ function bindProfileForms(root) {
   });
 
   bindCompanyLogoUpload(root, companyAlert);
+  bindIndustriesEditor(root);
 }
 
-function renderProfilePanel(profile, company) {
+function industriesRowsHtml(industries) {
+  const list = Array.isArray(industries) && industries.length ? industries : [];
+  if (!list.length) {
+    return `<div class="ind-empty">No industries yet — add one below.</div>`;
+  }
+  return list
+    .map((item) => {
+      const enabled = item.enabled !== false;
+      return (
+        `<div class="ind-row">` +
+          `<input class="ind-label" type="text" value="${escHtml(item.label || '')}" placeholder="Label" aria-label="Industry label" />` +
+          `<input class="ind-slug" type="text" value="${escHtml(item.slug || '')}" placeholder="slug" aria-label="Industry slug" />` +
+          `<label class="ind-enabled"><input type="checkbox" class="ind-enabled-cb"${enabled ? ' checked' : ''} /> On</label>` +
+          `<button type="button" class="prof-btn-secondary ind-remove" aria-label="Remove">Remove</button>` +
+        `</div>`
+      );
+    })
+    .join('');
+}
+
+function collectIndustriesFromDom(root) {
+  return Array.from(root.querySelectorAll('.ind-row'))
+    .map((row, i) => {
+      const label = row.querySelector('.ind-label')?.value?.trim() || '';
+      const slug = row.querySelector('.ind-slug')?.value?.trim() || '';
+      const enabled = !!row.querySelector('.ind-enabled-cb')?.checked;
+      return { label, slug, enabled, sortOrder: i };
+    })
+    .filter((r) => r.label);
+}
+
+function bindIndustriesEditor(root) {
+  const listEl = root.querySelector('#industries-list');
+  const alertEl = root.querySelector('#industries-alert');
+  const addBtn = root.querySelector('#industries-add-btn');
+  const saveBtn = root.querySelector('#industries-save-btn');
+  if (!listEl) return;
+
+  listEl.addEventListener('click', (e) => {
+    const btn = e.target?.closest?.('.ind-remove');
+    if (!btn) return;
+    btn.closest('.ind-row')?.remove();
+  });
+
+  addBtn?.addEventListener('click', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML =
+      `<div class="ind-row">` +
+        `<input class="ind-label" type="text" value="" placeholder="Label" aria-label="Industry label" />` +
+        `<input class="ind-slug" type="text" value="" placeholder="slug (auto)" aria-label="Industry slug" />` +
+        `<label class="ind-enabled"><input type="checkbox" class="ind-enabled-cb" checked /> On</label>` +
+        `<button type="button" class="prof-btn-secondary ind-remove" aria-label="Remove">Remove</button>` +
+      `</div>`;
+    listEl.querySelector('.ind-empty')?.remove();
+    listEl.appendChild(wrap.firstElementChild);
+    listEl.querySelector('.ind-row:last-child .ind-label')?.focus();
+  });
+
+  saveBtn?.addEventListener('click', async () => {
+    if (!(saveBtn instanceof HTMLButtonElement)) return;
+    const industries = collectIndustriesFromDom(root);
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/deck-industries', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ industries }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        listEl.innerHTML = industriesRowsHtml(json.industries);
+        showProfileAlert(alertEl, 'Industries saved.', 'success');
+      } else {
+        showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
+      }
+    } catch {
+      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save industries';
+    }
+  });
+}
+
+function renderProfilePanel(profile, company, industries) {
   const p = profile || {};
   const c = company || {};
   return (
@@ -2172,6 +2258,16 @@ function renderProfilePanel(profile, company) {
           `<div class="prof-actions"><button type="submit" id="company-save-btn" class="prof-btn-primary">Save Company Details</button></div>` +
         `</form>` +
       `</div>` +
+      `<div class="prof-card">` +
+        `<h2 class="prof-title prof-title--section">Deck industries</h2>` +
+        `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit labels and slugs; turn Off to hide without deleting.</p>` +
+        `<div id="industries-alert" class="prof-alert" hidden></div>` +
+        `<div id="industries-list" class="ind-list">${industriesRowsHtml(industries)}</div>` +
+        `<div class="prof-actions ind-actions">` +
+          `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
+          `<button type="button" id="industries-save-btn" class="prof-btn-primary">Save industries</button>` +
+        `</div>` +
+      `</div>` +
     `</div>`
   );
 }
@@ -2182,15 +2278,18 @@ async function loadProfileTab() {
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
 
   try {
-    const [profileRes, companyRes] = await Promise.all([
+    const [profileRes, companyRes, industriesRes] = await Promise.all([
       fetch('/api/admin/profile', { cache: 'no-store' }),
       fetch('/api/admin/company', { cache: 'no-store' }),
+      fetch('/api/admin/deck-industries', { cache: 'no-store' }),
     ]);
     const profileData = await profileRes.json();
     const companyData = await companyRes.json();
+    const industriesData = await industriesRes.json().catch(() => ({}));
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
-    root.innerHTML = renderProfilePanel(profileData.profile, companyData.company);
+    const industries = industriesRes.ok && industriesData.ok ? industriesData.industries : [];
+    root.innerHTML = renderProfilePanel(profileData.profile, companyData.company, industries);
     bindProfileForms(root);
   } catch (e) {
     root.innerHTML =
