@@ -1,10 +1,10 @@
 ---
 /**
- * Public scroll sales deck — driven by src/deck/scripts/everything.json
+ * /deck — macOS-style desktop sales experience.
+ * Sections from everything.json open as draggable windows;
+ * each shows a recorded GIF mapped into a device frame.
  */
-import Layout from '../layouts/Layout.astro';
-import DeckStage from '../components/deck/DeckStage.astro';
-import DeckBeat from '../components/deck/DeckBeat.astro';
+import Favicon from '../components/Favicon.astro';
 import { assertDeckScript } from '../deck/validate';
 import { getCompanyConfig } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
@@ -13,304 +13,640 @@ export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
+
+const DOCK_ICONS: Record<string, string> = {
+  homepage: 'home',
+  pwa: 'bell',
+  scheduling: 'calendar',
+  voice: 'mic',
+  clients: 'users',
+  inbox: 'mail',
+  work: 'briefcase',
+  documents: 'file',
+  knowledge: 'book',
+  monitoring: 'activity',
+  billing: 'dollar',
+};
+
+const sections = script.sections.map((section, i) => {
+  const feature = section.features[0];
+  const setAction = feature?.actions.find((a) => a.type === 'stage.set');
+  const gif = setAction && setAction.type === 'stage.set' ? setAction.gif : undefined;
+  const device =
+    setAction && setAction.type === 'stage.set'
+      ? setAction.device ?? (setAction.surface === 'desktop' ? 'laptop' : 'phone-hand')
+      : 'phone-hand';
+  return {
+    id: section.id,
+    name: section.title,
+    summary: section.summary ?? '',
+    featureTitle: feature?.title ?? section.title,
+    featureBody: feature?.body ?? '',
+    gif: gif ?? `/deck/gifs/${section.id}.gif`,
+    device,
+    icon: DOCK_ICONS[section.id] ?? 'app',
+    w: device === 'laptop' ? 720 : 520,
+    h: device === 'laptop' ? 520 : 640,
+    top: 48 + (i % 4) * 28,
+    left: 48 + (i % 5) * 36,
+  };
+});
+
+const deckPayload = {
+  companyName: company.name,
+  sections,
+};
 ---
 
-<Layout
-  title={script.title}
-  description="Scroll through the Business OS — homepage, portals, scheduling, voice, and every module."
->
-  <div class="deck" data-deck-root>
-    <header class="deck-hero">
-      <p class="deck-hero-brand">{company.name}</p>
-      <h1 class="deck-hero-title">See the Business OS in motion</h1>
-      <p class="deck-hero-sub">
-        First the design and feel — then how every piece interacts.
-      </p>
-      <a class="deck-hero-cta" href={`#beat-${script.sections[0]?.features[0]?.id ?? ''}`}>
-        Start scrolling
-      </a>
-    </header>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{script.title} | {company.name}</title>
+    <meta
+      name="description"
+      content="See the Business OS in motion — design first, then how every piece interacts."
+    />
+    <Favicon />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="boot" aria-hidden="true">
+      <div class="boot-mark">{company.name.slice(0, 1)}</div>
+      <div class="boot-name">{company.name}</div>
+      <div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
+    </div>
 
-    <div class="deck-layout">
-      <div class="deck-stage-col">
-        <div class="deck-stage-sticky">
-          <DeckStage />
+    <div id="desktop">
+      <div id="menubar">
+        <div class="bar-l">
+          <div class="bar-item bar-brand">{company.name}</div>
+          <div class="bar-item" id="app-name">Desktop</div>
+          <div class="bar-item hide-m">File</div>
+          <div class="bar-item hide-m">Edit</div>
+          <div class="bar-item hide-m">View</div>
+          <div class="bar-item hide-m">Window</div>
+        </div>
+        <div class="bar-r">
+          <a class="bar-item" href="/">Home</a>
+          <a class="bar-item" href="/sign-in">Sign in</a>
+          <div class="bar-item" id="clock"></div>
         </div>
       </div>
 
-      <div class="deck-copy-col">
+      <div id="wins"></div>
+
+      <div id="ctx" hidden>
         {
-          script.sections.map((section, sectionIndex) => (
-            <section
-              class="deck-section"
-              data-deck-section={section.id}
-              aria-labelledby={`section-${section.id}`}
-            >
-              <div class="deck-section-head">
-                <h2 class="deck-section-title" id={`section-${section.id}`}>
-                  {section.title}
-                </h2>
-                {section.summary && <p class="deck-section-summary">{section.summary}</p>}
-              </div>
-              {section.features.map((feature, featureIndex) => (
-                <DeckBeat
-                  section={section}
-                  feature={feature}
-                  sectionIndex={sectionIndex}
-                  featureIndex={featureIndex}
-                />
-              ))}
-            </section>
+          sections.slice(0, 6).map((s) => (
+            <button type="button" class="ctx-i" data-app={s.id}>
+              Open {s.name}
+            </button>
           ))
         }
       </div>
+
+      <div id="dock-wrap">
+        <div id="dock">
+          {
+            sections.map((s, i) => (
+              <>
+                {i === 2 && <div class="d-sep" aria-hidden="true" />}
+                <button type="button" class="d-item" id={`d-${s.id}`} data-app={s.id} title={s.name}>
+                  <span class={`ico ico-${s.icon}`} aria-hidden="true"></span>
+                  <span class="d-dot" aria-hidden="true"></span>
+                  <span class="d-tooltip">{s.name}</span>
+                </button>
+              </>
+            ))
+          }
+        </div>
+      </div>
     </div>
 
-    <nav class="deck-toc" aria-label="Deck sections">
-      {
-        script.sections.map((section) => (
-          <a href={`#beat-${section.features[0]?.id ?? ''}`} data-toc-section={section.id}>
-            {section.title}
-          </a>
-        ))
+    <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
+
+    <style is:global>
+      * {
+        box-sizing: border-box;
       }
-    </nav>
-  </div>
-</Layout>
+      :root {
+        --win-bg: rgba(22, 22, 26, 0.88);
+        --dock-bg: rgba(30, 30, 34, 0.5);
+        --bar-bg: rgba(12, 14, 20, 0.72);
+        --accent: #5eead4;
+        --accent-dim: rgba(94, 234, 212, 0.18);
+        --green: #34d399;
+        --text: #e8eef8;
+        --dim: #8b97a8;
+        --border: rgba(255, 255, 255, 0.1);
+        --card: rgba(255, 255, 255, 0.04);
+        --font: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+        --display: 'Syne', ui-sans-serif, system-ui, sans-serif;
+      }
+      html,
+      body {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        margin: 0;
+        font-family: var(--font);
+        color: var(--text);
+        background: #07090e;
+        cursor: default;
+      }
+      body {
+        background-image:
+          radial-gradient(ellipse 80% 60% at 18% 85%, rgba(94, 234, 212, 0.14) 0%, transparent 55%),
+          radial-gradient(ellipse 55% 45% at 85% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
+          radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+      }
 
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Syne:wght@700;800&display=swap');
+      #boot {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        z-index: 100000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: opacity 0.7s ease;
+      }
+      .boot-mark {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        font-family: var(--display);
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(145deg, #5eead4, #38bdf8);
+        color: #041016;
+        margin-bottom: 1rem;
+      }
+      .boot-name {
+        font-family: var(--display);
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+        margin-bottom: 2rem;
+      }
+      .boot-bar {
+        width: 180px;
+        height: 5px;
+        background: #222;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .boot-fill {
+        height: 100%;
+        width: 0;
+        background: #fff;
+        border-radius: 3px;
+        transition: width 2.4s ease-in-out;
+      }
 
-  :global(html),
-  :global(body) {
-    min-height: 100%;
-    background: #07090e;
-  }
+      #desktop {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+      #wins {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      #wins .win {
+        pointer-events: auto;
+      }
 
-  .deck {
-    --deck-ink: #f4f7fb;
-    --deck-muted: rgba(233, 238, 246, 0.62);
-    --deck-line: rgba(255, 255, 255, 0.08);
-    --deck-accent: #5eead4;
-    color: var(--deck-ink);
-    padding-bottom: 4rem;
-    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-  }
+      #menubar {
+        position: absolute;
+        top: 0;
+        width: 100%;
+        height: 28px;
+        background: var(--bar-bg);
+        backdrop-filter: blur(28px);
+        -webkit-backdrop-filter: blur(28px);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 14px;
+        font-size: 12.5px;
+        font-weight: 500;
+        z-index: 5000;
+        border-bottom: 1px solid var(--border);
+      }
+      .bar-l,
+      .bar-r {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .bar-item {
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: inherit;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .bar-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .bar-brand {
+        font-weight: 700;
+        font-family: var(--display);
+      }
+      #app-name {
+        font-weight: 600;
+      }
+      #clock {
+        color: var(--dim);
+      }
 
-  .deck-hero {
-    min-height: 88vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    padding: 6rem 1.25rem 3.5rem;
-    max-width: 40rem;
-    background:
-      radial-gradient(ellipse 80% 55% at 20% 20%, rgba(94, 234, 212, 0.12), transparent 55%),
-      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(99, 102, 241, 0.14), transparent 50%),
-      #07090e;
-  }
+      #dock-wrap {
+        position: absolute;
+        bottom: 10px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        z-index: 6000;
+        padding: 0 12px;
+      }
+      #dock {
+        background: var(--dock-bg);
+        backdrop-filter: blur(30px);
+        -webkit-backdrop-filter: blur(30px);
+        border: 1px solid var(--border);
+        height: 68px;
+        padding: 6px 10px;
+        border-radius: 18px;
+        display: flex;
+        align-items: flex-end;
+        gap: 6px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        max-width: 100%;
+        overflow-x: auto;
+      }
+      .d-item {
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
+        position: relative;
+        cursor: pointer;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: #fff;
+        transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), margin 0.2s ease;
+        flex-shrink: 0;
+      }
+      .d-item:hover {
+        transform: scale(1.18) translateY(-8px);
+        margin: 0 4px;
+      }
+      .d-dot {
+        width: 4px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.45);
+        border-radius: 50%;
+        position: absolute;
+        bottom: -7px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: none;
+      }
+      .d-item.open .d-dot {
+        display: block;
+      }
+      .d-sep {
+        width: 1px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.18);
+        margin: 0 4px;
+        flex-shrink: 0;
+        align-self: center;
+      }
+      .d-tooltip {
+        position: absolute;
+        top: -32px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(20, 22, 28, 0.95);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        border: 1px solid var(--border);
+      }
+      .d-item:hover .d-tooltip {
+        opacity: 1;
+      }
+      .ico {
+        width: 100%;
+        height: 100%;
+        border-radius: 13px;
+        display: grid;
+        place-items: center;
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .ico-home { background: linear-gradient(135deg, #5eead4, #38bdf8); color: #041016; }
+      .ico-bell { background: linear-gradient(135deg, #f472b6, #fb7185); }
+      .ico-calendar { background: linear-gradient(135deg, #34d399, #10b981); }
+      .ico-mic { background: linear-gradient(135deg, #a78bfa, #818cf8); }
+      .ico-users { background: linear-gradient(135deg, #38bdf8, #0ea5e9); }
+      .ico-mail { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1c1408; }
+      .ico-briefcase { background: linear-gradient(135deg, #94a3b8, #64748b); }
+      .ico-file { background: linear-gradient(135deg, #67e8f9, #22d3ee); color: #042f2e; }
+      .ico-book { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+      .ico-activity { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; }
+      .ico-dollar { background: linear-gradient(135deg, #fde68a, #fbbf24); color: #1c1408; }
+      .ico-home::before { content: '⌂'; }
+      .ico-bell::before { content: '⌁'; }
+      .ico-calendar::before { content: '▦'; }
+      .ico-mic::before { content: '◉'; }
+      .ico-users::before { content: '☺'; }
+      .ico-mail::before { content: '✉'; }
+      .ico-briefcase::before { content: '▣'; }
+      .ico-file::before { content: '▤'; }
+      .ico-book::before { content: '◈'; }
+      .ico-activity::before { content: '◎'; }
+      .ico-dollar::before { content: '$'; }
 
-  .deck-hero-brand {
-    margin: 0 0 1rem;
-    font-family: 'Syne', ui-sans-serif, system-ui, sans-serif;
-    font-size: clamp(2.4rem, 8vw, 4rem);
-    font-weight: 800;
-    letter-spacing: -0.05em;
-    line-height: 0.95;
-  }
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-18px);
+        }
+      }
+      .bouncing {
+        animation: bounce 0.55s ease infinite;
+      }
 
-  .deck-hero-title {
-    margin: 0 0 0.75rem;
-    font-size: clamp(1.15rem, 2.8vw, 1.45rem);
-    font-weight: 500;
-    color: var(--deck-muted);
-    letter-spacing: -0.01em;
-  }
+      .win {
+        position: absolute;
+        background: var(--win-bg);
+        backdrop-filter: blur(28px);
+        -webkit-backdrop-filter: blur(28px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 280px;
+        min-height: 200px;
+      }
+      .win.opening {
+        animation: wOpen 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes wOpen {
+        from {
+          transform: scale(0.86);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .win.inactive {
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        border-color: rgba(255, 255, 255, 0.06);
+      }
+      .win.inactive .tl span {
+        background-color: #555 !important;
+      }
+      .win-head {
+        height: 32px;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        position: relative;
+        cursor: grab;
+        flex-shrink: 0;
+        user-select: none;
+      }
+      .win-head:active {
+        cursor: grabbing;
+      }
+      .tl {
+        display: flex;
+        gap: 7px;
+        margin-left: 12px;
+        z-index: 2;
+      }
+      .tl span {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+      .tl .c {
+        background: #ff5f56;
+      }
+      .tl .m {
+        background: #ffbd2e;
+      }
+      .tl .x {
+        background: #27c93f;
+      }
+      .win-title {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.8);
+        pointer-events: none;
+      }
+      .win-body {
+        flex: 1;
+        overflow: auto;
+        position: relative;
+        background: rgba(0, 0, 0, 0.18);
+      }
 
-  .deck-hero-sub {
-    margin: 0 0 1.75rem;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    color: rgba(233, 238, 246, 0.5);
-    max-width: 28rem;
-  }
+      .s-home {
+        padding: 1.75rem 1.5rem;
+        display: grid;
+        grid-template-columns: minmax(180px, 42%) 1fr;
+        gap: 1.25rem;
+        min-height: 100%;
+        align-items: center;
+      }
+      @media (max-width: 700px) {
+        .s-home {
+          grid-template-columns: 1fr;
+        }
+      }
+      .s-home .copy h2 {
+        margin: 0 0 0.5rem;
+        font-family: var(--display);
+        font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+      }
+      .s-home .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--accent-dim);
+        border: 1px solid rgba(94, 234, 212, 0.3);
+        padding: 3px 12px;
+        border-radius: 100px;
+        font-size: 11px;
+        color: var(--accent);
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+      }
+      .s-home .tag .pulse {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+        animation: pulse 2s ease infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 0 6px transparent;
+        }
+      }
+      .s-home p {
+        margin: 0;
+        font-size: 0.92rem;
+        color: var(--dim);
+        line-height: 1.55;
+      }
+      .s-home .preview {
+        display: flex;
+        justify-content: center;
+      }
 
-  .deck-hero-cta {
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-    padding: 0.7rem 1.1rem;
-    border-radius: 999px;
-    background: var(--deck-ink);
-    color: #07090e;
-    text-decoration: none;
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
+      /* Device preview inside windows */
+      .gif-device {
+        width: 100%;
+        max-width: 220px;
+      }
+      .gif-device--laptop {
+        max-width: 100%;
+      }
+      .gif-device-shell {
+        position: relative;
+        background: #0a0a0c;
+        overflow: hidden;
+        border: 2px solid #2a2a30;
+      }
+      .gif-device--phone-hand .gif-device-shell,
+      .gif-device--phone-desk .gif-device-shell {
+        aspect-ratio: 9 / 19.5;
+        border-radius: 20px;
+        margin: 0 auto;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      }
+      .gif-device--laptop .gif-device-shell {
+        aspect-ratio: 16 / 10;
+        border-radius: 8px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      }
+      .gif-device-shell img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: top center;
+        display: block;
+      }
+      .gif-ph {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        text-align: center;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+        background: linear-gradient(160deg, #1a2438, #0d121c);
+      }
+      .gif-ph[hidden] {
+        display: none;
+      }
 
-  .deck-layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0;
-    padding: 0 1.25rem;
-    max-width: 1120px;
-    margin: 0 auto;
-  }
+      #ctx {
+        position: absolute;
+        background: rgba(28, 30, 38, 0.94);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 5px 0;
+        min-width: 180px;
+        z-index: 99999;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        font-size: 13px;
+      }
+      .ctx-i {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 7px 14px;
+        border: 0;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+      .ctx-i:hover {
+        background: rgba(94, 234, 212, 0.18);
+        color: #fff;
+      }
 
-  .deck-stage-col {
-    order: -1;
-  }
+      @media (max-width: 768px) {
+        #menubar {
+          font-size: 11px;
+          padding: 0 8px;
+        }
+        .hide-m {
+          display: none;
+        }
+        #dock {
+          height: 58px;
+          padding: 4px 8px;
+        }
+        .d-item {
+          width: 44px;
+          height: 44px;
+        }
+        .win {
+          left: 8px !important;
+          right: 8px;
+          width: auto !important;
+          max-width: calc(100vw - 16px);
+        }
+      }
+    </style>
 
-  .deck-stage-sticky {
-    position: sticky;
-    top: 4.5rem;
-    z-index: 5;
-    padding: 0.5rem 0 1rem;
-    background: linear-gradient(to bottom, #07090e 70%, transparent);
-  }
-
-  .deck-section {
-    border-top: 1px solid var(--deck-line);
-    padding-top: 1rem;
-  }
-
-  .deck-section.is-active .deck-section-title {
-    color: var(--deck-accent);
-  }
-
-  .deck-section-head {
-    padding: 1.5rem 0 0.25rem;
-  }
-
-  .deck-section-title {
-    margin: 0 0 0.4rem;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.4);
-    transition: color 0.3s ease;
-  }
-
-  .deck-section-summary {
-    margin: 0;
-    font-size: 0.9rem;
-    color: var(--deck-muted);
-    max-width: 34rem;
-    line-height: 1.45;
-  }
-
-  .deck-toc {
-    position: fixed;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    display: none;
-    flex-direction: column;
-    gap: 0.35rem;
-    max-width: 9rem;
-    z-index: 20;
-  }
-
-  .deck-toc a {
-    font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.35);
-    text-decoration: none;
-    text-align: right;
-    line-height: 1.25;
-  }
-
-  .deck-toc a.is-active {
-    color: var(--deck-accent);
-  }
-
-  @media (min-width: 960px) {
-    .deck-hero {
-      padding: 7rem 2rem 4rem;
-      max-width: 1120px;
-      margin: 0 auto;
-    }
-
-    .deck-layout {
-      grid-template-columns: minmax(300px, 42%) 1fr;
-      gap: 2.5rem;
-      padding: 0 2rem 2rem;
-      align-items: start;
-    }
-
-    .deck-stage-col {
-      order: 0;
-    }
-
-    .deck-stage-sticky {
-      top: 5.5rem;
-      padding-top: 1rem;
-      background: transparent;
-    }
-
-    .deck-toc {
-      display: flex;
-    }
-  }
-</style>
-
-<script>
-  import { attachDeckPlayer } from '../deck/player';
-  import { assertDeckScript } from '../deck/validate';
-  import everythingRaw from '../deck/scripts/everything.json';
-
-  const script = assertDeckScript(everythingRaw);
-
-  function boot(): () => void {
-    const root = document.querySelector<HTMLElement>('[data-deck-root]');
-    const stage = document.querySelector<HTMLElement>('[data-deck-stage]');
-    const viewport = document.querySelector<HTMLElement>('[data-deck-viewport]');
-    const frame = document.querySelector<HTMLIFrameElement>('[data-deck-frame]');
-    const caption = document.querySelector<HTMLElement>('[data-deck-caption]');
-    const gif = document.querySelector<HTMLImageElement>('[data-deck-gif]');
-    const placeholder = document.querySelector<HTMLElement>('[data-deck-placeholder]');
-    if (!root || !stage || !viewport || !caption) return () => {};
-
-    return attachDeckPlayer({
-      script,
-      root,
-      stage,
-      viewport,
-      frame,
-      caption,
-      gif,
-      placeholder,
-      onBeatChange(_feature, sectionId) {
-        root.querySelectorAll('[data-toc-section]').forEach((a) => {
-          a.classList.toggle(
-            'is-active',
-            a.getAttribute('data-toc-section') === sectionId,
-          );
-        });
-      },
-    });
-  }
-
-  let cleanup: (() => void) | undefined;
-
-  function start() {
-    cleanup?.();
-    cleanup = boot();
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
-  } else {
-    start();
-  }
-
-  window.addEventListener(
-    'pagehide',
-    () => {
-      cleanup?.();
-      cleanup = undefined;
-    },
-    { once: true },
-  );
-</script>
+    <script src="/deck/macos-desktop.js" defer></script>
+  </body>
+</html>
