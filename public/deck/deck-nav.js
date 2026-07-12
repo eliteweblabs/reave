@@ -30,6 +30,41 @@
 
   var activeSceneId = null;
   var scrollingTo = null;
+  var excludeAdvanceTimer = null;
+
+  function sceneOrder() {
+    return $$('[data-deck-scene]').map(function (el) {
+      return el.getAttribute('data-deck-scene');
+    }).filter(Boolean);
+  }
+
+  function nextSceneId(id) {
+    var order = sceneOrder();
+    var idx = order.indexOf(id);
+    if (idx < 0 || idx >= order.length - 1) return null;
+    return order[idx + 1];
+  }
+
+  function clearExcludeAdvance() {
+    if (excludeAdvanceTimer) {
+      window.clearTimeout(excludeAdvanceTimer);
+      excludeAdvanceTimer = null;
+    }
+  }
+
+  /** After excluding a module, advance to the next scene. */
+  function scheduleAdvanceAfterExclude(fromId) {
+    clearExcludeAdvance();
+    var next = nextSceneId(fromId);
+    if (!next) return;
+    excludeAdvanceTimer = window.setTimeout(function () {
+      excludeAdvanceTimer = null;
+      // Only advance if still excluded and we haven't navigated elsewhere.
+      if (included[fromId] !== false) return;
+      if (activeSceneId && activeSceneId !== fromId && activeSceneId !== scrollingTo) return;
+      scrollToScene(next);
+    }, 1500);
+  }
 
   function setNavActive(id) {
     $$('.d-item[data-app]').forEach(function (btn) {
@@ -203,8 +238,14 @@
       input.addEventListener('change', function () {
         var id = input.getAttribute('data-opt-toggle');
         if (!id) return;
-        included[id] = !!input.checked;
+        var on = !!input.checked;
+        included[id] = on;
         applyDeclinedUi();
+        if (on) {
+          clearExcludeAdvance();
+        } else {
+          scheduleAdvanceAfterExclude(id);
+        }
       });
     });
   }
