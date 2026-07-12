@@ -5,6 +5,7 @@
  * each shows a recorded GIF mapped into a device frame.
  */
 import Favicon from '../components/Favicon.astro';
+import Header from '../components/Header.astro';
 import { assertDeckScript } from '../deck/validate';
 import { getCompanyConfig } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
@@ -47,7 +48,7 @@ const sections = script.sections.map((section, i) => {
     icon: DOCK_ICONS[section.id] ?? 'app',
     w: device === 'laptop' ? 720 : 520,
     h: device === 'laptop' ? 520 : 640,
-    top: 48 + (i % 4) * 28,
+    top: 72 + (i % 4) * 28,
     left: 48 + (i % 5) * 36,
   };
 });
@@ -77,6 +78,8 @@ const deckPayload = {
     />
   </head>
   <body>
+    <Header />
+
     <div id="boot" aria-hidden="true">
       <div class="boot-mark">{company.name.slice(0, 1)}</div>
       <div class="boot-name">{company.name}</div>
@@ -84,22 +87,6 @@ const deckPayload = {
     </div>
 
     <div id="desktop">
-      <div id="menubar">
-        <div class="bar-l">
-          <div class="bar-item bar-brand">{company.name}</div>
-          <div class="bar-item" id="app-name">Desktop</div>
-          <div class="bar-item hide-m">File</div>
-          <div class="bar-item hide-m">Edit</div>
-          <div class="bar-item hide-m">View</div>
-          <div class="bar-item hide-m">Window</div>
-        </div>
-        <div class="bar-r">
-          <a class="bar-item" href="/">Home</a>
-          <a class="bar-item" href="/sign-in">Sign in</a>
-          <div class="bar-item" id="clock"></div>
-        </div>
-      </div>
-
       <div id="wins"></div>
 
       <div id="ctx" hidden>
@@ -139,7 +126,6 @@ const deckPayload = {
       :root {
         --win-bg: rgba(22, 22, 26, 0.88);
         --dock-bg: rgba(30, 30, 34, 0.5);
-        --bar-bg: rgba(12, 14, 20, 0.72);
         --accent: #5eead4;
         --accent-dim: rgba(94, 234, 212, 0.18);
         --green: #34d399;
@@ -166,6 +152,11 @@ const deckPayload = {
           radial-gradient(ellipse 80% 60% at 18% 85%, rgba(94, 234, 212, 0.14) 0%, transparent 55%),
           radial-gradient(ellipse 55% 45% at 85% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
           radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+      }
+
+      /* Site header above dock/windows so menus stay usable */
+      .app-header {
+        z-index: 7000;
       }
 
       #boot {
@@ -226,50 +217,6 @@ const deckPayload = {
       }
       #wins .win {
         pointer-events: auto;
-      }
-
-      #menubar {
-        position: absolute;
-        top: 0;
-        width: 100%;
-        height: 28px;
-        background: var(--bar-bg);
-        backdrop-filter: blur(28px);
-        -webkit-backdrop-filter: blur(28px);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0 14px;
-        font-size: 12.5px;
-        font-weight: 500;
-        z-index: 5000;
-        border-bottom: 1px solid var(--border);
-      }
-      .bar-l,
-      .bar-r {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-      .bar-item {
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: inherit;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-      .bar-item:hover {
-        background: rgba(255, 255, 255, 0.08);
-      }
-      .bar-brand {
-        font-weight: 700;
-        font-family: var(--display);
-      }
-      #app-name {
-        font-weight: 600;
-      }
-      #clock {
-        color: var(--dim);
       }
 
       #dock-wrap {
@@ -623,13 +570,6 @@ const deckPayload = {
       }
 
       @media (max-width: 768px) {
-        #menubar {
-          font-size: 11px;
-          padding: 0 8px;
-        }
-        .hide-m {
-          display: none;
-        }
         #dock {
           height: 58px;
           padding: 4px 8px;

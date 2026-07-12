@@ -1,15 +1,24 @@
 /**
  * macOS-style desktop window manager for /deck only.
  * Reads section payload from #deck-data.
+ * Site Header (not Apple menubar) is rendered by the page.
  */
 (function () {
   'use strict';
+
+  var HEADER_TOP = 64;
 
   function $(sel, root) {
     return (root || document).querySelector(sel);
   }
   function $$(sel, root) {
     return Array.from((root || document).querySelectorAll(sel));
+  }
+
+  function headerOffset() {
+    var header = $('.app-header');
+    if (!header) return HEADER_TOP;
+    return Math.max(HEADER_TOP, Math.ceil(header.getBoundingClientRect().bottom));
   }
 
   function readPayload() {
@@ -38,24 +47,6 @@
     return escapeHtml(str).replace(/'/g, '&#39;');
   }
 
-  function tick() {
-    var d = new Date();
-    var ds = d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
-    var ts = d.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-    var clock = $('#clock');
-    if (clock) clock.textContent = ds + ' ' + ts;
-  }
-  setInterval(tick, 1000);
-  tick();
-
   function findSection(id) {
     return sections.find(function (s) {
       return s.id === id;
@@ -71,9 +62,6 @@
       $w.classList.remove('inactive');
       $w.style.zIndex = String(++zIdx);
     }
-    var s = wins[id];
-    var nameEl = $('#app-name');
-    if (nameEl) nameEl.textContent = s ? s.name : 'Desktop';
   }
 
   function closeWin(id) {
@@ -88,15 +76,14 @@
     delete wins[id];
     var dock = $('#d-' + id);
     if (dock) dock.classList.remove('open');
-    var nameEl = $('#app-name');
-    if (nameEl) nameEl.textContent = 'Desktop';
   }
 
   function maxWin(id) {
     var $w = $('#w-' + id);
     if (!$w) return;
+    var top = headerOffset();
     if ($w.classList.contains('maxed')) {
-      $w.style.top = $w.dataset.ot || '48px';
+      $w.style.top = $w.dataset.ot || top + 'px';
       $w.style.left = $w.dataset.ol || '48px';
       $w.style.width = $w.dataset.ow || '520px';
       $w.style.height = $w.dataset.oh || '640px';
@@ -106,10 +93,10 @@
       $w.dataset.ol = $w.style.left;
       $w.dataset.ow = $w.style.width;
       $w.dataset.oh = $w.style.height;
-      $w.style.top = '28px';
+      $w.style.top = top + 'px';
       $w.style.left = '0';
       $w.style.width = '100%';
-      $w.style.height = 'calc(100% - 90px)';
+      $w.style.height = 'calc(100% - ' + (top + 90) + 'px)';
       $w.classList.add('maxed');
     }
   }
@@ -131,7 +118,7 @@
     handle.addEventListener('pointermove', function (e) {
       if (!dragging || el.classList.contains('maxed')) return;
       el.style.left = Math.max(0, e.clientX - ox) + 'px';
-      el.style.top = Math.max(28, e.clientY - oy) + 'px';
+      el.style.top = Math.max(headerOffset(), e.clientY - oy) + 'px';
     });
     handle.addEventListener('pointerup', function () {
       dragging = false;
@@ -192,6 +179,7 @@
 
   function createWin(id, s) {
     wins[id] = s;
+    var top = Math.max(s.top || HEADER_TOP, headerOffset());
     var html =
       '<div class="win opening" id="w-' +
       id +
@@ -200,7 +188,7 @@
       'px;height:' +
       s.h +
       'px;top:' +
-      s.top +
+      top +
       'px;left:' +
       s.left +
       'px;z-index:' +
@@ -227,8 +215,6 @@
     $w.querySelector('[data-act="min"]').addEventListener('click', function (e) {
       e.stopPropagation();
       $w.style.display = 'none';
-      var nameEl = $('#app-name');
-      if (nameEl) nameEl.textContent = 'Desktop';
     });
     $w.querySelector('[data-act="max"]').addEventListener('click', function (e) {
       e.stopPropagation();
@@ -281,7 +267,7 @@
   });
 
   document.addEventListener('contextmenu', function (e) {
-    if (e.target.closest('.win, #dock, #menubar')) return;
+    if (e.target.closest('.win, #dock, .app-header')) return;
     if (!e.target.closest('#desktop')) return;
     e.preventDefault();
     var ctx = $('#ctx');
