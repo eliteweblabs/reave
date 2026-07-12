@@ -1,7 +1,6 @@
 /**
- * macOS-style desktop window manager for /deck only.
+ * macOS-style desktop window manager + scroll scene engagement for /deck.
  * Reads section payload from #deck-data.
- * Site Header (not Apple menubar) is rendered by the page.
  */
 (function () {
   'use strict';
@@ -35,6 +34,8 @@
   var sections = data.sections || [];
   var zIdx = 100;
   var wins = {};
+  var activeSceneId = null;
+  var scrollingTo = null;
 
   function escapeHtml(str) {
     return String(str || '')
@@ -62,6 +63,21 @@
       $w.classList.remove('inactive');
       $w.style.zIndex = String(++zIdx);
     }
+  }
+
+  function setNavActive(id) {
+    $$('.d-item[data-app]').forEach(function (btn) {
+      var on = btn.getAttribute('data-app') === id;
+      btn.classList.toggle('active', on);
+      if (on) btn.setAttribute('aria-current', 'true');
+      else btn.removeAttribute('aria-current');
+    });
+  }
+
+  function setSceneActive(id) {
+    $$('[data-deck-scene]').forEach(function (el) {
+      el.classList.toggle('is-active', el.getAttribute('data-deck-scene') === id);
+    });
   }
 
   function closeWin(id) {
@@ -233,6 +249,7 @@
     hydrateGifs($w);
   }
 
+  /** Open (or focus) a section window — windows stack for now. */
   function openSection(id) {
     var s = findSection(id);
     if (!s) return;
@@ -259,14 +276,82 @@
     createWin(id, s);
   }
 
+  /**
+   * Scroll engagement: activate one scene at a time.
+   * Creates/stacks the OSX window; delete is available via traffic lights for now.
+   */
+  function activateScene(id, opts) {
+    opts = opts || {};
+    if (!id || (id === activeSceneId && !opts.force)) return;
+    activeSceneId = id;
+    setSceneActive(id);
+    setNavActive(id);
+    openSection(id);
+  }
+
+  function scrollToScene(id) {
+    var el = $('#scene-' + id);
+    if (!el) {
+      activateScene(id, { force: true });
+      return;
+    }
+    scrollingTo = id;
+    activateScene(id, { force: true });
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(function () {
+      if (scrollingTo === id) scrollingTo = null;
+    }, 900);
+  }
+
+  function bindScrollEngagement() {
+    var scenes = $$('[data-deck-scene]');
+    if (!scenes.length) return;
+
+    var ratios = new Map();
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          ratios.set(entry.target, entry.intersectionRatio);
+        });
+        if (scrollingTo) {
+          activateScene(scrollingTo);
+          return;
+        }
+        var best = null;
+        var bestRatio = 0;
+        scenes.forEach(function (scene) {
+          var r = ratios.get(scene) || 0;
+          if (r > bestRatio) {
+            bestRatio = r;
+            best = scene;
+          }
+        });
+        if (best && bestRatio > 0.15) {
+          var id = best.getAttribute('data-deck-scene');
+          if (id) activateScene(id);
+        }
+      },
+      {
+        root: null,
+        threshold: [0, 0.15, 0.25, 0.4, 0.55, 0.7, 0.85, 1],
+        rootMargin: '-12% 0px -38% 0px',
+      },
+    );
+
+    scenes.forEach(function (scene) {
+      observer.observe(scene);
+    });
+  }
+
+  // Dock + context menu are controllers: jump scroll + open window
   $$('.d-item[data-app]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      openSection(btn.getAttribute('data-app'));
+      scrollToScene(btn.getAttribute('data-app'));
     });
   });
   $$('.ctx-i[data-app]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      openSection(btn.getAttribute('data-app'));
+      scrollToScene(btn.getAttribute('data-app'));
       var ctx = $('#ctx');
       if (ctx) ctx.hidden = true;
     });
@@ -287,6 +372,12 @@
     if (ctx) ctx.hidden = true;
   });
 
+  function startDeck() {
+    bindScrollEngagement();
+    var first = sections[0] && sections[0].id;
+    if (first) activateScene(first, { force: true });
+  }
+
   window.addEventListener('load', function () {
     var fill = $('#boot-fill');
     if (fill) fill.style.width = '100%';
@@ -296,10 +387,10 @@
         boot.style.opacity = '0';
         setTimeout(function () {
           boot.remove();
-          openSection('homepage');
+          startDeck();
         }, 500);
       } else {
-        openSection('homepage');
+        startDeck();
       }
     }, 2600);
   });

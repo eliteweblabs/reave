@@ -74,6 +74,7 @@ const sections = script.sections.map((section, i) => {
     summary: section.summary ?? '',
     featureTitle: feature?.title ?? section.title,
     featureBody: feature?.body ?? '',
+    scrollHeight: feature?.scrollHeight ?? 100,
     gif: gif ?? `/deck/gifs/${section.id}.gif`,
     device,
     w: device === 'laptop' ? 720 : 520,
@@ -129,7 +130,7 @@ const deckPayload = {
       </div>
     </div>
 
-    <div id="desktop">
+    <div id="desktop" aria-hidden="false">
       <div id="wins"></div>
 
       <div id="ctx" hidden>
@@ -171,6 +172,25 @@ const deckPayload = {
       </div>
     </div>
 
+    <main id="scroll-track" data-deck-scroll>
+      {
+        sections.map((s, i) => (
+          <section
+            class:list={['deck-scene', { 'deck-scene--lead': i === 0 }]}
+            id={`scene-${s.id}`}
+            data-deck-scene={s.id}
+            style={`min-height: ${s.scrollHeight}vh`}
+          >
+            <div class="deck-scene-copy">
+              <p class="deck-scene-kicker">{s.label}</p>
+              <h2 class="deck-scene-title">{s.featureTitle}</h2>
+              <p class="deck-scene-body">{s.featureBody || s.summary}</p>
+            </div>
+          </section>
+        ))
+      }
+    </main>
+
     <script id="deck-data" type="application/json" set:html={JSON.stringify(deckPayload)} />
     <style is:global>
       * {
@@ -191,14 +211,16 @@ const deckPayload = {
       }
       html,
       body {
-        width: 100vw;
-        height: 100vh;
-        overflow: hidden;
+        width: 100%;
+        min-height: 100%;
         margin: 0;
         font-family: var(--font);
         color: var(--text);
         background: #07090e;
         cursor: default;
+      }
+      html {
+        scroll-behavior: smooth;
       }
       body {
         background-image:
@@ -283,9 +305,10 @@ const deckPayload = {
       }
 
       #desktop {
-        width: 100%;
-        height: 100%;
-        position: relative;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        pointer-events: none;
       }
       #wins {
         position: absolute;
@@ -294,6 +317,63 @@ const deckPayload = {
       }
       #wins .win {
         pointer-events: auto;
+      }
+      #dock-wrap,
+      #ctx {
+        pointer-events: auto;
+      }
+
+      #scroll-track {
+        position: relative;
+        z-index: 10;
+        padding:
+          calc(var(--app-header-h, 4rem) + env(safe-area-inset-top, 0px) + 1.5rem)
+          clamp(1rem, 4vw, 2.5rem)
+          6rem;
+      }
+      @media (min-width: 640px) {
+        #scroll-track {
+          padding-right: calc(88px + clamp(1rem, 4vw, 2.5rem));
+          max-width: min(42rem, calc(100% - 7rem));
+        }
+      }
+      .deck-scene {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        scroll-margin-top: 22vh;
+        opacity: 0.34;
+        transition: opacity 0.35s ease;
+      }
+      .deck-scene.is-active {
+        opacity: 1;
+      }
+      .deck-scene-copy {
+        max-width: 34rem;
+        pointer-events: none;
+      }
+      .deck-scene-kicker {
+        margin: 0 0 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.45);
+      }
+      .deck-scene-title {
+        margin: 0 0 0.75rem;
+        font-family: var(--display);
+        font-size: clamp(1.45rem, 3.2vw, 2rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
+        color: #f4f7fb;
+      }
+      .deck-scene-body {
+        margin: 0;
+        font-size: 1.02rem;
+        line-height: 1.55;
+        color: rgba(233, 238, 246, 0.72);
       }
 
       #dock-wrap {
@@ -366,6 +446,16 @@ const deckPayload = {
       }
       .d-item.open .d-dot {
         display: block;
+      }
+      .d-item.active .ico {
+        box-shadow:
+          0 0 0 2px rgba(94, 234, 212, 0.95),
+          0 0 18px rgba(94, 234, 212, 0.35);
+        transform: scale(1.04);
+      }
+      .d-item.active .d-dot {
+        display: block;
+        background: var(--accent);
       }
       .d-sep {
         width: 1px;
