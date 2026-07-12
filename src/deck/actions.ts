@@ -64,10 +64,12 @@ function showPlaceholder(ctx: DeckActionContext, label?: string): void {
   }
   if (ctx.placeholder) {
     ctx.placeholder.hidden = false;
-    const labelEl = ctx.placeholder.querySelector<HTMLElement>(
-      '[data-deck-placeholder-label]',
-    );
-    if (labelEl && label) labelEl.textContent = label;
+    if (label) {
+      const labelEl = ctx.placeholder.querySelector<HTMLElement>(
+        '[data-deck-placeholder-label]',
+      );
+      if (labelEl) labelEl.textContent = label;
+    }
   }
 }
 
@@ -209,18 +211,7 @@ export const ACTION_HANDLERS: Record<DeckActionType, ActionHandler> = {
       gif: a.gif,
       label: undefined,
     });
-    
-    // Prefer caption-friendly placeholder label from filename only as fallback;
-    // nicer labels come from stage.caption that typically follows.
-    if (a.gif && ctx.placeholder && !ctx.placeholder.hidden) {
-      const fileLabel = a.gif.split('/').pop()?.replace(/\.gif$/i, '')?.replace(/-/g, ' ');
-      const labelEl = ctx.placeholder.querySelector<HTMLElement>(
-        '[data-deck-placeholder-label]',
-      );
-      if (labelEl && fileLabel) {
-        labelEl.textContent = fileLabel;
-      }
-    }
+  },
 
   'stage.highlight': async (action, ctx) => {
     await highlightInStageAsync(ctx, asHighlight(action).selector);
