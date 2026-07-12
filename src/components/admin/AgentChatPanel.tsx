@@ -1,8 +1,7 @@
-import type { ClipboardEvent, ComponentProps, CSSProperties, RefObject } from 'react';
+import type { CSSProperties, RefObject } from 'react';
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
-  AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -14,12 +13,10 @@ import {
   type ChatModelAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
-  SimpleImageAttachmentAdapter,
-  CompositeAttachmentAdapter,
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   parseStoredChatContent,
   storedChatPlainText,
@@ -229,81 +226,6 @@ function AssistantMessageActions() {
   );
 }
 
-const CHAT_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-const CHAT_MAX_IMAGES = 5;
-
-function imageFilesFromClipboard(data: DataTransfer | null): File[] {
-  if (!data) return [];
-  const fromFiles = Array.from(data.files).filter((f) => f.type.startsWith('image/'));
-  if (fromFiles.length) return fromFiles;
-  return [...data.items]
-    .filter((item) => item.type.startsWith('image/'))
-    .map((item) => item.getAsFile())
-    .filter((f): f is File => f !== null);
-}
-
-function AttachmentImagePreview({ file, alt }: { file: File; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    const next = URL.createObjectURL(file);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [file]);
-  if (!url) return null;
-  return <img src={url} alt={alt} />;
-}
-
-function ChatAttachmentPreviews() {
-  return (
-    <ComposerPrimitive.Attachments>
-      {({ attachment }) => (
-        <AttachmentPrimitive.Root className="aui-attachment">
-          {attachment.type === 'image' && attachment.file ? (
-            <AttachmentImagePreview file={attachment.file} alt={attachment.name || 'Attached image'} />
-          ) : (
-            <span className="aui-attachment-name">{attachment.name}</span>
-          )}
-          <AttachmentPrimitive.Remove className="aui-attachment-remove" aria-label="Remove image" />
-        </AttachmentPrimitive.Root>
-      )}
-    </ComposerPrimitive.Attachments>
-  );
-}
-
-/** macOS screenshots land in clipboardData.items, not files — handle both. */
-function ChatImagePasteInput(
-  props: ComponentProps<typeof ComposerPrimitive.Input>,
-) {
-  const aui = useAui();
-
-  const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
-    if (!aui.thread().getState().capabilities.attachments) return;
-    const files = imageFilesFromClipboard(e.clipboardData).filter((f) =>
-      CHAT_IMAGE_TYPES.has(f.type),
-    );
-    if (!files.length) return;
-
-    const current = aui.composer().getState().attachments.length;
-    const room = CHAT_MAX_IMAGES - current;
-    if (room <= 0) return;
-
-    e.preventDefault();
-    try {
-      await Promise.all(files.slice(0, room).map((file) => aui.composer().addAttachment(file)));
-    } catch (error) {
-      console.error('Error adding image attachment:', error);
-    }
-  };
-
-  return (
-    <ComposerPrimitive.Input
-      {...props}
-      addAttachmentOnPaste={false}
-      onPaste={handlePaste}
-    />
-  );
-}
-
 /** Send on first tap — touch blur was collapsing compose before click fired. */
 function ComposerSendButton() {
   const aui = useAui();
@@ -353,6 +275,113 @@ function ComposerSendButton() {
   );
 }
 
+/** One user message per thread — hide compose after the exchange; stop only while running. */
+function AgentChatCompose({
+  propsRef,
+  initialLocked,
+  autoFocus,
+}: {
+  propsRef: RefObject<AgentChatPanelProps>;
+  initialLocked: boolean;
+  autoFocus: boolean;
+}) {
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const locked = initialLocked || hasMessages;
+
+  useEffect(() => {
+    if (locked && !isRunning) propsRef.current?.onComposeFocus?.(false);
+  }, [initialLocked, isRunning, locked, propsRef]);
+
+  if (locked && !isRunning) return null;
+
+  if (isRunning) {
+    return (
+      <div className="aui-compose-footer">
+        <ComposerPrimitive.Root className="aui-compose aui-compose-running">
+          <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
+            Stop
+          </ComposerPrimitive.Cancel>
+        </ComposerPrimitive.Root>
+      </div>
+    );
+  }
+
+  return (
+    <div className="aui-compose-footer">
+      <ComposerPrimitive.Root className="aui-compose">
+        <div className="aui-compose-row">
+          <ComposerPrimitive.Input
+            className="aui-input"
+            placeholder=""
+            rows={1}
+            autoFocus={autoFocus}
+            enterKeyHint="send"
+            onFocus={() => propsRef.current?.onComposeFocus?.(true)}
+            onBlur={() => propsRef.current?.onComposeFocus?.(false)}
+          />
+          <ComposerSendButton />
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
+  );
+}
+
+function AgentChatThreadBody({
+  propsRef,
+  initialLocked,
+  pendingAutoSend,
+}: {
+  propsRef: RefObject<AgentChatPanelProps>;
+  initialLocked: boolean;
+  pendingAutoSend?: boolean;
+}) {
+  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const complete = initialLocked || (hasMessages && !isRunning);
+
+  return (
+    <ThreadPrimitive.Root className={`aui-thread${complete ? ' aui-thread-complete' : ''}`}>
+      <ThreadPrimitive.Viewport className="aui-viewport">
+        <ThreadPrimitive.Empty className="aui-empty">Send a message to start.</ThreadPrimitive.Empty>
+        <ThreadPrimitive.Messages
+          components={{
+            UserMessage: () => (
+              <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user">
+                <div className="aui-msg aui-msg-user">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: UserTextPart,
+                      Image: UserImagePart,
+                    }}
+                  />
+                </div>
+              </MessagePrimitive.Root>
+            ),
+            AssistantMessage: () => (
+              <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant">
+                <div className="aui-msg aui-msg-assistant">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: AssistantMarkdown,
+                    }}
+                  />
+                  <AssistantMessageActions />
+                </div>
+              </MessagePrimitive.Root>
+            ),
+          }}
+        />
+      </ThreadPrimitive.Viewport>
+      <AgentChatCompose
+        propsRef={propsRef}
+        initialLocked={initialLocked}
+        autoFocus={!pendingAutoSend}
+      />
+    </ThreadPrimitive.Root>
+  );
+}
+
 function AgentChatThread({
   threadId,
   propsRef,
@@ -365,74 +394,20 @@ function AgentChatThread({
   pendingAutoSend?: boolean;
 }) {
   const adapter = useMemo(() => createChatAdapter(threadId, propsRef), [threadId, propsRef]);
-  const attachments = useMemo(
-    () => new CompositeAttachmentAdapter([new SimpleImageAttachmentAdapter()]),
-    [],
-  );
+  const initialLocked = (propsRef.current?.initialMessages.length ?? 0) > 0;
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
-    adapters: { attachments },
   });
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
-      <ThreadPrimitive.Root className="aui-thread">
-        <ThreadPrimitive.Viewport className="aui-viewport">
-          <ThreadPrimitive.Empty className="aui-empty">Send a message to start.</ThreadPrimitive.Empty>
-          <ThreadPrimitive.Messages
-            components={{
-              UserMessage: () => (
-                <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user">
-                  <div className="aui-msg aui-msg-user">
-                    <MessagePrimitive.Parts
-                      components={{
-                        Text: UserTextPart,
-                        Image: UserImagePart,
-                      }}
-                    />
-                  </div>
-                </MessagePrimitive.Root>
-              ),
-              AssistantMessage: () => (
-                <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant">
-                  <div className="aui-msg aui-msg-assistant">
-                    <MessagePrimitive.Parts
-                      components={{
-                        Text: AssistantMarkdown,
-                      }}
-                    />
-                    <AssistantMessageActions />
-                  </div>
-                </MessagePrimitive.Root>
-              ),
-            }}
-          />
-        </ThreadPrimitive.Viewport>
-        <div className="aui-compose-footer">
-          <ComposerPrimitive.AttachmentDropzone className="aui-compose-dropzone">
-            <ComposerPrimitive.Root className="aui-compose">
-              <ChatAttachmentPreviews />
-              <div className="aui-compose-row">
-                <ChatImagePasteInput
-                  className="aui-input"
-                  placeholder="Message the agent… (paste or drop images)"
-                  rows={1}
-                  autoFocus={!pendingAutoSend}
-                  enterKeyHint="send"
-                  onFocus={() => propsRef.current?.onComposeFocus?.(true)}
-                  onBlur={() => propsRef.current?.onComposeFocus?.(false)}
-                />
-                <ComposerSendButton />
-                <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
-                  Stop
-                </ComposerPrimitive.Cancel>
-              </div>
-            </ComposerPrimitive.Root>
-          </ComposerPrimitive.AttachmentDropzone>
-        </div>
-      </ThreadPrimitive.Root>
+      <AgentChatThreadBody
+        propsRef={propsRef}
+        initialLocked={initialLocked}
+        pendingAutoSend={pendingAutoSend}
+      />
     </AssistantRuntimeProvider>
   );
 }

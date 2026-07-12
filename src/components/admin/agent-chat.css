@@ -147,6 +147,16 @@
   gap: 0.35rem;
 }
 
+.aui-compose-running {
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.2rem 0;
+}
+
+.aui-compose-running .aui-stop {
+  display: inline-flex;
+}
+
 .aui-compose-dropzone[data-dragging='true'] .aui-compose-row {
   background: rgba(59, 130, 246, 0.08);
   box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.45);
@@ -271,6 +281,7 @@
 }
 
 .aui-stop {
+  display: none;
   width: auto;
   min-width: 2.25rem;
   padding: 0 0.65rem;
@@ -280,7 +291,12 @@
   font-weight: 600;
 }
 
-/* Desktop/tablet: pin agent compose above the fixed footer nav (same stack as mobile). */
+/* Completed threads have no compose bar — don't reserve compose stack height. */
+#chat-panel.ch-pane-active .aui-thread-complete .aui-viewport {
+  padding-bottom: calc(var(--footer-nav-h) + 0.5rem);
+  scroll-padding-bottom: calc(var(--footer-nav-h) + 0.5rem);
+}
+
 @media (min-width: 640px) {
   #chat-panel.ch-pane-active .aui-compose-footer {
     position: fixed;
@@ -370,5 +386,15 @@
     scroll-padding-bottom: calc(
       var(--control-h) + var(--ch-compose-gap) + 0.75rem + var(--chat-compose-bottom, 0px)
     );
+  }
+
+  #chat-panel.ch-pane-active .aui-thread-complete .aui-viewport {
+    padding-bottom: calc(var(--footer-nav-h) + 0.5rem + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(var(--footer-nav-h) + 0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-thread-complete .aui-viewport {
+    padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    scroll-padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
   }
 }
