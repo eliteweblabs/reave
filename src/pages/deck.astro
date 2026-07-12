@@ -9,24 +9,53 @@ import Header from '../components/Header.astro';
 import { assertDeckScript } from '../deck/validate';
 import { getCompanyConfig } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
+import {
+  Home,
+  Bell,
+  Calendar,
+  Mic,
+  Users,
+  Mail,
+  Briefcase,
+  FileText,
+  BookOpen,
+  Monitor,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-astro';
 
 export const prerender = false;
 
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
 
-const DOCK_ICONS: Record<string, string> = {
-  homepage: 'home',
-  pwa: 'bell',
-  scheduling: 'calendar',
-  voice: 'mic',
-  clients: 'users',
-  inbox: 'mail',
-  work: 'briefcase',
-  documents: 'file',
-  knowledge: 'book',
-  monitoring: 'activity',
-  billing: 'dollar',
+/** Same Lucide set as admin header/footer nav, mapped to deck sections. */
+const DOCK_ICONS: Record<string, LucideIcon> = {
+  homepage: Home,
+  pwa: Bell,
+  scheduling: Calendar,
+  voice: Mic,
+  clients: Users,
+  inbox: Mail,
+  work: Briefcase,
+  documents: FileText,
+  knowledge: BookOpen,
+  monitoring: Monitor,
+  billing: Wallet,
+};
+
+const DOCK_LABELS: Record<string, string> = {
+  homepage: 'Homepage',
+  pwa: 'PWA alerts',
+  scheduling: 'Scheduling',
+  voice: 'Voice',
+  clients: 'Clients',
+  inbox: 'Inbox',
+  work: 'Work',
+  documents: 'Documents',
+  knowledge: 'Knowledge',
+  monitoring: 'Monitoring',
+  billing: 'Billing',
 };
 
 const sections = script.sections.map((section, i) => {
@@ -40,12 +69,12 @@ const sections = script.sections.map((section, i) => {
   return {
     id: section.id,
     name: section.title,
+    label: DOCK_LABELS[section.id] ?? section.title,
     summary: section.summary ?? '',
     featureTitle: feature?.title ?? section.title,
     featureBody: feature?.body ?? '',
     gif: gif ?? `/deck/gifs/${section.id}.gif`,
     device,
-    icon: DOCK_ICONS[section.id] ?? 'app',
     w: device === 'laptop' ? 720 : 520,
     h: device === 'laptop' ? 520 : 640,
     top: 72 + (i % 4) * 28,
@@ -93,7 +122,7 @@ const deckPayload = {
         {
           sections.slice(0, 6).map((s) => (
             <button type="button" class="ctx-i" data-app={s.id}>
-              Open {s.name}
+              Open {s.label}
             </button>
           ))
         }
@@ -102,16 +131,27 @@ const deckPayload = {
       <div id="dock-wrap">
         <div id="dock">
           {
-            sections.map((s, i) => (
-              <>
-                {i === 2 && <div class="d-sep" aria-hidden="true" />}
-                <button type="button" class="d-item" id={`d-${s.id}`} data-app={s.id} title={s.name}>
-                  <span class={`ico ico-${s.icon}`} aria-hidden="true"></span>
-                  <span class="d-dot" aria-hidden="true"></span>
-                  <span class="d-tooltip">{s.name}</span>
-                </button>
-              </>
-            ))
+            sections.map((s, i) => {
+              const Icon = DOCK_ICONS[s.id] ?? Home;
+              return (
+                <>
+                  {i === 2 && <div class="d-sep" aria-hidden="true" />}
+                  <button
+                    type="button"
+                    class="d-item"
+                    id={`d-${s.id}`}
+                    data-app={s.id}
+                    aria-label={s.label}
+                  >
+                    <span class={`ico ico-${s.id}`} aria-hidden="true">
+                      <Icon size={22} strokeWidth={1.75} />
+                    </span>
+                    <span class="d-dot" aria-hidden="true"></span>
+                    <span class="d-tooltip" role="tooltip">{s.label}</span>
+                  </button>
+                </>
+              );
+            })
           }
         </div>
       </div>
@@ -226,7 +266,8 @@ const deckPayload = {
         display: flex;
         justify-content: center;
         z-index: 6000;
-        padding: 0 12px;
+        padding: 40px 12px 0;
+        overflow: visible;
       }
       #dock {
         background: var(--dock-bg);
@@ -241,7 +282,7 @@ const deckPayload = {
         gap: 6px;
         box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
         max-width: 100%;
-        overflow-x: auto;
+        overflow: visible;
       }
       .d-item {
         width: 52px;
@@ -255,10 +296,22 @@ const deckPayload = {
         color: #fff;
         transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), margin 0.2s ease;
         flex-shrink: 0;
+        overflow: visible;
       }
       .d-item:hover {
         transform: scale(1.18) translateY(-8px);
         margin: 0 4px;
+        z-index: 2;
+      }
+      .d-item:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .d-item:focus-visible .d-tooltip,
+      .d-item:hover .d-tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
       }
       .d-dot {
         width: 4px;
@@ -284,20 +337,27 @@ const deckPayload = {
       }
       .d-tooltip {
         position: absolute;
-        top: -32px;
+        bottom: calc(100% + 10px);
         left: 50%;
-        transform: translateX(-50%);
-        background: rgba(20, 22, 28, 0.95);
-        padding: 4px 10px;
+        transform: translateX(-50%) translateY(4px);
+        background: rgba(20, 22, 28, 0.96);
+        padding: 5px 10px;
         border-radius: 6px;
         font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--text);
         white-space: nowrap;
         opacity: 0;
+        visibility: hidden;
         pointer-events: none;
         border: 1px solid var(--border);
-      }
-      .d-item:hover .d-tooltip {
-        opacity: 1;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+        z-index: 5;
+        transition:
+          opacity 0.15s ease,
+          transform 0.15s ease,
+          visibility 0.15s ease;
       }
       .ico {
         width: 100%;
@@ -305,31 +365,23 @@ const deckPayload = {
         border-radius: 13px;
         display: grid;
         place-items: center;
-        font-size: 1.15rem;
-        font-weight: 700;
+        color: #fff;
       }
-      .ico-home { background: linear-gradient(135deg, #5eead4, #38bdf8); color: #041016; }
-      .ico-bell { background: linear-gradient(135deg, #f472b6, #fb7185); }
-      .ico-calendar { background: linear-gradient(135deg, #34d399, #10b981); }
-      .ico-mic { background: linear-gradient(135deg, #a78bfa, #818cf8); }
-      .ico-users { background: linear-gradient(135deg, #38bdf8, #0ea5e9); }
-      .ico-mail { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1c1408; }
-      .ico-briefcase { background: linear-gradient(135deg, #94a3b8, #64748b); }
-      .ico-file { background: linear-gradient(135deg, #67e8f9, #22d3ee); color: #042f2e; }
-      .ico-book { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
-      .ico-activity { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; }
-      .ico-dollar { background: linear-gradient(135deg, #fde68a, #fbbf24); color: #1c1408; }
-      .ico-home::before { content: '⌂'; }
-      .ico-bell::before { content: '⌁'; }
-      .ico-calendar::before { content: '▦'; }
-      .ico-mic::before { content: '◉'; }
-      .ico-users::before { content: '☺'; }
-      .ico-mail::before { content: '✉'; }
-      .ico-briefcase::before { content: '▣'; }
-      .ico-file::before { content: '▤'; }
-      .ico-book::before { content: '◈'; }
-      .ico-activity::before { content: '◎'; }
-      .ico-dollar::before { content: '$'; }
+      .ico svg {
+        display: block;
+        pointer-events: none;
+      }
+      .ico-homepage { background: linear-gradient(135deg, #5eead4, #38bdf8); color: #041016; }
+      .ico-pwa { background: linear-gradient(135deg, #f472b6, #fb7185); }
+      .ico-scheduling { background: linear-gradient(135deg, #34d399, #10b981); }
+      .ico-voice { background: linear-gradient(135deg, #a78bfa, #818cf8); }
+      .ico-clients { background: linear-gradient(135deg, #38bdf8, #0ea5e9); }
+      .ico-inbox { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1c1408; }
+      .ico-work { background: linear-gradient(135deg, #94a3b8, #64748b); }
+      .ico-documents { background: linear-gradient(135deg, #67e8f9, #22d3ee); color: #042f2e; }
+      .ico-knowledge { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+      .ico-monitoring { background: linear-gradient(135deg, #4ade80, #22c55e); color: #052e16; }
+      .ico-billing { background: linear-gradient(135deg, #fde68a, #fbbf24); color: #1c1408; }
 
       @keyframes bounce {
         0%,
