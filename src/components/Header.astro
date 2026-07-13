@@ -24,9 +24,11 @@ interface Props {
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
   staffPreview?: boolean;
+  /** Deployment owner — show Plugins in account menu */
+  showPlugins?: boolean;
 }
 
-const { adminShell = false, hideLogo = false, homeAdminEntry = false, staffPreview = false } = Astro.props;
+const { adminShell = false, hideLogo = false, homeAdminEntry = false, staffPreview = false, showPlugins = false } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
@@ -95,9 +97,11 @@ const userId = auth?.userId ?? null;
               <button type="button" id="topbar-profile-link" class="topbar-dropdown-item" role="menuitem">
                 Profile
               </button>
-              <button type="button" id="topbar-plugins-link" class="topbar-dropdown-item" role="menuitem">
-                Plugins
-              </button>
+              {showPlugins ? (
+                <button type="button" id="topbar-plugins-link" class="topbar-dropdown-item" role="menuitem">
+                  Plugins
+                </button>
+              ) : null}
               <div class="topbar-dropdown-divider"></div>
               <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
                 Sign out

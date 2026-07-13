@@ -13,6 +13,7 @@ import {
 } from '../../../lib/features';
 import { featureStorageBackend, getStoredFeatures, setStoredFeatures } from '../../../lib/featureStore';
 import { listEnabledHelperCommands } from '../../../lib/agentHelperCommands.server';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 
 export const prerender = false;
 
@@ -23,14 +24,8 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function requireUser(context: APIContext): string | Response {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  return userId;
-}
-
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = requireUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   const stored = await getStoredFeatures();
@@ -61,7 +56,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
-  const auth = requireUser(context);
+  const auth = await requireDeploymentOwner(context);
   if (auth instanceof Response) return auth;
 
   let body: unknown;

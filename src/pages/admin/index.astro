@@ -9,11 +9,13 @@ import Favicon from "../../components/Favicon.astro";
 import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
+import { isDeploymentOwner } from "../../lib/deploymentOwner";
 
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
 const company = await getCompanyConfig(Astro.request);
+const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
 ---
 
 <!doctype html>
@@ -5028,8 +5030,8 @@ const company = await getCompanyConfig(Astro.request);
       }
     </style>
   </head>
-  <body data-user-id={userId ?? ""}>
-    <Header adminShell />
+  <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
+    <Header adminShell showPlugins={showPlugins} />
 
     <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
