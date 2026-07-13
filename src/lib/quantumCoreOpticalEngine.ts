@@ -647,6 +647,7 @@ export function attachQuantumCoreOpticalEngine(
   let introCompleteFired = false;
   let raf = 0;
   let alive = true;
+  const clock = new THREE.Clock();
   const motionScale = prefersReduced ? 0.2 : 1;
 
   const onCtxLost = (ev: Event) => {
