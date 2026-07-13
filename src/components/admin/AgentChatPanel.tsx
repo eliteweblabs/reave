@@ -1,4 +1,4 @@
-import type { CSSProperties, RefObject } from 'react';
+import type { CSSProperties, KeyboardEvent, RefObject } from 'react';
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -18,6 +18,7 @@ import remarkGfm from 'remark-gfm';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   filterHelperCommands,
+  matchHelperCommand,
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
@@ -257,46 +258,120 @@ function HelperCommandsPanel({
   );
 }
 
-function useSlashHelpers() {
+function useSlashHelpers(propsRef: RefObject<AgentChatPanelProps>) {
   const composer = useComposerRuntime();
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [composeText, setComposeText] = useState('');
   const [helpersOpen, setHelpersOpen] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
-  const filtered = filterHelperCommands('');
+  const filtered = filterHelperCommands(composeText);
   const showHelpers = helpersOpen && filtered.length > 0;
 
-  const applyCommand = (command: AgentHelperCommand) => {
-    setHelpersOpen(false);
-    composer.setText(command.template);
-    void composer.send();
+  const clearBlurTimer = () => {
+    if (blurTimer.current) {
+      clearTimeout(blurTimer.current);
+      blurTimer.current = null;
+    }
   };
 
-  const toggleHelpers = () => {
-    setHelpersOpen((open) => !open);
+  const openHelpers = () => {
+    clearBlurTimer();
+    setHelpersOpen(true);
   };
+
+  const scheduleCloseHelpers = () => {
+    clearBlurTimer();
+    blurTimer.current = setTimeout(() => setHelpersOpen(false), 120);
+  };
+
+  const focusInput = () => {
+    const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
+    if (el instanceof HTMLTextAreaElement) el.focus();
+  };
+
+  const applyCommand = (command: AgentHelperCommand) => {
+    composer.setText(command.template);
+    setComposeText(command.template);
+    openHelpers();
+    focusInput();
+  };
+
+  useEffect(() => () => clearBlurTimer(), []);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    setHelpersOpen(false);
+    setComposeText('');
+  }, [isRunning]);
 
   useEffect(() => {
     if (!helpersOpen) return;
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('.aui-helper-panel, .aui-slash-prompt')) return;
+      if (target.closest('.aui-helper-panel, .aui-slash-line')) return;
       setHelpersOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [helpersOpen]);
 
+  const onFocus = () => {
+    clearBlurTimer();
+    if (!composeText.trim() || composeText.startsWith('/')) openHelpers();
+    propsRef.current?.onComposeFocus?.(true);
+  };
+
+  const onBlur = () => {
+    scheduleCloseHelpers();
+    propsRef.current?.onComposeFocus?.(false);
+  };
+
+  const onInput = (value: string) => {
+    setComposeText(value);
+    if (!value.trim() || value.startsWith('/')) {
+      openHelpers();
+      return;
+    }
+    setHelpersOpen(false);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+    const matched = matchHelperCommand(composeText);
+    if (matched && composeText.trim().toLowerCase() === matched.slash) {
+      composer.setText(matched.template);
+      void composer.send();
+      return;
+    }
+    if (composer.getState().canSend) void composer.send();
+  };
+
   return {
-    helpersOpen,
+    composeText,
+    inputRef,
     filtered,
     showHelpers,
     applyCommand,
-    toggleHelpers,
+    onFocus,
+    onBlur,
+    onInput,
+    onKeyDown,
+    focusInput,
   };
 }
 
-function SlashPrompt({ placement }: { placement: 'top' | 'tail' }) {
-  const helpers = useSlashHelpers();
+function SlashPrompt({
+  placement,
+  propsRef,
+}: {
+  placement: 'top' | 'tail';
+  propsRef: RefObject<AgentChatPanelProps>;
+}) {
+  const helpers = useSlashHelpers(propsRef);
 
   return (
     <ComposerPrimitive.Root
@@ -305,16 +380,30 @@ function SlashPrompt({ placement }: { placement: 'top' | 'tail' }) {
       {helpers.showHelpers ? (
         <HelperCommandsPanel commands={helpers.filtered} onPick={helpers.applyCommand} />
       ) : null}
-      <button
-        type="button"
-        className={`aui-slash-prompt${helpers.helpersOpen ? ' active' : ''}`}
-        aria-label="Start a command"
-        aria-expanded={helpers.helpersOpen}
-        onPointerDown={(e) => e.preventDefault()}
-        onClick={helpers.toggleHelpers}
+      <div
+        className="aui-slash-line"
+        onPointerDown={(e) => {
+          if (e.target === e.currentTarget) {
+            e.preventDefault();
+            helpers.focusInput();
+          }
+        }}
       >
-        /
-      </button>
+        <ComposerPrimitive.Input
+          ref={helpers.inputRef}
+          className="aui-input"
+          placeholder="/"
+          rows={1}
+          enterKeyHint="send"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          onFocus={helpers.onFocus}
+          onBlur={helpers.onBlur}
+          onInput={(e) => helpers.onInput(e.currentTarget.value)}
+          onKeyDown={helpers.onKeyDown}
+        />
+      </div>
     </ComposerPrimitive.Root>
   );
 }
@@ -329,14 +418,18 @@ function RunningIndicator() {
   );
 }
 
-function AgentChatThreadBody() {
+function AgentChatThreadBody({
+  propsRef,
+}: {
+  propsRef: RefObject<AgentChatPanelProps>;
+}) {
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <ThreadPrimitive.Root className="aui-thread">
       <ThreadPrimitive.Viewport className="aui-viewport">
-        {!hasMessages && !isRunning ? <SlashPrompt placement="top" /> : null}
+        {!hasMessages && !isRunning ? <SlashPrompt placement="top" propsRef={propsRef} /> : null}
         <ThreadPrimitive.Messages
           components={{
             UserMessage: () => (
@@ -365,7 +458,7 @@ function AgentChatThreadBody() {
             ),
           }}
         />
-        {hasMessages && !isRunning ? <SlashPrompt placement="tail" /> : null}
+        {hasMessages && !isRunning ? <SlashPrompt placement="tail" propsRef={propsRef} /> : null}
         {isRunning ? <RunningIndicator /> : null}
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
@@ -392,7 +485,7 @@ function AgentChatThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
-      <AgentChatThreadBody />
+      <AgentChatThreadBody propsRef={propsRef} />
     </AssistantRuntimeProvider>
   );
 }

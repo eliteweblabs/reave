@@ -120,11 +120,11 @@
 }
 
 .aui-slash-zone {
-  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0.2rem;
+  width: 100%;
 }
 
 .aui-slash-zone-top {
@@ -135,15 +135,34 @@
   margin-top: 0.35rem;
 }
 
-.aui-slash-prompt {
+.aui-slash-line {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  cursor: text;
+}
+
+.aui-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 1.55em;
+  max-height: 8rem;
+  resize: none;
   border: none;
   background: transparent;
   padding: 0;
   font: inherit;
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: max(16px, 0.84rem);
   line-height: 1.55;
-  cursor: pointer;
+  color: var(--fg);
+  outline: none;
+  overflow-x: hidden;
+  caret-color: var(--fg);
+}
+
+.aui-input::placeholder {
   background-image: var(--create-fab-bg, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%));
   -webkit-background-clip: text;
   background-clip: text;
@@ -151,32 +170,17 @@
   opacity: 0.55;
 }
 
-.aui-slash-prompt:hover,
-.aui-slash-prompt.active {
-  opacity: 1;
+.aui-input:focus::placeholder {
+  opacity: 0.35;
 }
 
 .aui-helper-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  max-height: min(42vh, 14rem);
-  overflow-y: auto;
+  width: 100%;
+  flex-shrink: 0;
   border-radius: 10px;
   border: 1px solid var(--card-border);
   background: var(--card);
   box-shadow: var(--popover-shadow, 0 8px 32px rgba(0, 0, 0, 0.12));
-}
-
-.aui-slash-zone-top .aui-helper-panel {
-  top: 100%;
-  margin-top: 0.25rem;
-}
-
-.aui-slash-zone-tail .aui-helper-panel {
-  bottom: 100%;
-  margin-bottom: 0.25rem;
 }
 
 .aui-helper-list {
@@ -243,6 +247,15 @@
 }
 
 @media (max-width: 639px) {
+  body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport {
+    padding-bottom: calc(
+      1.55em + 0.75rem + var(--chat-compose-bottom, 0px) + env(safe-area-inset-bottom, 0px)
+    );
+    scroll-padding-bottom: calc(
+      1.55em + 0.75rem + var(--chat-compose-bottom, 0px) + env(safe-area-inset-bottom, 0px)
+    );
+  }
+
   body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport {
     padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
     scroll-padding-bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
