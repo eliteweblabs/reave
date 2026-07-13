@@ -25,9 +25,8 @@
 }
 
 .aui-empty {
-  margin: auto;
-  padding: 2rem 1rem;
-  text-align: center;
+  padding: 0.25rem 0 1rem;
+  text-align: left;
   color: var(--muted);
   font-size: 0.84rem;
 }
@@ -224,7 +223,10 @@
   font-size: 0.74rem;
   font-weight: 700;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: #0a84ff;
+  background: var(--create-fab-bg, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .aui-helper-item-body {
@@ -246,30 +248,28 @@
   line-height: 1.35;
 }
 
-.aui-helper-btn {
+.aui-slash-btn {
   flex-shrink: 0;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: var(--control-h, 2.75rem);
+  height: var(--control-h, 2.75rem);
   border: none;
-  border-radius: 10px;
-  background: var(--surface-hover-strong);
-  color: var(--muted);
+  border-radius: var(--radius-input, 8px);
+  background: var(--create-fab-bg, linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%));
+  box-shadow: var(--create-fab-shadow, 0 2px 16px rgba(192, 38, 211, 0.35));
+  color: #fff;
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 700;
   cursor: pointer;
 }
 
-.aui-helper-btn:hover,
-.aui-helper-btn.active {
-  color: #0a84ff;
-  background: rgba(10, 132, 255, 0.12);
+.aui-slash-btn:hover,
+.aui-slash-btn.active {
+  filter: brightness(1.06);
 }
 
-.aui-compose {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.aui-compose-slash-only {
+  align-items: flex-end;
 }
 
 .aui-compose-running {

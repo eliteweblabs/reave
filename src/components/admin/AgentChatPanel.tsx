@@ -8,7 +8,6 @@ import {
   useComposerRuntime,
   useLocalRuntime,
   useMessage,
-  useAui,
   useAuiState,
   type ChatModelAdapter,
   type ThreadMessage,
@@ -19,7 +18,6 @@ import remarkGfm from 'remark-gfm';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   filterHelperCommands,
-  matchHelperCommand,
   type AgentHelperCommand,
 } from '../../lib/agentHelperCommands';
 import {
@@ -231,55 +229,6 @@ function AssistantMessageActions() {
   );
 }
 
-/** Send on first tap — touch blur was collapsing compose before click fired. */
-function ComposerSendButton() {
-  const aui = useAui();
-  const disabled = useAuiState(
-    (s) =>
-      !s.composer.canSend ||
-      (s.thread.isRunning && !s.thread.capabilities.queue),
-  );
-
-  const activateSend = () => {
-    const composer = aui.composer();
-    let state = composer.getState();
-    if (!state.canSend) {
-      const ta = document.querySelector('#chat-panel .aui-input');
-      if (ta instanceof HTMLTextAreaElement && ta.value.trim()) {
-        composer.setText(ta.value);
-        state = composer.getState();
-      }
-    }
-    if (
-      !state.canSend ||
-      (aui.thread().getState().isRunning && !aui.thread().getState().capabilities.queue)
-    ) {
-      return;
-    }
-    composer.send();
-  };
-
-  return (
-    <button
-      type="button"
-      className="aui-send"
-      aria-label="Send message"
-      disabled={disabled}
-      onPointerDown={(e) => {
-        if (disabled || e.pointerType !== 'touch') return;
-        e.preventDefault();
-        activateSend();
-      }}
-      onClick={(e) => {
-        if (e.pointerType === 'touch') return;
-        activateSend();
-      }}
-    >
-      ↑
-    </button>
-  );
-}
-
 function HelperCommandGuide({ command }: { command: AgentHelperCommand }) {
   return (
     <div className="aui-helper-guide">
@@ -301,10 +250,12 @@ function HelperCommandsPanel({
   commands,
   activeGuide,
   onPick,
+  onPreview,
 }: {
   commands: AgentHelperCommand[];
   activeGuide: AgentHelperCommand | null;
   onPick: (command: AgentHelperCommand) => void;
+  onPreview: (command: AgentHelperCommand | null) => void;
 }) {
   return (
     <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
@@ -316,6 +267,10 @@ function HelperCommandsPanel({
               type="button"
               className="aui-helper-item"
               role="option"
+              onMouseEnter={() => onPreview(command)}
+              onMouseLeave={() => onPreview(null)}
+              onFocus={() => onPreview(command)}
+              onBlur={() => onPreview(null)}
               onClick={() => onPick(command)}
             >
               <span className="aui-helper-item-slash">{command.slash}</span>
@@ -333,79 +288,46 @@ function HelperCommandsPanel({
 
 function useComposeHelpers() {
   const composer = useComposerRuntime();
-  const [composeText, setComposeText] = useState('');
   const [helpersOpen, setHelpersOpen] = useState(false);
-  const [pickedCommand, setPickedCommand] = useState<AgentHelperCommand | null>(null);
-  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [previewCommand, setPreviewCommand] = useState<AgentHelperCommand | null>(null);
 
-  const filtered = filterHelperCommands(composeText);
-  const matched = matchHelperCommand(composeText);
-  const activeGuide = matched ?? pickedCommand;
+  const filtered = filterHelperCommands('');
+  const activeGuide = previewCommand;
   const showHelpers = helpersOpen && filtered.length > 0;
 
-  const clearBlurTimer = () => {
-    if (blurTimer.current) {
-      clearTimeout(blurTimer.current);
-      blurTimer.current = null;
-    }
-  };
-
-  const openHelpers = () => {
-    clearBlurTimer();
-    setHelpersOpen(true);
-  };
-
-  const scheduleCloseHelpers = () => {
-    clearBlurTimer();
-    blurTimer.current = setTimeout(() => setHelpersOpen(false), 120);
-  };
-
-  const focusInput = () => {
-    const ta = document.querySelector('#chat-panel .aui-input');
-    if (ta instanceof HTMLTextAreaElement) ta.focus();
-  };
-
   const applyCommand = (command: AgentHelperCommand) => {
+    setHelpersOpen(false);
+    setPreviewCommand(null);
     composer.setText(command.template);
-    setComposeText(command.template);
-    setPickedCommand(command);
-    openHelpers();
-    focusInput();
+    void composer.send();
   };
 
   const toggleHelpers = () => {
-    if (helpersOpen) {
-      setHelpersOpen(false);
-      return;
-    }
-    openHelpers();
-    if (!composeText.trim()) {
-      composer.setText('/');
-      setComposeText('/');
-    }
-    focusInput();
+    setHelpersOpen((open) => !open);
+    setPreviewCommand(null);
   };
 
-  useEffect(() => () => clearBlurTimer(), []);
-
   useEffect(() => {
-    if (pickedCommand && !composeText.trim().toLowerCase().startsWith(pickedCommand.slash)) {
-      setPickedCommand(null);
-    }
-  }, [composeText, pickedCommand]);
+    if (!helpersOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('.aui-helper-panel, .aui-slash-btn')) return;
+      setHelpersOpen(false);
+      setPreviewCommand(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [helpersOpen]);
 
   return {
-    composeText,
-    setComposeText,
     helpersOpen,
     filtered,
     activeGuide,
     showHelpers,
-    openHelpers,
-    scheduleCloseHelpers,
-    clearBlurTimer,
     applyCommand,
     toggleHelpers,
+    setPreviewCommand,
   };
 }
 
@@ -413,11 +335,9 @@ function useComposeHelpers() {
 function AgentChatCompose({
   propsRef,
   initialLocked,
-  autoFocus,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   initialLocked: boolean;
-  autoFocus: boolean;
 }) {
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -444,48 +364,25 @@ function AgentChatCompose({
 
   return (
     <div className="aui-compose-footer">
-      <ComposerPrimitive.Root className="aui-compose">
+      <ComposerPrimitive.Root className="aui-compose aui-compose-slash-only">
         {helpers.showHelpers ? (
           <HelperCommandsPanel
             commands={helpers.filtered}
             activeGuide={helpers.activeGuide}
             onPick={helpers.applyCommand}
+            onPreview={helpers.setPreviewCommand}
           />
         ) : null}
-        <div className="aui-compose-row">
-          <button
-            type="button"
-            className={`aui-helper-btn${helpers.helpersOpen ? ' active' : ''}`}
-            aria-label="Show helper commands"
-            aria-expanded={helpers.helpersOpen}
-            onPointerDown={(e) => e.preventDefault()}
-            onClick={helpers.toggleHelpers}
-          >
-            /
-          </button>
-          <ComposerPrimitive.Input
-            className="aui-input"
-            placeholder=""
-            rows={1}
-            autoFocus={autoFocus}
-            enterKeyHint="send"
-            onFocus={() => {
-              helpers.clearBlurTimer();
-              helpers.openHelpers();
-              propsRef.current?.onComposeFocus?.(true);
-            }}
-            onBlur={() => {
-              helpers.scheduleCloseHelpers();
-              propsRef.current?.onComposeFocus?.(false);
-            }}
-            onInput={(e) => {
-              const value = e.currentTarget.value;
-              helpers.setComposeText(value);
-              if (value.trim()) helpers.openHelpers();
-            }}
-          />
-          <ComposerSendButton />
-        </div>
+        <button
+          type="button"
+          className={`aui-slash-btn${helpers.helpersOpen ? ' active' : ''}`}
+          aria-label="Show helper commands"
+          aria-expanded={helpers.helpersOpen}
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={helpers.toggleHelpers}
+        >
+          /
+        </button>
       </ComposerPrimitive.Root>
     </div>
   );
@@ -540,7 +437,6 @@ function AgentChatThreadBody({
       <AgentChatCompose
         propsRef={propsRef}
         initialLocked={initialLocked}
-        autoFocus={!pendingAutoSend}
       />
     </ThreadPrimitive.Root>
   );
