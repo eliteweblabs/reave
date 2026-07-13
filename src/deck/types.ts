@@ -42,10 +42,17 @@ export type DeckFeature = {
   actions: DeckAction[];
 };
 
+/** Scroll-enter direction for full-bleed section video backgrounds. */
+export type DeckVideoEnter = 'left' | 'right' | 'up' | 'down';
+
 export type DeckSection = {
   id: string;
   title: string;
   summary?: string;
+  /** Full-bleed background video (defaults to `/deck/videos/{id}.mp4`). */
+  video?: string;
+  /** Overflow transition direction when entering this section (auto-assigned if omitted). */
+  videoEnter?: DeckVideoEnter;
   /**
    * When true, the prospect can toggle this section off (still on by default).
    * Hardcode per section in the JSON script.

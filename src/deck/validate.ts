@@ -138,6 +138,18 @@ function validateSection(raw: unknown, path: string): string[] {
   if (raw.quoteLabel !== undefined && typeof raw.quoteLabel !== 'string') {
     errors.push(`${path}: quoteLabel must be a string`);
   }
+  if (raw.video !== undefined && typeof raw.video !== 'string') {
+    errors.push(`${path}: video must be a string`);
+  }
+  if (
+    raw.videoEnter !== undefined &&
+    raw.videoEnter !== 'left' &&
+    raw.videoEnter !== 'right' &&
+    raw.videoEnter !== 'up' &&
+    raw.videoEnter !== 'down'
+  ) {
+    errors.push(`${path}: videoEnter must be "left" | "right" | "up" | "down"`);
+  }
   if (!Array.isArray(raw.features) || raw.features.length === 0) {
     errors.push(`${path}: features must be a non-empty array`);
   } else {

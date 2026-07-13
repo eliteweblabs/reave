@@ -6,6 +6,7 @@
 import Favicon from '../components/Favicon.astro';
 import Header from '../components/Header.astro';
 import { assertDeckScript } from '../deck/validate';
+import type { DeckVideoEnter } from '../deck/types';
 import { getCompanyConfig, homepageHeroMask } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
@@ -59,7 +60,9 @@ const DOCK_LABELS: Record<string, string> = {
   billing: 'Billing',
 };
 
-const sections = script.sections.map((section) => {
+const VIDEO_ENTER: DeckVideoEnter[] = ['right', 'up', 'left', 'down'];
+
+const sections = script.sections.map((section, index) => {
   const feature = section.features[0];
   return {
     id: section.id,
@@ -69,6 +72,9 @@ const sections = script.sections.map((section) => {
     optional: section.optional === true,
     featureTitle: feature?.title ?? section.title,
     featureBody: feature?.body ?? section.summary ?? '',
+    video: section.video?.trim() || `/deck/videos/${section.id}.mp4`,
+    videoEnter: section.videoEnter ?? VIDEO_ENTER[index % VIDEO_ENTER.length],
+    videoHue: (index * 47 + 168) % 360,
   };
 });
 
@@ -157,6 +163,39 @@ const deckPayload = {
         <span class="d-tooltip" role="tooltip">Quote</span>
       </button>
     </nav>
+
+    <div id="deck-video-stage" aria-hidden="true">
+      {
+        sections.map((s) => (
+          <div
+            class="deck-video-layer"
+            data-deck-video={s.id}
+            data-enter={s.videoEnter}
+            style={`--video-hue: ${s.videoHue}`}
+          >
+            <div class="deck-video-media">
+              <video
+                class="deck-video-el"
+                muted
+                loop
+                playsinline
+                preload="none"
+                data-src={s.video}
+              />
+              <div class="deck-video-placeholder">
+                <span class="deck-video-placeholder-label">{s.label}</span>
+              </div>
+              <div class="deck-video-scrim"></div>
+            </div>
+          </div>
+        ))
+      }
+      <div class="deck-video-layer deck-video-layer--quote" data-deck-video="quote">
+        <div class="deck-video-media deck-video-media--quote">
+          <div class="deck-video-scrim deck-video-scrim--quote"></div>
+        </div>
+      </div>
+    </div>
 
     <main id="scroll-track" data-deck-scroll>
       {
@@ -250,10 +289,120 @@ const deckPayload = {
         cursor: default;
       }
       body {
-        background-image:
+        background: #07090e;
+      }
+
+      #deck-video-stage {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        overflow: hidden;
+        pointer-events: none;
+        background: #07090e;
+      }
+      .deck-video-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        opacity: 0;
+        visibility: hidden;
+      }
+      .deck-video-layer.is-live {
+        visibility: visible;
+      }
+      .deck-video-media {
+        position: absolute;
+        width: 122%;
+        height: 122%;
+        left: -11%;
+        top: -11%;
+        will-change: transform, opacity;
+        transform: translate3d(var(--vx, 0%), var(--vy, 0%), 0)
+          scale(var(--vscale, 1));
+        opacity: var(--vopacity, 0);
+      }
+      .deck-video-el {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 0.35s ease;
+      }
+      .deck-video-el.is-ready {
+        opacity: 1;
+      }
+      .deck-video-placeholder {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(
+            ellipse 70% 55% at 22% 78%,
+            hsl(var(--video-hue, 168) 62% 42% / 0.34) 0%,
+            transparent 58%
+          ),
+          radial-gradient(
+            ellipse 55% 45% at 82% 18%,
+            hsl(calc(var(--video-hue, 168) + 38) 58% 48% / 0.22) 0%,
+            transparent 55%
+          ),
+          linear-gradient(145deg, #0a0d14 0%, #07090e 48%, #050608 100%);
+        animation: deck-video-placeholder-drift 14s ease-in-out infinite alternate;
+      }
+      .deck-video-el.is-ready + .deck-video-placeholder {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .deck-video-placeholder-label {
+        font-family: var(--display);
+        font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.16);
+      }
+      @keyframes deck-video-placeholder-drift {
+        from {
+          transform: scale(1) translate3d(-1.5%, 0.5%, 0);
+        }
+        to {
+          transform: scale(1.04) translate3d(1.5%, -0.5%, 0);
+        }
+      }
+      .deck-video-scrim {
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(
+            105deg,
+            rgba(7, 9, 14, 0.94) 0%,
+            rgba(7, 9, 14, 0.62) 38%,
+            rgba(7, 9, 14, 0.28) 68%,
+            rgba(7, 9, 14, 0.42) 100%
+          ),
+          linear-gradient(to top, rgba(7, 9, 14, 0.82) 0%, transparent 42%);
+        pointer-events: none;
+      }
+      .deck-video-media--quote {
+        width: 100%;
+        height: 100%;
+        left: 0;
+        top: 0;
+        background:
           radial-gradient(ellipse 80% 60% at 18% 85%, rgba(94, 234, 212, 0.14) 0%, transparent 55%),
           radial-gradient(ellipse 55% 45% at 85% 15%, rgba(56, 189, 248, 0.1) 0%, transparent 55%),
-          radial-gradient(ellipse 40% 40% at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+          #07090e;
+      }
+      .deck-video-scrim--quote {
+        background: linear-gradient(
+          105deg,
+          rgba(7, 9, 14, 0.88) 0%,
+          rgba(7, 9, 14, 0.5) 45%,
+          rgba(7, 9, 14, 0.35) 100%
+        );
       }
 
       .app-header {
@@ -343,6 +492,8 @@ const deckPayload = {
       }
       .deck-scene {
         box-sizing: border-box;
+        position: relative;
+        z-index: 2;
         height: 100dvh;
         min-height: 100dvh;
         max-height: 100dvh;
@@ -470,12 +621,14 @@ const deckPayload = {
         letter-spacing: -0.03em;
         line-height: 1.15;
         color: #f4f7fb;
+        text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
       }
       .deck-scene-body {
         margin: 0;
         font-size: 1.02rem;
         line-height: 1.55;
-        color: rgba(233, 238, 246, 0.72);
+        color: rgba(233, 238, 246, 0.82);
+        text-shadow: 0 1px 16px rgba(0, 0, 0, 0.4);
       }
 
       .deck-quote {
@@ -725,6 +878,15 @@ const deckPayload = {
         .d-item {
           width: 36px;
           height: 36px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .deck-video-media {
+          transition: opacity 0.25s ease;
+        }
+        .deck-video-placeholder {
+          animation: none;
         }
       }
     </style>

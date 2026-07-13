@@ -31,6 +31,14 @@
   var activeSceneId = null;
   var scrollingTo = null;
   var excludeAdvanceTimer = null;
+  var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /** @type {HTMLElement[]} */
+  var videoLayers = [];
+  /** @type {HTMLElement[]} */
+  var productScenes = [];
+  var quoteVideoLayer = null;
+  var quoteSceneEl = null;
 
   function sceneOrder() {
     return $$('[data-deck-scene]').map(function (el) {
@@ -192,6 +200,227 @@
     }, 900);
   }
 
+  function setVideoMediaState(media, vx, vy, opacity, scale) {
+    if (!media) return;
+    media.style.setProperty('--vx', vx + '%');
+    media.style.setProperty('--vy', vy + '%');
+    media.style.setProperty('--vopacity', String(opacity));
+    media.style.setProperty('--vscale', String(scale));
+  }
+
+  function enterOffset(dir, progress) {
+    var remain = 1 - progress;
+    switch (dir) {
+      case 'right':
+        return [remain * 100, 0];
+      case 'left':
+        return [-remain * 100, 0];
+      case 'up':
+        return [0, remain * 100];
+      case 'down':
+        return [0, -remain * 100];
+      default:
+        return [0, 0];
+    }
+  }
+
+  function exitOffset(dir, progress) {
+    var off = enterOffset(dir, 0);
+    return [-off[0] * progress, -off[1] * progress];
+  }
+
+  function layerMedia(layer) {
+    return layer ? layer.querySelector('.deck-video-media') : null;
+  }
+
+  function layerVideo(layer) {
+    return layer ? layer.querySelector('.deck-video-el') : null;
+  }
+
+  function ensureVideoLoaded(layer) {
+    var video = layerVideo(layer);
+    if (!video || video.dataset.loaded === 'true') return;
+    var src = video.getAttribute('data-src');
+    if (!src) return;
+    video.dataset.loaded = 'true';
+    video.src = src;
+    video.addEventListener(
+      'loadeddata',
+      function () {
+        video.classList.add('is-ready');
+      },
+      { once: true },
+    );
+    video.addEventListener(
+      'error',
+      function () {
+        video.classList.remove('is-ready');
+        video.removeAttribute('src');
+        video.dataset.loaded = 'false';
+      },
+      { once: true },
+    );
+  }
+
+  function playVideo(layer) {
+    var video = layerVideo(layer);
+    if (!video || !video.getAttribute('src')) return;
+    var play = video.play();
+    if (play && play.catch) play.catch(function () {});
+  }
+
+  function pauseVideo(layer) {
+    var video = layerVideo(layer);
+    if (!video) return;
+    video.pause();
+  }
+
+  function resetVideoLayers() {
+    videoLayers.forEach(function (layer) {
+      layer.classList.remove('is-live');
+      layer.style.zIndex = '0';
+      setVideoMediaState(layerMedia(layer), 0, 0, 0, 1);
+      pauseVideo(layer);
+    });
+    if (quoteVideoLayer) {
+      quoteVideoLayer.classList.remove('is-live');
+      quoteVideoLayer.style.zIndex = '0';
+      setVideoMediaState(layerMedia(quoteVideoLayer), 0, 0, 0, 1);
+    }
+  }
+
+  function showSingleVideoLayer(index) {
+    resetVideoLayers();
+    var layer = videoLayers[index];
+    if (!layer) return;
+    layer.classList.add('is-live');
+    layer.style.zIndex = '2';
+    ensureVideoLoaded(layer);
+    setVideoMediaState(layerMedia(layer), 0, 0, 1, 1);
+    playVideo(layer);
+    if (videoLayers[index + 1]) ensureVideoLoaded(videoLayers[index + 1]);
+    if (videoLayers[index - 1]) ensureVideoLoaded(videoLayers[index - 1]);
+  }
+
+  function showQuoteVideo(progress) {
+    resetVideoLayers();
+    if (!quoteVideoLayer) return;
+    quoteVideoLayer.classList.add('is-live');
+    quoteVideoLayer.style.zIndex = '2';
+    var opacity = reducedMotion ? (progress > 0.35 ? 1 : 0) : progress;
+    setVideoMediaState(layerMedia(quoteVideoLayer), 0, 0, opacity, 1);
+  }
+
+  function applyVideoTransition(fromIdx, toIdx, progress) {
+    resetVideoLayers();
+    var fromLayer = videoLayers[fromIdx];
+    var toLayer = videoLayers[toIdx];
+    if (!fromLayer || !toLayer) return;
+
+    fromLayer.classList.add('is-live');
+    toLayer.classList.add('is-live');
+    ensureVideoLoaded(fromLayer);
+    ensureVideoLoaded(toLayer);
+    if (videoLayers[fromIdx - 1]) ensureVideoLoaded(videoLayers[fromIdx - 1]);
+    if (videoLayers[toIdx + 1]) ensureVideoLoaded(videoLayers[toIdx + 1]);
+
+    var enterDir = toLayer.getAttribute('data-enter') || 'right';
+    var enter = enterOffset(enterDir, progress);
+    var exit = exitOffset(enterDir, progress);
+    var fromOpacity = 1 - progress;
+    var toOpacity = progress;
+    var fromScale = 1 - progress * 0.06;
+    var toScale = 0.94 + progress * 0.06;
+
+    if (reducedMotion) {
+      enter = [0, 0];
+      exit = [0, 0];
+      fromScale = 1;
+      toScale = 1;
+    }
+
+    setVideoMediaState(layerMedia(fromLayer), exit[0], exit[1], fromOpacity, fromScale);
+    setVideoMediaState(layerMedia(toLayer), enter[0], enter[1], toOpacity, toScale);
+    fromLayer.style.zIndex = '1';
+    toLayer.style.zIndex = '2';
+
+    if (toOpacity >= fromOpacity) playVideo(toLayer);
+    else playVideo(fromLayer);
+    if (toOpacity < 0.35) pauseVideo(toLayer);
+    if (fromOpacity < 0.35) pauseVideo(fromLayer);
+  }
+
+  function updateVideoStage() {
+    if (!videoLayers.length) return;
+    var track = $('#scroll-track');
+    if (!track) return;
+
+    if (quoteSceneEl) {
+      var quoteTop = quoteSceneEl.offsetTop;
+      var quoteStart = quoteTop - track.clientHeight * 0.35;
+      if (track.scrollTop >= quoteStart) {
+        var quoteProgress = Math.min(
+          1,
+          Math.max(0, (track.scrollTop - quoteStart) / (quoteTop - quoteStart || 1)),
+        );
+        showQuoteVideo(quoteProgress);
+        return;
+      }
+    }
+
+    if (productScenes.length === 0) return;
+
+    var scrollTop = track.scrollTop;
+    var firstTop = productScenes[0].offsetTop;
+    if (scrollTop <= firstTop + 2) {
+      showSingleVideoLayer(0);
+      return;
+    }
+
+    for (var i = 0; i < productScenes.length - 1; i++) {
+      var topA = productScenes[i].offsetTop;
+      var topB = productScenes[i + 1].offsetTop;
+      if (scrollTop >= topA && scrollTop < topB) {
+        var span = topB - topA || 1;
+        var progress = Math.min(1, Math.max(0, (scrollTop - topA) / span));
+        applyVideoTransition(i, i + 1, progress);
+        return;
+      }
+    }
+
+    showSingleVideoLayer(productScenes.length - 1);
+  }
+
+  function bindVideoStage() {
+    videoLayers = $$('[data-deck-video]').filter(function (el) {
+      return el.getAttribute('data-deck-video') !== 'quote';
+    });
+    quoteVideoLayer = $('[data-deck-video="quote"]');
+    quoteSceneEl = $('#scene-quote');
+    productScenes = sections
+      .map(function (s) {
+        return $('#scene-' + s.id);
+      })
+      .filter(Boolean);
+
+    var track = $('#scroll-track');
+    if (!track || !videoLayers.length) return;
+
+    var ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(function () {
+        updateVideoStage();
+        ticking = false;
+      });
+    }
+
+    track.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    updateVideoStage();
+  }
+
   function bindScrollEngagement() {
     var track = $('#scroll-track');
     var scenes = $$('[data-deck-scene]');
@@ -280,6 +509,7 @@
   }
 
   function startDeck() {
+    bindVideoStage();
     bindScrollEngagement();
     bindOptionalToggles();
     applyDeclinedUi();
