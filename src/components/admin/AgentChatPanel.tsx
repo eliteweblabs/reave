@@ -229,37 +229,15 @@ function AssistantMessageActions() {
   );
 }
 
-function HelperCommandGuide({ command }: { command: AgentHelperCommand }) {
-  return (
-    <div className="aui-helper-guide">
-      <div className="aui-helper-guide-title">{command.slash}</div>
-      <ol className="aui-helper-guide-steps">
-        {command.steps.map((step) => (
-          <li key={step}>{step}</li>
-        ))}
-      </ol>
-      <p className="aui-helper-guide-example">
-        <span className="aui-helper-guide-example-label">Example</span>
-        {command.example}
-      </p>
-    </div>
-  );
-}
-
 function HelperCommandsPanel({
   commands,
-  activeGuide,
   onPick,
-  onPreview,
 }: {
   commands: AgentHelperCommand[];
-  activeGuide: AgentHelperCommand | null;
   onPick: (command: AgentHelperCommand) => void;
-  onPreview: (command: AgentHelperCommand | null) => void;
 }) {
   return (
     <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
-      {activeGuide ? <HelperCommandGuide command={activeGuide} /> : null}
       <ul className="aui-helper-list" role="listbox" aria-label="Helper commands">
         {commands.map((command) => (
           <li key={command.slash}>
@@ -267,17 +245,10 @@ function HelperCommandsPanel({
               type="button"
               className="aui-helper-item"
               role="option"
-              onMouseEnter={() => onPreview(command)}
-              onMouseLeave={() => onPreview(null)}
-              onFocus={() => onPreview(command)}
-              onBlur={() => onPreview(null)}
               onClick={() => onPick(command)}
             >
               <span className="aui-helper-item-slash">{command.slash}</span>
-              <span className="aui-helper-item-body">
-                <span className="aui-helper-item-label">{command.label}</span>
-                <span className="aui-helper-item-summary">{command.summary}</span>
-              </span>
+              <span className="aui-helper-item-summary">{command.summary}</span>
             </button>
           </li>
         ))}
@@ -286,25 +257,21 @@ function HelperCommandsPanel({
   );
 }
 
-function useComposeHelpers() {
+function useSlashHelpers() {
   const composer = useComposerRuntime();
   const [helpersOpen, setHelpersOpen] = useState(false);
-  const [previewCommand, setPreviewCommand] = useState<AgentHelperCommand | null>(null);
 
   const filtered = filterHelperCommands('');
-  const activeGuide = previewCommand;
   const showHelpers = helpersOpen && filtered.length > 0;
 
   const applyCommand = (command: AgentHelperCommand) => {
     setHelpersOpen(false);
-    setPreviewCommand(null);
     composer.setText(command.template);
     void composer.send();
   };
 
   const toggleHelpers = () => {
     setHelpersOpen((open) => !open);
-    setPreviewCommand(null);
   };
 
   useEffect(() => {
@@ -312,9 +279,8 @@ function useComposeHelpers() {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('.aui-helper-panel, .aui-slash-btn')) return;
+      if (target.closest('.aui-helper-panel, .aui-slash-prompt')) return;
       setHelpersOpen(false);
-      setPreviewCommand(null);
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
@@ -323,88 +289,54 @@ function useComposeHelpers() {
   return {
     helpersOpen,
     filtered,
-    activeGuide,
     showHelpers,
     applyCommand,
     toggleHelpers,
-    setPreviewCommand,
   };
 }
 
-/** One user message per thread — hide compose after the exchange; stop only while running. */
-function AgentChatCompose({
-  propsRef,
-  initialLocked,
-}: {
-  propsRef: RefObject<AgentChatPanelProps>;
-  initialLocked: boolean;
-}) {
-  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const locked = initialLocked || hasMessages;
-  const helpers = useComposeHelpers();
-
-  useEffect(() => {
-    if (locked && !isRunning) propsRef.current?.onComposeFocus?.(false);
-  }, [initialLocked, isRunning, locked, propsRef]);
-
-  if (locked && !isRunning) return null;
-
-  if (isRunning) {
-    return (
-      <div className="aui-compose-footer">
-        <ComposerPrimitive.Root className="aui-compose aui-compose-running">
-          <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
-            Stop
-          </ComposerPrimitive.Cancel>
-        </ComposerPrimitive.Root>
-      </div>
-    );
-  }
+function SlashPrompt({ placement }: { placement: 'top' | 'tail' }) {
+  const helpers = useSlashHelpers();
 
   return (
-    <div className="aui-compose-footer">
-      <ComposerPrimitive.Root className="aui-compose aui-compose-slash-only">
-        {helpers.showHelpers ? (
-          <HelperCommandsPanel
-            commands={helpers.filtered}
-            activeGuide={helpers.activeGuide}
-            onPick={helpers.applyCommand}
-            onPreview={helpers.setPreviewCommand}
-          />
-        ) : null}
-        <button
-          type="button"
-          className={`aui-slash-btn${helpers.helpersOpen ? ' active' : ''}`}
-          aria-label="Show helper commands"
-          aria-expanded={helpers.helpersOpen}
-          onPointerDown={(e) => e.preventDefault()}
-          onClick={helpers.toggleHelpers}
-        >
-          /
-        </button>
-      </ComposerPrimitive.Root>
-    </div>
+    <ComposerPrimitive.Root
+      className={`aui-slash-zone aui-slash-zone-${placement}`}
+    >
+      {helpers.showHelpers ? (
+        <HelperCommandsPanel commands={helpers.filtered} onPick={helpers.applyCommand} />
+      ) : null}
+      <button
+        type="button"
+        className={`aui-slash-prompt${helpers.helpersOpen ? ' active' : ''}`}
+        aria-label="Start a command"
+        aria-expanded={helpers.helpersOpen}
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={helpers.toggleHelpers}
+      >
+        /
+      </button>
+    </ComposerPrimitive.Root>
   );
 }
 
-function AgentChatThreadBody({
-  propsRef,
-  initialLocked,
-  pendingAutoSend,
-}: {
-  propsRef: RefObject<AgentChatPanelProps>;
-  initialLocked: boolean;
-  pendingAutoSend?: boolean;
-}) {
+function RunningIndicator() {
+  return (
+    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-tail">
+      <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
+        Stop
+      </ComposerPrimitive.Cancel>
+    </ComposerPrimitive.Root>
+  );
+}
+
+function AgentChatThreadBody() {
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const complete = initialLocked || (hasMessages && !isRunning);
 
   return (
-    <ThreadPrimitive.Root className={`aui-thread${complete ? ' aui-thread-complete' : ''}`}>
+    <ThreadPrimitive.Root className="aui-thread">
       <ThreadPrimitive.Viewport className="aui-viewport">
-        <ThreadPrimitive.Empty className="aui-empty">Send a message to start.</ThreadPrimitive.Empty>
+        {!hasMessages && !isRunning ? <SlashPrompt placement="top" /> : null}
         <ThreadPrimitive.Messages
           components={{
             UserMessage: () => (
@@ -433,11 +365,9 @@ function AgentChatThreadBody({
             ),
           }}
         />
+        {hasMessages && !isRunning ? <SlashPrompt placement="tail" /> : null}
+        {isRunning ? <RunningIndicator /> : null}
       </ThreadPrimitive.Viewport>
-      <AgentChatCompose
-        propsRef={propsRef}
-        initialLocked={initialLocked}
-      />
     </ThreadPrimitive.Root>
   );
 }
@@ -454,7 +384,6 @@ function AgentChatThread({
   pendingAutoSend?: boolean;
 }) {
   const adapter = useMemo(() => createChatAdapter(threadId, propsRef), [threadId, propsRef]);
-  const initialLocked = (propsRef.current?.initialMessages.length ?? 0) > 0;
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
@@ -463,11 +392,7 @@ function AgentChatThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
-      <AgentChatThreadBody
-        propsRef={propsRef}
-        initialLocked={initialLocked}
-        pendingAutoSend={pendingAutoSend}
-      />
+      <AgentChatThreadBody />
     </AssistantRuntimeProvider>
   );
 }
