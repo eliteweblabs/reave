@@ -634,10 +634,38 @@ export function attachQuantumCoreOpticalEngine(
   btnReset?.addEventListener("click", onReset);
 
   let introCompleteFired = false;
+  let introSettled = false;
   let raf = 0;
   let alive = true;
   const clock = new THREE.Clock();
   const motionScale = prefersReduced ? 0.2 : 1;
+
+  function settleIntroEndState(rawT: number): void {
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      positions[i3] = homePositions[i3]!;
+      positions[i3 + 1] = homePositions[i3 + 1]!;
+      positions[i3 + 2] = homePositions[i3 + 2]!;
+    }
+    particlesGeo.attributes.position!.needsUpdate = true;
+    applyParticleColors(1, 0);
+    particles.rotation.y =
+      -rawT * 0.1 * particleSpeedMult * Math.max(motionScale, 0.35);
+    pulseGroup.rotation.x = 0;
+    pulseGroup.rotation.y = 0;
+    pulseGroup.scale.setScalar(1);
+    particles.scale.setScalar(PARTICLE_VIS_SCALE);
+    particlesMat.size = particleBaseSize;
+    particlesMat.opacity = particleBaseOpacity;
+    bloomPass.strength = 1.18;
+    lensPass.uniforms.uDistortion.value = 0;
+    lensPass.uniforms.uAberration.value = 0;
+    camera.position.set(0, 0, VIEW_Z);
+    camera.lookAt(scene.position);
+    (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
+    if (useGalaxyIntro) setPresentationMode(false);
+    resetCameraViewportAspect();
+  }
 
   const onCtxLost = (ev: Event) => {
     ev.preventDefault();
@@ -648,8 +676,22 @@ export function attachQuantumCoreOpticalEngine(
 
   function animate() {
     if (!alive) return;
-    raf = requestAnimationFrame(animate);
     const rawT = clock.getElapsedTime();
+
+    if (introDurationSec > 0 && rawT >= introDurationSec) {
+      if (!introSettled) {
+        introSettled = true;
+        settleIntroEndState(rawT);
+        composer.render();
+        if (!introCompleteFired) {
+          introCompleteFired = true;
+          window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
+        }
+      }
+      return;
+    }
+
+    raf = requestAnimationFrame(animate);
     /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
     sphereMat.uniforms.uTime.value = rawT;
 
@@ -753,7 +795,7 @@ export function attachQuantumCoreOpticalEngine(
         1.65,
         easeInQuart(globalIntroT),
       );
-    } else {
+    } else if (introDurationSec <= 0) {
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
         positions[i3] = homePositions[i3]!;
@@ -768,23 +810,16 @@ export function attachQuantumCoreOpticalEngine(
       particlesMat.size = particleBaseSize;
       particlesMat.opacity = particleBaseOpacity;
       bloomPass.strength = 1.18;
-
-      if (introDurationSec > 0) {
-        if (!introCompleteFired) {
-          introCompleteFired = true;
-          window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
-        }
-      }
     }
 
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
     const scatterScale = 1 + mic * 0.6 + burst * 0.18;
-    if (!inIntro) {
+    if (!inIntro && introDurationSec <= 0) {
       particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
       particlesMat.size = particleBaseSize * (1 + energy * 0.12);
     }
-    if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
+    if (!inIntro && introDurationSec <= 0) {
       particlesMat.opacity = THREE.MathUtils.clamp(
         particleBaseOpacity * (1 - mic * 0.3),
         0.2,
@@ -798,12 +833,12 @@ export function attachQuantumCoreOpticalEngine(
       wild *
         (prefersReduced ? 0.02 : 0.04) *
         Math.max(motionScale, 0.35);
-    if (!inIntro) {
+    if (!inIntro && introDurationSec <= 0) {
       pulseGroup.scale.setScalar(scaleBreath);
     }
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
-    if (!inIntro) {
+    if (!inIntro && introDurationSec <= 0) {
       bloomPass.strength = THREE.MathUtils.clamp(
         1.18 + wild * 0.18 + energy * 0.55,
         1.08,
@@ -813,20 +848,22 @@ export function attachQuantumCoreOpticalEngine(
 
     const tiltLerp =
       0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
-    pulseGroup.rotation.x +=
-      (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
-    pulseGroup.rotation.y +=
-      (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
-    pulseGroup.rotation.x = THREE.MathUtils.clamp(
-      pulseGroup.rotation.x,
-      -0.55,
-      0.55,
-    );
-    pulseGroup.rotation.y = THREE.MathUtils.clamp(
-      pulseGroup.rotation.y,
-      -0.62,
-      0.62,
-    );
+    if (introDurationSec <= 0 || inIntro) {
+      pulseGroup.rotation.x +=
+        (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
+      pulseGroup.rotation.y +=
+        (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
+      pulseGroup.rotation.x = THREE.MathUtils.clamp(
+        pulseGroup.rotation.x,
+        -0.55,
+        0.55,
+      );
+      pulseGroup.rotation.y = THREE.MathUtils.clamp(
+        pulseGroup.rotation.y,
+        -0.62,
+        0.62,
+      );
+    }
 
     shakeIntensity *= 0.9;
     const shakeX = (Math.random() - 0.5) * shakeIntensity;
@@ -836,24 +873,28 @@ export function attachQuantumCoreOpticalEngine(
     const parallaxAmp =
       (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
     const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
-    camera.position.x +=
-      (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
-    camera.position.y +=
-      (-mouseY * parallaxAmp - camera.position.y) * parallaxLerp + shakeY;
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
-    camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
-    camera.position.z = VIEW_Z;
-    camera.lookAt(scene.position);
+    if (introDurationSec <= 0 || inIntro) {
+      camera.position.x +=
+        (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
+      camera.position.y +=
+        (-mouseY * parallaxAmp - camera.position.y) * parallaxLerp + shakeY;
+      camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
+      camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
+      camera.position.z = VIEW_Z;
+      camera.lookAt(scene.position);
+    }
 
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
-    const warpTarget = THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
-    const aberrTarget =
-      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
-    lensPass.uniforms.uDistortion.value +=
-      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
-    lensPass.uniforms.uAberration.value +=
-      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
+    if (introDurationSec <= 0) {
+      const warpTarget = THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
+      const aberrTarget =
+        THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
+      lensPass.uniforms.uDistortion.value +=
+        (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
+      lensPass.uniforms.uAberration.value +=
+        (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
+    }
 
     composer.render();
   }
@@ -866,6 +907,7 @@ export function attachQuantumCoreOpticalEngine(
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
     resetCameraViewportAspect();
+    if (introSettled) composer.render();
   };
 
   const onResize = () => {
