@@ -308,7 +308,10 @@ function setActiveMap(key, opts = {}) {
   if (MAP.type !== 'email') {
     emailState.composing = false;
   }
-  if (key !== 'chats') setChatComposeFocused(false);
+  if (key !== 'chats') {
+    setChatComposeFocused(false);
+    if (prevType === 'chats') void abandonDisposableChat(chatState.activeId);
+  }
   void refreshInboxBadgeQuiet();
 }
 
@@ -8513,7 +8516,43 @@ let chatState = {
   sendAbort: null,
   pendingDraft: null,
   pendingAutoSend: false,
+  disposableChatId: null,
+  composeDirty: false,
 };
+
+function isDisposableChat(id) {
+  if (!id || chatState.disposableChatId !== id) return false;
+  if (chatState.messages.length > 0 || chatState.sending || chatState.composeDirty) return false;
+  if (chatState.pendingDraft || chatState.pendingAutoSend) return false;
+  const title =
+    chatState.activeId === id
+      ? chatState.title
+      : chatState.threads.find((t) => t.id === id)?.title;
+  return !title || title.trim() === 'New chat';
+}
+
+async function abandonDisposableChat(id) {
+  if (!isDisposableChat(id)) return;
+  chatState.disposableChatId = null;
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (res.status !== 404) await readApiJson(res);
+    chatState.threads = chatState.threads.filter((t) => t.id !== id);
+    if (chatState.activeId === id) {
+      chatState.activeId = null;
+      chatState.messages = [];
+      chatState.title = '';
+      chatState.linkedJobs = [];
+      chatState.composeDirty = false;
+    }
+  } catch {
+    /* best effort */
+  }
+}
 
 function sortChatThreads(threads) {
   const byUpdated = (a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0);
@@ -8579,17 +8618,31 @@ async function loadChatsTab(opts = {}) {
     chatState.messages = savedMessages;
     chatState.pendingDraft = savedDraft;
     chatState.pendingAutoSend = savedAutoSend;
-  } else {
-    chatState.activeId = null;
-    chatState.messages = [];
-    chatState.title = '';
-    chatState.pendingAutoSend = false;
-    getChatPanel()?.classList.remove('ch-pane-active');
+    renderChatPanel();
+    const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
+    pendingChatDeepLinkId = null;
+    if (deepChatId) openChat(deepChatId).catch(() => {});
+    return;
   }
-  renderChatPanel();
+
+  if (chatState.activeId) await abandonDisposableChat(chatState.activeId);
+  chatState.activeId = null;
+  chatState.messages = [];
+  chatState.title = '';
+  chatState.pendingAutoSend = false;
+  chatState.composeDirty = false;
+  chatState.disposableChatId = null;
+  getChatPanel()?.classList.remove('ch-pane-active');
+
   const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
   pendingChatDeepLinkId = null;
-  if (deepChatId) openChat(deepChatId).catch(() => {});
+  if (deepChatId) {
+    renderChatPanel();
+    openChat(deepChatId).catch(() => {});
+    return;
+  }
+
+  await ensureChatSession();
 }
 
 function formatLinkedJobsSub(jobs) {
@@ -8946,16 +8999,29 @@ function mountChatThreadRoot(threadHost) {
     pendingAutoSend,
     getModel: getAgentModelForChat,
     onComposeFocus: (focused) => setChatComposeFocused(focused),
+    onComposeDirty: (dirty) => {
+      chatState.composeDirty = dirty;
+      if (dirty && chatState.activeId === chatState.disposableChatId) {
+        chatState.disposableChatId = null;
+      }
+    },
     onTitleUpdate: (title) => {
       chatState.title = title;
       const thread = chatState.threads.find((t) => t.id === chatState.activeId);
       if (thread) thread.title = title;
       syncSidebarChatTitle(chatState.activeId, title);
       syncChatPaneHeaderTitle(title);
+      if (title.trim() && title.trim() !== 'New chat') {
+        chatState.disposableChatId = null;
+      }
     },
     onMessagesPersist: (userContent, assistantContent) => {
       chatState.messages.push({ role: 'user', content: userContent });
       chatState.messages.push({ role: 'assistant', content: assistantContent });
+      chatState.composeDirty = false;
+      if (chatState.activeId === chatState.disposableChatId) {
+        chatState.disposableChatId = null;
+      }
     },
     onLinkedJobsRefresh: () => {
       void refreshChatLinkedJobs().then(() => {
@@ -9006,7 +9072,14 @@ function renderChatPanel() {
   mountChatThreadRoot(threadHost);
 }
 
-async function startNewChat() {
+async function ensureChatSession() {
+  if (chatState.activeId) return;
+  await startNewChat({ disposable: true });
+}
+
+async function startNewChat(opts = {}) {
+  const prevId = chatState.activeId;
+  if (prevId) await abandonDisposableChat(prevId);
   try {
     const res = await fetch('/api/chats', {
       method: 'POST',
@@ -9019,6 +9092,9 @@ async function startNewChat() {
     chatState.activeId = thread.id;
     chatState.title = thread.title;
     chatState.messages = [];
+    chatState.linkedJobs = thread.linked_jobs || [];
+    chatState.composeDirty = false;
+    chatState.disposableChatId = opts.disposable === false ? null : thread.id;
     renderChatPanel();
   } catch (e) {
     alert(`Could not create chat: ${e.message}`);
@@ -9027,12 +9103,16 @@ async function startNewChat() {
 
 async function openChat(id) {
   try {
+    const prevId = chatState.activeId;
+    if (prevId && prevId !== id) await abandonDisposableChat(prevId);
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
     const data = await readApiJson(res);
     chatState.activeId = id;
     chatState.title = data.thread.title;
     chatState.messages = data.thread.messages || [];
     chatState.linkedJobs = data.thread.linked_jobs || [];
+    chatState.composeDirty = false;
+    chatState.disposableChatId = null;
     const idx = chatState.threads.findIndex((t) => t.id === id);
     if (idx !== -1) {
       chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
@@ -9065,6 +9145,7 @@ async function deleteChat(id, title) {
       chatState.activeId = null;
       chatState.messages = [];
       chatState.title = '';
+      if (chatState.disposableChatId === id) chatState.disposableChatId = null;
       getChatPanel()?.classList.remove('ch-pane-active');
     }
     renderChatPanel();
@@ -9368,10 +9449,17 @@ function shouldShowChatTopbarTitle(title) {
 
 function closeActiveChat() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-  chatState.activeId = null;
-  getChatPanel()?.classList.remove('ch-pane-active');
-  setChatComposeFocused(false);
-  renderChatPanel();
+  const id = chatState.activeId;
+  void abandonDisposableChat(id).then(async () => {
+    chatState.activeId = null;
+    setChatComposeFocused(false);
+    if (MAP.type === 'chats' && !isMobileTabs()) {
+      await ensureChatSession();
+      return;
+    }
+    getChatPanel()?.classList.remove('ch-pane-active');
+    renderChatPanel();
+  });
 }
 
 function chatTranscriptText() {
@@ -9839,6 +9927,7 @@ async function askAgentWithPrompt(prompt, opts = {}) {
     chatState.messages = [];
     chatState.pendingDraft = prompt;
     chatState.pendingAutoSend = true;
+    chatState.disposableChatId = null;
 
     if (activeKey === 'chats') {
       renderChatPanel();

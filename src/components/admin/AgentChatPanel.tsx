@@ -39,6 +39,7 @@ export type AgentChatPanelProps = {
   pendingAutoSend?: boolean;
   getModel?: () => string | undefined;
   onComposeFocus?: (focused: boolean) => void;
+  onComposeDirty?: (dirty: boolean) => void;
   onMessagesPersist?: (userContent: string, assistantContent: string) => void;
   onTitleUpdate?: (title: string) => void;
   onLinkedJobsRefresh?: () => void;
@@ -327,6 +328,7 @@ function useSlashHelpers(
     if (!isRunning) return;
     setHelpersOpen(false);
     setComposeText('');
+    propsRef.current?.onComposeDirty?.(false);
   }, [isRunning]);
 
   useEffect(() => {
@@ -354,6 +356,7 @@ function useSlashHelpers(
 
   const onInput = (value: string) => {
     setComposeText(value);
+    propsRef.current?.onComposeDirty?.(value.trim().length > 0);
     if (!value.trim() || value.startsWith('/')) {
       openHelpers();
       return;
