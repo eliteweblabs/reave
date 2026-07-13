@@ -8,6 +8,36 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
+/** Debug: trace CSS mask pipeline — remove once masking is verified. */
+function logMaskStep(step: string, data?: Record<string, unknown>): void {
+  console.log(`[quantum-mask] ${step}`, data ?? "");
+}
+
+function readMaskDiagnostics(el: HTMLElement | null): Record<string, unknown> {
+  if (!el) return { error: "no stack element" };
+  const cs = getComputedStyle(el);
+  const csExt = cs as CSSStyleDeclaration & {
+    webkitMaskImage?: string;
+    webkitMaskSize?: string;
+    webkitMaskPosition?: string;
+    webkitMaskMode?: string;
+    webkitMaskRepeat?: string;
+  };
+  return {
+    tag: el.tagName,
+    id: el.id,
+    classes: el.className,
+    heroLogoMaskVar: cs.getPropertyValue("--hero-logo-mask").trim(),
+    maskImage: cs.maskImage || csExt.webkitMaskImage || "(none)",
+    maskSize: cs.maskSize || csExt.webkitMaskSize || "(none)",
+    maskPosition: cs.maskPosition || csExt.webkitMaskPosition || "(none)",
+    maskMode: cs.maskMode || csExt.webkitMaskMode || "(none)",
+    maskRepeat: cs.maskRepeat || csExt.webkitMaskRepeat || "(none)",
+    filter: cs.filter || "(none)",
+    rect: el.getBoundingClientRect(),
+  };
+}
+
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   const w = 128;
@@ -123,6 +153,12 @@ export function attachQuantumCoreOpticalEngine(
   host: HTMLElement,
   options?: QuantumEngineOptions,
 ): () => void {
+  logMaskStep("attachQuantumCoreOpticalEngine", {
+    hostId: host.id,
+    hostClass: host.className,
+    options,
+  });
+
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -172,6 +208,12 @@ export function attachQuantumCoreOpticalEngine(
   const stackEl = host.parentElement as HTMLElement | null;
   const isCompactStack =
     stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
+
+  logMaskStep("attachQuantumCoreOpticalEngine:stack", {
+    stackFound: Boolean(stackEl),
+    isCompactStack,
+    mask: readMaskDiagnostics(stackEl),
+  });
 
   function resetCameraViewportAspect() {
     const vw = window.innerWidth;
@@ -635,6 +677,11 @@ export function attachQuantumCoreOpticalEngine(
   const motionScale = prefersReduced ? 0.2 : 1;
 
   function settleIntroEndState(rawT: number): void {
+    logMaskStep("settleIntroEndState", {
+      rawT,
+      introDurationSec,
+      mask: readMaskDiagnostics(stackEl),
+    });
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       positions[i3] = homePositions[i3]!;
@@ -667,12 +714,22 @@ export function attachQuantumCoreOpticalEngine(
   };
   renderer.domElement.addEventListener("webglcontextlost", onCtxLost);
 
+  let introPhaseLogged = "";
+  let animateFrame = 0;
+
   function animate() {
     if (!alive) return;
     const rawT = clock.getElapsedTime();
+    animateFrame += 1;
 
     if (introDurationSec > 0 && rawT >= introDurationSec) {
       if (!introSettled) {
+        logMaskStep("animate:intro-complete", {
+          rawT,
+          introDurationSec,
+          frames: animateFrame,
+          mask: readMaskDiagnostics(stackEl),
+        });
         introSettled = true;
         settleIntroEndState(rawT);
         composer.render();
@@ -714,6 +771,34 @@ export function attachQuantumCoreOpticalEngine(
     const globalIntroT = inIntro
       ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
       : 1;
+
+    const phase = inGalaxyView
+      ? "galaxy"
+      : inIntro
+        ? "intro"
+        : introDurationSec <= 0
+          ? "ambient"
+          : "post-intro";
+    if (phase !== introPhaseLogged) {
+      introPhaseLogged = phase;
+      logMaskStep("animate:phase", {
+        phase,
+        rawT,
+        globalIntroT,
+        inGalaxyView,
+        useGalaxyIntro,
+        mask: readMaskDiagnostics(stackEl),
+      });
+    }
+
+    if (animateFrame === 1) {
+      logMaskStep("animate:first-frame", {
+        introDurationSec,
+        useGalaxyIntro,
+        isCompactStack,
+        mask: readMaskDiagnostics(stackEl),
+      });
+    }
 
     if (inGalaxyView) {
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
@@ -892,6 +977,14 @@ export function attachQuantumCoreOpticalEngine(
 
   let resizeRaf = 0;
   const applyResize = () => {
+    logMaskStep("applyResize", {
+      introSettled,
+      viewport: {
+        w: window.innerWidth,
+        h: window.innerHeight,
+      },
+      mask: readMaskDiagnostics(stackEl),
+    });
     const h = Math.max(1, window.innerHeight);
     const w = window.innerWidth;
     renderer.setSize(w, h);
@@ -911,9 +1004,16 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("resize", onResize);
 
   applyResize();
+  logMaskStep("attachQuantumCoreOpticalEngine:ready", {
+    introDurationSec,
+    useGalaxyIntro,
+    isCompactStack,
+    mask: readMaskDiagnostics(stackEl),
+  });
   raf = requestAnimationFrame(animate);
 
   return () => {
+    logMaskStep("attachQuantumCoreOpticalEngine:detach", { hostId: host.id });
     alive = false;
     cancelAnimationFrame(raf);
     cancelAnimationFrame(resizeRaf);
