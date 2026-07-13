@@ -131,6 +131,10 @@ import {
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { buildReplyEmailHeaders } from './emailReply';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
+import {
+  storeAddChatImagesToProject,
+  storeListProjectFiles,
+} from './projectFiles';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
 import { getAgentContext } from './agentContext';
@@ -403,6 +407,45 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
             },
           },
           required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'list_project_files',
+        description:
+          'List media files in a project file repository (images/PDFs uploaded via chat or admin). Use when the user asks what files are on a project or before adding duplicates.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', description: 'Job slug' },
+          },
+          required: ['slug'],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'add_file_to_project',
+        description:
+          'Save image(s) from the current chat message to a project file repository. Use when the user says to add/save/file an image to a client project (e.g. "add this to Reggie\'s newest project"). Provide slug directly, or client name to target their most recently updated job. Images come from the current message automatically — no need to pass base64.',
+        parameters: {
+          type: 'object',
+          properties: {
+            slug: {
+              type: 'string',
+              description: 'Target job slug — preferred when known',
+            },
+            client: {
+              type: 'string',
+              description:
+                'Client name when slug is unknown — resolves contact and uses their newest project (by updated date)',
+            },
+          },
           additionalProperties: false,
         },
       },
@@ -2204,6 +2247,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
       const cap = 14_000;
       const body = doc.body.length > cap ? `${doc.body.slice(0, cap)}\n\n…(truncated)` : doc.body;
+      const files = await storeListProjectFiles(slug);
       return JSON.stringify({
         slug: doc.slug,
         title: doc.title,
@@ -2220,6 +2264,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         created: doc.created,
         updated: doc.updated,
         body,
+        files,
+        file_count: files.length,
       });
     }
     if (name === 'create_work') {
@@ -2323,6 +2369,75 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         title: doc.title,
         linked_email: emailId || null,
         linked_chat: threadId || null,
+      });
+    }
+    if (name === 'list_project_files') {
+      const slug = String(args.slug ?? '').trim();
+      if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+      const doc = await storeReadWork(slug);
+      if (!doc) return JSON.stringify({ error: 'not found', slug });
+      const files = await storeListProjectFiles(slug);
+      return JSON.stringify({
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.client,
+        files,
+        count: files.length,
+      });
+    }
+    if (name === 'add_file_to_project') {
+      const ctx = getAgentContext();
+      const images = ctx.messageImages ?? [];
+      if (!images.length) {
+        return JSON.stringify({
+          error: 'no images in the current message — attach an image first',
+        });
+      }
+
+      let slug = String(args.slug ?? '').trim();
+      if (!slug) {
+        const client = String(args.client ?? '').trim();
+        if (!client) {
+          return JSON.stringify({ error: 'provide slug or client name' });
+        }
+        if (!isContactApiConfigured()) {
+          return JSON.stringify({ error: 'contact-api not configured' });
+        }
+        const resolved = await resolveContact(client);
+        if (!resolved?.uid) {
+          return JSON.stringify({ error: 'client not found', client, matches: resolved?.matches ?? [] });
+        }
+        const jobs = await storeListWork({ contact_uid: resolved.uid });
+        if (!jobs.length) {
+          return JSON.stringify({
+            error: 'no projects for this client',
+            client: resolved.name,
+            contact_uid: resolved.uid,
+          });
+        }
+        slug = jobs[0].slug;
+      }
+
+      if (!isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
+      const doc = await storeReadWork(slug);
+      if (!doc) return JSON.stringify({ error: 'not found', slug });
+
+      const saved = await storeAddChatImagesToProject(slug, images, {
+        uploadedBy: ctx.userId,
+        sourceRef: ctx.threadId,
+        source: 'agent',
+      });
+      if (!saved.length) return JSON.stringify({ error: 'failed to save files' });
+
+      if (ctx.threadId) await linkProjectItem(slug, 'chat', ctx.threadId);
+
+      return JSON.stringify({
+        ok: true,
+        slug: doc.slug,
+        title: doc.title,
+        client: doc.client,
+        files: saved,
+        count: saved.length,
       });
     }
     if (name === 'update_work') {

@@ -3686,6 +3686,103 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         color: var(--muted);
         white-space: nowrap;
       }
+      .wk-files-section {
+        margin-top: 1rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--card-border);
+      }
+      .wk-files-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
+      }
+      .wk-files-hint {
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-bottom: 0.65rem;
+      }
+      .wk-files-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.55rem;
+        margin-bottom: 0.65rem;
+      }
+      .wk-file-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0.45rem;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        background: var(--card);
+        min-width: 0;
+      }
+      .wk-file-thumb {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--fg) 6%, transparent);
+      }
+      .wk-file-doc {
+        width: 100%;
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--fg) 6%, transparent);
+      }
+      .wk-file-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+      }
+      .wk-file-name {
+        font-size: 0.72rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .wk-file-size {
+        font-size: 0.68rem;
+        color: var(--muted);
+      }
+      .wk-file-actions {
+        display: flex;
+        gap: 0.35rem;
+        align-items: center;
+      }
+      .wk-file-open,
+      .wk-file-delete {
+        font-size: 0.68rem;
+        padding: 0;
+        border: none;
+        background: none;
+        color: var(--accent);
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .wk-file-delete {
+        color: var(--muted);
+      }
+      .wk-file-delete:hover {
+        color: #e55;
+      }
+      .wk-files-upload {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .wk-files-input {
+        display: none;
+      }
       .em-detail-body {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
