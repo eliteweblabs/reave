@@ -2487,9 +2487,37 @@ function footerNavShowsSave(nav) {
   return footerSaveNavForEditor() === nav && typeof footerSaveHandler === 'function';
 }
 
+function isNewChatSession() {
+  if (!chatState.activeId) return false;
+  if (chatState.messages.length > 0 || chatState.sending || chatState.composeDirty) return false;
+  if (chatState.pendingDraft || chatState.pendingAutoSend) return false;
+  const title = (chatState.title || '').trim();
+  return !title || title === 'New chat';
+}
+
+function footerNavOnNewInstance(nav) {
+  if (nav === 'chat') {
+    return activeKey === 'chats' && isNewChatSession();
+  }
+  if (nav === 'inbox') {
+    return activeKey === 'email' && emailState.composing;
+  }
+  if (nav === 'schedule') {
+    return activeKey === 'schedule' && scheduleState.createDialogOpen;
+  }
+  if (nav === 'work') {
+    return activeKey === 'work' && workState.activeSlug === '__new__';
+  }
+  if (nav === 'clients') {
+    return activeKey === 'clients' && clientState.activeUid === '__new__';
+  }
+  return false;
+}
+
 function footerNavShowsCreate(nav) {
   if (footerNavShowsSave(nav)) return false;
   if (footerNavCollapsed) return false;
+  if (footerNavOnNewInstance(nav)) return false;
   const activeNav = footerNavActiveKey();
   if (nav === 'chat') {
     return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
@@ -5297,6 +5325,7 @@ function startNewProject() {
     body: '',
   };
   renderWorkEditor();
+  syncFooterNav();
 }
 
 function startNewClient() {
@@ -6139,6 +6168,7 @@ let scheduleState = {
   selectedDate: null,
   selectedSlot: null,
   activeUid: null,
+  createDialogOpen: false,
   meta: {
     bookingFormUrl: '/form/schedule',
     publicBookingUrl: null,
@@ -6648,6 +6678,8 @@ function openScheduleCreateDialog(initial = {}) {
       backdrop.classList.remove('open');
       backdrop.setAttribute('aria-hidden', 'true');
       document.removeEventListener('keydown', onKey);
+      scheduleState.createDialogOpen = false;
+      syncFooterNav();
       resolve(value);
     };
     const onKey = (evKey) => {
@@ -6804,6 +6836,8 @@ function openScheduleCreateDialog(initial = {}) {
     backdrop.setAttribute('aria-hidden', 'false');
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
+    scheduleState.createDialogOpen = true;
+    syncFooterNav();
     nameInput.focus();
   });
 }
@@ -9070,6 +9104,7 @@ function mountChatThreadRoot(threadHost) {
   chatState.pendingAutoSend = false;
   chatApi.mount(threadHost, {
     threadId: chatState.activeId,
+    companyName: document.body.dataset.companyName || '',
     initialMessages: chatState.messages,
     pendingDraft,
     pendingAutoSend,
@@ -9131,6 +9166,7 @@ function renderChatPanel() {
     clearTopbarPanelContext();
     setChatComposeFocused(false);
     syncFooterChatInlineHome();
+    syncFooterNav();
     return;
   }
 
@@ -9146,6 +9182,7 @@ function renderChatPanel() {
   syncTopbarPanelContext();
   syncFooterChatInlineHome();
   mountChatThreadRoot(threadHost);
+  syncFooterNav();
 }
 
 async function ensureChatSession() {
@@ -9172,6 +9209,7 @@ async function startNewChat(opts = {}) {
     chatState.composeDirty = false;
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
     renderChatPanel();
+    syncFooterNav();
   } catch (e) {
     alert(`Could not create chat: ${e.message}`);
   }

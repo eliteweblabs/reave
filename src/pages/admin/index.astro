@@ -5033,7 +5033,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
     </style>
   </head>
-  <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
+  <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""} data-company-name={company.name}>
     <Header adminShell showPlugins={showPlugins} />
 
     <div id="topbar-utilities" hidden aria-hidden="true">

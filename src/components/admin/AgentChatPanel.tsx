@@ -35,6 +35,7 @@ export type StoredChatMessage = { role: 'user' | 'assistant'; content: string };
 export type AgentChatPanelProps = {
   threadId: string;
   initialMessages: StoredChatMessage[];
+  companyName?: string;
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
   getModel?: () => string | undefined;
@@ -544,11 +545,16 @@ function AgentChatThreadBody({
     };
   }, []);
 
+  const companyName = (propsRef.current?.companyName || '').trim();
+  const welcomeHeading = companyName
+    ? `Welcome to ${companyName} personal assistant.`
+    : 'Welcome to your company personal assistant.';
+
   return (
     <ThreadPrimitive.Root className="aui-thread">
       <AuiIf condition={(s) => s.thread.messages.length === 0}>
         <div className="aui-empty-state">
-          <h1 className="aui-empty-heading">How can I help you today?</h1>
+          <h1 className="aui-empty-heading">{welcomeHeading}</h1>
           <ClaudeComposer
             centered
             propsRef={propsRef}
