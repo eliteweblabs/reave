@@ -113,7 +113,11 @@ const deckPayload = {
 
     <Preloader heroMask={heroMask} heroLogo={heroLogo} fallbackName={company.name} />
 
-    <nav id="dock" aria-label="Deck sections">
+    <nav
+      id="dock"
+      aria-label="Deck sections"
+      style={`--dock-items: ${sections.length + 1}`}
+    >
       {
         sections.map((s) => {
           const Icon = DOCK_ICONS[s.id] ?? Home;
@@ -219,6 +223,7 @@ const deckPayload = {
                 )
               }
             </div>
+            <div class="deck-dock-sentinel" aria-hidden="true"></div>
           </section>
         ))
       }
@@ -245,6 +250,7 @@ const deckPayload = {
           <textarea id="quote-description" class="deck-quote-desc" rows="8" readonly></textarea>
           <button type="button" id="quote-copy" class="deck-quote-copy">Copy description</button>
         </div>
+        <div class="deck-dock-sentinel" aria-hidden="true"></div>
       </section>
     </main>
 
@@ -415,13 +421,26 @@ const deckPayload = {
         max-height: 100dvh;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         padding:
           calc(var(--app-header-h, 4rem) + env(safe-area-inset-top, 0px) + 1.25rem)
           clamp(1rem, 4vw, 2.5rem)
           5.5rem;
         scroll-snap-align: start;
         scroll-snap-stop: always;
+      }
+      .deck-scene-copy {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 0;
+      }
+      .deck-dock-sentinel {
+        flex: 0 0 0;
+        width: 100%;
+        height: 0;
+        pointer-events: none;
       }
       @media (min-width: 640px) {
         .deck-scene {
@@ -433,6 +452,7 @@ const deckPayload = {
       }
       .deck-scene-copy {
         max-width: 34rem;
+        width: 100%;
         pointer-events: none;
         opacity: 0;
         transform: translateY(28px);
@@ -637,16 +657,18 @@ const deckPayload = {
 
       #dock {
         position: fixed;
-        bottom: 10px;
-        left: 0;
-        right: 0;
+        bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        left: max(0.35rem, env(safe-area-inset-left, 0px));
+        right: max(0.35rem, env(safe-area-inset-right, 0px));
         z-index: 6000;
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
-        gap: 0;
-        margin: 0;
-        padding: 0;
+        gap: clamp(0px, 0.4vw, 3px);
+        width: auto;
+        max-width: calc(100% - 0.7rem);
+        margin: 0 auto;
+        padding: 0 clamp(0.1rem, 1vw, 0.35rem);
         border: 0;
         background: transparent;
         box-shadow: none;
@@ -654,6 +676,14 @@ const deckPayload = {
         -webkit-backdrop-filter: none;
         pointer-events: none;
         overflow: visible;
+        transition: top 0.18s ease, bottom 0.18s ease;
+      }
+      #dock.dock--riding,
+      #dock.dock--at-top {
+        bottom: auto;
+      }
+      #dock.dock--at-top {
+        top: calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 0.35rem);
       }
       .d-item {
         pointer-events: auto;
@@ -667,7 +697,9 @@ const deckPayload = {
         cursor: pointer;
         background: transparent;
         color: rgba(255, 255, 255, 0.42);
-        flex-shrink: 0;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 40px;
         overflow: visible;
         transition:
           color 0.15s ease,
@@ -685,6 +717,8 @@ const deckPayload = {
       }
       .d-item .ico svg {
         display: block;
+        width: min(20px, 100%);
+        height: min(20px, 100%);
         pointer-events: none;
       }
       .d-item:hover {
@@ -760,10 +794,23 @@ const deckPayload = {
           left: auto;
           right: 8px;
           width: auto;
+          max-width: none;
           height: 100%;
           flex-direction: column;
           justify-content: center;
+          gap: 0;
+          margin: 0;
           padding: calc(var(--app-header-h, 4rem) + 0.5rem) 0 1rem;
+        }
+        #dock.dock--riding,
+        #dock.dock--at-top {
+          top: 0;
+          bottom: 0;
+        }
+        .d-item {
+          flex: 0 0 auto;
+          min-width: auto;
+          max-width: none;
         }
         .d-item:hover {
           transform: none;
@@ -792,8 +839,23 @@ const deckPayload = {
 
       @media (max-width: 639px) {
         .d-item {
-          width: 36px;
-          height: 36px;
+          width: auto;
+          height: auto;
+          aspect-ratio: 1;
+          max-width: min(
+            2.25rem,
+            calc((100vw - 1.4rem) / var(--dock-items, 11))
+          );
+        }
+        .deck-scene--quote {
+          height: auto;
+          min-height: 100dvh;
+          max-height: none;
+          justify-content: flex-start;
+        }
+        .deck-scene--quote .deck-scene-copy {
+          flex: 0 1 auto;
+          justify-content: flex-start;
         }
       }
 
@@ -803,6 +865,9 @@ const deckPayload = {
         }
         .deck-video-placeholder {
           animation: none;
+        }
+        #dock {
+          transition: none;
         }
       }
     </style>
