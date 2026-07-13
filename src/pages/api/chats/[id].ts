@@ -113,13 +113,6 @@ export async function POST(context: APIContext): Promise<Response> {
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
 
-  if (thread.messages.length > 0) {
-    return json(
-      { ok: false, error: 'This chat already has a message. Start a new chat to ask something else.' },
-      409,
-    );
-  }
-
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images);
   const reply = await runKnowledgeAgent({
