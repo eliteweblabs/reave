@@ -5489,8 +5489,23 @@ function appendWorkMetaFields(fields, draft, markDirty) {
 
 let workClientSearchTimer = null;
 
+/** Extract a client search hint from titles like "Reggie / Solid Builders". */
+function extractClientHintFromTitle(title) {
+  const trimmed = String(title || '').trim();
+  if (!trimmed) return '';
+  const parts = trimmed.split(/\s*[\/|—–-]\s*/).map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 1) return trimmed;
+  return parts[parts.length - 1];
+}
+
 function workClientSubline(c) {
-  return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
+  const bits = [];
+  if (c.matchReason === 'company' && c.company) bits.push(c.company);
+  else if (c.company) bits.push(c.company);
+  if (c.email) bits.push(c.email);
+  if (!bits.length && c.phone) bits.push(c.phone);
+  if (!bits.length) bits.push(c.uid.slice(0, 8) + '…');
+  return bits.join(' · ');
 }
 
 /**
@@ -5635,7 +5650,10 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'wk-client-option';
-      btn.innerHTML = `${escHtml(c.name)}<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+      const matchTag = c.matchReason === 'company'
+        ? `<span class="wk-client-match-tag">company match</span>`
+        : '';
+      btn.innerHTML = `${escHtml(c.name)}${matchTag}<span class="sub">${escHtml(workClientSubline(c))}</span>`;
       btn.addEventListener('click', () => pick(c));
       dropdown.appendChild(btn);
     }
@@ -5643,16 +5661,49 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     addBtn.type = 'button';
     addBtn.className = 'wk-client-option wk-client-add';
     addBtn.textContent = query.trim() ? `+ Add "${query.trim()}" as new client` : '+ Add new client';
-    addBtn.addEventListener('click', () => {
-      showingNew = true;
-      newName.value = query.trim();
-      newEmail.value = '';
-      dropdown.style.display = 'none';
-      syncView();
-      newName.focus();
-    });
+    addBtn.addEventListener('click', () => beginAddNewClient(query.trim()));
     dropdown.appendChild(addBtn);
     dropdown.style.display = 'block';
+  }
+
+  async function resolveClientMatches(name) {
+    if (!name?.trim()) return null;
+    const res = await fetch('/api/clients/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) return null;
+    return data;
+  }
+
+  async function beginAddNewClient(name) {
+    const resolved = await resolveClientMatches(name);
+    if (resolved?.match === 'likely' && resolved.contact?.uid) {
+      const label = resolved.contact.company
+        ? `${resolved.contact.name} (${resolved.contact.company})`
+        : resolved.contact.name;
+      if (confirm(`"${label}" already exists. Use this client instead of creating a new one?`)) {
+        pick(resolved.contact);
+        return;
+      }
+    }
+    if (resolved?.match === 'possible' && Array.isArray(resolved.candidates) && resolved.candidates.length) {
+      renderDropdown(resolved.candidates, name);
+      changing = true;
+      showingNew = false;
+      searchInput.value = name;
+      syncView();
+      searchInput.focus();
+      return;
+    }
+    showingNew = true;
+    newName.value = name;
+    newEmail.value = '';
+    dropdown.style.display = 'none';
+    syncView();
+    newName.focus();
   }
 
   async function fetchClients(q) {
@@ -5707,6 +5758,16 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     if (!name) { alert('Enter a client name.'); return; }
     newSave.disabled = true;
     try {
+      const resolved = await resolveClientMatches(name);
+      if (resolved?.match === 'likely' && resolved.contact?.uid) {
+        const label = resolved.contact.company
+          ? `${resolved.contact.name} (${resolved.contact.company})`
+          : resolved.contact.name;
+        if (confirm(`"${label}" already exists. Use this client instead of creating a new one?`)) {
+          pick(resolved.contact);
+          return;
+        }
+      }
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -5738,6 +5799,16 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     },
     isValid: () => !!selected?.uid,
     getSelectedUid: () => selected?.uid || '',
+    searchWithHint(hint) {
+      if (readOnly || selected?.uid) return;
+      const q = String(hint || '').trim();
+      if (!q) return;
+      changing = true;
+      showingNew = false;
+      searchInput.value = q;
+      syncView();
+      scheduleSearch();
+    },
   };
 }
 
@@ -5782,6 +5853,17 @@ function renderNewWorkForm(pane) {
 
   let clientPicker;
   clientPicker = mountWorkClientPicker(fields, workState.draft, () => { workState.dirty = true; });
+
+  let titleHintTimer = null;
+  titleInput.addEventListener('input', () => {
+    clearTimeout(titleHintTimer);
+    titleHintTimer = setTimeout(() => {
+      const hint = extractClientHintFromTitle(titleInput.value);
+      if (hint) clientPicker.searchWithHint(hint);
+    }, 400);
+  });
+  const initialHint = extractClientHintFromTitle(workState.draft?.title || titleInput.value);
+  if (initialHint) clientPicker.searchWithHint(initialHint);
 
   const statusPill = createSlidingPillSelect({
     label: 'Status',

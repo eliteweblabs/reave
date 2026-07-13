@@ -46,6 +46,11 @@ For HTTP **inside** the Railway private network you can reference private hostna
 
 Response `match`: `exact` | `likely` | `possible` | `none` (see upstream README).
 
+Upstream resolve matches **name / email / phone only** — not `company`. Reave supplements this:
+
+- `GET /api/clients?q=` — also matches contacts whose **company** field contains the query (e.g. `solid builders` finds a contact named Reggie with company Solid Builders).
+- `POST /api/clients/resolve` — same fuzzy resolve plus company fallback; used by the new-project client picker before creating duplicates.
+
 ## Update
 
 `PATCH /api/contacts/:uid` with JSON `{ "name", "email", "phone", "company", "notes" }` — only provided keys are changed; old name/email/phone values are saved as aliases upstream.

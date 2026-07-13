@@ -16,6 +16,7 @@ import {
   readSync,
   closeSync,
 } from 'fs';
+import { findContactByQuery } from './clientSearch';
 import { createContact, getContact, resolveContact } from './contactApi';
 import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
@@ -306,25 +307,12 @@ export async function resolveWorkClient(
   const name = client.trim();
   if (!name) return { ok: false, error: 'client is required' };
 
-  const result = await resolveContact({ name });
-  if (!result.ok) return { ok: false, error: result.error };
-
-  const payload = result.data as Record<string, unknown>;
-  const match = String(payload.match ?? '').toLowerCase();
-  const contact = payload.contact as Record<string, unknown> | undefined;
-  const uid = contact?.uid != null ? String(contact.uid) : '';
-
-  if (!uid || match === 'none') {
-    return {
-      ok: false,
-      error: 'No matching contact found. Add the client in contact-api first.',
-    };
-  }
+  const found = await findContactByQuery(name);
+  if (found) return { ok: true, uid: found.uid, name: found.name };
 
   return {
-    ok: true,
-    uid,
-    name: contact?.name != null ? String(contact.name) : name,
+    ok: false,
+    error: 'No matching contact found. Add the client in contact-api first.',
   };
 }
 

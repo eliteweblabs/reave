@@ -4,6 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { searchClientsEnhanced } from '../../../lib/clientSearch';
 import {
   contactSummary,
   createContact,
@@ -32,13 +33,30 @@ export async function GET(context: APIContext): Promise<Response> {
   const limitRaw = Number(url.searchParams.get('limit') ?? 200);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 200;
 
-  const result = await listContacts({ q, limit });
+  if (!q) {
+    const result = await listContacts({ limit });
+    if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+    return json({
+      ok: true,
+      total: result.data.total,
+      clients: result.data.contacts.filter((c) => !c.archived).map(contactSummary),
+    });
+  }
+
+  const result = await searchClientsEnhanced(q, limit);
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+
+  const clients = result.data.contacts
+    .filter((c) => !c.archived)
+    .map((c) => ({
+      ...contactSummary(c),
+      matchReason: c._matchReason,
+    }));
 
   return json({
     ok: true,
-    total: result.data.total,
-    clients: result.data.contacts.filter((c) => !c.archived).map(contactSummary),
+    total: clients.length,
+    clients,
   });
 }
 
