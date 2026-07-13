@@ -294,7 +294,7 @@ export function attachQuantumCoreOpticalEngine(
     ? 0
     : Math.max(0, options?.introRush?.durationSec ?? 0);
   const useGalaxyIntro = introDurationSec > 0 && !isCompactStack;
-  /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
+  /** Hero/preloader: full-screen galaxy field. */
   const introOutwardMin = 2.4;
   const introOutwardMax = 4.2;
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;

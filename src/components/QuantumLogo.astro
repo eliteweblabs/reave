@@ -239,10 +239,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       delayId = window.setTimeout(start, delayMs);
     };
 
-    if (
-      (layout === 'compact' || layout === 'homepage') &&
-      document.getElementById('boot')
-    ) {
+    if (layout === 'homepage' && document.getElementById('boot')) {
       void waitForPreloaderGone().then(scheduleStart);
     } else {
       scheduleStart();
