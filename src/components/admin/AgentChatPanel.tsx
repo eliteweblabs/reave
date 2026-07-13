@@ -317,7 +317,7 @@ function useSlashHelpers(
   const applyCommand = (command: AgentHelperCommand) => {
     composer.setText(command.template);
     setComposeText(command.template);
-    openHelpers();
+    setHelpersOpen(false);
     focusInput();
   };
 
@@ -343,7 +343,6 @@ function useSlashHelpers(
 
   const onFocus = () => {
     clearBlurTimer();
-    if (!composeText.trim() || composeText.startsWith('/')) openHelpers();
     propsRef.current?.onComposeFocus?.(true);
   };
 
@@ -354,7 +353,7 @@ function useSlashHelpers(
 
   const onInput = (value: string) => {
     setComposeText(value);
-    if (!value.trim() || value.startsWith('/')) {
+    if (value.startsWith('/')) {
       openHelpers();
       return;
     }
