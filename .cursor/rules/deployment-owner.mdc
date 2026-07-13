@@ -5,12 +5,12 @@ alwaysApply: true
 
 # Deployment Owner
 
-The deployment owner username is **Reave** (override per install with `ADMIN_USERNAME`).
+The deployment owner username is **Reave** (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
 
 Owner-only UI today:
 - **Plugins** page (account menu → Plugins)
 - `GET` / `PUT` `/api/admin/features`
 
-Match is case-insensitive against the Clerk user's `username`, `firstName`, or full name.
+Match is case-insensitive against the signed-in Clerk user's id (`AGENT_ALERT_USER_ID`), or `username`, `firstName`, `lastName`, full name, or primary email (full or local part).
 
 Other signed-in users can use the rest of admin; they do not see Plugins or manage feature toggles.

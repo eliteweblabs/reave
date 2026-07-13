@@ -23,6 +23,7 @@ const CHAT_MAP_SET = new Set(CHAT_MAP_KEYS);
 const MOBILE_TABS_MQ = window.matchMedia('(max-width: 639px)');
 const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
 const userId = document.body?.dataset?.userId?.trim() || '';
+const isDeploymentOwnerClient = document.body?.dataset?.isOwner === '1';
 const KNOWLEDGE_API = '/api/admin/knowledge';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -279,6 +280,10 @@ function buildMap() {
 function setActiveMap(key, opts = {}) {
   const force = opts.force === true;
   if (!MAPS[key]) return;
+  if (key === 'plugins' && !isDeploymentOwnerClient) {
+    if (activeKey !== 'home') setActiveMap('home', { force: true });
+    return;
+  }
   if (key === activeKey && !force) {
     updateTabs();
     return;
@@ -1580,6 +1585,7 @@ function toggleTopbarMenu(menuEl, toggleEl) {
 function dashboardSectionItems(order) {
   const items = [];
   for (const key of wrenchMenuTabKeys(order || cachedTabOrder || defaultTabKeys())) {
+    if (key === 'plugins' && !isDeploymentOwnerClient) continue;
     const m = MAPS[key];
     if (!m) continue;
     items.push({
@@ -2370,7 +2376,7 @@ function bindPluginsPanel(root, initialEnabled) {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/admin/features', {
+      const res = await adminFetch('/api/admin/features', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: [...enabled] }),
@@ -2391,10 +2397,18 @@ function bindPluginsPanel(root, initialEnabled) {
 async function loadPluginsTab() {
   const root = document.getElementById('plugins-panel');
   if (!root) return;
+  if (!isDeploymentOwnerClient) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Plugins</h1>` +
+        `<p class="dash-empty">Plugins are only available to the deployment owner.</p></div>` +
+      `</div>`;
+    return;
+  }
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading plugins…</div></div>';
 
   try {
-    const res = await fetch('/api/admin/features', { cache: 'no-store' });
+    const res = await adminFetch('/api/admin/features');
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     root.innerHTML = renderPluginsPanel(data);
@@ -3419,6 +3433,7 @@ function initTopbarMenus() {
     pluginsLink.dataset.bound = '1';
     pluginsLink.addEventListener('click', (ev) => {
       ev.preventDefault();
+      ev.stopPropagation();
       closeTopbarMenus();
       setActiveMap('plugins', { force: activeKey === 'plugins' });
     });
@@ -11206,6 +11221,7 @@ function loadPositions() {
 function loadActiveKey() {
   try {
     const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'plugins' && !isDeploymentOwnerClient) return 'home';
     if (tab && MAPS[tab]) return tab;
   } catch {}
   let key;
@@ -11214,6 +11230,7 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
+  if (key === 'plugins' && !isDeploymentOwnerClient) return 'home';
   return MAPS[key] ? key : 'home';
 }
 function saveActiveKey() {
