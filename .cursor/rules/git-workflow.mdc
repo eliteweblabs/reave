@@ -1,0 +1,17 @@
+---
+description: Commit and push directly when work is done — no PRs
+alwaysApply: true
+---
+
+# Git Workflow
+
+This project does **not** use pull requests. Ship work directly to the branch.
+
+When a task is complete:
+
+1. **Commit** the changes with a clear, concise message.
+2. **Push** to the remote immediately (`git push` or `git push -u origin HEAD` on a new branch).
+
+Do not open PRs, suggest PRs, or wait for the user to ask before committing and pushing — that is the expected workflow here.
+
+Only skip commit/push if the user explicitly says not to, or if the work is intentionally incomplete.
