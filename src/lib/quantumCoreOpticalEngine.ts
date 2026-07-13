@@ -703,11 +703,6 @@ export function attachQuantumCoreOpticalEngine(
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
       }
       particlesGeo.attributes.position!.needsUpdate = true;
-      particlesMat.opacity = THREE.MathUtils.lerp(
-        particleBaseOpacity * 0.35,
-        particleBaseOpacity,
-        introT,
-      );
     } else if (introDurationSec > 0) {
       particlesMat.opacity = particleBaseOpacity;
       if (!introCompleteFired) {

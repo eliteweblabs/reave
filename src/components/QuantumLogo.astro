@@ -37,6 +37,11 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
+  data-quantum-logo
+  data-host-id={hostId}
+  data-intro-rush={introRush ? 'true' : 'false'}
+  data-intro-duration={String(introDuration)}
+  data-init-delay={String(resolvedInitDelay)}
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
@@ -140,14 +145,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 </style>
 
-<script
-  define:vars={{
-    hostId,
-    introRush,
-    introDuration,
-    resolvedInitDelay,
-  }}
->
+<script>
   import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
   function prefersReducedMotion() {
@@ -157,20 +155,23 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     );
   }
 
-  function init() {
+  function initStack(stack: HTMLElement): () => void {
+    const hostId = stack.dataset.hostId || 'quantumCanvasHost';
     const host = document.getElementById(hostId);
     if (!host) return () => {};
+
+    const introRush = stack.dataset.introRush === 'true';
+    const introDuration = Number(stack.dataset.introDuration) || 2;
+    const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
 
     document.documentElement.classList.add('quantum-page-touch');
     document.body.classList.add('quantum-page-touch');
 
-    let detach;
+    let detach: (() => void) | undefined;
 
     const start = () => {
       detach = attachQuantumCoreOpticalEngine(host, {
-        introRush: introRush
-          ? { durationSec: introDuration }
-          : undefined,
+        introRush: introRush ? { durationSec: introDuration } : undefined,
       });
     };
 
@@ -182,48 +183,50 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       prefersReducedMotion() || touchUi ? 0 : resolvedInitDelay;
     const delayId = window.setTimeout(start, delayMs);
 
-    return () => {
-      window.clearTimeout(delayId);
-      detach?.();
-      document.documentElement.classList.remove('quantum-page-touch');
-      document.body.classList.remove('quantum-page-touch');
-    };
-  }
-
-  let cleanup;
-
-  function boot() {
-    cleanup?.();
-    cleanup = init();
-
-    const parent = document.getElementById(hostId)?.closest('.quantum-logo-stack')
-      ?.parentElement;
-    let obs;
+    const parent = stack.parentElement;
+    let obs: MutationObserver | undefined;
     if (parent) {
       obs = new MutationObserver(() => {
         if (!document.getElementById(hostId)) {
-          cleanup?.();
-          cleanup = undefined;
+          window.clearTimeout(delayId);
+          detach?.();
+          detach = undefined;
           obs?.disconnect();
         }
       });
       obs.observe(parent, { childList: true, subtree: true });
     }
 
-    window.addEventListener(
-      'pagehide',
-      () => {
-        cleanup?.();
-        cleanup = undefined;
-        obs?.disconnect();
-      },
-      { once: true },
-    );
+    return () => {
+      window.clearTimeout(delayId);
+      detach?.();
+      obs?.disconnect();
+      document.documentElement.classList.remove('quantum-page-touch');
+      document.body.classList.remove('quantum-page-touch');
+    };
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
+  const cleanups = new Map<HTMLElement, () => void>();
+
+  function boot() {
+    document.querySelectorAll<HTMLElement>('[data-quantum-logo]').forEach((stack) => {
+      cleanups.get(stack)?.();
+      cleanups.set(stack, initStack(stack));
+    });
   }
+
+  function bootWhenReady() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot, { once: true });
+    } else {
+      boot();
+    }
+  }
+
+  bootWhenReady();
+
+  window.addEventListener('pagehide', () => {
+    cleanups.forEach((cleanup) => cleanup());
+    cleanups.clear();
+  });
 </script>
