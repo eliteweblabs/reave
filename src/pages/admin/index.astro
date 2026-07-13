@@ -3093,39 +3093,31 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--list-item-active-bg);
         border-color: var(--list-item-active-border);
       }
-      .em-list-row {
+      .em-swipe-row {
         display: flex;
         align-items: stretch;
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        background: var(--swipe-row-bg);
-        border-radius: 8px;
       }
-      .em-list-row .em-list-item {
+      .em-swipe-main {
+        position: relative;
         flex: 1;
         min-width: 0;
-        margin-bottom: 0;
+        overflow: hidden;
         border-radius: 8px 0 0 8px;
-        background: var(--swipe-row-bg);
       }
-      .em-list-row .em-list-item:hover {
-        background: var(--swipe-row-bg);
-      }
-      .em-list-row .em-list-item.active {
-        background: var(--list-item-active-bg);
-      }
-      .em-list-actions {
+      .em-swipe-row > .em-list-actions {
         display: flex;
         flex-direction: column;
         justify-content: center;
         gap: 3px;
         flex: none;
         padding: 0.3rem 0.4rem 0.3rem 0;
+        background: var(--swipe-row-bg);
+        border-radius: 0 8px 8px 0;
+        z-index: 2;
       }
       .em-list-act-btn {
-        width: 1.45rem;
-        height: 1.45rem;
+        width: 1.55rem;
+        height: 1.55rem;
         flex: none;
         border: none;
         border-radius: 5px;
@@ -3291,6 +3283,15 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         overflow-wrap: anywhere;
       }
       .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
+      #email-panel .de-header {
+        overflow: visible;
+        position: relative;
+        z-index: 5;
+      }
+      #email-panel .de-header-actions {
+        position: relative;
+        z-index: 6;
+      }
       .em-btn-group {
         display: inline-flex;
         align-items: stretch;

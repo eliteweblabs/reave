@@ -10259,12 +10259,57 @@ async function handleEmailProjectAddNew(ev, triggerEl) {
 }
 
 let openEmailProjectMenu = null;
+let emailProjectMenuReposition = null;
+
+function resetEmailProjectMenu(wrap) {
+  const menu = wrap?.querySelector('.em-project-menu');
+  if (!menu) return;
+  menu.style.position = '';
+  menu.style.top = '';
+  menu.style.left = '';
+  menu.style.right = '';
+  menu.style.zIndex = '';
+}
+
+function positionEmailProjectMenu(wrap) {
+  const menu = wrap?.querySelector('.em-project-menu');
+  const trigger = wrap?.querySelector('.em-project-trigger');
+  if (!menu || !trigger) return;
+  requestAnimationFrame(() => {
+    const rect = trigger.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = 'auto';
+    menu.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+    menu.style.zIndex = '10000';
+  });
+}
+
+function bindEmailProjectMenuReposition(wrap) {
+  unbindEmailProjectMenuReposition();
+  emailProjectMenuReposition = () => positionEmailProjectMenu(wrap);
+  window.addEventListener('resize', emailProjectMenuReposition);
+  window.addEventListener('scroll', emailProjectMenuReposition, true);
+  window.visualViewport?.addEventListener('resize', emailProjectMenuReposition);
+  window.visualViewport?.addEventListener('scroll', emailProjectMenuReposition);
+}
+
+function unbindEmailProjectMenuReposition() {
+  if (!emailProjectMenuReposition) return;
+  window.removeEventListener('resize', emailProjectMenuReposition);
+  window.removeEventListener('scroll', emailProjectMenuReposition, true);
+  window.visualViewport?.removeEventListener('resize', emailProjectMenuReposition);
+  window.visualViewport?.removeEventListener('scroll', emailProjectMenuReposition);
+  emailProjectMenuReposition = null;
+}
 
 function closeEmailProjectMenu() {
   if (openEmailProjectMenu) {
     openEmailProjectMenu.classList.remove('open');
+    resetEmailProjectMenu(openEmailProjectMenu);
     openEmailProjectMenu = null;
   }
+  unbindEmailProjectMenuReposition();
 }
 
 async function populateEmailProjectMenu(ev, menu) {
@@ -10338,9 +10383,15 @@ function createEmailProjectDropdown(ev) {
     e.stopPropagation();
     if (openEmailProjectMenu && openEmailProjectMenu !== wrap) closeEmailProjectMenu();
     const opening = !wrap.classList.contains('open');
-    if (opening) await populateEmailProjectMenu(ev, menu);
-    wrap.classList.toggle('open', opening);
-    openEmailProjectMenu = opening ? wrap : null;
+    if (opening) {
+      await populateEmailProjectMenu(ev, menu);
+      wrap.classList.add('open');
+      openEmailProjectMenu = wrap;
+      positionEmailProjectMenu(wrap);
+      bindEmailProjectMenuReposition(wrap);
+    } else {
+      closeEmailProjectMenu();
+    }
   });
 
   wrap.appendChild(trigger);
@@ -10793,7 +10844,7 @@ function createEmailRowActions(ev) {
     btn.className = 'em-list-act-btn' + (actType ? ` ${actType}` : '');
     btn.setAttribute('aria-label', act.label);
     btn.title = act.label;
-    btn.innerHTML = navIcon(act.iconKey || 'square', 12);
+    btn.innerHTML = navIcon(act.iconKey || 'square', 13);
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       act.onClick();
@@ -10803,17 +10854,44 @@ function createEmailRowActions(ev) {
   return col;
 }
 
-function createEmailListRow(ev) {
-  const row = document.createElement('div');
-  row.className = 'em-list-row';
-  row.dataset.id = ev.id;
-  row.appendChild(createEmailListItem(ev));
-  row.appendChild(createEmailRowActions(ev));
-  return row;
-}
-
 function createEmailSwipeRow(ev) {
-  return createSwipeRow(createEmailListRow(ev), buildEmailSwipeActions(ev));
+  const actions = buildEmailSwipeActions(ev);
+
+  const row = document.createElement('div');
+  row.className = 'swipe-row em-swipe-row';
+  row.dataset.id = ev.id;
+
+  const main = document.createElement('div');
+  main.className = 'em-swipe-main';
+
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'swipe-actions';
+  for (const act of actions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = act.className || 'swipe-act';
+    btn.textContent = act.label;
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      act.onClick();
+    });
+    actionsEl.appendChild(btn);
+  }
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+  content.appendChild(createEmailListItem(ev));
+
+  main.appendChild(actionsEl);
+  main.appendChild(content);
+  row.appendChild(main);
+  row.appendChild(createEmailRowActions(ev));
+
+  requestAnimationFrame(() => {
+    const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
+    attachSwipeRow(row, content, revealPx);
+  });
+  return row;
 }
 
 function stopEmailPoll() {
