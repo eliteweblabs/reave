@@ -208,6 +208,7 @@ export const MAPS = {
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
+  plugins:   { id: 'plugins',   title: 'Plugins',    icon: '🔌',  type: 'plugins',       nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
 };
 

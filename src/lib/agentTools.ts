@@ -189,6 +189,26 @@ function plainTextFromHtml(html: string): string {
     .trim();
 }
 
+const DEV_INFRA_TOOL_NAMES = new Set([
+  'run_dev_task',
+  'list_railway_domains',
+  'list_kinsta_sites',
+  'clear_kinsta_cache',
+  'get_kinsta_operation',
+  'create_kinsta_site',
+  'delete_kinsta_site',
+  'backup_kinsta_site',
+  'list_kinsta_backups',
+  'get_git_status',
+  'get_recent_commits',
+  'check_deployment_status',
+  'list_open_branches',
+  'run_terminal_command',
+  'create_github_branch',
+  'write_github_file',
+  'create_pull_request',
+]);
+
 export function buildTools(): AgentToolDef[] {
   const base: AgentToolDef[] = [
     {
@@ -1828,6 +1848,13 @@ export function buildTools(): AgentToolDef[] {
           additionalProperties: false,
         },
       },
+    });
+  }
+
+  if (!hasFeature('dev_infra')) {
+    return base.filter((t) => {
+      const name = t.function?.name;
+      return !name || !DEV_INFRA_TOOL_NAMES.has(name);
     });
   }
 

@@ -312,6 +312,7 @@ function isPanelMapKey(key) {
   return (
     t === 'home' ||
     t === 'profile' ||
+    t === 'plugins' ||
     t === 'documents' ||
     t === 'knowledge' ||
     t === 'work' ||
@@ -328,6 +329,8 @@ function activateMapPanel(opts = {}) {
     loadHomeDashboard();
   } else if (MAP.type === 'profile') {
     loadProfileTab();
+  } else if (MAP.type === 'plugins') {
+    loadPluginsTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -359,7 +362,7 @@ function activateMapPanel(opts = {}) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'schedule' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
+  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'plugins' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'schedule' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
 }
 
 function setPanelDisplay(id, display) {
@@ -374,6 +377,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('legend', isPanel ? 'none' : '');
   setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
   setPanelDisplay('profile-panel', MAP.type === 'profile' ? 'flex' : 'none');
+  setPanelDisplay('plugins-panel', MAP.type === 'plugins' ? 'flex' : 'none');
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
@@ -1921,7 +1925,7 @@ function renderHomeDashboard(data) {
     if (!m) continue;
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
-    } else if (key !== 'home' && key !== 'profile') {
+    } else if (key !== 'home' && key !== 'profile' && key !== 'plugins') {
       grid.appendChild(buildHomeMapTile(key, m));
     }
   }
@@ -2300,6 +2304,110 @@ async function loadProfileTab() {
   }
 }
 
+function renderPluginsPanel(data) {
+  const groups = Array.isArray(data?.groups) ? data.groups : [];
+  const coreNote = data?.coreNote || '';
+  const count = data?.slashCommandCount ?? 0;
+  const groupsHtml = groups
+    .map((group) => {
+      const modules = Array.isArray(group.modules) ? group.modules : [];
+      const rows = modules
+        .map(
+          (mod) =>
+            `<div class="prof-plugin-row">` +
+              `<div class="prof-plugin-copy">` +
+                `<div class="prof-plugin-label">${escHtml(mod.label || mod.id)}</div>` +
+              `</div>` +
+              `<button type="button" class="prof-plugin-toggle" role="switch" aria-checked="${mod.enabled ? 'true' : 'false'}" data-feature-id="${escHtml(mod.id)}" aria-label="Toggle ${escHtml(mod.label || mod.id)}"></button>` +
+            `</div>`,
+        )
+        .join('');
+      return (
+        `<div class="prof-plugin-group">` +
+          `<h3 class="prof-plugin-group-title">${escHtml(group.title || '')}</h3>` +
+          rows +
+        `</div>`
+      );
+    })
+    .join('');
+
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Plugins</h1>` +
+        `<p class="prof-subtitle">Turn features on or off for this deployment. Disabled plugins remove their / slash commands from chat.</p>` +
+        `<p class="prof-hint prof-hint--block">${escHtml(coreNote)}</p>` +
+        `<p class="prof-hint prof-hint--block"><strong id="plugins-slash-count">${count}</strong> slash commands currently available.</p>` +
+        `<div id="plugins-alert" class="prof-alert" hidden></div>` +
+        `<div id="plugins-form">${groupsHtml}</div>` +
+        `<div class="prof-actions">` +
+          `<button type="button" id="plugins-save-btn" class="prof-btn-primary">Save plugins</button>` +
+        `</div>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function bindPluginsPanel(root, initialEnabled) {
+  const enabled = new Set(Array.isArray(initialEnabled) ? initialEnabled : []);
+  const alertEl = root.querySelector('#plugins-alert');
+  const saveBtn = root.querySelector('#plugins-save-btn');
+  const countEl = root.querySelector('#plugins-slash-count');
+
+  root.querySelectorAll('.prof-plugin-toggle[data-feature-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-feature-id');
+      if (!id) return;
+      const on = btn.getAttribute('aria-checked') !== 'true';
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (on) enabled.add(id);
+      else enabled.delete(id);
+    });
+  });
+
+  saveBtn?.addEventListener('click', async () => {
+    if (!(saveBtn instanceof HTMLButtonElement)) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/features', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: [...enabled] }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (countEl) countEl.textContent = String(json.slashCommandCount ?? 0);
+      showProfileAlert(alertEl, 'Plugins saved. Chat commands updated.', 'success');
+    } catch (e) {
+      showProfileAlert(alertEl, e.message || 'Save failed.', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save plugins';
+    }
+  });
+}
+
+async function loadPluginsTab() {
+  const root = document.getElementById('plugins-panel');
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading plugins…</div></div>';
+
+  try {
+    const res = await fetch('/api/admin/features', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    root.innerHTML = renderPluginsPanel(data);
+    bindPluginsPanel(root, data.enabled);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Plugins</h1>` +
+        `<p class="dash-empty">Could not load plugins: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
 function footerNavActiveKey() {
   if (searchOverlayOpen) return 'search';
   if (activeKey === 'home') return 'home';
@@ -2494,7 +2602,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #profile-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+  '#home-dashboard, #profile-panel, #plugins-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -3303,6 +3411,16 @@ function initTopbarMenus() {
       ev.preventDefault();
       closeTopbarMenus();
       setActiveMap('profile', { force: activeKey === 'profile' });
+    });
+  }
+
+  const pluginsLink = document.getElementById('topbar-plugins-link');
+  if (pluginsLink && !pluginsLink.dataset.bound) {
+    pluginsLink.dataset.bound = '1';
+    pluginsLink.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      closeTopbarMenus();
+      setActiveMap('plugins', { force: activeKey === 'plugins' });
     });
   }
 

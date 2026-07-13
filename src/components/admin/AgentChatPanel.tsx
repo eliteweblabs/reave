@@ -258,7 +258,10 @@ function HelperCommandsPanel({
   );
 }
 
-function useSlashHelpers(propsRef: RefObject<AgentChatPanelProps>) {
+function useSlashHelpers(
+  propsRef: RefObject<AgentChatPanelProps>,
+  commands: AgentHelperCommand[],
+) {
   const composer = useComposerRuntime();
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [composeText, setComposeText] = useState('');
@@ -266,7 +269,7 @@ function useSlashHelpers(propsRef: RefObject<AgentChatPanelProps>) {
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
-  const filtered = filterHelperCommands(composeText);
+  const filtered = filterHelperCommands(composeText, commands);
   const showHelpers = helpersOpen && filtered.length > 0;
 
   const clearBlurTimer = () => {
@@ -341,7 +344,7 @@ function useSlashHelpers(propsRef: RefObject<AgentChatPanelProps>) {
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== 'Enter' || e.shiftKey) return;
     e.preventDefault();
-    const matched = matchHelperCommand(composeText);
+    const matched = matchHelperCommand(composeText, commands);
     if (matched && composeText.trim().toLowerCase() === matched.slash) {
       composer.setText(matched.template);
       void composer.send();
@@ -367,11 +370,13 @@ function useSlashHelpers(propsRef: RefObject<AgentChatPanelProps>) {
 function SlashPrompt({
   placement,
   propsRef,
+  commands,
 }: {
   placement: 'top' | 'tail';
   propsRef: RefObject<AgentChatPanelProps>;
+  commands: AgentHelperCommand[];
 }) {
-  const helpers = useSlashHelpers(propsRef);
+  const helpers = useSlashHelpers(propsRef, commands);
 
   return (
     <ComposerPrimitive.Root
@@ -425,11 +430,40 @@ function AgentChatThreadBody({
 }) {
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetch('/api/chats/commands', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { commands?: { slash: string; summary: string; template: string }[] } | null) => {
+        if (cancelled || !data?.commands) return;
+        setCommands(
+          data.commands.map((cmd) => ({
+            slash: cmd.slash,
+            summary: cmd.summary,
+            template: cmd.template,
+            label: cmd.slash.replace(/^\//, ''),
+            steps: [],
+            example: cmd.template,
+            feature: 'core' as const,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCommands([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <ThreadPrimitive.Root className="aui-thread">
       <ThreadPrimitive.Viewport className="aui-viewport">
-        {!hasMessages && !isRunning ? <SlashPrompt placement="top" propsRef={propsRef} /> : null}
+        {!hasMessages && !isRunning ? (
+          <SlashPrompt placement="top" propsRef={propsRef} commands={commands} />
+        ) : null}
         <ThreadPrimitive.Messages
           components={{
             UserMessage: () => (
@@ -458,7 +492,9 @@ function AgentChatThreadBody({
             ),
           }}
         />
-        {hasMessages && !isRunning ? <SlashPrompt placement="tail" propsRef={propsRef} /> : null}
+        {hasMessages && !isRunning ? (
+          <SlashPrompt placement="tail" propsRef={propsRef} commands={commands} />
+        ) : null}
         {isRunning ? <RunningIndicator /> : null}
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>

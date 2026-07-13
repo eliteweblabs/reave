@@ -142,39 +142,41 @@ async function runKnowledgeAgentInner(opts: {
     'Personal to-dos: separate from jobs (create_todo / list_todos / update_todo / mark_todo_done / delete_todo). When the user asks to add something to "the to-do list" or mentions a personal task, decide whether it is a client job (has a client), a project, or a personal task. Personal tasks use the to-do tools — never create_work for them. If to-do tools are unavailable (DATABASE_URL not set), say you do not have a to-do list tool yet and ask whether to build it or handle it manually — do not fake it with a job.',
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
-    'Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.',
   ];
-  if (isRailwayConfigured()) {
+  if (hasFeature('dev_infra')) {
+    sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
+    if (isRailwayConfigured()) {
+      sysParts.push(
+        'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs reave.app. Inbound receiving uses inbound.reave.app — see read_knowledge email-rules.',
+      );
+    } else {
+      sysParts.push(
+        'Railway reads unavailable (RAILWAY_API_TOKEN not set). /railway project still works only if token is added later.',
+      );
+    }
+    if (isKinstaConfigured()) {
+      sysParts.push(
+        'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.',
+      );
+    } else {
+      sysParts.push(
+        'Kinsta unavailable (KINSTA_API_KEY or KINSTA_COMPANY_ID not set). WordPress-on-Kinsta tasks need those env vars on this service.',
+      );
+    }
     sysParts.push(
-      'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs reave.app. Inbound receiving uses inbound.reave.app — see read_knowledge email-rules.',
+      'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Deploy banners (🚀 deploying, 🔴 stale after 10m, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
     );
-  } else {
-    sysParts.push(
-      'Railway reads unavailable (RAILWAY_API_TOKEN not set). /railway project still works only if token is added later.',
-    );
+    if (isGithubConfigured()) {
+      sysParts.push(
+        'GitHub edits: for file commits and PRs call read_knowledge slug "github-dev-tools" first if unsure of the workflow. Typical flow: create_github_branch → write_github_file (one or more commits) → create_pull_request (base defaults to main). Report branch URL, commit SHA/URL, and PR link. Do not claim code was pushed unless tools succeed. The bot cannot merge PRs or deploy.',
+      );
+    } else {
+      sysParts.push(
+        'GitHub writes unavailable (GITHUB_TOKEN not set). Status tools may still work on public repos with heavy rate limits.',
+      );
+    }
   }
-  if (isKinstaConfigured()) {
-    sysParts.push(
-      'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.',
-    );
-  } else {
-    sysParts.push(
-      'Kinsta unavailable (KINSTA_API_KEY or KINSTA_COMPANY_ID not set). WordPress-on-Kinsta tasks need those env vars on this service.',
-    );
-  }
-  sysParts.push(
-    'Code/deploy checks: to verify work was committed & pushed, call get_git_status or get_recent_commits (GitHub is the source of truth). To verify it is live, call check_deployment_status (compares the deployed commit to GitHub latest + health ping). Deploy banners (🚀 deploying, 🔴 stale after 10m, 🟢 live only when asked or right after a deploy lands) prepend agent replies automatically — do not use ✅ for deploy status. Use list_open_branches for in-progress work. run_terminal_command runs read-only git/ls in a sandbox; do not promise to run arbitrary shell. Verify these yourself instead of asking the user to check.',
-  );
-  if (isGithubConfigured()) {
-    sysParts.push(
-      'GitHub edits: for file commits and PRs call read_knowledge slug "github-dev-tools" first if unsure of the workflow. Typical flow: create_github_branch → write_github_file (one or more commits) → create_pull_request (base defaults to main). Report branch URL, commit SHA/URL, and PR link. Do not claim code was pushed unless tools succeed. The bot cannot merge PRs or deploy.',
-    );
-  } else {
-    sysParts.push(
-      'GitHub writes unavailable (GITHUB_TOKEN not set). Status tools may still work on public repos with heavy rate limits.',
-    );
-  }
-  if (isCraterConfigured()) {
+  if (hasFeature('billing') && isCraterConfigured()) {
     sysParts.push(
       'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. When billing for a tracked project, call get_work_invoice_suggestions first — use completed checklist descriptions on line items (name + description from suggestions; ask for price if missing). Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.',
       'Deleting: only call delete_invoice when the user explicitly asks to delete/remove an invoice; confirm the invoice_id first via get_invoice or list_recent_invoices.',
@@ -210,9 +212,11 @@ async function runKnowledgeAgentInner(opts: {
       'Web search: use brave_search to look up public info (businesses, websites, people) when contact-api or knowledge docs do not have the answer.',
     );
   }
-  sysParts.push(
-    'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
-  );
+  if (hasFeature('site_audits')) {
+    sysParts.push(
+      'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
+    );
+  }
 
   const linkedEmailId = getAgentContext().emailId?.trim();
   if (linkedEmailId) {
