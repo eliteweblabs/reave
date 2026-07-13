@@ -186,39 +186,10 @@
     return Math.max(10, 0);
   }
 
-  function activeSceneEl() {
-    if (activeSceneId) {
-      var byId = $('#scene-' + activeSceneId);
-      if (byId) return byId;
-    }
-    return $('.deck-scene.is-active') || $('[data-deck-scene]');
-  }
-
-  function dockSceneEl() {
-    if (scrollingTo) {
-      var scrolling = $('#scene-' + scrollingTo);
-      if (scrolling) return scrolling;
-    }
-
-    var track = $('#scroll-track');
-    var scenes = $$('[data-deck-scene]');
-    if (!track || !scenes.length) return activeSceneEl();
-
-    var best = null;
-    var bestRatio = 0;
-    scenes.forEach(function (scene) {
-      var rect = scene.getBoundingClientRect();
-      var visible = Math.max(
-        0,
-        Math.min(rect.bottom, track.clientHeight) - Math.max(rect.top, 0),
-      );
-      var ratio = visible / (rect.height || 1);
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        best = scene;
-      }
-    });
-    return best || activeSceneEl();
+  function setDockBottom(dock) {
+    dock.classList.remove('dock--riding', 'dock--at-top');
+    dock.style.removeProperty('top');
+    dock.style.bottom = dockSafeBottom() + 'px';
   }
 
   function resetDockDesktop() {
@@ -238,22 +209,31 @@
       return;
     }
 
-    var scene = dockSceneEl();
-    var sentinel = scene && scene.querySelector('.deck-dock-sentinel');
-    if (!sentinel) {
-      dock.classList.remove('dock--riding', 'dock--at-top');
-      dock.style.removeProperty('top');
-      dock.style.bottom = dockSafeBottom() + 'px';
+    var track = $('#scroll-track');
+    var quote = $('#scene-quote');
+    if (!track || !quote) {
+      setDockBottom(dock);
       return;
     }
 
-    var track = $('#scroll-track');
-    var sceneRect = scene.getBoundingClientRect();
-    var trackH = track ? track.clientHeight : window.innerHeight;
-    var isSnapped =
-      Math.abs(sceneRect.top) < 8 &&
-      sceneRect.height >= trackH * 0.95 &&
-      !scene.classList.contains('deck-scene--quote');
+    var quoteTop = quote.offsetTop;
+    var scrollTop = track.scrollTop;
+    var trackH = track.clientHeight;
+    var quoteRect = quote.getBoundingClientRect();
+    var quoteOverflow = quote.offsetHeight > trackH + 16;
+
+    // Product scenes and snap transitions: stay fixed at the bottom.
+    if (scrollTop < quoteTop - 2 || !quoteOverflow || Math.abs(quoteRect.top) > 10) {
+      setDockBottom(dock);
+      return;
+    }
+
+    // Tall quote section: ride up with content, then pin under the header.
+    var sentinel = quote.querySelector('.deck-dock-sentinel');
+    if (!sentinel) {
+      setDockBottom(dock);
+      return;
+    }
 
     var dockH = dock.offsetHeight || 40;
     var gap = 8;
@@ -266,9 +246,7 @@
     dock.style.removeProperty('top');
     dock.style.removeProperty('bottom');
 
-    if (isSnapped) {
-      dock.style.bottom = bottomRest + 'px';
-    } else if (rideY >= bottomY) {
+    if (rideY >= bottomY) {
       dock.style.bottom = bottomRest + 'px';
     } else if (rideY <= pinTop) {
       dock.classList.add('dock--at-top');
