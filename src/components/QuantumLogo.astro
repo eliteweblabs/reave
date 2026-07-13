@@ -8,7 +8,7 @@ export interface Props {
   hostId?: string;
   /** Homepage hero; centered for preloader; compact fits small hosts. */
   layout?: 'homepage' | 'centered' | 'compact';
-  /** Particles rush inward from outside the mask on load. */
+  /** Reverse-explosion implosion on load (particles rush inward behind the fixed mask). */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
   introDuration?: number;
@@ -68,7 +68,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     --quantum-hero-logo-size: min(72vmin, 76vw, 420px);
   }
 
-  /* Logo silhouette — CSS mask is the sole visibility clip from the first frame. */
+  /* Fixed logo window — particles implode behind this mask; nothing on the stack moves. */
   .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
   .quantum-logo-stack--compact {
     mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
@@ -154,39 +154,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 <script>
   import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
-  function logMaskStep(step: string, data?: Record<string, unknown>) {
-    console.log(`[quantum-mask] ${step}`, data ?? '');
-  }
-
-  function readMaskDiagnostics(stack: HTMLElement | null): Record<string, unknown> {
-    if (!stack) return { error: 'no stack element' };
-    const cs = getComputedStyle(stack);
-    const csExt = cs as CSSStyleDeclaration & {
-      webkitMaskImage?: string;
-      webkitMaskSize?: string;
-      webkitMaskPosition?: string;
-      webkitMaskMode?: string;
-      webkitMaskRepeat?: string;
-    };
-    return {
-      layout: stack.dataset.layout,
-      hostId: stack.dataset.hostId,
-      heroMask: stack.dataset.heroMask,
-      classes: stack.className,
-      heroLogoMaskVar: cs.getPropertyValue('--hero-logo-mask').trim(),
-      maskImage: cs.maskImage || csExt.webkitMaskImage || '(none)',
-      maskSize: cs.maskSize || csExt.webkitMaskSize || '(none)',
-      maskPosition: cs.maskPosition || csExt.webkitMaskPosition || '(none)',
-      maskMode: cs.maskMode || csExt.webkitMaskMode || '(none)',
-      maskRepeat: cs.maskRepeat || csExt.webkitMaskRepeat || '(none)',
-      filter: cs.filter || '(none)',
-      transform: cs.transform || '(none)',
-      rect: stack.getBoundingClientRect(),
-    };
-  }
-
   function prefersReducedMotion() {
-    logMaskStep('prefersReducedMotion');
     return (
       typeof matchMedia !== 'undefined' &&
       matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -194,17 +162,13 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   function waitForPreloaderGone(): Promise<void> {
-    logMaskStep('waitForPreloaderGone');
     return new Promise((resolve) => {
       const boot = document.getElementById('boot');
       if (!boot) {
-        logMaskStep('waitForPreloaderGone:no-boot');
         resolve();
         return;
       }
-      logMaskStep('waitForPreloaderGone:watching-boot');
       const finish = () => {
-        logMaskStep('waitForPreloaderGone:finished');
         obs?.disconnect();
         resolve();
       };
@@ -217,45 +181,14 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   function initStack(stack: HTMLElement): () => void {
-    logMaskStep('initStack', {
-      mask: readMaskDiagnostics(stack),
-    });
-
     const hostId = stack.dataset.hostId || 'quantumCanvasHost';
     const host = document.getElementById(hostId);
-    if (!host) {
-      logMaskStep('initStack:missing-host', { hostId });
-      return () => {};
-    }
+    if (!host) return () => {};
 
     const layout = stack.dataset.layout || 'homepage';
     const introRush = stack.dataset.introRush === 'true';
     const introDuration = Number(stack.dataset.introDuration) || 4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
-
-    logMaskStep('initStack:config', {
-      hostId,
-      layout,
-      introRush,
-      introDuration,
-      resolvedInitDelay,
-    });
-
-    const maskUrl = stack.dataset.heroMask;
-    if (maskUrl) {
-      const probe = new Image();
-      probe.onload = () => {
-        logMaskStep('initStack:mask-image-loaded', {
-          maskUrl,
-          width: probe.naturalWidth,
-          height: probe.naturalHeight,
-        });
-      };
-      probe.onerror = () => {
-        logMaskStep('initStack:mask-image-error', { maskUrl });
-      };
-      probe.src = maskUrl;
-    }
 
     document.documentElement.classList.add('quantum-page-touch');
     document.body.classList.add('quantum-page-touch');
@@ -265,10 +198,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     let cancelled = false;
 
     const start = () => {
-      logMaskStep('initStack:start-engine', {
-        cancelled,
-        mask: readMaskDiagnostics(stack),
-      });
       if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
@@ -279,15 +208,12 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       prefersReducedMotion() ? 0 : resolvedInitDelay;
 
     const scheduleStart = () => {
-      logMaskStep('initStack:scheduleStart', { delayMs });
       delayId = window.setTimeout(start, delayMs);
     };
 
     if (layout === 'homepage' && document.getElementById('boot')) {
-      logMaskStep('initStack:wait-for-preloader');
       void waitForPreloaderGone().then(scheduleStart);
     } else {
-      logMaskStep('initStack:schedule-immediate');
       scheduleStart();
     }
 
@@ -306,7 +232,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     }
 
     return () => {
-      logMaskStep('initStack:cleanup', { hostId });
       cancelled = true;
       window.clearTimeout(delayId);
       detach?.();
@@ -319,17 +244,13 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   const cleanups = new Map<HTMLElement, () => void>();
 
   function boot() {
-    logMaskStep('boot');
-    const stacks = document.querySelectorAll<HTMLElement>('[data-quantum-logo]');
-    logMaskStep('boot:stacks-found', { count: stacks.length });
-    stacks.forEach((stack) => {
+    document.querySelectorAll<HTMLElement>('[data-quantum-logo]').forEach((stack) => {
       cleanups.get(stack)?.();
       cleanups.set(stack, initStack(stack));
     });
   }
 
   function bootWhenReady() {
-    logMaskStep('bootWhenReady', { readyState: document.readyState });
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', boot, { once: true });
     } else {

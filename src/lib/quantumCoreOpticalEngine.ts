@@ -8,37 +8,6 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
-/** Debug: trace CSS mask pipeline — remove once masking is verified. */
-function logMaskStep(step: string, data?: Record<string, unknown>): void {
-  console.log(`[quantum-mask] ${step}`, data ?? "");
-}
-
-function readMaskDiagnostics(el: HTMLElement | null): Record<string, unknown> {
-  if (!el) return { error: "no stack element" };
-  const cs = getComputedStyle(el);
-  const csExt = cs as CSSStyleDeclaration & {
-    webkitMaskImage?: string;
-    webkitMaskSize?: string;
-    webkitMaskPosition?: string;
-    webkitMaskMode?: string;
-    webkitMaskRepeat?: string;
-  };
-  return {
-    tag: el.tagName,
-    id: el.id,
-    classes: el.className,
-    heroLogoMaskVar: cs.getPropertyValue("--hero-logo-mask").trim(),
-    maskImage: cs.maskImage || csExt.webkitMaskImage || "(none)",
-    maskSize: cs.maskSize || csExt.webkitMaskSize || "(none)",
-    maskPosition: cs.maskPosition || csExt.webkitMaskPosition || "(none)",
-    maskMode: cs.maskMode || csExt.webkitMaskMode || "(none)",
-    maskRepeat: cs.maskRepeat || csExt.webkitMaskRepeat || "(none)",
-    filter: cs.filter || "(none)",
-    transform: cs.transform || "(none)",
-    rect: el.getBoundingClientRect(),
-  };
-}
-
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   const w = 128;
@@ -83,7 +52,7 @@ function normalizeTintLuminance(
 
 /** Options when attaching the optical engine to a host element. */
 export interface QuantumEngineOptions {
-  /** Particles start outside the cloud and rush inward over `durationSec`. */
+  /** Particles implode inward from a distant field over `durationSec`. */
   introRush?: {
     durationSec: number;
   };
@@ -102,14 +71,6 @@ function randomInterstellarColor(): THREE.Color {
   return c;
 }
 
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3);
-}
-
-function easeOutQuart(t: number): number {
-  return 1 - Math.pow(1 - t, 4);
-}
-
 function easeInQuart(t: number): number {
   return t * t * t * t;
 }
@@ -118,29 +79,15 @@ function easeInQuint(t: number): number {
   return t * t * t * t * t;
 }
 
-/** Slow drift early, dense fill in the last ~25% of the intro. */
+/** Outer particles join the implosion slightly later — reverse-explosion wave. */
 function introTravelT(rawT: number, duration: number, delaySec: number): number {
   const span = Math.max(0.001, duration - delaySec);
   return easeInQuint(THREE.MathUtils.clamp((rawT - delaySec) / span, 0, 1));
 }
 
-/** Particle size: small specks → swell near the end → snap to filled logo size. */
+/** Brightness ramps up as particles settle into the logo. */
 function introParticleSizeMul(t: number): number {
-  if (t < 0.72) return THREE.MathUtils.lerp(0.85, 1.5, t / 0.72);
-  if (t < 0.9) return THREE.MathUtils.lerp(1.5, 3.8, (t - 0.72) / 0.18);
-  return THREE.MathUtils.lerp(3.8, 1, (t - 0.9) / 0.1);
-}
-
-/** Cloud scale: spread out early, compress tight before settling to 1. */
-function introGatherScale(t: number, galaxy: boolean): number {
-  if (galaxy) {
-    if (t < 0.55) return THREE.MathUtils.lerp(2.35, 1.65, t / 0.55);
-    if (t < 0.9) return THREE.MathUtils.lerp(1.65, 0.82, (t - 0.55) / 0.35);
-    return THREE.MathUtils.lerp(0.82, 1, (t - 0.9) / 0.1);
-  }
-  if (t < 0.68) return THREE.MathUtils.lerp(1.42, 1.12, t / 0.68);
-  if (t < 0.92) return THREE.MathUtils.lerp(1.12, 0.76, (t - 0.68) / 0.24);
-  return THREE.MathUtils.lerp(0.76, 1, (t - 0.92) / 0.08);
+  return THREE.MathUtils.lerp(0.75, 1, easeInQuart(t));
 }
 
 function randomGalaxyStart(): [number, number, number] {
@@ -154,12 +101,6 @@ export function attachQuantumCoreOpticalEngine(
   host: HTMLElement,
   options?: QuantumEngineOptions,
 ): () => void {
-  logMaskStep("attachQuantumCoreOpticalEngine", {
-    hostId: host.id,
-    hostClass: host.className,
-    options,
-  });
-
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -205,16 +146,6 @@ export function attachQuantumCoreOpticalEngine(
     100,
   );
   camera.position.z = VIEW_Z;
-
-  const stackEl = host.parentElement as HTMLElement | null;
-  const isCompactStack =
-    stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
-
-  logMaskStep("attachQuantumCoreOpticalEngine:stack", {
-    stackFound: Boolean(stackEl),
-    isCompactStack,
-    mask: readMaskDiagnostics(stackEl),
-  });
 
   function resetCameraViewportAspect() {
     const vw = window.innerWidth;
@@ -336,10 +267,6 @@ export function attachQuantumCoreOpticalEngine(
   const introDurationSec = prefersReduced
     ? 0
     : Math.max(0, options?.introRush?.durationSec ?? 0);
-  const useGalaxyIntro = introDurationSec > 0 && !isCompactStack;
-  /** Hero/preloader: full-screen galaxy field. */
-  const introOutwardMin = 2.4;
-  const introOutwardMax = 4.2;
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
 
@@ -355,33 +282,17 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 2] = hz;
 
     if (introDurationSec > 0) {
-      if (useGalaxyIntro) {
-        const [gx, gy, gz] = randomGalaxyStart();
-        startPositions[i * 3] = gx;
-        startPositions[i * 3 + 1] = gy;
-        startPositions[i * 3 + 2] = gz;
-      } else {
-        const outward =
-          introOutwardMin +
-          Math.random() * (introOutwardMax - introOutwardMin);
-        startPositions[i * 3] = hx * outward;
-        startPositions[i * 3 + 1] = hy * outward;
-        startPositions[i * 3 + 2] = hz * outward;
-      }
-      positions[i * 3] = startPositions[i * 3]!;
-      positions[i * 3 + 1] = startPositions[i * 3 + 1]!;
-      positions[i * 3 + 2] = startPositions[i * 3 + 2]!;
+      const [gx, gy, gz] = randomGalaxyStart();
+      startPositions[i * 3] = gx;
+      startPositions[i * 3 + 1] = gy;
+      startPositions[i * 3 + 2] = gz;
+      positions[i * 3] = gx;
+      positions[i * 3 + 1] = gy;
+      positions[i * 3 + 2] = gz;
 
-      const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
       const startDist =
-        Math.sqrt(
-          startPositions[i * 3]! * startPositions[i * 3]! +
-            startPositions[i * 3 + 1]! * startPositions[i * 3 + 1]! +
-            startPositions[i * 3 + 2]! * startPositions[i * 3 + 2]!,
-        ) || 0.001;
-      introStagger[i] = useGalaxyIntro
-        ? (startDist / 40) * introDurationSec * 0.38
-        : (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
+        Math.sqrt(gx * gx + gy * gy + gz * gz) || 0.001;
+      introStagger[i] = (startDist / 40) * introDurationSec * 0.38;
     } else {
       positions[i * 3] = hx;
       positions[i * 3 + 1] = hy;
@@ -678,11 +589,6 @@ export function attachQuantumCoreOpticalEngine(
   const motionScale = prefersReduced ? 0.2 : 1;
 
   function settleIntroEndState(rawT: number): void {
-    logMaskStep("settleIntroEndState", {
-      rawT,
-      introDurationSec,
-      mask: readMaskDiagnostics(stackEl),
-    });
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       positions[i3] = homePositions[i3]!;
@@ -715,22 +621,12 @@ export function attachQuantumCoreOpticalEngine(
   };
   renderer.domElement.addEventListener("webglcontextlost", onCtxLost);
 
-  let introPhaseLogged = "";
-  let animateFrame = 0;
-
   function animate() {
     if (!alive) return;
     const rawT = clock.getElapsedTime();
-    animateFrame += 1;
 
     if (introDurationSec > 0 && rawT >= introDurationSec) {
       if (!introSettled) {
-        logMaskStep("animate:intro-complete", {
-          rawT,
-          introDurationSec,
-          frames: animateFrame,
-          mask: readMaskDiagnostics(stackEl),
-        });
         introSettled = true;
         settleIntroEndState(rawT);
         composer.render();
@@ -768,44 +664,10 @@ export function attachQuantumCoreOpticalEngine(
     const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
-    const inGalaxyView = inIntro && useGalaxyIntro;
     const globalIntroT = inIntro
       ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
       : 1;
 
-    const phase = inGalaxyView
-      ? "galaxy"
-      : inIntro
-        ? "intro"
-        : introDurationSec <= 0
-          ? "ambient"
-          : "post-intro";
-    if (phase !== introPhaseLogged) {
-      introPhaseLogged = phase;
-      logMaskStep("animate:phase", {
-        phase,
-        rawT,
-        globalIntroT,
-        inGalaxyView,
-        useGalaxyIntro,
-        mask: readMaskDiagnostics(stackEl),
-      });
-    }
-
-    if (animateFrame === 1) {
-      logMaskStep("animate:first-frame", {
-        introDurationSec,
-        useGalaxyIntro,
-        isCompactStack,
-        mask: readMaskDiagnostics(stackEl),
-      });
-    }
-
-    if (inGalaxyView) {
-      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
-    } else {
-      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
-    }
     resetCameraViewportAspect();
 
     if (inIntro) {
@@ -859,17 +721,18 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
       particlesGeo.attributes.color!.needsUpdate = true;
 
-      particles.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
+      /* Fixed mask — only particle positions move (reverse explosion inward). */
+      particles.rotation.y = 0;
+      pulseGroup.rotation.x = 0;
+      pulseGroup.rotation.y = 0;
       pulseGroup.scale.setScalar(1);
-      particles.scale.setScalar(
-        PARTICLE_VIS_SCALE * introGatherScale(globalIntroT, useGalaxyIntro),
-      );
+      particles.scale.setScalar(PARTICLE_VIS_SCALE);
       particlesMat.size = particleBaseSize * introParticleSizeMul(globalIntroT);
       particlesMat.opacity =
         particleBaseOpacity * THREE.MathUtils.lerp(0.88, 1, globalIntroT);
       bloomPass.strength = THREE.MathUtils.lerp(
         1.12,
-        1.65,
+        1.35,
         easeInQuart(globalIntroT),
       );
     } else if (introDurationSec <= 0) {
@@ -984,14 +847,6 @@ export function attachQuantumCoreOpticalEngine(
 
   let resizeRaf = 0;
   const applyResize = () => {
-    logMaskStep("applyResize", {
-      introSettled,
-      viewport: {
-        w: window.innerWidth,
-        h: window.innerHeight,
-      },
-      mask: readMaskDiagnostics(stackEl),
-    });
     const h = Math.max(1, window.innerHeight);
     const w = window.innerWidth;
     renderer.setSize(w, h);
@@ -1011,16 +866,9 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("resize", onResize);
 
   applyResize();
-  logMaskStep("attachQuantumCoreOpticalEngine:ready", {
-    introDurationSec,
-    useGalaxyIntro,
-    isCompactStack,
-    mask: readMaskDiagnostics(stackEl),
-  });
   raf = requestAnimationFrame(animate);
 
   return () => {
-    logMaskStep("attachQuantumCoreOpticalEngine:detach", { hostId: host.id });
     alive = false;
     cancelAnimationFrame(raf);
     cancelAnimationFrame(resizeRaf);
