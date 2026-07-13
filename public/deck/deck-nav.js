@@ -174,97 +174,58 @@
   }
 
   var dockMobileMq = window.matchMedia('(max-width: 639px)');
-  var dockLayoutTicking = false;
 
-  function headerPinTop() {
-    var root = document.documentElement;
-    var headerH = parseFloat(getComputedStyle(root).getPropertyValue('--app-header-h')) || 52;
-    return headerH + 6;
-  }
-
-  function dockSafeBottom() {
-    return Math.max(10, 0);
-  }
-
-  function setDockBottom(dock) {
-    dock.classList.remove('dock--riding', 'dock--at-top');
-    dock.style.removeProperty('top');
-    dock.style.bottom = dockSafeBottom() + 'px';
-  }
-
-  function resetDockDesktop() {
+  function bindDockMode() {
     var dock = $('#dock');
-    if (!dock) return;
-    dock.classList.remove('dock--riding', 'dock--at-top');
-    dock.style.removeProperty('top');
-    dock.style.removeProperty('bottom');
-  }
-
-  function updateDockPosition() {
-    var dock = $('#dock');
-    if (!dock) return;
-
-    if (!dockMobileMq.matches) {
-      resetDockDesktop();
-      return;
-    }
-
     var track = $('#scroll-track');
     var quote = $('#scene-quote');
-    if (!track || !quote) {
-      setDockBottom(dock);
-      return;
+    var quoteSlot = $('#dock-quote-slot');
+    if (!dock || !track || !quote || !quoteSlot) return;
+
+    var dockHome = { parent: dock.parentNode, next: dock.nextSibling };
+    var inFlow = dock.classList.contains('dock--in-flow');
+    var dockLayoutTicking = false;
+
+    function setFixed() {
+      if (!inFlow) return;
+      if (dockHome.parent) {
+        dockHome.parent.insertBefore(dock, dockHome.next);
+      }
+      dock.classList.add('dock--fixed');
+      dock.classList.remove('dock--in-flow');
+      inFlow = false;
     }
 
-    var quoteTop = quote.offsetTop;
-    var scrollTop = track.scrollTop;
-    var trackH = track.clientHeight;
-    var quoteRect = quote.getBoundingClientRect();
-    var quoteOverflow = quote.offsetHeight > trackH + 16;
-
-    // Product scenes and snap transitions: stay fixed at the bottom.
-    if (scrollTop < quoteTop - 2 || !quoteOverflow || Math.abs(quoteRect.top) > 10) {
-      setDockBottom(dock);
-      return;
+    function setInFlow() {
+      if (inFlow) return;
+      quoteSlot.appendChild(dock);
+      dock.classList.remove('dock--fixed');
+      dock.classList.add('dock--in-flow');
+      inFlow = true;
     }
 
-    // Tall quote section: ride up with content, then pin under the header.
-    var sentinel = quote.querySelector('.deck-dock-sentinel');
-    if (!sentinel) {
-      setDockBottom(dock);
-      return;
+    function updateDockMode() {
+      if (!dockMobileMq.matches) {
+        setFixed();
+        dock.classList.remove('dock--in-flow');
+        return;
+      }
+
+      var quoteTop = quote.offsetTop;
+      var scrollTop = track.scrollTop;
+      var trackH = track.clientHeight;
+      var quoteOverflow = quote.offsetHeight > trackH + 16;
+      var shouldFlow = quoteOverflow && scrollTop > quoteTop + 56;
+
+      if (shouldFlow) setInFlow();
+      else setFixed();
     }
-
-    var dockH = dock.offsetHeight || 40;
-    var gap = 8;
-    var pinTop = headerPinTop();
-    var bottomRest = dockSafeBottom();
-    var bottomY = window.innerHeight - dockH - bottomRest;
-    var rideY = sentinel.getBoundingClientRect().top + gap;
-
-    dock.classList.remove('dock--riding', 'dock--at-top');
-    dock.style.removeProperty('top');
-    dock.style.removeProperty('bottom');
-
-    if (rideY >= bottomY) {
-      dock.style.bottom = bottomRest + 'px';
-    } else if (rideY <= pinTop) {
-      dock.classList.add('dock--at-top');
-    } else {
-      dock.classList.add('dock--riding');
-      dock.style.top = rideY + 'px';
-    }
-  }
-
-  function bindDockSticky() {
-    var track = $('#scroll-track');
-    if (!track) return;
 
     function onDockLayout() {
       if (dockLayoutTicking) return;
       dockLayoutTicking = true;
       window.requestAnimationFrame(function () {
-        updateDockPosition();
+        updateDockMode();
         dockLayoutTicking = false;
       });
     }
@@ -272,7 +233,7 @@
     track.addEventListener('scroll', onDockLayout, { passive: true });
     window.addEventListener('resize', onDockLayout);
     dockMobileMq.addEventListener('change', onDockLayout);
-    updateDockPosition();
+    updateDockMode();
   }
 
   function activateScene(id, opts) {
@@ -281,7 +242,6 @@
     activeSceneId = id;
     setSceneActive(id);
     setNavActive(id);
-    updateDockPosition();
   }
 
   function scrollToScene(id) {
@@ -298,7 +258,6 @@
     } else {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    updateDockPosition();
     window.setTimeout(function () {
       if (scrollingTo === id) scrollingTo = null;
     }, 900);
@@ -615,7 +574,7 @@
   function startDeck() {
     bindVideoStage();
     bindScrollEngagement();
-    bindDockSticky();
+    bindDockMode();
     bindOptionalToggles();
     applyDeclinedUi();
     var first = sections[0] && sections[0].id;

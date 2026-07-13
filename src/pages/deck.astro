@@ -115,6 +115,7 @@ const deckPayload = {
 
     <nav
       id="dock"
+      class="dock--fixed"
       aria-label="Deck sections"
       style={`--dock-items: ${sections.length + 1}`}
     >
@@ -249,7 +250,7 @@ const deckPayload = {
           <textarea id="quote-description" class="deck-quote-desc" rows="8" readonly></textarea>
           <button type="button" id="quote-copy" class="deck-quote-copy">Copy description</button>
         </div>
-        <div class="deck-dock-sentinel" aria-hidden="true"></div>
+        <div id="dock-quote-slot" class="deck-dock-slot"></div>
       </section>
     </main>
 
@@ -399,6 +400,12 @@ const deckPayload = {
         z-index: 7000;
       }
 
+      body .app-header-logo .quantum-logo-stack--compact {
+        width: 66px;
+        height: 66px;
+        flex: 0 0 66px;
+      }
+
       #scroll-track {
         position: fixed;
         inset: 0;
@@ -435,11 +442,9 @@ const deckPayload = {
         justify-content: center;
         min-height: 0;
       }
-      .deck-dock-sentinel {
-        flex: 0 0 0;
+      .deck-dock-slot {
         width: 100%;
-        height: 0;
-        pointer-events: none;
+        flex: 0 0 auto;
       }
       @media (min-width: 640px) {
         .deck-scene {
@@ -655,17 +660,11 @@ const deckPayload = {
       }
 
       #dock {
-        position: fixed;
-        bottom: max(10px, env(safe-area-inset-bottom, 0px));
-        left: max(0.35rem, env(safe-area-inset-left, 0px));
-        right: max(0.35rem, env(safe-area-inset-right, 0px));
         z-index: 6000;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: clamp(0px, 0.4vw, 3px);
-        width: auto;
-        max-width: calc(100% - 0.7rem);
         margin: 0 auto;
         padding: 0 clamp(0.1rem, 1vw, 0.35rem);
         border: 0;
@@ -675,13 +674,6 @@ const deckPayload = {
         -webkit-backdrop-filter: none;
         pointer-events: none;
         overflow: visible;
-      }
-      #dock.dock--riding,
-      #dock.dock--at-top {
-        bottom: auto;
-      }
-      #dock.dock--at-top {
-        top: calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 0.35rem);
       }
       .d-item {
         pointer-events: auto;
@@ -787,6 +779,7 @@ const deckPayload = {
 
       @media (min-width: 640px) {
         #dock {
+          position: fixed;
           top: 0;
           bottom: 0;
           left: auto;
@@ -799,11 +792,6 @@ const deckPayload = {
           gap: 0;
           margin: 0;
           padding: calc(var(--app-header-h, 4rem) + 0.5rem) 0 1rem;
-        }
-        #dock.dock--riding,
-        #dock.dock--at-top {
-          top: 0;
-          bottom: 0;
         }
         .d-item {
           flex: 0 0 auto;
@@ -836,6 +824,22 @@ const deckPayload = {
       }
 
       @media (max-width: 639px) {
+        #dock.dock--fixed {
+          position: fixed;
+          bottom: max(10px, env(safe-area-inset-bottom, 0px));
+          left: max(0.35rem, env(safe-area-inset-left, 0px));
+          right: max(0.35rem, env(safe-area-inset-right, 0px));
+          width: auto;
+          max-width: calc(100% - 0.7rem);
+        }
+        #dock.dock--in-flow {
+          position: sticky;
+          top: calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 0.35rem);
+          width: 100%;
+          max-width: 100%;
+          margin-top: 1.25rem;
+          pointer-events: none;
+        }
         .d-item {
           width: auto;
           height: auto;
