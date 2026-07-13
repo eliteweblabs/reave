@@ -130,3 +130,12 @@ export const FEATURE_GROUPS: { id: string; title: string; features: FeatureId[] 
 
 export const CORE_FEATURE_NOTE =
   'Contacts, email inbox, work/jobs, knowledge, personal to-dos, and chat are always on.';
+
+/**
+ * Optional GitHub repos whose root-level `*.md` files are plugin knowledge.
+ * Loaded only when the matching feature is enabled (see pluginKnowledge.ts).
+ * In-repo plugin docs also live under `plugins/<feature_id>/`.
+ */
+export const PLUGIN_KNOWLEDGE_REPOS: Partial<Record<FeatureId, string>> = {
+  billing: 'eliteweblabs/crater',
+};

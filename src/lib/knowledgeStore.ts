@@ -1,21 +1,18 @@
 /**
- * Unified knowledge store: Postgres DB entries (live) + bundled markdown (fallback).
+ * Unified knowledge store — three tiers, no cross-tier overrides:
  *
- * Job/work files under src/knowledge/jobs/ are intentionally excluded — they are
- * loaded on demand via workStore (list_work / read_work), not this index.
+ * 1. **Repo** — bundled markdown in `src/knowledge/*.md` (read-only playbooks).
+ * 2. **Plugin** — markdown in `plugins/<feature_id>/` and plugin repo roots when enabled.
+ * 3. **Client** — Postgres only (agent/admin notes about clients; no file fallback).
  *
- * Priority rules:
- *   - If DATABASE_URL is set, DB entries take precedence over bundled docs with the same slug.
- *   - Bundled docs that aren't in the DB are still accessible (read-only).
- *   - If DATABASE_URL is not set, only bundled docs are available.
- *
- * Write operations always target Postgres (bot/admin-created entries).
+ * Job/work files are separate (workStore). Personal todos are separate (todoStore).
  */
 
 import {
   parseKnowledgeMarkdown,
   readKnowledgeMarkdown,
   summarizeKnowledgeIndex,
+  listKnowledgeSlugs,
 } from './localKnowledge';
 import {
   isKnowledgeDbConfigured,
@@ -24,80 +21,95 @@ import {
   dbSearchKnowledge,
   dbWriteKnowledge,
   dbDeleteKnowledge,
-  dbSeedBundled,
   type KnowledgeEntry,
 } from './pgKnowledge';
+import {
+  listPluginKnowledge,
+  readPluginKnowledge,
+  listLocalPluginKnowledgeSlugs,
+  isPluginKnowledgeSlug,
+} from './pluginKnowledge';
 
 export { isKnowledgeDbConfigured, type KnowledgeEntry };
+
+export type KnowledgeSource = 'repo' | 'plugin' | 'client';
 
 export interface KnowledgePreview {
   slug: string;
   title: string;
   preview: string;
-  source: 'db' | 'bundled';
+  source: KnowledgeSource;
+  readonly: boolean;
   tags?: string[];
   updated_at?: string;
+  featureId?: string;
 }
 
 export interface KnowledgeDoc {
   slug: string;
   title: string;
   content: string;
-  source: 'db' | 'bundled';
+  source: KnowledgeSource;
+  readonly: boolean;
   tags?: string[];
   updated_at?: string;
+  featureId?: string;
 }
 
-/** List all knowledge entries: DB entries first, then bundled slugs not already in DB. */
-export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
-  const dbRows = await dbListKnowledge();
-  const bundled = summarizeKnowledgeIndex();
+const RESERVED_REPO_SLUGS = new Set(listKnowledgeSlugs());
 
-  if (!dbRows) {
-    return bundled.map((b) => ({
-      slug: b.slug,
-      title: b.preview,
-      preview: b.preview,
-      source: 'bundled' as const,
-    }));
-  }
+function isReservedSlug(slug: string): boolean {
+  if (RESERVED_REPO_SLUGS.has(slug)) return true;
+  if (isPluginKnowledgeSlug(slug)) return true;
+  if (listLocalPluginKnowledgeSlugs().includes(slug)) return true;
+  return false;
+}
 
-  const dbSlugs = new Set(dbRows.map((r) => r.slug));
-  const dbPreviews: KnowledgePreview[] = dbRows.map((r) => ({
-    slug: r.slug,
-    title: r.title,
-    preview: r.preview,
-    source: 'db' as const,
-    tags: r.tags,
-    updated_at: r.updated_at,
+function repoPreviews(): KnowledgePreview[] {
+  return summarizeKnowledgeIndex().map((b) => ({
+    slug: b.slug,
+    title: b.preview,
+    preview: b.preview,
+    source: 'repo' as const,
+    readonly: true,
   }));
-
-  const bundledOnly = bundled
-    .filter((b) => !dbSlugs.has(b.slug))
-    .map((b) => ({
-      slug: b.slug,
-      title: b.preview,
-      preview: b.preview,
-      source: 'bundled' as const,
-    }));
-
-  return [...dbPreviews, ...bundledOnly];
 }
 
-/** Read one knowledge entry: DB first, then bundled fallback. */
-export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
-  const dbEntry = await dbReadKnowledge(slug);
-  if (dbEntry) {
-    return {
-      slug: dbEntry.slug,
-      title: dbEntry.title,
-      content: dbEntry.content,
-      source: 'db',
-      tags: dbEntry.tags,
-      updated_at: dbEntry.updated_at,
-    };
-  }
+function pluginPreviews(docs: Awaited<ReturnType<typeof listPluginKnowledge>>): KnowledgePreview[] {
+  return docs.map((d) => ({
+    slug: d.slug,
+    title: d.title,
+    preview: d.preview,
+    source: 'plugin' as const,
+    readonly: true,
+    featureId: d.featureId,
+  }));
+}
 
+/** List all knowledge: repo playbooks, enabled plugin docs, then client DB entries. */
+export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
+  const repo = repoPreviews();
+  const plugins = pluginPreviews(await listPluginKnowledge());
+  const reserved = new Set([...repo, ...plugins].map((e) => e.slug));
+
+  const dbRows = await dbListKnowledge();
+  const client: KnowledgePreview[] = (dbRows ?? [])
+    .filter((r) => !reserved.has(r.slug))
+    .map((r) => ({
+      slug: r.slug,
+      title: r.title,
+      preview: r.preview,
+      source: 'client' as const,
+      readonly: false,
+      tags: r.tags,
+      updated_at: r.updated_at,
+    }));
+
+  return [...repo, ...plugins, ...client];
+}
+
+/** Read one entry: repo → plugin → client (separate namespaces; no slug override). */
+export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
   const bundled = readKnowledgeMarkdown(slug);
   if (bundled) {
     const parsed = parseKnowledgeMarkdown(bundled.content);
@@ -109,50 +121,84 @@ export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | n
       slug: bundled.slug,
       title,
       content: parsed.body,
-      source: 'bundled',
+      source: 'repo',
+      readonly: true,
       tags: parsed.tags.length ? parsed.tags : undefined,
+    };
+  }
+
+  const plugin = await readPluginKnowledge(slug);
+  if (plugin) {
+    return {
+      slug: plugin.slug,
+      title: plugin.title,
+      content: plugin.content,
+      source: 'plugin',
+      readonly: true,
+      featureId: plugin.featureId,
+    };
+  }
+
+  const dbEntry = await dbReadKnowledge(slug);
+  if (dbEntry) {
+    return {
+      slug: dbEntry.slug,
+      title: dbEntry.title,
+      content: dbEntry.content,
+      source: 'client',
+      readonly: false,
+      tags: dbEntry.tags,
+      updated_at: dbEntry.updated_at,
     };
   }
 
   return null;
 }
 
-/**
- * Search knowledge by keyword/topic.
- * DB: full-text search (weighted: title > content).
- * Bundled: substring match on slug + one-line preview.
- * DB results appear first; bundled results are appended if their slug wasn't already returned.
- */
 export async function storeSearchKnowledge(
   query: string,
-): Promise<{ slug: string; title: string; preview: string; source: 'db' | 'bundled' }[]> {
+): Promise<{ slug: string; title: string; preview: string; source: KnowledgeSource }[]> {
   const q = query.toLowerCase().trim();
+  const seen = new Set<string>();
+  const out: { slug: string; title: string; preview: string; source: KnowledgeSource }[] = [];
 
-  const dbResults = await dbSearchKnowledge(query);
-  const bundled = summarizeKnowledgeIndex();
-  const bundledMatches = bundled
-    .filter((b) => b.slug.includes(q) || b.preview.toLowerCase().includes(q))
-    .map((b) => ({ slug: b.slug, title: b.preview, preview: b.preview, source: 'bundled' as const }));
-
-  if (dbResults === null) {
-    return bundledMatches;
+  for (const r of repoPreviews()) {
+    if (r.slug.includes(q) || r.preview.toLowerCase().includes(q)) {
+      seen.add(r.slug);
+      out.push({ slug: r.slug, title: r.title, preview: r.preview, source: 'repo' });
+    }
   }
 
-  const dbSlugs = new Set(dbResults.map((r) => r.slug));
-  const dbMapped = dbResults.map((r) => ({ ...r, source: 'db' as const }));
+  for (const p of await listPluginKnowledge()) {
+    if (seen.has(p.slug)) continue;
+    if (p.slug.includes(q) || p.title.toLowerCase().includes(q) || p.preview.toLowerCase().includes(q)) {
+      seen.add(p.slug);
+      out.push({ slug: p.slug, title: p.title, preview: p.preview, source: 'plugin' });
+    }
+  }
 
-  return [...dbMapped, ...bundledMatches.filter((b) => !dbSlugs.has(b.slug))];
+  const dbResults = await dbSearchKnowledge(query);
+  for (const r of dbResults ?? []) {
+    if (seen.has(r.slug) || isReservedSlug(r.slug)) continue;
+    seen.add(r.slug);
+    out.push({ ...r, source: 'client' });
+  }
+
+  return out;
 }
 
-/**
- * Write a knowledge entry to the DB.
- * Source is accepted for API compatibility but is not persisted in Postgres.
- */
+/** Write client knowledge to Postgres. Rejects slugs reserved by repo or plugin tiers. */
 export async function storeWriteKnowledge(
   entry: Omit<KnowledgeEntry, 'id' | 'created_at' | 'updated_at'>,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isKnowledgeDbConfigured()) {
-    return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
+    return { ok: false, error: 'Knowledge DB not configured — client knowledge requires DATABASE_URL.' };
+  }
+  if (isReservedSlug(entry.slug)) {
+    return {
+      ok: false,
+      error: `Slug "${entry.slug}" is reserved by repo or plugin knowledge — choose a different slug for client notes.`,
+    };
   }
   return dbWriteKnowledge({
     slug: entry.slug,
@@ -162,34 +208,20 @@ export async function storeWriteKnowledge(
   });
 }
 
-/** Delete a DB entry. Bundled docs cannot be deleted via this function. */
+/** Delete client knowledge from Postgres. Repo and plugin docs cannot be deleted here. */
 export async function storeDeleteKnowledge(
   slug: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isKnowledgeDbConfigured()) {
-    return { ok: false, error: 'Knowledge DB not configured — cannot save.' };
+    return { ok: false, error: 'Knowledge DB not configured — client knowledge requires DATABASE_URL.' };
+  }
+  if (readKnowledgeMarkdown(slug) || isPluginKnowledgeSlug(slug)) {
+    return { ok: false, error: 'Repo and plugin knowledge are read-only — edit the markdown in git.' };
   }
   return dbDeleteKnowledge(slug);
 }
 
-/** Convenience: all slugs from both DB and bundled (for autocomplete / validation). */
 export async function storeListSlugs(): Promise<string[]> {
   const all = await storeListKnowledge();
   return all.map((e) => e.slug);
-}
-
-/** Seed bundled docs into the DB so they become live-editable. */
-export async function storeSeedBundled(): Promise<{
-  seeded: string[];
-  skipped: string[];
-  errors: { slug: string; error: string }[];
-}> {
-  if (!isKnowledgeDbConfigured()) {
-    return {
-      seeded: [],
-      skipped: [],
-      errors: [{ slug: '*', error: 'Knowledge DB not configured' }],
-    };
-  }
-  return dbSeedBundled();
 }

@@ -1,6 +1,6 @@
 /**
  * Editable deck industry / category list.
- * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
+ * Postgres (DATABASE_URL) when set, otherwise JSON under src/data/.
  *
  * Used by `/deck?type=salon` presets (and admin Profile editor).
  */
@@ -98,7 +98,7 @@ function projectRoot(): string {
 function industriesFilePath(): string {
   const override = serverEnv('DECK_INDUSTRIES_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'deck-industries.json');
+  return join(projectRoot(), 'src', 'data', 'deck-industries.json');
 }
 
 export function deckIndustriesStorageBackend(): 'postgres' | 'files' {

@@ -1,6 +1,6 @@
 /**
  * Persist organization branding (company name, domain, logo, etc.).
- * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
+ * Postgres (DATABASE_URL) when set, otherwise JSON under src/runtime/.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -109,7 +109,7 @@ function projectRoot(): string {
 function configFilePath(): string {
   const override = serverEnv('COMPANY_CONFIG_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'company-config.json');
+  return join(projectRoot(), 'src', 'runtime', 'company-config.json');
 }
 
 function normalizeStored(raw: unknown): StoredCompanyConfig {

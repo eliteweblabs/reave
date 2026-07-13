@@ -1,6 +1,6 @@
 /**
  * Persisted log of inbound email triage results for the dashboard Email tab.
- * Postgres (DATABASE_URL) when set, otherwise JSON file under src/knowledge/.
+ * Postgres (DATABASE_URL) when set, otherwise JSON file under src/runtime/.
  */
 
 import { randomUUID } from 'crypto';
@@ -218,7 +218,7 @@ function projectRoot(): string {
 function inboxFilePath(): string {
   const override = serverEnv('EMAIL_INBOX_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'email-inbox.json');
+  return join(projectRoot(), 'src', 'runtime', 'email-inbox.json');
 }
 
 type InboxRow = {

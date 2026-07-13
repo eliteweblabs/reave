@@ -1,7 +1,7 @@
 /**
  * GET /api/todo — list all todo markdown files and their parsed checkbox items.
  *
- * Files live in src/knowledge/todo/*.md (one file = one accordion section).
+ * Files live in src/data/todos/*.md (one file = one accordion section).
  * Each file must have a # H1 heading (accordion title) and GFM checkboxes:
  *   - [ ] unchecked item
  *   - [x] checked item
@@ -28,7 +28,7 @@ function projectRoot(): string {
 }
 
 function todoDir(): string {
-  return process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'todo');
+  return process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'data', 'todos');
 }
 
 const ITEM_RE = /^- \[([ xX])\] (.+)$/;

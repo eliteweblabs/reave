@@ -8,10 +8,14 @@ dist
 # Snapshot from `railway variable list` (optional local sync)
 .env.railway
 
-# Runtime dashboard chat archives (markdown); commit manually if you want backups in git
-src/knowledge/chats/*.md
-src/knowledge/email-rules.json
-src/knowledge/email-inbox.json
+# Runtime dashboard data (not knowledge playbooks)
+src/runtime/chats/*.md
+src/runtime/email-rules.json
+src/runtime/email-inbox.json
+src/runtime/features.json
+src/runtime/company-config.json
+src/runtime/agent-model.json
+src/runtime/jobs/*.md
 
 # Twilio credentials (already covered by .env, but being explicit)
 # TWILIO_ACCOUNT_SID

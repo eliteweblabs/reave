@@ -1,7 +1,7 @@
 /**
  * GET    /api/admin/knowledge/[slug]  — read one entry
- * PUT    /api/admin/knowledge/[slug]  — update (full replace of fields provided)
- * DELETE /api/admin/knowledge/[slug]  — remove from DB (bundled docs are unaffected)
+ * PUT    /api/admin/knowledge/[slug]  — update client knowledge only
+ * DELETE /api/admin/knowledge/[slug]  — delete client knowledge only
  */
 
 import type { APIContext } from 'astro';
@@ -37,6 +37,14 @@ export async function PUT(context: APIContext): Promise<Response> {
   const slug = context.params.slug ?? '';
   if (!slug) return json({ ok: false, error: 'Missing slug' }, 400);
 
+  const existing = await storeReadKnowledge(slug);
+  if (existing?.readonly) {
+    return json(
+      { ok: false, error: 'Repo and plugin knowledge are read-only — edit the markdown in git.' },
+      403,
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
@@ -44,17 +52,15 @@ export async function PUT(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const existing = await storeReadKnowledge(slug);
   const title = String(body.title ?? existing?.title ?? '').trim();
   const content = String(body.content ?? existing?.content ?? '').trim();
   const tags = Array.isArray(body.tags) ? (body.tags as unknown[]).map(String) : (existing?.tags ?? []);
-  const source = String(body.source ?? existing?.source ?? 'manual');
 
   if (!title || !content) return json({ ok: false, error: 'title and content are required' }, 400);
 
-  const result = await storeWriteKnowledge({ slug, title, content, tags, source });
+  const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'manual' });
   if (!result.ok) return json({ ok: false, error: result.error }, 503);
-  return json({ ok: true, slug, title });
+  return json({ ok: true, slug, title, source: 'client' });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
@@ -63,6 +69,14 @@ export async function DELETE(context: APIContext): Promise<Response> {
 
   const slug = context.params.slug ?? '';
   if (!slug) return json({ ok: false, error: 'Missing slug' }, 400);
+
+  const existing = await storeReadKnowledge(slug);
+  if (existing?.readonly) {
+    return json(
+      { ok: false, error: 'Repo and plugin knowledge are read-only — edit the markdown in git.' },
+      403,
+    );
+  }
 
   const result = await storeDeleteKnowledge(slug);
   if (!result.ok) return json({ ok: false, error: result.error }, 503);

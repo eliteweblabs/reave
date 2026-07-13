@@ -1,13 +1,11 @@
 /**
- * Parser and validator for the `KNOWLEDGE_SERVICES` env var.
+ * Optional extra plugin-repo mappings via env (supplements PLUGIN_KNOWLEDGE_REPOS in features.ts).
  *
- * Format: `<slug>:<owner>/<repo>`, comma-separated, no spaces.
- *   - slug:  lowercase kebab-case            (^[a-z0-9]+(-[a-z0-9]+)*$)
- *   - owner: lowercase, alphanumeric + `-`   (^[a-z0-9-]+$)
- *   - repo:  lowercase, allows `.`, `_`, `-` (^[a-z0-9._-]+$)
+ * Format: `<feature_id>:<owner>/<repo>`, comma-separated, no spaces.
+ * Loaded only when that feature module is enabled — see pluginKnowledge.ts.
  *
  * Example:
- *   KNOWLEDGE_SERVICES="crater:eliteweblabs/crater,contact-api:eliteweblabs/contact-api,credit-check:eliteweblabs/credit-check-api"
+ *   PLUGIN_KNOWLEDGE_REPOS_ENV="billing:eliteweblabs/crater-invoicing"
  */
 
 export interface KnowledgeService {

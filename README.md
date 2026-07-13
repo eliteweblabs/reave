@@ -192,7 +192,7 @@ All commands are run from the root of the project, from a terminal:
 
 ## Admin agent (Claude tool loop)
 
-Bundled markdown lives in `src/knowledge/*.md`. The **/admin → Chats** tab runs an Anthropic agent with tools for knowledge, contacts, jobs, billing, email inbox actions, and dev ops. See `src/lib/agentTools.ts`.
+Knowledge is three-tiered: **repo playbooks** in `src/knowledge/*.md`, **plugin docs** in `plugins/<feature_id>/` (plus plugin repo roots when enabled), and **client notes** in Postgres only. The **/admin → Chats** tab runs an Anthropic agent with tools for knowledge, contacts, jobs, billing, email inbox actions, and dev ops. See `src/lib/agentTools.ts`.
 
 **Inbound email triage** runs inside this app: mail arrives via a **Resend webhook** at `/api/email/inbound`, is classified by keyword rules + Claude, and surfaces in **/admin → Inbox** (Web Push optional). See `src/knowledge/email-rules.md`.
 
@@ -203,7 +203,7 @@ Bundled markdown lives in `src/knowledge/*.md`. The **/admin → Chats** tab run
 
 4. **Railway tooling:** set **`RAILWAY_API_TOKEN`** (and optionally **`RAILWAY_WORKSPACE_ID`**, **`RAILWAY_DRY_RUN=1`** for rehearsals) on Astro. Ask the agent to list domains or check deploy status.
 
-5. **Deploy failure alerts:** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Failures post to the **System alerts** chat when **`AGENT_ALERT_USER_ID`** is set. Details: `src/knowledge/railway-deploy-webhook.md`.
+5. **Deploy failure alerts:** configure a **Railway project webhook** to `https://reave.app/api/railway/webhook?key=…` (same secret as **`RAILWAY_WEBHOOK_INGRESS_KEY`**). Failures post to the **System alerts** chat when **`AGENT_ALERT_USER_ID`** is set. Details: `plugins/dev_infra/railway-deploy-webhook.md` (when **dev_infra** plugin is enabled).
 
 6. **Inbound email:** in Resend, enable receiving on a `reave.app` subdomain (add the MX record) and create an `email.received` webhook to `https://reave.app/api/email/inbound`. Set **`RESEND_API_KEY`** and **`RESEND_WEBHOOK_SECRET`**. Tune rules in `src/lib/emailRules.ts`. Details: `src/knowledge/email-rules.md`.
 

@@ -103,4 +103,4 @@ When a user asks how to sync contacts to iPhone, reply with the iOS setup tables
 ## Related docs
 
 - `contact-api-reference.md` — upstream API + env references
-- `client-portal.md` — shareable client pages (separate from CardDAV)
+- `client_portal/client-portal` — shareable client pages (separate from CardDAV)
