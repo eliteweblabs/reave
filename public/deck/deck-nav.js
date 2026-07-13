@@ -545,6 +545,6 @@
   window.addEventListener('load', function () {
     setTimeout(function () {
       dismissBoot();
-    }, 2800);
+    }, 5500);
   });
 })();

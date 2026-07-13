@@ -273,6 +273,34 @@ function easeOutQuart(t: number): number {
   return 1 - Math.pow(1 - t, 4);
 }
 
+function easeInQuart(t: number): number {
+  return t * t * t * t;
+}
+
+function easeInQuint(t: number): number {
+  return t * t * t * t * t;
+}
+
+/** Slow drift early, dense fill in the last ~25% of the intro. */
+function introTravelT(rawT: number, duration: number, delaySec: number): number {
+  const span = Math.max(0.001, duration - delaySec);
+  return easeInQuint(THREE.MathUtils.clamp((rawT - delaySec) / span, 0, 1));
+}
+
+/** Particle size: small specks → swell near the end → snap to filled logo size. */
+function introParticleSizeMul(t: number): number {
+  if (t < 0.72) return THREE.MathUtils.lerp(0.85, 1.5, t / 0.72);
+  if (t < 0.9) return THREE.MathUtils.lerp(1.5, 3.8, (t - 0.72) / 0.18);
+  return THREE.MathUtils.lerp(3.8, 1, (t - 0.9) / 0.1);
+}
+
+/** Cloud scale: spread out early, compress tight before settling to 1. */
+function introGatherScale(t: number): number {
+  if (t < 0.68) return THREE.MathUtils.lerp(1.42, 1.12, t / 0.68);
+  if (t < 0.92) return THREE.MathUtils.lerp(1.12, 0.76, (t - 0.68) / 0.24);
+  return THREE.MathUtils.lerp(0.76, 1, (t - 0.92) / 0.08);
+}
+
 export function attachQuantumCoreOpticalEngine(
   host: HTMLElement,
   options?: QuantumEngineOptions,
@@ -526,7 +554,7 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 2] = hz;
 
     const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
-    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.38;
+    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
 
     if (introDurationSec > 0) {
       const outward =
@@ -892,12 +920,11 @@ export function attachQuantumCoreOpticalEngine(
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
     const globalIntroT = inIntro
-      ? easeOutQuart(THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1))
+      ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
       : 1;
 
     if (inIntro) {
-      const introSpan = introDurationSec * 0.92;
-      const colorizeStart = 0.8;
+      const colorizeStart = 0.9;
       const colorizeMix =
         globalIntroT < colorizeStart
           ? 0
@@ -906,12 +933,10 @@ export function attachQuantumCoreOpticalEngine(
               0,
               1,
             );
-      const snapMix = colorizeMix * colorizeMix;
+      const snapMix = colorizeMix * colorizeMix * colorizeMix;
 
       for (let i = 0; i < particleCount; i++) {
-        const localT = easeOutQuart(
-          THREE.MathUtils.clamp((rawT - introStagger[i]!) / introSpan, 0, 1),
-        );
+        const localT = introTravelT(rawT, introDurationSec, introStagger[i]!);
         const inv = 1 - localT;
         const i3 = i * 3;
         positions[i3] =
@@ -928,7 +953,7 @@ export function attachQuantumCoreOpticalEngine(
           particleColors[i3 + 1] = rushTint.g;
           particleColors[i3 + 2] = rushTint.b;
         } else {
-          const boost = 1 + energy * 0.08;
+          const boost = 1 + energy * 0.06;
           particleColors[i3] = THREE.MathUtils.lerp(
             rushTint.r,
             logoHomeColors[i3]! * boost,
@@ -949,22 +974,36 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
       particlesGeo.attributes.color!.needsUpdate = true;
 
-      particles.rotation.y = rotY * globalIntroT * 0.1;
+      particles.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
       pulseGroup.scale.setScalar(1);
       particles.scale.setScalar(
-        PARTICLE_VIS_SCALE * THREE.MathUtils.lerp(1.35, 1, globalIntroT),
+        PARTICLE_VIS_SCALE * introGatherScale(globalIntroT),
       );
-      particlesMat.size =
-        particleBaseSize * THREE.MathUtils.lerp(2.6, 1, globalIntroT);
+      particlesMat.size = particleBaseSize * introParticleSizeMul(globalIntroT);
       particlesMat.opacity =
-        particleBaseOpacity * THREE.MathUtils.lerp(0.9, 1, globalIntroT);
-      bloomPass.strength = THREE.MathUtils.lerp(1.45, 1.18, globalIntroT);
+        particleBaseOpacity * THREE.MathUtils.lerp(0.88, 1, globalIntroT);
+      bloomPass.strength = THREE.MathUtils.lerp(
+        1.12,
+        1.65,
+        easeInQuart(globalIntroT),
+      );
     } else {
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        positions[i3] = homePositions[i3]!;
+        positions[i3 + 1] = homePositions[i3 + 1]!;
+        positions[i3 + 2] = homePositions[i3 + 2]!;
+      }
+      particlesGeo.attributes.position!.needsUpdate = true;
+
       particles.rotation.y = rotY;
       applyParticleLogoColors(1, energy);
+      particles.scale.setScalar(PARTICLE_VIS_SCALE);
+      particlesMat.size = particleBaseSize;
+      particlesMat.opacity = particleBaseOpacity;
+      bloomPass.strength = 1.18;
 
       if (introDurationSec > 0) {
-        particlesMat.opacity = particleBaseOpacity;
         if (!introCompleteFired) {
           introCompleteFired = true;
           window.dispatchEvent(new CustomEvent("quantum-intro-complete"));

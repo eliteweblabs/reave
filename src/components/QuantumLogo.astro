@@ -23,7 +23,7 @@ const {
   hostId = 'quantumCanvasHost',
   layout = 'homepage',
   introRush = true,
-  introDuration = 2.4,
+  introDuration = 4,
   initDelay,
   class: className,
 } = Astro.props;
@@ -216,7 +216,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     const layout = stack.dataset.layout || 'homepage';
     const logoSrc = stack.dataset.logoSrc || '/logo.png';
     const introRush = stack.dataset.introRush === 'true';
-    const introDuration = Number(stack.dataset.introDuration) || 2.4;
+    const introDuration = Number(stack.dataset.introDuration) || 4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
 
     document.documentElement.classList.add('quantum-page-touch');
