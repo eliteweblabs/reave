@@ -678,10 +678,10 @@ const userId = auth?.userId ?? null;
 {!adminShell && !homeAdminEntry && (
   <script type="module">
     import {
-      positionFloatingEl,
+      bindFloatingDropdown,
+      closeOpenFloatingDropdown,
       resetFloatingEl,
-      bindFloatingReposition,
-      unbindFloatingReposition,
+      initDataTooltips,
     } from "/admin/admin-ui.js";
 
     function resetHeaderMenu(menu) {
@@ -694,36 +694,26 @@ const userId = auth?.userId ?? null;
         if (exceptMenu && menu === exceptMenu) continue;
         resetHeaderMenu(menu);
       }
-      unbindFloatingReposition();
+      closeOpenFloatingDropdown();
       document.getElementById("topbar-tools-toggle")?.setAttribute("aria-expanded", "false");
       document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
     }
 
-    function toggleHeaderMenu(menuEl, toggleEl) {
-      if (!menuEl || !toggleEl) return;
-      const willOpen = !menuEl.classList.contains("open");
-      closeHeaderMenus(null);
-      if (willOpen) {
-        menuEl.classList.add("open");
-        toggleEl.setAttribute("aria-expanded", "true");
-        positionFloatingEl(menuEl, toggleEl, { align: "end" });
-        bindFloatingReposition(menuEl, toggleEl, { align: "end" });
-      }
+    function wireHeaderDropdown(toggleEl, menuEl) {
+      if (!toggleEl || !menuEl || toggleEl.dataset.floatingDropdownBound === "1") return;
+      toggleEl.dataset.floatingDropdownBound = "1";
+      bindFloatingDropdown({ trigger: toggleEl, menu: menuEl, align: "end" });
     }
 
-    const toolsToggle = document.getElementById("topbar-tools-toggle");
-    const toolsMenu = document.getElementById("topbar-tools-menu");
-    toolsToggle?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      toggleHeaderMenu(toolsMenu, toolsToggle);
-    });
-
-    const profileToggle = document.getElementById("topbar-profile-toggle");
-    const profileMenu = document.getElementById("topbar-profile-menu");
-    profileToggle?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      toggleHeaderMenu(profileMenu, profileToggle);
-    });
+    wireHeaderDropdown(
+      document.getElementById("topbar-tools-toggle"),
+      document.getElementById("topbar-tools-menu"),
+    );
+    wireHeaderDropdown(
+      document.getElementById("topbar-profile-toggle"),
+      document.getElementById("topbar-profile-menu"),
+    );
+    initDataTooltips();
 
     document.getElementById("topbar-sign-out")?.addEventListener("click", async (ev) => {
       ev.preventDefault();

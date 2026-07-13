@@ -17,8 +17,11 @@ import {
   resetFloatingEl,
   bindFloatingReposition,
   unbindFloatingReposition,
+  bindFloatingDropdown,
+  closeOpenFloatingDropdown,
+  initDataTooltips,
   readUiZ,
-} from './admin-ui.js?v=20250713a';
+} from './admin-ui.js?v=20250713b';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -468,6 +471,7 @@ function updateChecked() {
   }
   el.style.opacity = '1';
   el.dataset.tooltip = `Health checked at ${lastChecked.toLocaleTimeString()}`;
+  initDataTooltips(el.parentElement || document);
 }
 
 // ---- agent model picker (System tab legacy select; chats use pane subheader) ----
@@ -1564,22 +1568,10 @@ function closeTopbarMenus(exceptMenu) {
     menu.classList.remove('open');
     resetFloatingEl(menu);
   }
+  closeOpenFloatingDropdown();
   unbindFloatingReposition();
   document.getElementById('topbar-tools-toggle')?.setAttribute('aria-expanded', 'false');
   document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
-  syncFooterNav();
-}
-
-function toggleTopbarMenu(menuEl, toggleEl) {
-  if (!menuEl || !toggleEl) return;
-  const willOpen = !menuEl.classList.contains('open');
-  closeTopbarMenus(null);
-  if (willOpen) {
-    menuEl.classList.add('open');
-    toggleEl.setAttribute('aria-expanded', 'true');
-    positionFloatingEl(menuEl, toggleEl, { align: 'end' });
-    bindFloatingReposition(menuEl, toggleEl, { align: 'end' });
-  }
   syncFooterNav();
 }
 
@@ -3413,9 +3405,12 @@ function initTopbarMenus() {
   const profileMenu = document.getElementById('topbar-profile-menu');
   if (profileToggle && profileMenu && !profileToggle.dataset.bound) {
     profileToggle.dataset.bound = '1';
-    profileToggle.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      toggleTopbarMenu(profileMenu, profileToggle);
+    bindFloatingDropdown({
+      trigger: profileToggle,
+      menu: profileMenu,
+      align: 'end',
+      onOpen: syncFooterNav,
+      onClose: syncFooterNav,
     });
   }
 
@@ -11355,6 +11350,7 @@ async function boot() {
   cachedTabOrder = tabOrder;
   buildTabs(tabOrder);
   initTopbarMenus();
+  initDataTooltips();
   initFooterNav();
   initFooterNavScrollCollapse();
   initChatComposeFocusLayout();

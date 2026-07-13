@@ -146,6 +146,173 @@ export function mountFloatingMenu(opts) {
   };
 }
 
+let _openDropdown = null;
+let _tooltipEl = null;
+let _tooltipTarget = null;
+
+/**
+ * Dropdown controller — open/close, fixed positioning, optional z-index override.
+ * Use this instead of hand-rolling positionFloatingEl at each call site.
+ *
+ * @param {object} opts
+ * @param {HTMLElement} opts.trigger
+ * @param {HTMLElement} opts.menu
+ * @param {'start'|'end'} [opts.align='start']
+ * @param {number} [opts.zIndex]
+ * @param {() => void} [opts.onOpen]
+ * @param {() => void} [opts.onClose]
+ * @returns {{ open: () => void, close: () => void, toggle: (e?: Event) => void, destroy: () => void }}
+ */
+export function bindFloatingDropdown(opts = {}) {
+  const { trigger, menu, align = 'start', zIndex, onOpen, onClose } = opts;
+  if (!trigger || !menu) {
+    return { open() {}, close() {}, toggle() {}, destroy() {} };
+  }
+
+  const floatOpts = { align, zIndex };
+
+  function close() {
+    menu.classList.remove('open');
+    resetFloatingEl(menu);
+    if (_openDropdown?.close === close) {
+      unbindFloatingReposition();
+      _openDropdown = null;
+    }
+    trigger.setAttribute('aria-expanded', 'false');
+    onClose?.();
+  }
+
+  function open() {
+    if (_openDropdown && _openDropdown.close !== close) _openDropdown.close();
+    menu.classList.add('open');
+    trigger.setAttribute('aria-expanded', 'true');
+    positionFloatingEl(menu, trigger, floatOpts);
+    bindFloatingReposition(menu, trigger, floatOpts);
+    _openDropdown = { close };
+    onOpen?.();
+  }
+
+  function toggle(e) {
+    e?.stopPropagation();
+    if (menu.classList.contains('open')) close();
+    else open();
+  }
+
+  const onTriggerClick = (e) => toggle(e);
+  trigger.addEventListener('click', onTriggerClick);
+
+  return {
+    open,
+    close,
+    toggle,
+    destroy: () => {
+      close();
+      trigger.removeEventListener('click', onTriggerClick);
+    },
+  };
+}
+
+/** Close whichever dropdown was opened via bindFloatingDropdown. */
+export function closeOpenFloatingDropdown() {
+  _openDropdown?.close();
+}
+
+function ensureTooltipEl() {
+  if (_tooltipEl) return _tooltipEl;
+  const el = document.createElement('div');
+  el.className = 'ui-float-tooltip';
+  el.setAttribute('role', 'tooltip');
+  el.hidden = true;
+  document.body.appendChild(el);
+  _tooltipEl = el;
+  return el;
+}
+
+function positionTooltipEl(tip, target, opts = {}) {
+  const { gap = 6, inset = 8, zIndex = readUiZ('tooltip'), alignEnd = false } = opts;
+  if (!tip || !target) return;
+
+  requestAnimationFrame(() => {
+    const rect = target.getBoundingClientRect();
+    tip.style.position = 'fixed';
+    tip.style.zIndex = String(zIndex);
+    const tipW = tip.offsetWidth;
+    const tipH = tip.offsetHeight;
+    let left = alignEnd
+      ? rect.right - tipW
+      : rect.left + rect.width / 2 - tipW / 2;
+    left = Math.min(Math.max(left, inset), window.innerWidth - tipW - inset);
+    let top = rect.top - tipH - gap;
+    if (top < inset) top = rect.bottom + gap;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    tip.style.right = 'auto';
+    tip.style.bottom = 'auto';
+  });
+}
+
+function hideTooltip() {
+  if (!_tooltipEl) return;
+  _tooltipEl.hidden = true;
+  _tooltipTarget = null;
+}
+
+function showTooltipFor(target) {
+  const text = target?.dataset?.tooltip?.trim();
+  if (!target || !text) {
+    hideTooltip();
+    return;
+  }
+  const tip = ensureTooltipEl();
+  tip.textContent = text;
+  tip.hidden = false;
+  _tooltipTarget = target;
+  positionTooltipEl(tip, target, {
+    alignEnd: target.classList.contains('tt-left'),
+    zIndex: target.dataset.tooltipZ ? parseInt(target.dataset.tooltipZ, 10) : undefined,
+  });
+}
+
+function bindDataTooltip(target) {
+  if (!target || target.dataset.tooltipBound === '1') return;
+  target.dataset.tooltipBound = '1';
+
+  const show = () => showTooltipFor(target);
+  const hide = () => {
+    if (_tooltipTarget === target) hideTooltip();
+  };
+
+  target.addEventListener('mouseenter', show);
+  target.addEventListener('mouseleave', hide);
+  target.addEventListener('focus', show);
+  target.addEventListener('blur', hide);
+}
+
+/** Wire `[data-tooltip]` elements to the shared portaled tooltip (call after dynamic updates). */
+export function initDataTooltips(root = document) {
+  const scope = root instanceof Document ? root : root?.ownerDocument || document;
+  const container = root instanceof Document ? root : root;
+  container.querySelectorAll('[data-tooltip]').forEach(bindDataTooltip);
+
+  if (!scope.documentElement.dataset.uiTooltipGlobalBound) {
+    scope.documentElement.dataset.uiTooltipGlobalBound = '1';
+    window.addEventListener(
+      'scroll',
+      () => {
+        if (_tooltipTarget && !_tooltipEl?.hidden) {
+          positionTooltipEl(_tooltipEl, _tooltipTarget, {
+            alignEnd: _tooltipTarget.classList.contains('tt-left'),
+            zIndex: _tooltipTarget.dataset.tooltipZ
+              ? parseInt(_tooltipTarget.dataset.tooltipZ, 10)
+              : undefined,
+          });
+        }
+      },
+      true,
+    );
+  }
+}
+
 /** Icon-only toolbar button (44pt touch target, iOS-style). */
 export function createIosIconBtn(opts = {}) {
   const { iconKey, label, className = 'ios-icon-btn', onClick } = opts;

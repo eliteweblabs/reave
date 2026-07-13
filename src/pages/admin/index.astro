@@ -596,33 +596,42 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       #model-select:disabled { opacity: 0.55; cursor: default; }
 
       /* ── Tooltips ──
-         Default: centered below the trigger.
-         .tt-left anchors to left edge (for items near right edge of screen). */
-      [data-tooltip] { position: relative; }
-      [data-tooltip]::after {
-        content: attr(data-tooltip);
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 50%;
-        transform: translateX(-50%);
-        white-space: nowrap;
+         Portaled via initDataTooltips() in admin-ui.js (fixed layer, shared z-index).
+         .tt-left right-aligns against triggers near the screen edge. */
+      .ui-float-tooltip {
+        position: fixed;
+        z-index: var(--z-tooltip);
+        max-width: min(280px, 88vw);
+        padding: 3px 8px;
+        border-radius: 5px;
         background: var(--tooltip-bg);
         border: 1px solid var(--tooltip-border);
         color: var(--tooltip-fg);
         font-size: 0.68rem;
         font-family: ui-sans-serif, system-ui, sans-serif;
         font-variant-numeric: tabular-nums;
-        padding: 3px 8px;
-        border-radius: 5px;
+        line-height: 1.35;
+        white-space: nowrap;
         pointer-events: none;
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.12s;
-        z-index: var(--z-tooltip);
+        box-shadow: var(--dropdown-shadow, 0 8px 24px rgba(0, 0, 0, 0.35));
       }
-      [data-tooltip]:hover::after { opacity: 1; visibility: visible; }
-      /* Items near the right edge: right-align the tooltip */
-      [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
+      [data-tooltip] { position: relative; }
+      /* Legacy CSS tooltip disabled — JS component handles display */
+      [data-tooltip]::after { content: none !important; display: none !important; }
+
+      /* Shared floating menu surface — dropdowns/popovers use --z-floating */
+      :is(
+        .app-header-dropdown,
+        .topbar-dropdown,
+        .tab-dropdown-menu,
+        .em-project-menu,
+        .wk-client-dropdown,
+        .sched-guest-dropdown,
+        .de-sc-pop,
+        .ch-context-menu
+      ) {
+        z-index: var(--z-floating);
+      }
 
       /* Tabs — scroll wrapper keeps items from overlapping the right cluster */
       #tabs-scroll {
@@ -5171,6 +5180,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713b"></script>
   </body>
 </html>
