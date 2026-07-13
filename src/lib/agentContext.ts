@@ -1,9 +1,12 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { ChatImageAttachment } from './chatTypes';
 
 export interface AgentRunContext {
   userId?: string;
   threadId?: string;
   emailId?: string;
+  /** Images attached to the current user message (for filing to projects). */
+  messageImages?: ChatImageAttachment[];
 }
 
 export const agentRunContext = new AsyncLocalStorage<AgentRunContext>();

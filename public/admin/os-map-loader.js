@@ -6041,6 +6041,7 @@ function renderEditWorkForm(pane) {
       scroll.appendChild(ta);
       renderWorkChecklistPanel(checklistMount, checklistOpts);
       mountWorkCommentsSection(scroll, slug);
+      mountWorkFilesSection(scroll, slug, data.files);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
 
       setEditorFooterSave(() => {
@@ -9343,6 +9344,149 @@ function workRelatedChats(related, sourceChatId) {
     chats.unshift({ id: sourceId, title: 'Chat', updatedAt: '' });
   }
   return chats;
+}
+
+function mountWorkFilesSection(container, slug, initialFiles) {
+  const section = document.createElement('div');
+  section.className = 'wk-files-section';
+
+  const title = document.createElement('div');
+  title.className = 'wk-files-title';
+  title.textContent = 'File repository';
+  section.appendChild(title);
+
+  const hint = document.createElement('div');
+  hint.className = 'wk-files-hint';
+  hint.textContent = 'Images from linked chats are saved here automatically.';
+  section.appendChild(hint);
+
+  const grid = document.createElement('div');
+  grid.className = 'wk-files-grid';
+  section.appendChild(grid);
+
+  const uploadRow = document.createElement('div');
+  uploadRow.className = 'wk-files-upload';
+  const uploadInput = document.createElement('input');
+  uploadInput.type = 'file';
+  uploadInput.accept = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
+  uploadInput.multiple = true;
+  uploadInput.className = 'wk-files-input';
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'de-btn de-btn-secondary';
+  uploadBtn.textContent = 'Upload files';
+  uploadBtn.addEventListener('click', () => uploadInput.click());
+  uploadRow.appendChild(uploadInput);
+  uploadRow.appendChild(uploadBtn);
+  section.appendChild(uploadRow);
+
+  function formatFileSize(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function renderFiles(files) {
+    grid.innerHTML = '';
+    if (!files?.length) {
+      const empty = document.createElement('div');
+      empty.className = 'de-empty';
+      empty.style.padding = '0.5rem 0';
+      empty.textContent = 'No files yet.';
+      grid.appendChild(empty);
+      return;
+    }
+    for (const file of files) {
+      const card = document.createElement('div');
+      card.className = 'wk-file-card';
+
+      const isImage = String(file.mediaType || '').startsWith('image/');
+      if (isImage) {
+        const img = document.createElement('img');
+        img.className = 'wk-file-thumb';
+        img.src = file.url;
+        img.alt = file.filename || 'Project file';
+        img.loading = 'lazy';
+        card.appendChild(img);
+      } else {
+        const icon = document.createElement('div');
+        icon.className = 'wk-file-doc';
+        icon.textContent = '📄';
+        card.appendChild(icon);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'wk-file-meta';
+      meta.innerHTML =
+        `<span class="wk-file-name">${escHtml(file.filename || 'file')}</span>` +
+        `<span class="wk-file-size">${escHtml(formatFileSize(file.sizeBytes))}</span>`;
+      card.appendChild(meta);
+
+      const actions = document.createElement('div');
+      actions.className = 'wk-file-actions';
+      const openBtn = document.createElement('a');
+      openBtn.className = 'wk-file-open';
+      openBtn.href = file.url;
+      openBtn.target = '_blank';
+      openBtn.rel = 'noopener';
+      openBtn.textContent = 'Open';
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'wk-file-delete';
+      delBtn.textContent = 'Delete';
+      delBtn.addEventListener('click', async () => {
+        if (!confirm(`Delete ${file.filename}?`)) return;
+        delBtn.disabled = true;
+        try {
+          const res = await fetch(file.url, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, { cache: 'no-store' });
+          const listData = await listRes.json();
+          renderFiles(listData.files || []);
+        } catch (e) {
+          alert(`Failed to delete: ${e.message}`);
+          delBtn.disabled = false;
+        }
+      });
+      actions.appendChild(openBtn);
+      actions.appendChild(delBtn);
+      card.appendChild(actions);
+      grid.appendChild(card);
+    }
+  }
+
+  uploadInput.addEventListener('change', async () => {
+    const files = [...uploadInput.files];
+    uploadInput.value = '';
+    if (!files.length) return;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading…';
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, {
+          method: 'POST',
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, { cache: 'no-store' });
+      const listData = await listRes.json();
+      renderFiles(listData.files || []);
+    } catch (e) {
+      alert(`Upload failed: ${e.message}`);
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Upload files';
+    }
+  });
+
+  renderFiles(initialFiles || []);
+  container.appendChild(section);
 }
 
 function mountWorkRelatedSection(container, related, sourceChatId) {

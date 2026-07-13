@@ -21,6 +21,7 @@ import {
 import { runKnowledgeAgent } from '../../../lib/agentRunner';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
+import { promoteChatImagesToLinkedProjects } from '../../../lib/projectFiles';
 
 export const prerender = false;
 
@@ -115,6 +116,24 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images);
+  const linked_jobs = await listJobsForItem('chat', id);
+  let promoted_files: Record<string, { id: string; filename: string; url: string }[]> = {};
+  if (images.length && linked_jobs.length) {
+    const promoted = await promoteChatImagesToLinkedProjects(
+      id,
+      images,
+      linked_jobs.map((j) => j.slug),
+      userId,
+    );
+    for (const [slug, files] of Object.entries(promoted)) {
+      promoted_files[slug] = files.map((f) => ({
+        id: f.id,
+        filename: f.filename,
+        url: f.url,
+      }));
+    }
+  }
+
   const reply = await runKnowledgeAgent({
     userText: message,
     images,
@@ -124,6 +143,7 @@ export async function POST(context: APIContext): Promise<Response> {
       userId,
       threadId: id,
       emailId: thread.source_email_id ?? undefined,
+      messageImages: images.length ? images : undefined,
     },
   });
 
@@ -144,6 +164,7 @@ export async function POST(context: APIContext): Promise<Response> {
     title,
     userMessage: { role: 'user', content: userContent },
     assistantMessage: { role: 'assistant', content: reply },
+    promoted_files: Object.keys(promoted_files).length ? promoted_files : undefined,
   });
 }
 
