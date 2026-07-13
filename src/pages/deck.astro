@@ -5,6 +5,7 @@
  */
 import Favicon from '../components/Favicon.astro';
 import Header from '../components/Header.astro';
+import Preloader from '../components/Preloader.astro';
 import { assertDeckScript } from '../deck/validate';
 import type { DeckVideoEnter } from '../deck/types';
 import { getCompanyConfig, homepageHeroMask } from '../lib/companyConfig';
@@ -109,24 +110,7 @@ const deckPayload = {
   <body>
     <Header />
 
-    <div id="boot" aria-hidden="true">
-      {
-        heroMask ? (
-          <div
-            class="boot-logo-stack"
-            style={`--hero-logo-mask: url("${heroMask}")`}
-            aria-hidden="true"
-          >
-            <div id="bootQuantumHost" class="boot-quantum-host"></div>
-          </div>
-        ) : (
-          <div class="boot-logo-fallback" aria-hidden="true">{company.name}</div>
-        )
-      }
-      <div class="boot-bar-wrap">
-        <div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
-      </div>
-    </div>
+    <Preloader heroMask={heroMask} fallbackName={company.name} />
 
     <nav id="dock" aria-label="Deck sections">
       {
@@ -407,75 +391,6 @@ const deckPayload = {
 
       .app-header {
         z-index: 7000;
-      }
-
-      #boot {
-        position: fixed;
-        inset: 0;
-        background: #050505;
-        z-index: 100000;
-        transition: opacity 0.7s ease;
-      }
-      .boot-logo-stack {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        overflow: hidden;
-        mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-        -webkit-mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-        mask-size: 210px;
-        -webkit-mask-size: 210px;
-        mask-position: center calc(50% - 28px);
-        -webkit-mask-position: center calc(50% - 28px);
-        mask-repeat: no-repeat;
-        -webkit-mask-repeat: no-repeat;
-        mask-mode: alpha;
-        -webkit-mask-mode: alpha;
-        filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.4))
-          drop-shadow(0 0 28px rgba(255, 100, 200, 0.24));
-      }
-      .boot-quantum-host {
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-      }
-      .boot-quantum-host canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
-      }
-      .boot-logo-fallback {
-        position: absolute;
-        left: 50%;
-        top: calc(50% - 40px);
-        transform: translate(-50%, -50%);
-        max-width: 210px;
-        font-family: var(--display);
-        font-weight: 800;
-        font-size: 1.35rem;
-        letter-spacing: -0.03em;
-        text-align: center;
-        color: rgba(255, 255, 255, 0.85);
-      }
-      .boot-bar-wrap {
-        position: absolute;
-        left: 50%;
-        top: calc(50% + 96px);
-        transform: translateX(-50%);
-      }
-      .boot-bar {
-        width: 180px;
-        height: 5px;
-        background: #222;
-        border-radius: 3px;
-        overflow: hidden;
-      }
-      .boot-fill {
-        height: 100%;
-        width: 0;
-        background: #fff;
-        border-radius: 3px;
-        transition: width 2.4s ease-in-out;
       }
 
       #scroll-track {
@@ -892,24 +807,5 @@ const deckPayload = {
     </style>
 
     <script src="/deck/deck-nav.js" defer></script>
-    <script>
-      import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
-
-      const host = document.getElementById('bootQuantumHost');
-      if (host) {
-        const detach = attachQuantumCoreOpticalEngine(host);
-        const boot = document.getElementById('boot');
-        const parent = boot?.parentElement;
-        if (parent) {
-          const obs = new MutationObserver(() => {
-            if (!document.getElementById('boot')) {
-              detach();
-              obs.disconnect();
-            }
-          });
-          obs.observe(parent, { childList: true });
-        }
-      }
-    </script>
   </body>
 </html>

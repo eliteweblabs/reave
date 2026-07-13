@@ -11,8 +11,8 @@
       "features": [
         {
           "id": "homepage-reel",
-          "title": "Brand-first homepage",
-          "body": "A dynamic, mobile-forward homepage built around your brand — interactive presence, not a some bogus template.",
+          "title": "A Website that Cooks",
+          "body": "A dynamic, mobile-forward SPA built around your brand — interactive presence, not a some bogus template.",
           "scrollHeight": 120,
           "actions": [
             {
@@ -200,8 +200,8 @@
       "features": [
         {
           "id": "documents-reel",
-          "title": "Sign & send",
-          "body": "Generate, send, sign. Record as documents.gif.",
+          "title": "Documents Suite",
+          "body": "Create, manage, send, and sign documents. Record as documents.gif.",
           "scrollHeight": 120,
           "actions": [
             {
