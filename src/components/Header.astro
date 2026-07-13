@@ -221,6 +221,14 @@ const userId = auth?.userId ?? null;
     --nav-icon: rgba(0, 0, 0, 0.45);
     --nav-icon-hover: rgba(0, 0, 0, 0.72);
     --nav-icon-active: #0f172a;
+    --z-panel: 10;
+    --z-topbar: 20;
+    --z-footer: 2000;
+    --z-overlay: 5000;
+    --z-floating: 10000;
+    --z-tooltip: 10000;
+    --z-toast: 10000;
+    --z-critical: 99999;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -254,7 +262,7 @@ const userId = auth?.userId ?? null;
   }
 
   .app-header--admin {
-    z-index: 20;
+    z-index: var(--z-topbar);
     min-height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
     background: transparent;
     border-bottom: none;
@@ -593,7 +601,7 @@ const userId = auth?.userId ?? null;
     border-radius: 10px;
     padding: 0.35rem;
     box-shadow: var(--dropdown-shadow, 0 16px 40px rgba(0, 0, 0, 0.55));
-    z-index: 120;
+    z-index: var(--z-floating);
   }
 
   .app-header-dropdown.open,
@@ -668,23 +676,38 @@ const userId = auth?.userId ?? null;
 </style>
 
 {!adminShell && !homeAdminEntry && (
-  <script>
-    function closeHeaderMenus(exceptMenu?: HTMLElement | null) {
+  <script type="module">
+    import {
+      positionFloatingEl,
+      resetFloatingEl,
+      bindFloatingReposition,
+      unbindFloatingReposition,
+    } from "/admin/admin-ui.js";
+
+    function resetHeaderMenu(menu) {
+      menu.classList.remove("open");
+      resetFloatingEl(menu);
+    }
+
+    function closeHeaderMenus(exceptMenu) {
       for (const menu of document.querySelectorAll(".topbar-dropdown")) {
         if (exceptMenu && menu === exceptMenu) continue;
-        menu.classList.remove("open");
+        resetHeaderMenu(menu);
       }
+      unbindFloatingReposition();
       document.getElementById("topbar-tools-toggle")?.setAttribute("aria-expanded", "false");
       document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
     }
 
-    function toggleHeaderMenu(menuEl: HTMLElement | null, toggleEl: HTMLElement | null) {
+    function toggleHeaderMenu(menuEl, toggleEl) {
       if (!menuEl || !toggleEl) return;
       const willOpen = !menuEl.classList.contains("open");
       closeHeaderMenus(null);
       if (willOpen) {
         menuEl.classList.add("open");
         toggleEl.setAttribute("aria-expanded", "true");
+        positionFloatingEl(menuEl, toggleEl, { align: "end" });
+        bindFloatingReposition(menuEl, toggleEl, { align: "end" });
       }
     }
 
@@ -705,7 +728,7 @@ const userId = auth?.userId ?? null;
     document.getElementById("topbar-sign-out")?.addEventListener("click", async (ev) => {
       ev.preventDefault();
       closeHeaderMenus(null);
-      const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
+      const { Clerk } = window;
       if (Clerk) {
         await Clerk.signOut();
         window.location.href = "/";

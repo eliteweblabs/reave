@@ -117,6 +117,15 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         --sidebar-w: 260px;
         --sidebar-min-w: 200px;
         --sidebar-max-w: 520px;
+        /* Floating overlay stack — dropdowns, tooltips, popovers (override per use case in JS) */
+        --z-panel: 10;
+        --z-topbar: 20;
+        --z-footer: 2000;
+        --z-overlay: 5000;
+        --z-floating: 10000;
+        --z-tooltip: 10000;
+        --z-toast: 10000;
+        --z-critical: 99999;
       }
       @media (min-width: 640px) {
         :root {
@@ -609,7 +618,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         opacity: 0;
         visibility: hidden;
         transition: opacity 0.12s;
-        z-index: 9999;
+        z-index: var(--z-tooltip);
       }
       [data-tooltip]:hover::after { opacity: 1; visibility: visible; }
       /* Items near the right edge: right-align the tooltip */
@@ -725,7 +734,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         border: 1px solid var(--panel-border);
         border-radius: 9px;
         box-shadow: var(--shadow-lg);
-        z-index: 30;
+        z-index: var(--z-floating);
       }
       .tab-dropdown.open .tab-dropdown-menu { display: flex; }
       .tab-dropdown-item {
@@ -1372,7 +1381,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       /* ── Shortcode autocomplete popover ── */
       .de-sc-pop {
         position: fixed;
-        z-index: 9999;
+        z-index: var(--z-floating);
         display: none;
         min-width: 260px;
         max-width: 320px;
@@ -1872,7 +1881,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         left: 0;
         right: 0;
         top: calc(100% + 2px);
-        z-index: 40;
+        z-index: var(--z-floating);
         max-height: 220px;
         overflow-y: auto;
         border: 1px solid var(--panel-border);
@@ -2808,7 +2817,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         bottom: 1.25rem;
         left: 50%;
         transform: translateX(-50%) translateY(0.5rem);
-        z-index: 9999;
+        z-index: var(--z-toast);
         padding: 0.45rem 0.85rem;
         font-size: 0.78rem;
         font-weight: 500;
@@ -2827,7 +2836,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .ch-context-menu {
         position: fixed;
-        z-index: 10000;
+        z-index: var(--z-floating);
         min-width: 9rem;
         padding: 0.25rem;
         background: var(--popover-bg);
@@ -3239,6 +3248,15 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         overflow-wrap: anywhere;
       }
       .em-detail-meta strong { color: var(--fg); font-weight: 600; margin-right: 0.35rem; }
+      #email-panel .de-header {
+        overflow: visible;
+        position: relative;
+        z-index: 5;
+      }
+      #email-panel .de-header-actions {
+        position: relative;
+        z-index: 6;
+      }
       .em-btn-group {
         display: inline-flex;
         align-items: stretch;
@@ -3297,7 +3315,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         max-width: min(20rem, 70vw);
         max-height: 16rem;
         overflow-y: auto;
-        z-index: 40;
+        z-index: var(--z-floating);
         background: var(--dropdown-bg);
         border: 1px solid var(--card-border);
         border-radius: 8px;
@@ -3673,7 +3691,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         display: none;
         position: fixed;
         inset: 0;
-        z-index: 5000;
+        z-index: var(--z-overlay);
         background: rgba(0, 0, 0, 0.72);
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
@@ -4338,7 +4356,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .sched-guest-dropdown {
         position: fixed;
-        z-index: 5100;
+        z-index: var(--z-floating);
         max-height: 220px;
         overflow-y: auto;
         border: 1px solid var(--panel-border);
@@ -4938,7 +4956,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         display: none;
         flex-direction: column;
         background: var(--overlay-bg);
-        z-index: 15;
+        z-index: var(--z-overlay);
         padding:
           calc(var(--topbar-h) + 0.75rem)
           1rem
@@ -5130,7 +5148,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
           banner.id = 'admin-boot-error';
           banner.setAttribute('role', 'alert');
           banner.style.cssText =
-            'position:fixed;inset:auto 0 0 0;z-index:99999;padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
+            'position:fixed;inset:auto 0 0 0;z-index:var(--z-critical,99999);padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
           banner.textContent =
             'Admin failed to start' +
             (detail ? ': ' + detail : '') +
@@ -5153,6 +5171,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250712a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
   </body>
 </html>

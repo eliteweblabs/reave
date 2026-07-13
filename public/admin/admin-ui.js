@@ -21,6 +21,131 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>',
 };
 
+/**
+ * Shared z-index scale for dropdowns, tooltips, and popovers.
+ * Keep in sync with `--z-*` tokens in admin/index.astro and Header.astro.
+ * Pass a higher `zIndex` to positionFloatingEl when a specific overlay must sit above others.
+ */
+export const UI_Z = {
+  panel: 10,
+  topbar: 20,
+  footer: 2000,
+  overlay: 5000,
+  floating: 10000,
+  toast: 10000,
+  critical: 99999,
+};
+
+/** Read a `--z-*` custom property from :root. */
+export function readUiZ(token = 'floating', fallback) {
+  const key = token.startsWith('--') ? token : `--z-${token}`;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(key).trim();
+  const n = parseInt(raw, 10);
+  if (Number.isFinite(n)) return n;
+  return fallback ?? UI_Z[token] ?? UI_Z.floating;
+}
+
+const FLOAT_STYLE_PROPS = ['position', 'top', 'left', 'right', 'bottom', 'width', 'zIndex'];
+
+/** Clear inline geometry from a floating overlay. */
+export function resetFloatingEl(el) {
+  if (!el) return;
+  for (const prop of FLOAT_STYLE_PROPS) {
+    el.style[prop] = '';
+  }
+}
+
+/**
+ * Pin a menu/popover to a trigger with `position: fixed` so it escapes panel stacking contexts.
+ *
+ * @param {HTMLElement} el
+ * @param {HTMLElement} trigger
+ * @param {object} [opts]
+ * @param {'start'|'end'} [opts.align='start'] — anchor to trigger's left or right edge
+ * @param {number} [opts.gap=4]
+ * @param {number} [opts.inset=8]
+ * @param {number} [opts.zIndex] — defaults to `--z-floating`
+ * @param {boolean} [opts.matchWidth=false]
+ */
+export function positionFloatingEl(el, trigger, opts = {}) {
+  const {
+    align = 'start',
+    gap = 4,
+    inset = 8,
+    zIndex = readUiZ('floating'),
+    matchWidth = false,
+  } = opts;
+  if (!el || !trigger) return;
+
+  requestAnimationFrame(() => {
+    const rect = trigger.getBoundingClientRect();
+    el.style.position = 'fixed';
+    el.style.top = `${rect.bottom + gap}px`;
+    if (align === 'end') {
+      el.style.left = 'auto';
+      el.style.right = `${Math.max(inset, window.innerWidth - rect.right)}px`;
+    } else {
+      el.style.left = `${Math.max(inset, Math.min(rect.left, window.innerWidth - el.offsetWidth - inset))}px`;
+      el.style.right = 'auto';
+    }
+    if (matchWidth) el.style.width = `${rect.width}px`;
+    el.style.zIndex = String(zIndex);
+  });
+}
+
+/** Pin a floating overlay at viewport coordinates (context menus, caret popovers). */
+export function positionFloatingAt(el, x, y, opts = {}) {
+  const { inset = 8, zIndex = readUiZ('floating') } = opts;
+  if (!el) return;
+
+  requestAnimationFrame(() => {
+    el.style.position = 'fixed';
+    const rect = el.getBoundingClientRect();
+    const maxLeft = Math.max(inset, window.innerWidth - rect.width - inset);
+    const maxTop = Math.max(inset, window.innerHeight - rect.height - inset);
+    el.style.left = `${Math.min(Math.max(x, inset), maxLeft)}px`;
+    el.style.top = `${Math.min(Math.max(y, inset), maxTop)}px`;
+    el.style.zIndex = String(zIndex);
+  });
+}
+
+let _floatReposition = null;
+
+/** Keep a trigger-anchored floating overlay aligned on scroll/resize. */
+export function bindFloatingReposition(el, trigger, opts = {}) {
+  unbindFloatingReposition();
+  const handler = () => positionFloatingEl(el, trigger, opts);
+  _floatReposition = { handler };
+  window.addEventListener('resize', handler);
+  window.addEventListener('scroll', handler, true);
+  window.visualViewport?.addEventListener('resize', handler);
+  window.visualViewport?.addEventListener('scroll', handler);
+}
+
+export function unbindFloatingReposition() {
+  if (!_floatReposition) return;
+  const { handler } = _floatReposition;
+  window.removeEventListener('resize', handler);
+  window.removeEventListener('scroll', handler, true);
+  window.visualViewport?.removeEventListener('resize', handler);
+  window.visualViewport?.removeEventListener('scroll', handler);
+  _floatReposition = null;
+}
+
+/**
+ * Open a trigger-anchored floating menu. Returns a close function.
+ * @param {{ menu: HTMLElement, trigger: HTMLElement } & object} opts
+ */
+export function mountFloatingMenu(opts) {
+  const { menu, trigger } = opts;
+  positionFloatingEl(menu, trigger, opts);
+  bindFloatingReposition(menu, trigger, opts);
+  return () => {
+    resetFloatingEl(menu);
+    unbindFloatingReposition();
+  };
+}
+
 /** Icon-only toolbar button (44pt touch target, iOS-style). */
 export function createIosIconBtn(opts = {}) {
   const { iconKey, label, className = 'ios-icon-btn', onClick } = opts;

@@ -12,7 +12,13 @@ import {
   scanPanelSidebars,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20250701h';
+  positionFloatingEl,
+  positionFloatingAt,
+  resetFloatingEl,
+  bindFloatingReposition,
+  unbindFloatingReposition,
+  readUiZ,
+} from './admin-ui.js?v=20250713a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -1277,26 +1283,14 @@ function tabInnerHtml(key, m) {
 
 function resetMobileTabDropdown(wrap) {
   const menu = wrap?.querySelector('.tab-dropdown-menu');
-  if (!menu) return;
-  menu.style.position = '';
-  menu.style.top = '';
-  menu.style.left = '';
-  menu.style.right = '';
-  menu.style.zIndex = '';
+  if (menu) resetFloatingEl(menu);
 }
 
 function positionTabDropdownMenu(wrap) {
   const menu = wrap.querySelector('.tab-dropdown-menu');
   const trigger = wrap.querySelector('.tab-dropdown-trigger');
   if (!menu || !trigger) return;
-  requestAnimationFrame(() => {
-    const rect = trigger.getBoundingClientRect();
-    menu.style.position = 'fixed';
-    menu.style.top = `${rect.bottom + 4}px`;
-    menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8))}px`;
-    menu.style.right = 'auto';
-    menu.style.zIndex = '10000';
-  });
+  positionFloatingEl(menu, trigger);
 }
 
 function closeTabDropdowns(except) {
@@ -1568,7 +1562,9 @@ function closeTopbarMenus(exceptMenu) {
   for (const menu of document.querySelectorAll('.topbar-dropdown')) {
     if (exceptMenu && menu === exceptMenu) continue;
     menu.classList.remove('open');
+    resetFloatingEl(menu);
   }
+  unbindFloatingReposition();
   document.getElementById('topbar-tools-toggle')?.setAttribute('aria-expanded', 'false');
   document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
   syncFooterNav();
@@ -1581,6 +1577,8 @@ function toggleTopbarMenu(menuEl, toggleEl) {
   if (willOpen) {
     menuEl.classList.add('open');
     toggleEl.setAttribute('aria-expanded', 'true');
+    positionFloatingEl(menuEl, toggleEl, { align: 'end' });
+    bindFloatingReposition(menuEl, toggleEl, { align: 'end' });
   }
   syncFooterNav();
 }
@@ -5539,6 +5537,8 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     changing = false;
     searchInput.value = '';
     dropdown.style.display = 'none';
+    resetFloatingEl(dropdown);
+    unbindFloatingReposition();
     syncView();
   }
 
@@ -5548,6 +5548,8 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     showingNew = false;
     changing = false;
     dropdown.style.display = 'none';
+    resetFloatingEl(dropdown);
+    unbindFloatingReposition();
     searchInput.value = '';
     syncView();
     if (client.uid !== prevUid) onChange?.();
@@ -5572,11 +5574,15 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       newName.value = query.trim();
       newEmail.value = '';
       dropdown.style.display = 'none';
+      resetFloatingEl(dropdown);
+      unbindFloatingReposition();
       syncView();
       newName.focus();
     });
     dropdown.appendChild(addBtn);
     dropdown.style.display = 'block';
+    positionFloatingEl(dropdown, searchInput, { matchWidth: true });
+    bindFloatingReposition(dropdown, searchInput, { matchWidth: true });
   }
 
   async function fetchClients(q) {
@@ -6417,13 +6423,10 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   dropdown.style.display = 'none';
   portal.appendChild(dropdown);
 
-  let repositionHandler = null;
+  let closeGuestDropdownReposition = false;
 
   function positionDropdown() {
-    const rect = nameInput.getBoundingClientRect();
-    dropdown.style.left = `${rect.left}px`;
-    dropdown.style.top = `${rect.bottom + 4}px`;
-    dropdown.style.width = `${rect.width}px`;
+    positionFloatingEl(dropdown, nameInput, { matchWidth: true });
   }
 
   function setDropdownOpen(open) {
@@ -6431,23 +6434,18 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
       positionDropdown();
       dropdown.style.display = 'block';
       nameInput.setAttribute('aria-expanded', 'true');
-      if (!repositionHandler) {
-        repositionHandler = () => positionDropdown();
-        window.addEventListener('resize', repositionHandler);
-        window.addEventListener('scroll', repositionHandler, true);
-        window.visualViewport?.addEventListener('resize', repositionHandler);
-        window.visualViewport?.addEventListener('scroll', repositionHandler);
+      if (!closeGuestDropdownReposition) {
+        bindFloatingReposition(dropdown, nameInput, { matchWidth: true });
+        closeGuestDropdownReposition = true;
       }
       return;
     }
     dropdown.style.display = 'none';
     nameInput.setAttribute('aria-expanded', 'false');
-    if (repositionHandler) {
-      window.removeEventListener('resize', repositionHandler);
-      window.removeEventListener('scroll', repositionHandler, true);
-      window.visualViewport?.removeEventListener('resize', repositionHandler);
-      window.visualViewport?.removeEventListener('scroll', repositionHandler);
-      repositionHandler = null;
+    resetFloatingEl(dropdown);
+    if (closeGuestDropdownReposition) {
+      unbindFloatingReposition();
+      closeGuestDropdownReposition = false;
     }
   }
 
@@ -8484,11 +8482,7 @@ function showChatContextMenu(x, y, items) {
   }
   document.body.appendChild(menu);
   _chCtxMenu = menu;
-  const rect = menu.getBoundingClientRect();
-  const left = Math.min(x, window.innerWidth - rect.width - 8);
-  const top = Math.min(y, window.innerHeight - rect.height - 8);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  positionFloatingAt(menu, x, y);
   const close = (ev) => {
     if (menu.contains(ev.target)) return;
     menu.remove();
@@ -10346,8 +10340,11 @@ let openEmailProjectMenu = null;
 function closeEmailProjectMenu() {
   if (openEmailProjectMenu) {
     openEmailProjectMenu.classList.remove('open');
+    const menu = openEmailProjectMenu.querySelector('.em-project-menu');
+    resetFloatingEl(menu);
     openEmailProjectMenu = null;
   }
+  unbindFloatingReposition();
 }
 
 async function populateEmailProjectMenu(ev, menu) {
@@ -10421,9 +10418,15 @@ function createEmailProjectDropdown(ev) {
     e.stopPropagation();
     if (openEmailProjectMenu && openEmailProjectMenu !== wrap) closeEmailProjectMenu();
     const opening = !wrap.classList.contains('open');
-    if (opening) await populateEmailProjectMenu(ev, menu);
-    wrap.classList.toggle('open', opening);
-    openEmailProjectMenu = opening ? wrap : null;
+    if (opening) {
+      await populateEmailProjectMenu(ev, menu);
+      wrap.classList.add('open');
+      openEmailProjectMenu = wrap;
+      positionFloatingEl(menu, trigger, { align: 'end' });
+      bindFloatingReposition(menu, trigger, { align: 'end' });
+    } else {
+      closeEmailProjectMenu();
+    }
   });
 
   wrap.appendChild(trigger);
@@ -11341,7 +11344,7 @@ function showBootError(err) {
   const banner = document.createElement('div');
   banner.setAttribute('role', 'alert');
   banner.style.cssText =
-    'position:fixed;inset:auto 0 0 0;z-index:99999;padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
+    `position:fixed;inset:auto 0 0 0;z-index:${readUiZ('critical')};padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b`;
   banner.textContent =
     'Admin failed to start (JavaScript error). Hard-refresh the page. If it persists, clear site data for this domain.';
   document.body?.appendChild(banner);
