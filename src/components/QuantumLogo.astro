@@ -2,6 +2,8 @@
 export interface Props {
   /** Mask image URL. When omitted, nothing is rendered. */
   heroMask: string;
+  /** Full-color logo PNG the particles resolve into (default /logo.png). */
+  logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
   /** Homepage mask slide-in; centered keeps the logo in the middle; compact fits the header. */
@@ -17,6 +19,7 @@ export interface Props {
 
 const {
   heroMask,
+  logoSrc,
   hostId = 'quantumCanvasHost',
   layout = 'homepage',
   introRush = true,
@@ -42,12 +45,14 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   data-quantum-logo
   data-layout={layout}
   data-host-id={hostId}
+  data-logo-src={logoSrc}
   data-intro-rush={introRush ? 'true' : 'false'}
   data-intro-duration={String(introDuration)}
   data-init-delay={String(resolvedInitDelay)}
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
+  <img class="quantum-logo-static" src={logoSrc} alt="" decoding="async" />
 </div>
 
 <style>
@@ -67,8 +72,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
-      drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.25))
+      drop-shadow(0 0 28px rgba(200, 80, 180, 0.18));
   }
 
   .quantum-logo-stack--homepage {
@@ -93,8 +98,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-size: contain;
     mask-position: center center;
     -webkit-mask-position: center center;
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4))
-      drop-shadow(0 0 14px rgba(255, 100, 200, 0.22));
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.28))
+      drop-shadow(0 0 10px rgba(200, 80, 180, 0.16));
   }
 
   .quantum-logo-stack--compact .quantum-host {
@@ -110,6 +115,23 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
+    z-index: 0;
+  }
+
+  .quantum-logo-static {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .quantum-logo-stack--homepage .quantum-logo-static {
+    object-position: center center;
   }
 
   .quantum-host :global(canvas) {
@@ -198,15 +220,37 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     });
   }
 
+  function smoothstep(t: number): number {
+    const x = Math.max(0, Math.min(1, t));
+    return x * x * (3 - 2 * x);
+  }
+
   function initStack(stack: HTMLElement): () => void {
     const hostId = stack.dataset.hostId || 'quantumCanvasHost';
     const host = document.getElementById(hostId);
     if (!host) return () => {};
 
     const layout = stack.dataset.layout || 'homepage';
+    const logoSrc = stack.dataset.logoSrc || '/logo.png';
+    const staticImg = stack.querySelector('.quantum-logo-static');
     const introRush = stack.dataset.introRush === 'true';
     const introDuration = Number(stack.dataset.introDuration) || 2.4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
+
+    const revealStatic = (t: number) => {
+      const revealStart = 0.48;
+      const reveal = smoothstep(
+        Math.max(0, (t - revealStart) / (1 - revealStart)),
+      );
+      if (staticImg instanceof HTMLImageElement) {
+        staticImg.style.opacity = String(reveal);
+      }
+      host.style.opacity = reveal >= 0.99 ? '0' : String(1 - reveal * 0.92);
+    };
+
+    if (prefersReducedMotion() || !introRush) {
+      revealStatic(1);
+    }
 
     document.documentElement.classList.add('quantum-page-touch');
     document.body.classList.add('quantum-page-touch');
@@ -219,6 +263,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
+        logoImageUrl: logoSrc,
+        onIntroProgress: revealStatic,
       });
     };
 

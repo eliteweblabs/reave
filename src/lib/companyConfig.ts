@@ -104,6 +104,12 @@ export function homepageHeroMask(company: CompanyConfig): string | null {
   return '/logo-mask.svg';
 }
 
+/** Static logo image for the quantum intro resolve (default /logo.png). */
+export function homepageHeroLogo(company: CompanyConfig): string | null {
+  if (company.logoSource === 'hidden') return null;
+  return companyLogoUrl(company.logoPath, company.logoVersion) || '/logo.png';
+}
+
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
   const domain = domainFromEnvOrRequest(request);
   const logo = resolveLogo(stored);

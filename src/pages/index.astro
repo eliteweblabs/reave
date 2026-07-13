@@ -4,14 +4,15 @@ import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
-import { getCompanyConfig, homepageHeroMask } from "../lib/companyConfig";
+import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
+const heroLogo = homepageHeroLogo(company);
 ---
 
 <Layout>
-  {heroMask && <QuantumLogo heroMask={heroMask} layout="homepage" />}
+  {heroMask && heroLogo && <QuantumLogo heroMask={heroMask} logoSrc={heroLogo} layout="homepage" />}
   <div class="quantum-vignette" aria-hidden="true"></div>
 
   <div class="quantum-controls-dock" aria-label="Background controls">

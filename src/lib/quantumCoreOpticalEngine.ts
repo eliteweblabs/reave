@@ -103,6 +103,70 @@ export interface QuantumEngineOptions {
   introRush?: {
     durationSec: number;
   };
+  /** Static logo image — particle colors are sampled from this; no rainbow drift. */
+  logoImageUrl?: string;
+  /** 0–1 intro progress for crossfading to the static logo image. */
+  onIntroProgress?: (t: number) => void;
+}
+
+const LOGO_SAMPLE_SIZE = 512;
+
+type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
+
+async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to load logo image: ${url}`));
+    img.src = url;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = LOGO_SAMPLE_SIZE;
+  canvas.height = LOGO_SAMPLE_SIZE;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D unavailable");
+
+  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
+  let drawW = LOGO_SAMPLE_SIZE;
+  let drawH = LOGO_SAMPLE_SIZE;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (aspect > 1) {
+    drawH = LOGO_SAMPLE_SIZE / aspect;
+    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
+  } else {
+    drawW = LOGO_SAMPLE_SIZE * aspect;
+    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
+  }
+  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
+  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
+
+  return (u: number, v: number) => {
+    const x = Math.floor(
+      THREE.MathUtils.clamp(u, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
+    );
+    const y = Math.floor(
+      THREE.MathUtils.clamp(v, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
+    );
+    const i = (y * LOGO_SAMPLE_SIZE + x) * 4;
+    const r = pixels[i]! / 255;
+    const g = pixels[i + 1]! / 255;
+    const b = pixels[i + 2]! / 255;
+    const a = pixels[i + 3]! / 255;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (a < 0.06 && lum < 0.06) return null;
+    if (lum < 0.05) return null;
+    return new THREE.Color(r, g, b);
+  };
+}
+
+function homeUv(hx: number, hy: number, cloudRadius: number, cloudHalfH: number): [number, number] {
+  const u = hx / (cloudRadius * 2) + 0.5;
+  const v = 0.5 - hy / (cloudHalfH * 2);
+  return [u, v];
 }
 
 function easeOutCubic(t: number): number {
@@ -484,27 +548,57 @@ export function attachQuantumCoreOpticalEngine(
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
-  /** Reused when building the horizontal particle gradient each frame. */
-  const gradientTint = new THREE.Color(0xff0000);
-  const GRADIENT_SPAN = CLOUD_RADIUS * 2.4;
+  const introTint = new THREE.Color(0.92, 0.88, 0.96);
+  const logoFallback = new THREE.Color(0.82, 0.45, 0.72);
+  const logoHomeColors = new Float32Array(particleCount * 3);
+  let logoColorsReady = false;
+  const logoImageUrl = options?.logoImageUrl?.trim() || "";
+  if (logoImageUrl) {
+    void createLogoColorSampler(logoImageUrl)
+      .then((sample) => {
+        for (let i = 0; i < particleCount; i++) {
+          const hx = homePositions[i * 3]!;
+          const hy = homePositions[i * 3 + 1]!;
+          const [u, v] = homeUv(hx, hy, CLOUD_RADIUS, CLOUD_HALF_HEIGHT);
+          const sampled = sample(u, v);
+          const color = sampled ?? logoFallback;
+          logoHomeColors[i * 3] = color.r;
+          logoHomeColors[i * 3 + 1] = color.g;
+          logoHomeColors[i * 3 + 2] = color.b;
+        }
+        logoColorsReady = true;
+      })
+      .catch(() => {
+        logoColorsReady = false;
+      });
+  }
 
-  function updateHorizontalParticleGradient(time: number, rotY: number): void {
-    const sat = prefersReduced ? 0.68 : 0.74;
-    const light = prefersReduced ? 0.51 : 0.53;
-    const shift = time * (prefersReduced ? 0.045 : 0.09);
-    const cosR = Math.cos(rotY);
-    const sinR = Math.sin(rotY);
-
+  function applyParticleLogoColors(colorMix = 1, energy = 0): void {
+    const mix = THREE.MathUtils.clamp(colorMix, 0, 1);
+    const boost = 1 + energy * 0.12;
     for (let i = 0; i < particleCount; i++) {
-      const lx = positions[i * 3]!;
-      const lz = positions[i * 3 + 2]!;
-      const worldX = lx * cosR + lz * sinR;
-      const hue = (((worldX / GRADIENT_SPAN) + 0.5 + shift) % 1 + 1) % 1;
-      gradientTint.setHSL(hue, sat, light);
-      normalizeTintLuminance(gradientTint, isMobileLike ? 0.46 : 0.4, 2.6);
-      particleColors[i * 3] = gradientTint.r;
-      particleColors[i * 3 + 1] = gradientTint.g;
-      particleColors[i * 3 + 2] = gradientTint.b;
+      const i3 = i * 3;
+      if (logoColorsReady) {
+        particleColors[i3] = THREE.MathUtils.lerp(
+          introTint.r,
+          logoHomeColors[i3]! * boost,
+          mix,
+        );
+        particleColors[i3 + 1] = THREE.MathUtils.lerp(
+          introTint.g,
+          logoHomeColors[i3 + 1]! * boost,
+          mix,
+        );
+        particleColors[i3 + 2] = THREE.MathUtils.lerp(
+          introTint.b,
+          logoHomeColors[i3 + 2]! * boost,
+          mix,
+        );
+      } else {
+        particleColors[i3] = introTint.r;
+        particleColors[i3 + 1] = introTint.g;
+        particleColors[i3 + 2] = introTint.b;
+      }
     }
     particlesGeo.attributes.color!.needsUpdate = true;
   }
@@ -739,22 +833,21 @@ export function attachQuantumCoreOpticalEngine(
         particleBaseSize * THREE.MathUtils.lerp(2.4, 1, globalIntroT);
       particlesMat.opacity =
         particleBaseOpacity * THREE.MathUtils.lerp(0.18, 1, globalIntroT);
+      applyParticleLogoColors(globalIntroT, energy);
+      options?.onIntroProgress?.(globalIntroT);
     } else {
       particles.rotation.y = rotY;
+      applyParticleLogoColors(1, energy);
 
       if (introDurationSec > 0) {
         particlesMat.opacity = particleBaseOpacity;
         if (!introCompleteFired) {
           introCompleteFired = true;
+          options?.onIntroProgress?.(1);
           window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
         }
       }
     }
-
-    /* Horizontal rainbow: hue from left→right across the logo, drifting over time. */
-    updateHorizontalParticleGradient(rawT, rotY);
-    gradientTint.setHSL((rawT * (prefersReduced ? 0.045 : 0.09)) % 1, 0.74, 0.53);
-    sphereMat.uniforms.uColorB.value.copy(gradientTint);
 
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
@@ -855,6 +948,9 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("resize", onResize);
 
   applyResize();
+  if (introDurationSec <= 0) {
+    options?.onIntroProgress?.(1);
+  }
   raf = requestAnimationFrame(animate);
 
   return () => {

@@ -8,7 +8,7 @@ import Header from '../components/Header.astro';
 import Preloader from '../components/Preloader.astro';
 import { assertDeckScript } from '../deck/validate';
 import type { DeckVideoEnter } from '../deck/types';
-import { getCompanyConfig, homepageHeroMask } from '../lib/companyConfig';
+import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from '../lib/companyConfig';
 import everythingRaw from '../deck/scripts/everything.json';
 import {
   Home,
@@ -31,6 +31,7 @@ export const prerender = false;
 const script = assertDeckScript(everythingRaw);
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
+const heroLogo = homepageHeroLogo(company);
 
 /** Same Lucide set as admin header/footer nav, mapped to deck sections. */
 const DOCK_ICONS: Record<string, LucideIcon> = {
@@ -110,7 +111,7 @@ const deckPayload = {
   <body>
     <Header />
 
-    <Preloader heroMask={heroMask} fallbackName={company.name} />
+    <Preloader heroMask={heroMask} heroLogo={heroLogo} fallbackName={company.name} />
 
     <nav id="dock" aria-label="Deck sections">
       {

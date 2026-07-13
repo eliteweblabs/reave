@@ -4,11 +4,13 @@ import QuantumLogo from './QuantumLogo.astro';
 export interface Props {
   /** Homepage quantum mask URL, or null to show the company name fallback. */
   heroMask?: string | null;
+  /** Full-color logo PNG for the intro resolve. */
+  heroLogo?: string | null;
   /** Shown when heroMask is null. */
   fallbackName?: string;
 }
 
-const { heroMask = null, fallbackName = '' } = Astro.props;
+const { heroMask = null, heroLogo = null, fallbackName = '' } = Astro.props;
 ---
 
 <div id="boot" class="preloader" aria-hidden="true">
@@ -16,6 +18,7 @@ const { heroMask = null, fallbackName = '' } = Astro.props;
     heroMask ? (
       <QuantumLogo
         heroMask={heroMask}
+        logoSrc={heroLogo ?? heroMask}
         hostId="preloaderQuantumHost"
         layout="centered"
         class="preloader-logo"
