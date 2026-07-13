@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
@@ -10,12 +11,7 @@ const heroMask = homepageHeroMask(company);
 ---
 
 <Layout>
-  {heroMask && (
-  <!-- Mask clips the WebGL layer (mask on the painted content, not an empty box). -->
-  <div class="quantum-logo-stack" style={`--hero-logo-mask: url("${heroMask}")`} aria-hidden="true">
-    <div id="quantumCanvasHost" class="quantum-host"></div>
-  </div>
-  )}
+  {heroMask && <QuantumLogo heroMask={heroMask} layout="homepage" />}
   <div class="quantum-vignette" aria-hidden="true"></div>
 
   <div class="quantum-controls-dock" aria-label="Background controls">
@@ -87,51 +83,6 @@ const heroMask = homepageHeroMask(company);
   :global(html.quantum-page-touch body) {
     touch-action: none;
     overscroll-behavior: none;
-  }
-
-  /* Wrapper is masked; canvas paints only inside the logo SVG silhouette. */
-  .quantum-logo-stack {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    /* Must not be `none` — some engines skip hit-testing the whole subtree (incl. canvas). */
-    pointer-events: auto;
-    cursor: default;
-    touch-action: none;
-    overflow: hidden;
-    mask-image: var(--hero-logo-mask, url("/logo-mask.svg"));
-    -webkit-mask-image: var(--hero-logo-mask, url("/logo-mask.svg"));
-    /* Resolved size/position are read in JS so the WebGL camera matches this box (tight fit in the letters). */
-    mask-size: min(92vmin, 96vw, 820px);
-    -webkit-mask-size: min(92vmin, 96vw, 820px);
-    mask-position: 42% center;
-    -webkit-mask-position: 42% center;
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-mode: alpha;
-    -webkit-mask-mode: alpha;
-    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
-      drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
-    animation: quantumLogoIntro 1.4s ease-out forwards;
-  }
-
-  .quantum-host {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    /* Host still targets the canvas; stack owns pointer-events + cursor. */
-    pointer-events: auto;
-    touch-action: none;
-    overflow: hidden;
-  }
-
-  .quantum-host :global(canvas) {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none;
-    object-fit: cover;
   }
 
   .quantum-vignette {
@@ -256,28 +207,6 @@ const heroMask = homepageHeroMask(company);
     height: 100%;
   }
 
-  @keyframes quantumLogoIntro {
-    0% {
-      mask-position: 42% center;
-      -webkit-mask-position: 42% center;
-    }
-    100% {
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
-  }
-
-  /* iOS/WebKit: animating mask + filtered WebGL in the same layer often tears or “replays” the first frames. */
-  @media (hover: none) {
-    .quantum-logo-stack {
-      animation: none;
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
-  }
-
-  /* On phones the logo edges fall in the vignette's dark band, killing the
-     effect. Push the falloff outward and lighten it so the tint stays visible. */
   @media screen and (max-width: 768px) {
     .quantum-vignette {
       background: radial-gradient(
@@ -287,92 +216,4 @@ const heroMask = homepageHeroMask(company);
       );
     }
   }
-
-  @media screen and (min-width: 1024px) {
-    .quantum-logo-stack {
-      mask-size: min(88vmin, 94vw, 880px);
-      -webkit-mask-size: min(88vmin, 94vw, 880px);
-    }
-  }
-
-  @media screen and (min-width: 1440px) {
-    .quantum-logo-stack {
-      mask-size: min(84vmin, 92vw, 960px);
-      -webkit-mask-size: min(84vmin, 92vw, 960px);
-    }
-  }
-
-  @media screen and (min-width: 1920px) {
-    .quantum-logo-stack {
-      mask-size: min(80vmin, 90vw, 1040px);
-      -webkit-mask-size: min(80vmin, 90vw, 1040px);
-    }
-  }
-
-  @media screen and (min-width: 2560px) {
-    .quantum-logo-stack {
-      mask-size: min(76vmin, 88vw, 1180px);
-      -webkit-mask-size: min(76vmin, 88vw, 1180px);
-    }
-  }
 </style>
-
-<script>
-  import { attachQuantumCoreOpticalEngine } from "../lib/quantumCoreOpticalEngine";
-
-  function prefersReducedMotion(): boolean {
-    return (
-      typeof matchMedia !== "undefined" &&
-      matchMedia("(prefers-reduced-motion: reduce)").matches
-    );
-  }
-
-  function init(): () => void {
-    const host = document.getElementById("quantumCanvasHost");
-    if (!host) return () => {};
-
-    document.documentElement.classList.add("quantum-page-touch");
-    document.body.classList.add("quantum-page-touch");
-
-    let detach: (() => void) | undefined;
-
-    const start = () => {
-      detach = attachQuantumCoreOpticalEngine(host);
-    };
-
-    const touchUi =
-      typeof matchMedia !== "undefined" &&
-      (matchMedia("(pointer: coarse)").matches ||
-        matchMedia("(hover: none)").matches);
-    const delayMs = prefersReducedMotion() || touchUi ? 0 : 400;
-    const delayId = window.setTimeout(start, delayMs);
-
-    return () => {
-      window.clearTimeout(delayId);
-      detach?.();
-      document.documentElement.classList.remove("quantum-page-touch");
-      document.body.classList.remove("quantum-page-touch");
-    };
-  }
-
-  let cleanup: (() => void) | undefined;
-
-  function boot() {
-    cleanup?.();
-    cleanup = init();
-    window.addEventListener(
-      "pagehide",
-      () => {
-        cleanup?.();
-        cleanup = undefined;
-      },
-      { once: true },
-    );
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
-  } else {
-    boot();
-  }
-</script>

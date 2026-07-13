@@ -1,33 +1,29 @@
 ---
+import QuantumLogo from './QuantumLogo.astro';
+
 export interface Props {
   /** Homepage quantum mask URL, or null to show the company name fallback. */
   heroMask?: string | null;
   /** Shown when heroMask is null. */
   fallbackName?: string;
-  /** Animate progress on load but keep the overlay visible (dev preview). */
-  persist?: boolean;
 }
 
-const { heroMask = null, fallbackName = '', persist = false } = Astro.props;
+const { heroMask = null, fallbackName = '' } = Astro.props;
 ---
 
 <div id="boot" class="preloader" aria-hidden="true">
   {
     heroMask ? (
-      <div
-        class="boot-logo-stack"
-        style={`--hero-logo-mask: url("${heroMask}")`}
-        aria-hidden="true"
-      >
-        <div id="bootQuantumHost" class="boot-quantum-host"></div>
-      </div>
+      <QuantumLogo
+        heroMask={heroMask}
+        hostId="preloaderQuantumHost"
+        layout="centered"
+        class="preloader-logo"
+      />
     ) : (
-      <div class="boot-logo-fallback" aria-hidden="true">{fallbackName}</div>
+      <div class="preloader-fallback" aria-hidden="true">{fallbackName}</div>
     )
   }
-  <div class="boot-bar-wrap">
-    <div class="boot-bar"><div class="boot-fill" id="boot-fill"></div></div>
-  </div>
 </div>
 
 <style>
@@ -39,98 +35,21 @@ const { heroMask = null, fallbackName = '', persist = false } = Astro.props;
     transition: opacity 0.7s ease;
   }
 
-  .boot-logo-stack {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-    mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-    -webkit-mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-    mask-size: 210px;
-    -webkit-mask-size: 210px;
-    mask-position: center calc(50% - 28px);
-    -webkit-mask-position: center calc(50% - 28px);
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-mode: alpha;
-    -webkit-mask-mode: alpha;
-    filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.4))
-      drop-shadow(0 0 28px rgba(255, 100, 200, 0.24));
+  .preloader-logo {
+    z-index: 1;
   }
 
-  .boot-quantum-host {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  .boot-quantum-host :global(canvas) {
-    display: block;
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .boot-logo-fallback {
+  .preloader-fallback {
     position: absolute;
     left: 50%;
-    top: calc(50% - 40px);
+    top: 50%;
     transform: translate(-50%, -50%);
-    max-width: 210px;
+    max-width: min(92vmin, 96vw, 820px);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-weight: 800;
-    font-size: 1.35rem;
+    font-size: clamp(1.35rem, 5vmin, 2.5rem);
     letter-spacing: -0.03em;
     text-align: center;
     color: rgba(255, 255, 255, 0.85);
   }
-
-  .boot-bar-wrap {
-    position: absolute;
-    left: 50%;
-    top: calc(50% + 96px);
-    transform: translateX(-50%);
-  }
-
-  .boot-bar {
-    width: 180px;
-    height: 5px;
-    background: #222;
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .boot-fill {
-    height: 100%;
-    width: 0;
-    background: #fff;
-    border-radius: 3px;
-    transition: width 2.4s ease-in-out;
-  }
 </style>
-
-<script define:vars={{ persist }}>
-  import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
-
-  const host = document.getElementById('bootQuantumHost');
-  if (host) {
-    const detach = attachQuantumCoreOpticalEngine(host);
-    const boot = document.getElementById('boot');
-    const parent = boot?.parentElement;
-    if (parent) {
-      const obs = new MutationObserver(() => {
-        if (!document.getElementById('boot')) {
-          detach();
-          obs.disconnect();
-        }
-      });
-      obs.observe(parent, { childList: true });
-    }
-  }
-
-  if (persist) {
-    window.addEventListener('load', () => {
-      const fill = document.getElementById('boot-fill');
-      if (fill) fill.style.width = '100%';
-    });
-  }
-</script>

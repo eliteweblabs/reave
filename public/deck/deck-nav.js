@@ -517,20 +517,34 @@
     if (first) activateScene(first, { force: true });
   }
 
-  window.addEventListener('load', function () {
-    var fill = $('#boot-fill');
-    if (fill) fill.style.width = '100%';
-    setTimeout(function () {
-      var boot = $('#boot');
-      if (boot) {
-        boot.style.opacity = '0';
-        setTimeout(function () {
-          boot.remove();
-          startDeck();
-        }, 500);
-      } else {
+  var bootDismissed = false;
+
+  function dismissBoot() {
+    if (bootDismissed) return;
+    bootDismissed = true;
+    var boot = $('#boot');
+    if (boot) {
+      boot.style.opacity = '0';
+      setTimeout(function () {
+        boot.remove();
         startDeck();
-      }
-    }, 2600);
+      }, 500);
+    } else {
+      startDeck();
+    }
+  }
+
+  window.addEventListener(
+    'quantum-intro-complete',
+    function () {
+      setTimeout(dismissBoot, 180);
+    },
+    { once: true },
+  );
+
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      dismissBoot();
+    }, 2800);
   });
 })();
