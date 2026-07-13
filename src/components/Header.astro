@@ -1,6 +1,5 @@
 ---
-import { getCompanyConfig, companyLogoUrl, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
-import QuantumLogo from "./QuantumLogo.astro";
+import { getCompanyConfig, companyLogoUrl } from "../lib/companyConfig";
 import {
   MessageCircle,
   BookOpen,
@@ -33,8 +32,6 @@ const { adminShell = false, hideLogo = false, homeAdminEntry = false, staffPrevi
 
 const company = await getCompanyConfig(Astro.request);
 const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
-const heroMask = homepageHeroMask(company);
-const heroLogo = homepageHeroLogo(company);
 
 const adminSpaTabs = [
   { tab: "chats", label: "Chats", Icon: MessageCircle },
@@ -57,17 +54,7 @@ const userId = auth?.userId ?? null;
   class:list={["app-header", { "app-header--admin": adminShell }]}
   id={adminShell ? "topbar" : undefined}
 >
-  {!hideLogo && heroMask && heroLogo && !adminShell ? (
-    <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
-      <QuantumLogo
-        heroMask={heroMask}
-        logoSrc={heroLogo}
-        layout="compact"
-        hostId="headerQuantumHost"
-        introDuration={3}
-      />
-    </a>
-  ) : !hideLogo && logoSrc ? (
+  {!hideLogo && logoSrc && !adminShell ? (
     <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
       <img src={logoSrc} alt={company.name} class="app-header-logo-img brand-img logo-img" />
     </a>
