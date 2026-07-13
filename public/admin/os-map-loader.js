@@ -10632,6 +10632,10 @@ function buildEmailAgentPrompt(ev) {
   if (ev.jobSlug || ev.jobTitle) {
     lines.push(`Linked project: ${ev.jobTitle || ev.jobSlug} (${ev.jobSlug || 'unknown slug'})`);
     lines.push('If this mail belongs to that project, call link_to_work with the slug. If it should become a new project, call create_work then link_to_work.');
+  } else {
+    lines.push(
+      'No linked project yet. If this should become a new project, call resolve_contact first (name, email, phone, or q for company/notes/website). If the match is fuzzy, ask me to confirm before create_work with contact_uid. If the client is unknown, ask me who it is using any clues from this email.',
+    );
   }
   lines.push(`Subject: ${ev.subject || '(no subject)'}`);
   lines.push(`Category: ${ev.category || 'review'}`);

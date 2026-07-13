@@ -1,8 +1,9 @@
 /**
  * Contact search helpers — supplements contact-api list/resolve, which only
- * fuzzy-match on name/email/phone (not company).
+ * fuzzy-match on name/email/phone (not company, notes, website, phone suffix).
  */
-import { listContacts, resolveContact, type ContactRecord } from './contactApi';
+import { websiteFromNotes } from './clientBrand';
+import { getContact, listContacts, resolveContact, type ContactRecord } from './contactApi';
 
 /** Split "Reggie / Solid Builders" → ["Reggie / Solid Builders", "Solid Builders", "Reggie"]. */
 export function extractClientSearchTerms(raw: string): string[] {
@@ -43,6 +44,82 @@ function companyMatchScore(company: string | null | undefined, q: string): numbe
   return 0;
 }
 
+function phoneDigits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '');
+}
+
+function phoneMatchScore(phone: string | null | undefined, query: string): number {
+  const digits = phoneDigits(phone);
+  const qDigits = phoneDigits(query);
+  if (!digits || !qDigits) return 0;
+  if (digits === qDigits) return 1;
+  if (qDigits.length >= 4 && digits.endsWith(qDigits)) return 0.92;
+  if (qDigits.length === 4 && digits.endsWith(qDigits)) return 0.9;
+  return 0;
+}
+
+function notesMatchScore(notes: string | null | undefined, q: string): number {
+  if (!notes?.trim() || !q?.trim()) return 0;
+  const n = notes.toLowerCase();
+  const query = q.trim().toLowerCase();
+  if (n.includes(query)) return 0.78;
+  return 0;
+}
+
+function normalizeDomainish(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/.*$/, '');
+}
+
+function websiteMatchScore(contact: ContactRecord, q: string): number {
+  const query = normalizeDomainish(q);
+  if (!query || !query.includes('.')) return 0;
+
+  const emailDomain = contact.email?.split('@')[1]?.toLowerCase();
+  if (emailDomain && (emailDomain.includes(query) || query.includes(emailDomain))) return 0.88;
+
+  const notesSite = websiteFromNotes(contact.notes ?? '');
+  if (notesSite) {
+    const domain = normalizeDomainish(notesSite);
+    if (domain.includes(query) || query.includes(domain)) return 0.88;
+  }
+
+  const company = contact.company?.trim().toLowerCase();
+  if (company && company.includes('.') && (company.includes(query) || query.includes(company))) {
+    return 0.82;
+  }
+
+  return 0;
+}
+
+export function formatClientCandidate(
+  c: ContactRecord & { _score?: number; _matchReason?: string; score?: number },
+) {
+  return {
+    uid: c.uid,
+    name: c.name,
+    email: c.email ?? null,
+    phone: c.phone ?? null,
+    company: c.company ?? null,
+    score: c._score ?? c.score ?? null,
+    matchReason: c._matchReason ?? null,
+  };
+}
+
+export type WorkClientResolution =
+  | { status: 'resolved'; uid: string; name: string; match: string }
+  | {
+      status: 'needs_selection';
+      reason: 'ambiguous' | 'no_match';
+      candidates: ReturnType<typeof formatClientCandidate>[];
+      hint: string;
+    }
+  | { status: 'needs_client'; hint: string };
+
 export type ScoredContact = ContactRecord & { _score?: number; _matchReason?: string };
 
 function rankContacts(contacts: ScoredContact[]): ScoredContact[] {
@@ -81,11 +158,20 @@ export async function searchClientsEnhanced(
   for (const term of terms) {
     for (const c of broadResult.data.contacts) {
       if (c.archived) continue;
-      const score = companyMatchScore(c.company, term);
-      if (score <= 0) continue;
-      const existing = byUid.get(c.uid);
-      if (!existing || score > (existing._score ?? 0)) {
-        byUid.set(c.uid, { ...c, _score: score, _matchReason: 'company' });
+
+      const checks: Array<[number, string]> = [
+        [companyMatchScore(c.company, term), 'company'],
+        [phoneMatchScore(c.phone, term), 'phone'],
+        [notesMatchScore(c.notes, term), 'notes'],
+        [websiteMatchScore(c, term), 'website'],
+      ];
+
+      for (const [score, reason] of checks) {
+        if (score <= 0) continue;
+        const existing = byUid.get(c.uid);
+        if (!existing || score > (existing._score ?? 0)) {
+          byUid.set(c.uid, { ...c, _score: score, _matchReason: reason });
+        }
       }
     }
   }
@@ -147,24 +233,24 @@ export async function resolveContactEnhanced(input: {
     return { ok: true, match: 'none', candidates: [] };
   }
 
-  const companySearch = await searchClientsEnhanced(name, 8);
-  if (!companySearch.ok) {
-    return { ok: false, error: companySearch.error, status: companySearch.status };
+  const enhancedSearch = await searchClientsEnhanced(name, 8);
+  if (!enhancedSearch.ok) {
+    return { ok: false, error: enhancedSearch.error, status: enhancedSearch.status };
   }
 
-  const companyHits = companySearch.data.contacts.filter((c) => c._matchReason === 'company');
-  if (!companyHits.length) {
+  const hits = enhancedSearch.data.contacts;
+  if (!hits.length) {
     return { ok: true, match: 'none', candidates: [] };
   }
 
-  const top = companyHits[0]!;
+  const top = hits[0]!;
   const topScore = top._score ?? 0;
-  const candidates = companyHits.map((c) => ({
+  const candidates = hits.map((c) => ({
     ...c,
     score: c._score,
   }));
 
-  if (topScore >= 0.85 && companyHits.length === 1) {
+  if (topScore >= 0.85 && hits.length === 1) {
     return {
       ok: true,
       match: 'likely',
@@ -192,4 +278,113 @@ export async function findContactByQuery(
   }
 
   return null;
+}
+
+/**
+ * Resolve which client a project belongs to — for chat/agent create_work.
+ * Returns structured status so the agent can ask the user when ambiguous.
+ */
+export async function resolveWorkClientDecision(input: {
+  contact_uid?: string;
+  contact_name?: string;
+  client?: string;
+  hints?: string[];
+}): Promise<WorkClientResolution> {
+  const uid = input.contact_uid?.trim();
+  if (uid) {
+    const fetched = await getContact(uid);
+    if (fetched.ok) {
+      return {
+        status: 'resolved',
+        uid: fetched.data.uid,
+        name: input.contact_name?.trim() || fetched.data.name,
+        match: 'exact',
+      };
+    }
+    return {
+      status: 'needs_selection',
+      reason: 'no_match',
+      candidates: [],
+      hint: `contact_uid ${uid} was not found. Search again or create the client first.`,
+    };
+  }
+
+  const queries = [
+    input.client?.trim(),
+    ...(input.hints ?? []).map((h) => h.trim()).filter(Boolean),
+  ].filter(Boolean) as string[];
+
+  if (!queries.length) {
+    return {
+      status: 'needs_client',
+      hint:
+        'No client identified yet. Ask the user who this project is for, using any clues from the conversation (name, company, phone, email, website, or notes). Call resolve_contact with those hints first, then create_work with contact_uid once confirmed.',
+    };
+  }
+
+  const seenUids = new Set<string>();
+  const mergedCandidates: ScoredContact[] = [];
+
+  for (const query of queries) {
+    const resolved = await resolveContactEnhanced({
+      name: query,
+      phone: phoneDigits(query).length >= 4 ? query : undefined,
+    });
+    if (!resolved.ok) continue;
+
+    if ((resolved.match === 'exact' || resolved.match === 'likely') && resolved.contact?.uid) {
+      return {
+        status: 'resolved',
+        uid: resolved.contact.uid,
+        name: resolved.contact.name,
+        match: resolved.match,
+      };
+    }
+
+    for (const c of resolved.candidates ?? []) {
+      if (!c.uid || seenUids.has(c.uid)) continue;
+      seenUids.add(c.uid);
+      mergedCandidates.push(c as ScoredContact);
+    }
+
+    const searched = await searchClientsEnhanced(query, 8);
+    if (searched.ok) {
+      for (const c of searched.data.contacts) {
+        if (seenUids.has(c.uid)) continue;
+        seenUids.add(c.uid);
+        mergedCandidates.push(c);
+      }
+    }
+  }
+
+  const candidates = rankContacts(mergedCandidates)
+    .slice(0, 8)
+    .map(formatClientCandidate);
+
+  if (candidates.length === 1 && (candidates[0]?.score ?? 0) >= 0.85) {
+    const only = candidates[0]!;
+    return {
+      status: 'resolved',
+      uid: only.uid,
+      name: only.name,
+      match: 'likely',
+    };
+  }
+
+  if (candidates.length) {
+    return {
+      status: 'needs_selection',
+      reason: 'ambiguous',
+      candidates,
+      hint: 'Multiple possible clients matched. Ask the user to confirm which one, then re-call create_work with contact_uid.',
+    };
+  }
+
+  return {
+    status: 'needs_selection',
+    reason: 'no_match',
+    candidates: [],
+    hint:
+      'No matching client found. Ask the user for a name, company, phone (last 4 is fine), email, website, or distinguishing notes — or offer to create a new client with create_contact first.',
+  };
 }

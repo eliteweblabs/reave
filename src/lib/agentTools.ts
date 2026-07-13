@@ -59,6 +59,14 @@ import {
   type ClientPortalField,
   type ClientDataEntry,
 } from './contactApi';
+import {
+  extractClientSearchTerms,
+  formatClientCandidate,
+  primaryClientSearchTerm,
+  resolveContactEnhanced,
+  resolveWorkClientDecision,
+  searchClientsEnhanced,
+} from './clientSearch';
 import { createTrackedProjectLink } from './linkTracking';
 import {
   isCraterConfigured,
@@ -301,14 +309,23 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'create_work',
         description:
-          'Create a new work/job markdown file tied to a client. Resolves the client name via contact-api (must already exist). Use when an inbound request, email, or conversation should become a tracked job — not for personal to-do items (use create_todo instead). When called from chat, the current thread is linked automatically — no separate link_to_work needed.',
+          'Create a new work/job tied to a client. Prefer contact_uid when the client is confirmed. If only a name/company/phone/email is known, pass client (or hints in body/title) — the tool resolves it and returns candidates when ambiguous so you can ask the user to confirm. When no client is known yet, omit client/contact_uid; the tool tells you to ask the user using conversation context. After the user confirms, re-call with contact_uid. When called from chat, the current thread is linked automatically.',
         parameters: {
           type: 'object',
           properties: {
             title: { type: 'string', description: 'Job title, e.g. "New website for Acme"' },
+            contact_uid: {
+              type: 'string',
+              description: 'Confirmed client uid — preferred once the user picks or confirms a match',
+            },
+            contact_name: {
+              type: 'string',
+              description: 'Display name when passing contact_uid (optional)',
+            },
             client: {
               type: 'string',
-              description: 'Client name — fuzzy-matched against contact-api on save',
+              description:
+                'Client lookup hint — name, company, phone (last 4 ok), email, website, or notes snippet. Omit when unknown; ask the user first.',
             },
             body: {
               type: 'string',
@@ -346,7 +363,7 @@ export function buildTools(): AgentToolDef[] {
               description: 'Optional filename slug; derived from title if omitted',
             },
           },
-          required: ['title', 'client'],
+          required: ['title'],
           additionalProperties: false,
         },
       },
@@ -1224,13 +1241,18 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'resolve_contact',
         description:
-          'Fuzzy-match a client/person against the master contact-api (names, typos, aliases). Use when the user mentions a client name or asks who someone is.',
+          'Find a client in contact-api by name, email, phone (last 4 digits ok), company, website/domain, or notes text (e.g. "guy with a mustache"). Returns match level and candidates when fuzzy — ask the user to confirm before create_work. Use q for free-text search across all those fields.',
         parameters: {
           type: 'object',
           properties: {
             name: { type: 'string', description: 'Full or partial name to match' },
             email: { type: 'string' },
-            phone: { type: 'string' },
+            phone: { type: 'string', description: 'Full or partial phone — last 4 digits work' },
+            q: {
+              type: 'string',
+              description:
+                'Free-text search: company, notes snippet, website domain, phone suffix, or combined hint',
+            },
           },
           additionalProperties: false,
         },
@@ -1243,7 +1265,7 @@ export function buildTools(): AgentToolDef[] {
         function: {
           name: 'list_contacts',
           description:
-            'List or search ALL contacts in the master contact-api (the full client list). Each result includes a portal_url — every client automatically has a shareable page. Use when the user asks to see/browse their contacts or clients, wants a client’s link, or wants to pick one. Optional `q` filters by name/email; omit it to list everyone (newest first).',
+            'List or search ALL contacts in the master contact-api. Each result includes a portal_url. Optional `q` filters by name, email, company, phone (last 4 ok), website/domain, or notes text.',
           parameters: {
             type: 'object',
             properties: {
@@ -2071,6 +2093,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     if (name === 'create_work') {
       const title = String(args.title ?? '').trim();
       const client = String(args.client ?? '').trim();
+      const contactUid = String(args.contact_uid ?? '').trim();
+      const contactName = String(args.contact_name ?? '').trim();
       const body = String(args.body ?? '').trim();
       const statusRaw = String(args.status ?? '').trim().toLowerCase();
       const status = WORK_STATUSES.includes(statusRaw as WorkStatus)
@@ -2084,16 +2108,44 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!slug && title) slug = slugFromTitle(title);
 
       if (!title) return JSON.stringify({ error: 'title is required' });
-      if (!client) return JSON.stringify({ error: 'client is required' });
       if (!slug || !isSafeWorkSlug(slug)) return JSON.stringify({ error: 'invalid slug' });
       if (await storeReadWork(slug)) return JSON.stringify({ error: 'slug already exists', slug });
+
+      const hints = [
+        client,
+        ...extractClientSearchTerms(title),
+        primaryClientSearchTerm(title),
+      ].filter(Boolean);
+
+      const resolution = await resolveWorkClientDecision({
+        contact_uid: contactUid || undefined,
+        contact_name: contactName || undefined,
+        client: client || undefined,
+        hints: hints.length ? [...new Set(hints)] : undefined,
+      });
+
+      if (resolution.status === 'needs_client') {
+        return JSON.stringify({ needs_client: true, hint: resolution.hint, title });
+      }
+
+      if (resolution.status === 'needs_selection') {
+        return JSON.stringify({
+          needs_selection: true,
+          reason: resolution.reason,
+          candidates: resolution.candidates,
+          hint: resolution.hint,
+          title,
+        });
+      }
 
       const ctx = getAgentContext();
       const threadId = ctx.threadId?.trim() || '';
 
       const result = await storeWriteWork(slug, {
         title,
-        client,
+        contact_uid: resolution.uid,
+        contact_name: resolution.name,
+        client: resolution.name,
         status,
         body,
         record_origin: 'agent',
@@ -2111,6 +2163,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         contact_uid: doc.contact_uid,
         contact_name: doc.contact_name,
         status: doc.status,
+        client_match: resolution.match,
         linked_chat: threadId || null,
         linked: linked.chatLinked || !!threadId,
       });
@@ -2828,34 +2881,84 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       return JSON.stringify(result.data);
     }
     if (name === 'resolve_contact') {
-      const result = await resolveContact({
-        name: args.name as string | undefined,
-        email: args.email as string | undefined,
-        phone: args.phone as string | undefined,
-      });
+      const q = typeof args.q === 'string' ? args.q.trim() : '';
+      const name = typeof args.name === 'string' ? args.name.trim() : '';
+      const email = typeof args.email === 'string' ? args.email.trim() : '';
+      const phone = typeof args.phone === 'string' ? args.phone.trim() : '';
+
+      if (q && !name && !email && !phone) {
+        const searched = await searchClientsEnhanced(q, 8);
+        if (!searched.ok) return JSON.stringify({ error: searched.error, status: searched.status });
+        const candidates = searched.data.contacts.map(formatClientCandidate);
+        if (candidates.length === 1 && (candidates[0]?.score ?? 0) >= 0.85) {
+          const only = candidates[0]!;
+          const work_jobs = await storeListWork({ contact_uid: only.uid });
+          return JSON.stringify({
+            match: 'likely',
+            contact: only,
+            candidates,
+            work_jobs,
+          });
+        }
+        if (candidates.length) {
+          return JSON.stringify({
+            match: 'possible',
+            candidates,
+            hint: 'Ask the user to confirm which client, then use contact_uid on create_work.',
+          });
+        }
+        return JSON.stringify({ match: 'none', candidates: [] });
+      }
+
+      const result = await resolveContactEnhanced({ name, email, phone });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-      const payload = result.data as Record<string, unknown>;
-      const contact = payload.contact as Record<string, unknown> | undefined;
-      const uid = contact?.uid != null ? String(contact.uid) : '';
+
+      const contact = result.contact;
+      const uid = contact?.uid ?? '';
       const work_jobs = uid ? await storeListWork({ contact_uid: uid }) : [];
-      return JSON.stringify({ ...payload, work_jobs });
+      const candidates = (result.candidates ?? []).map(formatClientCandidate);
+
+      if ((result.match === 'exact' || result.match === 'likely') && contact?.uid) {
+        return JSON.stringify({
+          match: result.match,
+          score: result.score,
+          contact: formatClientCandidate(contact),
+          candidates,
+          work_jobs,
+        });
+      }
+
+      if (result.match === 'possible' && candidates.length) {
+        return JSON.stringify({
+          match: 'possible',
+          candidates,
+          hint: 'Ask the user to confirm which client, then use contact_uid on create_work.',
+        });
+      }
+
+      return JSON.stringify({ match: 'none', candidates: [], work_jobs: [] });
     }
     if (name === 'list_contacts') {
-      const result = await listContacts({
-        q: typeof args.q === 'string' ? args.q : undefined,
-        limit: typeof args.limit === 'number' ? args.limit : undefined,
-      });
+      const q = typeof args.q === 'string' ? args.q.trim() : '';
+      const limit = typeof args.limit === 'number' ? args.limit : 50;
+      const result = q
+        ? await searchClientsEnhanced(q, limit)
+        : await listContacts({ limit });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-      return JSON.stringify({
-        total: result.data.total,
-        contacts: result.data.contacts.slice(0, 50).map((c) => ({
+      const contacts = result.data.contacts
+        .slice(0, 50)
+        .map((c) => ({
           uid: c.uid,
           name: c.name,
           email: c.email ?? null,
           phone: c.phone ?? null,
           company: c.company ?? null,
+          matchReason: (c as { _matchReason?: string })._matchReason ?? null,
           portal_url: clientPortalUrl(c.uid),
-        })),
+        }));
+      return JSON.stringify({
+        total: contacts.length,
+        contacts,
       });
     }
     if (name === 'create_contact') {
