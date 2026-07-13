@@ -121,6 +121,12 @@ const NAV_ICON_PATHS = {
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  sparkles:
+    '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>',
+  trash:
+    '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  'rotate-ccw': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 };
 
 function navIcon(name, size = 20) {
@@ -10493,6 +10499,40 @@ async function unmarkEmailReceipt(ev) {
   }
 }
 
+async function archiveEmail(ev) {
+  closeOpenSwipeRow();
+  const patch = { action: 'filed', status: 'FILED' };
+  if (String(ev.category || '').toLowerCase() === 'review') patch.category = 'internal';
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function unarchiveEmail(ev) {
+  closeOpenSwipeRow();
+  const patch = { action: 'review', status: 'UNMATCHED' };
+  if (String(ev.category || '').toLowerCase() === 'internal') patch.category = 'review';
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not restore', bodyHtml: escHtml(e.message) });
+  }
+}
+
 async function deleteEmail(ev) {
   closeOpenSwipeRow();
   const summary = ev.summary || ev.subject || ev.from || 'this message';
@@ -10687,6 +10727,7 @@ function buildEmailSwipeActions(ev) {
   const actions = [
     {
       label: 'Agent',
+      iconKey: 'sparkles',
       className: 'swipe-act swipe-act-agent',
       onClick: () => askAgentAboutEmail(ev),
     },
@@ -10695,6 +10736,7 @@ function buildEmailSwipeActions(ev) {
   if (ev.category !== 'junk') {
     actions.push({
       label: isEmailRouted(ev) ? 'Unarchive' : 'Archive',
+      iconKey: 'archive',
       className: 'swipe-act swipe-act-archive',
       onClick: () => (isEmailRouted(ev) ? unarchiveEmail(ev) : archiveEmail(ev)),
     });
@@ -10703,6 +10745,7 @@ function buildEmailSwipeActions(ev) {
   if (ev.category === 'receipt') {
     actions.push({
       label: 'Not receipt',
+      iconKey: 'x',
       className: 'swipe-act swipe-act-archive',
       onClick: () => unmarkEmailReceipt(ev),
     });
@@ -10710,6 +10753,7 @@ function buildEmailSwipeActions(ev) {
 
   actions.push({
     label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+    iconKey: ev.category === 'junk' ? 'rotate-ccw' : 'trash',
     className: 'swipe-act swipe-act-junk',
     onClick: () => {
       if (ev.category === 'junk') {
@@ -10730,6 +10774,7 @@ function buildEmailSwipeActions(ev) {
   if (emailShowsReceiptAction(ev)) {
     actions.push({
       label: 'Receipt',
+      iconKey: 'wallet',
       className: 'swipe-act swipe-act-receipt',
       onClick: () => markEmailReceipt(ev),
     });
@@ -10738,8 +10783,37 @@ function buildEmailSwipeActions(ev) {
   return actions;
 }
 
+function createEmailRowActions(ev) {
+  const col = document.createElement('div');
+  col.className = 'em-list-actions';
+  for (const act of buildEmailSwipeActions(ev)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const actType = (act.className || '').split(' ').find((c) => c.startsWith('swipe-act-')) || '';
+    btn.className = 'em-list-act-btn' + (actType ? ` ${actType}` : '');
+    btn.setAttribute('aria-label', act.label);
+    btn.title = act.label;
+    btn.innerHTML = navIcon(act.iconKey || 'square', 12);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      act.onClick();
+    });
+    col.appendChild(btn);
+  }
+  return col;
+}
+
+function createEmailListRow(ev) {
+  const row = document.createElement('div');
+  row.className = 'em-list-row';
+  row.dataset.id = ev.id;
+  row.appendChild(createEmailListItem(ev));
+  row.appendChild(createEmailRowActions(ev));
+  return row;
+}
+
 function createEmailSwipeRow(ev) {
-  return createSwipeRow(createEmailListItem(ev), buildEmailSwipeActions(ev));
+  return createSwipeRow(createEmailListRow(ev), buildEmailSwipeActions(ev));
 }
 
 function stopEmailPoll() {

@@ -3093,6 +3093,58 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--list-item-active-bg);
         border-color: var(--list-item-active-border);
       }
+      .em-list-row {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        background: var(--swipe-row-bg);
+        border-radius: 8px;
+      }
+      .em-list-row .em-list-item {
+        flex: 1;
+        min-width: 0;
+        margin-bottom: 0;
+        border-radius: 8px 0 0 8px;
+        background: var(--swipe-row-bg);
+      }
+      .em-list-row .em-list-item:hover {
+        background: var(--swipe-row-bg);
+      }
+      .em-list-row .em-list-item.active {
+        background: var(--list-item-active-bg);
+      }
+      .em-list-actions {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 3px;
+        flex: none;
+        padding: 0.3rem 0.4rem 0.3rem 0;
+      }
+      .em-list-act-btn {
+        width: 1.45rem;
+        height: 1.45rem;
+        flex: none;
+        border: none;
+        border-radius: 5px;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        opacity: 0.92;
+        transition: opacity 0.12s ease, filter 0.12s ease;
+      }
+      .em-list-act-btn:hover { opacity: 1; filter: brightness(1.06); }
+      .em-list-act-btn:active { filter: brightness(0.92); }
+      .em-list-act-btn.swipe-act-agent { background: #007aff; }
+      .em-list-act-btn.swipe-act-junk { background: #ff9500; }
+      .em-list-act-btn.swipe-act-receipt { background: #34c759; }
+      .em-list-act-btn.swipe-act-archive { background: #8e8e93; }
+      .em-list-act-btn.swipe-act-delete { background: #ff3b30; }
       .em-item-row {
         display: flex;
         align-items: center;
