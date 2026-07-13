@@ -5,8 +5,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (devDependencies required for astro build)
+RUN npm ci
 
 # Copy source
 COPY . .

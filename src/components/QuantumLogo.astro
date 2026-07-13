@@ -39,6 +39,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     isHomepage && 'quantum-logo-stack--homepage',
     layout === 'centered' && 'quantum-logo-stack--centered',
     isCompact && 'quantum-logo-stack--compact',
+    introRush && !isCompact && 'quantum-logo-stack--galaxy',
+    (!introRush || isCompact) && 'quantum-logo-stack--logo',
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
@@ -65,6 +67,18 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     touch-action: none;
     overflow: hidden;
     --quantum-hero-logo-size: min(72vmin, 76vw, 420px);
+  }
+
+  /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
+  .quantum-logo-stack--galaxy:not(.quantum-logo-stack--compact) {
+    mask-image: none;
+    -webkit-mask-image: none;
+    filter: none;
+  }
+
+  /* After intro: logo silhouette only, filled by particles matching logo.png. */
+  .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
+  .quantum-logo-stack--compact {
     mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
     -webkit-mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
     mask-size: var(--quantum-hero-logo-size);
@@ -77,7 +91,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
   }
 
-  .quantum-logo-stack--homepage {
+  .quantum-logo-stack--homepage.quantum-logo-stack--logo {
     mask-position: 42% center;
     -webkit-mask-position: 42% center;
     animation: quantumLogoIntro 1.4s ease-out forwards;
@@ -95,6 +109,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 24px;
     flex: 0 0 24px;
     pointer-events: none;
+    --quantum-hero-logo-size: contain;
     mask-size: contain;
     -webkit-mask-size: contain;
     mask-position: center center;
@@ -138,7 +153,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   @media (hover: none) {
-    .quantum-logo-stack--homepage {
+    .quantum-logo-stack--homepage.quantum-logo-stack--logo {
       animation: none;
       mask-position: center center;
       -webkit-mask-position: center center;

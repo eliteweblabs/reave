@@ -295,10 +295,22 @@ function introParticleSizeMul(t: number): number {
 }
 
 /** Cloud scale: spread out early, compress tight before settling to 1. */
-function introGatherScale(t: number): number {
+function introGatherScale(t: number, galaxy: boolean): number {
+  if (galaxy) {
+    if (t < 0.55) return THREE.MathUtils.lerp(2.35, 1.65, t / 0.55);
+    if (t < 0.9) return THREE.MathUtils.lerp(1.65, 0.82, (t - 0.55) / 0.35);
+    return THREE.MathUtils.lerp(0.82, 1, (t - 0.9) / 0.1);
+  }
   if (t < 0.68) return THREE.MathUtils.lerp(1.42, 1.12, t / 0.68);
   if (t < 0.92) return THREE.MathUtils.lerp(1.12, 0.76, (t - 0.68) / 0.24);
   return THREE.MathUtils.lerp(0.76, 1, (t - 0.92) / 0.08);
+}
+
+function randomGalaxyStart(): [number, number, number] {
+  const theta = Math.random() * Math.PI * 2;
+  const radius = 18 + Math.random() * 28;
+  const y = (Math.random() * 2 - 1) * 12;
+  return [radius * Math.cos(theta), y, radius * Math.sin(theta)];
 }
 
 export function attachQuantumCoreOpticalEngine(
@@ -352,6 +364,14 @@ export function attachQuantumCoreOpticalEngine(
   camera.position.z = VIEW_Z;
 
   const stackEl = host.parentElement as HTMLElement | null;
+  const isCompactStack =
+    stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
+
+  function setPresentationMode(galaxy: boolean): void {
+    if (!stackEl || isCompactStack) return;
+    stackEl.classList.toggle("quantum-logo-stack--galaxy", galaxy);
+    stackEl.classList.toggle("quantum-logo-stack--logo", !galaxy);
+  }
 
   function resetCameraViewportAspect() {
     const vw = window.innerWidth;
@@ -522,7 +542,8 @@ export function attachQuantumCoreOpticalEngine(
   const introDurationSec = prefersReduced
     ? 0
     : Math.max(0, options?.introRush?.durationSec ?? 0);
-  /** Reverse of home: particles start scaled outward along the same vector. */
+  const useGalaxyIntro = introDurationSec > 0 && !isCompactStack;
+  /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
   const introOutwardMin = 2.4;
   const introOutwardMax = 4.2;
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
@@ -553,19 +574,34 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
 
-    const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
-    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
-
     if (introDurationSec > 0) {
-      const outward =
-        introOutwardMin +
-        Math.random() * (introOutwardMax - introOutwardMin);
-      startPositions[i * 3] = hx * outward;
-      startPositions[i * 3 + 1] = hy * outward;
-      startPositions[i * 3 + 2] = hz * outward;
+      if (useGalaxyIntro) {
+        const [gx, gy, gz] = randomGalaxyStart();
+        startPositions[i * 3] = gx;
+        startPositions[i * 3 + 1] = gy;
+        startPositions[i * 3 + 2] = gz;
+      } else {
+        const outward =
+          introOutwardMin +
+          Math.random() * (introOutwardMax - introOutwardMin);
+        startPositions[i * 3] = hx * outward;
+        startPositions[i * 3 + 1] = hy * outward;
+        startPositions[i * 3 + 2] = hz * outward;
+      }
       positions[i * 3] = startPositions[i * 3]!;
       positions[i * 3 + 1] = startPositions[i * 3 + 1]!;
       positions[i * 3 + 2] = startPositions[i * 3 + 2]!;
+
+      const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
+      const startDist =
+        Math.sqrt(
+          startPositions[i * 3]! * startPositions[i * 3]! +
+            startPositions[i * 3 + 1]! * startPositions[i * 3 + 1]! +
+            startPositions[i * 3 + 2]! * startPositions[i * 3 + 2]!,
+        ) || 0.001;
+      introStagger[i] = useGalaxyIntro
+        ? (startDist / 40) * introDurationSec * 0.38
+        : (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
     } else {
       positions[i * 3] = hx;
       positions[i * 3 + 1] = hy;
@@ -892,7 +928,6 @@ export function attachQuantumCoreOpticalEngine(
   function animate() {
     if (!alive) return;
     raf = requestAnimationFrame(animate);
-    syncCameraToMask();
     const rawT = clock.getElapsedTime();
     /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
     sphereMat.uniforms.uTime.value = rawT;
@@ -919,9 +954,20 @@ export function attachQuantumCoreOpticalEngine(
     const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
+    const inGalaxyView = inIntro && useGalaxyIntro;
     const globalIntroT = inIntro
       ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
       : 1;
+
+    if (inGalaxyView) {
+      resetCameraViewportAspect();
+      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
+      setPresentationMode(true);
+    } else {
+      syncCameraToMask();
+      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
+      if (useGalaxyIntro) setPresentationMode(false);
+    }
 
     if (inIntro) {
       const colorizeStart = 0.9;
@@ -977,7 +1023,7 @@ export function attachQuantumCoreOpticalEngine(
       particles.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
       pulseGroup.scale.setScalar(1);
       particles.scale.setScalar(
-        PARTICLE_VIS_SCALE * introGatherScale(globalIntroT),
+        PARTICLE_VIS_SCALE * introGatherScale(globalIntroT, useGalaxyIntro),
       );
       particlesMat.size = particleBaseSize * introParticleSizeMul(globalIntroT);
       particlesMat.opacity =
