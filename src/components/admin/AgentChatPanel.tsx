@@ -314,7 +314,7 @@ function useSlashHelpers(
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('.aui-helper-panel, .aui-slash-line')) return;
+      if (target.closest('.aui-helper-panel, .aui-slash-line, .aui-compose-footer')) return;
       setHelpersOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -368,20 +368,22 @@ function useSlashHelpers(
 }
 
 function SlashPrompt({
-  placement,
   propsRef,
   commands,
+  onFocusInputReady,
 }: {
-  placement: 'top' | 'tail';
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
+  onFocusInputReady?: (focus: () => void) => void;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
 
+  useEffect(() => {
+    onFocusInputReady?.(helpers.focusInput);
+  }, [helpers.focusInput, onFocusInputReady]);
+
   return (
-    <ComposerPrimitive.Root
-      className={`aui-slash-zone aui-slash-zone-${placement}`}
-    >
+    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-footer">
       {helpers.showHelpers ? (
         <HelperCommandsPanel commands={helpers.filtered} onPick={helpers.applyCommand} />
       ) : null}
@@ -413,9 +415,20 @@ function SlashPrompt({
   );
 }
 
+function EmptyChatPrompt({ onActivate }: { onActivate: () => void }) {
+  return (
+    <button type="button" className="aui-empty-prompt" onClick={onActivate}>
+      <span className="aui-empty-prompt-slash" aria-hidden="true">
+        /
+      </span>
+      <span className="aui-empty-prompt-hint">Tap to start</span>
+    </button>
+  );
+}
+
 function RunningIndicator() {
   return (
-    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-tail">
+    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-footer">
       <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
         Stop
       </ComposerPrimitive.Cancel>
@@ -431,6 +444,11 @@ function AgentChatThreadBody({
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
+  const focusComposerRef = useRef<(() => void) | null>(null);
+
+  const activateComposer = () => {
+    focusComposerRef.current?.();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -462,7 +480,7 @@ function AgentChatThreadBody({
     <ThreadPrimitive.Root className="aui-thread">
       <ThreadPrimitive.Viewport className="aui-viewport">
         {!hasMessages && !isRunning ? (
-          <SlashPrompt placement="top" propsRef={propsRef} commands={commands} />
+          <EmptyChatPrompt onActivate={activateComposer} />
         ) : null}
         <ThreadPrimitive.Messages
           components={{
@@ -492,11 +510,20 @@ function AgentChatThreadBody({
             ),
           }}
         />
-        {hasMessages && !isRunning ? (
-          <SlashPrompt placement="tail" propsRef={propsRef} commands={commands} />
-        ) : null}
-        {isRunning ? <RunningIndicator /> : null}
       </ThreadPrimitive.Viewport>
+      <div className="aui-compose-footer">
+        {isRunning ? (
+          <RunningIndicator />
+        ) : (
+          <SlashPrompt
+            propsRef={propsRef}
+            commands={commands}
+            onFocusInputReady={(focus) => {
+              focusComposerRef.current = focus;
+            }}
+          />
+        )}
+      </div>
     </ThreadPrimitive.Root>
   );
 }
