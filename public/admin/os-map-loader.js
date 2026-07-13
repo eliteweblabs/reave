@@ -76,6 +76,9 @@ const MAP_ICON_KEYS = {
   finance: 'wallet',
 };
 
+/** Home dashboard tiles that live in the footer nav — omit from the grid. */
+const HOME_DASHBOARD_FOOTER_KEYS = new Set(['chats', 'email', 'work', 'schedule', 'clients']);
+
 const LEGACY_EMOJI_ICON = {
   '🔔': 'bell',
   '📊': 'database',
@@ -1934,7 +1937,12 @@ function renderHomeDashboard(data) {
     if (!m) continue;
     if (m.link) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
-    } else if (key !== 'home' && key !== 'profile' && key !== 'plugins') {
+    } else if (
+      key !== 'home' &&
+      key !== 'profile' &&
+      key !== 'plugins' &&
+      !HOME_DASHBOARD_FOOTER_KEYS.has(key)
+    ) {
       grid.appendChild(buildHomeMapTile(key, m));
     }
   }
@@ -2432,6 +2440,7 @@ function footerNavActiveKey() {
   if (activeKey === 'email') return 'inbox';
   if (activeKey === 'schedule') return 'schedule';
   if (activeKey === 'work') return 'work';
+  if (activeKey === 'clients') return 'clients';
   return null;
 }
 
@@ -2440,10 +2449,10 @@ let footerSaveNav = null;
 
 function footerSaveNavForEditor() {
   if (activeKey === 'knowledge' && knowledgeState.activeSlug) return 'chat';
+  if (activeKey === 'clients' && clientState.activeUid === '__new__') return 'clients';
   if (
     (activeKey === 'work' && workState.activeSlug) ||
     (activeKey === 'documents' && docState.activeSlug === '__new__') ||
-    (activeKey === 'clients' && clientState.activeUid === '__new__') ||
     (activeKey === 'rules' && ruleState.activeId)
   ) {
     return 'work';
@@ -2492,6 +2501,7 @@ function footerNavShowsCreate(nav) {
     return activeKey === 'schedule' && activeNav === 'schedule' && !scheduleState.activeUid;
   }
   if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
+  if (nav === 'clients') return activeKey === 'clients' && activeNav === 'clients' && !clientState.activeUid;
   return false;
 }
 
@@ -2600,6 +2610,28 @@ function syncFooterScheduleNav() {
   });
 }
 
+function syncFooterClientsNav() {
+  const btn = document.getElementById('footer-nav-clients');
+  if (!btn) return;
+  const save = footerNavShowsSave('clients');
+  const create = footerNavShowsCreate('clients');
+  let iconEl = btn.querySelector('.footer-nav-clients-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-clients-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    btn.insertBefore(iconEl, null);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  applyFooterNavBtnMode(btn, iconEl, {
+    save,
+    create,
+    icon: 'users',
+    label: 'Clients',
+    title: 'New client',
+  });
+}
+
 function footerNavCreateModeActive(nav) {
   return footerNavShowsCreate(nav);
 }
@@ -2609,7 +2641,9 @@ async function triggerFooterSave() {
   const btn =
     footerSaveNav === 'chat'
       ? document.getElementById('footer-nav-chat')
-      : document.getElementById('footer-nav-work');
+      : footerSaveNav === 'clients'
+        ? document.getElementById('footer-nav-clients')
+        : document.getElementById('footer-nav-work');
   if (btn) btn.disabled = true;
   try {
     await footerSaveHandler();
@@ -2634,6 +2668,7 @@ function collapseFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterClientsNav();
   syncFooterChatInlineHome();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
@@ -2649,6 +2684,7 @@ function expandFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterClientsNav();
   syncFooterChatInlineHome();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
@@ -2684,7 +2720,7 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'search', 'work'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'search', 'work', 'clients'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -2818,6 +2854,18 @@ function activateFooterNavFromDrag(nav) {
       return;
     }
     setActiveMap('work', { force: activeKey === 'work' });
+    return;
+  }
+  if (nav === 'clients') {
+    if (footerNavShowsSave('clients')) {
+      void triggerFooterSave();
+      return;
+    }
+    if (activeKey === 'clients') {
+      startNewClient();
+      return;
+    }
+    setActiveMap('clients', { force: activeKey === 'clients' });
   }
 }
 
@@ -3057,6 +3105,7 @@ function syncFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterClientsNav();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
@@ -3113,6 +3162,18 @@ function initFooterNav() {
       return;
     }
     setActiveMap('work', { force: activeKey === 'work' });
+  });
+  document.getElementById('footer-nav-clients')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    if (footerNavShowsSave('clients')) {
+      void triggerFooterSave();
+      return;
+    }
+    if (activeKey === 'clients') {
+      startNewClient();
+      return;
+    }
+    setActiveMap('clients', { force: activeKey === 'clients' });
   });
   window.addEventListener('resize', () => {
     if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
@@ -5236,6 +5297,21 @@ function startNewProject() {
     body: '',
   };
   renderWorkEditor();
+}
+
+function startNewClient() {
+  clientState.activeUid = '__new__';
+  clientState.dirty = false;
+  clientState.draft = {
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    website: '',
+    notes: '',
+  };
+  getClientsEditor()?.classList.add('de-pane-active');
+  renderClientsEditor();
 }
 
 function fillWorkSidebarList(list) {
