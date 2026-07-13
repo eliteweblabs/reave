@@ -76,7 +76,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     filter: none;
   }
 
-  /* After intro: logo silhouette only, filled by particles matching logo.png. */
+  /* After intro: logo silhouette only — CSS mask is the sole visibility clip. */
   .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
   .quantum-logo-stack--compact {
     mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
@@ -192,10 +192,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 </style>
 
 <script>
-  import {
-    attachQuantumCoreOpticalEngine,
-    sampleHomePositionsFromMask,
-  } from '../lib/quantumCoreOpticalEngine';
+  import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
   function prefersReducedMotion() {
     return (
@@ -229,7 +226,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     if (!host) return () => {};
 
     const layout = stack.dataset.layout || 'homepage';
-    const logoSrc = stack.dataset.logoSrc || '/logo.png';
     const introRush = stack.dataset.introRush === 'true';
     const introDuration = Number(stack.dataset.introDuration) || 4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
@@ -241,20 +237,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     let delayId = 0;
     let cancelled = false;
 
-    const start = async () => {
-      if (cancelled) return;
-      const maskSrc = stack.dataset.heroMask || '/logo-mask.svg';
-      let homePositions: Float32Array | undefined;
-      try {
-        homePositions = await sampleHomePositionsFromMask(maskSrc);
-      } catch {
-        homePositions = undefined;
-      }
+    const start = () => {
       if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
-        logoImageUrl: logoSrc,
-        homePositions,
       });
     };
 

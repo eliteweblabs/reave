@@ -8,53 +8,6 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
-/** Resolved `mask-size` from computed style (single or two lengths in px). */
-function parseMaskImageSize(css: string): { w: number; h: number } | null {
-  const parts = css.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return null;
-  const w = parseCssLengthPx(parts[0]!);
-  if (!Number.isFinite(w) || w <= 0) return null;
-  if (parts.length === 1) return { w, h: w };
-  const h = parseCssLengthPx(parts[1]!);
-  if (!Number.isFinite(h) || h <= 0) return { w, h: w };
-  return { w, h };
-}
-
-function parseCssLengthPx(token: string): number {
-  const t = token.trim();
-  if (!t || t === "auto") return NaN;
-  const m = /^([\d.]+)px$/i.exec(t);
-  return m ? parseFloat(m[1]!) : NaN;
-}
-
-function splitMaskPositionShorthand(
-  merged: string,
-  secondDefault: string,
-): [string, string] {
-  const parts = merged.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return [parts[0]!, parts[1]!];
-  if (parts.length === 1) return [parts[0]!, secondDefault];
-  return ["50%", "50%"];
-}
-
-/** One axis of `mask-position` (keywords, %, or px) → offset of mask image’s top-left in the positioning box. */
-function maskOrigin1D(
-  axisToken: string,
-  extent: number,
-  maskExtent: number,
-): number {
-  const t = axisToken.trim().toLowerCase();
-  if (t === "center") return 0.5 * (extent - maskExtent);
-  if (t === "left" || t === "top") return 0;
-  if (t === "right" || t === "bottom") return extent - maskExtent;
-  if (t.endsWith("%")) {
-    const p = parseFloat(t) / 100;
-    return p * (extent - maskExtent);
-  }
-  if (t.endsWith("px")) return parseFloat(t);
-  return 0.5 * (extent - maskExtent);
-}
-
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   const w = 128;
@@ -99,170 +52,23 @@ function normalizeTintLuminance(
 
 /** Options when attaching the optical engine to a host element. */
 export interface QuantumEngineOptions {
-  /** Particles start outside the mask and rush inward over `durationSec`. */
+  /** Particles start outside the cloud and rush inward over `durationSec`. */
   introRush?: {
     durationSec: number;
   };
-  /** Static logo image — particle colors are sampled from this at intro end. */
-  logoImageUrl?: string;
-  /** Pre-sampled home positions (length = QUANTUM_PARTICLE_COUNT * 3). */
-  homePositions?: Float32Array;
 }
 
 export const QUANTUM_PARTICLE_COUNT = 4000;
 export const QUANTUM_CLOUD_RADIUS = 11.0;
 export const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
 
-const LOGO_SAMPLE_SIZE = 512;
-
-type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
-
-async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error(`Failed to load logo image: ${url}`));
-    img.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = LOGO_SAMPLE_SIZE;
-  canvas.height = LOGO_SAMPLE_SIZE;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D unavailable");
-
-  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
-  let drawW = LOGO_SAMPLE_SIZE;
-  let drawH = LOGO_SAMPLE_SIZE;
-  let offsetX = 0;
-  let offsetY = 0;
-  if (aspect > 1) {
-    drawH = LOGO_SAMPLE_SIZE / aspect;
-    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
-  } else {
-    drawW = LOGO_SAMPLE_SIZE * aspect;
-    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
-  }
-  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
-
-  return (u: number, v: number) => {
-    const x = Math.floor(
-      THREE.MathUtils.clamp(u, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
-    );
-    const y = Math.floor(
-      THREE.MathUtils.clamp(v, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
-    );
-    const i = (y * LOGO_SAMPLE_SIZE + x) * 4;
-    const r = pixels[i]! / 255;
-    const g = pixels[i + 1]! / 255;
-    const b = pixels[i + 2]! / 255;
-    const a = pixels[i + 3]! / 255;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    if (a < 0.06 && lum < 0.06) return null;
-    if (lum < 0.05) return null;
-    return new THREE.Color(r, g, b);
-  };
-}
-
-function homeUv(hx: number, hy: number, cloudRadius: number, cloudHalfH: number): [number, number] {
-  const u = hx / (cloudRadius * 2) + 0.5;
-  const v = 0.5 - hy / (cloudHalfH * 2);
-  return [u, v];
-}
-
-function uvToHome(
-  u: number,
-  v: number,
-  cloudRadius: number,
-  cloudHalfH: number,
-): [number, number, number] {
-  const hx = (u - 0.5) * cloudRadius * 2;
-  const hy = (0.5 - v) * cloudHalfH * 2;
-  const hz = (Math.random() - 0.5) * 0.55;
-  return [hx, hy, hz];
-}
-
-/** Sample particle home positions from a logo mask image (opaque pixels → 3D homes). */
-export async function sampleHomePositionsFromMask(
-  url: string,
-  particleCount = QUANTUM_PARTICLE_COUNT,
-): Promise<Float32Array> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error(`Failed to load mask image: ${url}`));
-    img.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = LOGO_SAMPLE_SIZE;
-  canvas.height = LOGO_SAMPLE_SIZE;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D unavailable");
-
-  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
-  let drawW = LOGO_SAMPLE_SIZE;
-  let drawH = LOGO_SAMPLE_SIZE;
-  let offsetX = 0;
-  let offsetY = 0;
-  if (aspect > 1) {
-    drawH = LOGO_SAMPLE_SIZE / aspect;
-    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
-  } else {
-    drawW = LOGO_SAMPLE_SIZE * aspect;
-    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
-  }
-  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
-
-  const homes = new Float32Array(particleCount * 3);
-  let filled = 0;
-  let attempts = 0;
-  const maxAttempts = particleCount * 80;
-  while (filled < particleCount && attempts < maxAttempts) {
-    attempts++;
-    const u = Math.random();
-    const v = Math.random();
-    const x = Math.floor(u * (LOGO_SAMPLE_SIZE - 1));
-    const y = Math.floor(v * (LOGO_SAMPLE_SIZE - 1));
-    const pi = (y * LOGO_SAMPLE_SIZE + x) * 4;
-    const r = pixels[pi]! / 255;
-    const g = pixels[pi + 1]! / 255;
-    const b = pixels[pi + 2]! / 255;
-    const a = pixels[pi + 3]! / 255;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    if (a < 0.1 && lum < 0.1) continue;
-
-    const [hx, hy, hz] = uvToHome(
-      u,
-      v,
-      QUANTUM_CLOUD_RADIUS,
-      QUANTUM_CLOUD_HALF_HEIGHT,
-    );
-    const i3 = filled * 3;
-    homes[i3] = hx;
-    homes[i3 + 1] = hy;
-    homes[i3 + 2] = hz;
-    filled++;
-  }
-
-  while (filled < particleCount) {
-    const u = Math.random();
-    const rho = QUANTUM_CLOUD_RADIUS * Math.sqrt(u * (2 - u));
-    const theta = Math.random() * Math.PI * 2;
-    const i3 = filled * 3;
-    homes[i3] = rho * Math.cos(theta);
-    homes[i3 + 1] = (Math.random() * 2 - 1) * QUANTUM_CLOUD_HALF_HEIGHT;
-    homes[i3 + 2] = rho * Math.sin(theta);
-    filled++;
-  }
-
-  return homes;
+/** Per-particle interstellar palette — uniform cloud fill; CSS mask is the only clip. */
+function randomInterstellarColor(): THREE.Color {
+  const hues = [0.52, 0.78, 0.84, 0.9, 0.95];
+  const c = new THREE.Color();
+  c.setHSL(hues[Math.floor(Math.random() * hues.length)]!, 0.72, 0.58);
+  normalizeTintLuminance(c, 0.58, 2.4);
+  return c;
 }
 
 function easeOutCubic(t: number): number {
@@ -378,55 +184,6 @@ export function attachQuantumCoreOpticalEngine(
     const vh = Math.max(1, window.innerHeight);
     camera.clearViewOffset();
     camera.aspect = vw / vh;
-    camera.updateProjectionMatrix();
-  }
-
-  /** Match the perspective frustum to the CSS mask image box so the scene scales with the logo (not the full viewport). */
-  function syncCameraToMask() {
-    if (!stackEl) {
-      resetCameraViewportAspect();
-      return;
-    }
-    const vw = window.innerWidth;
-    const vh = Math.max(1, window.innerHeight);
-    const cs = getComputedStyle(stackEl);
-    const csExt = cs as unknown as {
-      webkitMaskSize?: string;
-      webkitMaskPositionX?: string;
-      webkitMaskPositionY?: string;
-    };
-    const sizeStr = csExt.webkitMaskSize || cs.maskSize || "";
-    const dims = parseMaskImageSize(sizeStr);
-    if (!dims) {
-      resetCameraViewportAspect();
-      return;
-    }
-    const maskW0 = dims.w;
-    const maskH0 = dims.h;
-    let posXStr: string;
-    let posYStr: string;
-    if (csExt.webkitMaskPositionX && csExt.webkitMaskPositionY) {
-      posXStr = csExt.webkitMaskPositionX;
-      posYStr = csExt.webkitMaskPositionY;
-    } else {
-      [posXStr, posYStr] = splitMaskPositionShorthand(
-        cs.maskPosition || "50% 50%",
-        "center",
-      );
-    }
-    let left = maskOrigin1D(posXStr, vw, maskW0);
-    let top = maskOrigin1D(posYStr, vh, maskH0);
-    const right = Math.min(vw, left + maskW0);
-    const bottom = Math.min(vh, top + maskH0);
-    left = Math.max(0, left);
-    top = Math.max(0, top);
-    const clipW = right - left;
-    const clipH = bottom - top;
-    if (clipW < 2 || clipH < 2) {
-      resetCameraViewportAspect();
-      return;
-    }
-    camera.setViewOffset(vw, vh, left, top, clipW, clipH);
     camera.updateProjectionMatrix();
   }
 
@@ -548,28 +305,14 @@ export function attachQuantumCoreOpticalEngine(
   const introOutwardMax = 4.2;
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
-  const suppliedHomes =
-    options?.homePositions &&
-    options.homePositions.length >= particleCount * 3
-      ? options.homePositions
-      : null;
 
   for (let i = 0; i < particleCount; i++) {
-    let hx: number;
-    let hy: number;
-    let hz: number;
-    if (suppliedHomes) {
-      hx = suppliedHomes[i * 3]!;
-      hy = suppliedHomes[i * 3 + 1]!;
-      hz = suppliedHomes[i * 3 + 2]!;
-    } else {
-      const u = Math.random();
-      const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
-      const theta = Math.random() * Math.PI * 2;
-      hx = rho * Math.cos(theta);
-      hy = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
-      hz = rho * Math.sin(theta);
-    }
+    const u = Math.random();
+    const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
+    const theta = Math.random() * Math.PI * 2;
+    const hx = rho * Math.cos(theta);
+    const hy = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
+    const hz = rho * Math.sin(theta);
     homePositions[i * 3] = hx;
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
@@ -708,56 +451,34 @@ export function attachQuantumCoreOpticalEngine(
 
   let targetSpike = 0.2;
   const rushTint = new THREE.Color(1, 0.98, 1);
-  const logoFallback = new THREE.Color(0.82, 0.45, 0.72);
-  const logoHomeColors = new Float32Array(particleCount * 3);
-  let logoColorsReady = false;
-  const logoImageUrl = options?.logoImageUrl?.trim() || "";
-  if (logoImageUrl) {
-    void createLogoColorSampler(logoImageUrl)
-      .then((sample) => {
-        for (let i = 0; i < particleCount; i++) {
-          const hx = homePositions[i * 3]!;
-          const hy = homePositions[i * 3 + 1]!;
-          const [u, v] = homeUv(hx, hy, CLOUD_RADIUS, CLOUD_HALF_HEIGHT);
-          const sampled = sample(u, v);
-          const color = sampled ?? logoFallback;
-          logoHomeColors[i * 3] = color.r;
-          logoHomeColors[i * 3 + 1] = color.g;
-          logoHomeColors[i * 3 + 2] = color.b;
-        }
-        logoColorsReady = true;
-      })
-      .catch(() => {
-        logoColorsReady = false;
-      });
+  const settleColors = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount; i++) {
+    const c = randomInterstellarColor();
+    settleColors[i * 3] = c.r;
+    settleColors[i * 3 + 1] = c.g;
+    settleColors[i * 3 + 2] = c.b;
   }
 
-  function applyParticleLogoColors(colorMix = 1, energy = 0): void {
+  function applyParticleColors(colorMix = 1, energy = 0): void {
     const mix = THREE.MathUtils.clamp(colorMix, 0, 1);
     const boost = 1 + energy * 0.12;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
-      if (logoColorsReady) {
-        particleColors[i3] = THREE.MathUtils.lerp(
-          rushTint.r,
-          logoHomeColors[i3]! * boost,
-          mix,
-        );
-        particleColors[i3 + 1] = THREE.MathUtils.lerp(
-          rushTint.g,
-          logoHomeColors[i3 + 1]! * boost,
-          mix,
-        );
-        particleColors[i3 + 2] = THREE.MathUtils.lerp(
-          rushTint.b,
-          logoHomeColors[i3 + 2]! * boost,
-          mix,
-        );
-      } else {
-        particleColors[i3] = rushTint.r;
-        particleColors[i3 + 1] = rushTint.g;
-        particleColors[i3 + 2] = rushTint.b;
-      }
+      particleColors[i3] = THREE.MathUtils.lerp(
+        rushTint.r,
+        settleColors[i3]! * boost,
+        mix,
+      );
+      particleColors[i3 + 1] = THREE.MathUtils.lerp(
+        rushTint.g,
+        settleColors[i3 + 1]! * boost,
+        mix,
+      );
+      particleColors[i3 + 2] = THREE.MathUtils.lerp(
+        rushTint.b,
+        settleColors[i3 + 2]! * boost,
+        mix,
+      );
     }
     particlesGeo.attributes.color!.needsUpdate = true;
   }
@@ -960,14 +681,13 @@ export function attachQuantumCoreOpticalEngine(
       : 1;
 
     if (inGalaxyView) {
-      resetCameraViewportAspect();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
       setPresentationMode(true);
     } else {
-      syncCameraToMask();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
       if (useGalaxyIntro) setPresentationMode(false);
     }
+    resetCameraViewportAspect();
 
     if (inIntro) {
       const colorizeStart = 0.9;
@@ -994,7 +714,7 @@ export function attachQuantumCoreOpticalEngine(
           homePositions[i3 + 2]! +
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
 
-        if (snapMix <= 0 || !logoColorsReady) {
+        if (snapMix <= 0) {
           particleColors[i3] = rushTint.r;
           particleColors[i3 + 1] = rushTint.g;
           particleColors[i3 + 2] = rushTint.b;
@@ -1002,17 +722,17 @@ export function attachQuantumCoreOpticalEngine(
           const boost = 1 + energy * 0.06;
           particleColors[i3] = THREE.MathUtils.lerp(
             rushTint.r,
-            logoHomeColors[i3]! * boost,
+            settleColors[i3]! * boost,
             snapMix,
           );
           particleColors[i3 + 1] = THREE.MathUtils.lerp(
             rushTint.g,
-            logoHomeColors[i3 + 1]! * boost,
+            settleColors[i3 + 1]! * boost,
             snapMix,
           );
           particleColors[i3 + 2] = THREE.MathUtils.lerp(
             rushTint.b,
-            logoHomeColors[i3 + 2]! * boost,
+            settleColors[i3 + 2]! * boost,
             snapMix,
           );
         }
@@ -1043,7 +763,7 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
 
       particles.rotation.y = rotY;
-      applyParticleLogoColors(1, energy);
+      applyParticleColors(1, energy);
       particles.scale.setScalar(PARTICLE_VIS_SCALE);
       particlesMat.size = particleBaseSize;
       particlesMat.opacity = particleBaseOpacity;
@@ -1145,7 +865,7 @@ export function attachQuantumCoreOpticalEngine(
     renderer.setSize(w, h);
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
-    syncCameraToMask();
+    resetCameraViewportAspect();
   };
 
   const onResize = () => {
