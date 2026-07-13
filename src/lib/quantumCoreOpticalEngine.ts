@@ -34,6 +34,7 @@ function readMaskDiagnostics(el: HTMLElement | null): Record<string, unknown> {
     maskMode: cs.maskMode || csExt.webkitMaskMode || "(none)",
     maskRepeat: cs.maskRepeat || csExt.webkitMaskRepeat || "(none)",
     filter: cs.filter || "(none)",
+    transform: cs.transform || "(none)",
     rect: el.getBoundingClientRect(),
   };
 }
@@ -923,8 +924,8 @@ export function attachQuantumCoreOpticalEngine(
     }
 
     const tiltLerp =
-      0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
-    if (introDurationSec <= 0 || inIntro) {
+      0.09 * Math.max(motionScale, 0.4);
+    if (introDurationSec <= 0) {
       pulseGroup.rotation.x +=
         (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
       pulseGroup.rotation.y +=
@@ -939,6 +940,9 @@ export function attachQuantumCoreOpticalEngine(
         -0.62,
         0.62,
       );
+    } else if (inIntro) {
+      pulseGroup.rotation.x = 0;
+      pulseGroup.rotation.y = 0;
     }
 
     shakeIntensity *= 0.9;
@@ -949,7 +953,7 @@ export function attachQuantumCoreOpticalEngine(
     const parallaxAmp =
       (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
     const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
-    if (introDurationSec <= 0 || inIntro) {
+    if (introDurationSec <= 0) {
       camera.position.x +=
         (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
       camera.position.y +=
@@ -957,6 +961,9 @@ export function attachQuantumCoreOpticalEngine(
       camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
       camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
       camera.position.z = VIEW_Z;
+      camera.lookAt(scene.position);
+    } else {
+      camera.position.set(0, 0, VIEW_Z);
       camera.lookAt(scene.position);
     }
 

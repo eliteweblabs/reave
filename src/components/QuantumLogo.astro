@@ -6,7 +6,7 @@ export interface Props {
   logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage mask slide-in; centered keeps the logo in the middle; compact fits the header. */
+  /** Homepage hero; centered for preloader; compact fits small hosts. */
   layout?: 'homepage' | 'centered' | 'compact';
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
@@ -79,15 +79,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-  }
-
-  .quantum-logo-stack--homepage.quantum-logo-stack--logo {
-    mask-position: 42% center;
-    -webkit-mask-position: 42% center;
-    animation: quantumLogoIntro 1.4s ease-out forwards;
-  }
-
-  .quantum-logo-stack--centered {
     mask-position: center center;
     -webkit-mask-position: center center;
   }
@@ -127,25 +118,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 100% !important;
     max-width: none;
     object-fit: cover;
-  }
-
-  @keyframes quantumLogoIntro {
-    0% {
-      mask-position: 42% center;
-      -webkit-mask-position: 42% center;
-    }
-    100% {
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
-  }
-
-  @media (hover: none) {
-    .quantum-logo-stack--homepage.quantum-logo-stack--logo {
-      animation: none;
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
   }
 
   @media screen and (min-width: 768px) {
@@ -208,6 +180,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       maskMode: cs.maskMode || csExt.webkitMaskMode || '(none)',
       maskRepeat: cs.maskRepeat || csExt.webkitMaskRepeat || '(none)',
       filter: cs.filter || '(none)',
+      transform: cs.transform || '(none)',
       rect: stack.getBoundingClientRect(),
     };
   }
