@@ -2,6 +2,7 @@ import type { CSSProperties, KeyboardEvent, RefObject } from 'react';
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
+  AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
@@ -9,13 +10,14 @@ import {
   useLocalRuntime,
   useMessage,
   useAuiState,
+  useThreadViewportAutoScroll,
   type ChatModelAdapter,
   type ThreadMessage,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   filterHelperCommands,
   matchHelperCommand,
@@ -187,6 +189,28 @@ function UserImagePart(props: { image?: string; alt?: string }) {
   );
 }
 
+function MessageCopyButton({ label }: { label: string }) {
+  return (
+    <ActionBarPrimitive.Copy asChild>
+      <button type="button" className="aui-msg-action" aria-label={label}>
+        Copy
+      </button>
+    </ActionBarPrimitive.Copy>
+  );
+}
+
+function UserMessageActions() {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="aui-msg-actions aui-msg-actions-user"
+    >
+      <MessageCopyButton label="Copy message" />
+    </ActionBarPrimitive.Root>
+  );
+}
+
 function AssistantMessageActions() {
   const message = useMessage();
   const plain = (message.content ?? [])
@@ -216,13 +240,9 @@ function AssistantMessageActions() {
       hideWhenRunning
       autohide="not-last"
       autohideFloat="single-branch"
-      className="aui-msg-actions"
+      className="aui-msg-actions aui-msg-actions-assistant"
     >
-      <ActionBarPrimitive.Copy asChild>
-        <button type="button" className="aui-msg-action" aria-label="Copy">
-          Copy
-        </button>
-      </ActionBarPrimitive.Copy>
+      <MessageCopyButton label="Copy response" />
       <button type="button" className="aui-msg-action" aria-label="Share" onClick={() => void share()}>
         Share
       </button>
@@ -289,10 +309,10 @@ function useSlashHelpers(
     blurTimer.current = setTimeout(() => setHelpersOpen(false), 120);
   };
 
-  const focusInput = () => {
+  const focusInput = useCallback(() => {
     const el = inputRef.current ?? document.querySelector('#chat-panel .aui-input');
     if (el instanceof HTMLTextAreaElement) el.focus();
-  };
+  }, []);
 
   const applyCommand = (command: AgentHelperCommand) => {
     composer.setText(command.template);
@@ -314,7 +334,7 @@ function useSlashHelpers(
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('.aui-helper-panel, .aui-slash-line, .aui-compose-footer')) return;
+      if (target.closest('.aui-helper-panel, .aui-composer-shell, .aui-composer-card')) return;
       setHelpersOpen(false);
     };
     document.addEventListener('pointerdown', onPointerDown);
@@ -342,6 +362,11 @@ function useSlashHelpers(
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (composer.getState().canSend) void composer.send();
+      return;
+    }
     if (e.key !== 'Enter' || e.shiftKey) return;
     e.preventDefault();
     const matched = matchHelperCommand(composeText, commands);
@@ -354,7 +379,6 @@ function useSlashHelpers(
   };
 
   return {
-    composeText,
     inputRef,
     filtered,
     showHelpers,
@@ -367,39 +391,61 @@ function useSlashHelpers(
   };
 }
 
-function SlashPrompt({
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 3.5 10.8 5l5.4 5.4H3v1.2h13.2L10.8 17l1.2 1.5L21 12 12 3.5Z"
+        transform="rotate(-90 12 12)"
+      />
+    </svg>
+  );
+}
+
+function ClaudeComposer({
   propsRef,
   commands,
   onFocusInputReady,
+  centered = false,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
   onFocusInputReady?: (focus: () => void) => void;
+  centered?: boolean;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
 
+  if (isRunning) {
+    return (
+      <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
+        <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
+          <div className="aui-composer-toolbar">
+            <span className="aui-composer-status">Thinking…</span>
+            <ComposerPrimitive.Cancel className="aui-composer-stop" aria-label="Stop generating">
+              Stop
+            </ComposerPrimitive.Cancel>
+          </div>
+        </ComposerPrimitive.Root>
+      </div>
+    );
+  }
+
   return (
-    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-footer">
+    <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
       {helpers.showHelpers ? (
         <HelperCommandsPanel commands={helpers.filtered} onPick={helpers.applyCommand} />
       ) : null}
-      <div
-        className="aui-slash-line"
-        onPointerDown={(e) => {
-          if (e.target === e.currentTarget) {
-            e.preventDefault();
-            helpers.focusInput();
-          }
-        }}
-      >
+      <ComposerPrimitive.Root className="aui-composer-card">
         <ComposerPrimitive.Input
           ref={helpers.inputRef}
           className="aui-input"
-          placeholder="/"
+          placeholder="How can I help you today?"
           rows={1}
           enterKeyHint="send"
           autoComplete="off"
@@ -410,29 +456,52 @@ function SlashPrompt({
           onInput={(e) => helpers.onInput(e.currentTarget.value)}
           onKeyDown={helpers.onKeyDown}
         />
-      </div>
-    </ComposerPrimitive.Root>
+        <div className="aui-composer-toolbar">
+          <span className="aui-composer-hint">Type / for commands</span>
+          <ComposerPrimitive.Send className="aui-composer-send" aria-label="Send message">
+            <SendIcon />
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
   );
 }
 
-function EmptyChatPrompt({ onActivate }: { onActivate: () => void }) {
+function ChatMessages() {
   return (
-    <button type="button" className="aui-empty-prompt" onClick={onActivate}>
-      <span className="aui-empty-prompt-slash" aria-hidden="true">
-        /
-      </span>
-      <span className="aui-empty-prompt-hint">Tap to start</span>
-    </button>
-  );
-}
-
-function RunningIndicator() {
-  return (
-    <ComposerPrimitive.Root className="aui-slash-zone aui-slash-zone-footer">
-      <ComposerPrimitive.Cancel className="aui-stop" aria-label="Stop generating">
-        Stop
-      </ComposerPrimitive.Cancel>
-    </ComposerPrimitive.Root>
+    <ThreadPrimitive.Messages
+      components={{
+        UserMessage: () => (
+          <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
+            <div className="aui-msg-wrap aui-msg-wrap-user">
+              <div className="aui-msg aui-msg-user">
+                <MessagePrimitive.Parts
+                  components={{
+                    Text: UserTextPart,
+                    Image: UserImagePart,
+                  }}
+                />
+              </div>
+              <UserMessageActions />
+            </div>
+          </MessagePrimitive.Root>
+        ),
+        AssistantMessage: () => (
+          <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
+            <div className="aui-msg-wrap aui-msg-wrap-assistant">
+              <div className="aui-msg aui-msg-assistant">
+                <MessagePrimitive.Parts
+                  components={{
+                    Text: AssistantMarkdown,
+                  }}
+                />
+              </div>
+              <AssistantMessageActions />
+            </div>
+          </MessagePrimitive.Root>
+        ),
+      }}
+    />
   );
 }
 
@@ -441,14 +510,10 @@ function AgentChatThreadBody({
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
 }) {
-  const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
-  const isRunning = useAuiState((s) => s.thread.isRunning);
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
 
-  const activateComposer = () => {
-    focusComposerRef.current?.();
-  };
+  useThreadViewportAutoScroll({ autoScroll: true });
 
   useEffect(() => {
     let cancelled = false;
@@ -478,52 +543,39 @@ function AgentChatThreadBody({
 
   return (
     <ThreadPrimitive.Root className="aui-thread">
-      <ThreadPrimitive.Viewport className="aui-viewport">
-        {!hasMessages && !isRunning ? (
-          <EmptyChatPrompt onActivate={activateComposer} />
-        ) : null}
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage: () => (
-              <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user">
-                <div className="aui-msg aui-msg-user">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: UserTextPart,
-                      Image: UserImagePart,
-                    }}
-                  />
-                </div>
-              </MessagePrimitive.Root>
-            ),
-            AssistantMessage: () => (
-              <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant">
-                <div className="aui-msg aui-msg-assistant">
-                  <MessagePrimitive.Parts
-                    components={{
-                      Text: AssistantMarkdown,
-                    }}
-                  />
-                  <AssistantMessageActions />
-                </div>
-              </MessagePrimitive.Root>
-            ),
-          }}
-        />
-      </ThreadPrimitive.Viewport>
-      <div className="aui-compose-footer">
-        {isRunning ? (
-          <RunningIndicator />
-        ) : (
-          <SlashPrompt
+      <AuiIf condition={(s) => s.thread.messages.length === 0}>
+        <div className="aui-empty-state">
+          <h1 className="aui-empty-heading">How can I help you today?</h1>
+          <ClaudeComposer
+            centered
             propsRef={propsRef}
             commands={commands}
             onFocusInputReady={(focus) => {
               focusComposerRef.current = focus;
             }}
           />
-        )}
-      </div>
+        </div>
+      </AuiIf>
+
+      <AuiIf condition={(s) => s.thread.messages.length > 0}>
+        <ThreadPrimitive.Viewport className="aui-viewport">
+          <div className="aui-thread-column">
+            <ChatMessages />
+          </div>
+          <ThreadPrimitive.ViewportFooter className="aui-viewport-footer">
+            <div className="aui-thread-column">
+              <ClaudeComposer
+                propsRef={propsRef}
+                commands={commands}
+                onFocusInputReady={(focus) => {
+                  focusComposerRef.current = focus;
+                }}
+              />
+              <p className="aui-disclaimer">Reave can make mistakes. Double-check important info.</p>
+            </div>
+          </ThreadPrimitive.ViewportFooter>
+        </ThreadPrimitive.Viewport>
+      </AuiIf>
     </ThreadPrimitive.Root>
   );
 }
@@ -558,7 +610,7 @@ export function AgentChatPanel(props: AgentChatPanelProps) {
   propsRef.current = props;
 
   const style = {
-    '--aui-compose-pad': '0px',
+    '--aui-composer-stack': '6.25rem',
   } as CSSProperties;
 
   return (

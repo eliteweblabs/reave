@@ -2371,7 +2371,10 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         border-color: var(--panel-border);
       }
       .ch-header-title {
-        cursor: default;
+        cursor: pointer;
+      }
+      .ch-header-title:hover {
+        color: var(--fg);
       }
       .ch-pane {
         flex: 1;

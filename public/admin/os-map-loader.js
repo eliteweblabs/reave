@@ -3018,7 +3018,7 @@ function initChatComposeFocusLayout() {
     (ev) => {
       if (!document.body.classList.contains('chat-compose-focused')) return;
       const t = ev.target;
-      if (t instanceof HTMLElement && t.closest('.aui-compose, .aui-compose-footer, .ch-compose')) {
+      if (t instanceof HTMLElement && t.closest('.aui-compose, .aui-compose-footer, .aui-composer-shell, .aui-composer-card, .ch-compose')) {
         return;
       }
       const input = document.querySelector('#chat-panel .aui-input');
@@ -8596,11 +8596,91 @@ function syncSidebarChatTitle(threadId, title) {
   if (el) el.textContent = title;
 }
 
-function createHeaderChatTitle(title) {
+async function saveChatTitle(threadId, title) {
+  const trimmed = (title || '').trim();
+  if (!trimmed || !threadId) return false;
+  const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: trimmed }),
+  });
+  await readApiJson(res);
+  chatState.title = trimmed;
+  const thread = chatState.threads.find((t) => t.id === threadId);
+  if (thread) thread.title = trimmed;
+  syncSidebarChatTitle(threadId, trimmed);
+  return true;
+}
+
+function startChatTitleEdit(titleEl, threadId, originalTitle) {
+  if (!titleEl || titleEl.dataset.editing === '1') return;
+  const prior = (originalTitle || titleEl.textContent || 'New chat').trim() || 'New chat';
+  titleEl.dataset.editing = '1';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'de-doc-name de-header-title-input ch-header-title-input';
+  input.value = prior;
+  input.setAttribute('aria-label', 'Chat title');
+
+  const finish = async (save) => {
+    titleEl.dataset.editing = '0';
+    const next = (input.value || '').trim() || prior;
+    if (save && next !== prior) {
+      try {
+        await saveChatTitle(threadId, next);
+        titleEl.textContent = next;
+      } catch (e) {
+        titleEl.textContent = prior;
+        osAlert({ title: 'Rename failed', bodyHtml: escHtml(e.message) });
+      }
+    } else {
+      titleEl.textContent = prior;
+    }
+    input.remove();
+    titleEl.hidden = false;
+  };
+
+  titleEl.hidden = true;
+  titleEl.insertAdjacentElement('afterend', input);
+  input.focus();
+  input.select();
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void finish(true);
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      void finish(false);
+    }
+  });
+  input.addEventListener('blur', () => void finish(true));
+}
+
+function createHeaderChatTitle(threadId, title) {
   const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name ch-header-title topbar-panel-title';
-  titleEl.textContent = title;
+  titleEl.className = 'de-doc-name ch-header-title';
+  titleEl.textContent = (title || '').trim() || 'New chat';
+  titleEl.setAttribute('role', 'button');
+  titleEl.setAttribute('tabindex', '0');
+  titleEl.title = 'Click to rename';
+  const start = () => startChatTitleEdit(titleEl, threadId, titleEl.textContent);
+  titleEl.addEventListener('click', start);
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      start();
+    }
+  });
   return titleEl;
+}
+
+function syncChatPaneHeaderTitle(title) {
+  const titleEl = getChatPanel()?.querySelector('.ch-pane-header .ch-header-title');
+  if (!(titleEl instanceof HTMLElement) || titleEl.dataset.editing === '1') return;
+  titleEl.textContent = (title || '').trim() || 'New chat';
 }
 
 async function readApiJson(res) {
@@ -8856,6 +8936,7 @@ function mountChatThreadRoot(threadHost) {
       const thread = chatState.threads.find((t) => t.id === chatState.activeId);
       if (thread) thread.title = title;
       syncSidebarChatTitle(chatState.activeId, title);
+      syncChatPaneHeaderTitle(title);
     },
     onMessagesPersist: (userContent, assistantContent) => {
       chatState.messages.push({ role: 'user', content: userContent });
@@ -8896,8 +8977,7 @@ function renderChatPanel() {
     return;
   }
 
-  if (chatHasConversation()) pane.appendChild(buildChatPaneHeader());
-  else if (isMobileTabs()) pane.appendChild(buildChatPaneNavHeader());
+  if (chatState.activeId) pane.appendChild(buildChatPaneHeader());
 
   const threadHost = document.createElement('div');
   threadHost.className = 'ch-thread-root';
@@ -9310,13 +9390,7 @@ function buildChatPaneHeader() {
 
   const main = document.createElement('div');
   main.className = 'ch-pane-header-main';
-
-  if (shouldShowChatTopbarTitle(chatState.title)) {
-    const titleEl = document.createElement('span');
-    titleEl.className = 'de-doc-name';
-    titleEl.textContent = chatState.title.trim();
-    main.appendChild(titleEl);
-  }
+  main.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
 
   header.appendChild(main);
   header.appendChild(createChatModelSwitcher());
