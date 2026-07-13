@@ -4,8 +4,8 @@ export interface Props {
   heroMask: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage mask slide-in; centered keeps the logo in the middle. */
-  layout?: 'homepage' | 'centered';
+  /** Homepage mask slide-in; centered keeps the logo in the middle; compact fits the header. */
+  layout?: 'homepage' | 'centered' | 'compact';
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
@@ -20,12 +20,13 @@ const {
   hostId = 'quantumCanvasHost',
   layout = 'homepage',
   introRush = true,
-  introDuration = 2,
+  introDuration = 2.4,
   initDelay,
   class: className,
 } = Astro.props;
 
 const isHomepage = layout === 'homepage';
+const isCompact = layout === 'compact';
 const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 ---
 
@@ -33,11 +34,13 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   class:list={[
     'quantum-logo-stack',
     isHomepage && 'quantum-logo-stack--homepage',
-    !isHomepage && 'quantum-logo-stack--centered',
+    layout === 'centered' && 'quantum-logo-stack--centered',
+    isCompact && 'quantum-logo-stack--compact',
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
   data-quantum-logo
+  data-layout={layout}
   data-host-id={hostId}
   data-intro-rush={introRush ? 'true' : 'false'}
   data-intro-duration={String(introDuration)}
@@ -77,6 +80,26 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   .quantum-logo-stack--centered {
     mask-position: center center;
     -webkit-mask-position: center center;
+  }
+
+  .quantum-logo-stack--compact {
+    position: relative;
+    inset: unset;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    pointer-events: none;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-position: center center;
+    -webkit-mask-position: center center;
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.4))
+      drop-shadow(0 0 14px rgba(255, 100, 200, 0.22));
+  }
+
+  .quantum-logo-stack--compact .quantum-host {
+    position: absolute;
+    inset: 0;
   }
 
   .quantum-host {
@@ -155,21 +178,45 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     );
   }
 
+  function waitForPreloaderGone(): Promise<void> {
+    return new Promise((resolve) => {
+      const boot = document.getElementById('boot');
+      if (!boot) {
+        resolve();
+        return;
+      }
+      const finish = () => {
+        obs?.disconnect();
+        resolve();
+      };
+      window.addEventListener('quantum-intro-complete', finish, { once: true });
+      const obs = new MutationObserver(() => {
+        if (!document.getElementById('boot')) finish();
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      window.setTimeout(finish, 4000);
+    });
+  }
+
   function initStack(stack: HTMLElement): () => void {
     const hostId = stack.dataset.hostId || 'quantumCanvasHost';
     const host = document.getElementById(hostId);
     if (!host) return () => {};
 
+    const layout = stack.dataset.layout || 'homepage';
     const introRush = stack.dataset.introRush === 'true';
-    const introDuration = Number(stack.dataset.introDuration) || 2;
+    const introDuration = Number(stack.dataset.introDuration) || 2.4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
 
     document.documentElement.classList.add('quantum-page-touch');
     document.body.classList.add('quantum-page-touch');
 
     let detach: (() => void) | undefined;
+    let delayId = 0;
+    let cancelled = false;
 
     const start = () => {
+      if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
       });
@@ -181,7 +228,16 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
         matchMedia('(hover: none)').matches);
     const delayMs =
       prefersReducedMotion() || touchUi ? 0 : resolvedInitDelay;
-    const delayId = window.setTimeout(start, delayMs);
+
+    const scheduleStart = () => {
+      delayId = window.setTimeout(start, delayMs);
+    };
+
+    if (layout === 'compact' && document.getElementById('boot')) {
+      void waitForPreloaderGone().then(scheduleStart);
+    } else {
+      scheduleStart();
+    }
 
     const parent = stack.parentElement;
     let obs: MutationObserver | undefined;
@@ -198,6 +254,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     }
 
     return () => {
+      cancelled = true;
       window.clearTimeout(delayId);
       detach?.();
       obs?.disconnect();
