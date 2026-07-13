@@ -36,11 +36,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 <div
   class:list={[
     'quantum-logo-stack',
+    'quantum-logo-stack--logo',
     isHomepage && 'quantum-logo-stack--homepage',
     layout === 'centered' && 'quantum-logo-stack--centered',
     isCompact && 'quantum-logo-stack--compact',
-    introRush && !isCompact && 'quantum-logo-stack--galaxy',
-    (!introRush || isCompact) && 'quantum-logo-stack--logo',
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
@@ -69,14 +68,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     --quantum-hero-logo-size: min(72vmin, 76vw, 420px);
   }
 
-  /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
-  .quantum-logo-stack--galaxy:not(.quantum-logo-stack--compact) {
-    mask-image: none;
-    -webkit-mask-image: none;
-    filter: none;
-  }
-
-  /* After intro: logo silhouette only — CSS mask is the sole visibility clip. */
+  /* Logo silhouette — CSS mask is the sole visibility clip from the first frame. */
   .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
   .quantum-logo-stack--compact {
     mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
@@ -87,8 +79,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))
-      drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
   }
 
   .quantum-logo-stack--homepage.quantum-logo-stack--logo {
@@ -114,8 +104,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-size: contain;
     mask-position: center center;
     -webkit-mask-position: center center;
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
-      drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
   }
 
   .quantum-logo-stack--compact .quantum-host {

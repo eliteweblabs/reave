@@ -173,12 +173,6 @@ export function attachQuantumCoreOpticalEngine(
   const isCompactStack =
     stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
 
-  function setPresentationMode(galaxy: boolean): void {
-    if (!stackEl || isCompactStack) return;
-    stackEl.classList.toggle("quantum-logo-stack--galaxy", galaxy);
-    stackEl.classList.toggle("quantum-logo-stack--logo", !galaxy);
-  }
-
   function resetCameraViewportAspect() {
     const vw = window.innerWidth;
     const vh = Math.max(1, window.innerHeight);
@@ -663,7 +657,6 @@ export function attachQuantumCoreOpticalEngine(
     camera.position.set(0, 0, VIEW_Z);
     camera.lookAt(scene.position);
     (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
-    if (useGalaxyIntro) setPresentationMode(false);
     resetCameraViewportAspect();
   }
 
@@ -724,10 +717,8 @@ export function attachQuantumCoreOpticalEngine(
 
     if (inGalaxyView) {
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
-      setPresentationMode(true);
     } else {
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
-      if (useGalaxyIntro) setPresentationMode(false);
     }
     resetCameraViewportAspect();
 
