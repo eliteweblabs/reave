@@ -2073,6 +2073,19 @@ const company = await getCompanyConfig(Astro.request);
         max-width: 100%;
         width: 100%;
         resize: vertical;
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        overflow-x: hidden;
+      }
+      #clients-editor .de-fields .de-label,
+      #clients-editor .de-pane > .cl-notes-label {
+        width: 100%;
+      }
+      #clients-editor .de-fields .de-input,
+      #clients-editor .de-fields .cl-website-field {
+        max-width: none;
+        width: 100%;
       }
       .cl-jobs-section {
         padding: 1rem 1rem var(--footer-scroll-pad);

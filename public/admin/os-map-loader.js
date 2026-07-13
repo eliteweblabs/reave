@@ -7475,18 +7475,18 @@ function renderNewClientForm(pane) {
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
 
-  pane.appendChild(fields);
-
   const notesLabel = document.createElement('label');
-  notesLabel.className = 'de-label';
+  notesLabel.className = 'de-label cl-notes-label';
   notesLabel.textContent = 'Notes (internal)';
   const notesTa = document.createElement('textarea');
-  notesTa.className = 'de-textarea';
+  notesTa.className = 'de-textarea cl-notes-textarea';
   notesTa.spellcheck = false;
   notesTa.placeholder = 'Private notes — never shown on client portal';
   notesTa.value = clientState.draft?.notes || '';
   notesLabel.appendChild(notesTa);
-  pane.appendChild(notesLabel);
+  fields.appendChild(notesLabel);
+
+  pane.appendChild(fields);
   registerClientField(notesTa, () => true);
 
   setEditorFooterSave(() => {
