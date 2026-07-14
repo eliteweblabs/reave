@@ -4720,7 +4720,7 @@ function renderKnowledgeEditor() {
   const hint = document.createElement('div');
   hint.className = 'de-empty';
   hint.style.padding = '0 0.65rem 0.5rem';
-  hint.textContent = 'Live DB + bundled docs · bot reads DB first';
+  hint.textContent = 'Repo + plugin markdown (read-only) · client notes in Postgres';
   sidebar.appendChild(hint);
 
   const list = document.createElement('div');
@@ -4831,12 +4831,14 @@ function renderEditKnowledgeForm(pane) {
       header.appendChild(slugEl);
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
-      headerActions.appendChild(createIosIconBtn({
-        iconKey: 'trash',
-        label: 'Delete knowledge doc',
-        className: 'ios-icon-btn ch-delete-btn',
-        onClick: () => deleteKnowledge(slug),
-      }));
+      if (!data.readonly) {
+        headerActions.appendChild(createIosIconBtn({
+          iconKey: 'trash',
+          label: 'Delete knowledge doc',
+          className: 'ios-icon-btn ch-delete-btn',
+          onClick: () => deleteKnowledge(slug),
+        }));
+      }
       header.appendChild(headerActions);
       pane.appendChild(header);
 
@@ -4844,12 +4846,18 @@ function renderEditKnowledgeForm(pane) {
       ta.className = 'de-textarea';
       ta.spellcheck = false;
       ta.value = data.content;
+      ta.readOnly = Boolean(data.readonly);
+      if (data.readonly) ta.title = 'Repo and plugin knowledge are read-only — edit markdown in git.';
       ta.addEventListener('input', () => {
         knowledgeState.dirty = ta.value !== knowledgeState.content;
       });
       pane.appendChild(ta);
 
-      setEditorFooterSave(() => saveKnowledge(slug, ta.value));
+      if (data.readonly) {
+        clearEditorFooterSave();
+      } else {
+        setEditorFooterSave(() => saveKnowledge(slug, ta.value));
+      }
       getKnowledgeEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -10183,9 +10191,12 @@ function createKnowledgeListItem(entry) {
   item.type = 'button';
   item.className = 'ch-list-item' + (entry.slug === knowledgeState.activeSlug ? ' active' : '');
   item.dataset.slug = entry.slug;
-  const sourceBadge = entry.source === 'db'
-    ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
-    : '';
+  const sourceBadge =
+    entry.source === 'client'
+      ? '<span class="ch-item-badge" title="Client knowledge (Postgres)">Client</span>'
+      : entry.source === 'plugin'
+        ? '<span class="ch-item-badge" title="Plugin markdown (read-only)">Plugin</span>'
+        : '<span class="ch-item-badge" title="Repo playbook (read-only)">Repo</span>';
   item.innerHTML =
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${sourceBadge}</span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
@@ -10194,18 +10205,21 @@ function createKnowledgeListItem(entry) {
 }
 
 function createKnowledgeSwipeRow(entry) {
-  return createSwipeRow(createKnowledgeListItem(entry), [
+  const actions = [
     {
       label: 'Agent',
       className: 'swipe-act swipe-act-agent',
       onClick: () => askAgentAboutKnowledge(entry),
     },
-    {
+  ];
+  if (!entry.readonly) {
+    actions.push({
       label: 'Delete',
       className: 'swipe-act swipe-act-delete',
       onClick: () => deleteKnowledge(entry.slug),
-    },
-  ]);
+    });
+  }
+  return createSwipeRow(createKnowledgeListItem(entry), actions);
 }
 
 function createWorkListItem(job) {

@@ -224,7 +224,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'list_knowledge',
         description:
-          'List all knowledge entries (live DB + bundled fallback) with one-line previews. Use this to discover what internal docs exist before calling read_knowledge.',
+          'List knowledge entries: repo playbooks (src/knowledge), enabled plugin docs (plugins/<id>/), and client notes (Postgres). Use before read_knowledge.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
       },
     },
@@ -233,7 +233,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'read_knowledge',
         description:
-          'Read the full content of a knowledge entry by slug. Checks the live database first, then bundled docs.',
+          'Read a knowledge entry by slug. Repo and plugin slugs are markdown (read-only). Client slugs live in Postgres.',
         parameters: {
           type: 'object',
           properties: { slug: { type: 'string', description: 'Entry slug (no .md extension)' } },
@@ -247,7 +247,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'search_knowledge',
         description:
-          'Search knowledge entries by keyword or topic. Returns matching titles + previews from both the live DB and bundled docs. Use instead of list_knowledge when you have a specific topic in mind.',
+          'Search knowledge by keyword: repo playbooks, enabled plugin docs, and client Postgres notes.',
         parameters: {
           type: 'object',
           properties: {
@@ -266,7 +266,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'list_work',
         description:
-          'List work/job records (metadata only — no full notes). Jobs live in src/knowledge/jobs/ and are tied to a contact. Use to discover open jobs; call read_work for full details when a job is referenced.',
+          'List work/job records (metadata only — no full notes). Jobs live in Postgres (or src/runtime/jobs when DATABASE_URL is unset) and are tied to a contact. Use to discover open jobs; call read_work for full details when a job is referenced.',
         parameters: {
           type: 'object',
           properties: {
@@ -496,7 +496,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'write_knowledge',
         description:
-          'Create or update a knowledge entry in the live database. Use this to save new context, notes, playbooks, or corrections so they persist across restarts without a redeploy. Requires DATABASE_URL (Railway Postgres) to be set.',
+          'Create or update client knowledge in Postgres (notes about a client or engagement). Cannot use slugs reserved by repo or plugin markdown. Requires DATABASE_URL.',
         parameters: {
           type: 'object',
           properties: {

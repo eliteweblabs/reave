@@ -1,7 +1,6 @@
 /**
- * GET  /api/admin/knowledge        — list all entries
- * POST /api/admin/knowledge        — create or update (upsert by slug)
- * POST /api/admin/knowledge?seed=1 — import all bundled docs into DB (safe: skips existing)
+ * GET  /api/admin/knowledge        — list all entries (repo + plugin + client)
+ * POST /api/admin/knowledge        — create client knowledge (Postgres only)
  */
 
 import type { APIContext } from 'astro';
@@ -9,7 +8,6 @@ import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 import {
   storeListKnowledge,
   storeWriteKnowledge,
-  storeSeedBundled,
   isKnowledgeDbConfigured,
 } from '../../../../lib/knowledgeStore';
 
@@ -34,16 +32,6 @@ export async function POST(context: APIContext): Promise<Response> {
   const auth = requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  const url = new URL(context.request.url);
-
-  if (url.searchParams.get('seed') === '1') {
-    if (!isKnowledgeDbConfigured()) {
-      return json({ ok: false, error: 'Knowledge DB not configured — set DATABASE_URL on Railway' }, 503);
-    }
-    const result = await storeSeedBundled();
-    return json({ ok: true, ...result });
-  }
-
   let body: Record<string, unknown>;
   try {
     body = await context.request.json();
@@ -55,13 +43,15 @@ export async function POST(context: APIContext): Promise<Response> {
   const title = String(body.title ?? '').trim();
   const content = String(body.content ?? '').trim();
   const tags = Array.isArray(body.tags) ? (body.tags as unknown[]).map(String) : [];
-  const source = String(body.source ?? 'manual');
 
   if (!slug || !title || !content) {
     return json({ ok: false, error: 'slug, title, and content are required' }, 400);
   }
 
-  const result = await storeWriteKnowledge({ slug, title, content, tags, source });
-  if (!result.ok) return json({ ok: false, error: result.error }, 503);
-  return json({ ok: true, slug, title });
+  const result = await storeWriteKnowledge({ slug, title, content, tags, source: 'manual' });
+  if (!result.ok) {
+    const status = result.error?.includes('reserved') ? 409 : 503;
+    return json({ ok: false, error: result.error }, status);
+  }
+  return json({ ok: true, slug, title, source: 'client' });
 }

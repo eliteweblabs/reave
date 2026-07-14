@@ -58,7 +58,7 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     slash: '/read',
     summary: 'Read a knowledge doc',
     template: 'Read knowledge entry [slug].',
-    example: 'Read knowledge entry crater-billing.',
+    example: 'Read knowledge entry billing/crater-billing.',
   },
 
   // Work / jobs

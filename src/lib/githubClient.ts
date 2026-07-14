@@ -577,3 +577,69 @@ export async function githubCreateBranch(opts: {
     },
   };
 }
+
+type GithubContentEntry = {
+  name: string;
+  type: string;
+  path: string;
+  content?: string;
+  encoding?: string;
+  download_url?: string | null;
+};
+
+function decodeGithubContent(entry: GithubContentEntry): string | null {
+  if (entry.content && entry.encoding === 'base64') {
+    try {
+      return Buffer.from(entry.content.replace(/\n/g, ''), 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** List and read root-level `*.md` files from a GitHub repo (plugin knowledge). */
+export async function githubListRepoRootMarkdown(
+  repo: string,
+): Promise<GithubResult<{ name: string; content: string }[]>> {
+  const repoRes = resolveRepo(repo);
+  if (!repoRes.ok) return repoRes;
+
+  const meta = await ghFetch<{ default_branch?: string }>(`/repos/${repoRes.data}`);
+  if (!meta.ok) return meta;
+  const branch = meta.data.default_branch ?? githubDefaultBranch();
+
+  const listing = await ghFetch<GithubContentEntry[]>(`/repos/${repoRes.data}/contents`, {
+    query: { ref: branch },
+  });
+  if (!listing.ok) return listing;
+
+  const mdEntries = (listing.data ?? []).filter(
+    (e) => e.type === 'file' && e.name.endsWith('.md') && !e.path.includes('/'),
+  );
+
+  const files: { name: string; content: string }[] = [];
+  for (const entry of mdEntries) {
+    let content = decodeGithubContent(entry);
+    if (content == null && entry.download_url) {
+      try {
+        const res = await fetch(entry.download_url, {
+          headers: { 'User-Agent': 'reave-admin-agent' },
+        });
+        if (res.ok) content = await res.text();
+      } catch {
+        content = null;
+      }
+    }
+    if (content == null) {
+      const fileRes = await ghFetch<GithubContentEntry>(
+        `/repos/${repoRes.data}/contents/${encodeURIComponent(entry.name)}`,
+        { query: { ref: branch } },
+      );
+      if (fileRes.ok) content = decodeGithubContent(fileRes.data);
+    }
+    if (content != null) files.push({ name: entry.name, content });
+  }
+
+  return { ok: true, data: files };
+}

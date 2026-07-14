@@ -1,5 +1,5 @@
 /**
- * GET  /api/work — list job markdown files (src/knowledge/jobs/*.md)
+ * GET  /api/work — list job records (Postgres or src/runtime/jobs/*.md fallback)
  * POST /api/work — create { slug?, title, client, status?, body? }
  */
 

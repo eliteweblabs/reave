@@ -17,4 +17,4 @@ When Railway posts a **deployment failure** (or crash-style) webhook to Reave, A
 ## Notes
 
 - Success webhooks start the site-monitoring suppress window (when `site_monitoring` feature is enabled).
-- Email path for Railway crash notifications still works via Resend inbound + `RAILWAY_ALERT` rules — see `src/knowledge/email-rules.md`.
+- Email path for Railway crash notifications still works via Resend inbound + `RAILWAY_ALERT` rules — see repo playbook `email-rules.md`.

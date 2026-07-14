@@ -1,14 +1,9 @@
 /**
- * Postgres-backed knowledge store (Railway DATABASE_URL).
- * Schema is ensured on first use; bundled markdown is seeded when the table is empty.
+ * Postgres-backed client knowledge (per-deployment notes about clients).
+ * Repo playbooks and plugin docs are markdown only — never seeded or overridden here.
  */
 
 import pg from 'pg';
-import {
-  listKnowledgeSlugs,
-  parseKnowledgeMarkdown,
-  readKnowledgeMarkdown,
-} from './localKnowledge';
 import { serverEnv } from './serverEnv';
 
 export interface KnowledgeEntry {
@@ -49,7 +44,6 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_search ON knowledge USING GIN(
 
 let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
-let _seedReady: Promise<void> | null = null;
 
 function databaseUrl(): string | undefined {
   return serverEnv('DATABASE_URL')?.trim() || undefined;
@@ -73,24 +67,6 @@ function getPool(): pg.Pool | null {
   return _pool;
 }
 
-async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
-  const { rows } = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM knowledge');
-  if ((rows[0]?.n ?? 0) > 0) return;
-
-  for (const slug of listKnowledgeSlugs()) {
-    const raw = readKnowledgeMarkdown(slug);
-    if (!raw) continue;
-    const parsed = parseKnowledgeMarkdown(raw.content);
-    const title = parsed.title || slug;
-    await pool.query(
-      `INSERT INTO knowledge (slug, title, content, tags)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (slug) DO NOTHING`,
-      [slug, title, parsed.body, parsed.tags],
-    );
-  }
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPool();
   if (!pool) return null;
@@ -104,15 +80,6 @@ async function ensureSchema(): Promise<pg.Pool | null> {
       });
   }
   await _schemaReady;
-
-  if (!_seedReady) {
-    _seedReady = seedBundledIfEmpty(pool).catch((e) => {
-      _seedReady = null;
-      console.error('[knowledge:pg] seed error:', e);
-    });
-  }
-  await _seedReady;
-
   return pool;
 }
 
@@ -211,49 +178,4 @@ export async function dbDeleteKnowledge(
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
   }
-}
-
-/** Import bundled docs into DB (skips slugs that already exist). */
-export async function dbSeedBundled(): Promise<{
-  seeded: string[];
-  skipped: string[];
-  errors: { slug: string; error: string }[];
-}> {
-  const seeded: string[] = [];
-  const skipped: string[] = [];
-  const errors: { slug: string; error: string }[] = [];
-
-  const pool = await ensureSchema();
-  if (!pool) {
-    return {
-      seeded: [],
-      skipped: [],
-      errors: [{ slug: '*', error: 'Knowledge DB not configured' }],
-    };
-  }
-
-  for (const slug of listKnowledgeSlugs()) {
-    const existing = await dbReadKnowledge(slug);
-    if (existing) {
-      skipped.push(slug);
-      continue;
-    }
-    const raw = readKnowledgeMarkdown(slug);
-    if (!raw) {
-      errors.push({ slug, error: 'bundled file missing' });
-      continue;
-    }
-    const parsed = parseKnowledgeMarkdown(raw.content);
-    const title = parsed.title || slug;
-    const result = await dbWriteKnowledge({
-      slug,
-      title,
-      content: parsed.body,
-      tags: parsed.tags,
-    });
-    if (result.ok) seeded.push(slug);
-    else errors.push({ slug, error: result.error ?? 'unknown error' });
-  }
-
-  return { seeded, skipped, errors };
 }

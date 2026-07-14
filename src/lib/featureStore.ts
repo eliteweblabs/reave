@@ -1,6 +1,6 @@
 /**
  * Persist enabled feature modules (admin plugin toggles).
- * Postgres when DATABASE_URL is set, otherwise src/knowledge/features.json.
+ * Postgres when DATABASE_URL is set, otherwise src/runtime/features.json.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -76,7 +76,7 @@ function projectRoot(): string {
 function featuresFilePath(): string {
   const override = serverEnv('FEATURES_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'features.json');
+  return join(projectRoot(), 'src', 'runtime', 'features.json');
 }
 
 function normalizeIds(raw: unknown): FeatureId[] {

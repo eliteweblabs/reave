@@ -1,6 +1,6 @@
 /**
  * Markdown-file chat archive (same persistence model as /api/todo).
- * One thread = one .md file under src/knowledge/chats/ (override with CHATS_DIR).
+ * One thread = one .md file under src/runtime/chats/ (override with CHATS_DIR).
  *
  * On Railway, writes persist until the next deploy unless committed to git.
  */
@@ -30,7 +30,7 @@ function projectRoot(): string {
 }
 
 function chatsDir(): string {
-  const dir = process.env.CHATS_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'chats');
+  const dir = process.env.CHATS_DIR?.trim() || join(projectRoot(), 'src', 'runtime', 'chats');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   return dir;
 }

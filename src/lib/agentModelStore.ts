@@ -1,6 +1,6 @@
 /**
  * Persist the runtime Claude model choice for admin chats and dashboard agent.
- * Postgres (DATABASE_URL) when set, otherwise JSON under src/knowledge/.
+ * Postgres (DATABASE_URL) when set, otherwise JSON under src/runtime/.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -76,7 +76,7 @@ function projectRoot(): string {
 function modelFilePath(): string {
   const override = serverEnv('AGENT_MODEL_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'agent-model.json');
+  return join(projectRoot(), 'src', 'runtime', 'agent-model.json');
 }
 
 function readFileModel(): string | null {

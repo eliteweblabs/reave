@@ -1,5 +1,5 @@
 /**
- * Job/work markdown files (src/knowledge/jobs/*.md).
+ * Job/work markdown files (src/runtime/jobs/*.md).
  * Each file is a work request tied to a contact via YAML frontmatter.
  */
 
@@ -89,7 +89,7 @@ function projectRoot(): string {
 }
 
 export function workDir(): string {
-  return process.env.WORK_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'jobs');
+  return process.env.WORK_DIR?.trim() || join(projectRoot(), 'src', 'runtime', 'jobs');
 }
 
 export function isSafeWorkSlug(slug: string): boolean {

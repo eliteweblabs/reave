@@ -1,6 +1,6 @@
 /**
  * Persisted email triage rules for the dashboard and inbound pipeline.
- * Postgres (DATABASE_URL) when set, otherwise JSON file under src/knowledge/.
+ * Postgres (DATABASE_URL) when set, otherwise JSON file under src/runtime/.
  */
 
 import { randomUUID } from 'crypto';
@@ -104,7 +104,7 @@ function projectRoot(): string {
 function rulesFilePath(): string {
   const override = serverEnv('EMAIL_RULES_FILE')?.trim();
   if (override) return override;
-  return join(projectRoot(), 'src', 'knowledge', 'email-rules.json');
+  return join(projectRoot(), 'src', 'runtime', 'email-rules.json');
 }
 
 function seedFromDefaults(): EmailRulesConfig {
