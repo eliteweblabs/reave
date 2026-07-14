@@ -192,7 +192,8 @@ const cursorSpeed = isHomepage;
     const maxRate = clamp(Number(stack.dataset.cursorSpeedMaxRate) || 2.25, 1, 4);
     const refVelocity = Math.max(Number(stack.dataset.cursorSpeedVelocity) || 2.5, 0.1);
     const baseRate = clamp(Number(stack.dataset.basePlaybackRate) || 0.5, 0.05, 1);
-    const idleDelayMs = 500;
+    const holdIdleMs = 80;
+    const mouseIdleMs = 140;
 
     if (stack.dataset.cursorSpeed !== "true" || prefersReducedMotion()) {
       video.playbackRate = baseRate;
@@ -201,8 +202,10 @@ const cursorSpeed = isHomepage;
       };
     }
 
-    type Phase = "baseline" | "interactive" | "wind_down" | "wind_up";
-    let phase: Phase = "baseline";
+    type Phase = "auto" | "drive" | "hold" | "ease_in";
+    let phase: Phase = "auto";
+    let pointerDown = false;
+    let activePointerId: number | null = null;
     let targetRate = baseRate;
     let currentRate = baseRate;
     let lastX = 0;
@@ -223,53 +226,83 @@ const cursorSpeed = isHomepage;
       }
     };
 
+    const beginEaseIn = () => {
+      phase = "ease_in";
+      targetRate = baseRate;
+    };
+
     const tick = () => {
       const now = performance.now();
       const idleMs = now - lastMoveTime;
 
-      if (phase === "interactive" && hasPointerSample && idleMs >= idleDelayMs) {
-        phase = "wind_down";
-      }
-
       switch (phase) {
-        case "baseline":
-          targetRate = baseRate;
-          currentRate += (targetRate - currentRate) * 0.1;
+        case "auto":
+          currentRate = baseRate;
+          applyRate(baseRate);
           break;
-        case "interactive":
+        case "drive":
           currentRate += (targetRate - currentRate) * 0.12;
-          break;
-        case "wind_down":
-          targetRate = 0;
-          currentRate += (targetRate - currentRate) * 0.07;
-          if (currentRate <= 0.02) {
+          applyRate(currentRate);
+          if (pointerDown && idleMs >= holdIdleMs) {
+            phase = "hold";
             currentRate = 0;
-            phase = "wind_up";
+            video.pause();
+          } else if (!pointerDown && idleMs >= mouseIdleMs) {
+            beginEaseIn();
           }
           break;
-        case "wind_up":
-          targetRate = baseRate;
+        case "hold":
+          break;
+        case "ease_in":
           currentRate += (targetRate - currentRate) * 0.035;
+          applyRate(currentRate);
           if (Math.abs(currentRate - baseRate) < 0.015) {
             currentRate = baseRate;
-            phase = "baseline";
+            phase = "auto";
           }
           break;
       }
 
-      applyRate(currentRate);
       rafId = requestAnimationFrame(tick);
     };
 
+    const onPointerDown = (event: PointerEvent) => {
+      pointerDown = true;
+      activePointerId = event.pointerId;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      lastMoveTime = performance.now();
+      hasPointerSample = false;
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (activePointerId !== null && event.pointerId !== activePointerId) return;
+      pointerDown = false;
+      activePointerId = null;
+      if (phase === "drive" || phase === "hold") {
+        beginEaseIn();
+      }
+    };
+
+    const onPointerCancel = (event: PointerEvent) => {
+      onPointerUp(event);
+    };
+
     const onPointerMove = (event: PointerEvent) => {
+      if (pointerDown && activePointerId !== null && event.pointerId !== activePointerId) {
+        return;
+      }
+
       const now = performance.now();
-      phase = "interactive";
 
       if (hasPointerSample) {
         const dt = Math.max(now - lastMoveTime, 8);
         const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY) / dt;
-        const speedNorm = clamp(speed / refVelocity, 0, 1);
-        targetRate = minRate + speedNorm * (maxRate - minRate);
+        if (speed > 0.04) {
+          phase = "drive";
+          const speedNorm = clamp(speed / refVelocity, 0, 1);
+          targetRate = minRate + speedNorm * (maxRate - minRate);
+        }
       }
 
       lastX = event.clientX;
@@ -279,16 +312,24 @@ const cursorSpeed = isHomepage;
     };
 
     const onPointerLeave = () => {
-      lastMoveTime = performance.now() - idleDelayMs;
+      if (!pointerDown && phase === "drive") {
+        beginEaseIn();
+      }
     };
 
     video.playbackRate = baseRate;
     rafId = requestAnimationFrame(tick);
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerCancel, { passive: true });
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     document.addEventListener("mouseleave", onPointerLeave);
 
     return () => {
       cancelAnimationFrame(rafId);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
       window.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("mouseleave", onPointerLeave);
       video.playbackRate = 1;
