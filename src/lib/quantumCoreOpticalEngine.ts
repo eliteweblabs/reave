@@ -72,10 +72,10 @@ const LOGO_SAMPLE_SIZE = 512;
 const LOGO_AV_DAMP_U0 = 0.36;
 const LOGO_AV_DAMP_U1 = 0.64;
 const LOGO_AV_DAMP_EDGE = 0.05;
-const LOGO_AV_DAMP_AMOUNT = 0.34;
+const LOGO_AV_DAMP_AMOUNT = 0.408;
 const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
-const LOGO_AV_DAMP_INNER_AMOUNT = 0.12;
+const LOGO_AV_DAMP_INNER_AMOUNT = 0.144;
 
 function logoAvGlowDamp(u: number): number {
   const outer =
