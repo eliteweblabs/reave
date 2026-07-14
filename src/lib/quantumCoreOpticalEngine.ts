@@ -1043,23 +1043,25 @@ export function attachQuantumCoreOpticalEngine(
     const resolveLerp = inIntro ? 0.1 : 0.14;
     logoResolveSmoothed += (resolveTarget - logoResolveSmoothed) * resolveLerp;
     const resolveMix = THREE.MathUtils.clamp(logoResolveSmoothed, 0, 1);
-    const resolveBloomDamp = resolveMix * resolveMix;
+    const resolveBloomDamp = Math.pow(resolveMix, 1.35);
     const reactiveLift = THREE.MathUtils.clamp(
       energy * 0.55 + burst * 0.2,
       0,
       1,
     );
-    logoResolveMat.opacity = resolveMix * (1 - reactiveLift * 0.15);
-    const particleResolveDim = 1 - resolveMix * 0.93;
+    /* PNG anchors the letterforms; particles stay visible on top for the living finish. */
+    logoResolveMat.opacity =
+      resolveMix * 0.68 * (1 - reactiveLift * 0.22);
+    const particleResolveDim = 1 - resolveMix * 0.55;
     bloomPass.threshold = THREE.MathUtils.lerp(
       isMobileLike ? 0.025 : 0.031,
-      isMobileLike ? 0.8 : 0.86,
+      isMobileLike ? 0.36 : 0.42,
       resolveBloomDamp,
     );
-    bloomPass.radius = THREE.MathUtils.lerp(0.66, 0.18, resolveBloomDamp);
+    bloomPass.radius = THREE.MathUtils.lerp(0.66, 0.44, resolveBloomDamp);
     renderer.toneMappingExposure = THREE.MathUtils.lerp(
       isMobileLike ? 1.42 : 1.12,
-      isMobileLike ? 1.0 : 0.9,
+      isMobileLike ? 1.08 : 1.02,
       resolveBloomDamp,
     );
 
@@ -1150,8 +1152,8 @@ export function attachQuantumCoreOpticalEngine(
         particleResolveDim;
       bloomPass.strength = THREE.MathUtils.lerp(
         1.12,
-        0.34,
-        easeInQuart(Math.max(globalIntroT, resolveBloomDamp)),
+        0.58,
+        easeInQuart(Math.max(globalIntroT * 0.85, resolveBloomDamp * 0.65)),
       );
     } else {
       for (let i = 0; i < particleCount; i++) {
@@ -1167,7 +1169,7 @@ export function attachQuantumCoreOpticalEngine(
       particles.scale.setScalar(PARTICLE_VIS_SCALE);
       particlesMat.size = particleBaseSize * (1 + reactiveLift * 0.18);
       particlesMat.opacity = particleBaseOpacity * particleResolveDim;
-      bloomPass.strength = THREE.MathUtils.lerp(1.18, 0.16, resolveBloomDamp);
+      bloomPass.strength = THREE.MathUtils.lerp(1.18, 0.52, resolveBloomDamp);
 
       if (introDurationSec > 0) {
         if (!introCompleteFired) {
@@ -1186,11 +1188,10 @@ export function attachQuantumCoreOpticalEngine(
         particleBaseSize * (1 + energy * 0.12 + reactiveLift * 0.08);
     }
     if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
-      const resolvedOpacityFloor = THREE.MathUtils.lerp(0.12, 0.02, resolveBloomDamp);
       particlesMat.opacity = THREE.MathUtils.clamp(
-        particleBaseOpacity * particleResolveDim * (1 - mic * 0.3) +
-          reactiveLift * 0.22 * (1 - resolveBloomDamp * 0.75),
-        resolvedOpacityFloor,
+        particleBaseOpacity * particleResolveDim * (1 - mic * 0.28) +
+          reactiveLift * 0.3,
+        0.1,
         particleBaseOpacity,
       );
     }
@@ -1205,10 +1206,10 @@ export function attachQuantumCoreOpticalEngine(
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     if (!inIntro) {
       const activeBloom = 1.18 + wild * 0.18 + energy * 0.55;
-      const resolvedBloom = 0.12 + wild * 0.08 + energy * 0.32;
+      const resolvedBloom = 0.5 + wild * 0.14 + energy * 0.42;
       bloomPass.strength = THREE.MathUtils.clamp(
         THREE.MathUtils.lerp(activeBloom, resolvedBloom, resolveBloomDamp),
-        0.08,
+        0.38,
         1.9,
       );
     }
@@ -1248,11 +1249,11 @@ export function attachQuantumCoreOpticalEngine(
     const warpTarget =
       THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) *
       motionScale *
-      (1 - resolveBloomDamp * 0.9);
+      (1 - resolveBloomDamp * 0.45);
     const aberrTarget =
       THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) *
       motionScale *
-      (1 - resolveBloomDamp * 0.9);
+      (1 - resolveBloomDamp * 0.45);
     lensPass.uniforms.uDistortion.value +=
       (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
     lensPass.uniforms.uAberration.value +=
