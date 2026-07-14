@@ -9,6 +9,9 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { FEATURE_IDS, type FeatureId } from './features';
 import { serverEnv } from './serverEnv';
+import { createLogger } from './logger';
+
+const log = createLogger('features');
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS feature_config (
@@ -119,7 +122,7 @@ function writeFileFeatures(enabled: FeatureId[]): boolean {
     );
     return true;
   } catch (e) {
-    console.error('[features] file write failed', e);
+    log.error('file write failed', e);
     return false;
   }
 }
@@ -158,7 +161,7 @@ export async function getStoredFeatures(): Promise<FeatureId[] | null> {
       _cached = readFileFeatures();
     }
   } catch (e) {
-    console.error('[features] read failed', e);
+    log.error('read failed', e);
     _cached = null;
   }
   return _cached;
@@ -174,7 +177,7 @@ export async function setStoredFeatures(enabled: FeatureId[]): Promise<boolean> 
     if (ok) _cached = normalized;
     return ok;
   } catch (e) {
-    console.error('[features] write failed', e);
+    log.error('write failed', e);
     return false;
   }
 }

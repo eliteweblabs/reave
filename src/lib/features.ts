@@ -7,6 +7,9 @@
  */
 import { readStoredFeaturesSync, getStoredFeatures, clearStoredFeaturesCache } from './featureStore';
 import { serverEnv } from './serverEnv';
+import { createLogger } from './logger';
+
+const log = createLogger('features');
 
 /** Optional module ids — must match stored JSON entries exactly. */
 export const FEATURE_IDS = [
@@ -37,7 +40,7 @@ function parseFeaturesEnv(): Set<FeatureId> {
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) {
-      console.warn('[features] FEATURES must be a JSON array — ignoring');
+      log.warn('FEATURES must be a JSON array — ignoring');
       return new Set();
     }
     const out = new Set<FeatureId>();
@@ -48,7 +51,7 @@ function parseFeaturesEnv(): Set<FeatureId> {
     }
     return out;
   } catch {
-    console.warn('[features] FEATURES is not valid JSON — ignoring');
+    log.warn('FEATURES is not valid JSON — ignoring');
     return new Set();
   }
 }
