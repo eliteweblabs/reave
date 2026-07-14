@@ -68,6 +68,85 @@ export const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
 
 const LOGO_SAMPLE_SIZE = 512;
 
+/** UV band for the A + V characters (3rd & 4th) — localized glow reduction only. */
+const LOGO_AV_DAMP_U0 = 0.36;
+const LOGO_AV_DAMP_U1 = 0.64;
+const LOGO_AV_DAMP_EDGE = 0.05;
+const LOGO_AV_DAMP_AMOUNT = 0.34;
+const LOGO_AV_DAMP_INNER_U0 = 0.43;
+const LOGO_AV_DAMP_INNER_U1 = 0.57;
+const LOGO_AV_DAMP_INNER_AMOUNT = 0.12;
+
+function logoAvGlowDamp(u: number): number {
+  const outer =
+    THREE.MathUtils.smoothstep(
+      LOGO_AV_DAMP_U0,
+      LOGO_AV_DAMP_U0 + LOGO_AV_DAMP_EDGE,
+      u,
+    ) *
+    (1 -
+      THREE.MathUtils.smoothstep(
+        LOGO_AV_DAMP_U1 - LOGO_AV_DAMP_EDGE,
+        LOGO_AV_DAMP_U1,
+        u,
+      ));
+  const inner =
+    THREE.MathUtils.smoothstep(
+      LOGO_AV_DAMP_INNER_U0,
+      LOGO_AV_DAMP_INNER_U0 + 0.03,
+      u,
+    ) *
+    (1 -
+      THREE.MathUtils.smoothstep(
+        LOGO_AV_DAMP_INNER_U1 - 0.03,
+        LOGO_AV_DAMP_INNER_U1,
+        u,
+      ));
+  return 1 - outer * LOGO_AV_DAMP_AMOUNT - inner * LOGO_AV_DAMP_INNER_AMOUNT;
+}
+
+const LogoResolveShader = {
+  uniforms: {
+    uMap: { value: null as THREE.Texture | null },
+    uOpacity: { value: 0 },
+    uAvDampU0: { value: LOGO_AV_DAMP_U0 },
+    uAvDampU1: { value: LOGO_AV_DAMP_U1 },
+    uAvDampEdge: { value: LOGO_AV_DAMP_EDGE },
+    uAvDampAmt: { value: LOGO_AV_DAMP_AMOUNT },
+    uAvDampInnerU0: { value: LOGO_AV_DAMP_INNER_U0 },
+    uAvDampInnerU1: { value: LOGO_AV_DAMP_INNER_U1 },
+    uAvDampInnerAmt: { value: LOGO_AV_DAMP_INNER_AMOUNT },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D uMap;
+    uniform float uOpacity;
+    uniform float uAvDampU0;
+    uniform float uAvDampU1;
+    uniform float uAvDampEdge;
+    uniform float uAvDampAmt;
+    uniform float uAvDampInnerU0;
+    uniform float uAvDampInnerU1;
+    uniform float uAvDampInnerAmt;
+    varying vec2 vUv;
+    void main() {
+      vec4 tex = texture2D(uMap, vUv);
+      float outer = smoothstep(uAvDampU0, uAvDampU0 + uAvDampEdge, vUv.x)
+        * (1.0 - smoothstep(uAvDampU1 - uAvDampEdge, uAvDampU1, vUv.x));
+      float inner = smoothstep(uAvDampInnerU0, uAvDampInnerU0 + 0.03, vUv.x)
+        * (1.0 - smoothstep(uAvDampInnerU1 - 0.03, uAvDampInnerU1, vUv.x));
+      float damp = 1.0 - outer * uAvDampAmt - inner * uAvDampInnerAmt;
+      gl_FragColor = vec4(tex.rgb * damp, tex.a * uOpacity);
+    }
+  `,
+};
+
 type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
 
 async function loadLogoTexture(
@@ -630,9 +709,11 @@ export function attachQuantumCoreOpticalEngine(
   const logoPlaneH = CLOUD_HALF_HEIGHT * 2 * PARTICLE_VIS_SCALE;
   const logoPlaneW = logoPlaneH * (logoCloudRadiusX / CLOUD_HALF_HEIGHT);
   const logoResolveGeo = new THREE.PlaneGeometry(logoPlaneW, logoPlaneH);
-  const logoResolveMat = new THREE.MeshBasicMaterial({
+  const logoResolveMat = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.clone(LogoResolveShader.uniforms),
+    vertexShader: LogoResolveShader.vertexShader,
+    fragmentShader: LogoResolveShader.fragmentShader,
     transparent: true,
-    opacity: 0,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -756,9 +837,10 @@ export function attachQuantumCoreOpticalEngine(
       const sampled = sample(u, v);
       const color = sampled ?? logoFallback;
       const fade = homeEdgeFade[i]!;
-      logoHomeColors[i * 3] = color.r * fade;
-      logoHomeColors[i * 3 + 1] = color.g * fade;
-      logoHomeColors[i * 3 + 2] = color.b * fade;
+      const avDamp = logoAvGlowDamp(u);
+      logoHomeColors[i * 3] = color.r * fade * avDamp;
+      logoHomeColors[i * 3 + 1] = color.g * fade * avDamp;
+      logoHomeColors[i * 3 + 2] = color.b * fade * avDamp;
     }
     logoColorsReady = true;
   }
@@ -766,7 +848,7 @@ export function attachQuantumCoreOpticalEngine(
   if (logoImageUrl) {
     void loadLogoTexture(logoImageUrl)
       .then(({ texture, aspect }) => {
-        logoResolveMat.map = texture;
+        logoResolveMat.uniforms.uMap.value = texture;
         logoResolveMat.needsUpdate = true;
         logoResolve.visible = true;
         syncLogoDimensions(aspect);
@@ -1043,27 +1125,14 @@ export function attachQuantumCoreOpticalEngine(
     const resolveLerp = inIntro ? 0.1 : 0.14;
     logoResolveSmoothed += (resolveTarget - logoResolveSmoothed) * resolveLerp;
     const resolveMix = THREE.MathUtils.clamp(logoResolveSmoothed, 0, 1);
-    const resolveBloomDamp = Math.pow(resolveMix, 1.35);
     const reactiveLift = THREE.MathUtils.clamp(
       energy * 0.55 + burst * 0.2,
       0,
       1,
     );
-    /* PNG anchors the letterforms; particles stay visible on top for the living finish. */
-    logoResolveMat.opacity =
-      resolveMix * 0.68 * (1 - reactiveLift * 0.22);
-    const particleResolveDim = 1 - resolveMix * 0.55;
-    bloomPass.threshold = THREE.MathUtils.lerp(
-      isMobileLike ? 0.025 : 0.031,
-      isMobileLike ? 0.36 : 0.42,
-      resolveBloomDamp,
-    );
-    bloomPass.radius = THREE.MathUtils.lerp(0.66, 0.44, resolveBloomDamp);
-    renderer.toneMappingExposure = THREE.MathUtils.lerp(
-      isMobileLike ? 1.42 : 1.12,
-      isMobileLike ? 1.08 : 1.02,
-      resolveBloomDamp,
-    );
+    logoResolveMat.uniforms.uOpacity.value =
+      resolveMix * (1 - reactiveLift * 0.22);
+    const particleResolveDim = 1 - resolveMix * 0.82;
 
     if (inGalaxyView) {
       resetCameraViewportAspect();
@@ -1152,8 +1221,8 @@ export function attachQuantumCoreOpticalEngine(
         particleResolveDim;
       bloomPass.strength = THREE.MathUtils.lerp(
         1.12,
-        0.58,
-        easeInQuart(Math.max(globalIntroT * 0.85, resolveBloomDamp * 0.65)),
+        1.65 * (1 - resolveMix * 0.35),
+        easeInQuart(globalIntroT),
       );
     } else {
       for (let i = 0; i < particleCount; i++) {
@@ -1169,7 +1238,7 @@ export function attachQuantumCoreOpticalEngine(
       particles.scale.setScalar(PARTICLE_VIS_SCALE);
       particlesMat.size = particleBaseSize * (1 + reactiveLift * 0.18);
       particlesMat.opacity = particleBaseOpacity * particleResolveDim;
-      bloomPass.strength = THREE.MathUtils.lerp(1.18, 0.52, resolveBloomDamp);
+      bloomPass.strength = 1.18 * (1 - resolveMix * 0.42);
 
       if (introDurationSec > 0) {
         if (!introCompleteFired) {
@@ -1189,9 +1258,9 @@ export function attachQuantumCoreOpticalEngine(
     }
     if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
       particlesMat.opacity = THREE.MathUtils.clamp(
-        particleBaseOpacity * particleResolveDim * (1 - mic * 0.28) +
-          reactiveLift * 0.3,
-        0.1,
+        particleBaseOpacity * particleResolveDim * (1 - mic * 0.3) +
+          reactiveLift * 0.28,
+        0.12,
         particleBaseOpacity,
       );
     }
@@ -1205,11 +1274,9 @@ export function attachQuantumCoreOpticalEngine(
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     if (!inIntro) {
-      const activeBloom = 1.18 + wild * 0.18 + energy * 0.55;
-      const resolvedBloom = 0.5 + wild * 0.14 + energy * 0.42;
       bloomPass.strength = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(activeBloom, resolvedBloom, resolveBloomDamp),
-        0.38,
+        (1.18 + wild * 0.18 + energy * 0.55) * (1 - resolveMix * 0.42),
+        0.72,
         1.9,
       );
     }
@@ -1247,13 +1314,9 @@ export function attachQuantumCoreOpticalEngine(
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
     const warpTarget =
-      THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) *
-      motionScale *
-      (1 - resolveBloomDamp * 0.45);
+      THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
     const aberrTarget =
-      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) *
-      motionScale *
-      (1 - resolveBloomDamp * 0.45);
+      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
     lensPass.uniforms.uDistortion.value +=
       (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
     lensPass.uniforms.uAberration.value +=
@@ -1312,7 +1375,8 @@ export function attachQuantumCoreOpticalEngine(
     particlesGeo.dispose();
     particlesMat.dispose();
     logoResolveGeo.dispose();
-    logoResolveMat.map?.dispose();
+    const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
+    logoMap?.dispose();
     logoResolveMat.dispose();
     composer.dispose();
     renderer.dispose();
