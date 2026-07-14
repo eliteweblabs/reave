@@ -226,6 +226,7 @@ const cursorSpeed = isHomepage;
     const baseRate = clamp(Number(stack.dataset.basePlaybackRate) || 0.5, 0.05, 1);
     const moveIdleMs = 100;
     const stopHoldMs = 1000;
+    const minPlaybackRate = 0.0625;
 
     if (stack.dataset.cursorSpeed !== "true" || prefersReducedMotion()) {
       video.playbackRate = baseRate;
@@ -249,17 +250,17 @@ const cursorSpeed = isHomepage;
 
     const pauseVideo = () => {
       currentRate = 0;
-      video.playbackRate = 0;
       video.pause();
     };
 
     const applyRate = (rate: number) => {
-      const next = clamp(rate, 0, maxRate);
-      video.playbackRate = next;
-      if (next <= 0.01) {
+      if (rate <= minPlaybackRate) {
         pauseVideo();
         return;
       }
+
+      const next = clamp(rate, minPlaybackRate, maxRate);
+      video.playbackRate = next;
       if (video.paused) {
         void video.play();
       }
@@ -295,9 +296,10 @@ const cursorSpeed = isHomepage;
           break;
         case "wind_down":
           currentRate += (0 - currentRate) * 0.18;
-          applyRate(currentRate);
-          if (currentRate <= 0.02) {
+          if (currentRate <= minPlaybackRate) {
             enterStopped(now);
+          } else {
+            applyRate(currentRate);
           }
           break;
         case "stopped":
@@ -306,6 +308,8 @@ const cursorSpeed = isHomepage;
           if (now - stoppedAt >= stopHoldMs) {
             phase = "ease_in";
             targetRate = baseRate;
+            currentRate = minPlaybackRate;
+            applyRate(currentRate);
           }
           break;
         case "ease_in":
