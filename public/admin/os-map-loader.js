@@ -9858,14 +9858,27 @@ async function readApiJson(res) {
   return data;
 }
 
+function syncChatSidebarActiveState() {
+  const root = getChatPanel();
+  if (!root) return;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.id === chatState.activeId;
+    el.classList.toggle('active', isActive);
+    if (isActive) el.setAttribute('aria-current', 'page');
+    else el.removeAttribute('aria-current');
+  });
+}
+
 function createChatListItem(t) {
+  const isActive = t.id === chatState.activeId;
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'ch-list-item' +
-    (t.id === chatState.activeId ? ' active' : '') +
+    (isActive ? ' active' : '') +
     (t.archived ? ' ch-list-item--archived' : '');
   item.dataset.id = t.id;
+  if (isActive) item.setAttribute('aria-current', 'page');
   const archivedIcon = t.archived
     ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
     : '';
@@ -9880,7 +9893,10 @@ function createChatListItem(t) {
       `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
     `</span>` +
     subLine;
-  item.addEventListener('click', () => openChat(t.id));
+  item.addEventListener('click', () => {
+    if (t.id === chatState.activeId) return;
+    void openChat(t.id);
+  });
   return item;
 }
 
@@ -10188,6 +10204,10 @@ async function startNewChat(opts = {}) {
 }
 
 async function openChat(id) {
+  if (id === chatState.activeId) {
+    syncChatSidebarActiveState();
+    return;
+  }
   try {
     const prevId = chatState.activeId;
     if (prevId && prevId !== id) await abandonDisposableChat(prevId);
