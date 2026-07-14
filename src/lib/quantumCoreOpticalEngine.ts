@@ -1062,16 +1062,23 @@ export function attachQuantumCoreOpticalEngine(
     }
 
     if (inIntro) {
-      const colorizeStart = 0.9;
+      /* Begin tinting as particles swell — not only in the final 10%. */
+      const colorizeStart = 0.52;
       const colorizeMix =
         globalIntroT < colorizeStart
           ? 0
-          : THREE.MathUtils.clamp(
-              (globalIntroT - colorizeStart) / (1 - colorizeStart),
-              0,
-              1,
+          : easeOutCubic(
+              THREE.MathUtils.clamp(
+                (globalIntroT - colorizeStart) / (1 - colorizeStart),
+                0,
+                1,
+              ),
             );
-      const snapMix = colorizeMix * colorizeMix * colorizeMix;
+      const swellColorBoost = THREE.MathUtils.clamp(
+        (introParticleSizeMul(globalIntroT) - 1) / 2.8,
+        0,
+        1,
+      );
 
       for (let i = 0; i < particleCount; i++) {
         const localT = introTravelT(rawT, introDurationSec, introStagger[i]!);
@@ -1087,7 +1094,13 @@ export function attachQuantumCoreOpticalEngine(
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
 
         const edgeFade = homeEdgeFade[i]!;
-        if (snapMix <= 0 || !logoColorsReady) {
+        const particleColorMix = THREE.MathUtils.clamp(
+          colorizeMix * (0.28 + 0.72 * easeOutCubic(localT)) +
+            swellColorBoost * colorizeMix * 0.5,
+          0,
+          1,
+        );
+        if (particleColorMix <= 0 || !logoColorsReady) {
           particleColors[i3] = rushTint.r * edgeFade;
           particleColors[i3 + 1] = rushTint.g * edgeFade;
           particleColors[i3 + 2] = rushTint.b * edgeFade;
@@ -1096,17 +1109,17 @@ export function attachQuantumCoreOpticalEngine(
           particleColors[i3] = THREE.MathUtils.lerp(
             rushTint.r * edgeFade,
             logoHomeColors[i3]! * boost,
-            snapMix,
+            particleColorMix,
           );
           particleColors[i3 + 1] = THREE.MathUtils.lerp(
             rushTint.g * edgeFade,
             logoHomeColors[i3 + 1]! * boost,
-            snapMix,
+            particleColorMix,
           );
           particleColors[i3 + 2] = THREE.MathUtils.lerp(
             rushTint.b * edgeFade,
             logoHomeColors[i3 + 2]! * boost,
-            snapMix,
+            particleColorMix,
           );
         }
       }
