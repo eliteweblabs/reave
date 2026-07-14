@@ -8,6 +8,10 @@ export interface Props {
   layout?: "homepage" | "centered" | "compact";
   /** Cursor pixels moved per 1% video shift (100 = subtle, 20 = stronger). */
   cursorPxPerPercent?: number;
+  /** Slowest playback rate while the cursor is moving quickly (1 = no slow-down). */
+  cursorSlowMinRate?: number;
+  /** Cursor speed (px/ms) that reaches cursorSlowMinRate. */
+  cursorSlowVelocity?: number;
   class?: string;
 }
 
@@ -16,6 +20,8 @@ const {
   videoSrc = "/videos/logo-2.mp4",
   layout = "homepage",
   cursorPxPerPercent = 100,
+  cursorSlowMinRate = 0.35,
+  cursorSlowVelocity = 2.5,
   class: className,
 } = Astro.props;
 
@@ -36,6 +42,8 @@ const cursorParallax = isHomepage;
   data-logo-2
   data-cursor-parallax={cursorParallax ? "true" : "false"}
   data-cursor-px-per-percent={String(cursorPxPerPercent)}
+  data-cursor-slow-min-rate={String(cursorSlowMinRate)}
+  data-cursor-slow-velocity={String(cursorSlowVelocity)}
   aria-hidden="true"
 >
   <div class="logo-2-frame">
@@ -187,17 +195,29 @@ const cursorParallax = isHomepage;
     return Math.min(max, Math.max(min, value));
   }
 
-  function attachCursorParallax(stack: HTMLElement): () => void {
+  function attachCursorParallax(
+    stack: HTMLElement,
+    video: HTMLVideoElement,
+  ): () => void {
     if (stack.dataset.cursorParallax !== "true" || prefersReducedMotion()) {
       return () => {};
     }
 
     const pxPerPercent = Number(stack.dataset.cursorPxPerPercent) || 100;
+    const minRate = clamp(Number(stack.dataset.cursorSlowMinRate) || 0.35, 0.05, 1);
+    const slowVelocity = Math.max(Number(stack.dataset.cursorSlowVelocity) || 2.5, 0.1);
     const maxShift = 8;
     let targetX = 0;
     let targetY = 0;
     let currentX = 0;
     let currentY = 0;
+    let targetMotion = 0;
+    let currentMotion = 0;
+    let currentRate = 1;
+    let lastX = 0;
+    let lastY = 0;
+    let lastMoveTime = 0;
+    let hasPointerSample = false;
     let rafId = 0;
 
     const setShift = (x: number, y: number) => {
@@ -206,8 +226,14 @@ const cursorParallax = isHomepage;
     };
 
     const tick = () => {
+      const now = performance.now();
+      if (hasPointerSample && now - lastMoveTime > 120) {
+        targetMotion = 0;
+      }
+
       currentX += (targetX - currentX) * 0.14;
       currentY += (targetY - currentY) * 0.14;
+      currentMotion += (targetMotion - currentMotion) * 0.16;
 
       if (
         Math.abs(currentX - targetX) < 0.01 &&
@@ -217,20 +243,39 @@ const cursorParallax = isHomepage;
         currentY = targetY;
       }
 
+      const targetRate = 1 - currentMotion * (1 - minRate);
+      currentRate += (targetRate - currentRate) * 0.12;
+      if (!video.paused) {
+        video.playbackRate = clamp(currentRate, minRate, 1);
+      }
+
       setShift(currentX, currentY);
       rafId = requestAnimationFrame(tick);
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      const now = performance.now();
       const cx = window.innerWidth * 0.5;
       const cy = window.innerHeight * 0.5;
       targetX = clamp((event.clientX - cx) / pxPerPercent, -maxShift, maxShift);
       targetY = clamp((event.clientY - cy) / pxPerPercent, -maxShift, maxShift);
+
+      if (hasPointerSample) {
+        const dt = Math.max(now - lastMoveTime, 8);
+        const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY) / dt;
+        targetMotion = clamp(speed / slowVelocity, 0, 1);
+      }
+
+      lastX = event.clientX;
+      lastY = event.clientY;
+      lastMoveTime = now;
+      hasPointerSample = true;
     };
 
     const onPointerLeave = () => {
       targetX = 0;
       targetY = 0;
+      targetMotion = 0;
     };
 
     rafId = requestAnimationFrame(tick);
@@ -243,6 +288,7 @@ const cursorParallax = isHomepage;
       document.removeEventListener("mouseleave", onPointerLeave);
       stack.style.removeProperty("--logo-2-shift-x");
       stack.style.removeProperty("--logo-2-shift-y");
+      video.playbackRate = 1;
     };
   }
 
@@ -262,7 +308,7 @@ const cursorParallax = isHomepage;
       });
     }
 
-    const detachParallax = attachCursorParallax(stack);
+    const detachParallax = attachCursorParallax(stack, video);
 
     return () => {
       detachParallax();
