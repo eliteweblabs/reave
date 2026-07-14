@@ -4,15 +4,14 @@ import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
-import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
+import { getCompanyConfig, homepageHeroMask } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
-const heroLogo = homepageHeroLogo(company);
 ---
 
 <Layout>
-  {heroMask && heroLogo && <QuantumLogo heroMask={heroMask} logoSrc={heroLogo} layout="homepage" />}
+  {heroMask && <QuantumLogo heroMask={heroMask} layout="homepage" />}
   <div class="quantum-vignette" aria-hidden="true"></div>
 
   <div class="quantum-controls-dock" aria-label="Background controls">
@@ -93,8 +92,8 @@ const heroLogo = homepageHeroLogo(company);
     z-index: 2;
     background: radial-gradient(
       circle at center,
-      transparent 32%,
-      rgba(0, 0, 0, 0.82) 100%
+      transparent 40%,
+      rgba(0, 0, 0, 0.8) 110%
     );
   }
 
@@ -212,8 +211,8 @@ const heroLogo = homepageHeroLogo(company);
     .quantum-vignette {
       background: radial-gradient(
         circle at center,
-        transparent 42%,
-        rgba(0, 0, 0, 0.72) 110%
+        transparent 55%,
+        rgba(0, 0, 0, 0.6) 120%
       );
     }
   }

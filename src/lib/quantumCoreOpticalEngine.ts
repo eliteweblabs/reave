@@ -103,78 +103,10 @@ export interface QuantumEngineOptions {
   introRush?: {
     durationSec: number;
   };
-  /** Static logo image — particle colors are sampled from this; no rainbow drift. */
-  logoImageUrl?: string;
-  /** 0–1 intro progress for crossfading to the static logo image. */
-  onIntroProgress?: (t: number) => void;
-}
-
-const LOGO_SAMPLE_SIZE = 512;
-
-type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
-
-async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error(`Failed to load logo image: ${url}`));
-    img.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = LOGO_SAMPLE_SIZE;
-  canvas.height = LOGO_SAMPLE_SIZE;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D unavailable");
-
-  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
-  let drawW = LOGO_SAMPLE_SIZE;
-  let drawH = LOGO_SAMPLE_SIZE;
-  let offsetX = 0;
-  let offsetY = 0;
-  if (aspect > 1) {
-    drawH = LOGO_SAMPLE_SIZE / aspect;
-    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
-  } else {
-    drawW = LOGO_SAMPLE_SIZE * aspect;
-    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
-  }
-  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
-
-  return (u: number, v: number) => {
-    const x = Math.floor(
-      THREE.MathUtils.clamp(u, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
-    );
-    const y = Math.floor(
-      THREE.MathUtils.clamp(v, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
-    );
-    const i = (y * LOGO_SAMPLE_SIZE + x) * 4;
-    const r = pixels[i]! / 255;
-    const g = pixels[i + 1]! / 255;
-    const b = pixels[i + 2]! / 255;
-    const a = pixels[i + 3]! / 255;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    if (a < 0.06 && lum < 0.06) return null;
-    if (lum < 0.05) return null;
-    return new THREE.Color(r, g, b);
-  };
-}
-
-function homeUv(hx: number, hy: number, cloudRadius: number, cloudHalfH: number): [number, number] {
-  const u = hx / (cloudRadius * 2) + 0.5;
-  const v = 0.5 - hy / (cloudHalfH * 2);
-  return [u, v];
 }
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-function easeOutQuart(t: number): number {
-  return 1 - Math.pow(1 - t, 4);
 }
 
 export function attachQuantumCoreOpticalEngine(
@@ -393,15 +325,11 @@ export function attachQuantumCoreOpticalEngine(
   const positions = new Float32Array(particleCount * 3);
   const homePositions = new Float32Array(particleCount * 3);
   const startPositions = new Float32Array(particleCount * 3);
-  /** Outer particles join the implosion slightly later — reverse-explosion wave. */
-  const introStagger = new Float32Array(particleCount);
   const introDurationSec = prefersReduced
     ? 0
     : Math.max(0, options?.introRush?.durationSec ?? 0);
-  /** Whole cloud starts oversized and collapses inward with the particle rush. */
-  const introGroupScaleStart = 5.5;
-  const introOutwardMin = 7;
-  const introOutwardMax = 16;
+  const introOutwardMin = 2.6;
+  const introOutwardMax = 5.2;
   /**
    * Even glow: a flat cloud, symmetric about (and rotating around) the Y axis,
    * whose 2D screen projection has uniform density — no bright vertical center
@@ -426,20 +354,13 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
 
-    const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
-    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.42;
-
     if (introDurationSec > 0) {
       const outward =
         introOutwardMin +
         Math.random() * (introOutwardMax - introOutwardMin);
-      const jitter = outward * 0.08;
-      startPositions[i * 3] =
-        hx * outward + (Math.random() - 0.5) * jitter;
-      startPositions[i * 3 + 1] =
-        hy * outward + (Math.random() - 0.5) * jitter;
-      startPositions[i * 3 + 2] =
-        hz * outward + (Math.random() - 0.5) * jitter;
+      startPositions[i * 3] = hx * outward;
+      startPositions[i * 3 + 1] = hy * (0.35 + outward * 0.45);
+      startPositions[i * 3 + 2] = hz * outward;
       positions[i * 3] = startPositions[i * 3]!;
       positions[i * 3 + 1] = startPositions[i * 3 + 1]!;
       positions[i * 3 + 2] = startPositions[i * 3 + 2]!;
@@ -548,57 +469,27 @@ export function attachQuantumCoreOpticalEngine(
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
-  const introTint = new THREE.Color(0.92, 0.88, 0.96);
-  const logoFallback = new THREE.Color(0.82, 0.45, 0.72);
-  const logoHomeColors = new Float32Array(particleCount * 3);
-  let logoColorsReady = false;
-  const logoImageUrl = options?.logoImageUrl?.trim() || "";
-  if (logoImageUrl) {
-    void createLogoColorSampler(logoImageUrl)
-      .then((sample) => {
-        for (let i = 0; i < particleCount; i++) {
-          const hx = homePositions[i * 3]!;
-          const hy = homePositions[i * 3 + 1]!;
-          const [u, v] = homeUv(hx, hy, CLOUD_RADIUS, CLOUD_HALF_HEIGHT);
-          const sampled = sample(u, v);
-          const color = sampled ?? logoFallback;
-          logoHomeColors[i * 3] = color.r;
-          logoHomeColors[i * 3 + 1] = color.g;
-          logoHomeColors[i * 3 + 2] = color.b;
-        }
-        logoColorsReady = true;
-      })
-      .catch(() => {
-        logoColorsReady = false;
-      });
-  }
+  /** Reused when building the horizontal particle gradient each frame. */
+  const gradientTint = new THREE.Color(0xff0000);
+  const GRADIENT_SPAN = CLOUD_RADIUS * 2.4;
 
-  function applyParticleLogoColors(colorMix = 1, energy = 0): void {
-    const mix = THREE.MathUtils.clamp(colorMix, 0, 1);
-    const boost = 1 + energy * 0.12;
+  function updateHorizontalParticleGradient(time: number, rotY: number): void {
+    const sat = prefersReduced ? 0.68 : 0.74;
+    const light = prefersReduced ? 0.51 : 0.53;
+    const shift = time * (prefersReduced ? 0.045 : 0.09);
+    const cosR = Math.cos(rotY);
+    const sinR = Math.sin(rotY);
+
     for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      if (logoColorsReady) {
-        particleColors[i3] = THREE.MathUtils.lerp(
-          introTint.r,
-          logoHomeColors[i3]! * boost,
-          mix,
-        );
-        particleColors[i3 + 1] = THREE.MathUtils.lerp(
-          introTint.g,
-          logoHomeColors[i3 + 1]! * boost,
-          mix,
-        );
-        particleColors[i3 + 2] = THREE.MathUtils.lerp(
-          introTint.b,
-          logoHomeColors[i3 + 2]! * boost,
-          mix,
-        );
-      } else {
-        particleColors[i3] = introTint.r;
-        particleColors[i3 + 1] = introTint.g;
-        particleColors[i3 + 2] = introTint.b;
-      }
+      const lx = positions[i * 3]!;
+      const lz = positions[i * 3 + 2]!;
+      const worldX = lx * cosR + lz * sinR;
+      const hue = (((worldX / GRADIENT_SPAN) + 0.5 + shift) % 1 + 1) % 1;
+      gradientTint.setHSL(hue, sat, light);
+      normalizeTintLuminance(gradientTint, isMobileLike ? 0.46 : 0.4, 2.6);
+      particleColors[i * 3] = gradientTint.r;
+      particleColors[i * 3 + 1] = gradientTint.g;
+      particleColors[i * 3 + 2] = gradientTint.b;
     }
     particlesGeo.attributes.color!.needsUpdate = true;
   }
@@ -756,7 +647,6 @@ export function attachQuantumCoreOpticalEngine(
   let introCompleteFired = false;
   let raf = 0;
   let alive = true;
-  const clock = new THREE.Clock();
   const motionScale = prefersReduced ? 0.2 : 1;
 
   const onCtxLost = (ev: Event) => {
@@ -794,19 +684,14 @@ export function attachQuantumCoreOpticalEngine(
         (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
     const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
+    particles.rotation.y = rotY;
 
-    const inIntro = introDurationSec > 0 && rawT < introDurationSec;
-    const globalIntroT = inIntro
-      ? easeOutQuart(THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1))
-      : 1;
-
-    if (inIntro) {
-      const introSpan = introDurationSec * 0.92;
+    if (introDurationSec > 0 && rawT < introDurationSec) {
+      const introT = easeOutCubic(
+        THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1),
+      );
+      const inv = 1 - introT;
       for (let i = 0; i < particleCount; i++) {
-        const localT = easeOutQuart(
-          THREE.MathUtils.clamp((rawT - introStagger[i]!) / introSpan, 0, 1),
-        );
-        const inv = 1 - localT;
         const i3 = i * 3;
         positions[i3] =
           homePositions[i3]! + (startPositions[i3]! - homePositions[i3]!) * inv;
@@ -818,45 +703,30 @@ export function attachQuantumCoreOpticalEngine(
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
       }
       particlesGeo.attributes.position!.needsUpdate = true;
-
-      particles.rotation.y = rotY * globalIntroT * 0.28;
-      const groupIntroScale = THREE.MathUtils.lerp(
-        introGroupScaleStart,
-        1,
-        globalIntroT,
+      particlesMat.opacity = THREE.MathUtils.lerp(
+        particleBaseOpacity * 0.35,
+        particleBaseOpacity,
+        introT,
       );
-      pulseGroup.scale.setScalar(groupIntroScale);
-      particles.scale.setScalar(
-        PARTICLE_VIS_SCALE * THREE.MathUtils.lerp(1.35, 1, globalIntroT),
-      );
-      particlesMat.size =
-        particleBaseSize * THREE.MathUtils.lerp(2.4, 1, globalIntroT);
-      particlesMat.opacity =
-        particleBaseOpacity * THREE.MathUtils.lerp(0.18, 1, globalIntroT);
-      applyParticleLogoColors(globalIntroT, energy);
-      options?.onIntroProgress?.(globalIntroT);
-    } else {
-      particles.rotation.y = rotY;
-      applyParticleLogoColors(1, energy);
-
-      if (introDurationSec > 0) {
-        particlesMat.opacity = particleBaseOpacity;
-        if (!introCompleteFired) {
-          introCompleteFired = true;
-          options?.onIntroProgress?.(1);
-          window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
-        }
+    } else if (introDurationSec > 0) {
+      particlesMat.opacity = particleBaseOpacity;
+      if (!introCompleteFired) {
+        introCompleteFired = true;
+        window.dispatchEvent(new CustomEvent('quantum-intro-complete'));
       }
     }
+
+    /* Horizontal rainbow: hue from left→right across the logo, drifting over time. */
+    updateHorizontalParticleGradient(rawT, rotY);
+    gradientTint.setHSL((rawT * (prefersReduced ? 0.045 : 0.09)) % 1, 0.74, 0.53);
+    sphereMat.uniforms.uColorB.value.copy(gradientTint);
 
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
     const scatterScale = 1 + mic * 0.6 + burst * 0.18;
-    if (!inIntro) {
-      particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
-      particlesMat.size = particleBaseSize * (1 + energy * 0.12);
-    }
-    if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
+    particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
+    particlesMat.size = particleBaseSize * (1 + energy * 0.12);
+    if (introDurationSec <= 0 || rawT >= introDurationSec) {
       particlesMat.opacity = THREE.MathUtils.clamp(
         particleBaseOpacity * (1 - mic * 0.3),
         0.2,
@@ -870,9 +740,7 @@ export function attachQuantumCoreOpticalEngine(
       wild *
         (prefersReduced ? 0.02 : 0.04) *
         Math.max(motionScale, 0.35);
-    if (!inIntro) {
-      pulseGroup.scale.setScalar(scaleBreath);
-    }
+    pulseGroup.scale.setScalar(scaleBreath);
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     bloomPass.strength = THREE.MathUtils.clamp(
@@ -881,8 +749,7 @@ export function attachQuantumCoreOpticalEngine(
       1.9,
     );
 
-    const tiltLerp =
-      0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
+    const tiltLerp = 0.09 * Math.max(motionScale, 0.4);
     pulseGroup.rotation.x +=
       (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
     pulseGroup.rotation.y +=
@@ -948,9 +815,6 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("resize", onResize);
 
   applyResize();
-  if (introDurationSec <= 0) {
-    options?.onIntroProgress?.(1);
-  }
   raf = requestAnimationFrame(animate);
 
   return () => {

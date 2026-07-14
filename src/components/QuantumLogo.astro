@@ -2,12 +2,10 @@
 export interface Props {
   /** Mask image URL. When omitted, nothing is rendered. */
   heroMask: string;
-  /** Full-color logo PNG the particles resolve into (default /logo.png). */
-  logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage mask slide-in; centered keeps the logo in the middle; compact fits the header. */
-  layout?: 'homepage' | 'centered' | 'compact';
+  /** Homepage mask slide-in; centered keeps the logo in the middle. */
+  layout?: 'homepage' | 'centered';
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
@@ -19,17 +17,15 @@ export interface Props {
 
 const {
   heroMask,
-  logoSrc,
   hostId = 'quantumCanvasHost',
   layout = 'homepage',
   introRush = true,
-  introDuration = 2.4,
+  introDuration = 2,
   initDelay,
   class: className,
 } = Astro.props;
 
 const isHomepage = layout === 'homepage';
-const isCompact = layout === 'compact';
 const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 ---
 
@@ -37,22 +33,13 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   class:list={[
     'quantum-logo-stack',
     isHomepage && 'quantum-logo-stack--homepage',
-    layout === 'centered' && 'quantum-logo-stack--centered',
-    isCompact && 'quantum-logo-stack--compact',
+    !isHomepage && 'quantum-logo-stack--centered',
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
-  data-quantum-logo
-  data-layout={layout}
-  data-host-id={hostId}
-  data-logo-src={logoSrc}
-  data-intro-rush={introRush ? 'true' : 'false'}
-  data-intro-duration={String(introDuration)}
-  data-init-delay={String(resolvedInitDelay)}
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
-  <img class="quantum-logo-static" src={logoSrc} alt="" decoding="async" />
 </div>
 
 <style>
@@ -72,8 +59,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-repeat: no-repeat;
     mask-mode: alpha;
     -webkit-mask-mode: alpha;
-    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.25))
-      drop-shadow(0 0 28px rgba(200, 80, 180, 0.18));
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.45))
+      drop-shadow(0 0 36px rgba(255, 100, 200, 0.28));
   }
 
   .quantum-logo-stack--homepage {
@@ -87,26 +74,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     -webkit-mask-position: center center;
   }
 
-  .quantum-logo-stack--compact {
-    position: relative;
-    inset: unset;
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    pointer-events: none;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-position: center center;
-    -webkit-mask-position: center center;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.28))
-      drop-shadow(0 0 10px rgba(200, 80, 180, 0.16));
-  }
-
-  .quantum-logo-stack--compact .quantum-host {
-    position: absolute;
-    inset: 0;
-  }
-
   .quantum-host {
     position: absolute;
     inset: 0;
@@ -115,23 +82,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
-    z-index: 0;
-  }
-
-  .quantum-logo-static {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center;
-    opacity: 0;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .quantum-logo-stack--homepage .quantum-logo-static {
-    object-position: center center;
   }
 
   .quantum-host :global(canvas) {
@@ -190,7 +140,14 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 </style>
 
-<script>
+<script
+  define:vars={{
+    hostId,
+    introRush,
+    introDuration,
+    resolvedInitDelay,
+  }}
+>
   import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
   function prefersReducedMotion() {
@@ -200,71 +157,20 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     );
   }
 
-  function waitForPreloaderGone(): Promise<void> {
-    return new Promise((resolve) => {
-      const boot = document.getElementById('boot');
-      if (!boot) {
-        resolve();
-        return;
-      }
-      const finish = () => {
-        obs?.disconnect();
-        resolve();
-      };
-      window.addEventListener('quantum-intro-complete', finish, { once: true });
-      const obs = new MutationObserver(() => {
-        if (!document.getElementById('boot')) finish();
-      });
-      obs.observe(document.body, { childList: true, subtree: true });
-      window.setTimeout(finish, 4000);
-    });
-  }
-
-  function smoothstep(t: number): number {
-    const x = Math.max(0, Math.min(1, t));
-    return x * x * (3 - 2 * x);
-  }
-
-  function initStack(stack: HTMLElement): () => void {
-    const hostId = stack.dataset.hostId || 'quantumCanvasHost';
+  function init() {
     const host = document.getElementById(hostId);
     if (!host) return () => {};
-
-    const layout = stack.dataset.layout || 'homepage';
-    const logoSrc = stack.dataset.logoSrc || '/logo.png';
-    const staticImg = stack.querySelector('.quantum-logo-static');
-    const introRush = stack.dataset.introRush === 'true';
-    const introDuration = Number(stack.dataset.introDuration) || 2.4;
-    const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
-
-    const revealStatic = (t: number) => {
-      const revealStart = 0.48;
-      const reveal = smoothstep(
-        Math.max(0, (t - revealStart) / (1 - revealStart)),
-      );
-      if (staticImg instanceof HTMLImageElement) {
-        staticImg.style.opacity = String(reveal);
-      }
-      host.style.opacity = reveal >= 0.99 ? '0' : String(1 - reveal * 0.92);
-    };
-
-    if (prefersReducedMotion() || !introRush) {
-      revealStatic(1);
-    }
 
     document.documentElement.classList.add('quantum-page-touch');
     document.body.classList.add('quantum-page-touch');
 
-    let detach: (() => void) | undefined;
-    let delayId = 0;
-    let cancelled = false;
+    let detach;
 
     const start = () => {
-      if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
-        introRush: introRush ? { durationSec: introDuration } : undefined,
-        logoImageUrl: logoSrc,
-        onIntroProgress: revealStatic,
+        introRush: introRush
+          ? { durationSec: introDuration }
+          : undefined,
       });
     };
 
@@ -274,62 +180,50 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
         matchMedia('(hover: none)').matches);
     const delayMs =
       prefersReducedMotion() || touchUi ? 0 : resolvedInitDelay;
+    const delayId = window.setTimeout(start, delayMs);
 
-    const scheduleStart = () => {
-      delayId = window.setTimeout(start, delayMs);
+    return () => {
+      window.clearTimeout(delayId);
+      detach?.();
+      document.documentElement.classList.remove('quantum-page-touch');
+      document.body.classList.remove('quantum-page-touch');
     };
+  }
 
-    if (layout === 'compact' && document.getElementById('boot')) {
-      void waitForPreloaderGone().then(scheduleStart);
-    } else {
-      scheduleStart();
-    }
+  let cleanup;
 
-    const parent = stack.parentElement;
-    let obs: MutationObserver | undefined;
+  function boot() {
+    cleanup?.();
+    cleanup = init();
+
+    const parent = document.getElementById(hostId)?.closest('.quantum-logo-stack')
+      ?.parentElement;
+    let obs;
     if (parent) {
       obs = new MutationObserver(() => {
         if (!document.getElementById(hostId)) {
-          window.clearTimeout(delayId);
-          detach?.();
-          detach = undefined;
+          cleanup?.();
+          cleanup = undefined;
           obs?.disconnect();
         }
       });
       obs.observe(parent, { childList: true, subtree: true });
     }
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(delayId);
-      detach?.();
-      obs?.disconnect();
-      document.documentElement.classList.remove('quantum-page-touch');
-      document.body.classList.remove('quantum-page-touch');
-    };
+    window.addEventListener(
+      'pagehide',
+      () => {
+        cleanup?.();
+        cleanup = undefined;
+        obs?.disconnect();
+      },
+      { once: true },
+    );
   }
 
-  const cleanups = new Map<HTMLElement, () => void>();
-
-  function boot() {
-    document.querySelectorAll<HTMLElement>('[data-quantum-logo]').forEach((stack) => {
-      cleanups.get(stack)?.();
-      cleanups.set(stack, initStack(stack));
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
   }
-
-  function bootWhenReady() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', boot, { once: true });
-    } else {
-      boot();
-    }
-  }
-
-  bootWhenReady();
-
-  window.addEventListener('pagehide', () => {
-    cleanups.forEach((cleanup) => cleanup());
-    cleanups.clear();
-  });
 </script>
