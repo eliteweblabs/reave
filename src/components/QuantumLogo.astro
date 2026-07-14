@@ -65,7 +65,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: auto;
     cursor: default;
     touch-action: none;
-    overflow: hidden;
+    overflow: visible;
   }
 
   /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
@@ -105,7 +105,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 100%;
     pointer-events: auto;
     touch-action: none;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .quantum-host :global(canvas) {
@@ -113,7 +113,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     width: 100% !important;
     height: 100% !important;
     max-width: none;
-    object-fit: cover;
   }
 </style>
 

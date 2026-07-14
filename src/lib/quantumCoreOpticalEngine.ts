@@ -70,7 +70,9 @@ const LOGO_SAMPLE_SIZE = 512;
 
 type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
 
-async function loadLogoTexture(url: string): Promise<THREE.Texture> {
+async function loadLogoTexture(
+  url: string,
+): Promise<{ texture: THREE.Texture; aspect: number }> {
   const img = new Image();
   img.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
@@ -81,7 +83,8 @@ async function loadLogoTexture(url: string): Promise<THREE.Texture> {
   const tex = new THREE.Texture(img);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.needsUpdate = true;
-  return tex;
+  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
+  return { texture: tex, aspect };
 }
 
 async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
@@ -173,12 +176,27 @@ async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
 function homeUv(
   hx: number,
   hy: number,
-  cloudRadius: number,
+  cloudRadiusX: number,
   cloudHalfH: number,
 ): [number, number] {
-  const u = hx / (cloudRadius * 2) + 0.5;
+  const u = hx / (cloudRadiusX * 2) + 0.5;
   const v = 0.5 - hy / (cloudHalfH * 2);
   return [u, v];
+}
+
+function particleEdgeFade(
+  hx: number,
+  hy: number,
+  hz: number,
+  cloudRadiusX: number,
+  cloudRadiusZ: number,
+  cloudHalfH: number,
+): number {
+  const ex = hx / Math.max(cloudRadiusX, 0.001);
+  const ey = hy / Math.max(cloudHalfH, 0.001);
+  const ez = hz / Math.max(cloudRadiusZ, 0.001);
+  const r = Math.sqrt(ex * ex + ey * ey + ez * ez);
+  return 1 - THREE.MathUtils.smoothstep(0.78, 1.02, r);
 }
 
 function uvToHome(
@@ -512,6 +530,8 @@ export function attachQuantumCoreOpticalEngine(
   const introOutwardMax = 4.2;
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
+  let logoCloudRadiusX = CLOUD_RADIUS;
+  const homeEdgeFade = new Float32Array(particleCount);
   const suppliedHomes =
     options?.homePositions && options.homePositions.length >= particleCount * 3
       ? options.homePositions
@@ -529,10 +549,18 @@ export function attachQuantumCoreOpticalEngine(
       const u = Math.random();
       const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
       const theta = Math.random() * Math.PI * 2;
-      hx = rho * Math.cos(theta);
+      hx = rho * Math.cos(theta) * (logoCloudRadiusX / CLOUD_RADIUS);
       hy = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
       hz = rho * Math.sin(theta);
     }
+    homeEdgeFade[i] = particleEdgeFade(
+      hx,
+      hy,
+      hz,
+      logoCloudRadiusX,
+      CLOUD_RADIUS,
+      CLOUD_HALF_HEIGHT,
+    );
     homePositions[i * 3] = hx;
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
@@ -599,8 +627,8 @@ export function attachQuantumCoreOpticalEngine(
   const particles = new THREE.Points(particlesGeo, particlesMat);
   particles.scale.setScalar(PARTICLE_VIS_SCALE);
 
-  const logoPlaneW = CLOUD_RADIUS * 2 * PARTICLE_VIS_SCALE;
   const logoPlaneH = CLOUD_HALF_HEIGHT * 2 * PARTICLE_VIS_SCALE;
+  const logoPlaneW = logoPlaneH * (logoCloudRadiusX / CLOUD_HALF_HEIGHT);
   const logoResolveGeo = new THREE.PlaneGeometry(logoPlaneW, logoPlaneH);
   const logoResolveMat = new THREE.MeshBasicMaterial({
     transparent: true,
@@ -694,32 +722,61 @@ export function attachQuantumCoreOpticalEngine(
   const logoHomeColors = new Float32Array(particleCount * 3);
   let logoColorsReady = false;
   const logoImageUrl = options?.logoImageUrl?.trim() || "";
+  function syncLogoDimensions(imageAspect: number): void {
+    logoCloudRadiusX = CLOUD_HALF_HEIGHT * imageAspect;
+    const targetPlaneW = logoPlaneH * imageAspect;
+    logoResolve.scale.set(
+      targetPlaneW / logoPlaneW,
+      1,
+      1,
+    );
+    const xStretch = logoCloudRadiusX / CLOUD_RADIUS;
+    for (let i = 0; i < particleCount; i++) {
+      const i3 = i * 3;
+      homePositions[i3]! *= xStretch;
+      positions[i3]! *= xStretch;
+      startPositions[i3]! *= xStretch;
+      homeEdgeFade[i] = particleEdgeFade(
+        homePositions[i3]!,
+        homePositions[i3 + 1]!,
+        homePositions[i3 + 2]!,
+        logoCloudRadiusX,
+        CLOUD_RADIUS,
+        CLOUD_HALF_HEIGHT,
+      );
+    }
+    particlesGeo.attributes.position!.needsUpdate = true;
+  }
+
+  function applyLogoHomeColors(sample: LogoColorSampler): void {
+    for (let i = 0; i < particleCount; i++) {
+      const hx = homePositions[i * 3]!;
+      const hy = homePositions[i * 3 + 1]!;
+      const [u, v] = homeUv(hx, hy, logoCloudRadiusX, CLOUD_HALF_HEIGHT);
+      const sampled = sample(u, v);
+      const color = sampled ?? logoFallback;
+      const fade = homeEdgeFade[i]!;
+      logoHomeColors[i * 3] = color.r * fade;
+      logoHomeColors[i * 3 + 1] = color.g * fade;
+      logoHomeColors[i * 3 + 2] = color.b * fade;
+    }
+    logoColorsReady = true;
+  }
+
   if (logoImageUrl) {
     void loadLogoTexture(logoImageUrl)
-      .then((tex) => {
-        logoResolveMat.map = tex;
+      .then(({ texture, aspect }) => {
+        logoResolveMat.map = texture;
         logoResolveMat.needsUpdate = true;
         logoResolve.visible = true;
+        syncLogoDimensions(aspect);
+        return createLogoColorSampler(logoImageUrl);
+      })
+      .then((sample) => {
+        applyLogoHomeColors(sample);
       })
       .catch(() => {
         logoResolve.visible = false;
-      });
-
-    void createLogoColorSampler(logoImageUrl)
-      .then((sample) => {
-        for (let i = 0; i < particleCount; i++) {
-          const hx = homePositions[i * 3]!;
-          const hy = homePositions[i * 3 + 1]!;
-          const [u, v] = homeUv(hx, hy, CLOUD_RADIUS, CLOUD_HALF_HEIGHT);
-          const sampled = sample(u, v);
-          const color = sampled ?? logoFallback;
-          logoHomeColors[i * 3] = color.r;
-          logoHomeColors[i * 3 + 1] = color.g;
-          logoHomeColors[i * 3 + 2] = color.b;
-        }
-        logoColorsReady = true;
-      })
-      .catch(() => {
         logoColorsReady = false;
       });
   }
@@ -729,26 +786,27 @@ export function attachQuantumCoreOpticalEngine(
     const boost = 1 + energy * 0.12;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
+      const fade = homeEdgeFade[i]!;
       if (logoColorsReady) {
         particleColors[i3] = THREE.MathUtils.lerp(
-          rushTint.r,
+          rushTint.r * fade,
           logoHomeColors[i3]! * boost,
           mix,
         );
         particleColors[i3 + 1] = THREE.MathUtils.lerp(
-          rushTint.g,
+          rushTint.g * fade,
           logoHomeColors[i3 + 1]! * boost,
           mix,
         );
         particleColors[i3 + 2] = THREE.MathUtils.lerp(
-          rushTint.b,
+          rushTint.b * fade,
           logoHomeColors[i3 + 2]! * boost,
           mix,
         );
       } else {
-        particleColors[i3] = rushTint.r;
-        particleColors[i3 + 1] = rushTint.g;
-        particleColors[i3 + 2] = rushTint.b;
+        particleColors[i3] = rushTint.r * fade;
+        particleColors[i3 + 1] = rushTint.g * fade;
+        particleColors[i3 + 2] = rushTint.b * fade;
       }
     }
     particlesGeo.attributes.color!.needsUpdate = true;
@@ -1007,24 +1065,25 @@ export function attachQuantumCoreOpticalEngine(
           homePositions[i3 + 2]! +
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
 
+        const edgeFade = homeEdgeFade[i]!;
         if (snapMix <= 0 || !logoColorsReady) {
-          particleColors[i3] = rushTint.r;
-          particleColors[i3 + 1] = rushTint.g;
-          particleColors[i3 + 2] = rushTint.b;
+          particleColors[i3] = rushTint.r * edgeFade;
+          particleColors[i3 + 1] = rushTint.g * edgeFade;
+          particleColors[i3 + 2] = rushTint.b * edgeFade;
         } else {
           const boost = 1 + energy * 0.06;
           particleColors[i3] = THREE.MathUtils.lerp(
-            rushTint.r,
+            rushTint.r * edgeFade,
             logoHomeColors[i3]! * boost,
             snapMix,
           );
           particleColors[i3 + 1] = THREE.MathUtils.lerp(
-            rushTint.g,
+            rushTint.g * edgeFade,
             logoHomeColors[i3 + 1]! * boost,
             snapMix,
           );
           particleColors[i3 + 2] = THREE.MathUtils.lerp(
-            rushTint.b,
+            rushTint.b * edgeFade,
             logoHomeColors[i3 + 2]! * boost,
             snapMix,
           );
