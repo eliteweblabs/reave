@@ -255,7 +255,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       #rule-editor > .de-pane,
       #rule-editor > .ch-sidebar,
       .de-pane {
-        padding-top: var(--topbar-h);
+        padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
       }
 
       /* App panels — no browser zoom; canvas (#wrap) keeps custom pinch/pan. */
@@ -542,6 +542,122 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       @keyframes stpulse {
         0%, 100% { opacity: 0.35; }
         50% { opacity: 1; }
+      }
+
+      /* ── Setup alerts (PWA install + push permission) ── */
+      .admin-setup-alerts {
+        position: fixed;
+        top: var(--topbar-h);
+        left: 0;
+        right: 0;
+        z-index: 19;
+        padding: 0.45rem max(0.65rem, env(safe-area-inset-right, 0px)) 0
+          max(0.65rem, env(safe-area-inset-left, 0px));
+        pointer-events: none;
+      }
+      .admin-setup-alerts[hidden] {
+        display: none !important;
+      }
+      .admin-setup-alert {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 0.65rem 0.75rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--overlay-bg);
+        box-shadow: var(--shadow-lg);
+        pointer-events: auto;
+      }
+      .admin-setup-alert--pwa {
+        border-color: rgba(94, 234, 212, 0.35);
+        background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(94, 234, 212, 0.14));
+      }
+      .admin-setup-alert--push {
+        border-color: rgba(251, 191, 36, 0.35);
+        background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(251, 191, 36, 0.12));
+      }
+      .admin-setup-alert-copy {
+        flex: 1;
+        min-width: 0;
+      }
+      .admin-setup-alert-copy strong {
+        display: block;
+        font-size: 0.82rem;
+        font-weight: 650;
+        line-height: 1.25;
+        margin-bottom: 0.2rem;
+      }
+      .admin-setup-alert-copy p {
+        margin: 0;
+        font-size: 0.76rem;
+        line-height: 1.4;
+        color: var(--muted);
+      }
+      .admin-setup-alert-error {
+        margin: 0.35rem 0 0;
+        font-size: 0.74rem;
+        color: #f87171;
+      }
+      .admin-setup-alert-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        flex-shrink: 0;
+      }
+      .admin-setup-alert-btn {
+        font: inherit;
+        font-size: 0.74rem;
+        font-weight: 600;
+        padding: 0.42rem 0.7rem;
+        border-radius: 8px;
+        border: 1px solid var(--panel-border);
+        background: var(--accent-select-bg);
+        color: var(--fg);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .admin-setup-alert-btn--primary {
+        border-color: rgba(251, 191, 36, 0.45);
+        background: rgba(251, 191, 36, 0.14);
+        color: var(--fg);
+      }
+      .admin-setup-alert-btn--primary:hover {
+        background: rgba(251, 191, 36, 0.22);
+      }
+      .admin-setup-alert-dismiss {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .admin-setup-alert-dismiss:hover {
+        background: var(--surface-hover);
+        color: var(--fg);
+      }
+      body.admin-setup-alert-visible {
+        --setup-alert-h: 3.35rem;
+      }
+      @media (max-width: 639px) {
+        .admin-setup-alert {
+          flex-wrap: wrap;
+        }
+        .admin-setup-alert-actions {
+          width: 100%;
+          justify-content: flex-end;
+        }
+        body.admin-setup-alert-visible {
+          --setup-alert-h: 4.5rem;
+        }
       }
 
       /* ── Top bar — Header.astro (id=topbar, app-header--admin) ── */
@@ -3592,7 +3708,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         #chat-panel.ch-pane-active .ch-pane {
           display: flex;
           flex: 1 1 auto;
-          padding-top: calc(var(--topbar-h) - 0.85rem);
+          padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - 0.85rem);
         }
         #chat-panel.ch-pane-active .ch-pane-header {
           flex-shrink: 0;
@@ -3777,7 +3893,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         flex: 1;
         overflow-x: hidden;
         overflow-y: auto;
-        padding: calc(var(--topbar-h) + 0.65rem) 1rem var(--footer-scroll-pad);
+        padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem) 1rem var(--footer-scroll-pad);
       }
       .home-dashboard-title {
         margin: 0 0 0.25rem;
@@ -4652,7 +4768,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .profile-panel-scroll {
         flex: 1;
         overflow-y: auto;
-        padding: calc(var(--topbar-h) + 1rem) 1rem var(--footer-scroll-pad);
+        padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 1rem) 1rem var(--footer-scroll-pad);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -4940,7 +5056,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--overlay-bg);
         z-index: 15;
         padding:
-          calc(var(--topbar-h) + 0.75rem)
+          calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.75rem)
           1rem
           var(--footer-scroll-pad);
       }
@@ -5035,6 +5151,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
   </head>
   <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
     <Header adminShell showPlugins={showPlugins} />
+
+    <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
 
     <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
@@ -5152,7 +5270,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     <script>
       import '../../admin/agent-chat-mount.tsx';
     </script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20250629f"></script>
+    <script is:inline type="module" src="/admin/push-client.js?v=20250714a"></script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
   </body>
 </html>
