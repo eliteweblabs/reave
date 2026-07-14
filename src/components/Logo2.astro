@@ -123,7 +123,7 @@ const cursorSpeed = isHomepage;
     position: absolute;
     inset: 0;
     isolation: isolate;
-    filter: saturate(1.08) contrast(0.88) brightness(0.84);
+    filter: saturate(1.38) contrast(0.98) brightness(0.94);
   }
 
   .logo-2-video {
@@ -137,38 +137,39 @@ const cursorSpeed = isHomepage;
     object-position: center center;
     opacity: 0;
     transition: opacity 0.35s ease;
-    filter: brightness(0.78) contrast(0.82) saturate(1.05);
+    filter: brightness(0.9) contrast(0.96) saturate(1.15);
   }
 
   .logo-2-video.is-ready {
     opacity: 1;
   }
 
-  /* Tight magenta band (~20% hue range) matched to logo.png — no lavender or violet. */
+  /* Magenta center with ~10% hue falloff each side (logo.png band). */
   .logo-2-tint {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: linear-gradient(
       165deg,
-      #d946ef 0%,
-      #e879f9 34%,
-      #f472b6 68%,
-      #ec4899 100%
+      #e020d0 0%,
+      #ff0080 50%,
+      #ff1868 100%
     );
     mix-blend-mode: color;
-    opacity: 0.97;
+    opacity: 0.9;
   }
 
   .logo-2-crush {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background:
-      linear-gradient(180deg, rgba(190, 24, 125, 0.55) 0%, rgba(219, 39, 119, 0.42) 100%),
-      #db2777;
-    mix-blend-mode: multiply;
-    opacity: 0.48;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 0, 128, 0.28) 0%,
+      rgba(255, 0, 128, 0.08) 100%
+    );
+    mix-blend-mode: soft-light;
+    opacity: 0.55;
   }
 
   .logo-2-fallback {
@@ -176,10 +177,9 @@ const cursorSpeed = isHomepage;
     inset: 0;
     background: linear-gradient(
       165deg,
-      #d946ef 0%,
-      #e879f9 34%,
-      #f472b6 68%,
-      #ec4899 100%
+      #e020d0 0%,
+      #ff0080 50%,
+      #ff1868 100%
     );
   }
 
@@ -240,6 +240,7 @@ const cursorSpeed = isHomepage;
     let activePointerId: number | null = null;
     let targetRate = baseRate;
     let currentRate = baseRate;
+    let smoothedSpeedNorm = 0;
     let stoppedAt = 0;
     let lastX = 0;
     let lastY = 0;
@@ -277,6 +278,9 @@ const cursorSpeed = isHomepage;
       stoppedAt = now;
     };
 
+    const easeToward = (from: number, to: number, amount: number) =>
+      from + (to - from) * amount;
+
     const tick = () => {
       const now = performance.now();
       const idleMs = now - lastMoveTime;
@@ -287,14 +291,14 @@ const cursorSpeed = isHomepage;
           applyRate(baseRate);
           break;
         case "drive":
-          currentRate += (targetRate - currentRate) * 0.12;
+          currentRate = easeToward(currentRate, targetRate, 0.07);
           applyRate(currentRate);
           if (idleMs >= moveIdleMs) {
             beginWindDown();
           }
           break;
         case "wind_down":
-          currentRate += (0 - currentRate) * 0.18;
+          currentRate = easeToward(currentRate, 0, 0.1);
           if (currentRate <= minPlaybackRate) {
             enterStopped(now);
           } else {
@@ -312,7 +316,7 @@ const cursorSpeed = isHomepage;
           }
           break;
         case "ease_in":
-          currentRate += (targetRate - currentRate) * 0.035;
+          currentRate = easeToward(currentRate, targetRate, 0.028);
           applyRate(currentRate);
           if (Math.abs(currentRate - baseRate) < 0.015) {
             currentRate = baseRate;
@@ -362,7 +366,8 @@ const cursorSpeed = isHomepage;
         if (speed > 0.04) {
           phase = "drive";
           const speedNorm = clamp(speed / refVelocity, 0, 1);
-          targetRate = minRate + speedNorm * (maxRate - minRate);
+          smoothedSpeedNorm = easeToward(smoothedSpeedNorm, speedNorm, 0.12);
+          targetRate = minRate + smoothedSpeedNorm * (maxRate - minRate);
         }
       }
 
