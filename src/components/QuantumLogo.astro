@@ -6,7 +6,7 @@ export interface Props {
   logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage mask slide-in; centered keeps the logo in the middle; compact fits the header. */
+  /** Homepage full-viewport; centered keeps the logo in the middle; compact fits the header. */
   layout?: 'homepage' | 'centered' | 'compact';
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
@@ -92,9 +92,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   .quantum-logo-stack--homepage.quantum-logo-stack--logo {
-    mask-position: 42% center;
-    -webkit-mask-position: 42% center;
-    animation: quantumLogoIntro 1.4s ease-out forwards;
+    mask-position: center center;
+    -webkit-mask-position: center center;
   }
 
   .quantum-logo-stack--centered {
@@ -139,25 +138,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 100% !important;
     max-width: none;
     object-fit: cover;
-  }
-
-  @keyframes quantumLogoIntro {
-    0% {
-      mask-position: 42% center;
-      -webkit-mask-position: 42% center;
-    }
-    100% {
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
-  }
-
-  @media (hover: none) {
-    .quantum-logo-stack--homepage.quantum-logo-stack--logo {
-      animation: none;
-      mask-position: center center;
-      -webkit-mask-position: center center;
-    }
   }
 
   @media screen and (min-width: 768px) {
