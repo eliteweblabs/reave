@@ -62,7 +62,7 @@ const cursorSpeed = isHomepage;
         preload="auto"
       ></video>
       <div class="logo-2-tint" aria-hidden="true"></div>
-      <div class="logo-2-glow" aria-hidden="true"></div>
+      <div class="logo-2-crush" aria-hidden="true"></div>
     </div>
     <div class="logo-2-fallback" aria-hidden="true"></div>
   </div>
@@ -98,8 +98,8 @@ const cursorSpeed = isHomepage;
     width: min(80vmin, 800px);
     height: min(80vmin, 800px);
     overflow: hidden;
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))
-      drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
+    filter: drop-shadow(0 0 10px rgba(255, 0, 128, 0.16))
+      drop-shadow(0 0 18px rgba(188, 19, 254, 0.12));
     -webkit-mask-image: var(--logo-2-mask);
     mask-image: var(--logo-2-mask);
     -webkit-mask-size: contain;
@@ -115,14 +115,15 @@ const cursorSpeed = isHomepage;
   .logo-2-stack--compact .logo-2-frame {
     width: 100%;
     height: 100%;
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
-      drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
+    filter: drop-shadow(0 0 4px rgba(255, 0, 128, 0.2))
+      drop-shadow(0 0 8px rgba(188, 19, 254, 0.12));
   }
 
   .logo-2-media {
     position: absolute;
     inset: 0;
     isolation: isolate;
+    filter: saturate(1.08) contrast(0.88) brightness(0.84);
   }
 
   .logo-2-video {
@@ -136,39 +137,38 @@ const cursorSpeed = isHomepage;
     object-position: center center;
     opacity: 0;
     transition: opacity 0.35s ease;
-    filter: saturate(1.28) contrast(1.06) brightness(0.94);
+    filter: brightness(0.78) contrast(0.82) saturate(1.05);
   }
 
   .logo-2-video.is-ready {
     opacity: 1;
   }
 
-  /* Tint stack tuned to public/logo.png: lavender → purple → fuchsia → violet. */
+  /* Tight magenta band (~20% hue range) matched to logo.png — no lavender or violet. */
   .logo-2-tint {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background: linear-gradient(
       165deg,
-      #d8b4fe 0%,
-      #bc13fe 20%,
-      #ff0080 54%,
-      #ff0055 78%,
-      #9d00ff 100%
+      #d946ef 0%,
+      #e879f9 34%,
+      #f472b6 68%,
+      #ec4899 100%
     );
     mix-blend-mode: color;
-    opacity: 0.9;
+    opacity: 0.97;
   }
 
-  .logo-2-glow {
+  .logo-2-crush {
     position: absolute;
     inset: 0;
     pointer-events: none;
     background:
-      radial-gradient(circle at 34% 28%, rgba(188, 19, 254, 0.34), transparent 46%),
-      radial-gradient(circle at 68% 72%, rgba(255, 0, 128, 0.36), transparent 48%);
-    mix-blend-mode: soft-light;
-    opacity: 0.82;
+      linear-gradient(180deg, rgba(190, 24, 125, 0.55) 0%, rgba(219, 39, 119, 0.42) 100%),
+      #db2777;
+    mix-blend-mode: multiply;
+    opacity: 0.48;
   }
 
   .logo-2-fallback {
@@ -176,11 +176,10 @@ const cursorSpeed = isHomepage;
     inset: 0;
     background: linear-gradient(
       165deg,
-      #d8b4fe 0%,
-      #bc13fe 20%,
-      #ff0080 54%,
-      #ff0055 78%,
-      #9d00ff 100%
+      #d946ef 0%,
+      #e879f9 34%,
+      #f472b6 68%,
+      #ec4899 100%
     );
   }
 
@@ -198,8 +197,8 @@ const cursorSpeed = isHomepage;
 
   @media (prefers-reduced-motion: reduce) {
     .logo-2-tint,
-    .logo-2-glow {
-      opacity: 0.78;
+    .logo-2-crush {
+      opacity: 0.82;
     }
   }
 </style>
