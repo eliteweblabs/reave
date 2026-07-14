@@ -644,34 +644,5 @@
     if (first) activateScene(first, { force: true });
   }
 
-  var bootDismissed = false;
-
-  function dismissBoot() {
-    if (bootDismissed) return;
-    bootDismissed = true;
-    var boot = $('#boot');
-    if (boot) {
-      boot.style.opacity = '0';
-      setTimeout(function () {
-        boot.remove();
-        startDeck();
-      }, 500);
-    } else {
-      startDeck();
-    }
-  }
-
-  window.addEventListener(
-    'quantum-intro-complete',
-    function () {
-      setTimeout(dismissBoot, 180);
-    },
-    { once: true },
-  );
-
-  window.addEventListener('load', function () {
-    setTimeout(function () {
-      dismissBoot();
-    }, 5500);
-  });
+  startDeck();
 })();
