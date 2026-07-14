@@ -114,9 +114,31 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         --radius-input: 8px;
         --control-h: 2.75rem;
         --control-inset: 0.22rem;
+        --header-row-h: var(--control-h);
+        --subheader-scale: 0.66;
+        --subheader-row-h: calc(var(--header-row-h) * var(--subheader-scale));
+        --subheader-control-inset: calc(var(--control-inset) * var(--subheader-scale));
+        --header-row-gap: 0.6rem;
+        --subheader-row-gap: calc(var(--header-row-gap) * var(--subheader-scale));
+        --header-row-pad-y: 0.35rem;
+        --header-row-pad-x: 1rem;
+        --subheader-row-pad-y: calc(var(--header-row-pad-y) * var(--subheader-scale));
+        --subheader-row-pad-x: calc(var(--header-row-pad-x) * var(--subheader-scale));
+        --header-row-font: 0.95rem;
+        --subheader-row-font: calc(var(--header-row-font) * var(--subheader-scale));
+        --header-row-icon-svg: 1.25rem;
+        --subheader-row-icon-svg: calc(var(--header-row-icon-svg) * var(--subheader-scale));
         --sidebar-w: 260px;
         --sidebar-min-w: 200px;
         --sidebar-max-w: 520px;
+      }
+      @media (max-width: 639px) {
+        :root {
+          --header-row-h: 2.25rem;
+          --header-row-font: 0.88rem;
+          --header-row-icon-svg: 1.1rem;
+          --header-row-pad-x: 0.65rem;
+        }
       }
       @media (min-width: 640px) {
         :root {
@@ -661,6 +683,54 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
 
       /* ── Top bar — Header.astro (id=topbar, app-header--admin) ── */
+      #topbar .app-header-logo {
+        display: inline-flex;
+        align-items: center;
+        max-width: calc(var(--sidebar-w) - 1.25rem);
+        min-height: var(--header-row-h);
+      }
+      #topbar .app-header-logo-img {
+        height: clamp(
+          1.75rem,
+          calc((var(--topbar-h) - var(--safe-top)) * 0.58),
+          calc(var(--sidebar-w) * 0.2)
+        );
+        max-height: calc(var(--topbar-h) - var(--safe-top) - 0.6rem);
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+      }
+      #topbar .app-header-icon-btn,
+      #topbar .topbar-icon-btn,
+      #topbar .topbar-profile-btn {
+        width: var(--header-row-h);
+        height: var(--header-row-h);
+        min-width: var(--header-row-h);
+        min-height: var(--header-row-h);
+        box-sizing: border-box;
+      }
+      #topbar .topbar-profile-btn svg {
+        width: calc(var(--header-row-icon-svg) * 0.88);
+        height: calc(var(--header-row-icon-svg) * 0.88);
+      }
+      #topbar .topbar-end .topbar-panel-actions .ios-icon-btn {
+        width: var(--header-row-h);
+        height: var(--header-row-h);
+      }
+      #topbar .topbar-end .topbar-panel-actions .ios-icon-btn svg {
+        width: var(--header-row-icon-svg);
+        height: var(--header-row-icon-svg);
+      }
+      @media (max-width: 639px) {
+        #topbar .app-header-logo {
+          max-width: min(42vw, 11rem);
+        }
+        #topbar .app-header-logo-img {
+          height: clamp(1.5rem, 8vw, 2rem);
+          max-height: calc(var(--topbar-h) - var(--safe-top) - 0.75rem);
+        }
+      }
+
       #topbar-utilities {
         display: none !important;
       }
@@ -1001,16 +1071,26 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .de-new-btn:hover { background: #265080; border-color: #3a72b8; }
 
-      /* Sidebar list subheader — search-only (see admin-ui.js listSearchSubheader) */
+      /* Sidebar list subheader — 66% scale of pane header row (see admin-ui.js listSearchSubheader) */
       .panel-list-subheader {
         position: relative;
-        margin: 0.35rem 0.5rem 0.5rem;
+        margin: var(--subheader-row-pad-y) var(--subheader-row-pad-x) calc(var(--subheader-row-pad-x) * 0.5);
         flex: 0 0 auto;
+      }
+      .panel-list-subheader .control-field {
+        --control-h: var(--subheader-row-h);
+        --control-inset: var(--subheader-control-inset);
+        min-height: var(--subheader-row-h);
+        gap: var(--subheader-row-gap);
+      }
+      .panel-list-subheader .panel-list-search {
+        font-size: var(--subheader-row-font);
       }
       .panel-list-subheader--fab-only {
         display: flex;
         align-items: center;
-        padding: 0.35rem 0.65rem 0.15rem;
+        min-height: var(--subheader-row-h);
+        padding: var(--subheader-row-pad-y) var(--subheader-row-pad-x) calc(var(--subheader-row-pad-y) * 0.45);
         margin: 0;
       }
       .panel-list-search {
@@ -1041,8 +1121,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
           box-shadow: 0 3px 14px rgba(192, 38, 211, 0.52);
         }
         .panel-list-subheader .de-new-btn.ch-new-btn svg {
-          width: 18px;
-          height: 18px;
+          width: var(--subheader-row-icon-svg);
+          height: var(--subheader-row-icon-svg);
         }
       }
       @media (min-width: 640px) {
@@ -1054,7 +1134,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .panel-list-subheader--stacked {
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: var(--subheader-row-gap);
         min-width: 0;
       }
       .panel-list-subheader--stacked .em-filter-tabs {
@@ -1257,12 +1337,50 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .de-header {
         display: flex;
         align-items: center;
-        gap: 0.6rem;
-        padding: 0.75rem 1rem 0.6rem;
+        gap: var(--header-row-gap);
+        min-height: var(--header-row-h);
+        padding: var(--header-row-pad-y) var(--header-row-pad-x);
         border-bottom: 1px solid var(--panel-border);
         flex: 0 0 auto;
         min-width: 0;
         overflow: hidden;
+        box-sizing: border-box;
+      }
+      .de-header .ios-icon-btn {
+        width: var(--header-row-h);
+        height: var(--header-row-h);
+        min-width: var(--header-row-h);
+        min-height: var(--header-row-h);
+      }
+      .de-header .ios-icon-btn svg {
+        width: var(--header-row-icon-svg);
+        height: var(--header-row-icon-svg);
+      }
+      .de-header .ch-model-switcher,
+      .de-header .ch-model-switcher-icon {
+        width: var(--header-row-h);
+        height: var(--header-row-h);
+        min-height: var(--header-row-h);
+      }
+      .de-header .ch-model-switcher-select {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        height: var(--header-row-h);
+        min-height: var(--header-row-h);
+        max-height: var(--header-row-h);
+        font-size: calc(var(--header-row-font) * 0.72);
+        line-height: 1;
+        padding: 0 0.55rem;
+      }
+      .de-header .ch-model-badge {
+        display: inline-flex;
+        align-items: center;
+        height: var(--header-row-h);
+        box-sizing: border-box;
+        font-size: calc(var(--header-row-font) * 0.72);
+        line-height: 1;
       }
       .de-back-btn {
         display: none;
@@ -1271,7 +1389,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         .de-back-btn.ios-icon-btn {
           display: inline-flex;
         }
-        .de-doc-name { font-size: 0.88rem; }
       }
       .de-doc-name {
         flex: 1;
@@ -1279,8 +1396,9 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 0.95rem;
+        font-size: var(--header-row-font);
         font-weight: 700;
+        line-height: 1.2;
         color: var(--fg);
       }
       .de-header-title-input {
@@ -1306,9 +1424,10 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         white-space: normal;
       }
       .de-doc-slug {
-        font-size: 0.72rem;
+        font-size: calc(var(--header-row-font) * 0.76);
         color: var(--muted);
         font-family: ui-monospace, monospace;
+        line-height: 1.2;
       }
 
       .de-fields {
@@ -2120,9 +2239,10 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .de-header-actions {
         display: flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: calc(var(--header-row-gap) * 0.58);
         margin-left: auto;
         flex-shrink: 0;
+        min-height: var(--header-row-h);
       }
       .cl-title-wrap {
         flex: 1;
@@ -2515,7 +2635,9 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.25rem;
+        justify-content: center;
+        gap: calc(var(--header-row-gap) * 0.25);
+        min-height: var(--header-row-h);
       }
       .ch-pane-project-links {
         display: flex;
@@ -3713,8 +3835,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         #chat-panel.ch-pane-active .ch-pane-header {
           flex-shrink: 0;
           background: var(--bg);
-          gap: 0.3rem;
-          padding: 0.15rem 0.45rem 0.2rem;
+          gap: calc(var(--header-row-gap) * 0.5);
+          padding: calc(var(--header-row-pad-y) * 0.45) calc(var(--header-row-pad-x) * 0.45);
         }
         #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn:not(.ch-delete-btn),
         #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
@@ -3724,20 +3846,11 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
           background: transparent;
           color: hsl(0 0% 75%);
         }
-        #chat-panel.ch-pane-active .ch-pane-header .ios-icon-btn {
-          width: 2.25rem;
-          height: 2.25rem;
-        }
-        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher,
-        #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
-          width: 32px;
-          height: 32px;
-        }
         #chat-panel.ch-pane-active .ch-pane-header .ch-model-switcher-icon {
           border-color: hsl(0 0% 75% / 0.35);
         }
         #chat-panel.ch-pane-active .ch-pane-header .de-header-actions {
-          gap: 0.15rem;
+          gap: calc(var(--header-row-gap) * 0.25);
         }
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }

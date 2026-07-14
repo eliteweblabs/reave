@@ -105,9 +105,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   .quantum-logo-stack--compact {
     position: relative;
     inset: unset;
-    width: 24px;
-    height: 24px;
-    flex: 0 0 24px;
+    width: clamp(1.5rem, 4.5vw, 2.25rem);
+    height: clamp(1.5rem, 4.5vw, 2.25rem);
+    max-height: calc(var(--app-header-h, 3.25rem) * 0.72);
+    flex: 0 0 auto;
     pointer-events: none;
     --quantum-hero-logo-size: contain;
     mask-size: contain;

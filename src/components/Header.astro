@@ -341,10 +341,12 @@ const userId = auth?.userId ?? null;
   }
 
   .app-header-logo-img {
-    height: 24px;
+    height: clamp(1.5rem, 4.5vw, 2.25rem);
     width: auto;
+    max-height: calc(var(--app-header-h, 3.25rem) * 0.72);
     display: block;
     pointer-events: none;
+    object-fit: contain;
   }
 
   .topbar-dash-date {
