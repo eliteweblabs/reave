@@ -6,8 +6,6 @@ export interface Props {
   videoSrc?: string;
   /** Homepage full-viewport; centered keeps the logo in the middle; compact fits the header. */
   layout?: "homepage" | "centered" | "compact";
-  /** Cursor pixels moved per 1% video shift (100 = subtle, 20 = stronger). */
-  cursorPxPerPercent?: number;
   /** Slowest playback rate at slow cursor movement. */
   cursorSpeedMinRate?: number;
   /** Fastest playback rate at fast cursor movement. */
@@ -21,7 +19,6 @@ const {
   maskSrc,
   videoSrc = "/videos/logo-2.mp4",
   layout = "homepage",
-  cursorPxPerPercent = 100,
   cursorSpeedMinRate = 0.4,
   cursorSpeedMaxRate = 2.25,
   cursorSpeedVelocity = 2.5,
@@ -30,7 +27,7 @@ const {
 
 const isHomepage = layout === "homepage";
 const isCompact = layout === "compact";
-const cursorParallax = isHomepage;
+const cursorSpeed = isHomepage;
 ---
 
 <div
@@ -43,26 +40,23 @@ const cursorParallax = isHomepage;
   ]}
   style={`--logo-2-mask: url("${maskSrc}")`}
   data-logo-2
-  data-cursor-parallax={cursorParallax ? "true" : "false"}
-  data-cursor-px-per-percent={String(cursorPxPerPercent)}
+  data-cursor-speed={cursorSpeed ? "true" : "false"}
   data-cursor-speed-min-rate={String(cursorSpeedMinRate)}
   data-cursor-speed-max-rate={String(cursorSpeedMaxRate)}
   data-cursor-speed-velocity={String(cursorSpeedVelocity)}
   aria-hidden="true"
 >
   <div class="logo-2-frame">
-    <div class="logo-2-parallax">
-      <video
-        class="logo-2-video"
-        src={videoSrc}
-        autoplay
-        muted
-        loop
-        playsinline
-        preload="auto"
-      ></video>
-      <div class="logo-2-fallback" aria-hidden="true"></div>
-    </div>
+    <video
+      class="logo-2-video"
+      src={videoSrc}
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+    ></video>
+    <div class="logo-2-fallback" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -115,15 +109,6 @@ const cursorParallax = isHomepage;
     height: 100%;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
       drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
-  }
-
-  .logo-2-parallax {
-    position: absolute;
-    inset: -8%;
-    width: 116%;
-    height: 116%;
-    transform: translate3d(var(--logo-2-shift-x, 0%), var(--logo-2-shift-y, 0%), 0);
-    will-change: transform;
   }
 
   .logo-2-video {
@@ -180,10 +165,6 @@ const cursorParallax = isHomepage;
     .logo-2-fallback {
       animation: none;
     }
-
-    .logo-2-parallax {
-      transform: none !important;
-    }
   }
 </style>
 
@@ -199,23 +180,17 @@ const cursorParallax = isHomepage;
     return Math.min(max, Math.max(min, value));
   }
 
-  function attachCursorParallax(
+  function attachCursorSpeed(
     stack: HTMLElement,
     video: HTMLVideoElement,
   ): () => void {
-    if (stack.dataset.cursorParallax !== "true" || prefersReducedMotion()) {
+    if (stack.dataset.cursorSpeed !== "true" || prefersReducedMotion()) {
       return () => {};
     }
 
-    const pxPerPercent = Number(stack.dataset.cursorPxPerPercent) || 100;
     const minRate = clamp(Number(stack.dataset.cursorSpeedMinRate) || 0.4, 0.05, 1);
     const maxRate = clamp(Number(stack.dataset.cursorSpeedMaxRate) || 2.25, 1, 4);
     const refVelocity = Math.max(Number(stack.dataset.cursorSpeedVelocity) || 2.5, 0.1);
-    const maxShift = 8;
-    let targetX = 0;
-    let targetY = 0;
-    let currentX = 0;
-    let currentY = 0;
     let targetRate = 1;
     let currentRate = 1;
     let lastX = 0;
@@ -224,43 +199,23 @@ const cursorParallax = isHomepage;
     let hasPointerSample = false;
     let rafId = 0;
 
-    const setShift = (x: number, y: number) => {
-      stack.style.setProperty("--logo-2-shift-x", `${x}%`);
-      stack.style.setProperty("--logo-2-shift-y", `${y}%`);
-    };
-
     const tick = () => {
       const now = performance.now();
       if (hasPointerSample && now - lastMoveTime > 120) {
         targetRate = 1;
       }
 
-      currentX += (targetX - currentX) * 0.14;
-      currentY += (targetY - currentY) * 0.14;
       currentRate += (targetRate - currentRate) * 0.12;
-
-      if (
-        Math.abs(currentX - targetX) < 0.01 &&
-        Math.abs(currentY - targetY) < 0.01
-      ) {
-        currentX = targetX;
-        currentY = targetY;
-      }
 
       if (!video.paused) {
         video.playbackRate = clamp(currentRate, minRate, maxRate);
       }
 
-      setShift(currentX, currentY);
       rafId = requestAnimationFrame(tick);
     };
 
     const onPointerMove = (event: PointerEvent) => {
       const now = performance.now();
-      const cx = window.innerWidth * 0.5;
-      const cy = window.innerHeight * 0.5;
-      targetX = clamp((event.clientX - cx) / pxPerPercent, -maxShift, maxShift);
-      targetY = clamp((event.clientY - cy) / pxPerPercent, -maxShift, maxShift);
 
       if (hasPointerSample) {
         const dt = Math.max(now - lastMoveTime, 8);
@@ -276,8 +231,6 @@ const cursorParallax = isHomepage;
     };
 
     const onPointerLeave = () => {
-      targetX = 0;
-      targetY = 0;
       targetRate = 1;
     };
 
@@ -289,8 +242,6 @@ const cursorParallax = isHomepage;
       cancelAnimationFrame(rafId);
       window.removeEventListener("pointermove", onPointerMove);
       document.removeEventListener("mouseleave", onPointerLeave);
-      stack.style.removeProperty("--logo-2-shift-x");
-      stack.style.removeProperty("--logo-2-shift-y");
       video.playbackRate = 1;
     };
   }
@@ -311,10 +262,10 @@ const cursorParallax = isHomepage;
       });
     }
 
-    const detachParallax = attachCursorParallax(stack, video);
+    const detachCursorSpeed = attachCursorSpeed(stack, video);
 
     return () => {
-      detachParallax();
+      detachCursorSpeed();
       video.pause();
       video.removeAttribute("src");
       video.load();
