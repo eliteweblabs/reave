@@ -521,9 +521,9 @@ export function attachQuantumCoreOpticalEngine(
   const startPositions = new Float32Array(particleCount * 3);
   /** Outer particles join the implosion slightly later — reverse-explosion wave. */
   const introStagger = new Float32Array(particleCount);
-  const introDurationSec = prefersReduced
-    ? 0
-    : Math.max(0, options?.introRush?.durationSec ?? 0);
+  const introDurationBase = Math.max(0, options?.introRush?.durationSec ?? 0);
+  /* Keep the intro on devices that report reduced motion — only shorten it and damp reactive FX. */
+  const introDurationSec = introDurationBase * (prefersReduced ? 0.7 : 1);
   const useGalaxyIntro = introDurationSec > 0 && !isCompactStack;
   /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
   const introOutwardMin = 2.4;
@@ -638,7 +638,7 @@ export function attachQuantumCoreOpticalEngine(
   });
   const logoResolve = new THREE.Mesh(logoResolveGeo, logoResolveMat);
   logoResolve.visible = false;
-  let logoResolveSmoothed = prefersReduced ? 1 : 0;
+  let logoResolveSmoothed = 0;
 
   /** Scales core + ring from world center in sync with the Focus/Warp cycle. */
   const pulseGroup = new THREE.Group();
@@ -966,7 +966,27 @@ export function attachQuantumCoreOpticalEngine(
   let raf = 0;
   let alive = true;
   const clock = new THREE.Clock();
-  const motionScale = prefersReduced ? 0.2 : 1;
+  let introElapsedSec = 0;
+  let lastIntroTickMs = 0;
+  const motionScale = prefersReduced ? 0.35 : 1;
+
+  const tickIntroElapsed = (): number => {
+    const now = performance.now();
+    if (lastIntroTickMs === 0) {
+      lastIntroTickMs = now;
+      return introElapsedSec;
+    }
+    if (!document.hidden) {
+      introElapsedSec += (now - lastIntroTickMs) / 1000;
+    }
+    lastIntroTickMs = now;
+    return introElapsedSec;
+  };
+
+  const onVisibilityChange = () => {
+    lastIntroTickMs = performance.now();
+  };
+  document.addEventListener("visibilitychange", onVisibilityChange);
 
   const onCtxLost = (ev: Event) => {
     ev.preventDefault();
@@ -978,9 +998,10 @@ export function attachQuantumCoreOpticalEngine(
   function animate() {
     if (!alive) return;
     raf = requestAnimationFrame(animate);
-    const rawT = clock.getElapsedTime();
+    const rawT = tickIntroElapsed();
+    const sceneT = clock.getElapsedTime();
     /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
-    sphereMat.uniforms.uTime.value = rawT;
+    sphereMat.uniforms.uTime.value = sceneT;
 
     sphereMat.uniforms.uSpike.value +=
       (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
@@ -1007,7 +1028,7 @@ export function attachQuantumCoreOpticalEngine(
       energy *
         (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
-    const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
+    const rotY = -sceneT * 0.1 * particleSpeedMult * spinBoost;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
     const inGalaxyView = inIntro && useGalaxyIntro;
@@ -1236,6 +1257,7 @@ export function attachQuantumCoreOpticalEngine(
     cancelAnimationFrame(resizeRaf);
     resetCameraViewportAspect();
     window.removeEventListener("resize", onResize);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
     window.removeEventListener("audioLevel", onAudioLevel);
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
