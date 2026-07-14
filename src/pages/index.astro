@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import QuantumLogo from "../components/QuantumLogo.astro";
+import Logo2 from "../components/Logo2.astro";
+// import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
@@ -12,7 +13,8 @@ const heroLogo = homepageHeroLogo(company);
 ---
 
 <Layout>
-  {heroMask && heroLogo && <QuantumLogo heroMask={heroMask} logoSrc={heroLogo} layout="homepage" />}
+  {heroMask && <Logo2 maskSrc={heroMask} layout="homepage" />}
+  {/* {heroMask && heroLogo && <QuantumLogo heroMask={heroMask} logoSrc={heroLogo} layout="homepage" />} */}
   <div class="quantum-vignette" aria-hidden="true"></div>
 
   <div class="quantum-controls-dock" aria-label="Background controls">
