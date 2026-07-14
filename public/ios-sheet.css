@@ -147,34 +147,3 @@ html.ios-sheet-locked {
     opacity: 1;
   }
 }
-
-/* Clerk sign-in inside sheet — strip card chrome */
-.ios-sheet-body .cl-rootBox {
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.ios-sheet-body .cl-card,
-.ios-sheet-body .cl-cardBox {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.ios-sheet-body .cl-header,
-.ios-sheet-body .cl-headerTitle,
-.ios-sheet-body .cl-headerSubtitle {
-  display: none !important;
-}
-
-.ios-sheet-body .cl-footer {
-  background: transparent !important;
-}
-
-.ios-sheet-body .cl-footerActionLink {
-  color: var(--ios-sheet-link, #3b82f6) !important;
-}

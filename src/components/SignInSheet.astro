@@ -1,6 +1,5 @@
 ---
 import { SignIn } from '@clerk/astro/components';
-import { dark } from '@clerk/ui/themes';
 import IosBottomSheet from './IosBottomSheet.astro';
 
 interface Props {
@@ -16,19 +15,55 @@ const {
   allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === '1',
   autoOpen = false,
 } = Astro.props;
+
+/** Hide Clerk's duplicate heading; keep card layout/padding intact. */
+const clerkAppearance = {
+  elements: {
+    rootBox: {
+      width: '100%',
+      maxWidth: '100%',
+    },
+    card: {
+      width: '100%',
+      maxWidth: '100%',
+      boxShadow: 'none',
+      border: 'none',
+      borderRadius: '0',
+    },
+    header: { display: 'none' },
+    headerTitle: { display: 'none' },
+    headerSubtitle: { display: 'none' },
+  },
+};
 ---
 
-<IosBottomSheet id="sign-in-sheet" title="Sign in" dismissible={true}>
+<IosBottomSheet id="sign-in-sheet" title="Sign in" dismissible={true} class="sign-in-sheet">
   <SignIn
     routing="hash"
     signUpUrl={allowSignUp ? '/sign-up' : '/sign-in'}
     fallbackRedirectUrl={fallbackRedirectUrl}
-    appearance={{ theme: dark }}
+    appearance={clerkAppearance}
   />
 </IosBottomSheet>
 
 <script src="/ios-sheet.js" defer></script>
 <link rel="stylesheet" href="/ios-sheet.css" />
+
+<style is:global>
+  /* Match Clerk default theme to sheet light/dark (do not force theme: dark). */
+  #sign-in-sheet {
+    color-scheme: light dark;
+  }
+
+  #sign-in-sheet .ios-sheet-body {
+    padding: 0;
+  }
+
+  #sign-in-sheet .cl-rootBox {
+    width: 100%;
+    max-width: 100%;
+  }
+</style>
 
 {autoOpen && (
   <script is:inline>
