@@ -196,23 +196,7 @@ const deckPayload = {
             data-optional={s.optional ? 'true' : 'false'}
           >
             <div class="deck-scene-copy">
-              <div class="deck-scene-top">
-                <p class="deck-scene-kicker">{s.title}</p>
-                {
-                  s.optional && (
-                    <label class="deck-opt">
-                      <input
-                        type="checkbox"
-                        class="deck-opt-input"
-                        data-opt-toggle={s.id}
-                        checked
-                      />
-                      <span class="deck-opt-ui" aria-hidden="true"></span>
-                      <span class="deck-opt-label">Include in quote</span>
-                    </label>
-                  )
-                }
-              </div>
+              <p class="deck-scene-kicker">{s.title}</p>
               <h2 class="deck-scene-title">{s.featureTitle}</h2>
               <p class="deck-scene-body">{s.featureBody}</p>
               {
@@ -220,6 +204,20 @@ const deckPayload = {
                   <p class="deck-opt-note" data-opt-note={s.id} hidden>
                     Opted out of the quote — flip the switch to include it again.
                   </p>
+                )
+              }
+              {
+                s.optional && (
+                  <label class="deck-opt">
+                    <input
+                      type="checkbox"
+                      class="deck-opt-input"
+                      data-opt-toggle={s.id}
+                      checked
+                    />
+                    <span class="deck-opt-ui" aria-hidden="true"></span>
+                    <span class="deck-opt-label">Include in quote</span>
+                  </label>
                 )
               }
             </div>
@@ -471,16 +469,8 @@ const deckPayload = {
       .deck-scene.is-active.is-declined .deck-scene-copy {
         opacity: 0.55;
       }
-      .deck-scene-top {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.65rem 1rem;
-        margin-bottom: 0.5rem;
-        pointer-events: auto;
-      }
       .deck-scene-kicker {
-        margin: 0;
+        margin: 0 0 0.5rem;
         font-size: 0.7rem;
         font-weight: 600;
         letter-spacing: 0.16em;
@@ -488,10 +478,14 @@ const deckPayload = {
         color: rgba(255, 255, 255, 0.45);
       }
       .deck-opt {
-        display: inline-flex;
+        display: flex;
+        flex-direction: row;
         align-items: center;
+        justify-content: flex-start;
+        align-self: flex-start;
         gap: 0.45rem;
-        margin-left: auto;
+        margin-top: auto;
+        padding-top: 1.25rem;
         cursor: pointer;
         user-select: none;
         font-size: 0.78rem;

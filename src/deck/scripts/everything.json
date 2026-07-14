@@ -57,6 +57,33 @@
       ]
     },
     {
+      "id": "agentic",
+      "title": "Agent",
+      "summary": "The agent is the brain of the Reave App. Everything is one button from assistance. ",
+      "optional": true,
+      "quoteLabel": "Agent",
+      "features": [
+        {
+          "id": "agent-reel",
+          "title": "Agent",
+          "body": "The agent is the brain of the Reave App. Everything is one button from your personilized assistant. ",
+          "scrollHeight": 120,
+          "actions": [
+            {
+              "type": "stage.set",
+              "surface": "phone",
+              "device": "phone-hand",
+              "gif": "/deck/gifs/scheduling.gif"
+            },
+            {
+              "type": "stage.caption",
+              "text": "Scheduling — phone in hand"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "scheduling",
       "title": "Scheduling",
       "summary": "Once the look lands — live booking and the rest of the OS start interacting.",
