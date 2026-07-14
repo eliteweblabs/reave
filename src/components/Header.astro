@@ -72,6 +72,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   class:list={["app-header", { "app-header--admin": adminShell }]}
   id={adminShell ? "topbar" : undefined}
 >
+  <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   {!hideLogo && heroMask && heroLogo && !adminShell ? (
     <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
       <QuantumLogo
@@ -228,6 +229,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   {adminShell && (
     <time id="topbar-dash-date" class="topbar-dash-date" datetime="" hidden></time>
   )}
+  </div>
+
+  {adminShell && (
+    <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
+  )}
 </header>
 
 {!userId && (
@@ -280,21 +286,37 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
   .app-header--admin {
     z-index: 20;
-    min-height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding: 0;
     background: transparent;
     border-bottom: none;
+  }
+
+  .app-header-row--admin {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
+    padding:
+      env(safe-area-inset-top, 0px)
+      max(0.5rem, env(safe-area-inset-right, 0px))
+      0
+      max(0.5rem, env(safe-area-inset-left, 0px));
   }
 
   .app-header--admin::before {
     content: none;
   }
 
-  .app-header--admin > * {
+  .app-header--admin .app-header-row > * {
     position: relative;
     z-index: 1;
   }
 
-  .app-header--admin .topbar-end {
+  .app-header--admin .app-header-row .topbar-end {
     margin-left: auto;
   }
 
@@ -357,6 +379,10 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     pointer-events: auto;
   }
 
+  .app-header:not(.app-header--admin) .app-header-row {
+    display: contents;
+  }
+
   .app-header-logo {
     display: inline-flex;
     align-items: center;
@@ -383,11 +409,15 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     text-align: right;
   }
 
-  .app-header--admin:not(.topbar-has-panel-context):not(:has(.topbar-end .topbar-icon-btn:not([hidden]))) .topbar-dash-date:not([hidden]) {
+  .app-header--admin:not(.topbar-has-panel-context):not(:has(.app-header-row .topbar-end .topbar-icon-btn:not([hidden]))) .topbar-dash-date:not([hidden]) {
     position: absolute;
     right: max(0.65rem, env(safe-area-inset-right, 0px));
     top: calc(env(safe-area-inset-top, 0px) + var(--app-header-h) / 2);
     transform: translateY(-50%);
+  }
+
+  .app-header-row--admin {
+    position: relative;
   }
 
   .topbar-dash-date[hidden] {

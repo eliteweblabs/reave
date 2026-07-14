@@ -5,6 +5,21 @@
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
+let setupAlertResizeObs = null;
+
+function syncSetupAlertInset() {
+  const root = document.getElementById('admin-setup-alerts');
+  const h = root && !root.hidden ? root.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty('--setup-alert-h', `${Math.ceil(h)}px`);
+}
+
+function bindSetupAlertResize() {
+  const root = document.getElementById('admin-setup-alerts');
+  if (!root || setupAlertResizeObs) return;
+  setupAlertResizeObs = new ResizeObserver(() => syncSetupAlertInset());
+  setupAlertResizeObs.observe(root);
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -173,7 +188,8 @@ function renderSetupAlert(kind) {
 
   alert.append(copy, actions);
   root.appendChild(alert);
-  document.body.classList.add('admin-setup-alert-visible');
+  bindSetupAlertResize();
+  requestAnimationFrame(() => syncSetupAlertInset());
   return alert;
 }
 
@@ -183,7 +199,7 @@ function clearSetupAlerts() {
     root.hidden = true;
     root.replaceChildren();
   }
-  document.body.classList.remove('admin-setup-alert-visible');
+  syncSetupAlertInset();
 }
 
 export async function syncAdminSetupAlerts() {

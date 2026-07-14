@@ -547,14 +547,10 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
 
       /* ── Setup alerts (PWA install + push permission) ── */
       .admin-setup-alerts {
-        position: fixed;
-        top: var(--topbar-h);
-        left: 0;
-        right: 0;
-        z-index: 19;
-        padding: 0.45rem max(0.65rem, env(safe-area-inset-right, 0px)) 0
+        width: 100%;
+        flex-shrink: 0;
+        padding: 0.45rem max(0.65rem, env(safe-area-inset-right, 0px)) 0.45rem
           max(0.65rem, env(safe-area-inset-left, 0px));
-        pointer-events: none;
       }
       .admin-setup-alerts[hidden] {
         display: none !important;
@@ -570,7 +566,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         border: 1px solid var(--panel-border);
         background: var(--overlay-bg);
         box-shadow: var(--shadow-lg);
-        pointer-events: auto;
       }
       .admin-setup-alert--pwa {
         border-color: rgba(94, 234, 212, 0.35);
@@ -645,9 +640,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--surface-hover);
         color: var(--fg);
       }
-      body.admin-setup-alert-visible {
-        --setup-alert-h: 3.35rem;
-      }
       @media (max-width: 639px) {
         .admin-setup-alert {
           flex-wrap: wrap;
@@ -655,9 +647,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         .admin-setup-alert-actions {
           width: 100%;
           justify-content: flex-end;
-        }
-        body.admin-setup-alert-visible {
-          --setup-alert-h: 4.5rem;
         }
       }
 
@@ -5141,8 +5130,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
   <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
     <Header adminShell showPlugins={showPlugins} signInAutoOpen={!userId} />
 
-    <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
-
     <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
       <select id="model-select" style="display:none" aria-label="Agent model">
@@ -5267,7 +5254,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     <script>
       import '../../admin/agent-chat-mount.tsx';
     </script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20250714a"></script>
+    <script is:inline type="module" src="/admin/push-client.js?v=20250714b"></script>
     <script src="/ios-sheet.js" defer></script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
   </body>
