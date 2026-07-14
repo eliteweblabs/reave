@@ -172,10 +172,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 </style>
 
 <script>
-  import {
-    attachQuantumCoreOpticalEngine,
-    sampleHomePositionsFromMask,
-  } from '../lib/quantumCoreOpticalEngine';
+  import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
 
   function prefersReducedMotion() {
     return (
@@ -221,20 +218,11 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     let delayId = 0;
     let cancelled = false;
 
-    const start = async () => {
-      if (cancelled) return;
-      const maskSrc = stack.dataset.heroMask || '/logo-mask.svg';
-      let homePositions: Float32Array | undefined;
-      try {
-        homePositions = await sampleHomePositionsFromMask(maskSrc);
-      } catch {
-        homePositions = undefined;
-      }
+    const start = () => {
       if (cancelled) return;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
         logoImageUrl: logoSrc,
-        homePositions,
       });
     };
 

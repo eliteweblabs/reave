@@ -8,53 +8,6 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
-/** Resolved `mask-size` from computed style (single or two lengths in px). */
-function parseMaskImageSize(css: string): { w: number; h: number } | null {
-  const parts = css.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return null;
-  const w = parseCssLengthPx(parts[0]!);
-  if (!Number.isFinite(w) || w <= 0) return null;
-  if (parts.length === 1) return { w, h: w };
-  const h = parseCssLengthPx(parts[1]!);
-  if (!Number.isFinite(h) || h <= 0) return { w, h: w };
-  return { w, h };
-}
-
-function parseCssLengthPx(token: string): number {
-  const t = token.trim();
-  if (!t || t === "auto") return NaN;
-  const m = /^([\d.]+)px$/i.exec(t);
-  return m ? parseFloat(m[1]!) : NaN;
-}
-
-function splitMaskPositionShorthand(
-  merged: string,
-  secondDefault: string,
-): [string, string] {
-  const parts = merged.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return [parts[0]!, parts[1]!];
-  if (parts.length === 1) return [parts[0]!, secondDefault];
-  return ["50%", "50%"];
-}
-
-/** One axis of `mask-position` (keywords, %, or px) → offset of mask image’s top-left in the positioning box. */
-function maskOrigin1D(
-  axisToken: string,
-  extent: number,
-  maskExtent: number,
-): number {
-  const t = axisToken.trim().toLowerCase();
-  if (t === "center") return 0.5 * (extent - maskExtent);
-  if (t === "left" || t === "top") return 0;
-  if (t === "right" || t === "bottom") return extent - maskExtent;
-  if (t.endsWith("%")) {
-    const p = parseFloat(t) / 100;
-    return p * (extent - maskExtent);
-  }
-  if (t.endsWith("px")) return parseFloat(t);
-  return 0.5 * (extent - maskExtent);
-}
-
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   const w = 128;
@@ -378,55 +331,6 @@ export function attachQuantumCoreOpticalEngine(
     const vh = Math.max(1, window.innerHeight);
     camera.clearViewOffset();
     camera.aspect = vw / vh;
-    camera.updateProjectionMatrix();
-  }
-
-  /** Match the perspective frustum to the CSS mask image box so the scene scales with the logo (not the full viewport). */
-  function syncCameraToMask() {
-    if (!stackEl) {
-      resetCameraViewportAspect();
-      return;
-    }
-    const vw = window.innerWidth;
-    const vh = Math.max(1, window.innerHeight);
-    const cs = getComputedStyle(stackEl);
-    const csExt = cs as unknown as {
-      webkitMaskSize?: string;
-      webkitMaskPositionX?: string;
-      webkitMaskPositionY?: string;
-    };
-    const sizeStr = csExt.webkitMaskSize || cs.maskSize || "";
-    const dims = parseMaskImageSize(sizeStr);
-    if (!dims) {
-      resetCameraViewportAspect();
-      return;
-    }
-    const maskW0 = dims.w;
-    const maskH0 = dims.h;
-    let posXStr: string;
-    let posYStr: string;
-    if (csExt.webkitMaskPositionX && csExt.webkitMaskPositionY) {
-      posXStr = csExt.webkitMaskPositionX;
-      posYStr = csExt.webkitMaskPositionY;
-    } else {
-      [posXStr, posYStr] = splitMaskPositionShorthand(
-        cs.maskPosition || "50% 50%",
-        "center",
-      );
-    }
-    let left = maskOrigin1D(posXStr, vw, maskW0);
-    let top = maskOrigin1D(posYStr, vh, maskH0);
-    const right = Math.min(vw, left + maskW0);
-    const bottom = Math.min(vh, top + maskH0);
-    left = Math.max(0, left);
-    top = Math.max(0, top);
-    const clipW = right - left;
-    const clipH = bottom - top;
-    if (clipW < 2 || clipH < 2) {
-      resetCameraViewportAspect();
-      return;
-    }
-    camera.setViewOffset(vw, vh, left, top, clipW, clipH);
     camera.updateProjectionMatrix();
   }
 
@@ -964,7 +868,7 @@ export function attachQuantumCoreOpticalEngine(
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
       setPresentationMode(true);
     } else {
-      syncCameraToMask();
+      resetCameraViewportAspect();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
       if (useGalaxyIntro) setPresentationMode(false);
     }
@@ -1145,7 +1049,7 @@ export function attachQuantumCoreOpticalEngine(
     renderer.setSize(w, h);
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
-    syncCameraToMask();
+    resetCameraViewportAspect();
   };
 
   const onResize = () => {
