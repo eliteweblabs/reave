@@ -51,15 +51,19 @@ const cursorSpeed = isHomepage;
   aria-hidden="true"
 >
   <div class="logo-2-frame">
-    <video
-      class="logo-2-video"
-      src={videoSrc}
-      autoplay
-      muted
-      loop
-      playsinline
-      preload="auto"
-    ></video>
+    <div class="logo-2-media">
+      <video
+        class="logo-2-video"
+        src={videoSrc}
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+      ></video>
+      <div class="logo-2-tint" aria-hidden="true"></div>
+      <div class="logo-2-glow" aria-hidden="true"></div>
+    </div>
     <div class="logo-2-fallback" aria-hidden="true"></div>
   </div>
 </div>
@@ -115,6 +119,12 @@ const cursorSpeed = isHomepage;
       drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
   }
 
+  .logo-2-media {
+    position: absolute;
+    inset: 0;
+    isolation: isolate;
+  }
+
   .logo-2-video {
     position: absolute;
     inset: 0;
@@ -126,36 +136,57 @@ const cursorSpeed = isHomepage;
     object-position: center center;
     opacity: 0;
     transition: opacity 0.35s ease;
+    filter: saturate(1.28) contrast(1.06) brightness(0.94);
   }
 
   .logo-2-video.is-ready {
     opacity: 1;
   }
 
+  /* Tint stack tuned to public/logo.png: lavender → purple → fuchsia → violet. */
+  .logo-2-tint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      165deg,
+      #d8b4fe 0%,
+      #bc13fe 20%,
+      #ff0080 54%,
+      #ff0055 78%,
+      #9d00ff 100%
+    );
+    mix-blend-mode: color;
+    opacity: 0.9;
+  }
+
+  .logo-2-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 34% 28%, rgba(188, 19, 254, 0.34), transparent 46%),
+      radial-gradient(circle at 68% 72%, rgba(255, 0, 128, 0.36), transparent 48%);
+    mix-blend-mode: soft-light;
+    opacity: 0.82;
+  }
+
   .logo-2-fallback {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(circle at 28% 34%, rgba(0, 243, 255, 0.55), transparent 42%),
-      radial-gradient(circle at 72% 68%, rgba(188, 19, 254, 0.5), transparent 46%),
-      radial-gradient(circle at 52% 52%, rgba(255, 0, 85, 0.28), transparent 58%),
-      linear-gradient(145deg, #120818 0%, #050505 100%);
-    background-size: 200% 200%;
-    animation: logo-2-fallback-drift 12s ease-in-out infinite alternate;
+    background: linear-gradient(
+      165deg,
+      #d8b4fe 0%,
+      #bc13fe 20%,
+      #ff0080 54%,
+      #ff0055 78%,
+      #9d00ff 100%
+    );
   }
 
   .logo-2-frame:has(.logo-2-video.is-ready) .logo-2-fallback {
     opacity: 0;
     transition: opacity 0.35s ease;
-  }
-
-  @keyframes logo-2-fallback-drift {
-    0% {
-      background-position: 0% 0%, 100% 100%, 50% 50%, 0% 0%;
-    }
-    100% {
-      background-position: 100% 100%, 0% 0%, 60% 40%, 0% 0%;
-    }
   }
 
   @media (max-width: 768px) {
@@ -166,8 +197,9 @@ const cursorSpeed = isHomepage;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .logo-2-fallback {
-      animation: none;
+    .logo-2-tint,
+    .logo-2-glow {
+      opacity: 0.78;
     }
   }
 </style>
