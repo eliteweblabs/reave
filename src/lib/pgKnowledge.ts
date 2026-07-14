@@ -10,6 +10,9 @@ import {
   readKnowledgeMarkdown,
 } from './localKnowledge';
 import { serverEnv } from './serverEnv';
+import { createLogger } from './logger';
+
+const log = createLogger('knowledge:pg');
 
 export interface KnowledgeEntry {
   id?: number;
@@ -108,7 +111,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   if (!_seedReady) {
     _seedReady = seedBundledIfEmpty(pool).catch((e) => {
       _seedReady = null;
-      console.error('[knowledge:pg] seed error:', e);
+      log.error('seed error', e);
     });
   }
   await _seedReady;
@@ -131,7 +134,7 @@ export async function dbListKnowledge(): Promise<KnowledgeSummary[] | null> {
     );
     return rows;
   } catch (e) {
-    console.error('[knowledge:pg] list error:', e);
+    log.error('list error', e);
     return null;
   }
 }
@@ -147,7 +150,7 @@ export async function dbReadKnowledge(slug: string): Promise<KnowledgeEntry | nu
     );
     return rows[0] ?? null;
   } catch (e) {
-    console.error('[knowledge:pg] read error:', e);
+    log.error('read error', e);
     return null;
   }
 }
@@ -168,7 +171,7 @@ export async function dbSearchKnowledge(
     );
     return rows;
   } catch (e) {
-    console.error('[knowledge:pg] search error:', e);
+    log.error('search error', e);
     return null;
   }
 }

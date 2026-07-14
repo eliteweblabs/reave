@@ -14,6 +14,9 @@ import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
+import { createLogger } from './logger';
+
+const log = createLogger('admin-agent');
 
 const ALERT_THREAD_TITLE = 'System alerts';
 
@@ -49,7 +52,7 @@ export async function postToSystemAlertsThread(opts: {
   try {
     const threadId = await getOrCreateAlertThread(userId);
     if (!threadId) {
-      console.warn('[admin-agent] could not open System alerts thread');
+      log.warn('could not open System alerts thread');
       return;
     }
 
@@ -81,12 +84,12 @@ export async function postToSystemAlertsThread(opts: {
         body: opts.push.body,
         tag: opts.push.tag ?? 'system-alert',
         url: opts.push.url ?? '/admin?tab=chats',
-      }).catch((e) => console.warn('[admin-agent] push failed', e));
+      }).catch((e) => log.warn('push failed', e));
     }
 
-    console.info('[admin-agent] alert posted', { threadId });
+    log.info('alert posted', { threadId });
   } catch (e) {
-    console.warn('[admin-agent] notify failed', e);
+    log.warn('notify failed', e);
   }
 }
 
