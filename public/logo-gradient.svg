@@ -1,134 +1,53 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  REAVE logo gradient  wavy, bubbly fill without masking.
-  512×512 square. Palette sampled from logo.png (lavender ’ magenta ’ hot pink ’ coral).
+  REAVE brand gradient — color stops sampled from public/logo.png.
+  Full-bleed fill without REAVE letter cutouts.
+  ViewBox matches logo.png (1014×329); gradient span aligns to opaque artwork (x 56–956).
 -->
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="1014" height="329" viewBox="0 0 1014 329" role="img" aria-label="REAVE brand gradient">
   <defs>
-    <linearGradient id="base" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" stop-color="#b8a8ff" />
-      <stop offset="28%" stop-color="#c850e8" />
-      <stop offset="52%" stop-color="#f04ab0" />
-      <stop offset="78%" stop-color="#ff5c9a" />
-      <stop offset="100%" stop-color="#ff7a7a" />
+    <linearGradient id="reave-sweep" gradientUnits="userSpaceOnUse" x1="56" y1="164.5" x2="956" y2="164.5">
+      <stop offset="0%" stop-color="#b977e8" />
+      <stop offset="6%" stop-color="#d969ce" />
+      <stop offset="12%" stop-color="#de59f1" />
+      <stop offset="20%" stop-color="#e342fe" />
+      <stop offset="28%" stop-color="#db4dfe" />
+      <stop offset="36%" stop-color="#d04cfe" />
+      <stop offset="44%" stop-color="#c948fe" />
+      <stop offset="52%" stop-color="#df27fc" />
+      <stop offset="60%" stop-color="#e420f9" />
+      <stop offset="68%" stop-color="#f806ff" />
+      <stop offset="76%" stop-color="#fe00b8" />
+      <stop offset="84%" stop-color="#f110a9" />
+      <stop offset="92%" stop-color="#d8339c" />
+      <stop offset="100%" stop-color="#ce4b7f" />
     </linearGradient>
 
-    <radialGradient id="blob-lavender" cx="30%" cy="45%" r="65%">
-      <stop offset="0%" stop-color="#ddd0ff" stop-opacity="0.95" />
-      <stop offset="45%" stop-color="#b8a0ff" stop-opacity="0.7" />
-      <stop offset="100%" stop-color="#9b7aff" stop-opacity="0" />
+    <linearGradient id="reave-lift" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ddd4ff" stop-opacity="0.16" />
+      <stop offset="42%" stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="100%" stop-color="#ff5c8a" stop-opacity="0.12" />
+    </linearGradient>
+
+    <radialGradient id="reave-glow-left" cx="12%" cy="34%" r="44%">
+      <stop offset="0%" stop-color="#c4a8ff" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#c4a8ff" stop-opacity="0" />
     </radialGradient>
 
-    <radialGradient id="blob-magenta" cx="50%" cy="55%" r="70%">
-      <stop offset="0%" stop-color="#f060d8" stop-opacity="0.9" />
-      <stop offset="40%" stop-color="#d946ef" stop-opacity="0.65" />
-      <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+    <radialGradient id="reave-glow-mid" cx="54%" cy="40%" r="46%">
+      <stop offset="0%" stop-color="#ff00e5" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ff00e5" stop-opacity="0" />
     </radialGradient>
 
-    <radialGradient id="blob-pink" cx="68%" cy="42%" r="68%">
-      <stop offset="0%" stop-color="#ff4da6" stop-opacity="0.92" />
-      <stop offset="38%" stop-color="#ec4899" stop-opacity="0.6" />
-      <stop offset="100%" stop-color="#db2777" stop-opacity="0" />
+    <radialGradient id="reave-glow-right" cx="88%" cy="64%" r="40%">
+      <stop offset="0%" stop-color="#ff7090" stop-opacity="0.16" />
+      <stop offset="100%" stop-color="#ff7090" stop-opacity="0" />
     </radialGradient>
-
-    <radialGradient id="blob-coral" cx="82%" cy="58%" r="62%">
-      <stop offset="0%" stop-color="#ff7a8a" stop-opacity="0.88" />
-      <stop offset="42%" stop-color="#fb7185" stop-opacity="0.55" />
-      <stop offset="100%" stop-color="#f43f5e" stop-opacity="0" />
-    </radialGradient>
-
-    <radialGradient id="blob-deep" cx="42%" cy="72%" r="58%">
-      <stop offset="0%" stop-color="#c026d3" stop-opacity="0.75" />
-      <stop offset="50%" stop-color="#9333ea" stop-opacity="0.35" />
-      <stop offset="100%" stop-color="#6b21a8" stop-opacity="0" />
-    </radialGradient>
-
-    <radialGradient id="blob-highlight" cx="58%" cy="28%" r="45%">
-      <stop offset="0%" stop-color="#ffc4e8" stop-opacity="0.55" />
-      <stop offset="55%" stop-color="#f9a8d4" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#f472b6" stop-opacity="0" />
-    </radialGradient>
-
-    <filter id="soften" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="18" />
-    </filter>
-
-    <filter id="bloom" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="28" />
-    </filter>
   </defs>
 
-  <!-- Square canvas -->
-  <rect width="512" height="512" fill="#050505" />
-
-  <!-- Broad horizontal wash (logo left’right sweep) -->
-  <rect width="512" height="512" fill="url(#base)" opacity="0.35" />
-
-  <!-- Wavy blob layer -->
-  <g filter="url(#bloom)">
-    <path
-      d="M -20 180
-         C 60 80, 140 120, 200 70
-         S 340 40, 420 100
-         S 540 200, 480 280
-         S 380 380, 260 360
-         S 100 420, -20 320
-         Z"
-      fill="url(#blob-lavender)"
-      opacity="0.85"
-    />
-    <path
-      d="M 40 300
-         C 120 220, 200 280, 280 230
-         S 420 180, 500 260
-         S 520 400, 400 440
-         S 220 500, 120 420
-         S 0 380, 40 300
-         Z"
-      fill="url(#blob-magenta)"
-      opacity="0.8"
-    />
-    <path
-      d="M 180 60
-         C 260 20, 340 80, 400 50
-         S 520 120, 530 220
-         S 460 340, 360 300
-         S 240 260, 180 180
-         S 100 100, 180 60
-         Z"
-      fill="url(#blob-pink)"
-      opacity="0.82"
-    />
-    <path
-      d="M 300 320
-         C 380 260, 460 300, 520 360
-         S 560 480, 460 520
-         S 300 520, 240 460
-         S 220 380, 300 320
-         Z"
-      fill="url(#blob-coral)"
-      opacity="0.78"
-    />
-    <path
-      d="M 60 380
-         C 140 320, 220 400, 300 360
-         S 420 420, 380 500
-         S 200 540, 100 480
-         S 20 440, 60 380
-         Z"
-      fill="url(#blob-deep)"
-      opacity="0.7"
-    />
-    <ellipse cx="310" cy="150" rx="160" ry="110" fill="url(#blob-highlight)" opacity="0.65" />
-  </g>
-
-  <!-- Sharper inner bubbles (less blur) -->
-  <g filter="url(#soften)">
-    <circle cx="120" cy="200" r="72" fill="#c4b5fd" opacity="0.45" />
-    <circle cx="250" cy="260" r="88" fill="#e879f9" opacity="0.5" />
-    <circle cx="370" cy="210" r="76" fill="#f472b6" opacity="0.48" />
-    <circle cx="430" cy="340" r="64" fill="#fb7185" opacity="0.42" />
-    <circle cx="190" cy="380" r="58" fill="#a855f7" opacity="0.38" />
-    <circle cx="320" cy="120" r="48" fill="#f9a8d4" opacity="0.35" />
-  </g>
+  <rect width="1014" height="329" fill="url(#reave-sweep)" />
+  <rect width="1014" height="329" fill="url(#reave-lift)" />
+  <rect width="1014" height="329" fill="url(#reave-glow-left)" />
+  <rect width="1014" height="329" fill="url(#reave-glow-mid)" />
+  <rect width="1014" height="329" fill="url(#reave-glow-right)" />
 </svg>
