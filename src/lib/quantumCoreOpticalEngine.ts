@@ -113,7 +113,8 @@ async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
   }
   ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
   ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
+  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE)
+    .data;
 
   return (u: number, v: number) => {
     const fx = THREE.MathUtils.clamp(u, 0, 1) * (LOGO_SAMPLE_SIZE - 1);
@@ -169,7 +170,12 @@ async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
   };
 }
 
-function homeUv(hx: number, hy: number, cloudRadius: number, cloudHalfH: number): [number, number] {
+function homeUv(
+  hx: number,
+  hy: number,
+  cloudRadius: number,
+  cloudHalfH: number,
+): [number, number] {
   const u = hx / (cloudRadius * 2) + 0.5;
   const v = 0.5 - hy / (cloudHalfH * 2);
   return [u, v];
@@ -220,7 +226,8 @@ export async function sampleHomePositionsFromMask(
   }
   ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
   ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
+  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE)
+    .data;
 
   const homes = new Float32Array(particleCount * 3);
   let filled = 0;
@@ -284,7 +291,11 @@ function easeInQuint(t: number): number {
 }
 
 /** Slow drift early, dense fill in the last ~25% of the intro. */
-function introTravelT(rawT: number, duration: number, delaySec: number): number {
+function introTravelT(
+  rawT: number,
+  duration: number,
+  delaySec: number,
+): number {
   const span = Math.max(0.001, duration - delaySec);
   return easeInQuint(THREE.MathUtils.clamp((rawT - delaySec) / span, 0, 1));
 }
@@ -502,8 +513,7 @@ export function attachQuantumCoreOpticalEngine(
   const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
   const suppliedHomes =
-    options?.homePositions &&
-    options.homePositions.length >= particleCount * 3
+    options?.homePositions && options.homePositions.length >= particleCount * 3
       ? options.homePositions
       : null;
 
@@ -535,8 +545,7 @@ export function attachQuantumCoreOpticalEngine(
         startPositions[i * 3 + 2] = gz;
       } else {
         const outward =
-          introOutwardMin +
-          Math.random() * (introOutwardMax - introOutwardMin);
+          introOutwardMin + Math.random() * (introOutwardMax - introOutwardMin);
         startPositions[i * 3] = hx * outward;
         startPositions[i * 3 + 1] = hy * outward;
         startPositions[i * 3 + 2] = hz * outward;
@@ -561,9 +570,15 @@ export function attachQuantumCoreOpticalEngine(
       positions[i * 3 + 2] = hz;
     }
   }
-  particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  particlesGeo.setAttribute(
+    "position",
+    new THREE.BufferAttribute(positions, 3),
+  );
   const particleColors = new Float32Array(particleCount * 3);
-  particlesGeo.setAttribute("color", new THREE.BufferAttribute(particleColors, 3));
+  particlesGeo.setAttribute(
+    "color",
+    new THREE.BufferAttribute(particleColors, 3),
+  );
   const particleSprite = createSoftParticleSpriteTexture();
   const particlesMat = new THREE.PointsMaterial({
     map: particleSprite,
@@ -914,14 +929,20 @@ export function attachQuantumCoreOpticalEngine(
 
     const micLerp = prefersReduced ? 0.04 : 0.08;
     micLevelSmoothed +=
-      (micLevelTarget - micLevelSmoothed) * micLerp * Math.max(motionScale, 0.35);
+      (micLevelTarget - micLevelSmoothed) *
+      micLerp *
+      Math.max(motionScale, 0.35);
     const mic = micLevelSmoothed;
 
     /* Smooth the "in a call" baseline and decay transient bursts / speaker flash. */
     callEnergySmoothed += (callEnergyTarget - callEnergySmoothed) * 0.06;
     burst *= 0.87;
     const wild = callEnergySmoothed;
-    const energy = THREE.MathUtils.clamp(mic + burst * 0.5 + wild * 0.10, 0, 1.0);
+    const energy = THREE.MathUtils.clamp(
+      mic + burst * 0.5 + wild * 0.1,
+      0,
+      1.0,
+    );
 
     const spinBoost =
       1 +
@@ -941,28 +962,15 @@ export function attachQuantumCoreOpticalEngine(
         : 1
       : 0;
     const resolveLerp = inIntro ? 0.1 : 0.14;
-    logoResolveSmoothed +=
-      (resolveTarget - logoResolveSmoothed) * resolveLerp;
+    logoResolveSmoothed += (resolveTarget - logoResolveSmoothed) * resolveLerp;
     const resolveMix = THREE.MathUtils.clamp(logoResolveSmoothed, 0, 1);
-    const resolveBloomDamp = resolveMix * resolveMix;
-    const reactiveLift = THREE.MathUtils.clamp(energy * 0.55 + burst * 0.2, 0, 1);
-    logoResolveMat.opacity = resolveMix * (1 - reactiveLift * 0.15);
-    const particleResolveDim = 1 - resolveMix * 0.94;
-    const bloomThresholdActive = isMobileLike ? 0.025 : 0.031;
-    const bloomThresholdResolved = isMobileLike ? 0.68 : 0.74;
-    bloomPass.threshold = THREE.MathUtils.lerp(
-      bloomThresholdActive,
-      bloomThresholdResolved,
-      resolveBloomDamp,
+    const reactiveLift = THREE.MathUtils.clamp(
+      energy * 0.55 + burst * 0.2,
+      0,
+      1,
     );
-    bloomPass.radius = THREE.MathUtils.lerp(0.66, 0.26, resolveBloomDamp);
-    const baseExposure = isMobileLike ? 1.42 : 1.12;
-    const resolvedExposure = isMobileLike ? 1.02 : 0.94;
-    renderer.toneMappingExposure = THREE.MathUtils.lerp(
-      baseExposure,
-      resolvedExposure,
-      resolveBloomDamp,
-    );
+    logoResolveMat.opacity = resolveMix * (1 - reactiveLift * 0.22);
+    const particleResolveDim = 1 - resolveMix * 0.82;
 
     if (inGalaxyView) {
       resetCameraViewportAspect();
@@ -1037,8 +1045,8 @@ export function attachQuantumCoreOpticalEngine(
         particleResolveDim;
       bloomPass.strength = THREE.MathUtils.lerp(
         1.12,
-        0.38,
-        easeInQuart(Math.max(globalIntroT, resolveBloomDamp)),
+        1.65 * (1 - resolveMix * 0.35),
+        easeInQuart(globalIntroT),
       );
     } else {
       for (let i = 0; i < particleCount; i++) {
@@ -1054,7 +1062,7 @@ export function attachQuantumCoreOpticalEngine(
       particles.scale.setScalar(PARTICLE_VIS_SCALE);
       particlesMat.size = particleBaseSize * (1 + reactiveLift * 0.18);
       particlesMat.opacity = particleBaseOpacity * particleResolveDim;
-      bloomPass.strength = THREE.MathUtils.lerp(1.18, 0.28, resolveBloomDamp);
+      bloomPass.strength = 1.18 * (1 - resolveMix * 0.42);
 
       if (introDurationSec > 0) {
         if (!introCompleteFired) {
@@ -1068,49 +1076,38 @@ export function attachQuantumCoreOpticalEngine(
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
     const scatterScale = 1 + mic * 0.6 + burst * 0.18;
     if (!inIntro) {
-      const scatterDamp = 1 - resolveBloomDamp * 0.55;
-      particles.scale.setScalar(
-        PARTICLE_VIS_SCALE * (1 + (scatterScale - 1) * scatterDamp),
-      );
+      particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
       particlesMat.size =
-        particleBaseSize * (1 + (energy * 0.12 + reactiveLift * 0.08) * scatterDamp);
+        particleBaseSize * (1 + energy * 0.12 + reactiveLift * 0.08);
     }
     if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
       particlesMat.opacity = THREE.MathUtils.clamp(
         particleBaseOpacity * particleResolveDim * (1 - mic * 0.3) +
-          reactiveLift * 0.18,
-        0.04,
-        particleBaseOpacity * 0.35,
+          reactiveLift * 0.28,
+        0.12,
+        particleBaseOpacity,
       );
     }
 
     /* Gentle overall pulse — just a breath, not an amplifier. */
     const scaleBreath =
-      1 +
-      wild *
-        (prefersReduced ? 0.02 : 0.04) *
-        Math.max(motionScale, 0.35);
+      1 + wild * (prefersReduced ? 0.02 : 0.04) * Math.max(motionScale, 0.35);
     if (!inIntro) {
       pulseGroup.scale.setScalar(scaleBreath);
     }
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     if (!inIntro) {
-      const activeBloom = 1.18 + wild * 0.18 + energy * 0.55;
-      const resolvedBloom = 0.24 + wild * 0.1 + energy * 0.42;
       bloomPass.strength = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(activeBloom, resolvedBloom, resolveBloomDamp),
-        0.1,
+        (1.18 + wild * 0.18 + energy * 0.55) * (1 - resolveMix * 0.42),
+        0.72,
         1.9,
       );
     }
 
-    const tiltLerp =
-      0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1) * (1 - resolveBloomDamp * 0.75);
-    pulseGroup.rotation.x +=
-      (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
-    pulseGroup.rotation.y +=
-      (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
+    const tiltLerp = 0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
+    pulseGroup.rotation.x += (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
+    pulseGroup.rotation.y += (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
     pulseGroup.rotation.x = THREE.MathUtils.clamp(
       pulseGroup.rotation.x,
       -0.55,
@@ -1127,9 +1124,8 @@ export function attachQuantumCoreOpticalEngine(
     const shakeY = (Math.random() - 0.5) * shakeIntensity;
 
     const coarse = isCoarsePointer();
-    const parallaxAmp =
-      (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1) * (1 - resolveBloomDamp * 0.7);
-    const parallaxLerp = 0.038 * Math.max(motionScale, 0.35) * (1 - resolveBloomDamp * 0.6);
+    const parallaxAmp = (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
+    const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
     camera.position.x +=
       (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
     camera.position.y +=
@@ -1142,13 +1138,9 @@ export function attachQuantumCoreOpticalEngine(
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
     const warpTarget =
-      THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) *
-      motionScale *
-      (1 - resolveBloomDamp * 0.85);
+      THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
     const aberrTarget =
-      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) *
-      motionScale *
-      (1 - resolveBloomDamp * 0.85);
+      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
     lensPass.uniforms.uDistortion.value +=
       (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
     lensPass.uniforms.uAberration.value +=

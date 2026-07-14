@@ -7,7 +7,7 @@ export interface Props {
   /** Canvas host element id. */
   hostId?: string;
   /** Homepage full-viewport; centered keeps the logo in the middle; compact fits the header. */
-  layout?: 'homepage' | 'centered' | 'compact';
+  layout?: "homepage" | "centered" | "compact";
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
@@ -20,27 +20,27 @@ export interface Props {
 const {
   heroMask,
   logoSrc,
-  hostId = 'quantumCanvasHost',
-  layout = 'homepage',
+  hostId = "quantumCanvasHost",
+  layout = "homepage",
   introRush = true,
   introDuration = 4,
   initDelay,
   class: className,
 } = Astro.props;
 
-const isHomepage = layout === 'homepage';
-const isCompact = layout === 'compact';
+const isHomepage = layout === "homepage";
+const isCompact = layout === "compact";
 const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 ---
 
 <div
   class:list={[
-    'quantum-logo-stack',
-    isHomepage && 'quantum-logo-stack--homepage',
-    layout === 'centered' && 'quantum-logo-stack--centered',
-    isCompact && 'quantum-logo-stack--compact',
-    introRush && !isCompact && 'quantum-logo-stack--galaxy',
-    (!introRush || isCompact) && 'quantum-logo-stack--logo',
+    "quantum-logo-stack",
+    isHomepage && "quantum-logo-stack--homepage",
+    layout === "centered" && "quantum-logo-stack--centered",
+    isCompact && "quantum-logo-stack--compact",
+    introRush && !isCompact && "quantum-logo-stack--galaxy",
+    (!introRush || isCompact) && "quantum-logo-stack--logo",
     className,
   ]}
   style={`--hero-logo-mask: url("${heroMask}")`}
@@ -49,7 +49,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   data-host-id={hostId}
   data-logo-src={logoSrc}
   data-hero-mask={heroMask}
-  data-intro-rush={introRush ? 'true' : 'false'}
+  data-intro-rush={introRush ? "true" : "false"}
   data-intro-duration={String(introDuration)}
   data-init-delay={String(resolvedInitDelay)}
   aria-hidden="true"
@@ -78,8 +78,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   /* After intro: WebGL resolve plane defines the logo shape (no CSS mask). */
   .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
   .quantum-logo-stack--compact {
-    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.1))
-      drop-shadow(0 0 8px rgba(200, 80, 180, 0.06));
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))
+      drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
   }
 
   .quantum-logo-stack--compact {
@@ -118,18 +118,18 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 </style>
 
 <script>
-  import { attachQuantumCoreOpticalEngine } from '../lib/quantumCoreOpticalEngine';
+  import { attachQuantumCoreOpticalEngine } from "../lib/quantumCoreOpticalEngine";
 
   function prefersReducedMotion() {
     return (
-      typeof matchMedia !== 'undefined' &&
-      matchMedia('(prefers-reduced-motion: reduce)').matches
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches
     );
   }
 
   function waitForPreloaderGone(): Promise<void> {
     return new Promise((resolve) => {
-      const boot = document.getElementById('boot');
+      const boot = document.getElementById("boot");
       if (!boot) {
         resolve();
         return;
@@ -139,7 +139,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
         resolve();
       };
       const obs = new MutationObserver(() => {
-        if (!document.getElementById('boot')) finish();
+        if (!document.getElementById("boot")) finish();
       });
       obs.observe(document.body, { childList: true, subtree: true });
       window.setTimeout(finish, 6000);
@@ -147,18 +147,18 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   function initStack(stack: HTMLElement): () => void {
-    const hostId = stack.dataset.hostId || 'quantumCanvasHost';
+    const hostId = stack.dataset.hostId || "quantumCanvasHost";
     const host = document.getElementById(hostId);
     if (!host) return () => {};
 
-    const layout = stack.dataset.layout || 'homepage';
-    const logoSrc = stack.dataset.logoSrc || '/logo.png';
-    const introRush = stack.dataset.introRush === 'true';
+    const layout = stack.dataset.layout || "homepage";
+    const logoSrc = stack.dataset.logoSrc || "/logo.png";
+    const introRush = stack.dataset.introRush === "true";
     const introDuration = Number(stack.dataset.introDuration) || 4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
 
-    document.documentElement.classList.add('quantum-page-touch');
-    document.body.classList.add('quantum-page-touch');
+    document.documentElement.classList.add("quantum-page-touch");
+    document.body.classList.add("quantum-page-touch");
 
     let detach: (() => void) | undefined;
     let delayId = 0;
@@ -172,16 +172,15 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       });
     };
 
-    const delayMs =
-      prefersReducedMotion() ? 0 : resolvedInitDelay;
+    const delayMs = prefersReducedMotion() ? 0 : resolvedInitDelay;
 
     const scheduleStart = () => {
       delayId = window.setTimeout(start, delayMs);
     };
 
     if (
-      (layout === 'compact' || layout === 'homepage') &&
-      document.getElementById('boot')
+      (layout === "compact" || layout === "homepage") &&
+      document.getElementById("boot")
     ) {
       void waitForPreloaderGone().then(scheduleStart);
     } else {
@@ -207,23 +206,25 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       window.clearTimeout(delayId);
       detach?.();
       obs?.disconnect();
-      document.documentElement.classList.remove('quantum-page-touch');
-      document.body.classList.remove('quantum-page-touch');
+      document.documentElement.classList.remove("quantum-page-touch");
+      document.body.classList.remove("quantum-page-touch");
     };
   }
 
   const cleanups = new Map<HTMLElement, () => void>();
 
   function boot() {
-    document.querySelectorAll<HTMLElement>('[data-quantum-logo]').forEach((stack) => {
-      cleanups.get(stack)?.();
-      cleanups.set(stack, initStack(stack));
-    });
+    document
+      .querySelectorAll<HTMLElement>("[data-quantum-logo]")
+      .forEach((stack) => {
+        cleanups.get(stack)?.();
+        cleanups.set(stack, initStack(stack));
+      });
   }
 
   function bootWhenReady() {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', boot, { once: true });
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot, { once: true });
     } else {
       boot();
     }
@@ -231,7 +232,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 
   bootWhenReady();
 
-  window.addEventListener('pagehide', () => {
+  window.addEventListener("pagehide", () => {
     cleanups.forEach((cleanup) => cleanup());
     cleanups.clear();
   });
