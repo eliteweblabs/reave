@@ -2403,7 +2403,13 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         margin-bottom: 0;
       }
       .ch-list-item:hover { color: var(--fg); background: var(--surface-hover); }
-      .ch-list-item.active { color: var(--fg); background: var(--list-item-active-bg); border-color: var(--list-item-active-border); }
+      .ch-list-item.active {
+        color: var(--fg);
+        background: var(--list-item-active-bg);
+        border-color: var(--list-item-active-border);
+        box-shadow: inset 3px 0 0 var(--list-item-active-border);
+      }
+      .ch-list-item.active .ch-item-title { color: var(--fg); }
       .ch-list-item--archived {
         opacity: 0.52;
       }
@@ -3208,6 +3214,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .swipe-content .ch-list-item.active {
         background: var(--list-item-active-bg);
         border-color: var(--list-item-active-border);
+        box-shadow: inset 3px 0 0 var(--list-item-active-border);
       }
       .em-item-row {
         display: flex;
