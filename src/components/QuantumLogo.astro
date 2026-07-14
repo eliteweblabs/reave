@@ -2,8 +2,10 @@
 export interface Props {
   /** Mask image URL. When omitted, nothing is rendered. */
   heroMask: string;
-  /** Full-color logo PNG the particles resolve into (default /logo.png). */
+  /** Full-color logo PNG (default /logo.png). Used as the final gradient layer when gradientSrc is omitted. */
   logoSrc: string;
+  /** Optional smooth gradient PNG; defaults to logoSrc. */
+  gradientSrc?: string;
   /** Canvas host element id. */
   hostId?: string;
   /** Homepage hero; centered for preloader; compact fits small hosts. */
@@ -20,6 +22,7 @@ export interface Props {
 const {
   heroMask,
   logoSrc,
+  gradientSrc,
   hostId = 'quantumCanvasHost',
   layout = 'homepage',
   introRush = true,
@@ -31,6 +34,7 @@ const {
 const isHomepage = layout === 'homepage';
 const isCompact = layout === 'compact';
 const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
+const resolvedGradientSrc = gradientSrc ?? logoSrc;
 ---
 
 <div
@@ -42,11 +46,12 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     isCompact && 'quantum-logo-stack--compact',
     className,
   ]}
-  style={`--hero-logo-mask: url("${heroMask}")`}
+  style={`--hero-logo-mask: url("${heroMask}"); --quantum-intro-duration: ${introDuration}s`}
   data-quantum-logo
   data-layout={layout}
   data-host-id={hostId}
   data-logo-src={logoSrc}
+  data-gradient-src={resolvedGradientSrc}
   data-hero-mask={heroMask}
   data-intro-rush={introRush ? 'true' : 'false'}
   data-intro-duration={String(introDuration)}
@@ -54,6 +59,13 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
+  <img
+    class="quantum-logo-gradient"
+    src={resolvedGradientSrc}
+    alt=""
+    decoding="async"
+    fetchpriority="high"
+  />
 </div>
 
 <style>
@@ -105,11 +117,84 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   .quantum-host {
     position: absolute;
     inset: 0;
+    z-index: 0;
     width: 100%;
     height: 100%;
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.55s ease-out;
+  }
+
+  .quantum-logo-gradient {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 1;
+    width: var(--quantum-hero-logo-size);
+    height: var(--quantum-hero-logo-size);
+    transform: translate(-50%, -50%);
+    object-fit: contain;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  .quantum-logo-stack--compact .quantum-logo-gradient {
+    width: 100%;
+    height: 100%;
+  }
+
+  .quantum-logo-stack[data-intro-rush='true'] .quantum-logo-gradient {
+    animation: quantum-gradient-reveal var(--quantum-intro-duration, 4s) linear forwards;
+  }
+
+  .quantum-logo-stack[data-intro-rush='true'] .quantum-host {
+    animation: quantum-canvas-fade var(--quantum-intro-duration, 4s) linear forwards;
+  }
+
+  .quantum-logo-stack--settled .quantum-logo-gradient,
+  .quantum-logo-stack[data-intro-rush='false'] .quantum-logo-gradient {
+    animation: none;
+    opacity: 1;
+  }
+
+  .quantum-logo-stack--settled .quantum-host,
+  .quantum-logo-stack[data-intro-rush='false'] .quantum-host {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @keyframes quantum-gradient-reveal {
+    0%,
+    88% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes quantum-canvas-fade {
+    0%,
+    88% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .quantum-logo-stack .quantum-logo-gradient {
+      animation: none;
+      opacity: 1;
+    }
+
+    .quantum-logo-stack .quantum-host {
+      opacity: 0;
+      pointer-events: none;
+    }
   }
 
   .quantum-host :global(canvas) {
@@ -197,8 +282,19 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     let delayId = 0;
     let cancelled = false;
 
+    const settleGradient = () => {
+      stack.classList.add('quantum-logo-stack--settled');
+    };
+
+    const onIntroComplete = () => settleGradient();
+
     const start = () => {
       if (cancelled) return;
+      if (introRush) {
+        window.addEventListener('quantum-intro-complete', onIntroComplete, { once: true });
+      } else {
+        settleGradient();
+      }
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
       });
@@ -234,6 +330,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     return () => {
       cancelled = true;
       window.clearTimeout(delayId);
+      window.removeEventListener('quantum-intro-complete', onIntroComplete);
+      stack.classList.remove('quantum-logo-stack--settled');
       detach?.();
       obs?.disconnect();
       document.documentElement.classList.remove('quantum-page-touch');
