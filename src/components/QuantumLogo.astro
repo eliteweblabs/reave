@@ -66,7 +66,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     cursor: default;
     touch-action: none;
     overflow: hidden;
-    --quantum-hero-logo-size: min(72vmin, 76vw, 420px);
   }
 
   /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
@@ -76,29 +75,11 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     filter: none;
   }
 
-  /* After intro: logo silhouette only, filled by particles matching logo.png. */
+  /* After intro: WebGL resolve plane defines the logo shape (no CSS mask). */
   .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
   .quantum-logo-stack--compact {
-    mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-    -webkit-mask-image: var(--hero-logo-mask, url('/logo-mask.svg'));
-    mask-size: var(--quantum-hero-logo-size);
-    -webkit-mask-size: var(--quantum-hero-logo-size);
-    mask-repeat: no-repeat;
-    -webkit-mask-repeat: no-repeat;
-    mask-mode: alpha;
-    -webkit-mask-mode: alpha;
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))
       drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
-  }
-
-  .quantum-logo-stack--homepage.quantum-logo-stack--logo {
-    mask-position: center center;
-    -webkit-mask-position: center center;
-  }
-
-  .quantum-logo-stack--centered {
-    mask-position: center center;
-    -webkit-mask-position: center center;
   }
 
   .quantum-logo-stack--compact {
@@ -108,11 +89,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 24px;
     flex: 0 0 24px;
     pointer-events: none;
-    --quantum-hero-logo-size: contain;
-    mask-size: contain;
-    -webkit-mask-size: contain;
-    mask-position: center center;
-    -webkit-mask-position: center center;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
       drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
   }
@@ -138,36 +114,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 100% !important;
     max-width: none;
     object-fit: cover;
-  }
-
-  @media screen and (min-width: 768px) {
-    .quantum-logo-stack:not(.quantum-logo-stack--compact) {
-      --quantum-hero-logo-size: min(64vmin, 68vw, 400px);
-    }
-  }
-
-  @media screen and (min-width: 1024px) {
-    .quantum-logo-stack:not(.quantum-logo-stack--compact) {
-      --quantum-hero-logo-size: min(56vmin, 60vw, 380px);
-    }
-  }
-
-  @media screen and (min-width: 1440px) {
-    .quantum-logo-stack:not(.quantum-logo-stack--compact) {
-      --quantum-hero-logo-size: min(48vmin, 52vw, 360px);
-    }
-  }
-
-  @media screen and (min-width: 1920px) {
-    .quantum-logo-stack:not(.quantum-logo-stack--compact) {
-      --quantum-hero-logo-size: min(42vmin, 46vw, 340px);
-    }
-  }
-
-  @media screen and (min-width: 2560px) {
-    .quantum-logo-stack:not(.quantum-logo-stack--compact) {
-      --quantum-hero-logo-size: min(36vmin, 40vw, 320px);
-    }
   }
 </style>
 
