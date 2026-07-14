@@ -8,10 +8,12 @@ export interface Props {
   layout?: "homepage" | "centered" | "compact";
   /** Cursor pixels moved per 1% video shift (100 = subtle, 20 = stronger). */
   cursorPxPerPercent?: number;
-  /** Slowest playback rate while the cursor is moving quickly (1 = no slow-down). */
-  cursorSlowMinRate?: number;
-  /** Cursor speed (px/ms) that reaches cursorSlowMinRate. */
-  cursorSlowVelocity?: number;
+  /** Slowest playback rate at slow cursor movement. */
+  cursorSpeedMinRate?: number;
+  /** Fastest playback rate at fast cursor movement. */
+  cursorSpeedMaxRate?: number;
+  /** Cursor speed (px/ms) that reaches cursorSpeedMaxRate. */
+  cursorSpeedVelocity?: number;
   class?: string;
 }
 
@@ -20,8 +22,9 @@ const {
   videoSrc = "/videos/logo-2.mp4",
   layout = "homepage",
   cursorPxPerPercent = 100,
-  cursorSlowMinRate = 0.35,
-  cursorSlowVelocity = 2.5,
+  cursorSpeedMinRate = 0.4,
+  cursorSpeedMaxRate = 2.25,
+  cursorSpeedVelocity = 2.5,
   class: className,
 } = Astro.props;
 
@@ -42,8 +45,9 @@ const cursorParallax = isHomepage;
   data-logo-2
   data-cursor-parallax={cursorParallax ? "true" : "false"}
   data-cursor-px-per-percent={String(cursorPxPerPercent)}
-  data-cursor-slow-min-rate={String(cursorSlowMinRate)}
-  data-cursor-slow-velocity={String(cursorSlowVelocity)}
+  data-cursor-speed-min-rate={String(cursorSpeedMinRate)}
+  data-cursor-speed-max-rate={String(cursorSpeedMaxRate)}
+  data-cursor-speed-velocity={String(cursorSpeedVelocity)}
   aria-hidden="true"
 >
   <div class="logo-2-frame">
@@ -204,15 +208,15 @@ const cursorParallax = isHomepage;
     }
 
     const pxPerPercent = Number(stack.dataset.cursorPxPerPercent) || 100;
-    const minRate = clamp(Number(stack.dataset.cursorSlowMinRate) || 0.35, 0.05, 1);
-    const slowVelocity = Math.max(Number(stack.dataset.cursorSlowVelocity) || 2.5, 0.1);
+    const minRate = clamp(Number(stack.dataset.cursorSpeedMinRate) || 0.4, 0.05, 1);
+    const maxRate = clamp(Number(stack.dataset.cursorSpeedMaxRate) || 2.25, 1, 4);
+    const refVelocity = Math.max(Number(stack.dataset.cursorSpeedVelocity) || 2.5, 0.1);
     const maxShift = 8;
     let targetX = 0;
     let targetY = 0;
     let currentX = 0;
     let currentY = 0;
-    let targetMotion = 0;
-    let currentMotion = 0;
+    let targetRate = 1;
     let currentRate = 1;
     let lastX = 0;
     let lastY = 0;
@@ -228,12 +232,12 @@ const cursorParallax = isHomepage;
     const tick = () => {
       const now = performance.now();
       if (hasPointerSample && now - lastMoveTime > 120) {
-        targetMotion = 0;
+        targetRate = 1;
       }
 
       currentX += (targetX - currentX) * 0.14;
       currentY += (targetY - currentY) * 0.14;
-      currentMotion += (targetMotion - currentMotion) * 0.16;
+      currentRate += (targetRate - currentRate) * 0.12;
 
       if (
         Math.abs(currentX - targetX) < 0.01 &&
@@ -243,10 +247,8 @@ const cursorParallax = isHomepage;
         currentY = targetY;
       }
 
-      const targetRate = 1 - currentMotion * (1 - minRate);
-      currentRate += (targetRate - currentRate) * 0.12;
       if (!video.paused) {
-        video.playbackRate = clamp(currentRate, minRate, 1);
+        video.playbackRate = clamp(currentRate, minRate, maxRate);
       }
 
       setShift(currentX, currentY);
@@ -263,7 +265,8 @@ const cursorParallax = isHomepage;
       if (hasPointerSample) {
         const dt = Math.max(now - lastMoveTime, 8);
         const speed = Math.hypot(event.clientX - lastX, event.clientY - lastY) / dt;
-        targetMotion = clamp(speed / slowVelocity, 0, 1);
+        const speedNorm = clamp(speed / refVelocity, 0, 1);
+        targetRate = minRate + speedNorm * (maxRate - minRate);
       }
 
       lastX = event.clientX;
@@ -275,7 +278,7 @@ const cursorParallax = isHomepage;
     const onPointerLeave = () => {
       targetX = 0;
       targetY = 0;
-      targetMotion = 0;
+      targetRate = 1;
     };
 
     rafId = requestAnimationFrame(tick);
