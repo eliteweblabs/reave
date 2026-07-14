@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  REAVE brand gradient — color stops sampled from public/logo.png.
+  REAVE brand gradient — sampled from public/logo.png.
   Full-bleed fill without REAVE letter cutouts.
-  ViewBox matches logo.png (1014×329); gradient span aligns to opaque artwork (x 56–956).
+  Horizontal cloud wisps over a left-to-right sweep (1014×329).
 -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1014" height="329" viewBox="0 0 1014 329" role="img" aria-label="REAVE brand gradient">
   <defs>
@@ -23,31 +23,100 @@
       <stop offset="100%" stop-color="#ce4b7f" />
     </linearGradient>
 
-    <linearGradient id="reave-lift" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ddd4ff" stop-opacity="0.16" />
-      <stop offset="42%" stop-color="#ffffff" stop-opacity="0" />
-      <stop offset="100%" stop-color="#ff5c8a" stop-opacity="0.12" />
-    </linearGradient>
-
-    <radialGradient id="reave-glow-left" cx="12%" cy="34%" r="44%">
-      <stop offset="0%" stop-color="#c4a8ff" stop-opacity="0.18" />
-      <stop offset="100%" stop-color="#c4a8ff" stop-opacity="0" />
+    <radialGradient id="cloud-lavender" cx="18%" cy="52%" r="55%" gradientTransform="scale(2.4 0.42)">
+      <stop offset="0%" stop-color="#ddd0ff" stop-opacity="0.72" />
+      <stop offset="42%" stop-color="#c4a8ff" stop-opacity="0.38" />
+      <stop offset="100%" stop-color="#b977e8" stop-opacity="0" />
     </radialGradient>
 
-    <radialGradient id="reave-glow-mid" cx="54%" cy="40%" r="46%">
-      <stop offset="0%" stop-color="#ff00e5" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#ff00e5" stop-opacity="0" />
+    <radialGradient id="cloud-magenta" cx="42%" cy="48%" r="58%" gradientTransform="scale(2.6 0.45)">
+      <stop offset="0%" stop-color="#f060f8" stop-opacity="0.78" />
+      <stop offset="38%" stop-color="#e342fe" stop-opacity="0.42" />
+      <stop offset="100%" stop-color="#d04cfe" stop-opacity="0" />
     </radialGradient>
 
-    <radialGradient id="reave-glow-right" cx="88%" cy="64%" r="40%">
-      <stop offset="0%" stop-color="#ff7090" stop-opacity="0.16" />
-      <stop offset="100%" stop-color="#ff7090" stop-opacity="0" />
+    <radialGradient id="cloud-pink" cx="62%" cy="54%" r="56%" gradientTransform="scale(2.5 0.4)">
+      <stop offset="0%" stop-color="#ff00e5" stop-opacity="0.82" />
+      <stop offset="40%" stop-color="#fe00b8" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#f806ff" stop-opacity="0" />
     </radialGradient>
+
+    <radialGradient id="cloud-rose" cx="84%" cy="50%" r="52%" gradientTransform="scale(2.3 0.38)">
+      <stop offset="0%" stop-color="#ff7090" stop-opacity="0.7" />
+      <stop offset="45%" stop-color="#f110a9" stop-opacity="0.36" />
+      <stop offset="100%" stop-color="#ce4b7f" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="cloud-mist" cx="50%" cy="50%" r="70%" gradientTransform="scale(3.2 0.35)">
+      <stop offset="0%" stop-color="#ffc4f0" stop-opacity="0.28" />
+      <stop offset="55%" stop-color="#f9a8e8" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#f472d0" stop-opacity="0" />
+    </radialGradient>
+
+    <filter id="cloud-blur" x="-35%" y="-80%" width="170%" height="260%">
+      <feGaussianBlur stdDeviation="22" />
+    </filter>
+
+    <filter id="cloud-soft" x="-25%" y="-60%" width="150%" height="220%">
+      <feGaussianBlur stdDeviation="14" />
+    </filter>
   </defs>
 
+  <!-- Base horizontal sweep -->
   <rect width="1014" height="329" fill="url(#reave-sweep)" />
-  <rect width="1014" height="329" fill="url(#reave-lift)" />
-  <rect width="1014" height="329" fill="url(#reave-glow-left)" />
-  <rect width="1014" height="329" fill="url(#reave-glow-mid)" />
-  <rect width="1014" height="329" fill="url(#reave-glow-right)" />
+
+  <!-- Wide, low cloud bands (flattened radials) -->
+  <rect width="1014" height="329" fill="url(#cloud-lavender)" />
+  <rect width="1014" height="329" fill="url(#cloud-magenta)" />
+  <rect width="1014" height="329" fill="url(#cloud-pink)" />
+  <rect width="1014" height="329" fill="url(#cloud-rose)" />
+  <rect width="1014" height="329" fill="url(#cloud-mist)" />
+
+  <!-- Soft horizontal wisps -->
+  <g filter="url(#cloud-blur)">
+    <path
+      d="M -40 148
+         C 120 108, 240 188, 380 138
+         S 620 98, 760 158
+         S 940 208, 1060 148
+         L 1060 198
+         C 920 238, 760 178, 600 218
+         S 280 248, 80 188
+         Z"
+      fill="#d969ce"
+      opacity="0.42"
+    />
+    <path
+      d="M -20 178
+         C 180 218, 320 148, 500 198
+         S 760 228, 920 168
+         S 1020 138, 1040 188
+         L 1040 228
+         C 860 258, 680 198, 480 238
+         S 160 268, -20 218
+         Z"
+      fill="#e420f9"
+      opacity="0.38"
+    />
+    <path
+      d="M 60 132
+         C 220 92, 400 162, 560 112
+         S 820 82, 980 142
+         L 980 172
+         C 820 202, 640 152, 460 192
+         S 200 212, 60 162
+         Z"
+      fill="#de59f1"
+      opacity="0.34"
+    />
+  </g>
+
+  <!-- Smaller puffy highlights -->
+  <g filter="url(#cloud-soft)">
+    <ellipse cx="210" cy="164" rx="168" ry="46" fill="#c4a8ff" opacity="0.36" />
+    <ellipse cx="520" cy="158" rx="198" ry="52" fill="#ff00e5" opacity="0.34" />
+    <ellipse cx="780" cy="170" rx="156" ry="44" fill="#f110a9" opacity="0.32" />
+    <ellipse cx="420" cy="176" rx="124" ry="36" fill="#f9a8e8" opacity="0.26" />
+    <ellipse cx="640" cy="162" rx="110" ry="32" fill="#e342fe" opacity="0.24" />
+  </g>
 </svg>
