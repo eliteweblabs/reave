@@ -12,6 +12,8 @@ export interface Props {
   cursorSpeedMaxRate?: number;
   /** Cursor speed (px/ms) that reaches cursorSpeedMaxRate. */
   cursorSpeedVelocity?: number;
+  /** Resting playback rate when idle (default half speed). */
+  basePlaybackRate?: number;
   class?: string;
 }
 
@@ -22,6 +24,7 @@ const {
   cursorSpeedMinRate = 0.4,
   cursorSpeedMaxRate = 2.25,
   cursorSpeedVelocity = 2.5,
+  basePlaybackRate = 0.5,
   class: className,
 } = Astro.props;
 
@@ -44,6 +47,7 @@ const cursorSpeed = isHomepage;
   data-cursor-speed-min-rate={String(cursorSpeedMinRate)}
   data-cursor-speed-max-rate={String(cursorSpeedMaxRate)}
   data-cursor-speed-velocity={String(cursorSpeedVelocity)}
+  data-base-playback-rate={String(basePlaybackRate)}
   aria-hidden="true"
 >
   <div class="logo-2-frame">
@@ -184,38 +188,82 @@ const cursorSpeed = isHomepage;
     stack: HTMLElement,
     video: HTMLVideoElement,
   ): () => void {
-    if (stack.dataset.cursorSpeed !== "true" || prefersReducedMotion()) {
-      return () => {};
-    }
-
     const minRate = clamp(Number(stack.dataset.cursorSpeedMinRate) || 0.4, 0.05, 1);
     const maxRate = clamp(Number(stack.dataset.cursorSpeedMaxRate) || 2.25, 1, 4);
     const refVelocity = Math.max(Number(stack.dataset.cursorSpeedVelocity) || 2.5, 0.1);
-    let targetRate = 1;
-    let currentRate = 1;
+    const baseRate = clamp(Number(stack.dataset.basePlaybackRate) || 0.5, 0.05, 1);
+    const idleDelayMs = 500;
+
+    if (stack.dataset.cursorSpeed !== "true" || prefersReducedMotion()) {
+      video.playbackRate = baseRate;
+      return () => {
+        video.playbackRate = 1;
+      };
+    }
+
+    type Phase = "baseline" | "interactive" | "wind_down" | "wind_up";
+    let phase: Phase = "baseline";
+    let targetRate = baseRate;
+    let currentRate = baseRate;
     let lastX = 0;
     let lastY = 0;
     let lastMoveTime = 0;
     let hasPointerSample = false;
     let rafId = 0;
 
+    const applyRate = (rate: number) => {
+      const next = clamp(rate, 0, maxRate);
+      video.playbackRate = next;
+      if (next <= 0.01) {
+        video.pause();
+        return;
+      }
+      if (video.paused) {
+        void video.play();
+      }
+    };
+
     const tick = () => {
       const now = performance.now();
-      if (hasPointerSample && now - lastMoveTime > 120) {
-        targetRate = 1;
+      const idleMs = now - lastMoveTime;
+
+      if (phase === "interactive" && hasPointerSample && idleMs >= idleDelayMs) {
+        phase = "wind_down";
       }
 
-      currentRate += (targetRate - currentRate) * 0.12;
-
-      if (!video.paused) {
-        video.playbackRate = clamp(currentRate, minRate, maxRate);
+      switch (phase) {
+        case "baseline":
+          targetRate = baseRate;
+          currentRate += (targetRate - currentRate) * 0.1;
+          break;
+        case "interactive":
+          currentRate += (targetRate - currentRate) * 0.12;
+          break;
+        case "wind_down":
+          targetRate = 0;
+          currentRate += (targetRate - currentRate) * 0.07;
+          if (currentRate <= 0.02) {
+            currentRate = 0;
+            phase = "wind_up";
+          }
+          break;
+        case "wind_up":
+          targetRate = baseRate;
+          currentRate += (targetRate - currentRate) * 0.035;
+          if (Math.abs(currentRate - baseRate) < 0.015) {
+            currentRate = baseRate;
+            phase = "baseline";
+          }
+          break;
       }
 
+      applyRate(currentRate);
       rafId = requestAnimationFrame(tick);
     };
 
     const onPointerMove = (event: PointerEvent) => {
       const now = performance.now();
+      phase = "interactive";
 
       if (hasPointerSample) {
         const dt = Math.max(now - lastMoveTime, 8);
@@ -231,9 +279,10 @@ const cursorSpeed = isHomepage;
     };
 
     const onPointerLeave = () => {
-      targetRate = 1;
+      lastMoveTime = performance.now() - idleDelayMs;
     };
 
+    video.playbackRate = baseRate;
     rafId = requestAnimationFrame(tick);
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     document.addEventListener("mouseleave", onPointerLeave);
