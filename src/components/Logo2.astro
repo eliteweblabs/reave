@@ -6,6 +6,8 @@ export interface Props {
   videoSrc?: string;
   /** Homepage full-viewport; centered keeps the logo in the middle; compact fits the header. */
   layout?: "homepage" | "centered" | "compact";
+  /** Cursor pixels moved per 1% video shift (100 = subtle, 20 = stronger). */
+  cursorPxPerPercent?: number;
   class?: string;
 }
 
@@ -13,11 +15,13 @@ const {
   maskSrc,
   videoSrc = "/videos/logo-2.mp4",
   layout = "homepage",
+  cursorPxPerPercent = 100,
   class: className,
 } = Astro.props;
 
 const isHomepage = layout === "homepage";
 const isCompact = layout === "compact";
+const cursorParallax = isHomepage;
 ---
 
 <div
@@ -30,19 +34,23 @@ const isCompact = layout === "compact";
   ]}
   style={`--logo-2-mask: url("${maskSrc}")`}
   data-logo-2
+  data-cursor-parallax={cursorParallax ? "true" : "false"}
+  data-cursor-px-per-percent={String(cursorPxPerPercent)}
   aria-hidden="true"
 >
   <div class="logo-2-frame">
-    <video
-      class="logo-2-video"
-      src={videoSrc}
-      autoplay
-      muted
-      loop
-      playsinline
-      preload="auto"
-    ></video>
-    <div class="logo-2-fallback" aria-hidden="true"></div>
+    <div class="logo-2-parallax">
+      <video
+        class="logo-2-video"
+        src={videoSrc}
+        autoplay
+        muted
+        loop
+        playsinline
+        preload="auto"
+      ></video>
+      <div class="logo-2-fallback" aria-hidden="true"></div>
+    </div>
   </div>
 </div>
 
@@ -95,6 +103,15 @@ const isCompact = layout === "compact";
     height: 100%;
     filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
       drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
+  }
+
+  .logo-2-parallax {
+    position: absolute;
+    inset: -8%;
+    width: 116%;
+    height: 116%;
+    transform: translate3d(var(--logo-2-shift-x, 0%), var(--logo-2-shift-y, 0%), 0);
+    will-change: transform;
   }
 
   .logo-2-video {
@@ -151,10 +168,84 @@ const isCompact = layout === "compact";
     .logo-2-fallback {
       animation: none;
     }
+
+    .logo-2-parallax {
+      transform: none !important;
+    }
   }
 </style>
 
 <script>
+  function prefersReducedMotion() {
+    return (
+      typeof matchMedia !== "undefined" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function attachCursorParallax(stack: HTMLElement): () => void {
+    if (stack.dataset.cursorParallax !== "true" || prefersReducedMotion()) {
+      return () => {};
+    }
+
+    const pxPerPercent = Number(stack.dataset.cursorPxPerPercent) || 100;
+    const maxShift = 8;
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let rafId = 0;
+
+    const setShift = (x: number, y: number) => {
+      stack.style.setProperty("--logo-2-shift-x", `${x}%`);
+      stack.style.setProperty("--logo-2-shift-y", `${y}%`);
+    };
+
+    const tick = () => {
+      currentX += (targetX - currentX) * 0.14;
+      currentY += (targetY - currentY) * 0.14;
+
+      if (
+        Math.abs(currentX - targetX) < 0.01 &&
+        Math.abs(currentY - targetY) < 0.01
+      ) {
+        currentX = targetX;
+        currentY = targetY;
+      }
+
+      setShift(currentX, currentY);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      const cx = window.innerWidth * 0.5;
+      const cy = window.innerHeight * 0.5;
+      targetX = clamp((event.clientX - cx) / pxPerPercent, -maxShift, maxShift);
+      targetY = clamp((event.clientY - cy) / pxPerPercent, -maxShift, maxShift);
+    };
+
+    const onPointerLeave = () => {
+      targetX = 0;
+      targetY = 0;
+    };
+
+    rafId = requestAnimationFrame(tick);
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    document.addEventListener("mouseleave", onPointerLeave);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("mouseleave", onPointerLeave);
+      stack.style.removeProperty("--logo-2-shift-x");
+      stack.style.removeProperty("--logo-2-shift-y");
+    };
+  }
+
   function initLogo2(stack: HTMLElement) {
     const video = stack.querySelector<HTMLVideoElement>(".logo-2-video");
     if (!video) return () => {};
@@ -171,7 +262,10 @@ const isCompact = layout === "compact";
       });
     }
 
+    const detachParallax = attachCursorParallax(stack);
+
     return () => {
+      detachParallax();
       video.pause();
       video.removeAttribute("src");
       video.load();
