@@ -90,10 +90,10 @@ function introParticleSizeMul(t: number): number {
   return THREE.MathUtils.lerp(0.75, 1, easeInQuart(t));
 }
 
-function randomGalaxyStart(): [number, number, number] {
+function randomGalaxyStart(galaxyHalfY: number): [number, number, number] {
   const theta = Math.random() * Math.PI * 2;
   const radius = 18 + Math.random() * 28;
-  const y = (Math.random() * 2 - 1) * 12;
+  const y = (Math.random() * 2 - 1) * galaxyHalfY;
   return [radius * Math.cos(theta), y, radius * Math.sin(theta)];
 }
 
@@ -113,6 +113,9 @@ export function attachQuantumCoreOpticalEngine(
   const VIEW_FOV = 60;
   const CORE_VIS_SCALE = 0.38;
   const PARTICLE_VIS_SCALE = 0.52;
+  /** World-space Y spread so frame-0 stars fill the viewport after particle scale. */
+  const galaxyHalfY =
+    (VIEW_Z * Math.tan((VIEW_FOV * Math.PI) / 360)) / PARTICLE_VIS_SCALE;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -282,7 +285,7 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 2] = hz;
 
     if (introDurationSec > 0) {
-      const [gx, gy, gz] = randomGalaxyStart();
+      const [gx, gy, gz] = randomGalaxyStart(galaxyHalfY);
       startPositions[i * 3] = gx;
       startPositions[i * 3 + 1] = gy;
       startPositions[i * 3 + 2] = gz;
