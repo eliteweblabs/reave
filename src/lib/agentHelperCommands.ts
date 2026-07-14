@@ -363,7 +363,6 @@ export const AGENT_HELPER_COMMANDS: AgentHelperCommand[] = HELPER_MANIFEST.map(t
 
 export function filterHelperCommands(query: string, commands: AgentHelperCommand[]): AgentHelperCommand[] {
   const trimmed = query.trim();
-  if (!trimmed) return commands;
   if (!trimmed.startsWith('/')) return [];
   const lower = trimmed.toLowerCase();
   return commands.filter((cmd) => cmd.slash.toLowerCase().startsWith(lower));
