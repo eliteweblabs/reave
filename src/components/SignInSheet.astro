@@ -1,0 +1,39 @@
+---
+import { SignIn } from '@clerk/astro/components';
+import { dark } from '@clerk/ui/themes';
+import IosBottomSheet from './IosBottomSheet.astro';
+
+interface Props {
+  /** Where to send the user after a successful sign-in. */
+  fallbackRedirectUrl?: string;
+  allowSignUp?: boolean;
+  /** Open automatically once the page loads (e.g. signed-out /admin visit). */
+  autoOpen?: boolean;
+}
+
+const {
+  fallbackRedirectUrl = '/admin/',
+  allowSignUp = import.meta.env.PUBLIC_CLERK_ALLOW_SIGN_UP === '1',
+  autoOpen = false,
+} = Astro.props;
+---
+
+<IosBottomSheet id="sign-in-sheet" title="Sign in" dismissible={true}>
+  <SignIn
+    routing="hash"
+    signUpUrl={allowSignUp ? '/sign-up' : '/sign-in'}
+    fallbackRedirectUrl={fallbackRedirectUrl}
+    appearance={{ theme: dark }}
+  />
+</IosBottomSheet>
+
+<script src="/ios-sheet.js" defer></script>
+<link rel="stylesheet" href="/ios-sheet.css" />
+
+{autoOpen && (
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function () {
+      window.IosSheet?.open('sign-in-sheet');
+    });
+  </script>
+)}

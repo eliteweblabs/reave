@@ -31,6 +31,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     <link rel="manifest" href="/admin/manifest.webmanifest" />
     <title>{company.name} Admin</title>
     <Favicon />
+    <link rel="stylesheet" href="/ios-sheet.css" />
     <style is:global>
       :root {
         color-scheme: light dark;
@@ -3784,53 +3785,49 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         }
       }
 
-      /* App dialog (replaces system alert/confirm on mobile) */
+      /* App dialog — iOS bottom sheet on mobile, centered on desktop */
       #os-dialog-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
         z-index: 5000;
-        background: rgba(0, 0, 0, 0.72);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        align-items: center;
-        justify-content: center;
-        padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
       }
-      #os-dialog-backdrop.open { display: flex; }
-      .os-dialog {
-        width: 100%;
+      #os-dialog-backdrop .ios-sheet {
+        --ios-sheet-bg: var(--panel);
+        --ios-sheet-fg: var(--fg);
+        --ios-sheet-border: var(--panel-border);
+        --ios-sheet-muted: var(--muted);
+        --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
+        --ios-sheet-close-bg: var(--surface-hover);
+        --ios-sheet-close-hover: var(--surface-hover-strong);
         max-width: 400px;
-        background: var(--panel);
-        border: 1px solid var(--panel-border);
-        border-radius: 14px;
-        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
-        overflow: hidden;
       }
-      .os-dialog-title {
-        margin: 0;
-        padding: 1rem 1.15rem 0.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        line-height: 1.35;
+      #os-dialog-backdrop .ios-sheet-header {
+        border-bottom-color: var(--panel-border);
       }
-      .os-dialog-body {
+      #os-dialog-backdrop .os-dialog-title {
+        padding: 0;
+      }
+      #os-dialog-backdrop .os-dialog-sheet-body {
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #os-dialog-backdrop .os-dialog-body {
         padding: 0 1.15rem 1rem;
         font-size: 0.84rem;
         line-height: 1.55;
         color: var(--muted);
       }
-      .os-dialog-body p { margin: 0 0 0.65rem; }
-      .os-dialog-body p:last-child { margin-bottom: 0; }
+      #os-dialog-backdrop .os-dialog-body p { margin: 0 0 0.65rem; }
+      #os-dialog-backdrop .os-dialog-body p:last-child { margin-bottom: 0; }
       .os-dialog-warn { color: #fbbf24; }
       .os-dialog-note { color: #93c5fd; font-size: 0.8rem; }
-      .os-dialog-actions {
+      #os-dialog-backdrop .os-dialog-actions {
         display: flex;
         gap: 0.5rem;
         justify-content: flex-end;
-        padding: 0.75rem 1rem 1rem;
+        padding: 0.75rem 1rem max(1rem, env(safe-area-inset-bottom));
         border-top: 1px solid var(--panel-border);
         background: rgba(0, 0, 0, 0.15);
+        flex-shrink: 0;
       }
       .os-dialog-btn {
         font: inherit;
@@ -3858,16 +3855,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .os-dialog-btn--danger:hover { background: #b91c1c; border-color: #b91c1c; }
 
       @media (max-width: 639px) {
-        #os-dialog-backdrop.open.os-dialog-keyboard {
-          align-items: flex-start;
-          padding-top: max(0.5rem, env(safe-area-inset-top));
-          padding-bottom: calc(var(--os-dialog-keyboard-inset, 0px) + 0.5rem);
-        }
-        #os-dialog-backdrop.open.os-dialog-keyboard .os-dialog {
-          max-height: calc(100dvh - var(--os-dialog-keyboard-inset, 0px) - 1rem);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
+        #os-dialog-backdrop.open.os-dialog-keyboard .ios-sheet {
+          max-height: calc(100dvh - var(--os-dialog-keyboard-inset, 0px) - 0.5rem);
         }
         #os-dialog-backdrop.open.os-dialog-keyboard .os-dialog-body {
           overflow-y: auto;
@@ -5150,7 +5139,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     </style>
   </head>
   <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
-    <Header adminShell showPlugins={showPlugins} />
+    <Header adminShell showPlugins={showPlugins} signInAutoOpen={!userId} />
 
     <div id="admin-setup-alerts" class="admin-setup-alerts" hidden aria-live="polite"></div>
 
@@ -5230,11 +5219,19 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
 
     <div id="rule-editor" style="display:none"></div>
 
-    <div id="os-dialog-backdrop" role="presentation" aria-hidden="true">
-      <div class="os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">
-        <h2 class="os-dialog-title" id="os-dialog-title"></h2>
-        <div class="os-dialog-body" id="os-dialog-body"></div>
-        <div class="os-dialog-actions" id="os-dialog-actions"></div>
+    <div id="os-dialog-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="false">
+      <div class="ios-sheet os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">
+        <div class="ios-sheet-grabber" aria-hidden="true"></div>
+        <header class="ios-sheet-header">
+          <button type="button" class="ios-sheet-close" data-os-dialog-close aria-label="Close" hidden>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <h2 class="ios-sheet-title os-dialog-title" id="os-dialog-title"></h2>
+        </header>
+        <div class="ios-sheet-body os-dialog-sheet-body">
+          <div class="os-dialog-body" id="os-dialog-body"></div>
+          <div class="os-dialog-actions" id="os-dialog-actions"></div>
+        </div>
       </div>
     </div>
 
@@ -5271,6 +5268,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       import '../../admin/agent-chat-mount.tsx';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250714a"></script>
+    <script src="/ios-sheet.js" defer></script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
   </body>
 </html>

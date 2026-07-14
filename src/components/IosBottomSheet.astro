@@ -1,0 +1,52 @@
+---
+interface Props {
+  id: string;
+  title?: string;
+  /** When false, tapping the backdrop does not dismiss (e.g. required sign-in). */
+  dismissible?: boolean;
+  /** Always use bottom-sheet layout (skip centered desktop modal). */
+  sheetOnly?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  title = '',
+  dismissible = true,
+  sheetOnly = false,
+  class: className = '',
+} = Astro.props;
+---
+
+<div
+  id={id}
+  class:list={[
+    'ios-sheet-backdrop',
+    { 'ios-sheet-backdrop--sheet-only': sheetOnly },
+    className,
+  ]}
+  role="presentation"
+  aria-hidden="true"
+  data-sheet-dismiss={dismissible ? 'true' : 'false'}
+>
+  <div class="ios-sheet" role="dialog" aria-modal="true" aria-labelledby={`${id}-title`}>
+    <div class="ios-sheet-grabber" aria-hidden="true"></div>
+    <header class="ios-sheet-header">
+      {dismissible && (
+        <button type="button" class="ios-sheet-close" data-ios-sheet-close aria-label="Close">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+          </svg>
+        </button>
+      )}
+      {title && (
+        <h2 class="ios-sheet-title" id={`${id}-title`}>{title}</h2>
+      )}
+    </header>
+    <div class="ios-sheet-body">
+      <slot />
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="/ios-sheet.css" />

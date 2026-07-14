@@ -39,8 +39,12 @@ async function adminFetch(url, opts = {}) {
     },
   });
   if (res.status === 401) {
-    const returnTo = encodeURIComponent(window.location.href);
-    window.location.assign(`/sign-in?redirect_url=${returnTo}`);
+    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+    if (window.IosSheet?.open) {
+      window.IosSheet.open('sign-in-sheet');
+    } else {
+      window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+    }
     throw new Error('Session expired');
   }
   return res;
@@ -6727,8 +6731,7 @@ function openScheduleCreateDialog(initial = {}) {
       settled = true;
       destroyGuestAutocomplete();
       releaseOsDialogKeyboardLayout();
-      backdrop.classList.remove('open');
-      backdrop.setAttribute('aria-hidden', 'true');
+      closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
@@ -6882,8 +6885,8 @@ function openScheduleCreateDialog(initial = {}) {
       }
     });
 
-    backdrop.classList.add('open');
-    backdrop.setAttribute('aria-hidden', 'false');
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, finish, true);
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
     nameInput.focus();
@@ -8083,6 +8086,50 @@ async function fetchClientDeletePreview(uid) {
   return data;
 }
 
+function openOsDialogBackdrop() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (!backdrop) return null;
+  backdrop.classList.add('open');
+  backdrop.setAttribute('aria-hidden', 'false');
+  backdrop.querySelector('.ios-sheet')?.classList.add('ios-sheet--visible');
+  document.documentElement.classList.add('ios-sheet-locked');
+  return backdrop;
+}
+
+function closeOsDialogBackdrop() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (!backdrop) return;
+  backdrop.querySelector('.ios-sheet')?.classList.remove('ios-sheet--visible');
+  backdrop.classList.remove('open', 'os-dialog-keyboard');
+  backdrop.setAttribute('aria-hidden', 'true');
+  document.documentElement.style.removeProperty('--os-dialog-keyboard-inset');
+  if (!document.querySelector('.ios-sheet-backdrop.open')) {
+    document.documentElement.classList.remove('ios-sheet-locked');
+  }
+}
+
+function bindOsDialogDismiss(backdrop, finish, showCancel) {
+  const closeBtn = backdrop.querySelector('[data-os-dialog-close]');
+  if (closeBtn) {
+    closeBtn.hidden = !showCancel;
+    if (showCancel) {
+      closeBtn.addEventListener('click', () => finish(false), { once: true });
+    }
+  }
+  if (showCancel) {
+    backdrop.addEventListener(
+      'click',
+      function onBackdropClick(ev) {
+        if (ev.target === backdrop) {
+          backdrop.removeEventListener('click', onBackdropClick);
+          finish(false);
+        }
+      },
+      { once: true },
+    );
+  }
+}
+
 function osDialog(opts) {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -8098,8 +8145,7 @@ function osDialog(opts) {
       if (settled) return;
       settled = true;
       releaseOsDialogKeyboardLayout();
-      backdrop.classList.remove('open');
-      backdrop.setAttribute('aria-hidden', 'true');
+      closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
@@ -8131,8 +8177,8 @@ function osDialog(opts) {
       true,
     );
 
-    backdrop.classList.add('open');
-    backdrop.setAttribute('aria-hidden', 'false');
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, finish, !!opts.showCancel);
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
     primary.focus();
@@ -10296,8 +10342,7 @@ function showEmailScheduleDialog(ev, check) {
     const finish = (value) => {
       if (settled) return;
       settled = true;
-      backdrop.classList.remove('open');
-      backdrop.setAttribute('aria-hidden', 'true');
+      closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
     };
@@ -10406,8 +10451,8 @@ function showEmailScheduleDialog(ev, check) {
       });
     });
 
-    backdrop.classList.add('open');
-    backdrop.setAttribute('aria-hidden', 'false');
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, finish, true);
     document.addEventListener('keydown', onKey);
   });
 }

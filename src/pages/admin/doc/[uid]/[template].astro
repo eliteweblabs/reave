@@ -6,7 +6,7 @@
  * operator send the signing link (Email/SMS) straight from this page. This is
  * the hand-off target from the Telegram Documents flow: review → send in one
  * place, no bouncing back to Telegram to pick a channel. Gated by Clerk via
- * middleware (the /admin(.*) matcher) plus a belt-and-suspenders check here.
+ * middleware plus a belt-and-suspenders check here.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
@@ -16,7 +16,9 @@ import Favicon from '../../../../components/Favicon.astro';
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
-if (!userId) return Astro.redirect('/sign-in');
+if (!userId) {
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${encodeURIComponent(Astro.url.pathname + Astro.url.search)}`);
+}
 
 const company = await getCompanyConfig(Astro.request);
 const poweredBy = poweredByLabel(company);

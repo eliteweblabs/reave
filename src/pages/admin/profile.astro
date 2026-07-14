@@ -2,6 +2,6 @@
 export const prerender = false;
 
 const { userId } = Astro.locals.auth();
-if (!userId) return Astro.redirect("/sign-in");
+if (!userId) return Astro.redirect("/admin/?auth=sign-in&tab=profile");
 return Astro.redirect("/admin/?tab=profile");
 ---

@@ -1,7 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
+/** Admin HTML sub-pages that require a session (not the main PWA shell). */
+const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
 
 /** PWA assets must be fetchable without a session (manifest, install flow). */
 const isPublicAdminAsset = createRouteMatcher([
@@ -40,11 +41,13 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
     return featureBlockedResponse();
   }
 
-  if (isAdminRoute(context.request) && !isPublicAdminAsset(context.request)) {
-    const { userId, redirectToSignIn } = auth();
+  if (isProtectedAdminPage(context.request) && !isPublicAdminAsset(context.request)) {
+    const { userId } = auth();
     if (!userId) {
-      return redirectToSignIn();
+      const returnTo = encodeURIComponent(pathname + new URL(context.request.url).search);
+      return context.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
     }
   }
+
   return next();
 });
