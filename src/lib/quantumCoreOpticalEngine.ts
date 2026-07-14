@@ -8,6 +8,53 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
+/** Resolved `mask-size` from computed style (single or two lengths in px). */
+function parseMaskImageSize(css: string): { w: number; h: number } | null {
+  const parts = css.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  const w = parseCssLengthPx(parts[0]!);
+  if (!Number.isFinite(w) || w <= 0) return null;
+  if (parts.length === 1) return { w, h: w };
+  const h = parseCssLengthPx(parts[1]!);
+  if (!Number.isFinite(h) || h <= 0) return { w, h: w };
+  return { w, h };
+}
+
+function parseCssLengthPx(token: string): number {
+  const t = token.trim();
+  if (!t || t === "auto") return NaN;
+  const m = /^([\d.]+)px$/i.exec(t);
+  return m ? parseFloat(m[1]!) : NaN;
+}
+
+function splitMaskPositionShorthand(
+  merged: string,
+  secondDefault: string,
+): [string, string] {
+  const parts = merged.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return [parts[0]!, parts[1]!];
+  if (parts.length === 1) return [parts[0]!, secondDefault];
+  return ["50%", "50%"];
+}
+
+/** One axis of `mask-position` (keywords, %, or px) → offset of mask image’s top-left in the positioning box. */
+function maskOrigin1D(
+  axisToken: string,
+  extent: number,
+  maskExtent: number,
+): number {
+  const t = axisToken.trim().toLowerCase();
+  if (t === "center") return 0.5 * (extent - maskExtent);
+  if (t === "left" || t === "top") return 0;
+  if (t === "right" || t === "bottom") return extent - maskExtent;
+  if (t.endsWith("%")) {
+    const p = parseFloat(t) / 100;
+    return p * (extent - maskExtent);
+  }
+  if (t.endsWith("px")) return parseFloat(t);
+  return 0.5 * (extent - maskExtent);
+}
+
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
   const w = 128;
@@ -52,49 +99,82 @@ function normalizeTintLuminance(
 
 /** Options when attaching the optical engine to a host element. */
 export interface QuantumEngineOptions {
-  /** Particles implode inward from a distant field over `durationSec`. */
+  /** Particles start outside the mask and rush inward over `durationSec`. */
   introRush?: {
     durationSec: number;
   };
+  /** Static logo image — particle colors are sampled from this; no rainbow drift. */
+  logoImageUrl?: string;
+  /** 0–1 intro progress for crossfading to the static logo image. */
+  onIntroProgress?: (t: number) => void;
 }
 
-export const QUANTUM_PARTICLE_COUNT = 4000;
-export const QUANTUM_CLOUD_RADIUS = 11.0;
-export const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
+const LOGO_SAMPLE_SIZE = 512;
 
-/** Per-particle interstellar palette — uniform cloud fill; CSS mask is the only clip. */
-function randomInterstellarColor(): THREE.Color {
-  const hues = [0.52, 0.78, 0.84, 0.9, 0.95];
-  const c = new THREE.Color();
-  c.setHSL(hues[Math.floor(Math.random() * hues.length)]!, 0.72, 0.58);
-  normalizeTintLuminance(c, 0.58, 2.4);
-  return c;
+type LogoColorSampler = (u: number, v: number) => THREE.Color | null;
+
+async function createLogoColorSampler(url: string): Promise<LogoColorSampler> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error(`Failed to load logo image: ${url}`));
+    img.src = url;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = LOGO_SAMPLE_SIZE;
+  canvas.height = LOGO_SAMPLE_SIZE;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D unavailable");
+
+  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
+  let drawW = LOGO_SAMPLE_SIZE;
+  let drawH = LOGO_SAMPLE_SIZE;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (aspect > 1) {
+    drawH = LOGO_SAMPLE_SIZE / aspect;
+    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
+  } else {
+    drawW = LOGO_SAMPLE_SIZE * aspect;
+    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
+  }
+  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
+  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE).data;
+
+  return (u: number, v: number) => {
+    const x = Math.floor(
+      THREE.MathUtils.clamp(u, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
+    );
+    const y = Math.floor(
+      THREE.MathUtils.clamp(v, 0, 1) * (LOGO_SAMPLE_SIZE - 1),
+    );
+    const i = (y * LOGO_SAMPLE_SIZE + x) * 4;
+    const r = pixels[i]! / 255;
+    const g = pixels[i + 1]! / 255;
+    const b = pixels[i + 2]! / 255;
+    const a = pixels[i + 3]! / 255;
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    if (a < 0.06 && lum < 0.06) return null;
+    if (lum < 0.05) return null;
+    return new THREE.Color(r, g, b);
+  };
 }
 
-function easeInQuart(t: number): number {
-  return t * t * t * t;
+function homeUv(hx: number, hy: number, cloudRadius: number, cloudHalfH: number): [number, number] {
+  const u = hx / (cloudRadius * 2) + 0.5;
+  const v = 0.5 - hy / (cloudHalfH * 2);
+  return [u, v];
 }
 
-function easeInQuint(t: number): number {
-  return t * t * t * t * t;
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
 }
 
-/** Outer particles join the implosion slightly later — reverse-explosion wave. */
-function introTravelT(rawT: number, duration: number, delaySec: number): number {
-  const span = Math.max(0.001, duration - delaySec);
-  return easeInQuint(THREE.MathUtils.clamp((rawT - delaySec) / span, 0, 1));
-}
-
-/** Brightness ramps up as particles settle into the logo. */
-function introParticleSizeMul(t: number): number {
-  return THREE.MathUtils.lerp(0.75, 1, easeInQuart(t));
-}
-
-function randomGalaxyStart(galaxyHalfY: number): [number, number, number] {
-  const theta = Math.random() * Math.PI * 2;
-  const radius = 18 + Math.random() * 28;
-  const y = (Math.random() * 2 - 1) * galaxyHalfY;
-  return [radius * Math.cos(theta), y, radius * Math.sin(theta)];
+function easeOutQuart(t: number): number {
+  return 1 - Math.pow(1 - t, 4);
 }
 
 export function attachQuantumCoreOpticalEngine(
@@ -113,9 +193,6 @@ export function attachQuantumCoreOpticalEngine(
   const VIEW_FOV = 60;
   const CORE_VIS_SCALE = 0.38;
   const PARTICLE_VIS_SCALE = 0.52;
-  /** World-space Y spread so frame-0 stars fill the viewport after particle scale. */
-  const galaxyHalfY =
-    (VIEW_Z * Math.tan((VIEW_FOV * Math.PI) / 360)) / PARTICLE_VIS_SCALE;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -150,11 +227,62 @@ export function attachQuantumCoreOpticalEngine(
   );
   camera.position.z = VIEW_Z;
 
+  const stackEl = host.parentElement as HTMLElement | null;
+
   function resetCameraViewportAspect() {
     const vw = window.innerWidth;
     const vh = Math.max(1, window.innerHeight);
     camera.clearViewOffset();
     camera.aspect = vw / vh;
+    camera.updateProjectionMatrix();
+  }
+
+  /** Match the perspective frustum to the CSS mask image box so the scene scales with the logo (not the full viewport). */
+  function syncCameraToMask() {
+    if (!stackEl) {
+      resetCameraViewportAspect();
+      return;
+    }
+    const vw = window.innerWidth;
+    const vh = Math.max(1, window.innerHeight);
+    const cs = getComputedStyle(stackEl);
+    const csExt = cs as unknown as {
+      webkitMaskSize?: string;
+      webkitMaskPositionX?: string;
+      webkitMaskPositionY?: string;
+    };
+    const sizeStr = csExt.webkitMaskSize || cs.maskSize || "";
+    const dims = parseMaskImageSize(sizeStr);
+    if (!dims) {
+      resetCameraViewportAspect();
+      return;
+    }
+    const maskW0 = dims.w;
+    const maskH0 = dims.h;
+    let posXStr: string;
+    let posYStr: string;
+    if (csExt.webkitMaskPositionX && csExt.webkitMaskPositionY) {
+      posXStr = csExt.webkitMaskPositionX;
+      posYStr = csExt.webkitMaskPositionY;
+    } else {
+      [posXStr, posYStr] = splitMaskPositionShorthand(
+        cs.maskPosition || "50% 50%",
+        "center",
+      );
+    }
+    let left = maskOrigin1D(posXStr, vw, maskW0);
+    let top = maskOrigin1D(posYStr, vh, maskH0);
+    const right = Math.min(vw, left + maskW0);
+    const bottom = Math.min(vh, top + maskH0);
+    left = Math.max(0, left);
+    top = Math.max(0, top);
+    const clipW = right - left;
+    const clipH = bottom - top;
+    if (clipW < 2 || clipH < 2) {
+      resetCameraViewportAspect();
+      return;
+    }
+    camera.setViewOffset(vw, vh, left, top, clipW, clipH);
     camera.updateProjectionMatrix();
   }
 
@@ -260,7 +388,7 @@ export function attachQuantumCoreOpticalEngine(
   /* Logo read: particles only — the icosahedron reads as a bright “planet” in the mask. */
   core.visible = false;
 
-  const particleCount = QUANTUM_PARTICLE_COUNT;
+  const particleCount = 4000;
   const particlesGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
   const homePositions = new Float32Array(particleCount * 3);
@@ -270,9 +398,23 @@ export function attachQuantumCoreOpticalEngine(
   const introDurationSec = prefersReduced
     ? 0
     : Math.max(0, options?.introRush?.durationSec ?? 0);
-  const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
-  const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
-
+  /** Whole cloud starts oversized and collapses inward with the particle rush. */
+  const introGroupScaleStart = 5.5;
+  const introOutwardMin = 7;
+  const introOutwardMax = 16;
+  /**
+   * Even glow: a flat cloud, symmetric about (and rotating around) the Y axis,
+   * whose 2D screen projection has uniform density — no bright vertical center
+   * stripe. The old "uniform r + uniform theta" equatorial band over-packed the
+   * middle (per-area density ∝ 1/r) and folded the ring's front/back onto x≈0.
+   *
+   * Sampling the horizontal radius ρ with an Abel-uniform profile (area density
+   * ∝ 1/√(R²−ρ²)) makes the depth-integrated projection perfectly flat across
+   * the whole disc: inverting that CDF gives ρ = R·√(u(2−u)) for u in [0,1).
+   * An independent uniform vertical band keeps it even top-to-bottom.
+   */
+  const CLOUD_RADIUS = 11.0;
+  const CLOUD_HALF_HEIGHT = 3.9;
   for (let i = 0; i < particleCount; i++) {
     const u = Math.random();
     const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
@@ -284,18 +426,23 @@ export function attachQuantumCoreOpticalEngine(
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
 
-    if (introDurationSec > 0) {
-      const [gx, gy, gz] = randomGalaxyStart(galaxyHalfY);
-      startPositions[i * 3] = gx;
-      startPositions[i * 3 + 1] = gy;
-      startPositions[i * 3 + 2] = gz;
-      positions[i * 3] = gx;
-      positions[i * 3 + 1] = gy;
-      positions[i * 3 + 2] = gz;
+    const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
+    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.42;
 
-      const startDist =
-        Math.sqrt(gx * gx + gy * gy + gz * gz) || 0.001;
-      introStagger[i] = (startDist / 40) * introDurationSec * 0.38;
+    if (introDurationSec > 0) {
+      const outward =
+        introOutwardMin +
+        Math.random() * (introOutwardMax - introOutwardMin);
+      const jitter = outward * 0.08;
+      startPositions[i * 3] =
+        hx * outward + (Math.random() - 0.5) * jitter;
+      startPositions[i * 3 + 1] =
+        hy * outward + (Math.random() - 0.5) * jitter;
+      startPositions[i * 3 + 2] =
+        hz * outward + (Math.random() - 0.5) * jitter;
+      positions[i * 3] = startPositions[i * 3]!;
+      positions[i * 3 + 1] = startPositions[i * 3 + 1]!;
+      positions[i * 3 + 2] = startPositions[i * 3 + 2]!;
     } else {
       positions[i * 3] = hx;
       positions[i * 3 + 1] = hy;
@@ -401,35 +548,57 @@ export function attachQuantumCoreOpticalEngine(
   composer.addPass(lensPass);
 
   let targetSpike = 0.2;
-  const rushTint = new THREE.Color(1, 0.98, 1);
-  const settleColors = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount; i++) {
-    const c = randomInterstellarColor();
-    settleColors[i * 3] = c.r;
-    settleColors[i * 3 + 1] = c.g;
-    settleColors[i * 3 + 2] = c.b;
+  const introTint = new THREE.Color(0.92, 0.88, 0.96);
+  const logoFallback = new THREE.Color(0.82, 0.45, 0.72);
+  const logoHomeColors = new Float32Array(particleCount * 3);
+  let logoColorsReady = false;
+  const logoImageUrl = options?.logoImageUrl?.trim() || "";
+  if (logoImageUrl) {
+    void createLogoColorSampler(logoImageUrl)
+      .then((sample) => {
+        for (let i = 0; i < particleCount; i++) {
+          const hx = homePositions[i * 3]!;
+          const hy = homePositions[i * 3 + 1]!;
+          const [u, v] = homeUv(hx, hy, CLOUD_RADIUS, CLOUD_HALF_HEIGHT);
+          const sampled = sample(u, v);
+          const color = sampled ?? logoFallback;
+          logoHomeColors[i * 3] = color.r;
+          logoHomeColors[i * 3 + 1] = color.g;
+          logoHomeColors[i * 3 + 2] = color.b;
+        }
+        logoColorsReady = true;
+      })
+      .catch(() => {
+        logoColorsReady = false;
+      });
   }
 
-  function applyParticleColors(colorMix = 1, energy = 0): void {
+  function applyParticleLogoColors(colorMix = 1, energy = 0): void {
     const mix = THREE.MathUtils.clamp(colorMix, 0, 1);
     const boost = 1 + energy * 0.12;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
-      particleColors[i3] = THREE.MathUtils.lerp(
-        rushTint.r,
-        settleColors[i3]! * boost,
-        mix,
-      );
-      particleColors[i3 + 1] = THREE.MathUtils.lerp(
-        rushTint.g,
-        settleColors[i3 + 1]! * boost,
-        mix,
-      );
-      particleColors[i3 + 2] = THREE.MathUtils.lerp(
-        rushTint.b,
-        settleColors[i3 + 2]! * boost,
-        mix,
-      );
+      if (logoColorsReady) {
+        particleColors[i3] = THREE.MathUtils.lerp(
+          introTint.r,
+          logoHomeColors[i3]! * boost,
+          mix,
+        );
+        particleColors[i3 + 1] = THREE.MathUtils.lerp(
+          introTint.g,
+          logoHomeColors[i3 + 1]! * boost,
+          mix,
+        );
+        particleColors[i3 + 2] = THREE.MathUtils.lerp(
+          introTint.b,
+          logoHomeColors[i3 + 2]! * boost,
+          mix,
+        );
+      } else {
+        particleColors[i3] = introTint.r;
+        particleColors[i3 + 1] = introTint.g;
+        particleColors[i3 + 2] = introTint.b;
+      }
     }
     particlesGeo.attributes.color!.needsUpdate = true;
   }
@@ -585,37 +754,10 @@ export function attachQuantumCoreOpticalEngine(
   btnReset?.addEventListener("click", onReset);
 
   let introCompleteFired = false;
-  let introSettled = false;
   let raf = 0;
   let alive = true;
   const clock = new THREE.Clock();
   const motionScale = prefersReduced ? 0.2 : 1;
-
-  function settleIntroEndState(rawT: number): void {
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      positions[i3] = homePositions[i3]!;
-      positions[i3 + 1] = homePositions[i3 + 1]!;
-      positions[i3 + 2] = homePositions[i3 + 2]!;
-    }
-    particlesGeo.attributes.position!.needsUpdate = true;
-    applyParticleColors(1, 0);
-    particles.rotation.y =
-      -rawT * 0.1 * particleSpeedMult * Math.max(motionScale, 0.35);
-    pulseGroup.rotation.x = 0;
-    pulseGroup.rotation.y = 0;
-    pulseGroup.scale.setScalar(1);
-    particles.scale.setScalar(PARTICLE_VIS_SCALE);
-    particlesMat.size = particleBaseSize;
-    particlesMat.opacity = particleBaseOpacity;
-    bloomPass.strength = 1.18;
-    lensPass.uniforms.uDistortion.value = 0;
-    lensPass.uniforms.uAberration.value = 0;
-    camera.position.set(0, 0, VIEW_Z);
-    camera.lookAt(scene.position);
-    (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
-    resetCameraViewportAspect();
-  }
 
   const onCtxLost = (ev: Event) => {
     ev.preventDefault();
@@ -626,22 +768,9 @@ export function attachQuantumCoreOpticalEngine(
 
   function animate() {
     if (!alive) return;
-    const rawT = clock.getElapsedTime();
-
-    if (introDurationSec > 0 && rawT >= introDurationSec) {
-      if (!introSettled) {
-        introSettled = true;
-        settleIntroEndState(rawT);
-        composer.render();
-        if (!introCompleteFired) {
-          introCompleteFired = true;
-          window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
-        }
-      }
-      return;
-    }
-
     raf = requestAnimationFrame(animate);
+    syncCameraToMask();
+    const rawT = clock.getElapsedTime();
     /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
     sphereMat.uniforms.uTime.value = rawT;
 
@@ -668,25 +797,15 @@ export function attachQuantumCoreOpticalEngine(
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
     const globalIntroT = inIntro
-      ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
+      ? easeOutQuart(THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1))
       : 1;
 
-    resetCameraViewportAspect();
-
     if (inIntro) {
-      const colorizeStart = 0.9;
-      const colorizeMix =
-        globalIntroT < colorizeStart
-          ? 0
-          : THREE.MathUtils.clamp(
-              (globalIntroT - colorizeStart) / (1 - colorizeStart),
-              0,
-              1,
-            );
-      const snapMix = colorizeMix * colorizeMix * colorizeMix;
-
+      const introSpan = introDurationSec * 0.92;
       for (let i = 0; i < particleCount; i++) {
-        const localT = introTravelT(rawT, introDurationSec, introStagger[i]!);
+        const localT = easeOutQuart(
+          THREE.MathUtils.clamp((rawT - introStagger[i]!) / introSpan, 0, 1),
+        );
         const inv = 1 - localT;
         const i3 = i * 3;
         positions[i3] =
@@ -697,72 +816,47 @@ export function attachQuantumCoreOpticalEngine(
         positions[i3 + 2] =
           homePositions[i3 + 2]! +
           (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
+      }
+      particlesGeo.attributes.position!.needsUpdate = true;
 
-        if (snapMix <= 0) {
-          particleColors[i3] = rushTint.r;
-          particleColors[i3 + 1] = rushTint.g;
-          particleColors[i3 + 2] = rushTint.b;
-        } else {
-          const boost = 1 + energy * 0.06;
-          particleColors[i3] = THREE.MathUtils.lerp(
-            rushTint.r,
-            settleColors[i3]! * boost,
-            snapMix,
-          );
-          particleColors[i3 + 1] = THREE.MathUtils.lerp(
-            rushTint.g,
-            settleColors[i3 + 1]! * boost,
-            snapMix,
-          );
-          particleColors[i3 + 2] = THREE.MathUtils.lerp(
-            rushTint.b,
-            settleColors[i3 + 2]! * boost,
-            snapMix,
-          );
+      particles.rotation.y = rotY * globalIntroT * 0.28;
+      const groupIntroScale = THREE.MathUtils.lerp(
+        introGroupScaleStart,
+        1,
+        globalIntroT,
+      );
+      pulseGroup.scale.setScalar(groupIntroScale);
+      particles.scale.setScalar(
+        PARTICLE_VIS_SCALE * THREE.MathUtils.lerp(1.35, 1, globalIntroT),
+      );
+      particlesMat.size =
+        particleBaseSize * THREE.MathUtils.lerp(2.4, 1, globalIntroT);
+      particlesMat.opacity =
+        particleBaseOpacity * THREE.MathUtils.lerp(0.18, 1, globalIntroT);
+      applyParticleLogoColors(globalIntroT, energy);
+      options?.onIntroProgress?.(globalIntroT);
+    } else {
+      particles.rotation.y = rotY;
+      applyParticleLogoColors(1, energy);
+
+      if (introDurationSec > 0) {
+        particlesMat.opacity = particleBaseOpacity;
+        if (!introCompleteFired) {
+          introCompleteFired = true;
+          options?.onIntroProgress?.(1);
+          window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
         }
       }
-      particlesGeo.attributes.position!.needsUpdate = true;
-      particlesGeo.attributes.color!.needsUpdate = true;
-
-      /* Fixed mask — only particle positions move (reverse explosion inward). */
-      particles.rotation.y = 0;
-      pulseGroup.rotation.x = 0;
-      pulseGroup.rotation.y = 0;
-      pulseGroup.scale.setScalar(1);
-      particles.scale.setScalar(PARTICLE_VIS_SCALE);
-      particlesMat.size = particleBaseSize * introParticleSizeMul(globalIntroT);
-      particlesMat.opacity =
-        particleBaseOpacity * THREE.MathUtils.lerp(0.88, 1, globalIntroT);
-      bloomPass.strength = THREE.MathUtils.lerp(
-        1.12,
-        1.35,
-        easeInQuart(globalIntroT),
-      );
-    } else if (introDurationSec <= 0) {
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        positions[i3] = homePositions[i3]!;
-        positions[i3 + 1] = homePositions[i3 + 1]!;
-        positions[i3 + 2] = homePositions[i3 + 2]!;
-      }
-      particlesGeo.attributes.position!.needsUpdate = true;
-
-      particles.rotation.y = rotY;
-      applyParticleColors(1, energy);
-      particles.scale.setScalar(PARTICLE_VIS_SCALE);
-      particlesMat.size = particleBaseSize;
-      particlesMat.opacity = particleBaseOpacity;
-      bloomPass.strength = 1.18;
     }
 
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
     const scatterScale = 1 + mic * 0.6 + burst * 0.18;
-    if (!inIntro && introDurationSec <= 0) {
+    if (!inIntro) {
       particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
       particlesMat.size = particleBaseSize * (1 + energy * 0.12);
     }
-    if (!inIntro && introDurationSec <= 0) {
+    if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
       particlesMat.opacity = THREE.MathUtils.clamp(
         particleBaseOpacity * (1 - mic * 0.3),
         0.2,
@@ -776,40 +870,33 @@ export function attachQuantumCoreOpticalEngine(
       wild *
         (prefersReduced ? 0.02 : 0.04) *
         Math.max(motionScale, 0.35);
-    if (!inIntro && introDurationSec <= 0) {
+    if (!inIntro) {
       pulseGroup.scale.setScalar(scaleBreath);
     }
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
-    if (!inIntro && introDurationSec <= 0) {
-      bloomPass.strength = THREE.MathUtils.clamp(
-        1.18 + wild * 0.18 + energy * 0.55,
-        1.08,
-        1.9,
-      );
-    }
+    bloomPass.strength = THREE.MathUtils.clamp(
+      1.18 + wild * 0.18 + energy * 0.55,
+      1.08,
+      1.9,
+    );
 
     const tiltLerp =
-      0.09 * Math.max(motionScale, 0.4);
-    if (introDurationSec <= 0) {
-      pulseGroup.rotation.x +=
-        (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
-      pulseGroup.rotation.y +=
-        (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
-      pulseGroup.rotation.x = THREE.MathUtils.clamp(
-        pulseGroup.rotation.x,
-        -0.55,
-        0.55,
-      );
-      pulseGroup.rotation.y = THREE.MathUtils.clamp(
-        pulseGroup.rotation.y,
-        -0.62,
-        0.62,
-      );
-    } else if (inIntro) {
-      pulseGroup.rotation.x = 0;
-      pulseGroup.rotation.y = 0;
-    }
+      0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
+    pulseGroup.rotation.x +=
+      (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
+    pulseGroup.rotation.y +=
+      (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
+    pulseGroup.rotation.x = THREE.MathUtils.clamp(
+      pulseGroup.rotation.x,
+      -0.55,
+      0.55,
+    );
+    pulseGroup.rotation.y = THREE.MathUtils.clamp(
+      pulseGroup.rotation.y,
+      -0.62,
+      0.62,
+    );
 
     shakeIntensity *= 0.9;
     const shakeX = (Math.random() - 0.5) * shakeIntensity;
@@ -819,31 +906,24 @@ export function attachQuantumCoreOpticalEngine(
     const parallaxAmp =
       (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
     const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
-    if (introDurationSec <= 0) {
-      camera.position.x +=
-        (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
-      camera.position.y +=
-        (-mouseY * parallaxAmp - camera.position.y) * parallaxLerp + shakeY;
-      camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
-      camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
-      camera.position.z = VIEW_Z;
-      camera.lookAt(scene.position);
-    } else {
-      camera.position.set(0, 0, VIEW_Z);
-      camera.lookAt(scene.position);
-    }
+    camera.position.x +=
+      (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
+    camera.position.y +=
+      (-mouseY * parallaxAmp - camera.position.y) * parallaxLerp + shakeY;
+    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
+    camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
+    camera.position.z = VIEW_Z;
+    camera.lookAt(scene.position);
 
     /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
        then eases back to passthrough (0/0) when the conversation goes quiet. */
-    if (introDurationSec <= 0) {
-      const warpTarget = THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
-      const aberrTarget =
-        THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
-      lensPass.uniforms.uDistortion.value +=
-        (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
-      lensPass.uniforms.uAberration.value +=
-        (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
-    }
+    const warpTarget = THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
+    const aberrTarget =
+      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
+    lensPass.uniforms.uDistortion.value +=
+      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
+    lensPass.uniforms.uAberration.value +=
+      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
 
     composer.render();
   }
@@ -855,8 +935,7 @@ export function attachQuantumCoreOpticalEngine(
     renderer.setSize(w, h);
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
-    resetCameraViewportAspect();
-    if (introSettled) composer.render();
+    syncCameraToMask();
   };
 
   const onResize = () => {
@@ -869,6 +948,9 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("resize", onResize);
 
   applyResize();
+  if (introDurationSec <= 0) {
+    options?.onIntroProgress?.(1);
+  }
   raf = requestAnimationFrame(animate);
 
   return () => {
