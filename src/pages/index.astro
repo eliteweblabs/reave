@@ -337,7 +337,9 @@ const heroMask = homepageHeroMask(company);
     let detach: (() => void) | undefined;
 
     const start = () => {
-      detach = attachQuantumCoreOpticalEngine(host);
+      detach = attachQuantumCoreOpticalEngine(host, {
+        introRush: { durationSec: 3.5 },
+      });
     };
 
     const touchUi =

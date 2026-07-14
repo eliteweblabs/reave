@@ -97,7 +97,33 @@ function normalizeTintLuminance(
   if (gain > 1) c.multiplyScalar(gain);
 }
 
-export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
+/** Options when attaching the optical engine to a host element. */
+export interface QuantumEngineOptions {
+  /** Particles start far outside the mask and implode inward over `durationSec`. */
+  introRush?: {
+    durationSec: number;
+  };
+}
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+function easeOutQuart(t: number): number {
+  return 1 - Math.pow(1 - t, 4);
+}
+
+function introTravelT(rawT: number, duration: number, delaySec: number): number {
+  if (duration <= 0) return 1;
+  return easeOutQuart(
+    THREE.MathUtils.clamp((rawT - delaySec) / (duration * 0.9), 0, 1),
+  );
+}
+
+export function attachQuantumCoreOpticalEngine(
+  host: HTMLElement,
+  options?: QuantumEngineOptions,
+): () => void {
   const prefersReduced =
     typeof matchMedia !== "undefined" &&
     matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -308,6 +334,16 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   const particleCount = 4000;
   const particlesGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
+  const homePositions = new Float32Array(particleCount * 3);
+  const startPositions = new Float32Array(particleCount * 3);
+  const introStagger = new Float32Array(particleCount);
+  const introDurationSec = prefersReduced
+    ? 0
+    : Math.max(0, options?.introRush?.durationSec ?? 0);
+  /** Radial distance multiplier at t=0 — high = sparse field, few dots in the mask. */
+  const introProximityMin = 22;
+  const introProximityMax = 42;
+  const introGroupScaleStart = 9;
   /**
    * Even glow: a flat cloud, symmetric about (and rotating around) the Y axis,
    * whose 2D screen projection has uniform density — no bright vertical center
@@ -325,9 +361,34 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     const u = Math.random();
     const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
     const theta = Math.random() * Math.PI * 2;
-    positions[i * 3] = rho * Math.cos(theta);
-    positions[i * 3 + 1] = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
-    positions[i * 3 + 2] = rho * Math.sin(theta);
+    const hx = rho * Math.cos(theta);
+    const hy = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
+    const hz = rho * Math.sin(theta);
+    homePositions[i * 3] = hx;
+    homePositions[i * 3 + 1] = hy;
+    homePositions[i * 3 + 2] = hz;
+
+    const homeDist = Math.sqrt(hx * hx + hy * hy + hz * hz) || 0.001;
+    introStagger[i] = (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
+
+    if (introDurationSec > 0) {
+      const proximity =
+        introProximityMin +
+        Math.random() * (introProximityMax - introProximityMin);
+      const jitter = proximity * 0.06;
+      startPositions[i * 3] = hx * proximity + (Math.random() - 0.5) * jitter;
+      startPositions[i * 3 + 1] =
+        hy * proximity + (Math.random() - 0.5) * jitter;
+      startPositions[i * 3 + 2] =
+        hz * proximity + (Math.random() - 0.5) * jitter;
+      positions[i * 3] = startPositions[i * 3]!;
+      positions[i * 3 + 1] = startPositions[i * 3 + 1]!;
+      positions[i * 3 + 2] = startPositions[i * 3 + 2]!;
+    } else {
+      positions[i * 3] = hx;
+      positions[i * 3 + 1] = hy;
+      positions[i * 3 + 2] = hz;
+    }
   }
   particlesGeo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const particleColors = new Float32Array(particleCount * 3);
@@ -603,6 +664,7 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
   btnDestabilize?.addEventListener("click", onDestabilize);
   btnReset?.addEventListener("click", onReset);
 
+  let introCompleteFired = false;
   const clock = new THREE.Clock();
   let raf = 0;
   let alive = true;
@@ -643,7 +705,57 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
         (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
     const rotY = -rawT * 0.1 * particleSpeedMult * spinBoost;
-    particles.rotation.y = rotY;
+
+    const inIntro = introDurationSec > 0 && rawT < introDurationSec;
+    const globalIntroT = inIntro
+      ? easeOutQuart(THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1))
+      : 1;
+
+    if (inIntro) {
+      for (let i = 0; i < particleCount; i++) {
+        const localT = introTravelT(rawT, introDurationSec, introStagger[i]!);
+        const inv = 1 - localT;
+        const i3 = i * 3;
+        positions[i3] =
+          homePositions[i3]! + (startPositions[i3]! - homePositions[i3]!) * inv;
+        positions[i3 + 1] =
+          homePositions[i3 + 1]! +
+          (startPositions[i3 + 1]! - homePositions[i3 + 1]!) * inv;
+        positions[i3 + 2] =
+          homePositions[i3 + 2]! +
+          (startPositions[i3 + 2]! - homePositions[i3 + 2]!) * inv;
+      }
+      particlesGeo.attributes.position!.needsUpdate = true;
+
+      particles.rotation.y = rotY * globalIntroT * 0.22;
+      const groupIntroScale = THREE.MathUtils.lerp(
+        introGroupScaleStart,
+        1,
+        globalIntroT,
+      );
+      pulseGroup.scale.setScalar(groupIntroScale);
+
+      const proximityScatter = THREE.MathUtils.lerp(4.2, 1, easeOutCubic(globalIntroT));
+      particles.scale.setScalar(PARTICLE_VIS_SCALE * proximityScatter);
+      particlesMat.size =
+        particleBaseSize * THREE.MathUtils.lerp(2.8, 1, easeOutCubic(globalIntroT));
+      particlesMat.opacity =
+        particleBaseOpacity *
+        THREE.MathUtils.lerp(0.1, 1, easeOutCubic(Math.min(globalIntroT * 1.35, 1)));
+      (scene.fog as THREE.FogExp2).density = THREE.MathUtils.lerp(
+        isMobileLike ? 0.014 : 0.02,
+        isMobileLike ? 0.006 : 0.0095,
+        globalIntroT,
+      );
+    } else {
+      particles.rotation.y = rotY;
+      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
+
+      if (introDurationSec > 0 && !introCompleteFired) {
+        introCompleteFired = true;
+        window.dispatchEvent(new CustomEvent("quantum-intro-complete"));
+      }
+    }
 
     /* Horizontal rainbow: hue from left→right across the logo, drifting over time. */
     updateHorizontalParticleGradient(rawT, rotY);
@@ -653,13 +765,15 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
     /* Scatter: particle cloud expands radially outward with audio.
        Opacity thins as they spread so the cloud disperses rather than amplifies. */
     const scatterScale = 1 + mic * 0.6 + burst * 0.18;
-    particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
-    particlesMat.size = particleBaseSize * (1 + energy * 0.12);
-    particlesMat.opacity = THREE.MathUtils.clamp(
-      particleBaseOpacity * (1 - mic * 0.3),
-      0.2,
-      particleBaseOpacity,
-    );
+    if (!inIntro) {
+      particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
+      particlesMat.size = particleBaseSize * (1 + energy * 0.12);
+      particlesMat.opacity = THREE.MathUtils.clamp(
+        particleBaseOpacity * (1 - mic * 0.3),
+        0.2,
+        particleBaseOpacity,
+      );
+    }
 
     /* Gentle overall pulse — just a breath, not an amplifier. */
     const scaleBreath =
@@ -667,7 +781,9 @@ export function attachQuantumCoreOpticalEngine(host: HTMLElement): () => void {
       wild *
         (prefersReduced ? 0.02 : 0.04) *
         Math.max(motionScale, 0.35);
-    pulseGroup.scale.setScalar(scaleBreath);
+    if (!inIntro) {
+      pulseGroup.scale.setScalar(scaleBreath);
+    }
 
     /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
     bloomPass.strength = THREE.MathUtils.clamp(
