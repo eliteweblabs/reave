@@ -3196,6 +3196,8 @@ function onPanelScrollCollapse(ev) {
   const target = ev.target;
   if (!(target instanceof Element)) return;
   if (target.closest('#wrap, #admin-footer-nav')) return;
+  // Agent chat scrolls inside .aui-viewport; the panel shell does not scroll.
+  if (target.closest('.aui-viewport')) return;
   const panel = target.closest(FOOTER_PANEL_SELECTOR);
   if (!panel) return;
   const style = window.getComputedStyle(panel);
