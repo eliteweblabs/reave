@@ -61,11 +61,22 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   .quantum-logo-stack {
     position: fixed;
     inset: 0;
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     z-index: 0;
     pointer-events: auto;
     cursor: default;
     touch-action: none;
-    overflow: visible;
+    overflow: hidden;
+  }
+
+  .quantum-logo-stack--centered {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
   }
 
   /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
@@ -103,9 +114,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     inset: 0;
     width: 100%;
     height: 100%;
+    min-height: 100%;
     pointer-events: auto;
     touch-action: none;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .quantum-host :global(canvas) {
@@ -113,6 +125,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     width: 100% !important;
     height: 100% !important;
     max-width: none;
+    min-height: 100%;
   }
 </style>
 
