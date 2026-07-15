@@ -77,6 +77,10 @@ const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
 const LOGO_AV_DAMP_INNER_AMOUNT = 0.144;
 
+/** Backdrop disc diameter = logo width; outer band extends glow ~50% beyond particle core. */
+const LOGO_GLOW_RADIUS_EXTENT = 1.5;
+const LOGO_GLOW_INNER = 1 / LOGO_GLOW_RADIUS_EXTENT;
+
 function logoAvGlowDamp(u: number): number {
   const outer =
     THREE.MathUtils.smoothstep(
@@ -143,6 +147,36 @@ const LogoResolveShader = {
         * (1.0 - smoothstep(uAvDampInnerU1 - 0.03, uAvDampInnerU1, vUv.x));
       float damp = 1.0 - outer * uAvDampAmt - inner * uAvDampInnerAmt;
       gl_FragColor = vec4(tex.rgb * damp, tex.a * uOpacity);
+    }
+  `,
+};
+
+const LogoBackdropGlowShader = {
+  uniforms: {
+    uOpacity: { value: 0 },
+    uInner: { value: LOGO_GLOW_INNER },
+    uTint: { value: new THREE.Color(0.82, 0.42, 0.68) },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uOpacity;
+    uniform float uInner;
+    uniform vec3 uTint;
+    varying vec2 vUv;
+    void main() {
+      vec2 centered = vUv - 0.5;
+      float r = length(centered) * 2.0;
+      float core = (1.0 - smoothstep(0.0, uInner, r)) * 0.1;
+      float ring = smoothstep(uInner - 0.1, uInner + 0.04, r)
+        * (1.0 - smoothstep(0.9, 1.0, r));
+      float alpha = (core + ring * 0.38) * uOpacity;
+      gl_FragColor = vec4(uTint, alpha);
     }
   `,
 };
@@ -423,6 +457,25 @@ function randomGalaxyStart(): [number, number, number] {
   return [radius * Math.cos(theta), y, radius * Math.sin(theta)];
 }
 
+/** Slow post-intro drift — particles orbit their home positions without leaving the logo. */
+function idleParticleOffset(
+  phase: number,
+  t: number,
+  amp: number,
+  hx: number,
+  hy: number,
+): [number, number, number] {
+  const seed = phase + hx * 0.07 + hy * 0.09;
+  const dx =
+    Math.sin(t * 0.41 + seed) * amp +
+    Math.sin(t * 0.16 + seed * 2.2) * amp * 0.42;
+  const dy =
+    Math.cos(t * 0.34 + seed * 1.4) * amp * 0.88 +
+    Math.sin(t * 0.2 + seed * 0.8) * amp * 0.38;
+  const dz = Math.sin(t * 0.27 + seed * 1.9) * amp * 0.52;
+  return [dx, dy, dz];
+}
+
 export function attachQuantumCoreOpticalEngine(
   host: HTMLElement,
   options?: QuantumEngineOptions,
@@ -600,6 +653,8 @@ export function attachQuantumCoreOpticalEngine(
   const startPositions = new Float32Array(particleCount * 3);
   /** Outer particles join the implosion slightly later — reverse-explosion wave. */
   const introStagger = new Float32Array(particleCount);
+  /** Per-particle phase for slow idle morph after the intro settles. */
+  const particleIdlePhase = new Float32Array(particleCount);
   const introDurationBase = Math.max(0, options?.introRush?.durationSec ?? 0);
   /* Keep the intro on devices that report reduced motion — only shorten it and damp reactive FX. */
   const introDurationSec = introDurationBase * (prefersReduced ? 0.7 : 1);
@@ -617,6 +672,7 @@ export function attachQuantumCoreOpticalEngine(
       : null;
 
   for (let i = 0; i < particleCount; i++) {
+    particleIdlePhase[i] = Math.random() * Math.PI * 2;
     let hx: number;
     let hy: number;
     let hz: number;
@@ -721,8 +777,29 @@ export function attachQuantumCoreOpticalEngine(
   logoResolve.visible = false;
   let logoResolveSmoothed = 0;
 
+  let logoGlow: THREE.Mesh | null = null;
+  let logoGlowMat: THREE.ShaderMaterial | null = null;
+  const glowOpacityBase = isMobileLike ? 0.46 : 0.4;
+  if (!isCompactStack) {
+    const logoGlowGeo = new THREE.CircleGeometry(1, 96);
+    logoGlowMat = new THREE.ShaderMaterial({
+      uniforms: THREE.UniformsUtils.clone(LogoBackdropGlowShader.uniforms),
+      vertexShader: LogoBackdropGlowShader.vertexShader,
+      fragmentShader: LogoBackdropGlowShader.fragmentShader,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    logoGlow = new THREE.Mesh(logoGlowGeo, logoGlowMat);
+    logoGlow.position.z = -0.14;
+    logoGlow.renderOrder = -2;
+    logoGlow.scale.setScalar(logoCloudRadiusX * PARTICLE_VIS_SCALE);
+  }
+
   /** Scales core + ring from world center in sync with the Focus/Warp cycle. */
   const pulseGroup = new THREE.Group();
+  if (logoGlow) pulseGroup.add(logoGlow);
   pulseGroup.add(core);
   pulseGroup.add(logoResolve);
   pulseGroup.add(particles);
@@ -783,7 +860,8 @@ export function attachQuantumCoreOpticalEngine(
      Lower threshold on mobile so dim hues (purple/blue) still cross into bloom. */
   bloomPass.threshold = isMobileLike ? 0.025 : 0.031;
   bloomPass.strength = 1.05;
-  bloomPass.radius = 0.66;
+  /* +50% spread — same strength, glow reaches further around the logo. */
+  bloomPass.radius = 0.99;
   const hpUniforms = bloomPass.highPassUniforms as Record<
     string,
     { value: number }
@@ -811,6 +889,7 @@ export function attachQuantumCoreOpticalEngine(
       1,
       1,
     );
+    logoGlow?.scale.setScalar(logoCloudRadiusX * PARTICLE_VIS_SCALE);
     const xStretch = logoCloudRadiusX / CLOUD_RADIUS;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
@@ -1110,9 +1189,15 @@ export function attachQuantumCoreOpticalEngine(
       energy *
         (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
         Math.max(motionScale, 0.35);
-    const rotY = -sceneT * 0.1 * particleSpeedMult * spinBoost;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
+    const idleSpinMul = inIntro ? 0.1 : 0.17;
+    const rotY = -sceneT * idleSpinMul * particleSpeedMult * spinBoost;
+    const idleSizeWobble =
+      inIntro || isCompactStack || prefersReduced
+        ? 0
+        : Math.sin(sceneT * 0.44) * 0.055 * motionScale;
+
     const inGalaxyView = inIntro && useGalaxyIntro;
     const globalIntroT = inIntro
       ? THREE.MathUtils.clamp(rawT / introDurationSec, 0, 1)
@@ -1133,6 +1218,24 @@ export function attachQuantumCoreOpticalEngine(
     logoResolveMat.uniforms.uOpacity.value =
       resolveMix * (1 - reactiveLift * 0.22);
     const particleResolveDim = 1 - resolveMix * 0.82;
+
+    if (logoGlowMat) {
+      const glowMix = inGalaxyView
+        ? 0
+        : inIntro
+          ? THREE.MathUtils.smoothstep(0.52, 0.86, globalIntroT)
+          : 1;
+      const idleGlowPulse =
+        inIntro || isCompactStack
+          ? 1
+          : 1 + Math.sin(sceneT * 0.38) * 0.05 * motionScale;
+      logoGlowMat.uniforms.uOpacity.value =
+        glowOpacityBase *
+        glowMix *
+        idleGlowPulse *
+        (1 - resolveMix * 0.1) *
+        (1 + reactiveLift * 0.06);
+    }
 
     if (inGalaxyView) {
       resetCameraViewportAspect();
@@ -1225,18 +1328,33 @@ export function attachQuantumCoreOpticalEngine(
         easeInQuart(globalIntroT),
       );
     } else {
+      const idleAmp =
+        isCompactStack || prefersReduced
+          ? 0
+          : 0.034 * motionScale * (1 - resolveMix * 0.22);
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
-        positions[i3] = homePositions[i3]!;
-        positions[i3 + 1] = homePositions[i3 + 1]!;
-        positions[i3 + 2] = homePositions[i3 + 2]!;
+        const hx = homePositions[i3]!;
+        const hy = homePositions[i3 + 1]!;
+        const hz = homePositions[i3 + 2]!;
+        const [dx, dy, dz] = idleParticleOffset(
+          particleIdlePhase[i]!,
+          sceneT,
+          idleAmp,
+          hx,
+          hy,
+        );
+        positions[i3] = hx + dx;
+        positions[i3 + 1] = hy + dy;
+        positions[i3 + 2] = hz + dz;
       }
       particlesGeo.attributes.position!.needsUpdate = true;
 
       particles.rotation.y = rotY;
       applyParticleLogoColors(1, energy);
       particles.scale.setScalar(PARTICLE_VIS_SCALE);
-      particlesMat.size = particleBaseSize * (1 + reactiveLift * 0.18);
+      particlesMat.size =
+        particleBaseSize * (1 + reactiveLift * 0.18 + idleSizeWobble);
       particlesMat.opacity = particleBaseOpacity * particleResolveDim;
       bloomPass.strength = 1.18 * (1 - resolveMix * 0.42);
 
@@ -1254,7 +1372,8 @@ export function attachQuantumCoreOpticalEngine(
     if (!inIntro) {
       particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
       particlesMat.size =
-        particleBaseSize * (1 + energy * 0.12 + reactiveLift * 0.08);
+        particleBaseSize *
+        (1 + energy * 0.12 + reactiveLift * 0.08 + idleSizeWobble);
     }
     if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
       particlesMat.opacity = THREE.MathUtils.clamp(
@@ -1265,9 +1384,14 @@ export function attachQuantumCoreOpticalEngine(
       );
     }
 
-    /* Gentle overall pulse — just a breath, not an amplifier. */
+    /* Gentle overall pulse — idle breath even when no call is active. */
+    const idleBreath =
+      inIntro || isCompactStack
+        ? 1
+        : 1 + Math.sin(sceneT * 0.32) * 0.014 * motionScale;
     const scaleBreath =
-      1 + wild * (prefersReduced ? 0.02 : 0.04) * Math.max(motionScale, 0.35);
+      idleBreath +
+      wild * (prefersReduced ? 0.02 : 0.04) * Math.max(motionScale, 0.35);
     if (!inIntro) {
       pulseGroup.scale.setScalar(scaleBreath);
     }
@@ -1282,8 +1406,18 @@ export function attachQuantumCoreOpticalEngine(
     }
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
-    pulseGroup.rotation.x += (tiltTargetX - pulseGroup.rotation.x) * tiltLerp;
-    pulseGroup.rotation.y += (tiltTargetY - pulseGroup.rotation.y) * tiltLerp;
+    const idleTiltX =
+      inIntro || prefersReduced || isCompactStack
+        ? 0
+        : Math.sin(sceneT * 0.21) * 0.032 * motionScale;
+    const idleTiltY =
+      inIntro || prefersReduced || isCompactStack
+        ? 0
+        : Math.cos(sceneT * 0.17) * 0.038 * motionScale;
+    pulseGroup.rotation.x +=
+      (tiltTargetX + idleTiltX - pulseGroup.rotation.x) * tiltLerp;
+    pulseGroup.rotation.y +=
+      (tiltTargetY + idleTiltY - pulseGroup.rotation.y) * tiltLerp;
     pulseGroup.rotation.x = THREE.MathUtils.clamp(
       pulseGroup.rotation.x,
       -0.55,
@@ -1378,6 +1512,8 @@ export function attachQuantumCoreOpticalEngine(
     const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
     logoMap?.dispose();
     logoResolveMat.dispose();
+    logoGlow?.geometry.dispose();
+    logoGlowMat?.dispose();
     composer.dispose();
     renderer.dispose();
     if (renderer.domElement.parentElement === host) {
