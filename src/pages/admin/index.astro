@@ -9,6 +9,7 @@ import Favicon from "../../components/Favicon.astro";
 import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
 import { getCompanyConfig, companyToBrandContext } from "../../lib/companyConfig";
+import { getInstallConfigClient, PROFILE_MENU_LABELS } from "../../lib/installConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import "../../styles/brand.css";
 
@@ -17,7 +18,8 @@ export const prerender = false;
 const { userId } = Astro.locals.auth();
 const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
-const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
+const installConfigClient = getInstallConfigClient();
+const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 ---
 
 <!doctype html>
@@ -273,8 +275,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       #clients-editor,
       #rule-editor,
       #home-dashboard,
-      #profile-panel,
-      #plugins-panel,
+      #settings-panel,
       #search-overlay,
       #os-dialog-backdrop {
         touch-action: manipulation;
@@ -4783,9 +4784,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         line-height: 1.25;
       }
 
-      /* ── Profile panel ── */
-      #profile-panel,
-      #plugins-panel {
+      /* ── Settings panel (profile, company, socials, …) ── */
+      #settings-panel {
         position: fixed;
         inset: 0;
         height: 100dvh;
@@ -4814,7 +4814,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         border-radius: 12px;
         padding: 1.5rem 1.35rem;
       }
-      #plugins-panel .prof-card {
+      #settings-panel .prof-card {
         background: transparent;
         border: none;
         border-radius: 0;
@@ -5199,8 +5199,12 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
     </style>
   </head>
-  <body data-user-id={userId ?? ""} data-is-owner={showPlugins ? "1" : ""}>
-    <Header adminShell showPlugins={showPlugins} signInAutoOpen={!userId} />
+  <body data-user-id={userId ?? ""} data-is-owner={isOwner ? "1" : ""}>
+    <Header
+      adminShell
+      profileMenu={installConfigClient.profileMenu}
+      signInAutoOpen={!userId}
+    />
 
     <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
@@ -5232,9 +5236,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
 
     <div id="home-dashboard" style="display:none" aria-label="Dashboard"></div>
 
-    <div id="profile-panel" style="display:none" aria-label="Profile"></div>
-
-    <div id="plugins-panel" style="display:none" aria-label="Plugins"></div>
+    <div id="settings-panel" style="display:none" aria-label="Settings"></div>
 
     <div id="search-overlay" aria-hidden="true">
       <div class="search-overlay-bar">
@@ -5328,8 +5330,9 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250714b"></script>
     <script src="/ios-sheet.js" defer></script>
-    <script is:inline define:vars={{ companyBrand }}>
+    <script is:inline define:vars={{ companyBrand, installConfigClient }}>
       window.__companyBrand = companyBrand;
+      window.__installConfig = installConfigClient;
     </script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20250715a"></script>
   </body>

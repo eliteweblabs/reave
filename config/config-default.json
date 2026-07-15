@@ -1,0 +1,29 @@
+{
+  "features": [],
+  "footerNav": [
+    "__system__",
+    "home",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "profile",
+    "company",
+    "socials",
+    "industries",
+    "vapi",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "socials",
+    "industries",
+    "vapi"
+  ]
+}

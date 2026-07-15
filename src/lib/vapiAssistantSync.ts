@@ -10,6 +10,12 @@ export type VapiSyncResult =
   | { ok: true; assistantId: string; companyName: string; firstMessage: string }
   | { ok: false; error: string; skipped?: boolean };
 
+export type VapiTemplateConfig = {
+  assistantId?: string;
+  firstMessage?: string;
+  systemPrompt?: string;
+};
+
 type VapiAssistant = {
   id?: string;
   name?: string;
@@ -28,16 +34,29 @@ function env(name: string): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 }
 
-export function vapiAssistantId(): string | undefined {
+export function vapiAssistantIdFromEnv(): string | undefined {
   return env('VAPI_ASSISTANT_ID') || env('PUBLIC_VAPI_ASSISTANT_ID');
 }
 
-export function isVapiSyncConfigured(): boolean {
-  return Boolean(env('VAPI_API_KEY') && vapiAssistantId());
+/** @deprecated Use vapiAssistantIdFromEnv or resolve from admin config. */
+export function vapiAssistantId(): string | undefined {
+  return vapiAssistantIdFromEnv();
+}
+
+export function resolveVapiAssistantId(templates?: VapiTemplateConfig): string | undefined {
+  const fromAdmin = templates?.assistantId?.trim();
+  if (fromAdmin) return fromAdmin;
+  return vapiAssistantIdFromEnv();
+}
+
+export function isVapiSyncConfigured(templates?: VapiTemplateConfig): boolean {
+  return Boolean(env('VAPI_API_KEY') && resolveVapiAssistantId(templates));
 }
 
 /** Spoken greeting — uses Vapi {{companyName}} variable filled at call time. */
-export function vapiFirstMessageTemplate(): string {
+export function vapiFirstMessageTemplate(templates?: VapiTemplateConfig): string {
+  const fromAdmin = templates?.firstMessage?.trim();
+  if (fromAdmin) return fromAdmin;
   return (
     env('VAPI_FIRST_MESSAGE') ||
     'Hi! Thanks for reaching out to {{companyName}}. How can I help you today?'
@@ -45,7 +64,10 @@ export function vapiFirstMessageTemplate(): string {
 }
 
 /** System prompt synced to Vapi — {{company*}} filled via assistantOverrides.variableValues. */
-export function vapiSystemPromptTemplate(): string {
+export function vapiSystemPromptTemplate(templates?: VapiTemplateConfig): string {
+  const fromAdmin = templates?.systemPrompt?.trim();
+  if (fromAdmin) return fromAdmin;
+
   const custom = env('VAPI_SYSTEM_PROMPT');
   if (custom) return custom;
 
@@ -119,12 +141,12 @@ function mergeSystemMessage(
 /** Push Company-details branding into the configured Vapi assistant. */
 export async function syncVapiAssistantBrand(
   brand: BuildBrandContext,
-  opts?: { requirePlugin?: boolean },
+  opts?: { requirePlugin?: boolean; templates?: VapiTemplateConfig },
 ): Promise<VapiSyncResult> {
   if (opts?.requirePlugin !== false) {
     const { isVapiAdminPluginEnabled } = await import('./vapiPlugin.ts');
     if (!isVapiAdminPluginEnabled()) {
-      return { ok: false, error: 'vapi plugin not enabled (Admin → Plugins)', skipped: true };
+      return { ok: false, error: 'vapi not enabled in install config features', skipped: true };
     }
   }
 
@@ -132,9 +154,14 @@ export async function syncVapiAssistantBrand(
     return { ok: false, error: 'VAPI_SYNC_SKIP=1', skipped: true };
   }
 
-  const assistantId = vapiAssistantId();
+  const templates = opts?.templates;
+  const assistantId = resolveVapiAssistantId(templates);
   if (!assistantId) {
-    return { ok: false, error: 'VAPI_ASSISTANT_ID / PUBLIC_VAPI_ASSISTANT_ID not set', skipped: true };
+    return {
+      ok: false,
+      error: 'Vapi assistant ID not set (Admin → Vapi or PUBLIC_VAPI_ASSISTANT_ID)',
+      skipped: true,
+    };
   }
   if (!env('VAPI_API_KEY')) {
     return { ok: false, error: 'VAPI_API_KEY not set', skipped: true };
@@ -143,8 +170,8 @@ export async function syncVapiAssistantBrand(
   const existing = await vapiRequest<VapiAssistant>(`/assistant/${assistantId}`);
   const current = existing.ok ? existing.data : undefined;
 
-  const firstMessage = vapiFirstMessageTemplate();
-  const systemContent = vapiSystemPromptTemplate();
+  const firstMessage = vapiFirstMessageTemplate(templates);
+  const systemContent = vapiSystemPromptTemplate(templates);
   const model = mergeSystemMessage(current, systemContent);
 
   const patch = await vapiRequest<VapiAssistant>(`/assistant/${assistantId}`, {
@@ -164,11 +191,14 @@ export async function syncVapiAssistantBrand(
 }
 
 export async function syncVapiAssistantFromConfig(): Promise<VapiSyncResult> {
-  const { loadBuildBrandContext, loadBuildEnabledFeatures } = await import('./vapiBuildBrand.ts');
+  const { loadBuildBrandContext, loadBuildEnabledFeatures, loadBuildVapiTemplates } = await import(
+    './vapiBuildBrand.ts'
+  );
   const enabled = await loadBuildEnabledFeatures();
   if (!enabled.includes('vapi')) {
-    return { ok: false, error: 'vapi plugin not enabled', skipped: true };
+    return { ok: false, error: 'vapi not enabled in install config features', skipped: true };
   }
   const brand = await loadBuildBrandContext();
-  return syncVapiAssistantBrand(brand, { requirePlugin: false });
+  const templates = await loadBuildVapiTemplates();
+  return syncVapiAssistantBrand(brand, { requirePlugin: false, templates });
 }

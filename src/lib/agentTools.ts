@@ -3553,7 +3553,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     }
     if (name === 'sync_vapi_assistant') {
       if (!hasFeature('vapi')) {
-        return JSON.stringify({ error: 'vapi plugin not enabled (Admin → Plugins)' });
+        return JSON.stringify({ error: 'vapi not enabled in install config features' });
       }
       if (!isVapiAdminConfigured()) {
         return JSON.stringify({

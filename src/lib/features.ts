@@ -1,14 +1,12 @@
 /**
- * Deployment feature modules — toggled in Admin → Plugins (persisted) with optional
- * FEATURES env bootstrap on first deploy.
+ * Deployment feature modules — configured per install in config/config-{slug}.json.
  *
- * Example bootstrap:
- *   FEATURES='["client_portal","billing","site_audits","scheduling","dev_infra"]'
+ * Legacy fallback: FEATURES env JSON array when install config has no features.
  */
-import { readStoredFeaturesSync, getStoredFeatures, clearStoredFeaturesCache } from './featureStore';
+import { getInstallConfigSync } from './installConfig.ts';
 import { serverEnv } from './serverEnv';
 
-/** Optional module ids — must match stored JSON entries exactly. */
+/** Optional module ids — must match install config entries exactly. */
 export const FEATURE_IDS = [
   'client_portal',
   'web_handoff',
@@ -29,7 +27,6 @@ export type FeatureId = (typeof FEATURE_IDS)[number];
 const FEATURE_SET = new Set<string>(FEATURE_IDS);
 
 let _cached: Set<FeatureId> | null = null;
-let _hydrateStarted = false;
 
 function parseFeaturesEnv(): Set<FeatureId> {
   const raw = serverEnv('FEATURES')?.trim();
@@ -55,27 +52,14 @@ function parseFeaturesEnv(): Set<FeatureId> {
 }
 
 function bootstrapEnabled(): Set<FeatureId> {
-  const stored = readStoredFeaturesSync();
-  if (stored && stored.length) return new Set(stored);
+  const fromInstall = getInstallConfigSync().features;
+  if (fromInstall.length) return new Set(fromInstall);
   return parseFeaturesEnv();
-}
-
-function hydrateFromStoreAsync(): void {
-  if (_hydrateStarted) return;
-  _hydrateStarted = true;
-  void getStoredFeatures().then((stored) => {
-    if (stored && stored.length) {
-      _cached = new Set(stored);
-    }
-  });
 }
 
 /** Enabled optional modules for this deployment. */
 export function enabledFeatures(): ReadonlySet<FeatureId> {
-  if (!_cached) {
-    _cached = bootstrapEnabled();
-    hydrateFromStoreAsync();
-  }
+  if (!_cached) _cached = bootstrapEnabled();
   return _cached;
 }
 
@@ -83,20 +67,12 @@ export function hasFeature(id: FeatureId): boolean {
   return enabledFeatures().has(id);
 }
 
-/** Replace in-memory enabled set (after admin save). */
-export function setEnabledFeatures(ids: FeatureId[]): void {
-  _cached = new Set(ids);
-  clearStoredFeaturesCache();
-}
-
 /** Reset parse cache (tests / hot reload). */
 export function clearFeatureCache(): void {
   _cached = null;
-  _hydrateStarted = false;
-  clearStoredFeaturesCache();
 }
 
-/** Human labels for admin / health output. */
+/** Human labels for health output and docs. */
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client portal (/c/:uid)',
   web_handoff: 'Portal Data tab (handoff creds)',
@@ -111,24 +87,6 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   scheduling: 'Cal.com scheduling & meetings',
   dev_infra: 'Dev & infrastructure (Git, Railway, Kinsta, deploy)',
 };
-
-export const FEATURE_GROUPS: { id: string; title: string; features: FeatureId[] }[] = [
-  {
-    id: 'client',
-    title: 'Client-facing',
-    features: ['client_portal', 'web_handoff', 'billing', 'documents', 'scheduling', 'carddav'],
-  },
-  {
-    id: 'ops',
-    title: 'Operations & monitoring',
-    features: ['site_audits', 'site_monitoring', 'uptime_monitoring', 'voice', 'vapi'],
-  },
-  {
-    id: 'dev',
-    title: 'Dev & infrastructure',
-    features: ['dev_infra'],
-  },
-];
 
 export const CORE_FEATURE_NOTE =
   'Contacts, email inbox, work/jobs, knowledge, personal to-dos, and chat are always on.';

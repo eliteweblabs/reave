@@ -208,7 +208,10 @@ export const MAPS = {
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
-  plugins:   { id: 'plugins',   title: 'Plugins',    icon: '🔌',  type: 'plugins',       nodes: [],             edges: [],             groups: [] },
+  company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
+  socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },
+  industries:{ id: 'industries',title: 'Industries', icon: '🎯',  type: 'industries',    nodes: [],             edges: [],             groups: [] },
+  vapi:      { id: 'vapi',      title: 'Vapi',       icon: '🎙️',  type: 'vapi',          nodes: [],             edges: [],             groups: [] },
   finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
 };
 

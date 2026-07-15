@@ -116,7 +116,45 @@ const MAP_ICON_KEYS = {
   schedule: 'calendar',
   clients: 'users',
   finance: 'wallet',
+  profile: 'user',
+  company: 'building-2',
+  socials: 'link-2',
+  industries: 'target',
+  vapi: 'mic',
 };
+
+/** Admin settings pages — one map tab per section. */
+const SETTINGS_MAP_TYPES = new Set(['profile', 'company', 'socials', 'industries', 'vapi']);
+
+function installFooterNav() {
+  const nav = window.__installConfig?.footerNav;
+  return Array.isArray(nav) && nav.length ? nav : null;
+}
+
+function normalizeFooterNavKeys(keys) {
+  const result = [];
+  for (const raw of keys) {
+    if (typeof raw !== 'string') continue;
+    if (raw === SYSTEM_TAB_SLOT || SYSTEM_MAP_SET.has(raw)) {
+      if (!result.includes(SYSTEM_TAB_SLOT)) result.push(SYSTEM_TAB_SLOT);
+      continue;
+    }
+    if (raw === CHAT_TAB_SLOT) {
+      if (!result.includes(CHAT_TAB_SLOT)) result.push(CHAT_TAB_SLOT);
+      continue;
+    }
+    if (MAPS[raw] && !result.includes(raw)) result.push(raw);
+  }
+  return result.length ? result : [SYSTEM_TAB_SLOT, 'home'];
+}
+
+function isSettingsMapType(type) {
+  return SETTINGS_MAP_TYPES.has(type);
+}
+
+function settingsPanelRoot() {
+  return document.getElementById('settings-panel');
+}
 
 /** Home dashboard tiles that live in the footer nav — omit from the grid. */
 const HOME_DASHBOARD_FOOTER_KEYS = new Set(['chats', 'email', 'work', 'schedule', 'clients']);
@@ -340,10 +378,6 @@ function buildMap() {
 function setActiveMap(key, opts = {}) {
   const force = opts.force === true;
   if (!MAPS[key]) return;
-  if (key === 'plugins' && !isDeploymentOwnerClient) {
-    if (activeKey !== 'home') setActiveMap('home', { force: true });
-    return;
-  }
   if (key === activeKey && !force) {
     updateTabs();
     return;
@@ -378,9 +412,8 @@ function setActiveMap(key, opts = {}) {
 function isPanelMapKey(key) {
   const t = MAPS[key]?.type;
   return (
+    isSettingsMapType(t) ||
     t === 'home' ||
-    t === 'profile' ||
-    t === 'plugins' ||
     t === 'documents' ||
     t === 'knowledge' ||
     t === 'work' ||
@@ -397,8 +430,14 @@ function activateMapPanel(opts = {}) {
     loadHomeDashboard();
   } else if (MAP.type === 'profile') {
     loadProfileTab();
-  } else if (MAP.type === 'plugins') {
-    loadPluginsTab();
+  } else if (MAP.type === 'company') {
+    loadCompanyTab();
+  } else if (MAP.type === 'socials') {
+    loadSocialsTab();
+  } else if (MAP.type === 'industries') {
+    loadIndustriesTab();
+  } else if (MAP.type === 'vapi') {
+    loadVapiTab();
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {
@@ -430,7 +469,18 @@ function activateMapPanel(opts = {}) {
 }
 
 function isPanelTab() {
-  return MAP.type === 'home' || MAP.type === 'profile' || MAP.type === 'plugins' || MAP.type === 'documents' || MAP.type === 'knowledge' || MAP.type === 'work' || MAP.type === 'schedule' || MAP.type === 'clients' || MAP.type === 'chats' || MAP.type === 'email' || MAP.type === 'rules';
+  return (
+    isSettingsMapType(MAP.type) ||
+    MAP.type === 'home' ||
+    MAP.type === 'documents' ||
+    MAP.type === 'knowledge' ||
+    MAP.type === 'work' ||
+    MAP.type === 'schedule' ||
+    MAP.type === 'clients' ||
+    MAP.type === 'chats' ||
+    MAP.type === 'email' ||
+    MAP.type === 'rules'
+  );
 }
 
 function setPanelDisplay(id, display) {
@@ -444,8 +494,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('tools', isPanel ? 'none' : '');
   setPanelDisplay('legend', isPanel ? 'none' : '');
   setPanelDisplay('home-dashboard', MAP.type === 'home' ? 'flex' : 'none');
-  setPanelDisplay('profile-panel', MAP.type === 'profile' ? 'flex' : 'none');
-  setPanelDisplay('plugins-panel', MAP.type === 'plugins' ? 'flex' : 'none');
+  setPanelDisplay('settings-panel', isSettingsMapType(MAP.type) ? 'flex' : 'none');
   setPanelDisplay('doc-editor', MAP.type === 'documents' ? 'flex' : 'none');
   setPanelDisplay('knowledge-editor', MAP.type === 'knowledge' ? 'flex' : 'none');
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
@@ -1183,12 +1232,18 @@ function effectiveTabOrder(order) {
 }
 
 function defaultTabKeys() {
+  const configured = installFooterNav();
+  if (configured) return normalizeFooterNavKeys(configured);
   const keys = Object.keys(MAPS).filter((k) => !SYSTEM_MAP_SET.has(k));
   return [SYSTEM_TAB_SLOT, ...keys];
 }
 
 function normalizeTabOrderKeys(saved) {
-  if (!Array.isArray(saved)) return defaultTabKeys();
+  const baseline = defaultTabKeys();
+  const allowed = new Set(baseline);
+  const strict = Boolean(installFooterNav());
+
+  if (!Array.isArray(saved)) return baseline;
 
   const result = [];
   let systemSlot = false;
@@ -1196,17 +1251,28 @@ function normalizeTabOrderKeys(saved) {
   for (const raw of saved) {
     if (typeof raw !== 'string') continue;
     if (SYSTEM_MAP_SET.has(raw) || raw === SYSTEM_TAB_SLOT) {
-      if (!systemSlot) {
+      if (!systemSlot && allowed.has(SYSTEM_TAB_SLOT)) {
         result.push(SYSTEM_TAB_SLOT);
         systemSlot = true;
       }
       continue;
     }
-    if (MAPS[raw] && !result.includes(raw)) result.push(raw);
+    if (raw === CHAT_TAB_SLOT) {
+      if (allowed.has(CHAT_TAB_SLOT) && !result.includes(CHAT_TAB_SLOT)) {
+        result.push(CHAT_TAB_SLOT);
+      }
+      continue;
+    }
+    if (MAPS[raw] && allowed.has(raw) && !result.includes(raw)) result.push(raw);
   }
 
-  if (!systemSlot) result.unshift(SYSTEM_TAB_SLOT);
-  for (const k of defaultTabKeys()) {
+  if (!systemSlot && allowed.has(SYSTEM_TAB_SLOT)) result.unshift(SYSTEM_TAB_SLOT);
+
+  if (strict) {
+    return result.length ? result : baseline;
+  }
+
+  for (const k of baseline) {
     if (!result.includes(k)) result.push(k);
   }
   return result;
@@ -1648,7 +1714,6 @@ function toggleTopbarMenu(menuEl, toggleEl) {
 function dashboardSectionItems(order) {
   const items = [];
   for (const key of wrenchMenuTabKeys(order || cachedTabOrder || defaultTabKeys())) {
-    if (key === 'plugins' && !isDeploymentOwnerClient) continue;
     const m = MAPS[key];
     if (!m) continue;
     items.push({
@@ -1996,8 +2061,7 @@ function renderHomeDashboard(data) {
       grid.appendChild(buildHomeLinkTile({ href: m.link, label: m.title, icon: mapIconName(key) }));
     } else if (
       key !== 'home' &&
-      key !== 'profile' &&
-      key !== 'plugins' &&
+      !SETTINGS_MAP_TYPES.has(key) &&
       !HOME_DASHBOARD_FOOTER_KEYS.has(key)
     ) {
       grid.appendChild(buildHomeMapTile(key, m));
@@ -2133,13 +2197,10 @@ function bindCompanyLogoUpload(root, companyAlert) {
   });
 }
 
-function bindProfileForms(root) {
+function bindProfileForm(root) {
   const profileForm = root.querySelector('#profile-form');
   const profileBtn = root.querySelector('#profile-save-btn');
   const profileAlert = root.querySelector('#profile-alert');
-  const companyForm = root.querySelector('#company-form');
-  const companyBtn = root.querySelector('#company-save-btn');
-  const companyAlert = root.querySelector('#company-alert');
 
   profileForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -2162,6 +2223,12 @@ function bindProfileForms(root) {
       profileBtn.textContent = 'Save Profile';
     }
   });
+}
+
+function bindCompanyForm(root) {
+  const companyForm = root.querySelector('#company-form');
+  const companyBtn = root.querySelector('#company-save-btn');
+  const companyAlert = root.querySelector('#company-alert');
 
   companyForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -2186,7 +2253,34 @@ function bindProfileForms(root) {
   });
 
   bindCompanyLogoUpload(root, companyAlert);
-  bindIndustriesEditor(root);
+}
+
+function bindSocialsForm(root) {
+  const form = root.querySelector('#socials-form');
+  const btn = root.querySelector('#socials-save-btn');
+  const alertEl = root.querySelector('#socials-alert');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(form instanceof HTMLFormElement) || !(btn instanceof HTMLButtonElement)) return;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+      const json = await res.json();
+      if (res.ok) showProfileAlert(alertEl, 'Social links saved.', 'success');
+      else showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
+    } catch {
+      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Social Links';
+    }
+  });
 }
 
 function industriesRowsHtml(industries) {
@@ -2274,9 +2368,8 @@ function bindIndustriesEditor(root) {
   });
 }
 
-function renderProfilePanel(profile, company, industries) {
+function renderProfileOnlyPanel(profile) {
   const p = profile || {};
-  const c = company || {};
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -2302,8 +2395,16 @@ function renderProfilePanel(profile, company, industries) {
           `<div class="prof-actions"><button type="submit" id="profile-save-btn" class="prof-btn-primary">Save Profile</button></div>` +
         `</form>` +
       `</div>` +
+    `</div>`
+  );
+}
+
+function renderCompanyPanel(company) {
+  const c = company || {};
+  return (
+    `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
-        `<h2 class="prof-title prof-title--section">Company details</h2>` +
+        `<h1 class="prof-title">Company</h1>` +
         `<p class="prof-subtitle">Branding shown on client pages, emails, documents, and legal pages.</p>` +
         `<div id="company-alert" class="prof-alert" hidden></div>` +
         `<form id="company-form" class="prof-form">` +
@@ -2336,8 +2437,41 @@ function renderProfilePanel(profile, company, industries) {
           `<div class="prof-actions"><button type="submit" id="company-save-btn" class="prof-btn-primary">Save Company Details</button></div>` +
         `</form>` +
       `</div>` +
+    `</div>`
+  );
+}
+
+function renderSocialsPanel(company) {
+  const c = company || {};
+  const field = (id, name, label, placeholder) =>
+    `<div class="prof-field"><label for="${id}">${label}</label>` +
+    `<input id="${id}" name="${name}" type="url" value="${escHtml(c[name] || '')}" placeholder="${placeholder}" autocomplete="url" /></div>`;
+
+  return (
+    `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
-        `<h2 class="prof-title prof-title--section">Deck industries</h2>` +
+        `<h1 class="prof-title">Socials</h1>` +
+        `<p class="prof-subtitle">Public profile links for your organization.</p>` +
+        `<div id="socials-alert" class="prof-alert" hidden></div>` +
+        `<form id="socials-form" class="prof-form">` +
+          field('social-twitter', 'socialTwitter', 'X / Twitter', 'https://x.com/yourcompany') +
+          field('social-instagram', 'socialInstagram', 'Instagram', 'https://instagram.com/yourcompany') +
+          field('social-linkedin', 'socialLinkedin', 'LinkedIn', 'https://linkedin.com/company/yourcompany') +
+          field('social-facebook', 'socialFacebook', 'Facebook', 'https://facebook.com/yourcompany') +
+          field('social-youtube', 'socialYoutube', 'YouTube', 'https://youtube.com/@yourcompany') +
+          field('social-tiktok', 'socialTiktok', 'TikTok', 'https://tiktok.com/@yourcompany') +
+          `<div class="prof-actions"><button type="submit" id="socials-save-btn" class="prof-btn-primary">Save Social Links</button></div>` +
+        `</form>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function renderIndustriesPanel(industries) {
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Industries</h1>` +
         `<p class="prof-subtitle">Categories for <code>/deck?type=…</code> presets. Edit labels and slugs; turn Off to hide without deleting.</p>` +
         `<div id="industries-alert" class="prof-alert" hidden></div>` +
         `<div id="industries-list" class="ind-list">${industriesRowsHtml(industries)}</div>` +
@@ -2350,25 +2484,55 @@ function renderProfilePanel(profile, company, industries) {
   );
 }
 
+const VAPI_DEFAULT_FIRST_MESSAGE =
+  'Hi! Thanks for reaching out to {{companyName}}. How can I help you today?';
+
+const VAPI_DEFAULT_SYSTEM_PROMPT =
+  `[Identity]\nYou are the voice assistant for {{companyName}}.\n\n[About]\n{{companyDescription}}\n\n[Guidelines]\n- Speak naturally and concisely.\n- You represent {{companyName}} only. Never introduce yourself as a different brand, product, or company name.\n- Website: {{companyDomain}}\n- If you do not know an answer, say so and suggest visiting {{companyDomain}} or leaving contact details.\n\n[Channel]\nYou are on the website voice widget (web call). Keep replies short enough to say aloud in one breath.`;
+
+function renderVapiPanel(company) {
+  const c = company || {};
+  const syncBtn =
+    isDeploymentOwnerClient
+      ? `<button type="button" id="vapi-sync-btn" class="prof-btn-secondary">Sync assistant now</button>`
+      : '';
+  return (
+    `<div class="profile-panel-scroll">` +
+      `<div class="prof-card">` +
+        `<h1 class="prof-title">Vapi</h1>` +
+        `<p class="prof-subtitle">Voice assistant ID and prompts. Company name and tagline come from Admin → Company. <code>VAPI_API_KEY</code> stays on the server.</p>` +
+        `<div id="vapi-alert" class="prof-alert" hidden></div>` +
+        `<div id="vapi-plugin-status" class="prof-hint prof-hint--block">Checking status…</div>` +
+        `<form id="vapi-form" class="prof-form">` +
+          `<div class="prof-field"><label for="vapi-assistant-id">Assistant ID</label>` +
+          `<input id="vapi-assistant-id" name="vapiAssistantId" type="text" value="${escHtml(c.vapiAssistantId || '')}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" /></div>` +
+          `<div class="prof-field"><label for="vapi-first-message">First message</label>` +
+          `<textarea id="vapi-first-message" name="vapiFirstMessage" rows="3" placeholder="${escHtml(VAPI_DEFAULT_FIRST_MESSAGE)}">${escHtml(c.vapiFirstMessage || '')}</textarea>` +
+          `<span class="prof-hint">Supports <code>{{companyName}}</code> — filled at call time.</span></div>` +
+          `<div class="prof-field"><label for="vapi-system-prompt">System prompt</label>` +
+          `<textarea id="vapi-system-prompt" name="vapiSystemPrompt" rows="12" placeholder="${escHtml(VAPI_DEFAULT_SYSTEM_PROMPT.slice(0, 120))}…">${escHtml(c.vapiSystemPrompt || '')}</textarea>` +
+          `<span class="prof-hint">Supports <code>{{companyName}}</code>, <code>{{companyDescription}}</code>, <code>{{companyDomain}}</code>. Leave blank for the default template.</span></div>` +
+          `<div class="prof-actions">` +
+            `<button type="submit" id="vapi-save-btn" class="prof-btn-primary">Save Vapi Settings</button>` +
+            syncBtn +
+          `</div>` +
+        `</form>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
 async function loadProfileTab() {
-  const root = document.getElementById('profile-panel');
+  const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
 
   try {
-    const [profileRes, companyRes, industriesRes] = await Promise.all([
-      fetch('/api/admin/profile', { cache: 'no-store' }),
-      fetch('/api/admin/company', { cache: 'no-store' }),
-      fetch('/api/admin/deck-industries', { cache: 'no-store' }),
-    ]);
+    const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
     const profileData = await profileRes.json();
-    const companyData = await companyRes.json();
-    const industriesData = await industriesRes.json().catch(() => ({}));
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
-    if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
-    const industries = industriesRes.ok && industriesData.ok ? industriesData.industries : [];
-    root.innerHTML = renderProfilePanel(profileData.profile, companyData.company, industries);
-    bindProfileForms(root);
+    root.innerHTML = renderProfileOnlyPanel(profileData.profile);
+    bindProfileForm(root);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +
@@ -2378,62 +2542,141 @@ async function loadProfileTab() {
   }
 }
 
-function renderPluginsPanel(data) {
-  const groups = Array.isArray(data?.groups) ? data.groups : [];
-  const coreNote = data?.coreNote || '';
-  const count = data?.slashCommandCount ?? 0;
-  const groupsHtml = groups
-    .map((group) => {
-      const modules = Array.isArray(group.modules) ? group.modules : [];
-      const rows = modules
-        .map(
-          (mod) =>
-            `<div class="prof-plugin-row">` +
-              `<div class="prof-plugin-copy">` +
-                `<div class="prof-plugin-label">${escHtml(mod.label || mod.id)}</div>` +
-              `</div>` +
-              `<button type="button" class="prof-plugin-toggle" role="switch" aria-checked="${mod.enabled ? 'true' : 'false'}" data-feature-id="${escHtml(mod.id)}" aria-label="Toggle ${escHtml(mod.label || mod.id)}"></button>` +
-            `</div>`,
-        )
-        .join('');
-      return (
-        `<div class="prof-plugin-group">` +
-          `<h3 class="prof-plugin-group-title">${escHtml(group.title || '')}</h3>` +
-          rows +
-        `</div>`
-      );
-    })
-    .join('');
+async function loadCompanyTab() {
+  const root = settingsPanelRoot();
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
 
-  return (
-    `<div class="profile-panel-scroll">` +
-      `<div class="prof-card">` +
-        `<h1 class="prof-title">Plugins</h1>` +
-        `<p class="prof-subtitle">Turn features on or off for this deployment. Disabled plugins remove their / slash commands from chat.</p>` +
-        `<p class="prof-hint prof-hint--block">${escHtml(coreNote)}</p>` +
-        `<p class="prof-hint prof-hint--block"><strong id="plugins-slash-count">${count}</strong> slash commands currently available.</p>` +
-        `<div id="plugins-alert" class="prof-alert" hidden></div>` +
-        `<div id="plugins-form">${groupsHtml}</div>` +
-      `</div>` +
-      renderVapiPluginCard(data) +
-    `</div>`
-  );
+  try {
+    const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
+    const companyData = await companyRes.json();
+    if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
+    root.innerHTML = renderCompanyPanel(companyData.company);
+    bindCompanyForm(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Company</h1>` +
+        `<p class="dash-empty">Could not load company details: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
 }
 
-function renderVapiPluginCard(data) {
-  const enabled = new Set(Array.isArray(data?.enabled) ? data.enabled : []);
-  if (!enabled.has('vapi')) return '';
+async function loadSocialsTab() {
+  const root = settingsPanelRoot();
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
 
-  return (
-    `<div class="prof-card" id="vapi-plugin-card">` +
-      `<h2 class="prof-title prof-title--section">Vapi assistant</h2>` +
-      `<p class="prof-subtitle">Syncs assistant name and prompts from Profile → Company details. The public homepage voice widget is configured separately per installation.</p>` +
-      `<div id="vapi-plugin-status" class="prof-hint prof-hint--block">Checking status…</div>` +
-      `<div class="prof-actions">` +
-        `<button type="button" id="vapi-sync-btn" class="prof-btn-primary">Sync Vapi assistant now</button>` +
-      `</div>` +
-    `</div>`
-  );
+  try {
+    const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
+    const companyData = await companyRes.json();
+    if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
+    root.innerHTML = renderSocialsPanel(companyData.company);
+    bindSocialsForm(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Socials</h1>` +
+        `<p class="dash-empty">Could not load social links: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
+async function loadIndustriesTab() {
+  const root = settingsPanelRoot();
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading industries…</div></div>';
+
+  try {
+    const industriesRes = await fetch('/api/admin/deck-industries', { cache: 'no-store' });
+    const industriesData = await industriesRes.json().catch(() => ({}));
+    if (!industriesRes.ok || !industriesData.ok) {
+      throw new Error(industriesData.error || `HTTP ${industriesRes.status}`);
+    }
+    root.innerHTML = renderIndustriesPanel(industriesData.industries);
+    bindIndustriesEditor(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Industries</h1>` +
+        `<p class="dash-empty">Could not load industries: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
+function bindVapiForm(root) {
+  const form = root.querySelector('#vapi-form');
+  const saveBtn = root.querySelector('#vapi-save-btn');
+  const alertEl = root.querySelector('#vapi-alert');
+  const syncBtn = root.querySelector('#vapi-sync-btn');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(form instanceof HTMLFormElement) || !(saveBtn instanceof HTMLButtonElement)) return;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/company', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        showProfileAlert(alertEl, 'Vapi settings saved.', 'success');
+        void refreshVapiPluginStatus();
+      } else {
+        showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
+      }
+    } catch {
+      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Vapi Settings';
+    }
+  });
+
+  if (syncBtn && !syncBtn.dataset.bound) {
+    syncBtn.dataset.bound = '1';
+    syncBtn.addEventListener('click', async () => {
+      syncBtn.disabled = true;
+      const statusEl = root.querySelector('#vapi-plugin-status');
+      if (statusEl) statusEl.textContent = 'Syncing…';
+      try {
+        const res = await adminFetch('/api/admin/vapi', { method: 'POST' });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        showProfileAlert(alertEl, `Synced for ${json.companyName}.`, 'success');
+      } catch (e) {
+        showProfileAlert(alertEl, e.message || 'Sync failed.', 'error');
+      } finally {
+        syncBtn.disabled = false;
+        void refreshVapiPluginStatus();
+      }
+    });
+  }
+
+  void refreshVapiPluginStatus();
+}
+
+async function loadVapiTab() {
+  const root = settingsPanelRoot();
+  if (!root) return;
+  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading Vapi…</div></div>';
+
+  try {
+    const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
+    const companyData = await companyRes.json();
+    if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
+    root.innerHTML = renderVapiPanel(companyData.company);
+    bindVapiForm(root);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="profile-panel-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Vapi</h1>` +
+        `<p class="dash-empty">Could not load Vapi settings: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
 }
 
 async function refreshVapiPluginStatus() {
@@ -2445,114 +2688,16 @@ async function refreshVapiPluginStatus() {
     const json = await res.json();
     if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
     const parts = [
-      json.configured ? 'Ready to sync' : 'Not configured — set VAPI_API_KEY on the server',
+      json.pluginEnabled ? 'Vapi module enabled' : 'Add "vapi" to features in install config',
+      json.configured ? 'Ready to sync' : 'Not configured — set assistant ID and VAPI_API_KEY',
       json.companyName ? `Company: ${json.companyName}` : '',
       json.assistantId ? `Assistant: ${json.assistantId}` : '',
     ].filter(Boolean);
     statusEl.textContent = parts.join(' · ');
-    if (btn) btn.disabled = !json.configured;
+    if (btn) btn.disabled = !json.configured || !json.pluginEnabled;
   } catch (e) {
     statusEl.textContent = `Status unavailable: ${e.message}`;
     if (btn) btn.disabled = true;
-  }
-}
-
-function bindVapiPluginCard(root) {
-  const btn = root.querySelector('#vapi-sync-btn');
-  const statusEl = root.querySelector('#vapi-plugin-status');
-  if (!btn || btn.dataset.bound) return;
-  btn.dataset.bound = '1';
-  void refreshVapiPluginStatus();
-  btn.addEventListener('click', async () => {
-    btn.disabled = true;
-    if (statusEl) statusEl.textContent = 'Syncing…';
-    try {
-      const res = await adminFetch('/api/admin/vapi', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      if (statusEl) {
-        statusEl.textContent = `Synced for ${json.companyName} · ${json.firstMessage || 'updated'}`;
-      }
-    } catch (e) {
-      if (statusEl) statusEl.textContent = `Sync failed: ${e.message}`;
-    } finally {
-      btn.disabled = false;
-      void refreshVapiPluginStatus();
-    }
-  });
-}
-
-let pluginsSaveTimer = null;
-
-async function autosavePlugins(enabled, alertEl, countEl) {
-  try {
-    const res = await adminFetch('/api/admin/features', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: [...enabled] }),
-    });
-    const json = await res.json();
-    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-    if (countEl) countEl.textContent = String(json.slashCommandCount ?? 0);
-  } catch (e) {
-    showProfileAlert(alertEl, e.message || 'Save failed.', 'error');
-  }
-}
-
-function schedulePluginsAutosave(enabled, alertEl, countEl) {
-  clearTimeout(pluginsSaveTimer);
-  pluginsSaveTimer = setTimeout(() => {
-    pluginsSaveTimer = null;
-    void autosavePlugins(enabled, alertEl, countEl);
-  }, 500);
-}
-
-function bindPluginsPanel(root, initialEnabled) {
-  const enabled = new Set(Array.isArray(initialEnabled) ? initialEnabled : []);
-  const alertEl = root.querySelector('#plugins-alert');
-  const countEl = root.querySelector('#plugins-slash-count');
-
-  root.querySelectorAll('.prof-plugin-toggle[data-feature-id]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-feature-id');
-      if (!id) return;
-      const on = btn.getAttribute('aria-checked') !== 'true';
-      btn.setAttribute('aria-checked', on ? 'true' : 'false');
-      if (on) enabled.add(id);
-      else enabled.delete(id);
-      schedulePluginsAutosave(enabled, alertEl, countEl);
-      if (id === 'vapi') void loadPluginsTab();
-    });
-  });
-
-  bindVapiPluginCard(root);
-}
-
-async function loadPluginsTab() {
-  const root = document.getElementById('plugins-panel');
-  if (!root) return;
-  if (!isDeploymentOwnerClient) {
-    root.innerHTML =
-      `<div class="profile-panel-scroll">` +
-        `<div class="prof-card"><h1 class="prof-title">Plugins</h1>` +
-        `<p class="dash-empty">Plugins are only available to the deployment owner.</p></div>` +
-      `</div>`;
-    return;
-  }
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading plugins…</div></div>';
-
-  try {
-    const res = await adminFetch('/api/admin/features');
-    const data = await res.json();
-    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    root.innerHTML = renderPluginsPanel(data);
-    bindPluginsPanel(root, data.enabled);
-  } catch (e) {
-    root.innerHTML =
-      `<div class="profile-panel-scroll">` +
-        `<div class="prof-card"><h1 class="prof-title">Plugins</h1>` +
-        `<p class="dash-empty">Could not load plugins: ${escHtml(e.message)}</p></div>` +
-      `</div>`;
   }
 }
 
@@ -2776,7 +2921,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #profile-panel, #plugins-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -3611,25 +3756,16 @@ function initTopbarMenus() {
     });
   }
 
-  const profileLink = document.getElementById('topbar-profile-link');
-  if (profileLink && !profileLink.dataset.bound) {
-    profileLink.dataset.bound = '1';
-    profileLink.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      closeTopbarMenus();
-      setActiveMap('profile', { force: activeKey === 'profile' });
-    });
-  }
-
-  const pluginsLink = document.getElementById('topbar-plugins-link');
-  if (pluginsLink && !pluginsLink.dataset.bound) {
-    pluginsLink.dataset.bound = '1';
-    pluginsLink.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      closeTopbarMenus();
-      setActiveMap('plugins', { force: activeKey === 'plugins' });
-    });
+  for (const key of window.__installConfig?.profileMenu || []) {
+    const el = document.getElementById(`topbar-${key}-link`);
+    if (el && !el.dataset.bound) {
+      el.dataset.bound = '1';
+      el.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        closeTopbarMenus();
+        setActiveMap(key, { force: activeKey === key });
+      });
+    }
   }
 
   const signOutBtn = document.getElementById('topbar-sign-out');
@@ -11688,7 +11824,6 @@ function loadPositions() {
 function loadActiveKey() {
   try {
     const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'plugins' && !isDeploymentOwnerClient) return 'home';
     if (tab && MAPS[tab]) return tab;
   } catch {}
   let key;
@@ -11697,7 +11832,6 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
-  if (key === 'plugins' && !isDeploymentOwnerClient) return 'home';
   return MAPS[key] ? key : 'home';
 }
 function saveActiveKey() {

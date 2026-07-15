@@ -12,7 +12,7 @@ import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/com
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
-const showHomepageVoice = isHomepageVoiceWidgetEnabled();
+const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
 ---
 
 <Layout>
@@ -31,6 +31,7 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled();
   {showHomepageVoice && (
     <VoiceChatButton
       position="center-bottom"
+      assistantId={company.vapiAssistantId || undefined}
       companyName={company.name}
       companyDescription={company.description}
       companyDomain={company.domain}

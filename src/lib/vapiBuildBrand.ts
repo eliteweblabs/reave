@@ -18,6 +18,12 @@ export type BuildBrandContext = {
   inboundEmailExample: string;
 };
 
+export type BuildVapiTemplates = {
+  assistantId?: string;
+  firstMessage?: string;
+  systemPrompt?: string;
+};
+
 const DEFAULT_NAME = 'Business OS';
 const DEFAULT_DESCRIPTION = 'Automated client communication platform';
 
@@ -84,6 +90,23 @@ function readFileBrand(): BuildBrandContext | null {
   }
 }
 
+function readFileVapiTemplates(): BuildVapiTemplates | null {
+  const path =
+    trim(process.env.COMPANY_CONFIG_FILE) ||
+    join(projectRoot(), 'src', 'knowledge', 'company-config.json');
+  if (!existsSync(path)) return null;
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+    return {
+      assistantId: typeof raw.vapiAssistantId === 'string' ? raw.vapiAssistantId.trim() : undefined,
+      firstMessage: typeof raw.vapiFirstMessage === 'string' ? raw.vapiFirstMessage : undefined,
+      systemPrompt: typeof raw.vapiSystemPrompt === 'string' ? raw.vapiSystemPrompt : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function readPostgresBrand(): Promise<BuildBrandContext | null> {
   const url = trim(process.env.DATABASE_URL);
   if (!url) return null;
@@ -118,6 +141,41 @@ async function readPostgresBrand(): Promise<BuildBrandContext | null> {
   }
 }
 
+async function readPostgresVapiTemplates(): Promise<BuildVapiTemplates | null> {
+  const url = trim(process.env.DATABASE_URL);
+  if (!url) return null;
+
+  const pool = new pg.Pool({
+    connectionString: url,
+    ssl: /sslmode=(require|verify-full|verify-ca)/i.test(url)
+      ? { rejectUnauthorized: false }
+      : undefined,
+    max: 1,
+  });
+
+  try {
+    const res = await pool.query<{
+      vapi_assistant_id: string | null;
+      vapi_first_message: string | null;
+      vapi_system_prompt: string | null;
+    }>(
+      `SELECT vapi_assistant_id, vapi_first_message, vapi_system_prompt
+       FROM company_config WHERE id = 1 LIMIT 1`,
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    return {
+      assistantId: row.vapi_assistant_id?.trim() || undefined,
+      firstMessage: row.vapi_first_message ?? undefined,
+      systemPrompt: row.vapi_system_prompt ?? undefined,
+    };
+  } catch {
+    return null;
+  } finally {
+    await pool.end().catch(() => undefined);
+  }
+}
+
 /** Brand for Vapi prebuild sync — Postgres → file → env → defaults. */
 export async function loadBuildBrandContext(): Promise<BuildBrandContext> {
   const fromPg = await readPostgresBrand();
@@ -127,6 +185,17 @@ export async function loadBuildBrandContext(): Promise<BuildBrandContext> {
   if (fromFile) return fromFile;
 
   return brandFromParts({});
+}
+
+/** Vapi assistant ID + prompt templates for build scripts. */
+export async function loadBuildVapiTemplates(): Promise<BuildVapiTemplates> {
+  const fromPg = await readPostgresVapiTemplates();
+  if (fromPg) return fromPg;
+
+  const fromFile = readFileVapiTemplates();
+  if (fromFile) return fromFile;
+
+  return {};
 }
 
 function normalizeFeatureIds(raw: unknown): string[] {
@@ -154,18 +223,6 @@ function normalizeFeatureIds(raw: unknown): string[] {
   return out;
 }
 
-function readFileFeatures(): string[] | null {
-  const path = join(projectRoot(), 'src', 'knowledge', 'features.json');
-  if (!existsSync(path)) return null;
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!parsed || typeof parsed !== 'object') return null;
-    return normalizeFeatureIds((parsed as { enabled?: unknown }).enabled);
-  } catch {
-    return null;
-  }
-}
-
 function parseFeaturesEnv(): string[] {
   const raw = trim(process.env.FEATURES);
   if (!raw) return [];
@@ -176,39 +233,11 @@ function parseFeaturesEnv(): string[] {
   }
 }
 
-async function readPostgresFeatures(): Promise<string[] | null> {
-  const url = trim(process.env.DATABASE_URL);
-  if (!url) return null;
-
-  const pool = new pg.Pool({
-    connectionString: url,
-    ssl: /sslmode=(require|verify-full|verify-ca)/i.test(url)
-      ? { rejectUnauthorized: false }
-      : undefined,
-    max: 1,
-  });
-
-  try {
-    const res = await pool.query<{ enabled: unknown }>(
-      'SELECT enabled FROM feature_config WHERE id = 1 LIMIT 1',
-    );
-    const row = res.rows[0];
-    if (!row) return null;
-    return normalizeFeatureIds(row.enabled);
-  } catch {
-    return null;
-  } finally {
-    await pool.end().catch(() => undefined);
-  }
-}
-
-/** Enabled plugins for build scripts — Postgres → features.json → FEATURES env. */
+/** Enabled plugins for build scripts — install config → FEATURES env. */
 export async function loadBuildEnabledFeatures(): Promise<string[]> {
-  const fromPg = await readPostgresFeatures();
-  if (fromPg?.length) return fromPg;
-
-  const fromFile = readFileFeatures();
-  if (fromFile?.length) return fromFile;
+  const { getInstallConfigSync } = await import('./installConfig.ts');
+  const fromInstall = getInstallConfigSync().features;
+  if (fromInstall.length) return fromInstall;
 
   const fromEnv = parseFeaturesEnv();
   if (fromEnv.length) return fromEnv;

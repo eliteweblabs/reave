@@ -102,6 +102,18 @@ export type CompanyConfig = {
   logoSource: 'admin' | 'default' | 'hidden';
   /** Bust browser cache after admin logo changes. */
   logoVersion: string;
+  /** Vapi assistant UUID — admin setting, env fallback. */
+  vapiAssistantId: string;
+  /** Spoken greeting template (supports {{companyName}}). */
+  vapiFirstMessage: string;
+  /** System prompt synced to Vapi (supports {{companyName}}, etc.). */
+  vapiSystemPrompt: string;
+  socialTwitter: string;
+  socialInstagram: string;
+  socialLinkedin: string;
+  socialFacebook: string;
+  socialYoutube: string;
+  socialTiktok: string;
 };
 
 function trim(s: string | null | undefined): string {
@@ -206,8 +218,31 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     serverEnv('COMPANY_FROM_EMAIL'),
     domain ? `noreply@${domain}` : '',
   );
+  const vapiAssistantId = pick(
+    stored?.vapiAssistantId,
+    serverEnv('VAPI_ASSISTANT_ID'),
+    serverEnv('PUBLIC_VAPI_ASSISTANT_ID'),
+  );
 
-  const config = { name, legalName, description, domain, supportEmail, supportPhone, fromEmail, ...logo };
+  const config = {
+    name,
+    legalName,
+    description,
+    domain,
+    supportEmail,
+    supportPhone,
+    fromEmail,
+    vapiAssistantId,
+    vapiFirstMessage: stored?.vapiFirstMessage?.trim() || '',
+    vapiSystemPrompt: stored?.vapiSystemPrompt?.trim() || '',
+    socialTwitter: trim(stored?.socialTwitter),
+    socialInstagram: trim(stored?.socialInstagram),
+    socialLinkedin: trim(stored?.socialLinkedin),
+    socialFacebook: trim(stored?.socialFacebook),
+    socialYoutube: trim(stored?.socialYoutube),
+    socialTiktok: trim(stored?.socialTiktok),
+    ...logo,
+  };
   _cachedName = name;
   _cachedDomain = domain;
   return config;
@@ -242,16 +277,37 @@ export type CompanyConfigInput = {
   supportEmail?: string;
   supportPhone?: string;
   fromEmail?: string;
+  vapiAssistantId?: string;
+  vapiFirstMessage?: string;
+  vapiSystemPrompt?: string;
+  socialTwitter?: string;
+  socialInstagram?: string;
+  socialLinkedin?: string;
+  socialFacebook?: string;
+  socialYoutube?: string;
+  socialTiktok?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
-  return {
-    name: trim(input.name) || null,
-    legalName: trim(input.legalName) || null,
-    description: trim(input.description) || null,
-    domain: null,
-    supportEmail: trim(input.supportEmail) || null,
-    supportPhone: trim(input.supportPhone) || null,
-    fromEmail: trim(input.fromEmail) || null,
-  };
+  const out: StoredCompanyConfig = {};
+  if (input.name !== undefined) out.name = trim(input.name) || null;
+  if (input.legalName !== undefined) out.legalName = trim(input.legalName) || null;
+  if (input.description !== undefined) out.description = trim(input.description) || null;
+  if (input.supportEmail !== undefined) out.supportEmail = trim(input.supportEmail) || null;
+  if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
+  if (input.fromEmail !== undefined) out.fromEmail = trim(input.fromEmail) || null;
+  if (input.vapiAssistantId !== undefined) out.vapiAssistantId = trim(input.vapiAssistantId) || null;
+  if (input.vapiFirstMessage !== undefined) {
+    out.vapiFirstMessage = input.vapiFirstMessage.trim() ? input.vapiFirstMessage : null;
+  }
+  if (input.vapiSystemPrompt !== undefined) {
+    out.vapiSystemPrompt = input.vapiSystemPrompt.trim() ? input.vapiSystemPrompt : null;
+  }
+  if (input.socialTwitter !== undefined) out.socialTwitter = trim(input.socialTwitter) || null;
+  if (input.socialInstagram !== undefined) out.socialInstagram = trim(input.socialInstagram) || null;
+  if (input.socialLinkedin !== undefined) out.socialLinkedin = trim(input.socialLinkedin) || null;
+  if (input.socialFacebook !== undefined) out.socialFacebook = trim(input.socialFacebook) || null;
+  if (input.socialYoutube !== undefined) out.socialYoutube = trim(input.socialYoutube) || null;
+  if (input.socialTiktok !== undefined) out.socialTiktok = trim(input.socialTiktok) || null;
+  return out;
 }

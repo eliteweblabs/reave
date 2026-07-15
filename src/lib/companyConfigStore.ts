@@ -26,6 +26,15 @@ export type StoredCompanyConfig = {
   logoPath?: string | null;
   logoData?: string | null;
   logoMediaType?: string | null;
+  vapiAssistantId?: string | null;
+  vapiFirstMessage?: string | null;
+  vapiSystemPrompt?: string | null;
+  socialTwitter?: string | null;
+  socialInstagram?: string | null;
+  socialLinkedin?: string | null;
+  socialFacebook?: string | null;
+  socialYoutube?: string | null;
+  socialTiktok?: string | null;
   updatedAt?: string | null;
 };
 
@@ -50,6 +59,15 @@ const SCHEMA_MIGRATE_SQL = `
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_media_type TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_assistant_id TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_first_message TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_system_prompt TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_twitter TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_instagram TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_linkedin TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_facebook TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_youtube TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_tiktok TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -130,6 +148,15 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
     logoData: typeof o.logoData === 'string' && o.logoData ? o.logoData : null,
     logoMediaType: typeof o.logoMediaType === 'string' && o.logoMediaType ? o.logoMediaType.trim() : null,
+    vapiAssistantId: str('vapiAssistantId') || null,
+    vapiFirstMessage: typeof o.vapiFirstMessage === 'string' ? o.vapiFirstMessage : null,
+    vapiSystemPrompt: typeof o.vapiSystemPrompt === 'string' ? o.vapiSystemPrompt : null,
+    socialTwitter: str('socialTwitter') || null,
+    socialInstagram: str('socialInstagram') || null,
+    socialLinkedin: str('socialLinkedin') || null,
+    socialFacebook: str('socialFacebook') || null,
+    socialYoutube: str('socialYoutube') || null,
+    socialTiktok: str('socialTiktok') || null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -171,10 +198,22 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     logo_path: string | null;
     logo_data: string | null;
     logo_media_type: string | null;
+    vapi_assistant_id: string | null;
+    vapi_first_message: string | null;
+    vapi_system_prompt: string | null;
+    social_twitter: string | null;
+    social_instagram: string | null;
+    social_linkedin: string | null;
+    social_facebook: string | null;
+    social_youtube: string | null;
+    social_tiktok: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
-            logo_path, logo_data, logo_media_type, updated_at
+            logo_path, logo_data, logo_media_type,
+            vapi_assistant_id, vapi_first_message, vapi_system_prompt,
+            social_twitter, social_instagram, social_linkedin, social_facebook,
+            social_youtube, social_tiktok, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -190,6 +229,15 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     logoPath: row.logo_path,
     logoData: row.logo_data,
     logoMediaType: row.logo_media_type,
+    vapiAssistantId: row.vapi_assistant_id,
+    vapiFirstMessage: row.vapi_first_message,
+    vapiSystemPrompt: row.vapi_system_prompt,
+    socialTwitter: row.social_twitter,
+    socialInstagram: row.social_instagram,
+    socialLinkedin: row.social_linkedin,
+    socialFacebook: row.social_facebook,
+    socialYoutube: row.social_youtube,
+    socialTiktok: row.social_tiktok,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -209,6 +257,15 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        logo_path = $8,
        logo_data = $9,
        logo_media_type = $10,
+       vapi_assistant_id = $11,
+       vapi_first_message = $12,
+       vapi_system_prompt = $13,
+       social_twitter = $14,
+       social_instagram = $15,
+       social_linkedin = $16,
+       social_facebook = $17,
+       social_youtube = $18,
+       social_tiktok = $19,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -222,6 +279,15 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.logoPath ?? null,
       config.logoData ?? null,
       config.logoMediaType ?? null,
+      config.vapiAssistantId ?? null,
+      config.vapiFirstMessage ?? null,
+      config.vapiSystemPrompt ?? null,
+      config.socialTwitter ?? null,
+      config.socialInstagram ?? null,
+      config.socialLinkedin ?? null,
+      config.socialFacebook ?? null,
+      config.socialYoutube ?? null,
+      config.socialTiktok ?? null,
     ],
   );
   return true;

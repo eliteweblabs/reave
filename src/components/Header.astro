@@ -1,5 +1,6 @@
 ---
 import { getCompanyConfig, companyLogoUrl } from "../lib/companyConfig";
+import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import {
   MessageCircle,
@@ -25,13 +26,20 @@ interface Props {
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
   staffPreview?: boolean;
-  /** Deployment owner — show Plugins in account menu */
-  showPlugins?: boolean;
+  /** Settings links in the account dropdown (from install config). */
+  profileMenu?: readonly ProfileMenuKey[];
   /** Open the sign-in bottom sheet on load (signed-out admin shell). */
   signInAutoOpen?: boolean;
 }
 
-const { adminShell = false, hideLogo = false, homeAdminEntry = false, staffPreview = false, showPlugins = false, signInAutoOpen: signInAutoOpenProp = false } = Astro.props;
+const {
+  adminShell = false,
+  hideLogo = false,
+  homeAdminEntry = false,
+  staffPreview = false,
+  profileMenu = [],
+  signInAutoOpen: signInAutoOpenProp = false,
+} = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
 const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
@@ -125,14 +133,16 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               </button>
               <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
-              <button type="button" id="topbar-profile-link" class="topbar-dropdown-item" role="menuitem">
-                Profile
-              </button>
-              {showPlugins ? (
-                <button type="button" id="topbar-plugins-link" class="topbar-dropdown-item" role="menuitem">
-                  Plugins
+              {profileMenu.map((key) => (
+                <button
+                  type="button"
+                  id={`topbar-${key}-link`}
+                  class="topbar-dropdown-item"
+                  role="menuitem"
+                >
+                  {PROFILE_MENU_LABELS[key]}
                 </button>
-              ) : null}
+              ))}
               <div class="topbar-dropdown-divider"></div>
               <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
                 Sign out

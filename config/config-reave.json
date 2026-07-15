@@ -1,0 +1,38 @@
+{
+  "features": [
+    "client_portal",
+    "web_handoff",
+    "billing",
+    "site_audits",
+    "site_monitoring",
+    "uptime_monitoring",
+    "documents",
+    "voice",
+    "vapi",
+    "carddav",
+    "scheduling",
+    "dev_infra"
+  ],
+  "footerNav": [
+    "__system__",
+    "home",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "socials",
+    "industries",
+    "vapi"
+  ],
+  "homepageVoice": true
+}

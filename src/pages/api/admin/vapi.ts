@@ -3,17 +3,18 @@
  * POST /api/admin/vapi — sync assistant branding from Company details
  */
 import type { APIContext } from 'astro';
-import { getCompanyBrandContext } from '../../../lib/companyConfig';
+import { getCompanyBrandContext, getCompanyConfig } from '../../../lib/companyConfig';
 import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 import {
   isVapiAdminConfigured,
   isVapiAdminPluginEnabled,
-  vapiAssistantId,
+  resolveVapiAssistantId,
   vapiPublicKey,
 } from '../../../lib/vapiPlugin';
 import {
   syncVapiAssistantBrand,
   vapiFirstMessageTemplate,
+  vapiSystemPromptTemplate,
   isVapiSyncConfigured,
 } from '../../../lib/vapiAssistantSync';
 
@@ -26,23 +27,34 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export async function GET(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
-  if (auth instanceof Response) return auth;
+function vapiTemplatesFromCompany(company: Awaited<ReturnType<typeof getCompanyConfig>>) {
+  return {
+    assistantId: company.vapiAssistantId || undefined,
+    firstMessage: company.vapiFirstMessage || undefined,
+    systemPrompt: company.vapiSystemPrompt || undefined,
+  };
+}
 
+export async function GET(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ error: 'Unauthorized' }, 401);
+
+  const company = await getCompanyConfig(context.request);
   const brand = await getCompanyBrandContext(context.request);
+  const templates = vapiTemplatesFromCompany(company);
 
   return json({
     ok: true,
     pluginEnabled: isVapiAdminPluginEnabled(),
-    configured: isVapiAdminConfigured(),
-    syncReady: isVapiSyncConfigured(),
-    assistantId: vapiAssistantId() ?? null,
+    configured: isVapiAdminConfigured(company),
+    syncReady: isVapiSyncConfigured(templates),
+    assistantId: resolveVapiAssistantId(company) ?? null,
     publicKeySet: Boolean(vapiPublicKey()),
     companyName: brand.name,
-    firstMessageTemplate: vapiFirstMessageTemplate(),
+    firstMessageTemplate: vapiFirstMessageTemplate(templates),
+    systemPromptTemplate: vapiSystemPromptTemplate(templates),
     note:
-      'Admin Vapi plugin syncs assistant name/prompt from Company details. The public homepage voice widget is a separate installation setting (PUBLIC_INSTALL_HOMEPAGE_VOICE).',
+      'Admin Vapi plugin syncs assistant name/prompt from Admin → Vapi and Company details. The public homepage voice widget is a separate installation setting (PUBLIC_INSTALL_HOMEPAGE_VOICE).',
   });
 }
 
@@ -51,11 +63,13 @@ export async function POST(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   if (!isVapiAdminPluginEnabled()) {
-    return json({ ok: false, error: 'Enable the Vapi plugin in Admin → Plugins first.' }, 403);
+    return json({ ok: false, error: 'Enable "vapi" in the install config features array.' }, 403);
   }
 
+  const company = await getCompanyConfig(context.request);
   const brand = await getCompanyBrandContext(context.request);
-  const result = await syncVapiAssistantBrand(brand);
+  const templates = vapiTemplatesFromCompany(company);
+  const result = await syncVapiAssistantBrand(brand, { templates });
 
   if (!result.ok) {
     const status = result.skipped ? 400 : 502;

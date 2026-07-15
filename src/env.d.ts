@@ -103,6 +103,10 @@ interface ImportMetaEnv {
    * '["client_portal","billing","site_audits","site_monitoring","web_handoff"]'
    */
   FEATURES?: string;
+  /** Install config slug — loads config/config-{slug}.json */
+  INSTALL_CONFIG?: string;
+  /** Absolute path to install config JSON (overrides slug lookup). */
+  INSTALL_CONFIG_FILE?: string;
   /** Self-hosted ChangeDetection.io base URL (no trailing slash). */
   CHANGEDETECTION_BASE_URL?: string;
   /** ChangeDetection.io API key (Settings → API). */

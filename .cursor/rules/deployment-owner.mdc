@@ -5,12 +5,11 @@ alwaysApply: true
 
 # Deployment Owner
 
-The deployment owner username defaults to the **company display name** from admin → Profile (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
+The deployment owner username defaults to the **company display name** from admin → Company (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
 
 Owner-only UI today:
-- **Plugins** page (account menu → Plugins)
-- `GET` / `PUT` `/api/admin/features`
+- **Vapi sync** (`POST /api/admin/vapi`, `/vapi-sync` agent command)
 
 Match is case-insensitive against the signed-in Clerk user's id (`AGENT_ALERT_USER_ID`), or `username`, `firstName`, `lastName`, full name, or primary email (full or local part).
 
-Other signed-in users can use the rest of admin; they do not see Plugins or manage feature toggles.
+Feature modules and admin navigation are configured per install in `config/config-{slug}.json` (not in the admin UI).
