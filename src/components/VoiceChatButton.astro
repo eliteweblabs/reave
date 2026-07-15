@@ -198,20 +198,24 @@ const positionClasses = {
         });
 
         // Check initial state
-        const initialAuth = $authStore.get();
-        console.log("Initial Clerk auth store:", initialAuth);
-        if (initialAuth && initialAuth.userId) {
-          userId = initialAuth.userId;
-          isAuthenticated = true;
-          console.log("Initial Clerk auth state - user authenticated:", userId);
+        if ($authStore && typeof $authStore.get === 'function') {
+          const initialAuth = $authStore.get();
+          console.log("Initial Clerk auth store:", initialAuth);
+          if (initialAuth && initialAuth.userId) {
+            userId = initialAuth.userId;
+            isAuthenticated = true;
+            console.log("Initial Clerk auth state - user authenticated:", userId);
+          }
         }
 
-        const initialUser = $userStore.get();
-        console.log("Initial Clerk user store:", initialUser);
-        if (initialUser && initialUser.id) {
-          userId = initialUser.id;
-          isAuthenticated = true;
-          console.log("Initial Clerk user state - user:", userId);
+        if ($userStore && typeof $userStore.get === 'function') {
+          const initialUser = $userStore.get();
+          console.log("Initial Clerk user store:", initialUser);
+          if (initialUser && initialUser.id) {
+            userId = initialUser.id;
+            isAuthenticated = true;
+            console.log("Initial Clerk user state - user:", userId);
+          }
         }
       } else {
         // Fallback: check window.Clerk directly when it loads
