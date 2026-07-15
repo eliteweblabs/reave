@@ -2,6 +2,7 @@
  * Sandboxed dev/ops tasks callable from the admin agent.
  * Only allowlisted tasks run — no arbitrary shell commands.
  */
+import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured } from './contactApi';
 import { isBookingConfigured, bookingPing } from './bookingClient';
 import { isCardDavConfigured } from './carddav/auth';
@@ -145,7 +146,12 @@ export async function runDevTask(task: DevTaskName): Promise<DevTaskResult> {
           error: 'Need CLOUDFLARE_API_TOKEN and RESEND_API_KEY for Resend → Cloudflare DNS sync',
         };
       }
-      const out = await syncResendDnsToCloudflare('reave.app');
+      const brand = await getCompanyBrandContext();
+      const domain = brand.domain;
+      if (!domain) {
+        return { ok: false, error: 'Company domain is not configured (admin → Profile → Company details)' };
+      }
+      const out = await syncResendDnsToCloudflare(domain);
       if (!out.ok) return { ok: false, error: out.error };
       return { ok: true, task, result: { ...out, summary: out.summary } };
     }

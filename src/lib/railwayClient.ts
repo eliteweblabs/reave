@@ -2,6 +2,7 @@
  * Minimal Railway public GraphQL client (account / workspace token).
  * @see https://docs.railway.com/integrations/api
  */
+import { cachedCompanyBrandName } from './companyConfig';
 import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -77,10 +78,9 @@ export async function createRailwayEmptyProject(name: string): Promise<
   }
 
   const workspaceId = serverEnv('RAILWAY_WORKSPACE_ID')?.trim();
-  const prefix = serverEnv('RAILWAY_PROJECT_DESCRIPTION_PREFIX')?.trim();
-
+  const prefix = serverEnv('RAILWAY_PROJECT_DESCRIPTION_PREFIX')?.trim() || cachedCompanyBrandName();
   const input: Record<string, string> = { name: clean };
-  if (prefix) input.description = `${prefix} (via Reave admin agent)`;
+  if (prefix) input.description = `${prefix} (via admin agent)`;
   if (workspaceId) input.workspaceId = workspaceId;
 
   const query = `
@@ -113,7 +113,7 @@ export function isRailwayConfigured(): boolean {
 }
 
 function defaultProjectRef(): string {
-  return serverEnv('RAILWAY_PROJECT_ID')?.trim() || 'Reave App';
+  return serverEnv('RAILWAY_PROJECT_ID')?.trim() || `${cachedCompanyBrandName()} App`;
 }
 
 type GqlEdge<T> = { node: T };

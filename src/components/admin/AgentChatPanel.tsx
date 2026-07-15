@@ -30,10 +30,17 @@ import {
 } from '../../lib/chatMessageFormat';
 import './agent-chat.css';
 
+function readCompanyBrandName(fallback = 'Assistant'): string {
+  if (typeof window === 'undefined') return fallback;
+  const name = (window as Window & { __companyBrand?: { name?: string } }).__companyBrand?.name?.trim();
+  return name || fallback;
+}
+
 export type StoredChatMessage = { role: 'user' | 'assistant'; content: string };
 
 export type AgentChatPanelProps = {
   threadId: string;
+  companyName?: string;
   initialMessages: StoredChatMessage[];
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
@@ -220,7 +227,8 @@ function AssistantMessageActions() {
     .join('\n');
 
   const share = async () => {
-    const payload = { text: plain, title: 'Assistant — Reave chat' };
+    const brandName = readCompanyBrandName();
+    const payload = { text: plain, title: `Assistant — ${brandName} chat` };
     if (navigator.share) {
       try {
         await navigator.share(payload);
@@ -575,7 +583,7 @@ function AgentChatThreadBody({
                   focusComposerRef.current = focus;
                 }}
               />
-              <p className="aui-disclaimer">Reave can make mistakes. Double-check important info.</p>
+              <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check important info.</p>
             </div>
           </ThreadPrimitive.ViewportFooter>
         </ThreadPrimitive.Viewport>

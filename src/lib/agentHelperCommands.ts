@@ -312,8 +312,8 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   {
     slash: '/railway',
     summary: 'Railway domains & DNS',
-    template: 'List Railway domains for the Reave App project.',
-    example: 'List Railway domains for the Reave App project.',
+    template: 'List Railway domains for the production project.',
+    example: 'List Railway domains for the production project.',
     feature: 'dev_infra',
   },
   {

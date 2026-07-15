@@ -1,8 +1,5 @@
-/**
- * Deployment owner — the single admin who can manage plugins and other owner-only UI.
- * Match via AGENT_ALERT_USER_ID (Clerk user id), or ADMIN_USERNAME (defaults to Reave).
- */
-import type { APIContext } from 'astro';
+import { cachedCompanyBrandName } from './companyConfig';
+import { SITE } from '../config/site';
 import { clerkClient } from '@clerk/astro/server';
 import { agentAlertUserId } from './adminAgentAlert';
 import { serverEnv } from './serverEnv';
@@ -15,7 +12,7 @@ export type ClerkUserLike = {
 };
 
 export function deploymentOwnerUsernames(): string[] {
-  const raw = serverEnv('ADMIN_USERNAME')?.trim() || 'Reave';
+  const raw = serverEnv('ADMIN_USERNAME')?.trim() || cachedCompanyBrandName() || SITE.name;
   return raw
     .split(',')
     .map((part) => part.trim())
@@ -24,7 +21,7 @@ export function deploymentOwnerUsernames(): string[] {
 
 /** @deprecated Use deploymentOwnerUsernames() */
 export function deploymentOwnerUsername(): string {
-  return deploymentOwnerUsernames()[0] ?? 'Reave';
+  return deploymentOwnerUsernames()[0] ?? SITE.name;
 }
 
 export function userDisplayNames(user: ClerkUserLike): string[] {

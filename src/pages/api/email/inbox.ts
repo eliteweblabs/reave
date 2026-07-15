@@ -11,6 +11,7 @@ import {
   type EmailInboxRecord,
 } from '../../../lib/emailInboxStore';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
+import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
 
 export const prerender = false;
@@ -44,6 +45,8 @@ export async function GET(context: APIContext): Promise<Response> {
     ? allForDigest
     : await storeListEmailInbox(limit, { hideJunk: true });
 
+  const brand = await getCompanyBrandContext(context.request);
+
   return json({
     ok: true,
     events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
@@ -52,7 +55,7 @@ export async function GET(context: APIContext): Promise<Response> {
     pushConfigured: isPushConfigured(),
     pipeline: {
       inbound: 'POST /api/email/inbound (Resend webhook)',
-      ingestHint: 'BCC or forward copies to your Resend receiving address (e.g. inbox@mail.reave.app)',
+      ingestHint: `BCC or forward copies to your Resend receiving address (e.g. ${brand.inboundEmailExample})`,
       rules: 'GET /api/email/rules',
     },
   });

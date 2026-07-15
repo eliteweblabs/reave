@@ -127,6 +127,7 @@ import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './p
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
 import { getAgentContext } from './agentContext';
+import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from './companyConfig';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
@@ -217,7 +218,8 @@ const DEV_INFRA_TOOL_NAMES = new Set([
   'create_pull_request',
 ]);
 
-export function buildTools(): AgentToolDef[] {
+export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): AgentToolDef[] {
+  const domainExample = brand.domain || 'example.com';
   const base: AgentToolDef[] = [
     {
       type: 'function',
@@ -543,7 +545,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'list_email_inbox',
         description:
-          'List recent inbound emails from the Reave inbox log (admin Email tab). Use when triaging mail or finding a message id by sender/subject.',
+          `List recent inbound emails from the ${brand.name} inbox log (admin Email tab). Use when triaging mail or finding a message id by sender/subject.`,
         parameters: {
           type: 'object',
           properties: {
@@ -611,7 +613,7 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'delete_email',
         description:
-          'Permanently remove an inbound inbox message from the Reave inbox log. Use after marking junk when the user wants it gone, or when triage says delete/spam.',
+          `Permanently remove an inbound inbox message from the ${brand.name} inbox log. Use after marking junk when the user wants it gone, or when triage says delete/spam.`,
         parameters: {
           type: 'object',
           properties: {
@@ -675,13 +677,13 @@ export function buildTools(): AgentToolDef[] {
       function: {
         name: 'list_railway_domains',
         description:
-          'Read Railway networking for a project: *.up.railway.app domains, custom domains, CNAME targets (requiredValue), and verification TXT tokens. Use when the user asks for a CNAME target, custom domain DNS, or what domain a service is on. Requires RAILWAY_API_TOKEN. Defaults to project "Reave App" / environment production.',
+          `Read Railway networking for a project: *.up.railway.app domains, custom domains, CNAME targets (requiredValue), and verification TXT tokens. Use when the user asks for a CNAME target, custom domain DNS, or what domain a service is on. Requires RAILWAY_API_TOKEN. Defaults to project "${brand.projectLabel}" / environment production.`,
         parameters: {
           type: 'object',
           properties: {
             project: {
               type: 'string',
-              description: 'Project name or UUID (default: RAILWAY_PROJECT_ID env or "Reave App")',
+              description: `Project name or UUID (default: RAILWAY_PROJECT_ID env or "${brand.projectLabel}")`,
             },
             environment: { type: 'string', description: 'Environment name (default: production)' },
             service: {
@@ -1009,7 +1011,7 @@ export function buildTools(): AgentToolDef[] {
               domain: {
                 type: 'string',
                 description:
-                  'Resend domain to sync, e.g. reave.app or inbound.reave.app. Omit or set "all" to sync every Resend domain.',
+                  `Resend domain to sync, e.g. ${domainExample} or inbound.${domainExample}. Omit or set "all" to sync every Resend domain.`,
               },
             },
             additionalProperties: false,
@@ -1495,7 +1497,7 @@ export function buildTools(): AgentToolDef[] {
         function: {
           name: 'set_site_monitoring',
           description:
-            `Enable or disable automatic change monitoring for a client's Site URL. When enabled and a "${SITE_URL_FIELD_LABEL}" portal field is set, Reave creates a ChangeDetection watch and sends push alerts on unexpected changes (deploys are suppressed).`,
+            `Enable or disable automatic change monitoring for a client's Site URL. When enabled and a "${SITE_URL_FIELD_LABEL}" portal field is set, ${brand.name} creates a ChangeDetection watch and sends push alerts on unexpected changes (deploys are suppressed).`,
           parameters: {
             type: 'object',
             properties: {
@@ -1570,7 +1572,7 @@ export function buildTools(): AgentToolDef[] {
         function: {
           name: 'get_booking_link',
           description:
-            'Get the public Cal.com booking URL to share with a client (default 30 min meeting). Also returns reave.app/form/schedule conversational form link.',
+            `Get the public Cal.com booking URL to share with a client (default 30 min meeting). Also returns ${brand.siteUrl.replace(/\/$/, '')}/form/schedule conversational form link.`,
           parameters: {
             type: 'object',
             properties: {
@@ -2016,6 +2018,7 @@ function workExtrasFromArgs(args: Record<string, unknown>, existing?: {
 }
 
 export async function runTool(name: string, argsJson: string): Promise<string> {
+  const brand = await getCompanyBrandContext();
   try {
     const args = JSON.parse(argsJson) as Record<string, unknown>;
 
@@ -3365,7 +3368,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         calcom_url: calUrl,
         form_url: '/form/schedule',
         event_types: eventTypes.map((e) => ({ slug: e.slug, title: e.title, length: e.length })),
-        hint: 'Share calcom_url for direct booking or form_url for the conversational scheduler on reave.app.',
+        hint: `Share calcom_url for direct booking or form_url for the conversational scheduler on ${brand.domain || 'your site'}.`,
       });
     }
     if (name === 'create_invoice') {
@@ -3535,11 +3538,15 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       return JSON.stringify({ ...result, summary: formatDnsCheckResults(result) });
     }
     if (name === 'sync_resend_dns') {
-      const domain = String(args.domain ?? 'reave.app').trim().toLowerCase();
-      if (!domain || domain === 'all') {
+      const domainArg = args.domain != null ? String(args.domain).trim().toLowerCase() : '';
+      if (domainArg === 'all') {
         const result = await syncAllResendDnsToCloudflare();
         if (!result.ok) return JSON.stringify({ error: result.error });
         return JSON.stringify({ ok: true, summary: result.summary, domains: result.domains });
+      }
+      const domain = domainArg || brand.domain;
+      if (!domain) {
+        return JSON.stringify({ error: 'Company domain is not configured (admin → Profile → Company details)' });
       }
       const result = await syncResendDnsToCloudflare(domain);
       if (!result.ok) return JSON.stringify({ error: result.error });

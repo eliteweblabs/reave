@@ -25,7 +25,12 @@ const heroLogo = homepageHeroLogo(company);
     </div>
   </div>
 
-  <VoiceChatButton position="center-bottom" />
+  <VoiceChatButton
+    position="center-bottom"
+    companyName={company.name}
+    companyDescription={company.description}
+    companyDomain={company.domain}
+  />
   <Transcript />
   <TextFallback />
   <div class="container">

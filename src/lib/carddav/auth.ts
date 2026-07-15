@@ -1,3 +1,4 @@
+import { cachedCompanyBrandName } from '../companyConfig';
 import { serverEnv } from '../serverEnv';
 
 export type CardDavAuth = {
@@ -73,7 +74,7 @@ export function requireCardDavAuth(request: Request): CardDavAuth | Response {
     return { username: creds.username, method: 'token' };
   }
 
-  const realmName = serverEnv('COMPANY_NAME')?.trim() || 'CardDAV';
+  const realmName = serverEnv('COMPANY_NAME')?.trim() || cachedCompanyBrandName();
 
   return new Response('Unauthorized', {
     status: 401,

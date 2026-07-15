@@ -28,14 +28,14 @@ export function normalizeRepoSlug(raw: string): string | null {
   return REPO_SLUG_RE.test(slug) ? slug : null;
 }
 
-/** owner/repo, in priority: GITHUB_REPO → Railway-injected git vars → default. */
+/** owner/repo, in priority: GITHUB_REPO → Railway-injected git vars. */
 export function githubRepoSlug(): string {
   const explicit = serverEnv('GITHUB_REPO')?.trim();
-  if (explicit) return normalizeRepoSlug(explicit) ?? 'eliteweblabs/reave';
+  if (explicit) return normalizeRepoSlug(explicit) ?? explicit;
   const owner = serverEnv('RAILWAY_GIT_REPO_OWNER')?.trim();
   const name = serverEnv('RAILWAY_GIT_REPO_NAME')?.trim();
   if (owner && name) return `${owner}/${name}`;
-  return 'eliteweblabs/reave';
+  return '';
 }
 
 /** Default branch for new branches and PRs when not specified. */

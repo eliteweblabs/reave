@@ -3,10 +3,84 @@
  * Values come from admin settings (Postgres / file), then env, then SITE defaults.
  */
 import { SITE } from '../config/site';
-import { requestOrigin, siteOriginFallback } from './requestOrigin';
+import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
 import { BRANDING_LOGO_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
+
+/** Sync cache — updated whenever getCompanyConfig resolves. */
+let _cachedName = SITE.name;
+let _cachedDomain = '';
+
+export type CompanyBrandContext = {
+  name: string;
+  description: string;
+  domain: string;
+  siteUrl: string;
+  supportEmail: string;
+  fromEmail: string;
+  contactsLabel: string;
+  botUserAgent: string;
+  projectLabel: string;
+  inboundEmailExample: string;
+};
+
+export function cachedCompanyBrandName(): string {
+  return _cachedName;
+}
+
+export function cachedCompanyDomain(): string {
+  return _cachedDomain;
+}
+
+export function defaultBrandContext(): CompanyBrandContext {
+  return companyToBrandContext({
+    name: SITE.name,
+    legalName: SITE.name,
+    description: SITE.description,
+    domain: cachedCompanyDomain(),
+    supportEmail: '',
+    supportPhone: '',
+    fromEmail: '',
+    logoPath: SITE.logoPath,
+    logoSource: 'default',
+    logoVersion: '',
+  });
+}
+
+export function companyToBrandContext(company: CompanyConfig, request?: Request): CompanyBrandContext {
+  const name = trim(company.name) || SITE.name;
+  const domain = trim(company.domain);
+  const siteUrl = domain
+    ? `https://${domain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/`
+    : siteBaseUrl(request).replace(/\/?$/, '/');
+  const fromEmail = trim(company.fromEmail);
+  const supportEmail = trim(company.supportEmail);
+  return {
+    name,
+    description: trim(company.description) || SITE.description,
+    domain,
+    siteUrl,
+    supportEmail,
+    fromEmail,
+    contactsLabel: `${name} Contacts`,
+    botUserAgent: `${name.replace(/\s+/g, '')}Bot/1.0`,
+    projectLabel: `${name} App`,
+    inboundEmailExample: fromEmail || (domain ? `inbox@mail.${domain}` : 'inbox@mail.example.com'),
+  };
+}
+
+export async function getCompanyBrandContext(request?: Request): Promise<CompanyBrandContext> {
+  const company = await getCompanyConfig(request);
+  return companyToBrandContext(company, request);
+}
+
+export function defaultVapidSubjectFromCompany(company: CompanyConfig): string {
+  if (company.supportEmail) return `mailto:${company.supportEmail}`;
+  if (company.fromEmail) return `mailto:${company.fromEmail}`;
+  if (company.domain) return `mailto:support@${company.domain}`;
+  return 'mailto:noreply@localhost';
+}
 
 export type CompanyConfig = {
   /** Display name (titles, emails, "Powered by …"). */
@@ -133,7 +207,10 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     domain ? `noreply@${domain}` : '',
   );
 
-  return { name, legalName, description, domain, supportEmail, supportPhone, fromEmail, ...logo };
+  const config = { name, legalName, description, domain, supportEmail, supportPhone, fromEmail, ...logo };
+  _cachedName = name;
+  _cachedDomain = domain;
+  return config;
 }
 
 /** Full resolved branding for the current deployment. */

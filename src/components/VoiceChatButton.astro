@@ -17,6 +17,9 @@ interface Props {
   enableVoiceRecognition?: boolean;
   voiceProfileId?: string;
   assistantOverrides?: Record<string, any>;
+  companyName?: string;
+  companyDescription?: string;
+  companyDomain?: string;
   // Authentication
   userId?: string;
   isAuthenticated?: boolean;
@@ -63,6 +66,9 @@ const voiceProfileId = String(
 ).trim();
 
 const assistantOverrides = props.assistantOverrides ?? {};
+const companyName = String(props.companyName ?? "").trim();
+const companyDescription = String(props.companyDescription ?? "").trim();
+const companyDomain = String(props.companyDomain ?? "").trim();
 const userId = props.userId;
 const isAuthenticated = props.isAuthenticated ?? false;
 
@@ -124,6 +130,9 @@ const positionClasses = {
     enableVoiceRecognition,
     voiceProfileId,
     assistantOverrides,
+    companyName,
+    companyDescription,
+    companyDomain,
   }}
 >
   // Get auth state from Clerk client-side using nanostores
@@ -1339,6 +1348,16 @@ const positionClasses = {
                   // Add user context when authenticated
                   const finalAssistantOverrides = {
                     ...assistantOverrides,
+                    ...(companyName || companyDescription || companyDomain
+                      ? {
+                          variableValues: {
+                            ...(assistantOverrides.variableValues ?? {}),
+                            ...(companyName ? { companyName } : {}),
+                            ...(companyDescription ? { companyDescription } : {}),
+                            ...(companyDomain ? { companyDomain } : {}),
+                          },
+                        }
+                      : {}),
                     ...(enableVoiceRecognition
                       ? {
                           voiceRecognition: {

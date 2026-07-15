@@ -11,11 +11,17 @@ import {
   type ClientPortal,
   type ContactRecord,
 } from './contactApi';
+import { getCompanyBrandContext } from './companyConfig';
 import { normalizePublicUrl } from './publicUrl';
 import { portalSiteUrl } from './siteMonitoring';
 
-const USER_AGENT =
-  'Mozilla/5.0 (compatible; ReaveBot/1.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const USER_AGENT_SUFFIX =
+  'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+async function brandUserAgent(): Promise<string> {
+  const brand = await getCompanyBrandContext();
+  return `Mozilla/5.0 (compatible; ${brand.botUserAgent}) ${USER_AGENT_SUFFIX}`;
+}
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 1_500_000;
@@ -113,7 +119,7 @@ async function fetchHtml(urlInput: string): Promise<{ ok: true; html: string; fi
       signal: controller.signal,
       redirect: 'follow',
       headers: {
-        'User-Agent': USER_AGENT,
+        'User-Agent': await brandUserAgent(),
         Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
       },
     });

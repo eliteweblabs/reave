@@ -4,6 +4,7 @@ import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
+import { getCompanyBrandContext } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
@@ -46,7 +47,7 @@ function configured(detail: string): Probe {
 }
 
 /** Generic reachability: any HTTP answer = reachable; 5xx = degraded; throw = down. */
-async function reach(url: string): Promise<Probe> {
+async function reach(url: string, userAgent: string): Promise<Probe> {
   const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -55,7 +56,7 @@ async function reach(url: string): Promise<Probe> {
       method: 'GET',
       signal: ctrl.signal,
       redirect: 'manual',
-      headers: { 'User-Agent': 'reave-os-map-health' },
+      headers: { 'User-Agent': userAgent },
     });
     const ms = Date.now() - started;
     if (res.status >= 500) {
@@ -72,7 +73,7 @@ async function reach(url: string): Promise<Probe> {
 }
 
 /** GitHub /rate_limit validates the token without consuming any quota. */
-async function githubProbe(token: string): Promise<Probe> {
+async function githubProbe(token: string, userAgent: string): Promise<Probe> {
   const started = Date.now();
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -81,7 +82,7 @@ async function githubProbe(token: string): Promise<Probe> {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github+json',
-        'User-Agent': 'reave-os-map-health',
+        'User-Agent': userAgent,
       },
       signal: ctrl.signal,
     });
@@ -102,6 +103,8 @@ async function githubProbe(token: string): Promise<Probe> {
 
 
 export const GET: APIRoute = async () => {
+  const brand = await getCompanyBrandContext();
+  const healthUserAgent = `${brand.name.toLowerCase().replace(/\s+/g, '-')}-health-probe/1.0`;
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
@@ -109,11 +112,11 @@ export const GET: APIRoute = async () => {
   // Run the network probes concurrently.
   const [contactProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
-    contactBase ? reach(contactBase) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
-    craterBase ? reach(craterBase) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
-    ghToken ? githubProbe(ghToken) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
+    contactBase ? reach(contactBase, healthUserAgent) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
+    craterBase ? reach(craterBase, healthUserAgent) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
+    ghToken ? githubProbe(ghToken, healthUserAgent) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
     isChangeDetectionConfigured()
-      ? reach(trimBase(serverEnv('CHANGEDETECTION_BASE_URL'))!)
+      ? reach(trimBase(serverEnv('CHANGEDETECTION_BASE_URL'))!, healthUserAgent)
       : Promise.resolve(unconfigured('CHANGEDETECTION not configured')),
     isBookingConfigured()
       ? bookingPing().then((r) =>
@@ -123,7 +126,7 @@ export const GET: APIRoute = async () => {
         )
       : Promise.resolve(unconfigured('BOOKING_API_URL not set')),
     calcomWebappUrl()
-      ? reach(calcomWebappUrl()!)
+      ? reach(calcomWebappUrl()!, healthUserAgent)
       : Promise.resolve(unconfigured('CALCOM_WEBAPP_URL not set')),
   ]);
 

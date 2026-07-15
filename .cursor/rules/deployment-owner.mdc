@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Deployment Owner
 
-The deployment owner username is **Reave** (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
+The deployment owner username defaults to the **company display name** from admin → Profile (override per install with `ADMIN_USERNAME`, comma-separated for multiple names).
 
 Owner-only UI today:
 - **Plugins** page (account menu → Plugins)

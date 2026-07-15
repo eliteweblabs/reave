@@ -3,19 +3,24 @@
  */
 
 import webpush from 'web-push';
+import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 
 let _configured = false;
+let _configuredSubject: string | null = null;
 
-function configureWebPush(): boolean {
-  if (_configured) return true;
+async function configureWebPush(): Promise<boolean> {
   const publicKey = serverEnv('VAPID_PUBLIC_KEY')?.trim();
   const privateKey = serverEnv('VAPID_PRIVATE_KEY')?.trim();
-  const subject = serverEnv('VAPID_SUBJECT')?.trim() || 'mailto:thomas@reave.app';
+  const subject =
+    serverEnv('VAPID_SUBJECT')?.trim() ||
+    defaultVapidSubjectFromCompany(await getCompanyConfig());
   if (!publicKey || !privateKey) return false;
+  if (_configured && _configuredSubject === subject) return true;
   webpush.setVapidDetails(subject, publicKey, privateKey);
   _configured = true;
+  _configuredSubject = subject;
   return true;
 }
 
@@ -35,7 +40,7 @@ export async function sendPushNotification(payload: {
   /** Deep link when the notification is tapped (default /admin?tab=email). */
   url?: string;
 }): Promise<void> {
-  if (!isPushConfigured() || !configureWebPush()) return;
+  if (!isPushConfigured() || !(await configureWebPush())) return;
 
   const subs = await listPushSubscriptions();
   if (!subs.length) return;

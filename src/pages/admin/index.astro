@@ -8,7 +8,7 @@
 import Favicon from "../../components/Favicon.astro";
 import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
+import { getCompanyConfig, companyToBrandContext } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import "../../styles/brand.css";
 
@@ -16,6 +16,7 @@ export const prerender = false;
 
 const { userId } = Astro.locals.auth();
 const company = await getCompanyConfig(Astro.request);
+const companyBrand = companyToBrandContext(company, Astro.request);
 const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
 ---
 
@@ -5327,6 +5328,9 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250714b"></script>
     <script src="/ios-sheet.js" defer></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250714c"></script>
+    <script is:inline define:vars={{ companyBrand }}>
+      window.__companyBrand = companyBrand;
+    </script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250714d"></script>
   </body>
 </html>

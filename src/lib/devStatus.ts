@@ -14,6 +14,7 @@
  * machine that has the repo checked out to inspect a dirty working tree.
  */
 import { serverEnv } from './serverEnv';
+import { siteOriginFallback } from './requestOrigin';
 import {
   githubCompare,
   githubGetCommit,
@@ -34,7 +35,7 @@ function healthUrl(): string {
   const explicit = serverEnv('DEPLOY_HEALTH_URL')?.trim();
   if (explicit) return explicit;
   const domain = serverEnv('RAILWAY_PUBLIC_DOMAIN')?.trim();
-  return domain ? `https://${domain.replace(/^https?:\/\//, '')}/` : 'https://reave.app/';
+  return domain ? `https://${domain.replace(/^https?:\/\//, '')}/` : siteOriginFallback().replace(/\/?$/, '/');
 }
 
 /** Repo-level status: branch, latest commits, branch count, deployed delta. */

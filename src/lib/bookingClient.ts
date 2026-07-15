@@ -5,6 +5,7 @@
  * BOOKING_API_URL (private Railway network) server-side; falls back to
  * PUBLIC_BOOKING_API_URL for local dev.
  */
+import { cachedCompanyBrandName, cachedCompanyDomain } from './companyConfig';
 import { serverEnv } from './serverEnv';
 
 export type BookingSummary = {
@@ -82,7 +83,11 @@ export function calcomWebappUrl(): string | null {
 }
 
 export function calcomUsername(): string {
-  return serverEnv('CALCOM_USERNAME')?.trim() || 'reave';
+  const configured = serverEnv('CALCOM_USERNAME')?.trim();
+  if (configured) return configured;
+  const domain = serverEnv('COMPANY_DOMAIN')?.trim() || cachedCompanyDomain();
+  if (domain) return domain.split('.')[0]?.toLowerCase() || 'bookings';
+  return cachedCompanyBrandName().toLowerCase().replace(/\s+/g, '') || 'bookings';
 }
 
 /** Optional job-site address when the caller has one (omit to skip geocoding). */

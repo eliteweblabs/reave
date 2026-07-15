@@ -1,6 +1,7 @@
 import { labelForAgentModel, resolveAgentModel } from './agentModel';
 import { isBraveConfigured } from './braveClient';
 import { buildTools, runTool } from './agentTools';
+import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
@@ -38,12 +39,12 @@ type AnthropicMessage = {
 };
 
 /** Map the internal (OpenAI-style) tool defs to Anthropic's tools shape. */
-function buildAnthropicTools(): Array<{
+function buildAnthropicTools(brand: Awaited<ReturnType<typeof getCompanyBrandContext>>): Array<{
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
 }> {
-  return buildTools().map((t) => ({
+  return buildTools(brand).map((t) => ({
     name: t.function.name,
     description: t.function.description,
     input_schema: t.function.parameters,
@@ -131,10 +132,11 @@ async function runKnowledgeAgentInner(opts: {
   }
 
   const model = await resolveAgentModel(modelOverride);
-  const tools = buildAnthropicTools();
+  const brand = await getCompanyBrandContext();
+  const tools = buildAnthropicTools(brand);
 
   const sysParts = [
-    'You are a concise assistant for a solo developer business OS.',
+    `You are a concise assistant for ${brand.name}'s business OS.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
     'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. When creating a project and the client is unclear, call create_work with title only (or resolve_contact first with any hints from the chat). create_work returns needs_client when you must ask the user who it is; needs_selection + candidates when fuzzy — list the options and ask the user to confirm, then re-call create_work with contact_uid. Never guess a client on ambiguous matches. After create_work or when filing mail to an existing job, call link_to_work so the email/chat stays linked on the project page. Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
@@ -147,7 +149,7 @@ async function runKnowledgeAgentInner(opts: {
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
       sysParts.push(
-        'Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: Reave App / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs reave.app. Inbound receiving uses inbound.reave.app — see read_knowledge email-rules.',
+        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs ${brand.domain || 'the configured company domain'}. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
       );
     } else {
       sysParts.push(
@@ -156,7 +158,7 @@ async function runKnowledgeAgentInner(opts: {
     }
     if (isKinstaConfigured()) {
       sysParts.push(
-        'Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. Reave App hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.',
+        `Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. ${brand.projectLabel} hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.`,
       );
     } else {
       sysParts.push(
@@ -192,11 +194,11 @@ async function runKnowledgeAgentInner(opts: {
     );
     if (isCardDavConfigured()) {
       sysParts.push(
-        `CardDAV (iOS Contacts sync): When the user asks to sync contacts to iPhone, give step-by-step setup (Settings → Contacts → Accounts → Add Account → Other → CardDAV). Server = hostname only (reave.app), not a URL with path. Credentials = CARDDAV_USERNAME / CARDDAV_PASSWORD from Railway Variables — never paste values in chat. Always include a required Advanced block: Use SSL On, Port 443, Account URL / Path /carddav — do not say "if it asks for a path"; Advanced is mandatory on iOS. Sync is bidirectional with contact-api. Troubleshooting: https://reave.app/carddav/ should return 401 (not 404); "verification failed" usually means Advanced path missing. For full playbook call read_knowledge slug "carddav".`
+        `CardDAV (iOS Contacts sync): When the user asks to sync contacts to iPhone, give step-by-step setup (Settings → Contacts → Accounts → Add Account → Other → CardDAV). Server = hostname only (${brand.domain || 'your company domain'}), not a URL with path. Credentials = CARDDAV_USERNAME / CARDDAV_PASSWORD from Railway Variables — never paste values in chat. Always include a required Advanced block: Use SSL On, Port 443, Account URL / Path /carddav — do not say "if it asks for a path"; Advanced is mandatory on iOS. Sync is bidirectional with contact-api. Troubleshooting: ${brand.siteUrl}carddav/ should return 401 (not 404); "verification failed" usually means Advanced path missing. For full playbook call read_knowledge slug "carddav".`,
       );
     } else {
       sysParts.push(
-        'CardDAV: Native iOS Contacts sync can be enabled on the Reave app by setting CARDDAV_USERNAME + CARDDAV_PASSWORD (requires CONTACT_API_BASE_URL). Call read_knowledge slug "carddav" for iOS setup steps.'
+        `CardDAV: Native iOS Contacts sync can be enabled on ${brand.name} by setting CARDDAV_USERNAME + CARDDAV_PASSWORD (requires CONTACT_API_BASE_URL). Call read_knowledge slug "carddav" for iOS setup steps.`,
       );
     }
   } else {
@@ -204,7 +206,7 @@ async function runKnowledgeAgentInner(opts: {
   }
   if (hasFeature('scheduling') && isBookingConfigured()) {
     sysParts.push(
-      'Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; get_booking_link to share the public booking URL (cal.reave.app/reave/30min) or /form/schedule conversational form. Admin calendar UI: cal.reave.app.',
+      `Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; get_booking_link to share the public booking URL or /form/schedule conversational form. Admin calendar UI uses the configured Cal.com host when set.`,
     );
   }
   if (isBraveConfigured()) {

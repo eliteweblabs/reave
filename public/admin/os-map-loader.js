@@ -1,4 +1,42 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
+
+function companyBrand() {
+  return (
+    window.__companyBrand || {
+      name: 'Business OS',
+      domain: window.location.hostname,
+      siteUrl: `${window.location.origin}/`,
+      inboundEmailExample: 'inbox@mail.example.com',
+      projectLabel: 'Business OS App',
+    }
+  );
+}
+
+function applyCompanyBrandingToMaps() {
+  const brand = companyBrand();
+  const domain = brand.domain || window.location.hostname;
+  const projectLabel = brand.projectLabel || `${brand.name} App`;
+  for (const map of Object.values(MAPS)) {
+    for (const node of map.nodes || []) {
+      if (typeof node.sub === 'string') {
+        node.sub = node.sub
+          .replace(/reave\.app/g, domain)
+          .replace(/ap\.reave\.app/g, domain ? `ap.${domain}` : 'ap.example.com')
+          .replace(/cal\.reave\.app/g, domain ? `cal.${domain}` : 'cal.example.com');
+      }
+      if (typeof node.title === 'string') {
+        node.title = node.title.replace(/Reave App/g, projectLabel);
+      }
+    }
+    for (const group of map.groups || []) {
+      if (typeof group.title === 'string') {
+        group.title = group.title.replace(/Reave App/g, projectLabel);
+      }
+    }
+  }
+}
+
+applyCompanyBrandingToMaps();
 import {
   IOS_ICONS,
   createIosIconBtn,
@@ -8558,8 +8596,9 @@ async function copyChatText(text, btn) {
 }
 
 async function shareChatText(text, role, btn) {
+  const brandName = window.__companyBrand?.name || 'Assistant';
   const label = role === 'user' ? 'You' : 'Assistant';
-  const payload = { text, title: `${label} — Reave chat` };
+  const payload = { text, title: `${label} — ${brandName} chat` };
   if (navigator.share) {
     try {
       await navigator.share(payload);
@@ -9269,6 +9308,7 @@ function mountChatThreadRoot(threadHost) {
   chatState.pendingAutoSend = false;
   chatApi.mount(threadHost, {
     threadId: chatState.activeId,
+    companyName: window.__companyBrand?.name || 'Assistant',
     initialMessages: chatState.messages,
     pendingDraft,
     pendingAutoSend,
@@ -11266,7 +11306,9 @@ function renderEmailSidebar() {
       emptyBody = 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt.';
     } else {
       emptyBody =
-        'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. inbox@mail.reave.app).</span>';
+        'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +
+        escHtml(companyBrand().inboundEmailExample || 'inbox@mail.example.com') +
+        ').</span>';
     }
     list.appendChild(createCenteredListEmpty({ innerHtml: emptyBody }));
   }

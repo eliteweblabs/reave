@@ -1,3 +1,4 @@
+import { getCompanyBrandContext } from '../companyConfig';
 import {
   createContact,
   deleteContact,
@@ -211,14 +212,16 @@ async function propfindResponse(
     add(paths.addressbooksHome, collectionProps('Address Books', false));
     if (depth === 1) {
       const contacts = await fetchAllContacts();
-      add(paths.addressbook, collectionProps('Reave Contacts', true, collectionCtag(contacts)));
+      const brand = await getCompanyBrandContext();
+      add(paths.addressbook, collectionProps(brand.contactsLabel, true, collectionCtag(contacts)));
     }
     return xmlResponse(multistatus(responses));
   }
 
   if (resource === 'addressbook') {
     const contacts = await fetchAllContacts();
-    add(paths.addressbook, collectionProps('Reave Contacts', true, collectionCtag(contacts)));
+    const brand = await getCompanyBrandContext();
+    add(paths.addressbook, collectionProps(brand.contactsLabel, true, collectionCtag(contacts)));
     if (depth === 1) {
       for (const c of contacts) {
         const props: Parameters<typeof multistatus>[0][0]['props'] = [];
