@@ -50,7 +50,16 @@ import {
   scanPanelSidebars,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20250714a';
+  createSwipeRow,
+  closeOpenSwipeRow,
+  bindSwipeListScroll,
+  swipeAgentAction,
+  swipeArchiveAction,
+  swipeDeleteAction,
+  swipeJunkAction,
+  swipeReceiptAction,
+  swipeClearAction,
+} from './admin-ui.js?v=20250715a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -211,15 +220,6 @@ const NAV_ICON_PATHS = {
     '<circle cx="17" cy="18" r="3"/>' +
     '<circle cx="7" cy="18" r="3"/>',
 };
-
-function agentSwipeAction(onClick) {
-  return {
-    label: 'Agent',
-    icon: 'agent',
-    className: 'swipe-act swipe-act-agent',
-    onClick,
-  };
-}
 
 function navIcon(name, size = 20) {
   const paths = NAV_ICON_PATHS[name];
@@ -9309,16 +9309,13 @@ function createChatListItem(t) {
 
 function createChatSwipeRow(t) {
   return createSwipeRow(createChatListItem(t), [
-    {
+    swipeArchiveAction({
       label: t.archived ? 'Unarchive' : 'Archive',
-      className: 'swipe-act swipe-act-archive',
       onClick: () => archiveChat(t),
-    },
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
+    }),
+    swipeDeleteAction({
       onClick: () => deleteChat(t.id, t.title),
-    },
+    }),
   ]);
 }
 
@@ -10192,244 +10189,6 @@ function isProjectReplyEmail(ev) {
   return ev.action === 'project_reply' || ev.status === 'PROJECT_REPLY';
 }
 
-// ---- swipe rows (iOS-style list actions) ----
-// Vertical scroll wins unless the gesture is clearly horizontal (avoids accidental swipes).
-const SWIPE_AXIS_SLOP = 12;
-const SWIPE_HORIZONTAL_MIN = 28;
-const SWIPE_HORIZONTAL_RATIO = 3;
-const SWIPE_VERTICAL_RATIO = 1.1;
-const SWIPE_CLOSE_HORIZONTAL_MIN = 14;
-const SWIPE_CLOSE_HORIZONTAL_RATIO = 2;
-
-let openSwipeRow = null;
-
-function closeOpenSwipeRow() {
-  if (openSwipeRow) {
-    openSwipeRow.snap(false);
-    openSwipeRow = null;
-  }
-}
-
-function bindSwipeListScroll(listEl) {
-  listEl.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
-}
-
-function createSwipeRow(contentEl, actions) {
-  const row = document.createElement('div');
-  row.className = 'swipe-row';
-  if (contentEl.dataset?.id) row.dataset.id = contentEl.dataset.id;
-  if (contentEl.dataset?.slug) row.dataset.slug = contentEl.dataset.slug;
-
-  const actionsEl = document.createElement('div');
-  actionsEl.className = 'swipe-actions';
-  for (const act of actions) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = act.className || 'swipe-act';
-    if (act.icon) {
-      btn.innerHTML = navIcon(act.icon, 18);
-      btn.setAttribute('aria-label', act.label || 'Agent');
-      btn.title = act.label || 'Agent';
-    } else {
-      btn.textContent = act.label;
-    }
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      act.onClick();
-    });
-    actionsEl.appendChild(btn);
-  }
-
-  const content = document.createElement('div');
-  content.className = 'swipe-content';
-  content.appendChild(contentEl);
-  row.appendChild(actionsEl);
-  row.appendChild(content);
-
-  requestAnimationFrame(() => {
-    const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
-    attachSwipeRow(row, content, revealPx);
-  });
-  return row;
-}
-
-function attachSwipeRow(row, contentEl, revealPx) {
-  let startX = 0;
-  let swipeStartY = 0;
-  let baseX = 0;
-  let pending = false;
-  let dragging = false;
-  let moved = false;
-  let open = false;
-  /** @type {'horizontal' | 'vertical' | null} */
-  let axis = null;
-
-  function currentTx() {
-    const m = contentEl.style.transform.match(/translate3d\(([-\d.]+)px/);
-    return m ? parseFloat(m[1]) : 0;
-  }
-
-  function setTranslate(x, animate) {
-    contentEl.style.transition = animate ? 'transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
-    contentEl.style.transform = `translate3d(${x}px, 0, 0)`;
-  }
-
-  function snap(shouldOpen) {
-    open = shouldOpen;
-    row.classList.toggle('swipe-open', open);
-    row.classList.remove('swipe-dragging');
-    setTranslate(open ? -revealPx : 0, true);
-    if (open) {
-      if (openSwipeRow && openSwipeRow !== api) openSwipeRow.snap(false);
-      openSwipeRow = api;
-    } else if (openSwipeRow === api) {
-      openSwipeRow = null;
-    }
-  }
-
-  function resetGesture() {
-    pending = false;
-    dragging = false;
-    axis = null;
-    row.classList.remove('swipe-dragging');
-  }
-
-  function horizontalThresholds() {
-    if (open) {
-      return { min: SWIPE_CLOSE_HORIZONTAL_MIN, ratio: SWIPE_CLOSE_HORIZONTAL_RATIO };
-    }
-    return { min: SWIPE_HORIZONTAL_MIN, ratio: SWIPE_HORIZONTAL_RATIO };
-  }
-
-  function onStart(clientX, clientY) {
-    if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
-    startX = clientX;
-    swipeStartY = clientY;
-    baseX = open ? -revealPx : 0;
-    pending = true;
-    dragging = false;
-    axis = null;
-    moved = false;
-  }
-
-  function onMove(clientX, clientY, prevent) {
-    if (!pending && !dragging) return;
-    const dx = clientX - startX;
-    const dy = clientY - swipeStartY;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-
-    const listEl = row.closest('.ch-list, .de-list, .em-list');
-    if (listEl && listEl.scrollTop <= 1 && dy > 0 && ady > adx * SWIPE_VERTICAL_RATIO) {
-      resetGesture();
-      setTranslate(open ? -revealPx : 0, false);
-      return;
-    }
-
-    if (axis == null) {
-      if (adx < SWIPE_AXIS_SLOP && ady < SWIPE_AXIS_SLOP) return;
-
-      if (ady >= adx * SWIPE_VERTICAL_RATIO) {
-        axis = 'vertical';
-        pending = false;
-        return;
-      }
-
-      const { min, ratio } = horizontalThresholds();
-      if (adx >= min && adx >= ady * ratio) {
-        axis = 'horizontal';
-        dragging = true;
-        pending = false;
-        row.classList.add('swipe-dragging');
-        contentEl.style.transition = 'none';
-      } else if (ady > adx) {
-        axis = 'vertical';
-        pending = false;
-        return;
-      }
-      return;
-    }
-
-    if (axis === 'vertical') return;
-
-    if (axis === 'horizontal' && dragging) {
-      if (adx > 8) moved = true;
-      let next = baseX + dx;
-      next = Math.min(0, Math.max(-revealPx, next));
-      setTranslate(next, false);
-      if (prevent) prevent();
-    }
-  }
-
-  function onEnd() {
-    if (!pending && !dragging) return;
-    if (axis === 'vertical' || (axis == null && pending)) {
-      resetGesture();
-      return;
-    }
-    if (!dragging) {
-      resetGesture();
-      return;
-    }
-    dragging = false;
-    pending = false;
-    axis = null;
-    row.classList.remove('swipe-dragging');
-    const tx = currentTx();
-    snap(tx <= -revealPx * 0.35);
-  }
-
-  contentEl.addEventListener(
-    'touchstart',
-    (e) => {
-      if (e.touches.length !== 1) return;
-      onStart(e.touches[0].clientX, e.touches[0].clientY);
-    },
-    { passive: true },
-  );
-  contentEl.addEventListener(
-    'touchmove',
-    (e) => onMove(e.touches[0].clientX, e.touches[0].clientY, () => e.preventDefault()),
-    { passive: false },
-  );
-  contentEl.addEventListener('touchend', onEnd);
-  contentEl.addEventListener('touchcancel', onEnd);
-
-  contentEl.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    onStart(e.clientX, e.clientY);
-    const onMouseMove = (ev) => onMove(ev.clientX, null);
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      onEnd();
-    };
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  });
-
-  contentEl.addEventListener(
-    'click',
-    (e) => {
-      if (moved) {
-        e.preventDefault();
-        e.stopPropagation();
-        moved = false;
-      }
-    },
-    true,
-  );
-
-  const api = { snap, row, moved: () => moved };
-  return api;
-}
-
-document.addEventListener('click', (e) => {
-  if (!openSwipeRow) return;
-  if (openSwipeRow.row.contains(e.target)) return;
-  closeOpenSwipeRow();
-});
-
 async function askAgentWithPrompt(prompt, opts = {}) {
   closeOpenSwipeRow();
   try {
@@ -10530,12 +10289,10 @@ function createDocumentListItem(tpl) {
 
 function createDocumentSwipeRow(tpl) {
   return createSwipeRow(createDocumentListItem(tpl), [
-    agentSwipeAction(() => askAgentAboutDocument(tpl)),
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
+    swipeAgentAction(() => askAgentAboutDocument(tpl)),
+    swipeDeleteAction({
       onClick: () => deleteDocument(tpl.slug),
-    },
+    }),
   ]);
 }
 
@@ -10556,12 +10313,10 @@ function createKnowledgeListItem(entry) {
 
 function createKnowledgeSwipeRow(entry) {
   return createSwipeRow(createKnowledgeListItem(entry), [
-    agentSwipeAction(() => askAgentAboutKnowledge(entry)),
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
+    swipeAgentAction(() => askAgentAboutKnowledge(entry)),
+    swipeDeleteAction({
       onClick: () => deleteKnowledge(entry.slug),
-    },
+    }),
   ]);
 }
 
@@ -10582,12 +10337,10 @@ function createWorkListItem(job) {
 
 function createWorkSwipeRow(job) {
   return createSwipeRow(createWorkListItem(job), [
-    agentSwipeAction(() => askAgentAboutWork(job)),
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
+    swipeAgentAction(() => askAgentAboutWork(job)),
+    swipeDeleteAction({
       onClick: () => deleteWork(job.slug),
-    },
+    }),
   ]);
 }
 
@@ -10608,11 +10361,9 @@ function createClientListItem(c) {
 
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
-    {
-      label: 'Delete',
-      className: 'swipe-act swipe-act-delete',
+    swipeDeleteAction({
       onClick: () => deleteClient(c.uid, c.name),
-    },
+    }),
   ]);
 }
 
@@ -11236,52 +10987,53 @@ function createEmailListItem(ev) {
 
 function buildEmailSwipeActions(ev) {
   const actions = [
-    agentSwipeAction(() => askAgentAboutEmail(ev)),
+    swipeAgentAction(() => askAgentAboutEmail(ev)),
   ];
 
   if (ev.category !== 'junk') {
-    actions.push({
-      label: isEmailRouted(ev) ? 'Unarchive' : 'Archive',
-      icon: 'archive',
-      className: 'swipe-act swipe-act-archive',
-      onClick: () => (isEmailRouted(ev) ? unarchiveEmail(ev) : archiveEmail(ev)),
-    });
+    actions.push(
+      swipeArchiveAction({
+        label: isEmailRouted(ev) ? 'Unarchive' : 'Archive',
+        onClick: () => (isEmailRouted(ev) ? unarchiveEmail(ev) : archiveEmail(ev)),
+      }),
+    );
   }
 
   if (ev.category === 'receipt') {
-    actions.push({
-      label: 'Not receipt',
-      className: 'swipe-act swipe-act-archive',
-      onClick: () => unmarkEmailReceipt(ev),
-    });
+    actions.push(
+      swipeClearAction({
+        label: 'Not receipt',
+        onClick: () => unmarkEmailReceipt(ev),
+      }),
+    );
   }
 
-  actions.push({
-    label: ev.category === 'junk' ? 'Not junk' : 'Junk',
-    icon: 'trash',
-    className: 'swipe-act swipe-act-junk',
-    onClick: () => {
-      if (ev.category === 'junk') {
-        fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
-        })
-          .then(readApiJson)
-          .then((data) => applyEmailPatchResult(ev.id, data.event))
-          .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
-      } else {
-        markEmailJunk(ev);
-      }
-    },
-  });
+  actions.push(
+    swipeJunkAction({
+      label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+      onClick: () => {
+        if (ev.category === 'junk') {
+          fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
+          })
+            .then(readApiJson)
+            .then((data) => applyEmailPatchResult(ev.id, data.event))
+            .catch((err) => osAlert({ title: 'Update failed', bodyHtml: escHtml(err.message) }));
+        } else {
+          markEmailJunk(ev);
+        }
+      },
+    }),
+  );
 
   if (emailShowsReceiptAction(ev)) {
-    actions.push({
-      label: 'Receipt',
-      className: 'swipe-act swipe-act-receipt',
-      onClick: () => markEmailReceipt(ev),
-    });
+    actions.push(
+      swipeReceiptAction({
+        onClick: () => markEmailReceipt(ev),
+      }),
+    );
   }
 
   return actions;

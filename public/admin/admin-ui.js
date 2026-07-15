@@ -21,6 +21,10 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg>',
   agent:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 18a2 2 0 0 0-4 0"/><path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/><path d="M2 11h20"/><circle cx="17" cy="18" r="3"/><circle cx="7" cy="18" r="3"/></svg>',
+  archive:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
+  receipt:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>',
 };
 
 /** Branded agent control (Lucide hat-glasses / fedora + glasses, gradient background). */
@@ -655,4 +659,279 @@ export function initSidebarLayout() {
   bindSidebarResizeDrag();
   observePanelSidebars();
   scanPanelSidebars();
+}
+
+// ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
+
+const SWIPE_ACTIONS = {
+  agent: { iconKey: 'agent', className: 'swipe-act swipe-act-agent', label: 'Agent' },
+  archive: { iconKey: 'archive', className: 'swipe-act swipe-act-archive', label: 'Archive' },
+  delete: { iconKey: 'trash', className: 'swipe-act swipe-act-delete', label: 'Delete' },
+  junk: { iconKey: 'trash', className: 'swipe-act swipe-act-junk', label: 'Junk' },
+  receipt: { iconKey: 'receipt', className: 'swipe-act swipe-act-receipt', label: 'Receipt' },
+  clear: { iconKey: 'square', className: 'swipe-act swipe-act-archive', label: 'Clear' },
+};
+
+function swipeIconMarkup(iconKey, size = 18) {
+  const svg = IOS_ICONS[iconKey];
+  if (!svg) return '';
+  return svg.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
+}
+
+/** Build a swipe action descriptor — icon-only button with accessible label. */
+export function swipeAction(kind, opts = {}) {
+  const spec = SWIPE_ACTIONS[kind];
+  if (!spec) throw new Error(`Unknown swipe action: ${kind}`);
+  const { label = spec.label, onClick } = opts;
+  if (typeof onClick !== 'function') throw new Error(`swipeAction(${kind}) requires onClick`);
+  return {
+    label,
+    iconKey: spec.iconKey,
+    className: spec.className,
+    onClick,
+  };
+}
+
+export const swipeAgentAction = (onClick) => swipeAction('agent', { onClick });
+export const swipeArchiveAction = (opts) => swipeAction('archive', opts);
+export const swipeDeleteAction = (opts) => swipeAction('delete', opts);
+export const swipeJunkAction = (opts) => swipeAction('junk', opts);
+export const swipeReceiptAction = (opts) => swipeAction('receipt', opts);
+export const swipeClearAction = (opts) => swipeAction('clear', opts);
+
+const SWIPE_AXIS_SLOP = 12;
+const SWIPE_HORIZONTAL_MIN = 28;
+const SWIPE_HORIZONTAL_RATIO = 3;
+const SWIPE_VERTICAL_RATIO = 1.1;
+const SWIPE_CLOSE_HORIZONTAL_MIN = 14;
+const SWIPE_CLOSE_HORIZONTAL_RATIO = 2;
+
+let openSwipeRow = null;
+
+export function closeOpenSwipeRow() {
+  if (openSwipeRow) {
+    openSwipeRow.snap(false);
+    openSwipeRow = null;
+  }
+}
+
+export function bindSwipeListScroll(listEl) {
+  listEl.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
+}
+
+function attachSwipeRow(row, contentEl, revealPx) {
+  let startX = 0;
+  let swipeStartY = 0;
+  let baseX = 0;
+  let pending = false;
+  let dragging = false;
+  let moved = false;
+  let open = false;
+  /** @type {'horizontal' | 'vertical' | null} */
+  let axis = null;
+
+  function currentTx() {
+    const m = contentEl.style.transform.match(/translate3d\(([-\d.]+)px/);
+    return m ? parseFloat(m[1]) : 0;
+  }
+
+  function setTranslate(x, animate) {
+    contentEl.style.transition = animate ? 'transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
+    contentEl.style.transform = `translate3d(${x}px, 0, 0)`;
+  }
+
+  function snap(shouldOpen) {
+    open = shouldOpen;
+    row.classList.toggle('swipe-open', open);
+    row.classList.remove('swipe-dragging');
+    setTranslate(open ? -revealPx : 0, true);
+    if (open) {
+      if (openSwipeRow && openSwipeRow !== api) openSwipeRow.snap(false);
+      openSwipeRow = api;
+    } else if (openSwipeRow === api) {
+      openSwipeRow = null;
+    }
+  }
+
+  function resetGesture() {
+    pending = false;
+    dragging = false;
+    axis = null;
+    row.classList.remove('swipe-dragging');
+  }
+
+  function horizontalThresholds() {
+    if (open) {
+      return { min: SWIPE_CLOSE_HORIZONTAL_MIN, ratio: SWIPE_CLOSE_HORIZONTAL_RATIO };
+    }
+    return { min: SWIPE_HORIZONTAL_MIN, ratio: SWIPE_HORIZONTAL_RATIO };
+  }
+
+  function onStart(clientX, clientY) {
+    if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
+    startX = clientX;
+    swipeStartY = clientY;
+    baseX = open ? -revealPx : 0;
+    pending = true;
+    dragging = false;
+    axis = null;
+    moved = false;
+  }
+
+  function onMove(clientX, clientY, prevent) {
+    if (!pending && !dragging) return;
+    const dx = clientX - startX;
+    const dy = clientY - swipeStartY;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+
+    const listEl = row.closest('.ch-list, .de-list, .em-list');
+    if (listEl && listEl.scrollTop <= 1 && dy > 0 && ady > adx * SWIPE_VERTICAL_RATIO) {
+      resetGesture();
+      setTranslate(open ? -revealPx : 0, false);
+      return;
+    }
+
+    if (axis == null) {
+      if (adx < SWIPE_AXIS_SLOP && ady < SWIPE_AXIS_SLOP) return;
+
+      if (ady >= adx * SWIPE_VERTICAL_RATIO) {
+        axis = 'vertical';
+        pending = false;
+        return;
+      }
+
+      const { min, ratio } = horizontalThresholds();
+      if (adx >= min && adx >= ady * ratio) {
+        axis = 'horizontal';
+        dragging = true;
+        pending = false;
+        row.classList.add('swipe-dragging');
+        contentEl.style.transition = 'none';
+      } else if (ady > adx) {
+        axis = 'vertical';
+        pending = false;
+        return;
+      }
+      return;
+    }
+
+    if (axis === 'vertical') return;
+
+    if (axis === 'horizontal' && dragging) {
+      if (adx > 8) moved = true;
+      let next = baseX + dx;
+      next = Math.min(0, Math.max(-revealPx, next));
+      setTranslate(next, false);
+      if (prevent) prevent();
+    }
+  }
+
+  function onEnd() {
+    if (!pending && !dragging) return;
+    if (axis === 'vertical' || (axis == null && pending)) {
+      resetGesture();
+      return;
+    }
+    if (!dragging) {
+      resetGesture();
+      return;
+    }
+    dragging = false;
+    pending = false;
+    axis = null;
+    row.classList.remove('swipe-dragging');
+    const tx = currentTx();
+    snap(tx <= -revealPx * 0.35);
+  }
+
+  contentEl.addEventListener(
+    'touchstart',
+    (e) => {
+      if (e.touches.length !== 1) return;
+      onStart(e.touches[0].clientX, e.touches[0].clientY);
+    },
+    { passive: true },
+  );
+  contentEl.addEventListener(
+    'touchmove',
+    (e) => onMove(e.touches[0].clientX, e.touches[0].clientY, () => e.preventDefault()),
+    { passive: false },
+  );
+  contentEl.addEventListener('touchend', onEnd);
+  contentEl.addEventListener('touchcancel', onEnd);
+
+  contentEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    onStart(e.clientX, e.clientY);
+    const onMouseMove = (ev) => onMove(ev.clientX, null);
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      onEnd();
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  });
+
+  contentEl.addEventListener(
+    'click',
+    (e) => {
+      if (moved) {
+        e.preventDefault();
+        e.stopPropagation();
+        moved = false;
+      }
+    },
+    true,
+  );
+
+  const api = { snap, row, moved: () => moved };
+  return api;
+}
+
+/** iOS-style swipe row — pass content element + swipeAction() descriptors. */
+export function createSwipeRow(contentEl, actions) {
+  const row = document.createElement('div');
+  row.className = 'swipe-row';
+  if (contentEl.dataset?.id) row.dataset.id = contentEl.dataset.id;
+  if (contentEl.dataset?.slug) row.dataset.slug = contentEl.dataset.slug;
+
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'swipe-actions';
+  for (const act of actions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = act.className || 'swipe-act';
+    const iconKey = act.iconKey || act.icon;
+    btn.innerHTML = swipeIconMarkup(iconKey, 18);
+    btn.setAttribute('aria-label', act.label || 'Action');
+    btn.title = act.label || 'Action';
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      act.onClick();
+    });
+    actionsEl.appendChild(btn);
+  }
+
+  const content = document.createElement('div');
+  content.className = 'swipe-content';
+  content.appendChild(contentEl);
+  row.appendChild(actionsEl);
+  row.appendChild(content);
+
+  requestAnimationFrame(() => {
+    const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
+    attachSwipeRow(row, content, revealPx);
+  });
+  return row;
+}
+
+if (typeof document !== 'undefined' && !document.documentElement.dataset.swipeDismissBound) {
+  document.documentElement.dataset.swipeDismissBound = '1';
+  document.addEventListener('click', (e) => {
+    if (!openSwipeRow) return;
+    if (openSwipeRow.row.contains(e.target)) return;
+    closeOpenSwipeRow();
+  });
 }
