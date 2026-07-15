@@ -203,6 +203,9 @@ function clearSetupAlerts() {
 }
 
 export async function syncAdminSetupAlerts() {
+  const root = document.getElementById('admin-setup-alerts');
+  if (root?.dataset.actionBanner === '1') return 'action';
+
   clearSetupAlerts();
 
   if (needsPwaInstall() && !isDismissed('pwa')) {
@@ -216,6 +219,94 @@ export async function syncAdminSetupAlerts() {
   }
 
   return null;
+}
+
+let activeActionBannerFinish = null;
+
+export function clearAdminActionBanner(restoreSetup = true) {
+  const root = document.getElementById('admin-setup-alerts');
+  if (root?.dataset.actionBanner === '1') {
+    root.hidden = true;
+    root.replaceChildren();
+    delete root.dataset.actionBanner;
+  }
+  activeActionBannerFinish = null;
+  syncSetupAlertInset();
+  if (restoreSetup) void syncAdminSetupAlerts();
+}
+
+/** Header notification banner with confirm/cancel — same chrome as setup alerts. */
+export function showAdminConfirmBanner(opts = {}) {
+  return new Promise((resolve) => {
+    clearAdminActionBanner(false);
+
+    const root = document.getElementById('admin-setup-alerts');
+    if (!root) {
+      resolve(false);
+      return;
+    }
+
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      activeActionBannerFinish = null;
+      clearAdminActionBanner(true);
+      resolve(value);
+    };
+    activeActionBannerFinish = finish;
+
+    root.hidden = false;
+    root.replaceChildren();
+    root.dataset.actionBanner = '1';
+
+    const alert = document.createElement('div');
+    alert.className = 'admin-setup-alert admin-setup-alert--confirm';
+    alert.setAttribute('role', 'alertdialog');
+    alert.setAttribute('aria-modal', 'false');
+    alert.setAttribute('aria-labelledby', 'admin-action-banner-title');
+
+    const copy = document.createElement('div');
+    copy.className = 'admin-setup-alert-copy';
+    const title = opts.title ? `<strong id="admin-action-banner-title">${opts.title}</strong>` : '';
+    copy.innerHTML = `${title}${opts.bodyHtml || ''}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'admin-setup-alert-actions';
+
+    if (opts.showCancel !== false) {
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'admin-setup-alert-btn';
+      cancelBtn.textContent = opts.cancelLabel || 'Cancel';
+      cancelBtn.addEventListener('click', () => finish(false));
+      actions.appendChild(cancelBtn);
+    }
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = `admin-setup-alert-btn ${
+      opts.danger ? 'admin-setup-alert-btn--danger' : 'admin-setup-alert-btn--primary'
+    }`.trim();
+    confirmBtn.textContent = opts.confirmLabel || 'OK';
+    confirmBtn.addEventListener('click', () => finish(true));
+    actions.appendChild(confirmBtn);
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'admin-setup-alert-dismiss';
+    dismissBtn.setAttribute('aria-label', 'Dismiss');
+    dismissBtn.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+    dismissBtn.addEventListener('click', () => finish(false));
+    actions.appendChild(dismissBtn);
+
+    alert.append(copy, actions);
+    root.appendChild(alert);
+    bindSetupAlertResize();
+    requestAnimationFrame(() => syncSetupAlertInset());
+    confirmBtn.focus();
+  });
 }
 
 export async function syncAdminPushButton(buttonId = 'push-enable-btn') {

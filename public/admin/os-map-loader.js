@@ -59,7 +59,8 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20250715a';
+} from './admin-ui.js?v=20250715b';
+import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -11392,18 +11393,12 @@ async function deleteEmail(ev) {
   }
 }
 
-function bulkDeleteConfirmHtml(tab, count) {
+function bulkDeleteBannerBody(tab, count) {
   const label = tab.label.toLowerCase();
   if (tab.id === 'junk') {
-    return (
-      `<p>Are you sure you want to delete all junk messages?</p>` +
-      `<p class="os-dialog-note">${count} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`
-    );
+    return `<p>${count} junk message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`;
   }
-  return (
-    `<p>Are you sure you want to delete all ${escHtml(label)} messages?</p>` +
-    `<p class="os-dialog-note">${count} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`
-  );
+  return `<p>${count} ${escHtml(label)} message${count === 1 ? '' : 's'} will be removed from the inbox log.</p>`;
 }
 
 async function bulkDeleteInboxCategory(tab) {
@@ -11412,9 +11407,9 @@ async function bulkDeleteInboxCategory(tab) {
   const count = events.length;
   if (count === 0 || tab.id === 'all') return;
 
-  const ok = await osConfirm({
+  const ok = await showAdminConfirmBanner({
     title: `Delete all ${tab.label.toLowerCase()}?`,
-    bodyHtml: bulkDeleteConfirmHtml(tab, count),
+    bodyHtml: bulkDeleteBannerBody(tab, count),
     confirmLabel: 'Delete all',
     danger: true,
   });

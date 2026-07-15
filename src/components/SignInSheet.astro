@@ -16,19 +16,47 @@ const {
   autoOpen = false,
 } = Astro.props;
 
-/** Hide Clerk's duplicate heading; keep card layout/padding intact. */
+/** Flush Clerk into the sheet — no nested card chrome or outer padding. */
 const clerkAppearance = {
+  options: {
+    elevation: 'flush',
+  },
   elements: {
     rootBox: {
       width: '100%',
       maxWidth: '100%',
     },
+    cardBox: {
+      width: '100%',
+      maxWidth: '100%',
+      margin: '0',
+      padding: '0',
+      boxShadow: 'none',
+    },
     card: {
       width: '100%',
       maxWidth: '100%',
+      margin: '0',
+      padding: '0',
       boxShadow: 'none',
       border: 'none',
       borderRadius: '0',
+      background: 'transparent',
+    },
+    scrollBox: {
+      width: '100%',
+      maxWidth: '100%',
+    },
+    main: {
+      padding: '0',
+    },
+    footer: {
+      padding: '0',
+      background: 'transparent',
+      boxShadow: 'none',
+    },
+    footerAction: {
+      background: 'transparent',
     },
     header: { display: 'none' },
     headerTitle: { display: 'none' },
@@ -59,9 +87,29 @@ const clerkAppearance = {
     padding: 0;
   }
 
-  #sign-in-sheet .cl-rootBox {
+  #sign-in-sheet .cl-rootBox,
+  #sign-in-sheet .cl-cardBox,
+  #sign-in-sheet .cl-card,
+  #sign-in-sheet .cl-scrollBox,
+  #sign-in-sheet .cl-main {
     width: 100%;
     max-width: 100%;
+  }
+
+  #sign-in-sheet .cl-cardBox,
+  #sign-in-sheet .cl-card {
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  #sign-in-sheet .cl-footer,
+  #sign-in-sheet .cl-footerAction {
+    background: transparent;
+    box-shadow: none;
   }
 </style>
 

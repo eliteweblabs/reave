@@ -577,6 +577,10 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         border-color: rgba(251, 191, 36, 0.35);
         background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(251, 191, 36, 0.12));
       }
+      .admin-setup-alert--confirm {
+        border-color: rgba(248, 113, 113, 0.35);
+        background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(248, 113, 113, 0.1));
+      }
       .admin-setup-alert-copy {
         flex: 1;
         min-width: 0;
@@ -624,6 +628,15 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       }
       .admin-setup-alert-btn--primary:hover {
         background: rgba(251, 191, 36, 0.22);
+      }
+      .admin-setup-alert-btn--danger {
+        border-color: rgba(248, 113, 113, 0.45);
+        background: rgba(220, 38, 38, 0.88);
+        color: #fff;
+      }
+      .admin-setup-alert-btn--danger:hover {
+        background: rgba(185, 28, 28, 0.95);
+        border-color: rgba(185, 28, 28, 0.95);
       }
       .admin-setup-alert-dismiss {
         display: inline-flex;
@@ -5376,12 +5389,12 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
     <script>
       import '../../admin/agent-chat-mount.tsx';
     </script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20250714b"></script>
+    <script is:inline type="module" src="/admin/push-client.js?v=20250715b"></script>
     <script src="/ios-sheet.js" defer></script>
     <script is:inline define:vars={{ companyBrand, installConfigClient }}>
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250715a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250715b"></script>
   </body>
 </html>
