@@ -779,6 +779,7 @@ export function attachQuantumCoreOpticalEngine(
 
   let logoGlow: THREE.Mesh | null = null;
   let logoGlowMat: THREE.ShaderMaterial | null = null;
+  let logoGlowBaseScale = logoCloudRadiusX * PARTICLE_VIS_SCALE;
   const glowOpacityBase = isMobileLike ? 0.46 : 0.4;
   if (!isCompactStack) {
     const logoGlowGeo = new THREE.CircleGeometry(1, 96);
@@ -889,7 +890,8 @@ export function attachQuantumCoreOpticalEngine(
       1,
       1,
     );
-    logoGlow?.scale.setScalar(logoCloudRadiusX * PARTICLE_VIS_SCALE);
+    logoGlowBaseScale = logoCloudRadiusX * PARTICLE_VIS_SCALE;
+    logoGlow?.scale.setScalar(logoGlowBaseScale);
     const xStretch = logoCloudRadiusX / CLOUD_RADIUS;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
@@ -944,7 +946,7 @@ export function attachQuantumCoreOpticalEngine(
 
   function applyParticleLogoColors(colorMix = 1, energy = 0): void {
     const mix = THREE.MathUtils.clamp(colorMix, 0, 1);
-    const boost = 1 + energy * 0.12;
+    const boost = 1 + energy * 0.08;
     for (let i = 0; i < particleCount; i++) {
       const i3 = i * 3;
       const fade = homeEdgeFade[i]!;
@@ -997,18 +999,18 @@ export function attachQuantumCoreOpticalEngine(
 
   const onCallStart: EventListener = () => {
     callEnergyTarget = 1;
-    callEnergySmoothed = Math.max(callEnergySmoothed, 0.28); // warm-start so visuals react immediately
-    burst = Math.min(burst + 0.6, 1.2);
-    triggerShake(0.35);
+    callEnergySmoothed = Math.max(callEnergySmoothed, 0.28);
+    burst = Math.min(burst + 0.38, 1);
+    triggerShake(0.12);
   };
   const onCallEnd: EventListener = () => {
     callEnergyTarget = 0;
-    burst = Math.min(burst + 0.35, 1.6);
-    triggerShake(0.25);
+    burst = Math.min(burst + 0.22, 1.2);
+    triggerShake(0.08);
   };
   const onTranscript: EventListener = () => {
-    burst = Math.min(burst + 0.5, 1.6);
-    triggerShake(0.28);
+    burst = Math.min(burst + 0.32, 1.2);
+    triggerShake(0.1);
   };
   window.addEventListener("vapi-call-start", onCallStart);
   window.addEventListener("vapi-call-end", onCallEnd);
@@ -1187,8 +1189,14 @@ export function attachQuantumCoreOpticalEngine(
     const spinBoost =
       1 +
       energy *
-        (prefersReduced ? 0.2 : 0.45 + wild * 0.6) *
+        (prefersReduced ? 0.15 : 0.28 + wild * 0.32) *
         Math.max(motionScale, 0.35);
+
+    /* Voice modulates idle motion — morph + halo pulse, not scatter/warp. */
+    const idleVoiceDamp = THREE.MathUtils.lerp(1, 0.42, energy);
+    const voiceMorphMul = 1 + mic * 0.95 + burst * 0.18 + wild * 0.1;
+    const voiceMorphTime = sceneT * (1 + energy * 0.55);
+    const voiceSwell = 1 + mic * 0.032 + burst * 0.02 + wild * 0.015;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
     const idleSpinMul = inIntro ? 0.1 : 0.17;
@@ -1196,7 +1204,7 @@ export function attachQuantumCoreOpticalEngine(
     const idleSizeWobble =
       inIntro || isCompactStack || prefersReduced
         ? 0
-        : Math.sin(sceneT * 0.44) * 0.055 * motionScale;
+        : Math.sin(sceneT * 0.44) * 0.055 * motionScale * idleVoiceDamp;
 
     const inGalaxyView = inIntro && useGalaxyIntro;
     const globalIntroT = inIntro
@@ -1211,12 +1219,12 @@ export function attachQuantumCoreOpticalEngine(
     logoResolveSmoothed += (resolveTarget - logoResolveSmoothed) * resolveLerp;
     const resolveMix = THREE.MathUtils.clamp(logoResolveSmoothed, 0, 1);
     const reactiveLift = THREE.MathUtils.clamp(
-      energy * 0.55 + burst * 0.2,
+      energy * 0.42 + burst * 0.14,
       0,
       1,
     );
     logoResolveMat.uniforms.uOpacity.value =
-      resolveMix * (1 - reactiveLift * 0.22);
+      resolveMix * (1 - reactiveLift * 0.08);
     const particleResolveDim = 1 - resolveMix * 0.82;
 
     if (logoGlowMat) {
@@ -1228,13 +1236,20 @@ export function attachQuantumCoreOpticalEngine(
       const idleGlowPulse =
         inIntro || isCompactStack
           ? 1
-          : 1 + Math.sin(sceneT * 0.38) * 0.05 * motionScale;
+          : 1 +
+            Math.sin(sceneT * 0.38) * 0.05 * motionScale * idleVoiceDamp;
+      const voiceGlowPulse = inIntro ? 1 : 1 + mic * 0.12 + burst * 0.06;
       logoGlowMat.uniforms.uOpacity.value =
         glowOpacityBase *
         glowMix *
         idleGlowPulse *
-        (1 - resolveMix * 0.1) *
-        (1 + reactiveLift * 0.06);
+        voiceGlowPulse *
+        (1 - resolveMix * 0.1);
+      if (!inIntro) {
+        logoGlow.scale.setScalar(
+          logoGlowBaseScale * (1 + mic * 0.05 + energy * 0.025),
+        );
+      }
     }
 
     if (inGalaxyView) {
@@ -1328,10 +1343,11 @@ export function attachQuantumCoreOpticalEngine(
         easeInQuart(globalIntroT),
       );
     } else {
-      const idleAmp =
+      const baseIdleAmp =
         isCompactStack || prefersReduced
           ? 0
           : 0.034 * motionScale * (1 - resolveMix * 0.22);
+      const idleAmp = baseIdleAmp * voiceMorphMul;
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
         const hx = homePositions[i3]!;
@@ -1339,7 +1355,7 @@ export function attachQuantumCoreOpticalEngine(
         const hz = homePositions[i3 + 2]!;
         const [dx, dy, dz] = idleParticleOffset(
           particleIdlePhase[i]!,
-          sceneT,
+          voiceMorphTime,
           idleAmp,
           hx,
           hy,
@@ -1352,11 +1368,6 @@ export function attachQuantumCoreOpticalEngine(
 
       particles.rotation.y = rotY;
       applyParticleLogoColors(1, energy);
-      particles.scale.setScalar(PARTICLE_VIS_SCALE);
-      particlesMat.size =
-        particleBaseSize * (1 + reactiveLift * 0.18 + idleSizeWobble);
-      particlesMat.opacity = particleBaseOpacity * particleResolveDim;
-      bloomPass.strength = 1.18 * (1 - resolveMix * 0.42);
 
       if (introDurationSec > 0) {
         if (!introCompleteFired) {
@@ -1366,54 +1377,44 @@ export function attachQuantumCoreOpticalEngine(
       }
     }
 
-    /* Scatter: particle cloud expands radially outward with audio.
-       Opacity thins as they spread so the cloud disperses rather than amplifies. */
-    const scatterScale = 1 + mic * 0.6 + burst * 0.18;
     if (!inIntro) {
-      particles.scale.setScalar(PARTICLE_VIS_SCALE * scatterScale);
+      particles.scale.setScalar(PARTICLE_VIS_SCALE);
+      const voiceSizeLift = mic * 0.07 + reactiveLift * 0.05;
       particlesMat.size =
-        particleBaseSize *
-        (1 + energy * 0.12 + reactiveLift * 0.08 + idleSizeWobble);
-    }
-    if (!inIntro && (introDurationSec <= 0 || rawT >= introDurationSec)) {
+        particleBaseSize * (1 + voiceSizeLift + idleSizeWobble);
       particlesMat.opacity = THREE.MathUtils.clamp(
-        particleBaseOpacity * particleResolveDim * (1 - mic * 0.3) +
-          reactiveLift * 0.28,
+        particleBaseOpacity * particleResolveDim * (1 + mic * 0.08 + reactiveLift * 0.1),
         0.12,
         particleBaseOpacity,
       );
+      bloomPass.strength = THREE.MathUtils.clamp(
+        (1.12 + wild * 0.08 + energy * 0.2) * (1 - resolveMix * 0.42),
+        0.72,
+        1.45,
+      );
     }
 
-    /* Gentle overall pulse — idle breath even when no call is active. */
+    /* Idle breath calms while voice is active; voice adds a subtle swell instead of scatter. */
     const idleBreath =
       inIntro || isCompactStack
         ? 1
-        : 1 + Math.sin(sceneT * 0.32) * 0.014 * motionScale;
+        : 1 + Math.sin(sceneT * 0.32) * 0.014 * motionScale * idleVoiceDamp;
     const scaleBreath =
       idleBreath +
-      wild * (prefersReduced ? 0.02 : 0.04) * Math.max(motionScale, 0.35);
+      wild * (prefersReduced ? 0.012 : 0.022) * Math.max(motionScale, 0.35);
     if (!inIntro) {
-      pulseGroup.scale.setScalar(scaleBreath);
-    }
-
-    /* Bloom stays restrained — scatter reads through aberration, not a glow surge. */
-    if (!inIntro) {
-      bloomPass.strength = THREE.MathUtils.clamp(
-        (1.18 + wild * 0.18 + energy * 0.55) * (1 - resolveMix * 0.42),
-        0.72,
-        1.9,
-      );
+      pulseGroup.scale.setScalar(scaleBreath * voiceSwell);
     }
 
     const tiltLerp = 0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
     const idleTiltX =
       inIntro || prefersReduced || isCompactStack
         ? 0
-        : Math.sin(sceneT * 0.21) * 0.032 * motionScale;
+        : Math.sin(sceneT * 0.21) * 0.032 * motionScale * idleVoiceDamp;
     const idleTiltY =
       inIntro || prefersReduced || isCompactStack
         ? 0
-        : Math.cos(sceneT * 0.17) * 0.038 * motionScale;
+        : Math.cos(sceneT * 0.17) * 0.038 * motionScale * idleVoiceDamp;
     pulseGroup.rotation.x +=
       (tiltTargetX + idleTiltX - pulseGroup.rotation.x) * tiltLerp;
     pulseGroup.rotation.y +=
@@ -1445,12 +1446,11 @@ export function attachQuantumCoreOpticalEngine(
     camera.position.z = VIEW_Z;
     camera.lookAt(scene.position);
 
-    /* Voice-reactive lens: the whole logo barrels + splits into RGB as energy rises,
-       then eases back to passthrough (0/0) when the conversation goes quiet. */
-    const warpTarget =
-      THREE.MathUtils.clamp(energy * 0.14, 0, 0.22) * motionScale;
+    /* Very subtle lens shimmer on voice — no barrel warp (reads wrong with the halo). */
+    const warpTarget = 0;
     const aberrTarget =
-      THREE.MathUtils.clamp(mic * 0.04 + burst * 0.015, 0, 0.065) * motionScale;
+      THREE.MathUtils.clamp(mic * 0.012 + burst * 0.006, 0, 0.022) *
+      motionScale;
     lensPass.uniforms.uDistortion.value +=
       (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
     lensPass.uniforms.uAberration.value +=

@@ -127,17 +127,21 @@ html.ios-sheet-locked {
   }
 }
 
-@media (min-width: 640px) {
+@media (min-width: 768px) {
   .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) {
     align-items: center;
     padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) .ios-sheet-grabber {
+    display: none;
   }
 
   .ios-sheet-backdrop:not(.ios-sheet-backdrop--sheet-only) .ios-sheet {
     border-radius: 16px;
     border-bottom: 1px solid var(--ios-sheet-border, rgba(0, 0, 0, 0.08));
     max-height: min(86dvh, 640px);
-    transform: translateY(24px) scale(0.97);
+    transform: translateY(16px) scale(0.97);
     opacity: 0;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
   }
