@@ -2,10 +2,10 @@ import type { ContactRecord } from './contactApi';
 import type { CompanyConfig } from './companyConfig';
 
 // Load all HTML templates at build time (Vite eager glob).
-// Path is relative to this file: src/lib/ → src/content/documents/
+// Path is relative to this file: src/lib/ → src/documents/
 const RAW: Record<string, string> = import.meta.glob(
-  '../content/documents/*.html',
-  { as: 'raw', eager: true }
+  '../documents/*.html',
+  { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 
 // ── Shortcode registry ──────────────────────────────────────────────────────

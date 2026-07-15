@@ -2,7 +2,7 @@
  * GET  /api/documents — list all HTML document templates.
  * POST /api/documents — create a new template { slug, html }.
  *
- * Templates live in src/content/documents/*.html.
+ * Templates live in src/documents/*.html.
  * On Railway, writes persist until the next deploy.
  */
 import type { APIRoute } from 'astro';

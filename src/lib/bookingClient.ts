@@ -152,6 +152,12 @@ async function bookingFetch<T>(
   return { ok: true, data: parsed as T };
 }
 
+/** Cal.com Postgres enum values are lowercase (accepted, cancelled, …). */
+export function normalizeBookingStatus(status?: string): string | undefined {
+  const s = status?.trim().toLowerCase();
+  return s || undefined;
+}
+
 export async function bookingList(input?: {
   upcoming?: boolean;
   status?: string;
@@ -164,7 +170,7 @@ export async function bookingList(input?: {
       method: 'GET',
       query: {
         upcoming: input?.upcoming ? 'true' : undefined,
-        status: input?.status,
+        status: normalizeBookingStatus(input?.status),
         limit: input?.limit,
         username: input?.username,
       },
@@ -277,7 +283,7 @@ export async function bookingsToday(): Promise<
     return { ok: true, data: { events: [], configured: false } };
   }
 
-  const listed = await bookingList({ upcoming: true, status: 'ACCEPTED', limit: 50 });
+  const listed = await bookingList({ upcoming: true, status: 'accepted', limit: 50 });
   if (!listed.ok) return listed;
 
   const today = todayKeyInTimezone();

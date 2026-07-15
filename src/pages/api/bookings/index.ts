@@ -1,7 +1,7 @@
 /**
  * GET  /api/bookings — upcoming/recent Cal.com bookings (admin).
  * POST /api/bookings — create a Cal.com booking (admin).
- * Query: ?upcoming=true|false (default true), ?status=ACCEPTED, ?limit=50
+ * Query: ?upcoming=true|false (default true), ?status=accepted, ?limit=50
  *        ?from=YYYY-MM-DD&to=YYYY-MM-DD for calendar range
  */
 

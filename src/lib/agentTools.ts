@@ -3323,7 +3323,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
     if (name === 'list_bookings') {
       const upcoming = args.upcoming !== false;
       const limit = typeof args.limit === 'number' ? Math.min(Math.max(args.limit, 1), 50) : 15;
-      const result = await bookingList({ upcoming, status: 'ACCEPTED', limit });
+      const result = await bookingList({ upcoming, status: 'accepted', limit });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
       return JSON.stringify({
         count: result.data.bookings.length,
