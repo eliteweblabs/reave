@@ -19,6 +19,7 @@ import {
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
 import { runKnowledgeAgent } from '../../../lib/agentRunner';
+import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
 
@@ -115,17 +116,26 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images);
-  const reply = await runKnowledgeAgent({
-    userText: message,
-    images,
-    priorTurns: priorTurns(thread.messages),
-    model: modelOverride,
-    context: {
-      userId,
-      threadId: id,
-      emailId: thread.source_email_id ?? undefined,
-    },
-  });
+
+  clearAgentProgress(userId, id);
+  setAgentProgress(userId, id, { phase: 'thinking', round: 0 });
+
+  let reply: string;
+  try {
+    reply = await runKnowledgeAgent({
+      userText: message,
+      images,
+      priorTurns: priorTurns(thread.messages),
+      model: modelOverride,
+      context: {
+        userId,
+        threadId: id,
+        emailId: thread.source_email_id ?? undefined,
+      },
+    });
+  } finally {
+    clearAgentProgress(userId, id);
+  }
 
   const saved = await storeAppendChatMessages(userId, id, [
     { role: 'user', content: userContent },

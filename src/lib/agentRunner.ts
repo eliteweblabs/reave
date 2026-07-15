@@ -22,6 +22,8 @@ import {
   withToolPromptCaching,
 } from './anthropicMessages';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
+import { setAgentProgress } from './agentProgress';
+import { labelForAgentTool } from './agentToolLabels';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
 
@@ -259,7 +261,15 @@ async function runKnowledgeAgentInner(opts: {
 
   const maxRounds = 25;
 
+  const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
+    const { userId, threadId } = getAgentContext();
+    if (!userId || !threadId) return;
+    setAgentProgress(userId, threadId, update);
+  };
+
   for (let round = 0; round < maxRounds; round++) {
+    emitProgress({ phase: 'thinking', round: round + 1 });
+
     const result = await createAnthropicMessage({
       model,
       max_tokens: 1024,
@@ -285,6 +295,12 @@ async function runKnowledgeAgentInner(opts: {
       const toolResults: AnthropicContentBlock[] = [];
       for (const block of content) {
         if (block.type === 'tool_use') {
+          emitProgress({
+            phase: 'tool',
+            round: round + 1,
+            tool: block.name,
+            toolLabel: labelForAgentTool(block.name),
+          });
           const out = await runTool(block.name, JSON.stringify(block.input ?? {}));
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
         }

@@ -289,6 +289,90 @@
   color: var(--muted);
 }
 
+.aui-composer-toolbar-running {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.aui-run-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.aui-run-status-compact .aui-run-status-detail {
+  display: none;
+}
+
+.aui-run-status-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+  flex-shrink: 0;
+}
+
+.aui-run-status-dots span {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand, #7c3aed) 72%, var(--muted));
+  animation: aui-run-dot 1.2s ease-in-out infinite;
+}
+
+.aui-run-status-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.aui-run-status-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes aui-run-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+.aui-run-status-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.aui-run-status-primary {
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
+.aui-run-status-detail {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.aui-msg-thinking {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0.15rem 0;
+}
+
+.aui-msg-row-thinking {
+  margin-bottom: 0.75rem;
+}
+
 .aui-composer-send {
   display: inline-flex;
   align-items: center;

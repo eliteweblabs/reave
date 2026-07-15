@@ -31,6 +31,110 @@ import {
 } from '../../lib/chatMessageFormat';
 import './agent-chat.css';
 
+type AgentProgressPhase = 'thinking' | 'tool' | 'complete';
+
+type AgentProgress = {
+  phase: AgentProgressPhase;
+  tool?: string;
+  toolLabel?: string;
+  round?: number;
+  startedAt: number;
+  updatedAt: number;
+};
+
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(1, Math.floor(ms / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const rem = seconds % 60;
+  return rem ? `${minutes}m ${rem}s` : `${minutes}m`;
+}
+
+function statusFromProgress(progress: AgentProgress | null, elapsedMs: number): string {
+  const elapsed = formatElapsed(elapsedMs);
+  if (progress?.phase === 'tool' && progress.toolLabel) {
+    return `${progress.toolLabel}… · ${elapsed}`;
+  }
+  if ((progress?.round ?? 0) > 1) {
+    return `Analyzing results… · ${elapsed}`;
+  }
+  return `Thinking… · ${elapsed}`;
+}
+
+function useAgentRunStatus(threadId: string) {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const [progress, setProgress] = useState<AgentProgress | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isRunning) {
+      startedAtRef.current = null;
+      setProgress(null);
+      setElapsedMs(0);
+      return;
+    }
+
+    startedAtRef.current = Date.now();
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
+          cache: 'no-store',
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { progress?: AgentProgress | null };
+        if (!cancelled) setProgress(data.progress ?? null);
+      } catch {
+        /* ignore transient poll errors */
+      }
+    };
+
+    void poll();
+    const pollTimer = window.setInterval(() => void poll(), 900);
+    const elapsedTimer = window.setInterval(() => {
+      const started = startedAtRef.current;
+      if (!started) return;
+      setElapsedMs(Date.now() - started);
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollTimer);
+      window.clearInterval(elapsedTimer);
+    };
+  }, [isRunning, threadId]);
+
+  const statusText = statusFromProgress(progress, elapsedMs);
+  const detailText =
+    progress?.phase === 'tool' && progress.tool
+      ? `Running ${progress.tool.replace(/_/g, ' ')}`
+      : progress?.round && progress.round > 1
+        ? `Step ${progress.round}`
+        : 'Working on your request';
+
+  return { isRunning, statusText, detailText };
+}
+
+function AgentRunStatus({ threadId, compact = false }: { threadId: string; compact?: boolean }) {
+  const { statusText, detailText } = useAgentRunStatus(threadId);
+
+  return (
+    <div className={`aui-run-status${compact ? ' aui-run-status-compact' : ''}`}>
+      <span className="aui-run-status-dots" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+      <span className="aui-run-status-copy">
+        <span className="aui-run-status-primary">{statusText}</span>
+        {!compact ? <span className="aui-run-status-detail">{detailText}</span> : null}
+      </span>
+    </div>
+  );
+}
+
 function readCompanyBrandName(fallback = 'Assistant'): string {
   if (typeof window === 'undefined') return fallback;
   const name = (window as Window & { __companyBrand?: { name?: string } }).__companyBrand?.name?.trim();
@@ -422,11 +526,13 @@ function ClaudeComposer({
   commands,
   onFocusInputReady,
   centered = false,
+  threadId,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
   onFocusInputReady?: (focus: () => void) => void;
   centered?: boolean;
+  threadId: string;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -439,8 +545,8 @@ function ClaudeComposer({
     return (
       <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
         <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
-          <div className="aui-composer-toolbar">
-            <span className="aui-composer-status">Thinking…</span>
+          <div className="aui-composer-toolbar aui-composer-toolbar-running">
+            <AgentRunStatus threadId={threadId} />
             <ComposerPrimitive.Cancel className="aui-composer-stop" aria-label="Stop generating">
               Stop
             </ComposerPrimitive.Cancel>
@@ -481,48 +587,63 @@ function ClaudeComposer({
   );
 }
 
-function ChatMessages() {
+function ChatMessages({ threadId }: { threadId: string }) {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+
   return (
-    <ThreadPrimitive.Messages
-      components={{
-        UserMessage: () => (
-          <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
-            <div className="aui-msg-wrap aui-msg-wrap-user">
-              <div className="aui-msg aui-msg-user">
-                <MessagePrimitive.Parts
-                  components={{
-                    Text: UserTextPart,
-                    Image: UserImagePart,
-                  }}
-                />
+    <>
+      <ThreadPrimitive.Messages
+        components={{
+          UserMessage: () => (
+            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-user group/message">
+              <div className="aui-msg-wrap aui-msg-wrap-user">
+                <div className="aui-msg aui-msg-user">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: UserTextPart,
+                      Image: UserImagePart,
+                    }}
+                  />
+                </div>
+                <UserMessageActions />
               </div>
-              <UserMessageActions />
-            </div>
-          </MessagePrimitive.Root>
-        ),
-        AssistantMessage: () => (
-          <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
-            <div className="aui-msg-wrap aui-msg-wrap-assistant">
-              <div className="aui-msg aui-msg-assistant">
-                <MessagePrimitive.Parts
-                  components={{
-                    Text: AssistantMarkdown,
-                  }}
-                />
+            </MessagePrimitive.Root>
+          ),
+          AssistantMessage: () => (
+            <MessagePrimitive.Root className="aui-msg-row aui-msg-row-assistant group/message">
+              <div className="aui-msg-wrap aui-msg-wrap-assistant">
+                <div className="aui-msg aui-msg-assistant">
+                  <MessagePrimitive.Parts
+                    components={{
+                      Text: AssistantMarkdown,
+                    }}
+                  />
+                </div>
+                <AssistantMessageActions />
               </div>
-              <AssistantMessageActions />
+            </MessagePrimitive.Root>
+          ),
+        }}
+      />
+      {isRunning ? (
+        <div className="aui-msg-row aui-msg-row-assistant aui-msg-row-thinking" aria-live="polite">
+          <div className="aui-msg-wrap aui-msg-wrap-assistant">
+            <div className="aui-msg aui-msg-assistant aui-msg-thinking">
+              <AgentRunStatus threadId={threadId} compact />
             </div>
-          </MessagePrimitive.Root>
-        ),
-      }}
-    />
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
 function AgentChatThreadBody({
   propsRef,
+  threadId,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
+  threadId: string;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
@@ -562,6 +683,7 @@ function AgentChatThreadBody({
           <h1 className="aui-empty-heading">How can I help you today?</h1>
           <ClaudeComposer
             centered
+            threadId={threadId}
             propsRef={propsRef}
             commands={commands}
             onFocusInputReady={(focus) => {
@@ -575,12 +697,13 @@ function AgentChatThreadBody({
         <div className="aui-thread-body">
           <ThreadPrimitive.Viewport className="aui-viewport">
             <div className="aui-thread-column">
-              <ChatMessages />
+              <ChatMessages threadId={threadId} />
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">
             <div className="aui-thread-column">
               <ClaudeComposer
+                threadId={threadId}
                 propsRef={propsRef}
                 commands={commands}
                 onFocusInputReady={(focus) => {
@@ -616,7 +739,7 @@ function AgentChatThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
-      <AgentChatThreadBody propsRef={propsRef} />
+      <AgentChatThreadBody propsRef={propsRef} threadId={threadId} />
     </AssistantRuntimeProvider>
   );
 }
