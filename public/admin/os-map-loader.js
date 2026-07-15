@@ -11242,6 +11242,7 @@ function buildEmailSwipeActions(ev) {
   if (ev.category !== 'junk') {
     actions.push({
       label: isEmailRouted(ev) ? 'Unarchive' : 'Archive',
+      icon: 'archive',
       className: 'swipe-act swipe-act-archive',
       onClick: () => (isEmailRouted(ev) ? unarchiveEmail(ev) : archiveEmail(ev)),
     });
@@ -11257,6 +11258,7 @@ function buildEmailSwipeActions(ev) {
 
   actions.push({
     label: ev.category === 'junk' ? 'Not junk' : 'Junk',
+    icon: 'trash',
     className: 'swipe-act swipe-act-junk',
     onClick: () => {
       if (ev.category === 'junk') {

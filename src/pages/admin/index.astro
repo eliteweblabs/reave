@@ -3174,9 +3174,16 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--brand-gradient);
         box-shadow: var(--brand-gradient-shadow);
       }
-      .swipe-act-agent svg {
+      .swipe-act-agent svg,
+      .swipe-act-archive svg,
+      .swipe-act-junk svg {
         display: block;
         flex-shrink: 0;
+      }
+      .swipe-act-archive,
+      .swipe-act-junk {
+        width: 3.25rem;
+        padding: 0;
       }
       .swipe-act-junk { background: #ff9500; }
       .swipe-act-receipt { background: #34c759; }
