@@ -3,6 +3,7 @@ import { serverEnv } from './serverEnv';
 
 export const DEFAULT_AGENT_MODEL = 'claude-sonnet-4-6';
 
+/** Curated picker labels — update when Anthropic ships new Claude tiers. */
 export type AgentModelOption = { id: string; label: string };
 
 export const AGENT_MODEL_OPTIONS: AgentModelOption[] = [

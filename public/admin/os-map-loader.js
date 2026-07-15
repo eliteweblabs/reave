@@ -109,7 +109,7 @@ const MAP_ICON_KEYS = {
   todo: 'check-square',
   documents: 'file-text',
   knowledge: 'book-open',
-  chats: 'message-circle',
+  chats: 'agent',
   email: 'mail',
   rules: 'zap',
   work: 'briefcase',
@@ -162,7 +162,7 @@ const HOME_DASHBOARD_FOOTER_KEYS = new Set(['chats', 'email', 'work', 'schedule'
 const LEGACY_EMOJI_ICON = {
   '🔔': 'bell',
   '📊': 'database',
-  '💬': 'message-circle',
+  '💬': 'agent',
   '📋': 'file-text',
   '⚡': 'zap',
   '📚': 'book-open',
@@ -694,7 +694,7 @@ function createChatModelSwitcher() {
 
   const icon = document.createElement('span');
   icon.className = 'ch-model-switcher-icon';
-  icon.innerHTML = IOS_ICONS.sparkles || '';
+  icon.innerHTML = IOS_ICONS.agent || '';
   icon.setAttribute('aria-hidden', 'true');
   wrap.appendChild(icon);
 
@@ -2805,7 +2805,7 @@ function syncFooterChatNav() {
   applyFooterNavBtnMode(btn, iconEl, {
     save,
     create,
-    icon: 'message-circle',
+    icon: 'agent',
     label: 'Chats',
     title: 'New chat',
   });
@@ -9401,7 +9401,7 @@ function renderChatMessages(container, composeInput) {
   if (chatState.messages.length === 0 && !chatState.sending) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = placeholderHtml('message-circle', 'Send a message to start.');
+    ph.innerHTML = placeholderHtml('agent', 'Send a message to start.');
     container.appendChild(ph);
     return;
   }
@@ -9566,7 +9566,7 @@ function renderChatPanel() {
   if (!chatState.activeId) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = placeholderHtml('message-circle', 'Select a chat or start a new one.');
+    ph.innerHTML = placeholderHtml('agent', 'Select a chat or start a new one.');
     pane.appendChild(ph);
     root.appendChild(pane);
     clearTopbarPanelContext();

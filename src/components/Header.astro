@@ -3,7 +3,7 @@ import { getCompanyConfig, companyLogoUrl } from "../lib/companyConfig";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import {
-  MessageCircle,
+  HatGlasses,
   BookOpen,
   Mail,
   Briefcase,
@@ -45,7 +45,7 @@ const company = await getCompanyConfig(Astro.request);
 const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
 
 const adminSpaTabs = [
-  { tab: "chats", label: "Chats", Icon: MessageCircle },
+  { tab: "chats", label: "Chats", Icon: HatGlasses },
   { tab: "knowledge", label: "Knowledge", Icon: BookOpen },
   { tab: "email", label: "Inbox", Icon: Mail },
   { tab: "work", label: "Work", Icon: Briefcase },
