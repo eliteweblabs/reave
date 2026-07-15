@@ -2376,18 +2376,39 @@ function renderPluginsPanel(data) {
         `<p class="prof-hint prof-hint--block"><strong id="plugins-slash-count">${count}</strong> slash commands currently available.</p>` +
         `<div id="plugins-alert" class="prof-alert" hidden></div>` +
         `<div id="plugins-form">${groupsHtml}</div>` +
-        `<div class="prof-actions">` +
-          `<button type="button" id="plugins-save-btn" class="prof-btn-primary">Save plugins</button>` +
-        `</div>` +
       `</div>` +
     `</div>`
   );
 }
 
+let pluginsSaveTimer = null;
+
+async function autosavePlugins(enabled, alertEl, countEl) {
+  try {
+    const res = await adminFetch('/api/admin/features', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: [...enabled] }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    if (countEl) countEl.textContent = String(json.slashCommandCount ?? 0);
+  } catch (e) {
+    showProfileAlert(alertEl, e.message || 'Save failed.', 'error');
+  }
+}
+
+function schedulePluginsAutosave(enabled, alertEl, countEl) {
+  clearTimeout(pluginsSaveTimer);
+  pluginsSaveTimer = setTimeout(() => {
+    pluginsSaveTimer = null;
+    void autosavePlugins(enabled, alertEl, countEl);
+  }, 500);
+}
+
 function bindPluginsPanel(root, initialEnabled) {
   const enabled = new Set(Array.isArray(initialEnabled) ? initialEnabled : []);
   const alertEl = root.querySelector('#plugins-alert');
-  const saveBtn = root.querySelector('#plugins-save-btn');
   const countEl = root.querySelector('#plugins-slash-count');
 
   root.querySelectorAll('.prof-plugin-toggle[data-feature-id]').forEach((btn) => {
@@ -2398,29 +2419,8 @@ function bindPluginsPanel(root, initialEnabled) {
       btn.setAttribute('aria-checked', on ? 'true' : 'false');
       if (on) enabled.add(id);
       else enabled.delete(id);
+      schedulePluginsAutosave(enabled, alertEl, countEl);
     });
-  });
-
-  saveBtn?.addEventListener('click', async () => {
-    if (!(saveBtn instanceof HTMLButtonElement)) return;
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
-    try {
-      const res = await adminFetch('/api/admin/features', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: [...enabled] }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      if (countEl) countEl.textContent = String(json.slashCommandCount ?? 0);
-      showProfileAlert(alertEl, 'Plugins saved. Chat commands updated.', 'success');
-    } catch (e) {
-      showProfileAlert(alertEl, e.message || 'Save failed.', 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save plugins';
-    }
   });
 }
 
