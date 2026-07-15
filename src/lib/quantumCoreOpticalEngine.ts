@@ -1235,31 +1235,6 @@ export function attachQuantumCoreOpticalEngine(
       resolveMix * (1 - reactiveLift * 0.08);
     const particleResolveDim = 1 - resolveMix * 0.82;
 
-    if (logoGlowMat) {
-      const glowMix = inGalaxyView
-        ? 0
-        : inIntro
-          ? THREE.MathUtils.smoothstep(0.52, 0.86, globalIntroT)
-          : 1;
-      const idleGlowPulse =
-        inIntro || isCompactStack
-          ? 1
-          : 1 +
-            Math.sin(sceneT * 0.38) * 0.05 * motionScale * idleVoiceDamp;
-      const voiceGlowPulse = inIntro ? 1 : 1 + mic * 0.12 + burst * 0.06;
-      logoGlowMat.uniforms.uOpacity.value =
-        glowOpacityBase *
-        glowMix *
-        idleGlowPulse *
-        voiceGlowPulse *
-        (1 - resolveMix * 0.1);
-      if (!inIntro) {
-        logoGlow.scale.setScalar(
-          logoGlowBaseScale * (1 + mic * 0.05 + energy * 0.025),
-        );
-      }
-    }
-
     if (inGalaxyView) {
       resetCameraViewportAspect();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0032 : 0.0042;
@@ -1520,8 +1495,6 @@ export function attachQuantumCoreOpticalEngine(
     const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
     logoMap?.dispose();
     logoResolveMat.dispose();
-    logoGlow?.geometry.dispose();
-    logoGlowMat?.dispose();
     composer.dispose();
     renderer.dispose();
     if (renderer.domElement.parentElement === host) {
