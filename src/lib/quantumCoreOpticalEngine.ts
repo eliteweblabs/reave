@@ -77,9 +77,8 @@ const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
 const LOGO_AV_DAMP_INNER_AMOUNT = 0.144;
 
-/** Backdrop disc diameter = logo width; outer band extends glow ~50% beyond particle core. */
-const LOGO_GLOW_RADIUS_EXTENT = 1.5;
-const LOGO_GLOW_INNER = 1 / LOGO_GLOW_RADIUS_EXTENT;
+/** Share of particles that fill the circular halo (not locked to letter strokes). */
+const HALO_PARTICLE_FRACTION = 0.44;
 
 function logoAvGlowDamp(u: number): number {
   const outer =
@@ -147,36 +146,6 @@ const LogoResolveShader = {
         * (1.0 - smoothstep(uAvDampInnerU1 - 0.03, uAvDampInnerU1, vUv.x));
       float damp = 1.0 - outer * uAvDampAmt - inner * uAvDampInnerAmt;
       gl_FragColor = vec4(tex.rgb * damp, tex.a * uOpacity);
-    }
-  `,
-};
-
-const LogoBackdropGlowShader = {
-  uniforms: {
-    uOpacity: { value: 0 },
-    uInner: { value: LOGO_GLOW_INNER },
-    uTint: { value: new THREE.Color(0.82, 0.42, 0.68) },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float uOpacity;
-    uniform float uInner;
-    uniform vec3 uTint;
-    varying vec2 vUv;
-    void main() {
-      vec2 centered = vUv - 0.5;
-      float r = length(centered) * 2.0;
-      float core = (1.0 - smoothstep(0.0, uInner, r)) * 0.1;
-      float ring = smoothstep(uInner - 0.1, uInner + 0.04, r)
-        * (1.0 - smoothstep(0.9, 1.0, r));
-      float alpha = (core + ring * 0.38) * uOpacity;
-      gl_FragColor = vec4(uTint, alpha);
     }
   `,
 };
@@ -301,15 +270,32 @@ function particleEdgeFade(
   hx: number,
   hy: number,
   hz: number,
-  cloudRadiusX: number,
-  cloudRadiusZ: number,
-  cloudHalfH: number,
+  circleRadius: number,
 ): number {
-  const ex = hx / Math.max(cloudRadiusX, 0.001);
-  const ey = hy / Math.max(cloudHalfH, 0.001);
-  const ez = hz / Math.max(cloudRadiusZ, 0.001);
-  const r = Math.sqrt(ex * ex + ey * ey + ez * ez);
-  return 1 - THREE.MathUtils.smoothstep(0.78, 1.02, r);
+  const r =
+    Math.sqrt(hx * hx + hy * hy + hz * hz * 0.12) /
+    Math.max(circleRadius, 0.001);
+  return 1 - THREE.MathUtils.smoothstep(0.9, 1.1, r);
+}
+
+/** Uniform random position in a filled disc (diameter = logo width at widest). */
+function sampleCircularHome(circleRadius: number): [number, number, number] {
+  const rho = circleRadius * Math.sqrt(Math.random());
+  const theta = Math.random() * Math.PI * 2;
+  return [
+    rho * Math.cos(theta),
+    rho * Math.sin(theta),
+    (Math.random() - 0.5) * 0.5,
+  ];
+}
+
+/** Halo dust: brighter mid-disk, soft at center (logo) and outer rim. */
+function haloFillStrength(hx: number, hy: number, circleRadius: number): number {
+  const r = Math.sqrt(hx * hx + hy * hy) / Math.max(circleRadius, 0.001);
+  const mid =
+    THREE.MathUtils.smoothstep(0.12, 0.42, r) *
+    (1 - THREE.MathUtils.smoothstep(0.88, 1.02, r));
+  return 0.32 + mid * 0.55;
 }
 
 function uvToHome(
@@ -666,6 +652,7 @@ export function attachQuantumCoreOpticalEngine(
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
   let logoCloudRadiusX = CLOUD_RADIUS;
   const homeEdgeFade = new Float32Array(particleCount);
+  const particleHalo = new Float32Array(particleCount);
   const suppliedHomes =
     options?.homePositions && options.homePositions.length >= particleCount * 3
       ? options.homePositions
@@ -681,21 +668,10 @@ export function attachQuantumCoreOpticalEngine(
       hy = suppliedHomes[i * 3 + 1]!;
       hz = suppliedHomes[i * 3 + 2]!;
     } else {
-      const u = Math.random();
-      const rho = CLOUD_RADIUS * Math.sqrt(u * (2 - u));
-      const theta = Math.random() * Math.PI * 2;
-      hx = rho * Math.cos(theta) * (logoCloudRadiusX / CLOUD_RADIUS);
-      hy = (Math.random() * 2 - 1) * CLOUD_HALF_HEIGHT;
-      hz = rho * Math.sin(theta);
+      [hx, hy, hz] = sampleCircularHome(logoCloudRadiusX);
+      particleHalo[i] = 0;
     }
-    homeEdgeFade[i] = particleEdgeFade(
-      hx,
-      hy,
-      hz,
-      logoCloudRadiusX,
-      CLOUD_RADIUS,
-      CLOUD_HALF_HEIGHT,
-    );
+    homeEdgeFade[i] = particleEdgeFade(hx, hy, hz, logoCloudRadiusX);
     homePositions[i * 3] = hx;
     homePositions[i * 3 + 1] = hy;
     homePositions[i * 3 + 2] = hz;
@@ -726,7 +702,7 @@ export function attachQuantumCoreOpticalEngine(
         ) || 0.001;
       introStagger[i] = useGalaxyIntro
         ? (startDist / 40) * introDurationSec * 0.38
-        : (homeDist / CLOUD_RADIUS) * introDurationSec * 0.34;
+        : (homeDist / logoCloudRadiusX) * introDurationSec * 0.34;
     } else {
       positions[i * 3] = hx;
       positions[i * 3 + 1] = hy;
@@ -777,30 +753,8 @@ export function attachQuantumCoreOpticalEngine(
   logoResolve.visible = false;
   let logoResolveSmoothed = 0;
 
-  let logoGlow: THREE.Mesh | null = null;
-  let logoGlowMat: THREE.ShaderMaterial | null = null;
-  let logoGlowBaseScale = logoCloudRadiusX * PARTICLE_VIS_SCALE;
-  const glowOpacityBase = isMobileLike ? 0.46 : 0.4;
-  if (!isCompactStack) {
-    const logoGlowGeo = new THREE.CircleGeometry(1, 96);
-    logoGlowMat = new THREE.ShaderMaterial({
-      uniforms: THREE.UniformsUtils.clone(LogoBackdropGlowShader.uniforms),
-      vertexShader: LogoBackdropGlowShader.vertexShader,
-      fragmentShader: LogoBackdropGlowShader.fragmentShader,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-    });
-    logoGlow = new THREE.Mesh(logoGlowGeo, logoGlowMat);
-    logoGlow.position.z = -0.14;
-    logoGlow.renderOrder = -2;
-    logoGlow.scale.setScalar(logoCloudRadiusX * PARTICLE_VIS_SCALE);
-  }
-
   /** Scales core + ring from world center in sync with the Focus/Warp cycle. */
   const pulseGroup = new THREE.Group();
-  if (logoGlow) pulseGroup.add(logoGlow);
   pulseGroup.add(core);
   pulseGroup.add(logoResolve);
   pulseGroup.add(particles);
@@ -881,7 +835,59 @@ export function attachQuantumCoreOpticalEngine(
   const logoFallback = new THREE.Color(0.82, 0.45, 0.72);
   const logoHomeColors = new Float32Array(particleCount * 3);
   let logoColorsReady = false;
+  let logoSample: LogoColorSampler | null = null;
   const logoImageUrl = options?.logoImageUrl?.trim() || "";
+
+  function layoutParticleHomesFromLogo(sample: LogoColorSampler): void {
+    const R = logoCloudRadiusX;
+    const haloFraction = isCompactStack ? 0 : HALO_PARTICLE_FRACTION;
+    const logoTarget = Math.floor(particleCount * (1 - haloFraction));
+    let filled = 0;
+    let attempts = 0;
+    const maxAttempts = particleCount * 140;
+
+    while (filled < logoTarget && attempts < maxAttempts) {
+      attempts++;
+      const u = Math.random();
+      const v = Math.random();
+      if (!sample(u, v)) continue;
+      const hx = (u - 0.5) * R * 2;
+      const hy = (0.5 - v) * CLOUD_HALF_HEIGHT * 2;
+      const hz = (Math.random() - 0.5) * 0.55;
+      const i = filled;
+      particleHalo[i] = 0;
+      homePositions[i * 3] = hx;
+      homePositions[i * 3 + 1] = hy;
+      homePositions[i * 3 + 2] = hz;
+      homeEdgeFade[i] = particleEdgeFade(hx, hy, hz, R);
+      if (introDurationSec > 0 && !useGalaxyIntro) {
+        const outward =
+          introOutwardMin + Math.random() * (introOutwardMax - introOutwardMin);
+        startPositions[i * 3] = hx * outward;
+        startPositions[i * 3 + 1] = hy * outward;
+        startPositions[i * 3 + 2] = hz * outward;
+      }
+      filled++;
+    }
+
+    for (let i = filled; i < particleCount; i++) {
+      const [hx, hy, hz] = sampleCircularHome(R);
+      particleHalo[i] = 1;
+      homePositions[i * 3] = hx;
+      homePositions[i * 3 + 1] = hy;
+      homePositions[i * 3 + 2] = hz;
+      homeEdgeFade[i] = particleEdgeFade(hx, hy, hz, R);
+      if (introDurationSec > 0 && !useGalaxyIntro) {
+        const outward =
+          introOutwardMin + Math.random() * (introOutwardMax - introOutwardMin);
+        startPositions[i * 3] = hx * outward;
+        startPositions[i * 3 + 1] = hy * outward;
+        startPositions[i * 3 + 2] = hz * outward;
+      }
+    }
+    particlesGeo.attributes.position!.needsUpdate = true;
+  }
+
   function syncLogoDimensions(imageAspect: number): void {
     logoCloudRadiusX = CLOUD_HALF_HEIGHT * imageAspect;
     const targetPlaneW = logoPlaneH * imageAspect;
@@ -890,27 +896,24 @@ export function attachQuantumCoreOpticalEngine(
       1,
       1,
     );
-    logoGlowBaseScale = logoCloudRadiusX * PARTICLE_VIS_SCALE;
-    logoGlow?.scale.setScalar(logoGlowBaseScale);
-    const xStretch = logoCloudRadiusX / CLOUD_RADIUS;
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      homePositions[i3]! *= xStretch;
-      positions[i3]! *= xStretch;
-      startPositions[i3]! *= xStretch;
-      homeEdgeFade[i] = particleEdgeFade(
-        homePositions[i3]!,
-        homePositions[i3 + 1]!,
-        homePositions[i3 + 2]!,
-        logoCloudRadiusX,
-        CLOUD_RADIUS,
-        CLOUD_HALF_HEIGHT,
-      );
+    if (logoSample) {
+      layoutParticleHomesFromLogo(logoSample);
+    } else {
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        homeEdgeFade[i] = particleEdgeFade(
+          homePositions[i3]!,
+          homePositions[i3 + 1]!,
+          homePositions[i3 + 2]!,
+          logoCloudRadiusX,
+        );
+      }
     }
     particlesGeo.attributes.position!.needsUpdate = true;
   }
 
   function applyLogoHomeColors(sample: LogoColorSampler): void {
+    const R = logoCloudRadiusX;
     for (let i = 0; i < particleCount; i++) {
       const hx = homePositions[i * 3]!;
       const hy = homePositions[i * 3 + 1]!;
@@ -919,9 +922,12 @@ export function attachQuantumCoreOpticalEngine(
       const color = sampled ?? logoFallback;
       const fade = homeEdgeFade[i]!;
       const avDamp = logoAvGlowDamp(u);
-      logoHomeColors[i * 3] = color.r * fade * avDamp;
-      logoHomeColors[i * 3 + 1] = color.g * fade * avDamp;
-      logoHomeColors[i * 3 + 2] = color.b * fade * avDamp;
+      const isHalo = particleHalo[i]! > 0.5;
+      const haloMul = isHalo ? haloFillStrength(hx, hy, R) : 1;
+      const logoMul = isHalo ? (sampled ? 0.42 : 0.34) : 1;
+      logoHomeColors[i * 3] = color.r * fade * avDamp * haloMul * logoMul;
+      logoHomeColors[i * 3 + 1] = color.g * fade * avDamp * haloMul * logoMul;
+      logoHomeColors[i * 3 + 2] = color.b * fade * avDamp * haloMul * logoMul;
     }
     logoColorsReady = true;
   }
@@ -936,6 +942,8 @@ export function attachQuantumCoreOpticalEngine(
         return createLogoColorSampler(logoImageUrl);
       })
       .then((sample) => {
+        logoSample = sample;
+        layoutParticleHomesFromLogo(sample);
         applyLogoHomeColors(sample);
       })
       .catch(() => {
