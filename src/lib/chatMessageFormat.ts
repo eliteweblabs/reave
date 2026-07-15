@@ -24,13 +24,47 @@ export function parseStoredChatContent(content: string): { text: string; images:
 
 export function storedChatPlainText(content: string): string {
   const { text, images } = parseStoredChatContent(content);
-  if (images.length && !text.trim()) {
+  const displayText = userMessageDisplayText(text);
+  if (images.length && !displayText.trim()) {
     return images.length === 1 ? '[Image]' : `[${images.length} images]`;
   }
-  if (images.length && text.trim()) {
-    return `${text}\n[${images.length} image${images.length === 1 ? '' : 's'} attached]`;
+  if (images.length && displayText.trim()) {
+    return `${displayText}\n[${images.length} image${images.length === 1 ? '' : 's'} attached]`;
   }
-  return text;
+  return displayText;
+}
+
+/** Collapse legacy verbose email dumps to a short reference for chat display. */
+export function userMessageDisplayText(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  const verboseEmail =
+    trimmed.includes('[Email triage]') ||
+    trimmed.includes('\nHeaders:\n') ||
+    (trimmed.includes('Message ID:') && trimmed.includes('\nBody:')) ||
+    (trimmed.length > 600 &&
+      (trimmed.includes('envelope-from') ||
+        trimmed.includes('x-ses-receipt') ||
+        trimmed.includes('client-ip=')));
+
+  if (!verboseEmail) return text;
+
+  const from = trimmed.match(/^From:\s*(.+)$/m)?.[1]?.trim();
+  const subject = trimmed.match(/^Subject:\s*(.+)$/m)?.[1]?.trim();
+  const received = trimmed.match(/^Received:\s*(.+)$/m)?.[1]?.trim();
+
+  const lines: string[] = [];
+  if (from) lines.push(`From: ${from}`);
+  if (subject) lines.push(`Subject: ${subject}`);
+  if (received) lines.push(`Received: ${received}`);
+
+  if (lines.length) {
+    lines.push('', 'What should I do with this email?');
+    return lines.join('\n');
+  }
+
+  return text.length > 280 ? `${text.slice(0, 277)}…` : text;
 }
 
 export function serializeStoredChatContent(text: string, images: StoredChatImage[]): string {

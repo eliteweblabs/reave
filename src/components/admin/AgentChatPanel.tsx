@@ -26,6 +26,7 @@ import {
 import {
   parseStoredChatContent,
   storedChatPlainText,
+  userMessageDisplayText,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
 import './agent-chat.css';
@@ -68,8 +69,9 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     };
   }
   const { text, images } = parseStoredChatContent(message.content);
+  const displayText = message.role === 'user' ? userMessageDisplayText(text) : text;
   const content: ThreadMessageLike['content'] = [];
-  if (text) content.push({ type: 'text', text });
+  if (displayText) content.push({ type: 'text', text: displayText });
   for (const img of images) {
     content.push({
       type: 'image',
@@ -570,11 +572,13 @@ function AgentChatThreadBody({
       </AuiIf>
 
       <AuiIf condition={(s) => s.thread.messages.length > 0}>
-        <ThreadPrimitive.Viewport className="aui-viewport">
-          <div className="aui-thread-column">
-            <ChatMessages />
-          </div>
-          <ThreadPrimitive.ViewportFooter className="aui-viewport-footer">
+        <div className="aui-thread-body">
+          <ThreadPrimitive.Viewport className="aui-viewport">
+            <div className="aui-thread-column">
+              <ChatMessages />
+            </div>
+          </ThreadPrimitive.Viewport>
+          <div className="aui-compose-footer">
             <div className="aui-thread-column">
               <ClaudeComposer
                 propsRef={propsRef}
@@ -585,8 +589,8 @@ function AgentChatThreadBody({
               />
               <p className="aui-disclaimer">{readCompanyBrandName()} can make mistakes. Double-check important info.</p>
             </div>
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
+          </div>
+        </div>
       </AuiIf>
     </ThreadPrimitive.Root>
   );

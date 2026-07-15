@@ -3802,6 +3802,10 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         }
         body.footer-chat-inline-home #chat-panel.ch-pane-active .ch-messages,
         body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-viewport {
+          padding-bottom: 0.75rem;
+        }
+
+        body.footer-chat-inline-home #chat-panel.ch-pane-active .aui-compose-footer {
           padding-bottom: calc(
             var(--control-h) + var(--ch-compose-gap) + 0.65rem + env(safe-area-inset-bottom, 0px)
           );
@@ -3821,9 +3825,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         }
         body.chat-compose-focused #chat-panel.ch-pane-active .ch-messages,
         body.chat-compose-focused #chat-panel.ch-pane-active .aui-viewport {
-          padding-bottom: calc(
-            var(--control-h) + var(--ch-compose-gap) + 0.75rem + var(--chat-compose-bottom, 0px)
-          );
+          padding-bottom: 0.75rem;
         }
       }
 
