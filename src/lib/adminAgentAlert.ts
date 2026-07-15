@@ -14,7 +14,7 @@ import { runKnowledgeAgent } from './agentRunner';
 import type { ChatTurn } from './chatTypes';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
-import { formatEmailForAgent } from './emailAgentContext';
+import { formatEmailChatReference } from './emailAgentContext';
 
 const ALERT_THREAD_TITLE = 'System alerts';
 
@@ -109,13 +109,13 @@ async function formatAlertMessage(opts: {
     `Status: ${opts.status}`,
     railway
       ? 'Check Railway deploy logs, distinguish rollout teardown vs a real crash, and suggest next steps.'
-      : 'Read the full email below (headers + body) and suggest concrete next steps.',
+      : 'Read the linked email (full content is in context) and suggest concrete next steps.',
   ];
 
   if (opts.emailId) {
     const stored = await storeGetEmailInbox(opts.emailId);
     if (stored) {
-      lines.push('', '---', formatEmailForAgent(stored));
+      lines.push('', formatEmailChatReference(stored));
       return lines.join('\n');
     }
   }
@@ -139,26 +139,25 @@ export async function notifyAdminAgentOfProjectReply(opts: {
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
-  let emailBlock = opts.summary;
-  if (opts.emailId) {
-    const stored = await storeGetEmailInbox(opts.emailId);
-    if (stored) emailBlock = formatEmailForAgent(stored);
-  }
-
-  const message = [
+  const messageLines = [
     '🚨 URGENT — Client replied on a project',
     '',
     `Client: ${opts.contactName}`,
     `Project: ${opts.jobTitle}`,
     '',
-    'This is new work that needs ASAP follow-up. Read the full email below and:',
-    '1. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule)',
-    '2. Link this thread to the project if not already linked',
-    '3. Do NOT treat this as low priority or ask what domain/project they mean — use the email content',
-    '',
-    '---',
-    emailBlock,
-  ].join('\n');
+    'This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the project if needed, and do not ask what project they mean — the full email is in context.',
+  ];
+
+  if (opts.emailId) {
+    const stored = await storeGetEmailInbox(opts.emailId);
+    if (stored) {
+      messageLines.push('', formatEmailChatReference(stored));
+    }
+  } else if (opts.summary.trim()) {
+    messageLines.push('', opts.summary.trim());
+  }
+
+  const message = messageLines.join('\n');
 
   await postToSystemAlertsThread({
     message,

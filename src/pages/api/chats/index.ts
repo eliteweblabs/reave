@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { chatStorageBackend, storeCreateChatThread, storeListChatThreads } from '../../../lib/chatStore';
+import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
 
@@ -66,6 +66,12 @@ export async function POST(context: APIContext): Promise<Response> {
       if (email && !email.jobSlug) {
         await assignEmailToJob(sourceEmailId, jobSlug);
       }
+    }
+    const subject = email?.subject?.trim();
+    if (subject) {
+      const title = subject.length > 60 ? `${subject.slice(0, 57)}…` : subject;
+      await storeUpdateChatTitle(userId, thread.id, title);
+      thread.title = title;
     }
   } else if (sourceJobSlug) {
     await linkProjectItem(sourceJobSlug, 'chat', thread.id);

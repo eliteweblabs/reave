@@ -99,10 +99,23 @@ function runtimeContextLine(model: string): string {
 async function linkedEmailContextLine(emailId: string): Promise<string | null> {
   const email = await storeGetEmailInbox(emailId.trim());
   if (!email) return null;
-  return [
+  const lines = [
     'This chat is linked to an inbox email. The full message (headers + body) is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
-    formatEmailForAgent(email),
-  ].join('\n\n');
+    'The user opened this for triage: recommend an action, one sentence on why, and execute inbox tools yourself. Do not recap the email body back to the user. If replying makes sense, include a draft.',
+  ];
+  if (email.contactName) lines.push(`Client: ${email.contactName}`);
+  if (email.jobSlug || email.jobTitle) {
+    lines.push(
+      `Linked project: ${email.jobTitle || email.jobSlug} (${email.jobSlug || 'unknown slug'})`,
+      'Call link_to_work with the slug if this mail belongs to that project.',
+    );
+  } else {
+    lines.push(
+      'No linked project yet. Use resolve_contact / create_work if this should become a new project.',
+    );
+  }
+  lines.push(formatEmailForAgent(email));
+  return lines.join('\n\n');
 }
 
 /**

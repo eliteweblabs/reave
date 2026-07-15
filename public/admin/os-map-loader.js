@@ -10948,65 +10948,14 @@ document.addEventListener('click', (e) => {
 });
 
 function buildEmailAgentPrompt(ev) {
-  const lines = [
-    '[Email triage]',
-    '',
-    'Purpose of this chat: decide what to DO with this inbound email — and execute inbox actions yourself via tools.',
-    'I have already read it — do not summarize it or explain what it says back to me.',
-    '',
-    'You CAN and MUST use tools for inbox management (never tell me to mark spam or create filters manually):',
-    '- mark_email_junk { email_id } — hide from default inbox',
-    '- mark_email_routed { email_id } — mark processed and remove from review queue (use after handling, not for spam)',
-    '- create_email_filter_rule { sender } — auto-junk future mail from this sender',
-    '- delete_email { email_id } — remove from inbox log',
-    'When triage is junk/spam, call all three junk tools in one turn unless I only asked to hide it.',
-    'When triage is handled (replied, filed, scheduled), call mark_email_routed — do not junk legitimate mail.',
-    '',
-    'Respond with:',
-    '1. Recommended action (reply, ignore, archive, schedule follow-up, create a job, escalate, mark junk, etc.)',
-    '2. One sentence on why',
-    '3. What you did via tools (or will do if I confirm)',
-    '',
-    'If replying makes sense, include a draft I can send.',
-    'Be direct and action-oriented.',
-    '',
-    '---',
-    'Email (full message — headers + body; do not recap):',
-    `Message ID: ${ev.id}`,
+  const received = formatEmailWhen(ev.receivedAt) || ev.receivedAt || 'unknown';
+  return [
     `From: ${ev.from || '(unknown)'}`,
-  ];
-  if (Array.isArray(ev.to) && ev.to.length) lines.push(`To: ${ev.to.join(', ')}`);
-  if (Array.isArray(ev.cc) && ev.cc.length) lines.push(`Cc: ${ev.cc.join(', ')}`);
-  if (Array.isArray(ev.bcc) && ev.bcc.length) lines.push(`Bcc: ${ev.bcc.join(', ')}`);
-  if (Array.isArray(ev.replyTo) && ev.replyTo.length) lines.push(`Reply-To: ${ev.replyTo.join(', ')}`);
-  if (ev.messageId) lines.push(`Message-ID: ${ev.messageId}`);
-  if (ev.contactName) lines.push(`Client: ${ev.contactName}`);
-  if (ev.jobSlug || ev.jobTitle) {
-    lines.push(`Linked project: ${ev.jobTitle || ev.jobSlug} (${ev.jobSlug || 'unknown slug'})`);
-    lines.push('If this mail belongs to that project, call link_to_work with the slug. If it should become a new project, call create_work then link_to_work.');
-  } else {
-    lines.push(
-      'No linked project yet. If this should become a new project, call resolve_contact first (name, email, phone, or q for company/notes/website). If the match is fuzzy, ask me to confirm before create_work with contact_uid. If the client is unknown, ask me who it is using any clues from this email.',
-    );
-  }
-  lines.push(`Subject: ${ev.subject || '(no subject)'}`);
-  lines.push(`Category: ${ev.category || 'review'}`);
-  if (ev.routeNote) lines.push(`Route: ${ev.routeNote}`);
-  const summary = (ev.summary || '').trim();
-  if (summary) {
-    lines.push('', 'Summary:', summary);
-  }
-  if (ev.headers && typeof ev.headers === 'object' && Object.keys(ev.headers).length) {
-    lines.push('', 'Headers:');
-    for (const [key, value] of Object.entries(ev.headers)) {
-      lines.push(`${key}: ${value}`);
-    }
-  }
-  const body = (ev.bodyText || ev.bodySnippet || '').trim();
-  if (body) {
-    lines.push('', 'Body:', body);
-  }
-  return lines.join('\n');
+    `Subject: ${ev.subject || '(no subject)'}`,
+    `Received: ${received}`,
+    '',
+    'What should I do with this email?',
+  ].join('\n');
 }
 
 async function fetchFullEmailRecord(ev) {
@@ -11026,10 +10975,9 @@ async function fetchFullEmailRecord(ev) {
 }
 
 async function askAgentAboutEmail(ev) {
-  const full = await fetchFullEmailRecord(ev);
-  await askAgentWithPrompt(buildEmailAgentPrompt(full), {
-    sourceEmailId: full.id,
-    sourceJobSlug: full.jobSlug || null,
+  await askAgentWithPrompt(buildEmailAgentPrompt(ev), {
+    sourceEmailId: ev.id,
+    sourceJobSlug: ev.jobSlug || null,
   });
 }
 

@@ -5,6 +5,33 @@ function joinAddrs(addrs: string[] | undefined): string | null {
   return addrs.join(', ');
 }
 
+function formatReceivedAt(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso || 'unknown';
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso || 'unknown';
+  }
+}
+
+/** Short reference shown in chat — subject, sender, and timestamp only. */
+export function formatEmailChatReference(
+  email: Pick<EmailInboxRecord, 'from' | 'subject' | 'receivedAt'>,
+): string {
+  return [
+    `From: ${email.from || '(unknown)'}`,
+    `Subject: ${email.subject || '(no subject)'}`,
+    `Received: ${formatReceivedAt(email.receivedAt)}`,
+  ].join('\n');
+}
+
 /** Full email + headers formatted for the agent (not a recap prompt). */
 export function formatEmailForAgent(email: EmailInboxRecord): string {
   const lines = [
