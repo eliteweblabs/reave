@@ -2167,6 +2167,186 @@ function profileTimezoneOptions(selected) {
   }).join('');
 }
 
+const AUTOSAVE_DEBOUNCE_MS = 650;
+const FORM_FIELD_SAVING = 'form-field--saving';
+const FORM_FIELD_SAVED = 'form-field--saved';
+const FORM_FIELD_INVALID = 'form-field--invalid';
+
+let settingsAutosaveFlush = null;
+
+function setFormFieldState(el, state) {
+  if (!el) return;
+  el.classList.remove(FORM_FIELD_SAVING, FORM_FIELD_SAVED, FORM_FIELD_INVALID);
+  el.removeAttribute('aria-invalid');
+  if (!state) return;
+  el.classList.add(`form-field--${state}`);
+  if (state === 'invalid') el.setAttribute('aria-invalid', 'true');
+}
+
+function flashFormFieldSaved(el) {
+  if (!el) return;
+  setFormFieldState(el, 'saved');
+  const prev = el.dataset.savedTimerId;
+  if (prev) clearTimeout(Number(prev));
+  const id = window.setTimeout(() => {
+    if (document.activeElement !== el) setFormFieldState(el, null);
+    delete el.dataset.savedTimerId;
+  }, 2000);
+  el.dataset.savedTimerId = String(id);
+}
+
+function isValidEmailField(value) {
+  const v = (value || '').trim();
+  if (!v) return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function isValidPhoneField(value) {
+  const digits = (value || '').replace(/\D/g, '');
+  if (!digits) return true;
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+function isValidUrlField(value) {
+  const v = (value || '').trim();
+  if (!v) return true;
+  try {
+    const u = new URL(v);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function defaultFieldValidator(el) {
+  if (el.disabled) return true;
+  const type = (el.getAttribute('type') || '').toLowerCase();
+  const name = (el.getAttribute('name') || '').toLowerCase();
+  if (type === 'email' || name.includes('email')) return isValidEmailField(el.value);
+  if (type === 'tel' || name.includes('phone')) return isValidPhoneField(el.value);
+  if (type === 'url') return isValidUrlField(el.value);
+  if (el.required && !String(el.value || '').trim()) return false;
+  return true;
+}
+
+function getFormEditableFields(form) {
+  return [...form.querySelectorAll(
+    'input:not([disabled]):not([type=file]):not([type=hidden]), select, textarea',
+  )];
+}
+
+function serializeFormData(form) {
+  return JSON.stringify(Object.fromEntries(new FormData(form)));
+}
+
+function bindAutosaveForm(scope, opts) {
+  const form = scope.querySelector(opts.formSelector);
+  if (!(form instanceof HTMLFormElement)) return { flush: async () => {} };
+
+  let baseline = serializeFormData(form);
+  let activeEl = null;
+  let debounceTimer = null;
+  let saving = false;
+  let pendingFlush = false;
+
+  const validateField = opts.validateField || defaultFieldValidator;
+
+  const canSave = () => {
+    let ok = true;
+    for (const el of getFormEditableFields(form)) {
+      const valid = validateField(el, form);
+      if (!valid) {
+        ok = false;
+        if (el === activeEl) setFormFieldState(el, 'invalid');
+      }
+    }
+    return ok;
+  };
+
+  const flush = async () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+
+    if (saving) {
+      pendingFlush = true;
+      return;
+    }
+
+    const current = serializeFormData(form);
+    if (current === baseline) return;
+    if (!canSave()) return;
+
+    saving = true;
+    if (activeEl) setFormFieldState(activeEl, 'saving');
+
+    try {
+      const payload = Object.fromEntries(new FormData(form));
+      const result = await opts.save(payload);
+      if (result.ok) {
+        baseline = serializeFormData(form);
+        if (activeEl) flashFormFieldSaved(activeEl);
+        else if (opts.alertEl) showProfileAlert(opts.alertEl, 'Saved.', 'success');
+      } else {
+        if (activeEl) setFormFieldState(activeEl, 'invalid');
+        if (opts.alertEl && result.error) showProfileAlert(opts.alertEl, result.error, 'error');
+      }
+    } catch {
+      if (activeEl) setFormFieldState(activeEl, 'invalid');
+      if (opts.alertEl) showProfileAlert(opts.alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      saving = false;
+      if (
+        activeEl &&
+        !activeEl.classList.contains(FORM_FIELD_SAVED) &&
+        !activeEl.classList.contains(FORM_FIELD_INVALID)
+      ) {
+        setFormFieldState(activeEl, null);
+      }
+      if (pendingFlush) {
+        pendingFlush = false;
+        await flush();
+      }
+    }
+  };
+
+  const schedule = (el) => {
+    activeEl = el;
+    if (!el.classList.contains(FORM_FIELD_INVALID) && !el.classList.contains(FORM_FIELD_SAVED)) {
+      setFormFieldState(el, null);
+    }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(flush, opts.debounceMs ?? AUTOSAVE_DEBOUNCE_MS);
+  };
+
+  for (const el of getFormEditableFields(form)) {
+    const handler = () => schedule(el);
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    el.addEventListener('blur', () => {
+      activeEl = el;
+      const valid = validateField(el, form);
+      if (!valid) setFormFieldState(el, 'invalid');
+      clearTimeout(debounceTimer);
+      void flush();
+    });
+    el.addEventListener('focus', () => {
+      if (!el.classList.contains(FORM_FIELD_INVALID)) setFormFieldState(el, null);
+    });
+  }
+
+  form.addEventListener('submit', (e) => e.preventDefault());
+
+  settingsAutosaveFlush = flush;
+  return { flush };
+}
+
+async function flushSettingsAutosave() {
+  if (typeof settingsAutosaveFlush === 'function') {
+    await settingsAutosaveFlush();
+    settingsAutosaveFlush = null;
+  }
+}
+
 function showProfileAlert(el, msg, type) {
   if (!el) return;
   el.textContent = msg;
@@ -2246,88 +2426,52 @@ function bindCompanyLogoUpload(root, companyAlert) {
 }
 
 function bindProfileForm(root) {
-  const profileForm = root.querySelector('#profile-form');
-  const profileBtn = root.querySelector('#profile-save-btn');
-  const profileAlert = root.querySelector('#profile-alert');
-
-  profileForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!(profileForm instanceof HTMLFormElement) || !(profileBtn instanceof HTMLButtonElement)) return;
-    profileBtn.disabled = true;
-    profileBtn.textContent = 'Saving…';
-    try {
+  bindAutosaveForm(root, {
+    formSelector: '#profile-form',
+    alertEl: root.querySelector('#profile-alert'),
+    async save(payload) {
       const res = await fetch('/api/admin/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(profileForm))),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (res.ok) showProfileAlert(profileAlert, 'Profile saved.', 'success');
-      else showProfileAlert(profileAlert, json.error || 'Save failed.', 'error');
-    } catch {
-      showProfileAlert(profileAlert, 'Network error — please try again.', 'error');
-    } finally {
-      profileBtn.disabled = false;
-      profileBtn.textContent = 'Save Profile';
-    }
+      return { ok: res.ok, error: json.error };
+    },
   });
 }
 
 function bindCompanyForm(root) {
-  const companyForm = root.querySelector('#company-form');
-  const companyBtn = root.querySelector('#company-save-btn');
-  const companyAlert = root.querySelector('#company-alert');
-
-  companyForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!(companyForm instanceof HTMLFormElement) || !(companyBtn instanceof HTMLButtonElement)) return;
-    companyBtn.disabled = true;
-    companyBtn.textContent = 'Saving…';
-    try {
+  bindAutosaveForm(root, {
+    formSelector: '#company-form',
+    alertEl: root.querySelector('#company-alert'),
+    async save(payload) {
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(companyForm))),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (res.ok) showProfileAlert(companyAlert, 'Company details saved.', 'success');
-      else showProfileAlert(companyAlert, json.error || 'Save failed.', 'error');
-    } catch {
-      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
-    } finally {
-      companyBtn.disabled = false;
-      companyBtn.textContent = 'Save Company Details';
-    }
+      return { ok: res.ok, error: json.error };
+    },
   });
 
-  bindCompanyLogoUpload(root, companyAlert);
+  bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
 }
 
 function bindSocialsForm(root) {
-  const form = root.querySelector('#socials-form');
-  const btn = root.querySelector('#socials-save-btn');
-  const alertEl = root.querySelector('#socials-alert');
-
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!(form instanceof HTMLFormElement) || !(btn instanceof HTMLButtonElement)) return;
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    try {
+  bindAutosaveForm(root, {
+    formSelector: '#socials-form',
+    alertEl: root.querySelector('#socials-alert'),
+    async save(payload) {
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (res.ok) showProfileAlert(alertEl, 'Social links saved.', 'success');
-      else showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
-    } catch {
-      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Save Social Links';
-    }
+      return { ok: res.ok, error: json.error };
+    },
   });
 }
 
@@ -2366,13 +2510,90 @@ function bindIndustriesEditor(root) {
   const listEl = root.querySelector('#industries-list');
   const alertEl = root.querySelector('#industries-alert');
   const addBtn = root.querySelector('#industries-add-btn');
-  const saveBtn = root.querySelector('#industries-save-btn');
   if (!listEl) return;
+
+  let baseline = JSON.stringify(collectIndustriesFromDom(root));
+  let activeEl = null;
+  let debounceTimer = null;
+  let saving = false;
+  let pendingFlush = false;
+
+  const snapshot = () => JSON.stringify(collectIndustriesFromDom(root));
+
+  const flush = async () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+
+    if (saving) {
+      pendingFlush = true;
+      return;
+    }
+
+    const current = snapshot();
+    if (current === baseline) return;
+
+    saving = true;
+    if (activeEl) setFormFieldState(activeEl, 'saving');
+
+    try {
+      const industries = collectIndustriesFromDom(root);
+      const res = await fetch('/api/admin/deck-industries', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ industries }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.ok) {
+        listEl.innerHTML = industriesRowsHtml(json.industries);
+        baseline = JSON.stringify(json.industries || []);
+        if (activeEl) flashFormFieldSaved(activeEl);
+      } else {
+        if (activeEl) setFormFieldState(activeEl, 'invalid');
+        showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
+      }
+    } catch {
+      if (activeEl) setFormFieldState(activeEl, 'invalid');
+      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      saving = false;
+      if (
+        activeEl &&
+        !activeEl.classList.contains(FORM_FIELD_SAVED) &&
+        !activeEl.classList.contains(FORM_FIELD_INVALID)
+      ) {
+        setFormFieldState(activeEl, null);
+      }
+      if (pendingFlush) {
+        pendingFlush = false;
+        await flush();
+      }
+    }
+  };
+
+  const schedule = (el) => {
+    activeEl = el;
+    if (!el.classList.contains(FORM_FIELD_INVALID) && !el.classList.contains(FORM_FIELD_SAVED)) {
+      setFormFieldState(el, null);
+    }
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
+  };
 
   listEl.addEventListener('click', (e) => {
     const btn = e.target?.closest?.('.ind-remove');
     if (!btn) return;
     btn.closest('.ind-row')?.remove();
+    activeEl = null;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
+  });
+
+  listEl.addEventListener('input', (e) => {
+    if (e.target?.matches?.('.ind-label, .ind-slug')) schedule(e.target);
+  });
+
+  listEl.addEventListener('change', (e) => {
+    if (e.target?.matches?.('.ind-enabled-cb')) schedule(e.target);
   });
 
   addBtn?.addEventListener('click', () => {
@@ -2386,34 +2607,12 @@ function bindIndustriesEditor(root) {
       `</div>`;
     listEl.querySelector('.ind-empty')?.remove();
     listEl.appendChild(wrap.firstElementChild);
-    listEl.querySelector('.ind-row:last-child .ind-label')?.focus();
+    const labelInput = listEl.querySelector('.ind-row:last-child .ind-label');
+    labelInput?.focus();
+    if (labelInput) schedule(labelInput);
   });
 
-  saveBtn?.addEventListener('click', async () => {
-    if (!(saveBtn instanceof HTMLButtonElement)) return;
-    const industries = collectIndustriesFromDom(root);
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
-    try {
-      const res = await fetch('/api/admin/deck-industries', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ industries }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json.ok) {
-        listEl.innerHTML = industriesRowsHtml(json.industries);
-        showProfileAlert(alertEl, 'Industries saved.', 'success');
-      } else {
-        showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
-      }
-    } catch {
-      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save industries';
-    }
-  });
+  settingsAutosaveFlush = flush;
 }
 
 function renderProfileOnlyPanel(profile) {
@@ -2440,7 +2639,6 @@ function renderProfileOnlyPanel(profile) {
             `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
             `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
           `</div>` +
-          `<div class="prof-actions"><button type="submit" id="profile-save-btn" class="prof-btn-primary">Save Profile</button></div>` +
         `</form>` +
       `</div>` +
     `</div>`
@@ -2482,7 +2680,6 @@ function renderCompanyPanel(company) {
           `<div class="prof-field"><label for="company-fromEmail">Outbound email (From)</label>` +
           `<input id="company-fromEmail" name="fromEmail" type="email" value="${escHtml(c.fromEmail || '')}" placeholder="noreply@example.com" autocomplete="email" /></div>` +
           `<span class="prof-hint prof-hint--block">Support email and phone appear as Call / Text / Email on client portal pages. Outbound email is used when <code>RESEND_FROM</code> is not set.</span>` +
-          `<div class="prof-actions"><button type="submit" id="company-save-btn" class="prof-btn-primary">Save Company Details</button></div>` +
         `</form>` +
       `</div>` +
     `</div>`
@@ -2508,7 +2705,6 @@ function renderSocialsPanel(company) {
           field('social-facebook', 'socialFacebook', 'Facebook', 'https://facebook.com/yourcompany') +
           field('social-youtube', 'socialYoutube', 'YouTube', 'https://youtube.com/@yourcompany') +
           field('social-tiktok', 'socialTiktok', 'TikTok', 'https://tiktok.com/@yourcompany') +
-          `<div class="prof-actions"><button type="submit" id="socials-save-btn" class="prof-btn-primary">Save Social Links</button></div>` +
         `</form>` +
       `</div>` +
     `</div>`
@@ -2525,7 +2721,6 @@ function renderIndustriesPanel(industries) {
         `<div id="industries-list" class="ind-list">${industriesRowsHtml(industries)}</div>` +
         `<div class="prof-actions ind-actions">` +
           `<button type="button" id="industries-add-btn" class="prof-btn-secondary">Add industry</button>` +
-          `<button type="button" id="industries-save-btn" class="prof-btn-primary">Save industries</button>` +
         `</div>` +
       `</div>` +
     `</div>`
@@ -2560,10 +2755,7 @@ function renderVapiPanel(company) {
           `<div class="prof-field"><label for="vapi-system-prompt">System prompt</label>` +
           `<textarea id="vapi-system-prompt" name="vapiSystemPrompt" rows="12" placeholder="${escHtml(VAPI_DEFAULT_SYSTEM_PROMPT.slice(0, 120))}…">${escHtml(c.vapiSystemPrompt || '')}</textarea>` +
           `<span class="prof-hint">Supports <code>{{companyName}}</code>, <code>{{companyDescription}}</code>, <code>{{companyDomain}}</code>. Leave blank for the default template.</span></div>` +
-          `<div class="prof-actions">` +
-            `<button type="submit" id="vapi-save-btn" class="prof-btn-primary">Save Vapi Settings</button>` +
-            syncBtn +
-          `</div>` +
+          (syncBtn ? `<div class="prof-actions">${syncBtn}</div>` : '') +
         `</form>` +
       `</div>` +
     `</div>`
@@ -2571,6 +2763,7 @@ function renderVapiPanel(company) {
 }
 
 async function loadProfileTab() {
+  await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
@@ -2591,6 +2784,7 @@ async function loadProfileTab() {
 }
 
 async function loadCompanyTab() {
+  await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
@@ -2611,6 +2805,7 @@ async function loadCompanyTab() {
 }
 
 async function loadSocialsTab() {
+  await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
@@ -2631,6 +2826,7 @@ async function loadSocialsTab() {
 }
 
 async function loadIndustriesTab() {
+  await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading industries…</div></div>';
@@ -2653,36 +2849,23 @@ async function loadIndustriesTab() {
 }
 
 function bindVapiForm(root) {
-  const form = root.querySelector('#vapi-form');
-  const saveBtn = root.querySelector('#vapi-save-btn');
-  const alertEl = root.querySelector('#vapi-alert');
-  const syncBtn = root.querySelector('#vapi-sync-btn');
-
-  form?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!(form instanceof HTMLFormElement) || !(saveBtn instanceof HTMLButtonElement)) return;
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Saving…';
-    try {
+  bindAutosaveForm(root, {
+    formSelector: '#vapi-form',
+    alertEl: root.querySelector('#vapi-alert'),
+    async save(payload) {
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
-      if (res.ok) {
-        showProfileAlert(alertEl, 'Vapi settings saved.', 'success');
-        void refreshVapiPluginStatus();
-      } else {
-        showProfileAlert(alertEl, json.error || 'Save failed.', 'error');
-      }
-    } catch {
-      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Save Vapi Settings';
-    }
+      if (res.ok) void refreshVapiPluginStatus();
+      return { ok: res.ok, error: json.error };
+    },
   });
+
+  const syncBtn = root.querySelector('#vapi-sync-btn');
+  const alertEl = root.querySelector('#vapi-alert');
 
   if (syncBtn && !syncBtn.dataset.bound) {
     syncBtn.dataset.bound = '1';
@@ -2708,6 +2891,7 @@ function bindVapiForm(root) {
 }
 
 async function loadVapiTab() {
+  await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading Vapi…</div></div>';
@@ -4074,6 +4258,7 @@ function renderRulesEditor() {
 }
 
 async function openRuleEditor(id) {
+  await flushRuleAutosave();
   if (ruleState.dirty && ruleState.activeId && ruleState.activeId !== id) {
     if (!(await confirmDiscardChanges())) return;
   }
@@ -4084,6 +4269,7 @@ async function openRuleEditor(id) {
 }
 
 async function closeRuleEditor(checkDirty = true) {
+  await flushRuleAutosave();
   if (checkDirty && ruleState.dirty && !(await confirmDiscardChanges())) return;
   ruleState.activeId = null;
   ruleState.dirty = false;
@@ -4197,18 +4383,18 @@ function renderRuleEditPane(pane) {
   form.appendChild(enabledLb);
   pane.appendChild(form);
 
-  setEditorFooterSave(() =>
-    saveRule(rule.id, {
-      titleIn,
-      statusIn,
-      descIn,
-      phrasesIn,
-      matchSel,
-      fieldsWrap,
-      notifyCb,
-      enabledCb,
-    })
-  );
+  const ruleInputs = {
+    titleIn,
+    statusIn,
+    descIn,
+    phrasesIn,
+    matchSel,
+    fieldsWrap,
+    notifyCb,
+    enabledCb,
+  };
+  bindRuleAutosave(rule, ruleInputs);
+  clearEditorFooterSave();
 }
 
 function collectRulePayload(inputs) {
@@ -4226,6 +4412,132 @@ function collectRulePayload(inputs) {
     notify: inputs.notifyCb.checked,
     enabled: inputs.enabledCb.checked,
   };
+}
+
+let ruleAutosaveTimer = null;
+let ruleAutosaveFlush = null;
+
+function serializeRulePayload(payload) {
+  return JSON.stringify(payload);
+}
+
+function syncRuleListItem(id, payload) {
+  const rule = ruleState.rules.find((r) => r.id === id);
+  if (rule) Object.assign(rule, payload);
+  const row = getRuleEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"] .ch-item-title`);
+  if (row) row.textContent = payload.title || payload.status || 'Rule';
+}
+
+function bindRuleAutosave(rule, inputs) {
+  let baseline = serializeRulePayload(collectRulePayload(inputs));
+  let activeEl = null;
+  let saving = false;
+  let pendingFlush = false;
+
+  const allFields = () => [
+    inputs.titleIn,
+    inputs.statusIn,
+    inputs.descIn,
+    inputs.phrasesIn,
+    inputs.matchSel,
+    ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
+    inputs.notifyCb,
+    inputs.enabledCb,
+  ];
+
+  const flush = async () => {
+    clearTimeout(ruleAutosaveTimer);
+    ruleAutosaveTimer = null;
+
+    if (saving) {
+      pendingFlush = true;
+      return;
+    }
+
+    const payload = collectRulePayload(inputs);
+    const current = serializeRulePayload(payload);
+    if (current === baseline) {
+      ruleState.dirty = false;
+      return;
+    }
+    if (!payload.title || !payload.status) {
+      if (activeEl) setFormFieldState(activeEl, 'invalid');
+      return;
+    }
+
+    saving = true;
+    if (activeEl) setFormFieldState(activeEl, 'saving');
+
+    try {
+      const res = await fetch(`/api/email/rules/${encodeURIComponent(rule.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      baseline = current;
+      ruleState.dirty = false;
+      syncRuleListItem(rule.id, payload);
+      if (activeEl) flashFormFieldSaved(activeEl);
+    } catch (e) {
+      console.warn('[rules] autosave failed', e);
+      if (activeEl) setFormFieldState(activeEl, 'invalid');
+    } finally {
+      saving = false;
+      if (
+        activeEl &&
+        !activeEl.classList.contains(FORM_FIELD_SAVED) &&
+        !activeEl.classList.contains(FORM_FIELD_INVALID)
+      ) {
+        setFormFieldState(activeEl, null);
+      }
+      if (pendingFlush) {
+        pendingFlush = false;
+        await flush();
+      }
+    }
+  };
+
+  const schedule = (el) => {
+    activeEl = el;
+    ruleState.dirty = serializeRulePayload(collectRulePayload(inputs)) !== baseline;
+    if (!el.classList.contains(FORM_FIELD_INVALID) && !el.classList.contains(FORM_FIELD_SAVED)) {
+      setFormFieldState(el, null);
+    }
+    clearTimeout(ruleAutosaveTimer);
+    ruleAutosaveTimer = setTimeout(flush, AUTOSAVE_DEBOUNCE_MS);
+  };
+
+  for (const el of allFields()) {
+    const handler = () => schedule(el);
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
+    el.addEventListener('blur', () => {
+      activeEl = el;
+      const payload = collectRulePayload(inputs);
+      if (!payload.title && el === inputs.titleIn) setFormFieldState(el, 'invalid');
+      else if (!payload.status && el === inputs.statusIn) setFormFieldState(el, 'invalid');
+      clearTimeout(ruleAutosaveTimer);
+      void flush();
+    });
+    el.addEventListener('focus', () => {
+      if (!el.classList.contains(FORM_FIELD_INVALID)) setFormFieldState(el, null);
+    });
+  }
+
+  ruleAutosaveFlush = flush;
+}
+
+async function flushRuleAutosave() {
+  if (ruleAutosaveTimer) {
+    clearTimeout(ruleAutosaveTimer);
+    ruleAutosaveTimer = null;
+  }
+  if (typeof ruleAutosaveFlush === 'function') {
+    await ruleAutosaveFlush();
+    ruleAutosaveFlush = null;
+  }
 }
 
 async function saveRule(id, inputs) {
@@ -4751,6 +5063,8 @@ async function autosaveDocument(slug, html) {
     return;
   }
   if (!html.trim()) return;
+  const ta = document.getElementById(`de-edit-${slug}`);
+  if (ta) setFormFieldState(ta, 'saving');
   try {
     const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
       method: 'PUT',
@@ -4761,8 +5075,10 @@ async function autosaveDocument(slug, html) {
     docState.savedHtml = html;
     docState.dirty = false;
     syncDocSidebarTitle(slug, html);
+    if (ta) flashFormFieldSaved(ta);
   } catch (e) {
     console.warn('[documents] autosave failed', e);
+    if (ta) setFormFieldState(ta, 'invalid');
   }
 }
 
@@ -5027,6 +5343,76 @@ let knowledgeState = {
   content: '',
 };
 
+let knowledgeAutosaveTimer = null;
+let knowledgeAutosaveFlush = null;
+
+function syncKnowledgeSidebarTitle(slug, content) {
+  const newTitle = titleFromKnowledgeMarkdown(content, slug);
+  const entry = knowledgeState.entries.find((e) => e.slug === slug);
+  if (entry) entry.title = newTitle;
+  const titleEl = document.querySelector(
+    `.ch-list-item[data-slug="${CSS.escape(slug)}"] .ch-item-title`,
+  );
+  if (titleEl) titleEl.textContent = newTitle;
+  if (knowledgeState.activeSlug === slug) {
+    const nameEl = getKnowledgeEditor()?.querySelector('.de-doc-name');
+    if (nameEl) nameEl.textContent = newTitle;
+  }
+}
+
+function scheduleKnowledgeAutosave(slug, ta) {
+  clearTimeout(knowledgeAutosaveTimer);
+  knowledgeAutosaveTimer = setTimeout(() => {
+    knowledgeAutosaveTimer = null;
+    void autosaveKnowledgeQuiet(slug, ta.value, ta);
+  }, AUTOSAVE_DEBOUNCE_MS);
+}
+
+async function flushKnowledgeAutosave() {
+  if (knowledgeAutosaveTimer) {
+    clearTimeout(knowledgeAutosaveTimer);
+    knowledgeAutosaveTimer = null;
+  }
+  if (typeof knowledgeAutosaveFlush === 'function') {
+    await knowledgeAutosaveFlush();
+    knowledgeAutosaveFlush = null;
+  }
+}
+
+async function autosaveKnowledgeQuiet(slug, content, ta) {
+  if (!content.trim()) {
+    if (ta) setFormFieldState(ta, 'invalid');
+    return false;
+  }
+  if (content === knowledgeState.content) {
+    knowledgeState.dirty = false;
+    return true;
+  }
+  if (ta) setFormFieldState(ta, 'saving');
+  try {
+    const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: titleFromKnowledgeMarkdown(content, slug),
+        content,
+        source: 'manual',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    knowledgeState.content = content;
+    knowledgeState.dirty = false;
+    syncKnowledgeSidebarTitle(slug, content);
+    if (ta) flashFormFieldSaved(ta);
+    return true;
+  } catch (e) {
+    console.warn('[knowledge] autosave failed', e);
+    if (ta) setFormFieldState(ta, 'invalid');
+    return false;
+  }
+}
+
 function getKnowledgeEditor() { return document.getElementById('knowledge-editor'); }
 
 async function loadKnowledgeTab() {
@@ -5177,6 +5563,7 @@ function renderEditKnowledgeForm(pane) {
       header.appendChild(createPanelBackBtn({
         label: 'Back to knowledge',
         onClick: async () => {
+          await flushKnowledgeAutosave();
           if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
           knowledgeState.activeSlug = null;
           knowledgeState.dirty = false;
@@ -5209,10 +5596,15 @@ function renderEditKnowledgeForm(pane) {
       ta.value = data.content;
       ta.addEventListener('input', () => {
         knowledgeState.dirty = ta.value !== knowledgeState.content;
+        scheduleKnowledgeAutosave(slug, ta);
+      });
+      ta.addEventListener('blur', () => {
+        knowledgeAutosaveFlush = () => autosaveKnowledgeQuiet(slug, ta.value, ta);
+        void autosaveKnowledgeQuiet(slug, ta.value, ta);
       });
       pane.appendChild(ta);
 
-      setEditorFooterSave(() => saveKnowledge(slug, ta.value));
+      clearEditorFooterSave();
       getKnowledgeEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -5221,6 +5613,7 @@ function renderEditKnowledgeForm(pane) {
 }
 
 async function openKnowledge(slug) {
+  await flushKnowledgeAutosave();
   if (knowledgeState.dirty && knowledgeState.activeSlug && !(await confirmDiscardChanges())) return;
   knowledgeState.activeSlug = slug;
   knowledgeState.dirty = false;
@@ -5324,6 +5717,97 @@ let workState = {
   draft: null,
   returnToEmailId: null,
 };
+
+let workAutosaveTimer = null;
+let workAutosaveFlush = null;
+
+function syncWorkSidebarTitle(slug, title) {
+  const job = workState.jobs.find((j) => j.slug === slug);
+  if (job) job.title = title;
+  const titleEl = document.querySelector(
+    `.ch-list-item[data-slug="${CSS.escape(slug)}"] .ch-item-title`,
+  );
+  if (titleEl) titleEl.textContent = title;
+}
+
+function workPayloadUnchanged(payload, draft) {
+  if (!draft) return true;
+  const tags = Array.isArray(draft.tags) ? draft.tags.join(', ') : (draft.tags || '');
+  const payloadTags = (payload.tags || []).join(', ');
+  return (
+    payload.title === draft.title &&
+    (payload.contact_uid || '') === (draft.contact_uid || '') &&
+    payload.status === draft.status &&
+    payload.priority === (draft.priority || 'normal') &&
+    (payload.due_date || '') === (draft.due_date || '') &&
+    String(payload.value ?? '') === String(draft.value ?? '') &&
+    payloadTags === tags &&
+    (payload.source || '') === (draft.source || '') &&
+    payload.body === draft.body
+  );
+}
+
+function scheduleWorkAutosave(slug, getPayload, activeEl) {
+  clearTimeout(workAutosaveTimer);
+  workAutosaveTimer = setTimeout(() => {
+    workAutosaveTimer = null;
+    void autosaveWorkQuiet(slug, getPayload, activeEl);
+  }, AUTOSAVE_DEBOUNCE_MS);
+}
+
+async function flushWorkAutosave() {
+  if (workAutosaveTimer) {
+    clearTimeout(workAutosaveTimer);
+    workAutosaveTimer = null;
+  }
+  if (typeof workAutosaveFlush === 'function') {
+    await workAutosaveFlush();
+    workAutosaveFlush = null;
+  }
+}
+
+async function autosaveWorkQuiet(slug, getPayload, activeEl) {
+  const payload = getPayload();
+  if (!payload.title || !payload.contact_uid) {
+    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    return false;
+  }
+  const draft = workState.draft;
+  if (workPayloadUnchanged(payload, draft)) {
+    workState.dirty = false;
+    return true;
+  }
+  if (activeEl) setFormFieldState(activeEl, 'saving');
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    Object.assign(workState.draft, {
+      title: payload.title,
+      contact_uid: payload.contact_uid,
+      contact_name: payload.contact_name,
+      status: payload.status,
+      priority: payload.priority,
+      due_date: payload.due_date || '',
+      value: payload.value ?? '',
+      tags: payload.tags || [],
+      source: payload.source || '',
+      body: payload.body,
+    });
+    workState.dirty = false;
+    syncWorkSidebarTitle(slug, payload.title);
+    if (activeEl) flashFormFieldSaved(activeEl);
+    return true;
+  } catch (e) {
+    console.warn('[work] autosave failed', e);
+    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    return false;
+  }
+}
 
 function filterWorkJobs(jobs, query) {
   return jobs.filter((job) =>
@@ -5830,10 +6314,12 @@ function appendWorkMetaFields(fields, draft, markDirty) {
   }
 
   if (markDirty) {
-    dueInput.addEventListener('input', markDirty);
-    valueInput.addEventListener('input', markDirty);
-    tagsInput.addEventListener('input', markDirty);
-    sourceInput.addEventListener('input', markDirty);
+    dueInput.addEventListener('input', () => markDirty(dueInput));
+    valueInput.addEventListener('input', () => markDirty(valueInput));
+    tagsInput.addEventListener('input', () => markDirty(tagsInput));
+    sourceInput.addEventListener('input', () => markDirty(sourceInput));
+    dueInput.addEventListener('change', () => markDirty(dueInput));
+    valueInput.addEventListener('change', () => markDirty(valueInput));
   }
 
   return {
@@ -6379,6 +6865,7 @@ function renderEditWorkForm(pane) {
       header.appendChild(createPanelBackBtn({
         label: returnEmailId ? 'Back to email' : 'Back to jobs',
         onClick: async () => {
+          await flushWorkAutosave();
           if (workState.dirty && !(await confirmDiscardChanges())) return;
           if (returnEmailId) {
             workState.returnToEmailId = null;
@@ -6434,6 +6921,7 @@ function renderEditWorkForm(pane) {
       let clientPicker;
       let metaFields;
       let statusPill;
+      let workActiveEl = titleInput;
       const markDirty = () => {
         const client = clientPicker.getPayload();
         const meta = metaFields.getPayload();
@@ -6448,7 +6936,30 @@ function renderEditWorkForm(pane) {
           meta.source !== (workState.draft.source || '') ||
           ta.value !== workState.draft.body;
       };
-      clientPicker = mountWorkClientPicker(fields, workState.draft, markDirty, { readOnly: true });
+      const getWorkPayload = () => {
+        const client = clientPicker.getPayload();
+        if (!client) return null;
+        return {
+          title: titleInput.value.trim(),
+          ...client,
+          status: statusPill.getValue(),
+          ...metaFields.getPayload(),
+          body: ta.value,
+        };
+      };
+      const queueWorkAutosave = (el) => {
+        if (el) workActiveEl = el;
+        markDirty();
+        const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
+        workAutosaveFlush = () => autosaveWorkQuiet(slug, payloadFn, workActiveEl);
+        scheduleWorkAutosave(slug, payloadFn, workActiveEl);
+      };
+      const flushWorkField = () => {
+        const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
+        workAutosaveFlush = () => autosaveWorkQuiet(slug, payloadFn, workActiveEl);
+        return autosaveWorkQuiet(slug, payloadFn, workActiveEl);
+      };
+      clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
       renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links);
 
@@ -6457,14 +6968,11 @@ function renderEditWorkForm(pane) {
         value: workState.draft.status,
         options: workStatusPillOptions(),
         ariaLabel: 'Status',
-        onChange: markDirty,
+        onChange: () => queueWorkAutosave(statusPill.el),
       });
       fields.appendChild(statusPill.el);
 
-      metaFields = appendWorkMetaFields(fields, workState.draft, markDirty);
-
-      titleInput.addEventListener('input', markDirty);
-      ta.addEventListener('input', markDirty);
+      metaFields = appendWorkMetaFields(fields, workState.draft, queueWorkAutosave);
 
       const checklistMount = document.createElement('div');
       checklistMount.className = 'wk-checklist-mount';
@@ -6476,10 +6984,21 @@ function renderEditWorkForm(pane) {
         setBody: (v) => {
           ta.value = v;
           workState.draft.body = v;
-          markDirty();
+          queueWorkAutosave(ta);
         },
       };
-      ta.addEventListener('input', () => renderWorkChecklistPanel(checklistMount, checklistOpts));
+
+      titleInput.addEventListener('input', () => queueWorkAutosave(titleInput));
+      titleInput.addEventListener('blur', () => { workActiveEl = titleInput; void flushWorkField(); });
+      ta.addEventListener('input', () => {
+        queueWorkAutosave(ta);
+        renderWorkChecklistPanel(checklistMount, checklistOpts);
+      });
+      ta.addEventListener('blur', () => { workActiveEl = ta; void flushWorkField(); });
+
+      for (const el of fields.querySelectorAll('.de-input')) {
+        el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
+      }
 
       scroll.appendChild(fields);
       scroll.appendChild(checklistMount);
@@ -6488,17 +7007,7 @@ function renderEditWorkForm(pane) {
       mountWorkCommentsSection(scroll, slug);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
 
-      setEditorFooterSave(() => {
-        const client = clientPicker.getPayload();
-        if (!client) { alert('Select a client, or add a new one.'); return; }
-        return saveWork(slug, {
-          title: titleInput.value.trim(),
-          ...client,
-          status: statusPill.getValue(),
-          ...metaFields.getPayload(),
-          body: ta.value,
-        });
-      });
+      clearEditorFooterSave();
       getWorkEditor()?.classList.add('de-pane-active');
     })
     .catch((e) => {
@@ -6507,6 +7016,7 @@ function renderEditWorkForm(pane) {
 }
 
 async function openWork(slug) {
+  await flushWorkAutosave();
   if (workState.dirty && workState.activeSlug && !(await confirmDiscardChanges())) return;
   workState.returnToEmailId = null;
   workState.activeSlug = slug;
@@ -7785,6 +8295,8 @@ let clientFieldRegistry = [];
 const CLIENT_FIELD_VALID = 'de-field-valid';
 const CLIENT_FIELD_INVALID = 'de-field-invalid';
 
+let clientActiveField = null;
+
 function clearClientFieldRegistry() {
   clientFieldRegistry = [];
 }
@@ -7825,9 +8337,11 @@ function isValidClientPhone(value) {
 }
 
 function setClientFieldValidationState(el, show, valid) {
-  el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID);
+  el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID, FORM_FIELD_INVALID, FORM_FIELD_SAVED);
   if (!show) return;
-  el.classList.add(valid ? CLIENT_FIELD_VALID : CLIENT_FIELD_INVALID);
+  if (!valid) {
+    el.classList.add(CLIENT_FIELD_INVALID, FORM_FIELD_INVALID);
+  }
 }
 
 function registerClientField(el, validateFn) {
@@ -7840,8 +8354,7 @@ function registerClientField(el, validateFn) {
     }
     const valid = validateFn();
     const focused = document.activeElement === el;
-    // Show green only on the field being edited; keep red after blur when invalid.
-    const show = focused || !valid;
+    const show = !focused && !valid;
     setClientFieldValidationState(el, show, valid);
   };
 
@@ -8302,8 +8815,14 @@ function renderEditClientForm(pane) {
         await autosaveClient(uid, getPayload());
       };
       for (const el of [nameInput, emailInput, phoneInput, companyInput, websiteInput, notesTa]) {
-        el.addEventListener('input', queueAutosave);
-        el.addEventListener('blur', saveNow);
+        el.addEventListener('input', () => {
+          clientActiveField = el;
+          queueAutosave();
+        });
+        el.addEventListener('blur', () => {
+          clientActiveField = el;
+          void saveNow();
+        });
       }
 
       getClientsEditor()?.classList.add('de-pane-active');
@@ -8393,6 +8912,7 @@ async function autosaveClient(uid, payload) {
     refreshAllClientFields();
     return false;
   }
+  if (clientActiveField) setFormFieldState(clientActiveField, 'saving');
   try {
     const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
       method: 'PATCH',
@@ -8411,9 +8931,11 @@ async function autosaveClient(uid, payload) {
       c.company = payload.company;
     }
     syncClientListRow(uid, payload.name);
+    if (clientActiveField) flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
     console.warn('[clients] autosave failed', e);
+    if (clientActiveField) setFormFieldState(clientActiveField, 'invalid');
     refreshAllClientFields();
     return false;
   }

@@ -1340,19 +1340,27 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       }
       .de-input:focus { border-color: #3b82f6; }
       .de-input.de-field-valid,
-      .de-textarea.de-field-valid {
+      .de-textarea.de-field-valid,
+      .de-input.form-field--saved,
+      .de-textarea.form-field--saved {
         border-color: #22c55e;
       }
       .de-input.de-field-valid:focus,
-      .de-textarea.de-field-valid:focus {
+      .de-textarea.de-field-valid:focus,
+      .de-input.form-field--saved:focus,
+      .de-textarea.form-field--saved:focus {
         border-color: #22c55e;
       }
       .de-input.de-field-invalid,
-      .de-textarea.de-field-invalid {
+      .de-textarea.de-field-invalid,
+      .de-input.form-field--invalid,
+      .de-textarea.form-field--invalid {
         border-color: #ef4444;
       }
       .de-input.de-field-invalid:focus,
-      .de-textarea.de-field-invalid:focus {
+      .de-textarea.de-field-invalid:focus,
+      .de-input.form-field--invalid:focus,
+      .de-textarea.form-field--invalid:focus {
         border-color: #ef4444;
       }
 
@@ -4902,6 +4910,39 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         opacity: 0.55;
         cursor: not-allowed;
       }
+      .prof-field input.form-field--saving,
+      .prof-field select.form-field--saving,
+      .prof-field textarea.form-field--saving,
+      .de-input.form-field--saving,
+      .de-textarea.form-field--saving,
+      .re-textarea.form-field--saving,
+      .ind-row input.form-field--saving,
+      .de-header-title-input.form-field--saving {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+      }
+      .prof-field input.form-field--saved,
+      .prof-field select.form-field--saved,
+      .prof-field textarea.form-field--saved,
+      .de-input.form-field--saved,
+      .de-textarea.form-field--saved,
+      .re-textarea.form-field--saved,
+      .ind-row input.form-field--saved,
+      .de-header-title-input.form-field--saved {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
+      }
+      .prof-field input.form-field--invalid,
+      .prof-field select.form-field--invalid,
+      .prof-field textarea.form-field--invalid,
+      .de-input.form-field--invalid,
+      .de-textarea.form-field--invalid,
+      .re-textarea.form-field--invalid,
+      .ind-row input.form-field--invalid,
+      .de-header-title-input.form-field--invalid {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.2);
+      }
       .prof-hint {
         font-size: 0.72rem;
         color: var(--muted);
@@ -5035,13 +5076,18 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       }
       .ind-row input[type="text"] {
         font: inherit;
-        font-size: 0.85rem;
-        color: var(--fg, #e9eef6);
-        background: var(--panel, #121722);
-        border: 1px solid var(--panel-border, #283142);
-        border-radius: 8px;
-        padding: 0.45rem 0.6rem;
+        font-size: max(16px, 0.88rem);
+        color: var(--fg);
+        background: var(--accent-select-bg);
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        padding: 0.6rem 0.75rem;
         width: 100%;
+        box-sizing: border-box;
+        outline: none;
+      }
+      .ind-row input[type="text"]:focus {
+        border-color: var(--border-strong-hover);
       }
       .ind-enabled {
         display: inline-flex;
