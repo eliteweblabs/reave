@@ -55,3 +55,20 @@ export function extractMonetaryAmountFromEmail(ev: {
 export function formatUsdAmount(amount: number): string {
   return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
+
+/** Payment/receipt language — used with a detected dollar amount to auto-file tax receipts. */
+const RECEIPT_HINT =
+  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|order\s+confirm(?:ation)?|paid|purchase|purchased|transaction|charged|billing\s+statement|amount\s+paid|you\s+paid)\b/i;
+
+/** Auto-file as receipt when text has both a dollar amount and receipt/payment keywords. */
+export function shouldAutoFileAsReceipt(ev: {
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): { amount: number; routeNote: string } | null {
+  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  const amount = extractMonetaryAmountFromText(text);
+  if (amount == null || !RECEIPT_HINT.test(text)) return null;
+  return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+}

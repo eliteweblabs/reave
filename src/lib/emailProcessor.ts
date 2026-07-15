@@ -16,6 +16,7 @@ import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
+import { shouldAutoFileAsReceipt } from './emailMoney';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt';
 
@@ -188,6 +189,7 @@ export function shouldSendInboxPush(opts: {
   const status = opts.ruleStatus.toUpperCase();
 
   if (opts.category === 'junk' || action === 'junk') return false;
+  if (opts.category === 'receipt') return false;
   if (!opts.ruleNotify) return false;
   if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
   // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
@@ -315,6 +317,22 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
+  let inboxStatus = isProjectReply ? 'PROJECT_REPLY' : ruleResult.status;
+  if (!isProjectReply && category !== 'junk' && category !== 'client') {
+    const autoReceipt = shouldAutoFileAsReceipt({
+      subject: email.subject ?? '',
+      summary,
+      bodyText,
+      bodySnippet: snippet(bodyText),
+    });
+    if (autoReceipt) {
+      category = 'receipt';
+      action = 'receipt';
+      inboxStatus = 'RECEIPT';
+      routeNote = autoReceipt.routeNote;
+    }
+  }
+
   const notify = shouldSendInboxPush({
     category,
     action,
@@ -335,7 +353,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     headers: email.headers,
     messageId: email.messageId,
     resendEmailId: email.resendEmailId,
-    status: isProjectReply ? 'PROJECT_REPLY' : ruleResult.status,
+    status: inboxStatus,
     action,
     notified: notify,
     summary,
@@ -395,5 +413,5 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }).catch((e) => console.warn('[email] agent alert failed', e));
   }
 
-  return { ok: true, category, status: isProjectReply ? 'PROJECT_REPLY' : ruleResult.status, action, from, record };
+  return { ok: true, category, status: inboxStatus, action, from, record };
 }

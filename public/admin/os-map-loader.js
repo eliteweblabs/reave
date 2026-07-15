@@ -3302,6 +3302,23 @@ function nearestFooterNavTarget(clientX) {
   return best;
 }
 
+function activateFooterChatNav() {
+  closeSearchOverlay();
+  if (footerNavShowsSave('chat')) {
+    void triggerFooterSave();
+    return;
+  }
+  if (activeKey === 'chats') {
+    if (footerNavShowsCreate('chat')) {
+      void startNewChat();
+    } else if (chatState.activeId) {
+      closeActiveChat();
+    }
+    return;
+  }
+  setActiveMap('chats', { force: activeKey === 'chats' });
+}
+
 function activateFooterNavFromDrag(nav) {
   closeSearchOverlay();
   if (nav === 'home') {
@@ -3313,15 +3330,7 @@ function activateFooterNavFromDrag(nav) {
     return;
   }
   if (nav === 'chat') {
-    if (footerNavShowsSave('chat')) {
-      void triggerFooterSave();
-      return;
-    }
-    if (activeKey === 'chats') {
-      void startNewChat();
-      return;
-    }
-    setActiveMap('chats', { force: activeKey === 'chats' });
+    activateFooterChatNav();
     return;
   }
   if (nav === 'inbox') {
@@ -3621,16 +3630,7 @@ function initFooterNav() {
     setActiveMap('home', { force: activeKey === 'home' });
   });
   document.getElementById('footer-nav-chat')?.addEventListener('click', () => {
-    closeSearchOverlay();
-    if (footerNavShowsSave('chat')) {
-      void triggerFooterSave();
-      return;
-    }
-    if (activeKey === 'chats') {
-      void startNewChat();
-      return;
-    }
-    setActiveMap('chats', { force: activeKey === 'chats' });
+    activateFooterChatNav();
   });
   document.getElementById('footer-nav-inbox')?.addEventListener('click', () => {
     closeSearchOverlay();
@@ -7763,6 +7763,13 @@ function openScheduleCreateDialog(initial = {}) {
   });
 }
 
+function scheduleShareBookingUrl() {
+  const formUrl = scheduleState.meta.bookingFormUrl || '/form/schedule';
+  const url = scheduleState.meta.publicBookingUrl || formUrl;
+  if (url.startsWith('http')) return url;
+  return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`;
+}
+
 function renderScheduleDetail(pane, booking) {
   pane.innerHTML = '';
   const who = scheduleBookingWho(booking);
@@ -7776,6 +7783,16 @@ function renderScheduleDetail(pane, booking) {
   titleEl.className = 'de-doc-name';
   titleEl.textContent = booking.title || 'Meeting';
   header.appendChild(titleEl);
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'share',
+    label: 'Share booking link',
+    className: 'ios-icon-btn de-share-btn',
+    onClick: (btn) =>
+      sharePortalLink(scheduleShareBookingUrl(), booking.title || 'Book a meeting', btn),
+  }));
+  header.appendChild(headerActions);
   pane.appendChild(header);
 
   const scroll = document.createElement('div');
@@ -7831,10 +7848,9 @@ function renderScheduleDetail(pane, booking) {
     mailBtn.textContent = 'Email guest';
     actions.appendChild(mailBtn);
   }
-  const formUrl = scheduleState.meta.bookingFormUrl || '/form/schedule';
   const shareBtn = document.createElement('a');
   shareBtn.className = 'de-btn de-btn-ghost';
-  shareBtn.href = scheduleState.meta.publicBookingUrl || formUrl;
+  shareBtn.href = scheduleShareBookingUrl();
   shareBtn.target = '_blank';
   shareBtn.rel = 'noopener';
   shareBtn.textContent = 'Share booking link';
@@ -9729,7 +9745,7 @@ async function loadChatsTab(opts = {}) {
     return;
   }
 
-  await ensureChatSession();
+  renderChatPanel();
 }
 
 function formatLinkedJobsSub(jobs) {
@@ -10139,7 +10155,7 @@ function renderChatPanel() {
     root.appendChild(pane);
     clearTopbarPanelContext();
     setChatComposeFocused(false);
-    syncFooterChatInlineHome();
+    syncFooterNav();
     return;
   }
 
@@ -10153,13 +10169,8 @@ function renderChatPanel() {
   root.appendChild(pane);
   getChatPanel()?.classList.add('ch-pane-active');
   syncTopbarPanelContext();
-  syncFooterChatInlineHome();
+  syncFooterNav();
   mountChatThreadRoot(threadHost);
-}
-
-async function ensureChatSession() {
-  if (chatState.activeId) return;
-  await startNewChat({ disposable: true });
 }
 
 async function startNewChat(opts = {}) {
@@ -10539,10 +10550,6 @@ function closeActiveChat() {
   void abandonDisposableChat(id).then(async () => {
     chatState.activeId = null;
     setChatComposeFocused(false);
-    if (MAP.type === 'chats' && !isMobileTabs()) {
-      await ensureChatSession();
-      return;
-    }
     getChatPanel()?.classList.remove('ch-pane-active');
     renderChatPanel();
   });
