@@ -4789,6 +4789,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .profile-panel-scroll {
         flex: 1;
+        overflow-x: hidden;
         overflow-y: auto;
         padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 1rem) 1rem var(--footer-scroll-pad);
         display: flex;
@@ -4799,6 +4800,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .prof-card {
         width: 100%;
         max-width: 560px;
+        min-width: 0;
         background: var(--surface-muted);
         border: 1px solid var(--panel-border);
         border-radius: 12px;
@@ -4853,6 +4855,7 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         display: flex;
         flex-direction: column;
         gap: 0.35rem;
+        min-width: 0;
       }
       .prof-field label {
         font-size: 0.68rem;
@@ -4864,6 +4867,9 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       .prof-field input,
       .prof-field select,
       .prof-field textarea {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
         background: var(--accent-select-bg);
         border: 1px solid var(--panel-border);
         border-radius: var(--radius-input);
@@ -4959,6 +4965,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .prof-hint code {
         font-size: 0.68rem;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .prof-actions {
         padding-top: 0.25rem;
@@ -5053,6 +5061,13 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.65rem;
+        width: 100%;
+        min-width: 0;
+      }
+      .prof-logo-upload input[type="file"] {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
       }
       .prof-logo-preview {
         max-width: 220px;
