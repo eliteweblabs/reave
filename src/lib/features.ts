@@ -18,6 +18,7 @@ export const FEATURE_IDS = [
   'uptime_monitoring',
   'documents',
   'voice',
+  'vapi',
   'carddav',
   'scheduling',
   'dev_infra',
@@ -105,6 +106,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   uptime_monitoring: 'Uptime monitoring (UptimeRobot)',
   documents: 'Document signing templates',
   voice: 'Telnyx voice agent',
+  vapi: 'Vapi assistant (admin sync & branding)',
   carddav: 'CardDAV (iOS Contacts sync)',
   scheduling: 'Cal.com scheduling & meetings',
   dev_infra: 'Dev & infrastructure (Git, Railway, Kinsta, deploy)',
@@ -119,7 +121,7 @@ export const FEATURE_GROUPS: { id: string; title: string; features: FeatureId[] 
   {
     id: 'ops',
     title: 'Operations & monitoring',
-    features: ['site_audits', 'site_monitoring', 'uptime_monitoring', 'voice'],
+    features: ['site_audits', 'site_monitoring', 'uptime_monitoring', 'voice', 'vapi'],
   },
   {
     id: 'dev',

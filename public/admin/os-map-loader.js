@@ -2415,8 +2415,71 @@ function renderPluginsPanel(data) {
         `<div id="plugins-alert" class="prof-alert" hidden></div>` +
         `<div id="plugins-form">${groupsHtml}</div>` +
       `</div>` +
+      renderVapiPluginCard(data) +
     `</div>`
   );
+}
+
+function renderVapiPluginCard(data) {
+  const enabled = new Set(Array.isArray(data?.enabled) ? data.enabled : []);
+  if (!enabled.has('vapi')) return '';
+
+  return (
+    `<div class="prof-card" id="vapi-plugin-card">` +
+      `<h2 class="prof-title prof-title--section">Vapi assistant</h2>` +
+      `<p class="prof-subtitle">Syncs assistant name and prompts from Profile → Company details. The public homepage voice widget is configured separately per installation.</p>` +
+      `<div id="vapi-plugin-status" class="prof-hint prof-hint--block">Checking status…</div>` +
+      `<div class="prof-actions">` +
+        `<button type="button" id="vapi-sync-btn" class="prof-btn-primary">Sync Vapi assistant now</button>` +
+      `</div>` +
+    `</div>`
+  );
+}
+
+async function refreshVapiPluginStatus() {
+  const statusEl = document.getElementById('vapi-plugin-status');
+  const btn = document.getElementById('vapi-sync-btn');
+  if (!statusEl) return;
+  try {
+    const res = await adminFetch('/api/admin/vapi', { cache: 'no-store' });
+    const json = await res.json();
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    const parts = [
+      json.configured ? 'Ready to sync' : 'Not configured — set VAPI_API_KEY on the server',
+      json.companyName ? `Company: ${json.companyName}` : '',
+      json.assistantId ? `Assistant: ${json.assistantId}` : '',
+    ].filter(Boolean);
+    statusEl.textContent = parts.join(' · ');
+    if (btn) btn.disabled = !json.configured;
+  } catch (e) {
+    statusEl.textContent = `Status unavailable: ${e.message}`;
+    if (btn) btn.disabled = true;
+  }
+}
+
+function bindVapiPluginCard(root) {
+  const btn = root.querySelector('#vapi-sync-btn');
+  const statusEl = root.querySelector('#vapi-plugin-status');
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = '1';
+  void refreshVapiPluginStatus();
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Syncing…';
+    try {
+      const res = await adminFetch('/api/admin/vapi', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      if (statusEl) {
+        statusEl.textContent = `Synced for ${json.companyName} · ${json.firstMessage || 'updated'}`;
+      }
+    } catch (e) {
+      if (statusEl) statusEl.textContent = `Sync failed: ${e.message}`;
+    } finally {
+      btn.disabled = false;
+      void refreshVapiPluginStatus();
+    }
+  });
 }
 
 let pluginsSaveTimer = null;
@@ -2458,8 +2521,11 @@ function bindPluginsPanel(root, initialEnabled) {
       if (on) enabled.add(id);
       else enabled.delete(id);
       schedulePluginsAutosave(enabled, alertEl, countEl);
+      if (id === 'vapi') void loadPluginsTab();
     });
   });
+
+  bindVapiPluginCard(root);
 }
 
 async function loadPluginsTab() {

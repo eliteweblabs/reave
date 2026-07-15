@@ -128,6 +128,8 @@ import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
 import { getAgentContext } from './agentContext';
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from './companyConfig';
+import { syncVapiAssistantBrand } from './vapiAssistantSync';
+import { isVapiAdminConfigured } from './vapiPlugin';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
@@ -1586,6 +1588,18 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
         },
       },
     );
+  }
+
+  if (hasFeature('vapi')) {
+    base.push({
+      type: 'function',
+      function: {
+        name: 'sync_vapi_assistant',
+        description:
+          `Sync the Vapi voice assistant name, first message, and system prompt from admin Company details (${brand.name}). Requires VAPI_API_KEY on the server. Does not affect the public homepage widget — that is a separate installation setting.`,
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    });
   }
 
   if (hasFeature('billing') && isCraterConfigured()) {
@@ -3536,6 +3550,24 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await dnsCheck(domain);
       if (!result.ok) return JSON.stringify({ error: result.error });
       return JSON.stringify({ ...result, summary: formatDnsCheckResults(result) });
+    }
+    if (name === 'sync_vapi_assistant') {
+      if (!hasFeature('vapi')) {
+        return JSON.stringify({ error: 'vapi plugin not enabled (Admin → Plugins)' });
+      }
+      if (!isVapiAdminConfigured()) {
+        return JSON.stringify({
+          error: 'Vapi admin not configured — enable the plugin and set VAPI_API_KEY + assistant id',
+        });
+      }
+      const result = await syncVapiAssistantBrand(brand);
+      if (!result.ok) return JSON.stringify({ error: result.error, skipped: result.skipped ?? false });
+      return JSON.stringify({
+        ok: true,
+        assistant_id: result.assistantId,
+        company_name: result.companyName,
+        first_message: result.firstMessage,
+      });
     }
     if (name === 'sync_resend_dns') {
       const domainArg = args.domain != null ? String(args.domain).trim().toLowerCase() : '';

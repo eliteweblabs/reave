@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
 import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../../lib/features';
+import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from '../../lib/vapiPlugin';
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
@@ -191,10 +192,13 @@ export const GET: APIRoute = async () => {
     web_push: pushConfigured
       ? configured(pushEnabled ? 'VAPID keys set · enabled' : 'VAPID keys set · PUSH_ENABLED=0')
       : unconfigured('VAPID keys not set'),
-    vapi:
-      serverEnv('PUBLIC_VAPI_PUBLIC_KEY')?.trim() && serverEnv('PUBLIC_VAPI_ASSISTANT_ID')?.trim()
-        ? configured('PUBLIC_VAPI_* set')
-        : unconfigured('PUBLIC_VAPI_* not set'),
+    vapi: !hasFeature('vapi')
+      ? unconfigured('vapi not in FEATURES')
+      : isVapiAdminConfigured()
+        ? configured('Vapi admin plugin · API key + assistant id')
+        : isVapiAdminPluginEnabled()
+          ? unconfigured('VAPI_API_KEY or assistant id not set')
+          : unconfigured('vapi plugin disabled'),
   };
 
   const features = [...enabledFeatures()].map((id: FeatureId) => ({

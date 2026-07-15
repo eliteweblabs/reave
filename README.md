@@ -34,6 +34,8 @@ This website includes a voice chat button powered by [Vapi](https://vapi.ai) tha
      # Vapi Configuration
      PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key_here
      PUBLIC_VAPI_ASSISTANT_ID=your_vapi_assistant_id_here
+     # Private key — syncs assistant name/prompt from admin Company details on each build
+     VAPI_API_KEY=your_vapi_private_api_key_here
      
      # Clerk Authentication (Required for authenticated features)
      PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
@@ -121,6 +123,10 @@ The `Dockerfile` runs `npm run build` **before** your hosting platform injects e
 `VoiceChatButton` therefore reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these two variables are defined on the **running service** in Railway (or your host). They must use the `PUBLIC_` prefix so they are intended for client-side use; the server injects them into the page when it renders.
 
 If the toggle still shows **VAPI NOT CONFIGURED**, the server process does not see those variables—double-check the variable names and redeploy.
+
+**Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` first when the **`vapi` admin plugin** is enabled. It PATCHes your Vapi assistant’s name, `firstMessage`, and system prompt from **admin → Profile → Company details**. Requires `VAPI_API_KEY` on the build service. Set `VAPI_SYNC_SKIP=1` locally if you do not have Vapi credentials.
+
+**Admin plugin vs homepage:** Enable **Vapi** under Admin → Plugins for assistant sync (`/api/admin/vapi`, `/vapi-sync`, build prebuild). The **public homepage voice widget** is a separate installation flag (`PUBLIC_INSTALL_HOMEPAGE_VOICE`) so each deploy can customize or omit the marketing site without affecting the Business OS admin.
 
 ## 📱 SMS Integration (Twilio)
 

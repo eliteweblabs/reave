@@ -141,6 +141,26 @@ interface ImportMetaEnv {
   BOOKING_TIMEZONE?: string;
   /** Default job-site address when callers omit one (optional). */
   BOOKING_DEFAULT_ADDRESS?: string;
+  /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */
+  VAPI_API_KEY?: string;
+  /** Vapi assistant id override for sync (defaults to PUBLIC_VAPI_ASSISTANT_ID). */
+  VAPI_ASSISTANT_ID?: string;
+  /** Set to 1 to skip Vapi assistant sync on build. */
+  VAPI_SYNC_SKIP?: string;
+  /** Set to 1 to fail build when Vapi sync errors. */
+  VAPI_SYNC_REQUIRED?: string;
+  /** Override synced first message (supports {{companyName}} etc.). */
+  VAPI_FIRST_MESSAGE?: string;
+  /** Override synced system prompt (supports {{companyName}} etc.). */
+  VAPI_SYSTEM_PROMPT?: string;
+  /** Vapi web SDK public key. */
+  PUBLIC_VAPI_PUBLIC_KEY?: string;
+  /** Vapi assistant id for homepage voice widget. */
+  PUBLIC_VAPI_ASSISTANT_ID?: string;
+  PUBLIC_VAPI_ENABLE_VOICE_RECOGNITION?: string;
+  PUBLIC_VAPI_VOICE_PROFILE_ID?: string;
+  /** Installation homepage voice widget — separate from admin `vapi` plugin. */
+  PUBLIC_INSTALL_HOMEPAGE_VOICE?: string;
 }
 
 /** Vapi web SDK attaches the constructor at runtime (`VoiceChatButton.astro`). */

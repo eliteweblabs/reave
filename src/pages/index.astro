@@ -5,11 +5,14 @@ import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
+import { isHomepageVoiceWidgetEnabled } from "../lib/vapiPlugin";
+
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
+const showHomepageVoice = isHomepageVoiceWidgetEnabled();
 ---
 
 <Layout>
@@ -25,14 +28,16 @@ const heroLogo = homepageHeroLogo(company);
     </div>
   </div>
 
-  <VoiceChatButton
-    position="center-bottom"
-    companyName={company.name}
-    companyDescription={company.description}
-    companyDomain={company.domain}
-  />
-  <Transcript />
-  <TextFallback />
+  {showHomepageVoice && (
+    <VoiceChatButton
+      position="center-bottom"
+      companyName={company.name}
+      companyDescription={company.description}
+      companyDomain={company.domain}
+    />
+  )}
+  {showHomepageVoice && <Transcript />}
+  {showHomepageVoice && <TextFallback />}
   <div class="container">
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">

@@ -349,6 +349,15 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'voice',
   },
 
+  // Vapi admin (plugin)
+  {
+    slash: '/vapi-sync',
+    summary: 'Sync Vapi assistant branding',
+    template: 'Sync the Vapi assistant from Company details.',
+    example: 'Sync the Vapi assistant from Company details.',
+    feature: 'vapi',
+  },
+
   // CardDAV (plugin)
   {
     slash: '/carddav',

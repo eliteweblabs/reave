@@ -9,6 +9,8 @@
     "railway:vars": "railway variable list -k > .env.railway",
     "sync:env": "bash scripts/sync-local-env.sh",
     "sync:resend-dns": "node --experimental-strip-types scripts/sync-resend-dns.ts",
+    "sync:vapi": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
+    "prebuild": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "build": "astro build",
     "check": "astro check",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",

@@ -6,6 +6,7 @@ import { isContactApiConfigured, siteBaseUrl } from './contactApi';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
+import { isVapiAdminConfigured } from './vapiPlugin';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { isRailwayConfigured } from './railwayClient';
@@ -207,6 +208,13 @@ async function runKnowledgeAgentInner(opts: {
   if (hasFeature('scheduling') && isBookingConfigured()) {
     sysParts.push(
       `Scheduling: Cal.com is wired via calcom-booking-api. Use list_bookings for today/upcoming meetings; get_booking for one appointment; get_booking_link to share the public booking URL or /form/schedule conversational form. Admin calendar UI uses the configured Cal.com host when set.`,
+    );
+  }
+  if (hasFeature('vapi')) {
+    sysParts.push(
+      isVapiAdminConfigured()
+        ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public homepage voice widget is separate from this plugin.`
+        : `Vapi admin plugin is enabled but not fully configured — set VAPI_API_KEY and assistant id on the server, then sync_vapi_assistant or POST /api/admin/vapi.`,
     );
   }
   if (isBraveConfigured()) {
