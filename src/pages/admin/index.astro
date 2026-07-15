@@ -718,8 +718,15 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         z-index: 9999;
       }
       [data-tooltip]:hover::after { opacity: 1; visibility: visible; }
+      [data-tooltip].tooltip-open::after { opacity: 1; visibility: visible; }
       /* Items near the right edge: right-align the tooltip */
       [data-tooltip].tt-left::after { left: auto; right: 0; transform: none; }
+      .topbar-deploy-dot[data-tooltip]::after {
+        white-space: normal;
+        max-width: min(72vw, 16rem);
+        text-align: left;
+        line-height: 1.35;
+      }
 
       /* Tabs — scroll wrapper keeps items from overlapping the right cluster */
       #tabs-scroll {
@@ -5320,6 +5327,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20250714b"></script>
     <script src="/ios-sheet.js" defer></script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250713a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250714c"></script>
   </body>
 </html>

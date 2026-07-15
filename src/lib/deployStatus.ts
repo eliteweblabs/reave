@@ -236,6 +236,43 @@ export function deployBanner(
   return null;
 }
 
+export type DeployIndicatorTone = 'live' | 'deploying' | 'alert';
+
+/** CSS tone for the topbar deploy indicator dot. */
+export function deployIndicatorTone(state: DeployState): DeployIndicatorTone {
+  if (state === 'live') return 'live';
+  if (state === 'deploying') return 'deploying';
+  return 'alert';
+}
+
+/** Plain-text tooltip for the admin deploy indicator (no emoji). */
+export function deployTooltip(snapshot: DeployStatusSnapshot): string {
+  if (snapshot.state === 'failed') {
+    return snapshot.failed_reason ?? 'Deploy failed — check Railway logs';
+  }
+
+  if (snapshot.state === 'stale' && snapshot.latest_commit) {
+    const min = snapshot.minutes_since_push ?? minutesSince(snapshot.latest_commit.date) ?? '?';
+    return `Deploy stale — ${snapshot.latest_commit.short_sha} pushed ${min} min ago, not live yet. Check Railway logs.`;
+  }
+
+  if (snapshot.state === 'deploying' && snapshot.latest_commit) {
+    const msg = truncateMessage(snapshot.latest_commit.message, 48);
+    const bit = msg ? `: ${msg}` : '';
+    return `Deploying ${snapshot.latest_commit.short_sha}${bit} — not live yet`;
+  }
+
+  if (snapshot.state === 'live' && snapshot.deployed_short) {
+    return `Live — ${snapshot.deployed_short} up to date`;
+  }
+
+  if (snapshot.state === 'unknown') {
+    return 'Deploy status unknown — check Railway or GitHub connection';
+  }
+
+  return 'Deploy status unavailable';
+}
+
 const BANNER_PREFIXES = ['🚀 Deploying:', '🟢 Live:', '🔴 Deploy stale:', '🔴 Deploy failed', '🔴 '];
 
 function alreadyHasBanner(text: string): boolean {
