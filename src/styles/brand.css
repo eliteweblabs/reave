@@ -1,0 +1,29 @@
+/**
+ * Reave brand tokens — gradient, accent stops, and shadows.
+ * Import from Layout.astro (public pages) and admin/index.astro (dashboard).
+ */
+:root {
+  --brand-pink: #f472b6;
+  --brand-magenta: #c026d3;
+  --brand-indigo: #6366f1;
+  --brand-gradient: linear-gradient(
+    145deg,
+    var(--brand-pink) 0%,
+    var(--brand-magenta) 52%,
+    var(--brand-indigo) 100%
+  );
+  --brand-gradient-shadow:
+    0 2px 16px rgba(192, 38, 211, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.4);
+  --create-fab-bg: var(--brand-gradient);
+  --create-fab-shadow: var(--brand-gradient-shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-gradient-shadow:
+      0 2px 16px rgba(192, 38, 211, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.16);
+    --create-fab-shadow: var(--brand-gradient-shadow);
+  }
+}

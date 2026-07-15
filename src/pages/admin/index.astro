@@ -10,6 +10,7 @@ import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
 import { getCompanyConfig } from "../../lib/companyConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import "../../styles/brand.css";
 
 export const prerender = false;
 
@@ -109,8 +110,8 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         --ch-inline-home-gap: 0.4rem;
         --footer-chat-stack: calc(var(--footer-nav-h) + var(--ch-compose-gap) + var(--ch-compose-h));
         --footer-scroll-pad: calc(var(--footer-nav-h) + 0.5rem);
-        --create-fab-bg: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
-        --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.4);
+        --create-fab-bg: var(--brand-gradient);
+        --create-fab-shadow: var(--brand-gradient-shadow);
         --radius-pill: var(--radius-input);
         --radius-input: 8px;
         --control-h: 2.75rem;
@@ -186,7 +187,6 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
           --icon-muted: rgba(255, 255, 255, 0.72);
           --list-row-odd: #121722;
           --list-row-even: #171d2a;
-          --create-fab-shadow: 0 2px 16px rgba(192, 38, 211, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.16);
         }
       }
       * { box-sizing: border-box; }
@@ -3159,7 +3159,15 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
         text-align: center;
         line-height: 1.2;
       }
-      .swipe-act-agent { background: #007aff; }
+      .swipe-act-agent {
+        width: 3.25rem;
+        background: var(--brand-gradient);
+        box-shadow: var(--brand-gradient-shadow);
+      }
+      .swipe-act-agent svg {
+        display: block;
+        flex-shrink: 0;
+      }
       .swipe-act-junk { background: #ff9500; }
       .swipe-act-receipt { background: #34c759; }
       .swipe-act-archive { background: #8e8e93; }
@@ -3388,6 +3396,42 @@ const showPlugins = userId ? await isDeploymentOwner(Astro) : false;
       }
       .em-header-action-btn {
         margin: 0;
+      }
+      .agent-btn,
+      .em-agent-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: var(--brand-gradient);
+        box-shadow: var(--brand-gradient-shadow);
+        border: none;
+      }
+      .agent-btn:hover:not(:disabled),
+      .em-agent-btn:hover:not(:disabled),
+      .de-new-btn.em-agent-btn:hover,
+      .em-btn-group-segment.em-agent-btn:hover:not(:disabled) {
+        filter: brightness(1.08);
+        color: #fff;
+        background: var(--brand-gradient);
+        border-color: transparent;
+      }
+      .de-new-btn.em-agent-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        margin: 0;
+        padding: 0;
+        border-radius: var(--radius-input);
+      }
+      .de-new-btn.em-agent-btn svg {
+        display: block;
+      }
+      .em-btn-group-segment.em-agent-btn {
+        padding: 0.42rem 0.65rem;
+      }
+      .em-btn-group > .em-project-dropdown.open .em-btn-group-segment.em-agent-btn {
+        background: var(--brand-gradient);
+        color: #fff;
       }
       .em-project-dropdown {
         position: relative;

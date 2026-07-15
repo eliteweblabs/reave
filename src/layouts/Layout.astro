@@ -4,6 +4,7 @@ import Favicon from "../components/Favicon.astro";
 import { SITE } from "../config/site";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { requestOrigin } from "../lib/requestOrigin";
+import "../styles/brand.css";
 
 export interface Props {
   /** Page-specific title. Rendered as "Page | {company name}". Omit to show just the company name. */

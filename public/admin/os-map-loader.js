@@ -12,7 +12,7 @@ import {
   scanPanelSidebars,
   attachIosPullToRefresh,
   pullRefreshContentRoot,
-} from './admin-ui.js?v=20250701h';
+} from './admin-ui.js?v=20250714a';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -128,7 +128,22 @@ const NAV_ICON_PATHS = {
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   archive: '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
   'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+  agent:
+    '<path d="M14 18a2 2 0 0 0-4 0"/>' +
+    '<path d="m19 11-2.11-6.657a2 2 0 0 0-2.752-1.148l-1.276.61A2 2 0 0 1 12 4H8.5a2 2 0 0 0-1.925 1.456L5 11"/>' +
+    '<path d="M2 11h20"/>' +
+    '<circle cx="17" cy="18" r="3"/>' +
+    '<circle cx="7" cy="18" r="3"/>',
 };
+
+function agentSwipeAction(onClick) {
+  return {
+    label: 'Agent',
+    icon: 'agent',
+    className: 'swipe-act swipe-act-agent',
+    onClick,
+  };
+}
 
 function navIcon(name, size = 20) {
   const paths = NAV_ICON_PATHS[name];
@@ -9913,7 +9928,13 @@ function createSwipeRow(contentEl, actions) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = act.className || 'swipe-act';
-    btn.textContent = act.label;
+    if (act.icon) {
+      btn.innerHTML = navIcon(act.icon, 18);
+      btn.setAttribute('aria-label', act.label || 'Agent');
+      btn.title = act.label || 'Agent';
+    } else {
+      btn.textContent = act.label;
+    }
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       act.onClick();
@@ -10211,11 +10232,7 @@ function createDocumentListItem(tpl) {
 
 function createDocumentSwipeRow(tpl) {
   return createSwipeRow(createDocumentListItem(tpl), [
-    {
-      label: 'Agent',
-      className: 'swipe-act swipe-act-agent',
-      onClick: () => askAgentAboutDocument(tpl),
-    },
+    agentSwipeAction(() => askAgentAboutDocument(tpl)),
     {
       label: 'Delete',
       className: 'swipe-act swipe-act-delete',
@@ -10241,11 +10258,7 @@ function createKnowledgeListItem(entry) {
 
 function createKnowledgeSwipeRow(entry) {
   return createSwipeRow(createKnowledgeListItem(entry), [
-    {
-      label: 'Agent',
-      className: 'swipe-act swipe-act-agent',
-      onClick: () => askAgentAboutKnowledge(entry),
-    },
+    agentSwipeAction(() => askAgentAboutKnowledge(entry)),
     {
       label: 'Delete',
       className: 'swipe-act swipe-act-delete',
@@ -10271,11 +10284,7 @@ function createWorkListItem(job) {
 
 function createWorkSwipeRow(job) {
   return createSwipeRow(createWorkListItem(job), [
-    {
-      label: 'Agent',
-      className: 'swipe-act swipe-act-agent',
-      onClick: () => askAgentAboutWork(job),
-    },
+    agentSwipeAction(() => askAgentAboutWork(job)),
     {
       label: 'Delete',
       className: 'swipe-act swipe-act-delete',
@@ -10981,11 +10990,7 @@ function createEmailListItem(ev) {
 
 function buildEmailSwipeActions(ev) {
   const actions = [
-    {
-      label: 'Agent',
-      className: 'swipe-act swipe-act-agent',
-      onClick: () => askAgentAboutEmail(ev),
-    },
+    agentSwipeAction(() => askAgentAboutEmail(ev)),
   ];
 
   if (ev.category !== 'junk') {
@@ -11409,7 +11414,9 @@ function renderEmailPanel() {
 
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
-  agentBtn.textContent = 'Agent';
+  agentBtn.setAttribute('aria-label', 'Agent');
+  agentBtn.title = 'Agent';
+  agentBtn.innerHTML = navIcon('agent', 16);
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
 
   if (shouldShowEmailProjectActions(ev)) {
