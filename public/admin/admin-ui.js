@@ -674,7 +674,10 @@ const SWIPE_ACTIONS = {
 
 function swipeIconMarkup(iconKey, size = 18) {
   const svg = IOS_ICONS[iconKey];
-  if (!svg) return '';
+  if (!svg) {
+    console.warn(`Swipe icon not found: ${iconKey}`);
+    return '';
+  }
   return svg.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
 }
 
@@ -904,7 +907,12 @@ export function createSwipeRow(contentEl, actions) {
     btn.type = 'button';
     btn.className = act.className || 'swipe-act';
     const iconKey = act.iconKey || act.icon;
-    btn.innerHTML = swipeIconMarkup(iconKey, 18);
+    const iconMarkup = swipeIconMarkup(iconKey, 18);
+    if (iconMarkup) {
+      btn.innerHTML = iconMarkup;
+    } else {
+      console.error(`Swipe action missing icon: ${act.label || 'Unknown'} (key: ${iconKey})`);
+    }
     btn.setAttribute('aria-label', act.label || 'Action');
     btn.title = act.label || 'Action';
     btn.addEventListener('click', (e) => {
