@@ -24,6 +24,7 @@ export async function sendEmail(opts: {
   cc?: string | string[];
   bcc?: string | string[];
   from?: string;
+  headers?: Record<string, string>;
 }): Promise<SendResult> {
   const key = serverEnv('RESEND_API_KEY')?.trim();
   if (!key) return { ok: false, error: 'RESEND_API_KEY is not set' };
@@ -58,6 +59,7 @@ export async function sendEmail(opts: {
         ...(opts.html ? { html: opts.html } : {}),
         ...(cc ? { cc } : {}),
         ...(bcc ? { bcc } : {}),
+        ...(opts.headers && Object.keys(opts.headers).length ? { headers: opts.headers } : {}),
       }),
     });
     const text = await res.text();

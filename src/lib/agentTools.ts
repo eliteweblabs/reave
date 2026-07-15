@@ -123,6 +123,7 @@ import {
   type EmailInboxPatch,
 } from './emailInboxStore';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
+import { buildReplyEmailHeaders } from './emailReply';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
@@ -1881,6 +1882,11 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
               type: 'string',
               description: 'Optional project slug — logs outbound mail so client replies trigger urgent alerts',
             },
+            in_reply_to_email_id: {
+              type: 'string',
+              description:
+                'Optional inbox email_id — adds In-Reply-To/References headers and marks the message handled after send',
+            },
           },
           required: ['to', 'subject', 'body'],
           additionalProperties: false,
@@ -2650,6 +2656,19 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
 
       const from = String(args.from ?? '').trim() || undefined;
+      const inReplyToEmailId = String(args.in_reply_to_email_id ?? '').trim() || null;
+      let jobSlug = String(args.job_slug ?? '').trim() || null;
+      let replyHeaders: Record<string, string> | undefined;
+
+      if (inReplyToEmailId) {
+        const inbound = await storeGetEmailInbox(inReplyToEmailId);
+        if (!inbound) {
+          return JSON.stringify({ success: false, error: 'in_reply_to_email_id not found' });
+        }
+        replyHeaders = buildReplyEmailHeaders(inbound);
+        jobSlug = jobSlug || inbound.jobSlug || null;
+      }
+
       const looksHtml = /<[a-z][\s\S]*>/i.test(body);
       const result = await sendEmail({
         to,
@@ -2659,19 +2678,37 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         cc,
         bcc,
         from,
+        headers: replyHeaders,
       });
 
       if (!result.ok) return JSON.stringify({ success: false, error: result.error });
-      const jobSlug = String(args.job_slug ?? '').trim() || null;
+      if (inReplyToEmailId) {
+        const existing = await storeGetEmailInbox(inReplyToEmailId);
+        if (existing) {
+          const patch: EmailInboxPatch = {
+            action: 'filed',
+            status: 'FILED',
+          };
+          if (existing.category === 'review') patch.category = 'internal';
+          await storeUpdateEmailInbox(inReplyToEmailId, patch);
+        }
+      }
       void logOutboundEmailForProject({
         toEmail: to,
         subject,
         resendId: result.id,
         sentBy: getAgentContext().userId ?? null,
-        source: 'agent_send_email',
+        source: inReplyToEmailId ? 'agent_reply' : 'agent_send_email',
         jobSlug,
       });
-      return JSON.stringify({ success: true, id: result.id, to, subject });
+      return JSON.stringify({
+        success: true,
+        id: result.id,
+        to,
+        subject,
+        threaded: Boolean(replyHeaders),
+        in_reply_to_email_id: inReplyToEmailId,
+      });
     }
     if (name === 'run_dev_task') {
       const task = String(args.task ?? '').trim();

@@ -10275,6 +10275,7 @@ let emailState = {
   search: '',
   activeId: null,
   composing: false,
+  replyToId: null,
   compose: { to: '', subject: '', body: '' },
   sending: false,
   storage: 'files',
@@ -11795,8 +11796,32 @@ function renderEmailSidebar() {
   return sidebar;
 }
 
+function parseEmailAddress(from) {
+  const raw = String(from || '').trim();
+  const angle = raw.match(/<([^>]+)>/);
+  if (angle?.[1]) return angle[1].trim().toLowerCase();
+  if (/^[^\s@]+@[^\s@]+$/.test(raw)) return raw.toLowerCase();
+  return raw.toLowerCase();
+}
+
+function buildReplySubjectClient(subject) {
+  const s = String(subject || '').trim();
+  if (/^re:\s/i.test(s)) return s;
+  return `Re: ${s || '(no subject)'}`;
+}
+
+function buildReplyQuoteClient(ev) {
+  const body = String(ev.bodyText || ev.bodySnippet || '').trim();
+  if (!body) return '';
+  const when = new Date(ev.receivedAt).toLocaleString();
+  const from = ev.from || 'sender';
+  const quoted = body.split('\n').map((line) => `> ${line}`).join('\n');
+  return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
+}
+
 function closeEmailCompose() {
   emailState.composing = false;
+  emailState.replyToId = null;
   emailState.compose = { to: '', subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -11807,6 +11832,7 @@ function closeEmailCompose() {
 function startNewEmail() {
   emailState.activeId = null;
   emailState.composing = true;
+  emailState.replyToId = null;
   emailState.compose = { to: '', subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.add('em-pane-active');
@@ -11814,6 +11840,37 @@ function startNewEmail() {
   syncFooterNav();
   requestAnimationFrame(() => {
     getEmailPanel()?.querySelector('.em-compose-input')?.focus();
+  });
+}
+
+async function startReplyEmail(ev) {
+  if (!ev?.id) return;
+  emailState.activeId = ev.id;
+  emailState.composing = true;
+  emailState.replyToId = ev.id;
+  emailState.sending = false;
+  emailState.compose = { to: '', subject: '', body: '' };
+  getEmailPanel()?.classList.add('em-pane-active');
+  renderEmailPanel();
+  syncFooterNav();
+
+  const full = await fetchFullEmailRecord(ev);
+  const toAddr = parseEmailAddress(
+    (Array.isArray(full.replyTo) && full.replyTo[0]) || full.from || '',
+  );
+  emailState.compose = {
+    to: toAddr,
+    subject: buildReplySubjectClient(full.subject),
+    body: buildReplyQuoteClient(full),
+  };
+  renderEmailPanel();
+  requestAnimationFrame(() => {
+    const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+    if (bodyEl) {
+      bodyEl.focus();
+      bodyEl.setSelectionRange(0, 0);
+      bodyEl.scrollTop = 0;
+    }
   });
 }
 
@@ -11828,15 +11885,34 @@ async function sendEmailCompose() {
   renderEmailPanel();
 
   try {
+    const payload = { to: toTrim, subject: subjectTrim, text: bodyTrim };
+    if (emailState.replyToId) payload.inReplyToEmailId = emailState.replyToId;
     const res = await fetch('/api/email/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: toTrim, subject: subjectTrim, text: bodyTrim }),
+      body: JSON.stringify(payload),
     });
     const data = await readApiJson(res);
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const replyId = emailState.replyToId;
     closeEmailCompose();
-    showChatToast('Email sent');
+    if (replyId) {
+      try {
+        const refresh = await fetch(`/api/email/inbox/${encodeURIComponent(replyId)}`, { cache: 'no-store' });
+        const refreshed = await readApiJson(refresh);
+        if (refreshed.event) {
+          emailState.activeId = replyId;
+          applyEmailPatchResult(replyId, refreshed.event);
+        }
+      } catch {
+        await loadEmailTab();
+        emailState.activeId = replyId;
+        renderEmailPanel();
+      }
+      showChatToast('Reply sent');
+    } else {
+      showChatToast('Email sent');
+    }
   } catch (e) {
     emailState.sending = false;
     renderEmailPanel();
@@ -11853,7 +11929,7 @@ function renderEmailComposePane(pane) {
   }));
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name';
-  titleEl.textContent = 'New message';
+  titleEl.textContent = emailState.replyToId ? 'Reply' : 'New message';
   header.appendChild(titleEl);
   pane.appendChild(header);
 
@@ -11906,7 +11982,9 @@ function renderEmailComposePane(pane) {
 
   const hint = document.createElement('p');
   hint.className = 'em-compose-hint';
-  hint.textContent = 'Sent via Resend using your configured outbound address. Reply threading is not wired yet.';
+  hint.textContent = emailState.replyToId
+    ? 'Reply is sent in the same thread when the original message ID is available. The message is marked handled after send.'
+    : 'Sent via Resend using your configured outbound address.';
 
   const actions = document.createElement('div');
   actions.className = 'em-compose-actions';
@@ -11930,6 +12008,7 @@ function openEmailEvent(id) {
   queueEmailSeen(id);
   emailState.activeId = id;
   emailState.composing = false;
+  emailState.replyToId = null;
   renderEmailPanel();
 }
 
@@ -11983,6 +12062,13 @@ function renderEmailPanel() {
 
   const headerActions = document.createElement('div');
   headerActions.className = 'de-header-actions';
+
+  const replyBtn = document.createElement('button');
+  replyBtn.type = 'button';
+  replyBtn.className = 'de-new-btn em-header-action-btn';
+  replyBtn.textContent = 'Reply';
+  replyBtn.addEventListener('click', () => void startReplyEmail(ev));
+  headerActions.appendChild(replyBtn);
 
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
