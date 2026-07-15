@@ -709,6 +709,45 @@ export async function craterGetClientBilling(input: {
   };
 }
 
+export type BillingDashboardStats = {
+  outstandingCount: number;
+  overdueCount: number;
+  totalDue: number;
+  recurringActive: number;
+};
+
+/** Org-wide billing snapshot for the admin home dashboard. */
+export async function craterBillingDashboardStats(): Promise<CraterResult<BillingDashboardStats>> {
+  const [invoicesRes, recurringRes] = await Promise.all([
+    craterListInvoices(),
+    craterListRecurringInvoices('ACTIVE'),
+  ]);
+  if (!invoicesRes.ok) return invoicesRes;
+
+  let outstandingCount = 0;
+  let overdueCount = 0;
+  let totalDue = 0;
+
+  for (const inv of invoicesRes.data.invoices ?? []) {
+    const due = Number(inv.due);
+    if (due > 0) {
+      outstandingCount++;
+      totalDue += due;
+    }
+    if ((inv.status ?? '').toUpperCase() === 'OVERDUE') overdueCount++;
+  }
+
+  return {
+    ok: true,
+    data: {
+      outstandingCount,
+      overdueCount,
+      totalDue,
+      recurringActive: recurringRes.ok ? (recurringRes.data.recurring_invoices ?? []).length : 0,
+    },
+  };
+}
+
 /** Format a created invoice for a Telegram reply. */
 export function formatCreatedInvoice(inv: CreatedInvoice): string {
   const lines = [

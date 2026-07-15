@@ -1782,6 +1782,21 @@ function deployStatTone(state) {
   return null;
 }
 
+function formatDashMoney(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '—';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+function openFinanceCrater() {
+  const href = MAPS.finance?.link;
+  if (href) window.open(href, '_blank', 'noopener,noreferrer');
+}
+
 function formatEventTime(iso) {
   try {
     return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -1854,6 +1869,39 @@ function renderHomeDashboard(data) {
     muted: stats.clients == null,
     onClick: stats.clients == null ? null : () => setActiveMap('clients', { force: activeKey === 'clients' }),
   }));
+
+  const billingLive = data?.billingConfigured === true;
+  if (billingLive) {
+    const billingFailed = Boolean(data?.billingError);
+    const totalDue = stats.billingTotalDue ?? 0;
+    const outstanding = stats.billingOutstanding ?? 0;
+    const overdue = stats.billingOverdue ?? 0;
+    const recurring = stats.billingRecurring ?? 0;
+
+    statsEl.appendChild(buildDashStat({
+      value: billingFailed ? '—' : formatDashMoney(totalDue),
+      label: 'Outstanding',
+      hint: billingFailed
+        ? 'Crater unreachable'
+        : outstanding
+          ? `${outstanding} invoice${outstanding === 1 ? '' : 's'}${recurring ? ` · ${recurring} recurring` : ''}`
+          : recurring
+            ? `${recurring} recurring · all clear`
+            : 'all clear',
+      tone: billingFailed ? 'failed' : totalDue > 0 ? (overdue > 0 ? 'failed' : 'stale') : 'live',
+      muted: billingFailed,
+      onClick: billingFailed ? null : openFinanceCrater,
+    }));
+
+    statsEl.appendChild(buildDashStat({
+      value: billingFailed ? '—' : overdue,
+      label: 'Overdue',
+      hint: billingFailed ? 'check CRATER_API_*' : overdue ? 'past due in Crater' : 'none overdue',
+      tone: billingFailed ? 'failed' : overdue > 0 ? 'failed' : 'live',
+      muted: billingFailed,
+      onClick: billingFailed ? null : openFinanceCrater,
+    }));
+  }
 
   statsEl.appendChild(buildDashStat({
     value: stats.chats ?? 0,

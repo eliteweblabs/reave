@@ -14,6 +14,7 @@ import { bookingsToday, isBookingConfigured, type DashboardEvent } from '../../.
 import { storeListWork } from '../../../lib/workStore';
 import { getUptimeSummaryView, getUptimeMonitorsView } from '../../../lib/uptimeMonitoring';
 import { hasFeature } from '../../../lib/features';
+import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 
 export const prerender = false;
 
@@ -104,6 +105,19 @@ export async function GET(context: APIContext): Promise<Response> {
     uptimeMonitors = monitorsView.monitors;
   }
 
+  const billingConfigured = hasFeature('billing') && isCraterConfigured();
+  let billing: BillingDashboardStats | null = null;
+  let billingError: string | null = null;
+  if (billingConfigured) {
+    const out = await craterBillingDashboardStats();
+    if (out.ok) {
+      billing = out.data;
+    } else {
+      billingError = out.error;
+      console.error('[dashboard] craterBillingDashboardStats failed:', out.error);
+    }
+  }
+
   return json({
     ok: true,
     generatedAt: new Date().toISOString(),
@@ -120,10 +134,16 @@ export async function GET(context: APIContext): Promise<Response> {
       deployUpToDate: deploy?.up_to_date ?? null,
       uptimeDown: uptime?.summary?.down ?? null,
       uptimeOpenIncidents: uptime?.summary?.open_incidents ?? null,
+      billingTotalDue: billing?.totalDue ?? null,
+      billingOutstanding: billing?.outstandingCount ?? null,
+      billingOverdue: billing?.overdueCount ?? null,
+      billingRecurring: billing?.recurringActive ?? null,
     },
     recentEmails,
     eventsToday,
     schedulingConfigured,
+    billingConfigured,
+    billingError,
     uptime,
     uptimeMonitors,
     deploy: deploy
