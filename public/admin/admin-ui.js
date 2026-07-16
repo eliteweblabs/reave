@@ -14,6 +14,8 @@ export const IOS_ICONS = {
   edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   trash:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+  stopwatch:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>',
   send: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
   square: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>',
   plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>',
@@ -40,18 +42,160 @@ export function createAgentBtn(opts = {}) {
 
 /** Icon-only toolbar button (44pt touch target, iOS-style). */
 export function createIosIconBtn(opts = {}) {
-  const { iconKey, label, className = 'ios-icon-btn', onClick } = opts;
+  const { iconKey, label, className = 'ios-icon-btn', onClick, confirmDelete = false, confirmTimeout } = opts;
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = className;
   btn.setAttribute('aria-label', label);
   btn.title = label;
   btn.innerHTML = IOS_ICONS[iconKey] || '';
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    onClick?.(btn);
-  });
+  if (confirmDelete) {
+    bindConfirmDeleteButton(btn, () => onClick?.(btn), { timeout: confirmTimeout });
+  } else {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick?.(btn);
+    });
+  }
   return btn;
+}
+
+// ---- Two-step delete confirm (trash → 3s timer ring → tap again) ----
+
+const DELETE_CONFIRM_MS = 3000;
+/** @type {WeakMap<HTMLElement, number>} */
+const deleteConfirmTimeouts = new WeakMap();
+
+function stopwatchIconMarkup(size = 18) {
+  return (
+    IOS_ICONS.stopwatch
+      .replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`)
+      .replace(
+        'aria-hidden="true"',
+        'class="delete-confirm-icon delete-confirm-stopwatch" aria-hidden="true"',
+      ) ||
+    ''
+  );
+}
+
+function deleteConfirmRingMarkup(size = 36) {
+  return (
+    `<svg class="delete-confirm-ring" width="${size}" height="${size}" viewBox="0 0 44 44" fill="none" aria-hidden="true">` +
+    `<circle class="delete-confirm-ring-circle" cx="22" cy="22" r="18" fill="none" stroke="currentColor" ` +
+    `stroke-width="3" stroke-dasharray="113.1" stroke-dashoffset="113.1" transform="rotate(-90 22 22)"/>` +
+    `</svg>`
+  );
+}
+
+function clearDeleteConfirmTimeout(btn) {
+  const id = deleteConfirmTimeouts.get(btn);
+  if (id != null) {
+    clearTimeout(id);
+    deleteConfirmTimeouts.delete(btn);
+  }
+}
+
+function ensureDeleteConfirmChrome(btn, ringSize = 36) {
+  if (btn.dataset.deleteConfirmReady === '1') return;
+  btn.dataset.deleteConfirmReady = '1';
+  btn.classList.add('delete-confirm-btn');
+  btn.dataset.state = 'trash';
+  const icon = btn.querySelector('svg');
+  if (icon) {
+    icon.classList.add('delete-confirm-icon');
+    btn.dataset.originalIconHtml = icon.outerHTML;
+  }
+  const holder = document.createElement('span');
+  holder.className = 'delete-confirm-ring-holder';
+  holder.setAttribute('aria-hidden', 'true');
+  holder.innerHTML = deleteConfirmRingMarkup(ringSize);
+  btn.appendChild(holder);
+}
+
+export function resetDeleteConfirmButton(btn) {
+  if (!(btn instanceof HTMLElement)) return;
+  clearDeleteConfirmTimeout(btn);
+  if (btn.dataset.state !== 'confirm') return;
+  btn.dataset.state = 'trash';
+  const label = btn.dataset.originalTitle || btn.getAttribute('aria-label') || 'Delete';
+  btn.title = label;
+  if (btn.dataset.originalAriaLabel) {
+    btn.setAttribute('aria-label', btn.dataset.originalAriaLabel);
+  }
+  const stopwatch = btn.querySelector('.delete-confirm-stopwatch');
+  if (stopwatch && btn.dataset.originalIconHtml) {
+    stopwatch.outerHTML = btn.dataset.originalIconHtml;
+  }
+  const circle = btn.querySelector('.delete-confirm-ring-circle');
+  if (circle) {
+    circle.style.animation = 'none';
+    void circle.getBoundingClientRect();
+    circle.style.removeProperty('animation');
+  }
+}
+
+function armDeleteConfirm(btn, timeout) {
+  btn.style.setProperty('--delete-confirm-ms', `${timeout}ms`);
+  const circle = btn.querySelector('.delete-confirm-ring-circle');
+  if (circle) {
+    circle.style.animation = 'none';
+    void circle.getBoundingClientRect();
+    circle.style.removeProperty('animation');
+  }
+  if (!btn.dataset.originalAriaLabel) {
+    btn.dataset.originalAriaLabel = btn.getAttribute('aria-label') || 'Delete';
+  }
+  btn.dataset.originalTitle = btn.title || btn.dataset.originalAriaLabel;
+  btn.dataset.state = 'confirm';
+  btn.removeAttribute('title');
+  btn.setAttribute('aria-label', 'Tap again to confirm delete');
+
+  const icon = btn.querySelector('.delete-confirm-icon');
+  if (icon && !icon.classList.contains('delete-confirm-stopwatch')) {
+    if (!btn.dataset.originalIconHtml) btn.dataset.originalIconHtml = icon.outerHTML;
+    const size = icon.getAttribute('width') || '18';
+    icon.outerHTML = stopwatchIconMarkup(size);
+  }
+
+  clearDeleteConfirmTimeout(btn);
+  const id = window.setTimeout(() => {
+    resetDeleteConfirmButton(btn);
+  }, timeout);
+  deleteConfirmTimeouts.set(btn, id);
+}
+
+/**
+ * Trash → stopwatch + countdown ring; second tap within timeout runs onConfirm.
+ * Port of DeleteConfirmButton from astro-supabase-main.
+ */
+export function bindConfirmDeleteButton(btn, onConfirm, opts = {}) {
+  const timeout = opts.timeout ?? DELETE_CONFIRM_MS;
+  const ringSize = opts.ringSize ?? (btn.classList.contains('swipe-act') ? 40 : 36);
+  ensureDeleteConfirmChrome(btn, ringSize);
+
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (btn.disabled) return;
+
+    if ((btn.dataset.state || 'trash') === 'trash') {
+      armDeleteConfirm(btn, timeout);
+      return;
+    }
+
+    clearDeleteConfirmTimeout(btn);
+    resetDeleteConfirmButton(btn);
+    btn.disabled = true;
+    try {
+      await onConfirm?.(btn);
+    } finally {
+      if (btn.isConnected) btn.disabled = false;
+    }
+  });
+}
+
+function resetDeleteConfirmsIn(el) {
+  el?.querySelectorAll?.('.delete-confirm-btn[data-state="confirm"]').forEach(resetDeleteConfirmButton);
 }
 
 /** Chevron-only back control for mobile panel subheaders (.de-header). */
@@ -685,13 +829,18 @@ function swipeIconMarkup(iconKey, size = 18) {
 export function swipeAction(kind, opts = {}) {
   const spec = SWIPE_ACTIONS[kind];
   if (!spec) throw new Error(`Unknown swipe action: ${kind}`);
-  const { label = spec.label, onClick } = opts;
+  const { label = spec.label, onClick, confirmTimeout } = opts;
   if (typeof onClick !== 'function') throw new Error(`swipeAction(${kind}) requires onClick`);
+  // Delete defaults to timer confirm; pass confirmDelete: false to keep a sheet/dialog.
+  const confirmDelete =
+    kind === 'delete' ? opts.confirmDelete !== false : !!opts.confirmDelete;
   return {
     label,
     iconKey: spec.iconKey,
     className: spec.className,
     onClick,
+    confirmDelete,
+    confirmTimeout,
   };
 }
 
@@ -713,6 +862,7 @@ let openSwipeRow = null;
 
 export function closeOpenSwipeRow() {
   if (openSwipeRow) {
+    resetDeleteConfirmsIn(openSwipeRow.row);
     openSwipeRow.snap(false);
     openSwipeRow = null;
   }
@@ -749,10 +899,14 @@ function attachSwipeRow(row, contentEl, revealPx) {
     row.classList.remove('swipe-dragging');
     setTranslate(open ? -revealPx : 0, true);
     if (open) {
-      if (openSwipeRow && openSwipeRow !== api) openSwipeRow.snap(false);
+      if (openSwipeRow && openSwipeRow !== api) {
+        resetDeleteConfirmsIn(openSwipeRow.row);
+        openSwipeRow.snap(false);
+      }
       openSwipeRow = api;
-    } else if (openSwipeRow === api) {
-      openSwipeRow = null;
+    } else {
+      resetDeleteConfirmsIn(row);
+      if (openSwipeRow === api) openSwipeRow = null;
     }
   }
 
@@ -915,10 +1069,14 @@ export function createSwipeRow(contentEl, actions) {
     }
     btn.setAttribute('aria-label', act.label || 'Action');
     btn.title = act.label || 'Action';
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      act.onClick();
-    });
+    if (act.confirmDelete) {
+      bindConfirmDeleteButton(btn, () => act.onClick(), { timeout: act.confirmTimeout });
+    } else {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        act.onClick();
+      });
+    }
     actionsEl.appendChild(btn);
   }
 

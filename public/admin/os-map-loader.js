@@ -59,7 +59,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20250715b';
+} from './admin-ui.js?v=20260716a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -4305,6 +4305,7 @@ function renderRuleEditPane(pane) {
     iconKey: 'trash',
     label: 'Delete rule',
     className: 'ios-icon-btn ch-delete-btn',
+    confirmDelete: true,
     onClick: () => deleteRule(rule.id),
   }));
   header.appendChild(headerActions);
@@ -4574,8 +4575,6 @@ async function saveRule(id, inputs) {
 }
 
 async function deleteRule(id) {
-  const rule = ruleState.rules.find((r) => r.id === id);
-  if (!(await confirmDelete(rule?.title || 'this rule', { title: 'Delete rule?', cannotUndo: false }))) return;
   try {
     const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -4966,6 +4965,7 @@ function renderEditForm(pane) {
         iconKey: 'trash',
         label: 'Delete document',
         className: 'ios-icon-btn ch-delete-btn',
+        confirmDelete: true,
         onClick: () => deleteDocument(slug),
       }));
       header.appendChild(headerActions);
@@ -5143,8 +5143,6 @@ async function createDocument(slug, html) {
 
 async function deleteDocument(slug) {
   closeOpenSwipeRow();
-  const tpl = docState.templates.find((t) => t.slug === slug);
-  if (!(await confirmDelete(tpl?.title ?? slug, { title: 'Delete template?' }))) return;
   if (docAutosaveTimer) {
     clearTimeout(docAutosaveTimer);
     docAutosaveTimer = null;
@@ -5588,6 +5586,7 @@ function renderEditKnowledgeForm(pane) {
         iconKey: 'trash',
         label: 'Delete knowledge doc',
         className: 'ios-icon-btn ch-delete-btn',
+        confirmDelete: true,
         onClick: () => deleteKnowledge(slug),
       }));
       header.appendChild(headerActions);
@@ -5675,7 +5674,6 @@ async function saveKnowledge(slug, content) {
 
 async function deleteKnowledge(slug) {
   closeOpenSwipeRow();
-  if (!(await confirmDelete(`${slug}.md`, { title: 'Delete knowledge doc?' }))) return;
   try {
     const res = await adminFetch(`${KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
@@ -6905,6 +6903,7 @@ function renderEditWorkForm(pane) {
         iconKey: 'trash',
         label: 'Delete project',
         className: 'ios-icon-btn ch-delete-btn',
+        confirmDelete: true,
         onClick: () => deleteWork(slug),
       }));
       header.appendChild(headerActions);
@@ -7070,7 +7069,6 @@ async function saveWork(slug, payload) {
 
 async function deleteWork(slug) {
   closeOpenSwipeRow();
-  if (!(await confirmDelete(`${slug}.md`, { title: 'Delete project?' }))) return;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
       method: 'DELETE',
@@ -9153,16 +9151,6 @@ async function confirmDiscardChanges() {
   });
 }
 
-async function confirmDelete(label, opts = {}) {
-  const suffix = opts.cannotUndo === false ? '' : ' This cannot be undone.';
-  return osConfirm({
-    title: opts.title || 'Delete?',
-    bodyHtml: `<p>Delete <strong>${escHtml(label)}</strong>?${suffix}</p>`,
-    confirmLabel: 'Delete',
-    danger: true,
-  });
-}
-
 function buildClientDeleteConfirmHtml(name, preview) {
   const parts = [];
   const projectCount = preview.project_count ?? preview.job_count ?? 0;
@@ -9903,7 +9891,7 @@ function createChatSwipeRow(t) {
       onClick: () => archiveChat(t),
     }),
     swipeDeleteAction({
-      onClick: () => deleteChat(t.id, t.title),
+      onClick: () => deleteChat(t.id),
     }),
   ]);
 }
@@ -10221,16 +10209,8 @@ async function openChat(id) {
   }
 }
 
-async function deleteChat(id, title) {
+async function deleteChat(id) {
   if (!id) return;
-  const label = (title || 'this chat').trim() || 'this chat';
-  const ok = await osConfirm({
-    title: 'Delete chat?',
-    bodyHtml: `<p>Permanently delete <strong>${escHtml(label.slice(0, 80))}</strong> and all messages?</p>`,
-    confirmLabel: 'Delete',
-    danger: true,
-  });
-  if (!ok) return;
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
       method: 'DELETE',
@@ -10612,7 +10592,8 @@ function buildChatPaneHeader() {
     iconKey: 'trash',
     label: 'Delete chat',
     className: 'ios-icon-btn ch-delete-btn',
-    onClick: () => deleteChat(chatState.activeId, chatState.title),
+    confirmDelete: true,
+    onClick: () => deleteChat(chatState.activeId),
   }));
   header.appendChild(headerActions);
   return header;
@@ -10943,6 +10924,8 @@ function createClientListItem(c) {
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
     swipeDeleteAction({
+      // Keep the preview sheet — clients can cascade-delete projects.
+      confirmDelete: false,
       onClick: () => deleteClient(c.uid, c.name),
     }),
   ]);

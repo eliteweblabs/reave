@@ -3207,6 +3207,46 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .swipe-act-archive { background: #8e8e93; }
       .swipe-act-delete { background: #ff3b30; }
       .swipe-act:active { filter: brightness(0.92); }
+
+      /* Two-step delete confirm (trash → stopwatch + ring countdown) */
+      @keyframes delete-confirm-draw-ring {
+        from { stroke-dashoffset: 113.1; }
+        to { stroke-dashoffset: 0; }
+      }
+      .delete-confirm-btn {
+        position: relative;
+      }
+      .delete-confirm-ring-holder {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .delete-confirm-ring {
+        display: block;
+        flex-shrink: 0;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .delete-confirm-btn[data-state="confirm"] .delete-confirm-ring {
+        opacity: 1;
+      }
+      .delete-confirm-btn[data-state="confirm"] .delete-confirm-ring-circle {
+        animation: delete-confirm-draw-ring var(--delete-confirm-ms, 3000ms) linear forwards;
+      }
+      .swipe-act-delete.delete-confirm-btn {
+        color: #fff;
+      }
+      .ios-icon-btn.delete-confirm-btn[data-state="confirm"] {
+        color: #f87171;
+      }
+      .delete-confirm-btn:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
       .swipe-content {
         position: relative;
         z-index: 1;
@@ -5418,6 +5458,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20250715b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260716a"></script>
   </body>
 </html>
