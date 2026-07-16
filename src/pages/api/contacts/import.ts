@@ -1,16 +1,8 @@
-import type { APIRoute } from 'astro';
-import { createContact, isContactApiConfigured, getContact, updateContact } from '../../../lib/contactApi';
+import type { APIContext } from 'astro';
+import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { parseVCard } from '../../../lib/carddav/vcard';
-import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
-
-function isDashboardAuthed(request: Request): boolean {
-  const expected = serverEnv('DASHBOARD_KEY')?.trim();
-  if (!expected) return false;
-  const auth = request.headers.get('x-dashboard-key')?.trim();
-  return auth === expected;
-}
 
 /**
  * Parse CSV format: name,email,phone,company,notes
@@ -98,13 +90,12 @@ function parseVCards(content: string): Array<{
   return contacts;
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export async function POST(context: APIContext): Promise<Response> {
   const json = (body: object, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-  if (!isDashboardAuthed(request)) {
-    return json({ ok: false, error: 'Unauthorized' }, 401);
-  }
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
@@ -112,7 +103,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   let formData: FormData;
   try {
-    formData = await request.formData();
+    formData = await context.request.formData();
   } catch {
     return json({ ok: false, error: 'Invalid form data' }, 400);
   }
