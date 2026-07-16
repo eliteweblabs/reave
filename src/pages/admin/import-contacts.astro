@@ -1,0 +1,503 @@
+---
+import { requireAuth } from '../../lib/auth';
+
+export const prerender = false;
+
+const user = await requireAuth(Astro);
+if (!user) return Astro.redirect('/api/auth/signin?redirect=/admin/import-contacts');
+
+const userId = user.id;
+const companyBrand = { contactsLabel: 'Clients' };
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Import Contacts</title>
+    <link rel="stylesheet" href="/admin-shell.css" />
+    <style>
+      :root {
+        --bg: #0d1117;
+        --fg: #e9eef6;
+        --panel: #161b22;
+        --panel-border: #30363d;
+        --card: #1c2128;
+        --card-border: #30363d;
+        --muted: #8b949e;
+        --accent: #58a6ff;
+        --surface-hover: rgba(177, 186, 196, 0.12);
+        --radius-input: 8px;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        min-height: 100vh;
+      }
+
+      .import-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+      }
+
+      .import-header {
+        margin-bottom: 2rem;
+      }
+
+      .import-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.45rem 0.65rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: transparent;
+        color: var(--fg);
+        text-decoration: none;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+      }
+
+      .import-back:hover {
+        background: var(--surface-hover);
+      }
+
+      .import-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0 0 0.5rem;
+      }
+
+      .import-subtitle {
+        font-size: 0.95rem;
+        color: var(--muted);
+        margin: 0;
+      }
+
+      .import-card {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+
+      .import-section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+      }
+
+      .import-section-subtitle {
+        font-size: 0.88rem;
+        color: var(--muted);
+        margin: 0 0 1.25rem;
+        line-height: 1.5;
+      }
+
+      .import-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .import-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .import-field label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--fg);
+      }
+
+      .import-file-input {
+        padding: 0.75rem;
+        border: 2px dashed var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+        color: var(--fg);
+        font-size: 0.88rem;
+        cursor: pointer;
+      }
+
+      .import-file-input:hover {
+        border-color: var(--accent);
+      }
+
+      .import-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+      }
+
+      .import-checkbox input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        cursor: pointer;
+      }
+
+      .import-checkbox label {
+        flex: 1;
+        font-size: 0.88rem;
+        font-weight: 400;
+        cursor: pointer;
+        margin: 0;
+      }
+
+      .import-checkbox-hint {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-top: 0.25rem;
+      }
+
+      .import-btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: var(--radius-input);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter 0.2s;
+      }
+
+      .import-btn:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
+
+      .import-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .import-alert {
+        padding: 0.85rem 1rem;
+        border-radius: var(--radius-input);
+        font-size: 0.88rem;
+        margin-top: 1rem;
+      }
+
+      .import-alert-success {
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+      }
+
+      .import-alert-error {
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #f87171;
+      }
+
+      .import-alert-info {
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #93c5fd;
+      }
+
+      .import-results {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-input);
+      }
+
+      .import-results-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+      }
+
+      .import-results-stats {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .import-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .import-stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+      }
+
+      .import-stat-label {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      .import-errors {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--panel-border);
+      }
+
+      .import-errors-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+        color: #f87171;
+      }
+
+      .import-error-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+
+      .import-error-item {
+        padding: 0.35rem 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+        border-bottom: 1px solid var(--panel-border);
+      }
+
+      .import-error-item:last-child {
+        border-bottom: none;
+      }
+
+      .import-instructions {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-input);
+        padding: 1rem;
+      }
+
+      .import-instructions h3 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+      }
+
+      .import-instructions ul {
+        margin: 0;
+        padding-left: 1.5rem;
+        font-size: 0.85rem;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      .import-instructions li {
+        margin-bottom: 0.5rem;
+      }
+
+      .import-instructions code {
+        background: rgba(110, 118, 129, 0.15);
+        padding: 0.15rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.82rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="import-container">
+      <div class="import-header">
+        <a href="/admin?tab=clients" class="import-back">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Back to {companyBrand.contactsLabel}
+        </a>
+        <h1 class="import-title">Import Contacts</h1>
+        <p class="import-subtitle">
+          Import contacts from your iPhone, Mac, or other devices via CSV or vCard files.
+        </p>
+      </div>
+
+      <div class="import-card">
+        <h2 class="import-section-title">Upload File</h2>
+        <p class="import-section-subtitle">
+          Select a CSV or vCard (.vcf) file to import. Supported formats: CSV with headers, vCard 3.0/4.0.
+        </p>
+
+        <form id="import-form" class="import-form">
+          <div class="import-field">
+            <label for="file-input">Choose File</label>
+            <input
+              type="file"
+              id="file-input"
+              name="file"
+              accept=".csv,.vcf,.vcard"
+              required
+              class="import-file-input"
+            />
+          </div>
+
+          <div class="import-checkbox">
+            <input type="checkbox" id="update-existing" name="updateExisting" />
+            <label for="update-existing">
+              Update existing contacts
+              <span class="import-checkbox-hint">If enabled, contacts with matching email/phone will be updated instead of creating duplicates.</span>
+            </label>
+          </div>
+
+          <button type="submit" class="import-btn">
+            Import Contacts
+          </button>
+        </form>
+
+        <div id="import-status"></div>
+      </div>
+
+      <div class="import-card">
+        <h2 class="import-section-title">How to Export Contacts</h2>
+        
+        <div class="import-instructions">
+          <h3>From iPhone/iPad</h3>
+          <ul>
+            <li>Open the Contacts app</li>
+            <li>Tap on a contact, then Share Contact</li>
+            <li>Choose "Export vCard" or share via AirDrop/email</li>
+            <li>To export all: Use iCloud.com → Contacts → Select All → Export vCard</li>
+          </ul>
+        </div>
+
+        <div class="import-instructions" style="margin-top: 1rem;">
+          <h3>CSV Format</h3>
+          <ul>
+            <li>First row should be headers: <code>name,email,phone,company,notes</code></li>
+            <li>Each subsequent row is one contact</li>
+            <li>Example: <code>John Doe,john@example.com,555-1234,Acme Inc,Important client</code></li>
+          </ul>
+        </div>
+
+        <div class="import-instructions" style="margin-top: 1rem;">
+          <h3>vCard Format</h3>
+          <ul>
+            <li>Standard vCard 3.0 or 4.0 format (.vcf files)</li>
+            <li>Can contain single or multiple contacts</li>
+            <li>Exported from most contact apps (Contacts, Outlook, Gmail, etc.)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById('import-form');
+      const statusDiv = document.getElementById('import-status');
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('file-input');
+        const updateExisting = document.getElementById('update-existing').checked;
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+          showAlert('error', 'Please select a file to import.');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('updateExisting', updateExisting ? 'true' : 'false');
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Importing...';
+        statusDiv.innerHTML = '<div class="import-alert import-alert-info">Importing contacts...</div>';
+
+        try {
+          const dashboardKey = getCookie('dashboard_key');
+          if (!dashboardKey) {
+            throw new Error('Not authenticated');
+          }
+
+          const response = await fetch('/api/contacts/import', {
+            method: 'POST',
+            headers: {
+              'X-Dashboard-Key': dashboardKey,
+            },
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (result.ok && result.results) {
+            showResults(result.results);
+            form.reset();
+          } else {
+            showAlert('error', result.error || 'Import failed');
+          }
+        } catch (error) {
+          showAlert('error', 'Import failed: ' + error.message);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Import Contacts';
+        }
+      });
+
+      function showAlert(type, message) {
+        statusDiv.innerHTML = `<div class="import-alert import-alert-${type}">${message}</div>`;
+      }
+
+      function showResults(results) {
+        const hasErrors = results.errors && results.errors.length > 0;
+        const successCount = results.created + results.updated;
+
+        let html = '<div class="import-results">';
+        html += '<div class="import-results-title">Import Complete!</div>';
+        html += '<div class="import-results-stats">';
+        html += `<div class="import-stat"><div class="import-stat-value" style="color: #4ade80;">${results.created}</div><div class="import-stat-label">Created</div></div>`;
+        html += `<div class="import-stat"><div class="import-stat-value" style="color: #93c5fd;">${results.updated}</div><div class="import-stat-label">Updated</div></div>`;
+        html += `<div class="import-stat"><div class="import-stat-value">${results.skipped}</div><div class="import-stat-label">Skipped</div></div>`;
+        html += `<div class="import-stat"><div class="import-stat-value">${results.total}</div><div class="import-stat-label">Total</div></div>`;
+        html += '</div>';
+
+        if (hasErrors) {
+          html += '<div class="import-errors">';
+          html += `<div class="import-errors-title">Errors (${results.errors.length})</div>`;
+          html += '<ul class="import-error-list">';
+          results.errors.slice(0, 10).forEach(error => {
+            html += `<li class="import-error-item">${error}</li>`;
+          });
+          if (results.errors.length > 10) {
+            html += `<li class="import-error-item">... and ${results.errors.length - 10} more errors</li>`;
+          }
+          html += '</ul>';
+          html += '</div>';
+        }
+
+        html += '</div>';
+
+        if (successCount > 0) {
+          html += '<div class="import-alert import-alert-success" style="margin-top: 1rem;">';
+          html += `Successfully imported ${successCount} contact${successCount !== 1 ? 's' : ''}.`;
+          html += ' <a href="/admin?tab=clients" style="color: inherit; text-decoration: underline;">View contacts</a>';
+          html += '</div>';
+        }
+
+        statusDiv.innerHTML = html;
+      }
+
+      function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+      }
+    </script>
+  </body>
+</html>
