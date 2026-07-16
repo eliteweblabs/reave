@@ -142,7 +142,7 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
     }
 
     .admin-footer-nav.footer-nav-collapsed #footer-nav-home {
-      color: var(--nav-icon-active);
+      color: #fff;
       background: transparent;
     }
 
@@ -186,6 +186,7 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
       width: var(--ch-inline-home-w, 2.25rem);
       max-width: var(--ch-inline-home-w, 2.25rem);
       height: var(--ch-inline-home-w, 2.25rem);
+      color: var(--nav-icon-active);
       border: 1px solid var(--panel-border);
       background: var(--card);
       box-shadow: var(--shadow-lg);
@@ -223,9 +224,7 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
     left: 0;
     width: 0;
     border-radius: var(--radius-input);
-    background: var(--nav-indicator-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background: var(--brand-gradient);
     pointer-events: none;
     z-index: 0;
     opacity: 0;
@@ -307,9 +306,14 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
     }
   }
 
-  .footer-nav-btn.active {
-    color: var(--nav-icon-active);
+  .footer-nav-btn.active:not(.footer-nav-btn--create):not(.footer-nav-btn--save) {
+    color: #fff;
     background: transparent;
+  }
+
+  .footer-nav-btn.active:not(.footer-nav-btn--create):not(.footer-nav-btn--save):hover {
+    color: #fff;
+    filter: brightness(1.08);
   }
 
   .footer-nav-btn.footer-nav-btn--create,
