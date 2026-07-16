@@ -3647,6 +3647,13 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .wk-related-item:hover {
         border-color: color-mix(in srgb, var(--accent) 35%, var(--card-border));
       }
+      .wk-related-item--deleted {
+        cursor: default;
+        opacity: 0.72;
+      }
+      .wk-related-item--deleted:hover {
+        border-color: var(--card-border);
+      }
       .wk-related-kind {
         font-size: 0.68rem;
         font-weight: 700;

@@ -22,6 +22,8 @@ export interface LinkedChatSummary {
   id: string;
   title: string;
   updatedAt: string;
+  /** Present when the thread was removed but the project still references it. */
+  deleted?: boolean;
 }
 
 export interface LinkedJobSummary {
@@ -279,11 +281,20 @@ export async function listRelatedForJob(jobSlug: string): Promise<{
   const sourceChatId = doc?.source_chat_id?.trim();
   if (sourceChatId && !chats.some((c) => c.id === sourceChatId)) {
     const summary = await storeGetChatSummaryById(sourceChatId);
-    chats.unshift({
-      id: sourceChatId,
-      title: summary?.title || 'Chat',
-      updatedAt: summary?.updatedAt || doc?.updated || doc?.created || '',
-    });
+    if (summary) {
+      chats.unshift({
+        id: sourceChatId,
+        title: summary.title || 'Chat',
+        updatedAt: summary.updatedAt || doc?.updated || doc?.created || '',
+      });
+    } else {
+      chats.unshift({
+        id: sourceChatId,
+        title: 'Chat deleted',
+        updatedAt: '',
+        deleted: true,
+      });
+    }
   }
 
   return { emails, chats };

@@ -10343,7 +10343,7 @@ function workRelatedChats(related, sourceChatId) {
   const chats = [...(related?.chats || [])];
   const sourceId = sourceChatId?.trim?.() || '';
   if (sourceId && !chats.some((c) => c.id === sourceId)) {
-    chats.unshift({ id: sourceId, title: 'Chat', updatedAt: '' });
+    chats.unshift({ id: sourceId, title: 'Chat deleted', updatedAt: '', deleted: true });
   }
   return chats;
 }
@@ -10377,14 +10377,15 @@ function mountWorkRelatedSection(container, related, sourceChatId) {
   }
 
   for (const chat of chats) {
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'wk-related-item';
+    const deleted = !!chat.deleted;
+    const row = document.createElement(deleted ? 'div' : 'button');
+    if (!deleted) row.type = 'button';
+    row.className = deleted ? 'wk-related-item wk-related-item--deleted' : 'wk-related-item';
     row.innerHTML =
       `<span class="wk-related-kind">Chat</span>` +
-      `<span class="wk-related-label">${escHtml(chat.title || 'Chat')}</span>` +
-      `<span class="wk-related-meta">${escHtml(formatChatDate(chat.updatedAt))}</span>`;
-    row.addEventListener('click', () => navigateToChat(chat.id));
+      `<span class="wk-related-label">${escHtml(deleted ? 'Chat deleted' : (chat.title || 'Chat'))}</span>` +
+      `<span class="wk-related-meta">${deleted ? '' : escHtml(formatChatDate(chat.updatedAt))}</span>`;
+    if (!deleted) row.addEventListener('click', () => navigateToChat(chat.id));
     list.appendChild(row);
   }
 
