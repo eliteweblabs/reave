@@ -53,13 +53,14 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
   swipeDeleteAction,
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260716a';
+} from './admin-ui.js?v=20260716b';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -9552,51 +9553,8 @@ function bindChatMessageContextMenu(row, message, composeInput, onEdit) {
     if (composeInput) {
       items.push({ label: 'Paste into message', action: () => pasteIntoChatInput(composeInput) });
     }
-    showChatContextMenu(e.clientX, e.clientY, items);
+    showContextMenu(e.clientX, e.clientY, items);
   });
-}
-
-let _chCtxMenu = null;
-
-function showChatContextMenu(x, y, items) {
-  _chCtxMenu?.remove();
-  const menu = document.createElement('div');
-  menu.className = 'ch-context-menu';
-  menu.setAttribute('role', 'menu');
-  for (const item of items) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'ch-context-item';
-    btn.textContent = item.label;
-    btn.setAttribute('role', 'menuitem');
-    btn.addEventListener('click', () => {
-      menu.remove();
-      _chCtxMenu = null;
-      item.action();
-    });
-    menu.appendChild(btn);
-  }
-  document.body.appendChild(menu);
-  _chCtxMenu = menu;
-  const rect = menu.getBoundingClientRect();
-  const left = Math.min(x, window.innerWidth - rect.width - 8);
-  const top = Math.min(y, window.innerHeight - rect.height - 8);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
-  const close = (ev) => {
-    if (menu.contains(ev.target)) return;
-    menu.remove();
-    _chCtxMenu = null;
-    document.removeEventListener('pointerdown', close, true);
-    document.removeEventListener('keydown', onKey, true);
-  };
-  const onKey = (ev) => {
-    if (ev.key === 'Escape') close({ target: document.body });
-  };
-  setTimeout(() => {
-    document.addEventListener('pointerdown', close, true);
-    document.addEventListener('keydown', onKey, true);
-  }, 0);
 }
 
 let chatState = {
@@ -11930,7 +11888,7 @@ function renderEmailSidebar() {
   const events = filteredInboxEvents();
   const list = document.createElement('div');
   list.className = 'ch-list';
-  list.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
+  bindSwipeListScroll(list);
   for (const ev of events) {
     list.appendChild(createEmailSwipeRow(ev));
   }

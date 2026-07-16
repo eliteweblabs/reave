@@ -869,7 +869,103 @@ export function closeOpenSwipeRow() {
 }
 
 export function bindSwipeListScroll(listEl) {
-  listEl.addEventListener('scroll', closeOpenSwipeRow, { passive: true });
+  listEl.addEventListener(
+    'scroll',
+    () => {
+      closeOpenSwipeRow();
+      closeContextMenu();
+    },
+    { passive: true },
+  );
+}
+
+let openContextMenu = null;
+let contextMenuDismissBound = false;
+
+export function closeContextMenu() {
+  openContextMenu?.remove();
+  openContextMenu = null;
+}
+
+function normalizeContextMenuItem(item) {
+  const label = item.label || 'Action';
+  const run = item.action || item.onClick;
+  return {
+    label,
+    run: typeof run === 'function' ? run : null,
+    confirmDelete: !!item.confirmDelete,
+    confirmTimeout: item.confirmTimeout ?? DELETE_CONFIRM_MS,
+  };
+}
+
+function armContextDeleteConfirm(btn, originalLabel, timeout) {
+  clearTimeout(btn._confirmTimer);
+  btn.dataset.confirmArmed = '1';
+  btn.textContent = 'Confirm delete';
+  btn.classList.add('ch-context-item--danger');
+  btn._confirmTimer = setTimeout(() => {
+    delete btn.dataset.confirmArmed;
+    btn.textContent = originalLabel;
+    btn.classList.remove('ch-context-item--danger');
+  }, timeout);
+}
+
+/** Fixed-position menu for sidebar rows and other list items (right-click / long-press). */
+export function showContextMenu(x, y, items) {
+  closeContextMenu();
+  closeOpenSwipeRow();
+
+  const menu = document.createElement('div');
+  menu.className = 'ch-context-menu';
+  menu.setAttribute('role', 'menu');
+
+  for (const raw of items) {
+    const item = normalizeContextMenuItem(raw);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ch-context-item';
+    btn.textContent = item.label;
+    btn.setAttribute('role', 'menuitem');
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!item.run) return;
+      if (item.confirmDelete && btn.dataset.confirmArmed !== '1') {
+        armContextDeleteConfirm(btn, item.label, item.confirmTimeout);
+        return;
+      }
+      closeContextMenu();
+      await item.run();
+    });
+    menu.appendChild(btn);
+  }
+
+  document.body.appendChild(menu);
+  openContextMenu = menu;
+
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+
+  const onKey = (ev) => {
+    if (ev.key === 'Escape') close({ target: document.body });
+  };
+  const close = (ev) => {
+    if (menu.contains(ev.target)) return;
+    closeContextMenu();
+    document.removeEventListener('pointerdown', close, true);
+    document.removeEventListener('keydown', onKey, true);
+  };
+  setTimeout(() => {
+    document.addEventListener('pointerdown', close, true);
+    document.addEventListener('keydown', onKey, true);
+  }, 0);
+}
+
+function bindSwipeRowContextMenu(row, actions) {
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, actions);
+  });
 }
 
 function attachSwipeRow(row, contentEl, revealPx) {
@@ -1086,11 +1182,20 @@ export function createSwipeRow(contentEl, actions) {
   row.appendChild(actionsEl);
   row.appendChild(content);
 
+  bindSwipeRowContextMenu(row, actions);
+
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
     attachSwipeRow(row, content, revealPx);
   });
   return row;
+}
+
+if (typeof document !== 'undefined' && !contextMenuDismissBound) {
+  contextMenuDismissBound = true;
+  document.addEventListener('click', (e) => {
+    if (openContextMenu && !openContextMenu.contains(e.target)) closeContextMenu();
+  });
 }
 
 if (typeof document !== 'undefined' && !document.documentElement.dataset.swipeDismissBound) {

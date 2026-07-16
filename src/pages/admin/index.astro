@@ -3007,6 +3007,12 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .ch-context-item:hover {
         background: var(--msg-action-hover);
       }
+      .ch-context-item--danger {
+        color: var(--danger, #e5484d);
+      }
+      .ch-context-item--danger:hover {
+        background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent);
+      }
 
       /* iOS pull-to-refresh (sidebar lists) */
       .ch-list.ios-ptr-host {
