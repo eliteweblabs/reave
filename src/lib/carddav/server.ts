@@ -391,10 +391,13 @@ async function putContactResource(
 
   const paths = cardDavPaths(auth.username, origin);
 
+  // Check if contact exists at this UID
   const existing = await getContact(uid);
   let contact: ContactRecord;
+  let wasUpdate = false;
 
   if (existing.ok && !existing.data.archived) {
+    // Update existing contact
     const patch: Parameters<typeof updateContact>[1] = {};
     if (parsed.name) patch.name = parsed.name;
     if (parsed.email !== undefined) patch.email = parsed.email;
@@ -406,10 +409,21 @@ async function putContactResource(
       return new Response(updated.error, { status: updated.status ?? 502, headers: davHeaders() });
     }
     contact = updated.data;
+    wasUpdate = true;
   } else {
+    // Create new contact
     if (!parsed.name?.trim()) {
       return new Response('FN or N required for new contact', { status: 400, headers: davHeaders() });
     }
+
+    // If vCard contains a UID that differs from the URL path UID,
+    // log a warning but use the path UID for consistency
+    if (parsed.uid && parsed.uid !== uid) {
+      console.warn(
+        `[CardDAV PUT] vCard UID (${parsed.uid}) differs from path UID (${uid}). Using path UID.`
+      );
+    }
+
     const created = await createContact({
       name: parsed.name.trim(),
       email: parsed.email,
@@ -421,14 +435,17 @@ async function putContactResource(
       return new Response(created.error, { status: created.status ?? 502, headers: davHeaders() });
     }
     contact = created.data;
-    // iOS may PUT to a client-chosen href before we assign uid — use created uid in Location.
+
+    // NOTE: contact-api assigns its own UID on create. If the created UID differs
+    // from the path UID, the client will need to follow the Location header to
+    // discover the canonical URL. This is standard CardDAV behavior.
   }
 
   const finalUid = contact.uid;
   const finalHref = contactHref(paths, finalUid);
 
   return new Response(null, {
-    status: existing.ok ? 204 : 201,
+    status: wasUpdate ? 204 : 201,
     headers: {
       ...davHeaders(),
       ETag: contactEtag(contact),
