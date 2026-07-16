@@ -213,6 +213,7 @@ function normalizeFeatureIds(raw: unknown): string[] {
     'carddav',
     'scheduling',
     'dev_infra',
+    'code_dev',
   ]);
   const out: string[] = [];
   for (const item of raw) {

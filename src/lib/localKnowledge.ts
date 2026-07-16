@@ -1,10 +1,23 @@
 /**
  * Markdown knowledge files shipped with the server bundle (Vite eager ?raw).
- * Slug = filename without `.md` under `src/knowledge/` (top-level only).
+ *
+ * - Global: `src/knowledge/*.md` (top-level only)
+ * - Install-scoped: `src/knowledge/installs/{slug}/*.md` — only loaded when
+ *   `installConfigSlug()` matches (e.g. Reave-only playbooks). Not seeded or
+ *   listed on other installs.
+ *
  * Job files in `src/knowledge/jobs/` are excluded — loaded on demand via workStore.
  */
 
+import { installConfigSlug } from './installConfig';
+
 const rawByPath = import.meta.glob<string>('../knowledge/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+const installRawByPath = import.meta.glob<string>('../knowledge/installs/*/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -15,16 +28,36 @@ function pathToSlug(path: string): string {
   return base.replace(/\.md$/i, '');
 }
 
+function installSlugFromPath(path: string): string | null {
+  const match = path.match(/knowledge\/installs\/([^/]+)\//);
+  return match?.[1] ?? null;
+}
+
+/** Bundled docs for the current install only (empty on other installs). */
+function installScopedEntries(): { slug: string; content: string }[] {
+  const slug = installConfigSlug();
+  const out: { slug: string; content: string }[] = [];
+  for (const [path, content] of Object.entries(installRawByPath)) {
+    if (installSlugFromPath(path) !== slug) continue;
+    out.push({ slug: pathToSlug(path), content: content ?? '' });
+  }
+  return out;
+}
+
 export function listKnowledgeSlugs(): string[] {
-  return Object.keys(rawByPath)
-    .map(pathToSlug)
-    .sort((a, b) => a.localeCompare(b));
+  const global = Object.keys(rawByPath).map(pathToSlug);
+  const install = installScopedEntries().map((e) => e.slug);
+  return [...new Set([...global, ...install])].sort((a, b) => a.localeCompare(b));
 }
 
 export function readKnowledgeMarkdown(slug: string): { slug: string; content: string } | null {
   const key = Object.keys(rawByPath).find((p) => pathToSlug(p) === slug) ?? null;
-  if (!key) return null;
-  return { slug, content: rawByPath[key] ?? '' };
+  if (key) return { slug, content: rawByPath[key] ?? '' };
+
+  const scoped = installScopedEntries().find((e) => e.slug === slug);
+  if (scoped) return { slug: scoped.slug, content: scoped.content };
+
+  return null;
 }
 
 export function summarizeKnowledgeIndex(): { slug: string; preview: string }[] {

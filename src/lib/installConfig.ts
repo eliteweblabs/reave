@@ -23,6 +23,7 @@ const FEATURE_IDS_LIST = [
   'carddav',
   'scheduling',
   'dev_infra',
+  'code_dev',
 ] as const;
 
 export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];

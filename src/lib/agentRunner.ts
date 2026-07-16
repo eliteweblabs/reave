@@ -194,6 +194,11 @@ async function runKnowledgeAgentInner(opts: {
       );
     }
   }
+  if (hasFeature('code_dev')) {
+    sysParts.push(
+      'Local code development (Reave code_dev): you CAN edit this repo on disk. Use list_files / read_file / write_file / exec_command. Read before write. Test with exec_command when possible. After every change: git add, commit, and push (no PRs required). Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
+    );
+  }
   if (hasFeature('billing') && isCraterConfigured()) {
     sysParts.push(
       'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. When billing for a tracked project, call get_work_invoice_suggestions first — use completed checklist descriptions on line items (name + description from suggestions; ask for price if missing). Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.',

@@ -11,7 +11,8 @@
     "vapi",
     "carddav",
     "scheduling",
-    "dev_infra"
+    "dev_infra",
+    "code_dev"
   ],
   "footerNav": [
     "__system__",

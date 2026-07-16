@@ -112,6 +112,12 @@ import {
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from './devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from './githubClient';
 import { describeSafeShell, runSafeShellCommand } from './safeShell';
+import {
+  codeDevExecCommand,
+  codeDevListFiles,
+  codeDevReadFile,
+  codeDevWriteFile,
+} from './codeDevTools';
 import { brandedEmailHtml } from './emailTemplates';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
@@ -221,9 +227,17 @@ const DEV_INFRA_TOOL_NAMES = new Set([
   'create_pull_request',
 ]);
 
+/** Reave-only local coding tools — never expose on other installs. */
+const CODE_DEV_TOOL_NAMES = new Set([
+  'read_file',
+  'write_file',
+  'list_files',
+  'exec_command',
+]);
+
 export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): AgentToolDef[] {
   const domainExample = brand.domain || 'example.com';
-  const base: AgentToolDef[] = [
+  let base: AgentToolDef[] = [
     {
       type: 'function',
       function: {
@@ -1895,10 +1909,105 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
     });
   }
 
+  if (hasFeature('code_dev')) {
+    base.push(
+      {
+        type: 'function',
+        function: {
+          name: 'read_file',
+          description:
+            'Read a file from the local project filesystem (path relative to repo root). Use before editing. Reave code_dev only.',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Repo-relative path, e.g. src/components/Chat.tsx',
+              },
+            },
+            required: ['path'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'write_file',
+          description:
+            'Write or update a file on the local project filesystem. Creates parent directories as needed. Read the file first when updating. Reave code_dev only. Commit and push after changes.',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Repo-relative path to create or overwrite',
+              },
+              content: {
+                type: 'string',
+                description: 'Full new file contents (UTF-8 text)',
+              },
+            },
+            required: ['path', 'content'],
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'list_files',
+          description:
+            'List directory contents in the local project (skips node_modules, .git, dist). Use to explore structure before editing. Reave code_dev only.',
+          parameters: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Repo-relative directory path (default ".")',
+              },
+              recursive: {
+                type: 'boolean',
+                description: 'If true, walk subdirectories (default false)',
+              },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'exec_command',
+          description:
+            'Execute a shell command in the project root (git, npm, node, etc.). Prefer this over run_terminal_command when you need writes, installs, or tests. Reave code_dev only. Commit and push after successful code changes.',
+          parameters: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description: 'Shell command, e.g. "git status", "npm test", "npx tsc --noEmit"',
+              },
+            },
+            required: ['command'],
+            additionalProperties: false,
+          },
+        },
+      },
+    );
+  }
+
   if (!hasFeature('dev_infra')) {
-    return base.filter((t) => {
+    base = base.filter((t) => {
       const name = t.function?.name;
       return !name || !DEV_INFRA_TOOL_NAMES.has(name);
+    });
+  }
+
+  if (!hasFeature('code_dev')) {
+    base = base.filter((t) => {
+      const name = t.function?.name;
+      return !name || !CODE_DEV_TOOL_NAMES.has(name);
     });
   }
 
@@ -2902,6 +3011,33 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const result = await runSafeShellCommand(command);
       if (!result.ok) return JSON.stringify({ error: result.error, allowed: describeSafeShell() });
       return JSON.stringify(result);
+    }
+    if (name === 'read_file') {
+      if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
+      const result = codeDevReadFile(String(args.path ?? ''));
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'write_file') {
+      if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
+      const result = codeDevWriteFile(String(args.path ?? ''), String(args.content ?? ''));
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'list_files') {
+      if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
+      const result = codeDevListFiles(
+        typeof args.path === 'string' && args.path.trim() ? args.path.trim() : '.',
+        args.recursive === true,
+      );
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
+    }
+    if (name === 'exec_command') {
+      if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
+      const result = await codeDevExecCommand(String(args.command ?? ''));
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify(result.data);
     }
     if (name === 'create_github_branch') {
       const result = await githubCreateBranch({

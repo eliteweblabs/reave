@@ -33,6 +33,7 @@ const SYSTEM_NODES = [
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · PWA (FEATURES: client_portal)', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
+  { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev · Reave only)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
 
   // External APIs
   { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
@@ -77,6 +78,8 @@ const SYSTEM_EDGES = [
   { from: 'resend', to: 'web_push', label: 'inbox alert', dashed: true },
   { from: 'astro', to: 'app_pg', label: 'DATABASE_URL' },
   { from: 'astro', to: 'github', label: 'status · commits · PR' },
+  { from: 'astro', to: 'code_dev', label: 'agent FS · shell' },
+  { from: 'code_dev', to: 'github', label: 'git commit · push', dashed: true },
   { from: 'astro', to: 'changedetection', label: 'watch CRUD', dashed: true },
   { from: 'changedetection', to: 'astro', label: 'change webhook', dashed: true },
   { from: 'uptimerobot', to: 'astro', label: 'uptime webhook', dashed: true },
@@ -92,7 +95,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api'] },
+  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
 ];
 
