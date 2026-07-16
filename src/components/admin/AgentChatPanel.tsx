@@ -53,15 +53,14 @@ function formatElapsed(ms: number): string {
   return rem ? `${minutes}m ${rem}s` : `${minutes}m`;
 }
 
-function statusFromProgress(progress: AgentProgress | null, elapsedMs: number): string {
-  const elapsed = formatElapsed(elapsedMs);
+function statusLabelFromProgress(progress: AgentProgress | null): string {
   if (progress?.phase === 'tool' && progress.toolLabel) {
-    return `${progress.toolLabel}… · ${elapsed}`;
+    return progress.toolLabel;
   }
   if ((progress?.round ?? 0) > 1) {
-    return `Analyzing results… · ${elapsed}`;
+    return 'Analyzing results';
   }
-  return `Thinking… · ${elapsed}`;
+  return 'Thinking';
 }
 
 function useAgentRunStatus(threadId: string) {
@@ -109,7 +108,8 @@ function useAgentRunStatus(threadId: string) {
     };
   }, [isRunning, threadId]);
 
-  const statusText = statusFromProgress(progress, elapsedMs);
+  const label = statusLabelFromProgress(progress);
+  const elapsed = formatElapsed(elapsedMs);
   const detailText =
     progress?.phase === 'tool' && progress.tool
       ? `Running ${progress.tool.replace(/_/g, ' ')}`
@@ -117,22 +117,26 @@ function useAgentRunStatus(threadId: string) {
         ? `Step ${progress.round}`
         : 'Working on your request';
 
-  return { isRunning, statusText, detailText };
+  return { isRunning, label, elapsed, detailText };
 }
 
-function AgentRunStatus({ threadId, compact = false }: { threadId: string; compact?: boolean }) {
-  const { statusText, detailText } = useAgentRunStatus(threadId);
+function AgentRunStatus({ threadId }: { threadId: string }) {
+  const { label, elapsed, detailText } = useAgentRunStatus(threadId);
 
   return (
-    <div className={`aui-run-status${compact ? ' aui-run-status-compact' : ''}`}>
-      <span className="aui-run-status-dots" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
+    <div className="aui-run-status">
       <span className="aui-run-status-copy">
-        <span className="aui-run-status-primary">{statusText}</span>
-        {!compact ? <span className="aui-run-status-detail">{detailText}</span> : null}
+        <span className="aui-run-status-primary">
+          {label}
+          <span className="aui-run-status-ellipsis" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          {' · '}
+          {elapsed}
+        </span>
+        <span className="aui-run-status-detail">{detailText}</span>
       </span>
     </div>
   );
@@ -605,9 +609,7 @@ function ClaudeComposer({
   );
 }
 
-function ChatMessages({ threadId }: { threadId: string }) {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-
+function ChatMessages() {
   return (
     <>
       <ThreadPrimitive.Messages
@@ -643,15 +645,6 @@ function ChatMessages({ threadId }: { threadId: string }) {
           ),
         }}
       />
-      {isRunning ? (
-        <div className="aui-msg-row aui-msg-row-assistant aui-msg-row-thinking" aria-live="polite">
-          <div className="aui-msg-wrap aui-msg-wrap-assistant">
-            <div className="aui-msg aui-msg-assistant aui-msg-thinking">
-              <AgentRunStatus threadId={threadId} compact />
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }
@@ -715,7 +708,7 @@ function AgentChatThreadBody({
         <div className="aui-thread-body">
           <ThreadPrimitive.Viewport className="aui-viewport">
             <div className="aui-thread-column">
-              <ChatMessages threadId={threadId} />
+              <ChatMessages />
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">

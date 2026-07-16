@@ -373,36 +373,31 @@
 .aui-run-status {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
   min-width: 0;
   flex: 1;
 }
 
-.aui-run-status-compact .aui-run-status-detail {
-  display: none;
-}
-
-.aui-run-status-dots {
+.aui-run-status-ellipsis {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  margin-top: 0.35rem;
-  flex-shrink: 0;
+  gap: 0.14rem;
+  margin-left: 0.08rem;
+  vertical-align: baseline;
 }
 
-.aui-run-status-dots span {
-  width: 0.34rem;
-  height: 0.34rem;
+.aui-run-status-ellipsis span {
+  width: 0.24rem;
+  height: 0.24rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brand, #7c3aed) 72%, var(--muted));
+  background: color-mix(in srgb, var(--muted) 82%, var(--fg));
   animation: aui-run-dot 1.2s ease-in-out infinite;
 }
 
-.aui-run-status-dots span:nth-child(2) {
+.aui-run-status-ellipsis span:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.aui-run-status-dots span:nth-child(3) {
+.aui-run-status-ellipsis span:nth-child(3) {
   animation-delay: 0.3s;
 }
 
