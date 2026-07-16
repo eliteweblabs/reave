@@ -21,7 +21,7 @@ import {
   type ClientPortal,
   type PortalDocument,
 } from '../../lib/contactApi';
-import { getCompanyConfig, poweredByLabel } from '../../lib/companyConfig';
+import { getCompanyConfig, poweredByLabel, companyLogoUrl } from '../../lib/companyConfig';
 import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
@@ -137,6 +137,7 @@ const portalDocs = hasFeature('documents')
       })
   : [];
 
+const staffAvatarUrl = companyLogoUrl(org.logoPath, org.logoVersion);
 const providerTelHref = contactTelHref(org.supportPhone);
 const providerName = org.name?.trim() || 'us';
 const showClientContact = Boolean(company && displayName !== company && displayName !== brandTitle);
@@ -407,6 +408,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               jobs={portalWorkJobs}
               commentsBySlug={commentsBySlug}
               contactUid={uid}
+              clientAvatarUrl={logoUrl}
+              staffAvatarUrl={staffAvatarUrl}
               active={initialTab === 'work'}
               autoExpand={clientJobs.length === 1}
             />
