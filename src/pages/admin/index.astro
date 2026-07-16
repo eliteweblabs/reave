@@ -2944,8 +2944,14 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         color: #fca5a5;
       }
       .ch-copy-chat-btn,
-      .ch-share-chat-btn {
+      .ch-share-chat-btn,
+      .ch-archive-chat-btn {
         margin-left: 0;
+      }
+      @media (max-width: 639px) {
+        .ch-pane-header .ch-copy-chat-btn {
+          display: none;
+        }
       }
       .ch-toast {
         position: fixed;

@@ -10548,6 +10548,14 @@ function chatHasConversation() {
   return chatState.messages.length > 0 || chatState.sending;
 }
 
+function activeChatThread() {
+  const id = chatState.activeId;
+  if (!id) return null;
+  const found = chatState.threads.find((t) => t.id === id);
+  if (found) return found;
+  return { id, title: chatState.title || 'Chat', archived: false };
+}
+
 function buildChatPaneNavHeader() {
   const header = document.createElement('div');
   header.className = 'de-header ch-pane-header ch-pane-header--nav-only';
@@ -10575,6 +10583,8 @@ function buildChatPaneHeader() {
   header.appendChild(createChatModelSwitcher());
 
   const transcript = chatTranscriptText();
+  const thread = activeChatThread();
+  const isArchived = !!thread?.archived;
   const headerActions = document.createElement('div');
   headerActions.className = 'de-header-actions';
   headerActions.appendChild(createIosIconBtn({
@@ -10588,6 +10598,15 @@ function buildChatPaneHeader() {
     label: 'Share entire conversation',
     className: 'ios-icon-btn ch-share-chat-btn',
     onClick: (btn) => shareChatText(transcript, 'assistant', btn),
+  }));
+  headerActions.appendChild(createIosIconBtn({
+    iconKey: 'archive',
+    label: isArchived ? 'Unarchive chat' : 'Archive chat',
+    className: 'ios-icon-btn ch-archive-chat-btn',
+    onClick: () => {
+      const t = activeChatThread();
+      if (t) void archiveChat(t);
+    },
   }));
   headerActions.appendChild(createIosIconBtn({
     iconKey: 'trash',
