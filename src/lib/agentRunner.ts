@@ -9,6 +9,7 @@ import { isBookingConfigured } from './bookingClient';
 import { isVapiAdminConfigured } from './vapiPlugin';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
+import { prependDeployBanner } from './deployStatus';
 import { isRailwayConfigured } from './railwayClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
@@ -152,7 +153,8 @@ async function runKnowledgeAgentInner(opts: {
   const tools = buildAnthropicTools(brand);
 
   const sysParts = [
-    `You are a concise assistant for ${brand.name}'s business OS.`,
+    `You are the built-in admin assistant for ${brand.name}'s business OS.`,
+    `Runtime identity: you run INSIDE the deployed app at ${brand.siteUrl} (Astro on Railway) — not Cursor, not a generic external API, and not on the owner's laptop. The owner chats with you from Admin → Chats; your tools execute server-side on this same service (Postgres, GitHub, Railway GraphQL, Crater, contact-api, etc.). Never open with "log into Railway", "install the Railway CLI", or "configure a Railway token" — diagnose with your tools first. You cannot fetch Railway build/runtime logs via API; when raw logs are truly needed, say so briefly and point to Railway dashboard → ${brand.projectLabel} → production → service → Logs. Do not claim RAILWAY_API_TOKEN is missing or expired without calling run_dev_task ping_railway first.`,
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
     'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. When creating a project and the client is unclear, call create_work with title only (or resolve_contact first with any hints from the chat). create_work returns needs_client when you must ask the user who it is; needs_selection + candidates when fuzzy — list the options and ask the user to confirm, then re-call create_work with contact_uid. Never guess a client on ambiguous matches. After create_work or when filing mail to an existing job, call link_to_work so the email/chat stays linked on the project page. Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
@@ -166,13 +168,16 @@ async function runKnowledgeAgentInner(opts: {
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
       sysParts.push(
-        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains. Use list_railway_domains for CNAME targets, *.up.railway.app domains, and custom-domain TXT verification (defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity; list_railway_domains also works via run_dev_task. Do not claim Railway is read-only or that you lack MCP — call the tool. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs ${brand.domain || 'the configured company domain'}. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
+        `Railway: RAILWAY_API_TOKEN is configured — you CAN read projects/domains via list_railway_domains (CNAME targets, *.up.railway.app domains, custom-domain TXT verification; defaults: ${brand.projectLabel} / production). run_dev_task ping_railway checks token connectivity. Resend email DNS lives in Cloudflare (not Railway): use sync_resend_dns to check/create DKIM/SPF/MX records when the user asks; run_dev_task sync_resend_dns syncs ${brand.domain || 'the configured company domain'}. Inbound receiving uses inbound.${brand.domain || 'the company domain'} — see read_knowledge email-rules.`,
       );
     } else {
       sysParts.push(
-        'Railway reads unavailable (RAILWAY_API_TOKEN not set). /railway project still works only if token is added later.',
+        `Railway API token not set — list_railway_domains and ping_railway are unavailable, but you ARE running on Railway. Use check_deployment_status and get_git_status for deploy health; do not tell the owner to add a token just to read logs.`,
       );
     }
+    sysParts.push(
+      'Deploy failures / crash alerts: call check_deployment_status and get_git_status or get_recent_commits immediately — report deployed commit vs GitHub latest, health ping, and whether this looks like rollout teardown vs a real failure. read_knowledge slug "railway-deploy-webhook" for alert context. Only mention Railway dashboard logs when tools cannot explain the failure.',
+    );
     if (isKinstaConfigured()) {
       sysParts.push(
         `Kinsta: KINSTA_API_KEY + KINSTA_COMPANY_ID are configured — you CAN list WordPress sites, clear cache, create sites, back up environments, AND delete sites via list_kinsta_sites, create_kinsta_site, backup_kinsta_site, list_kinsta_backups, clear_kinsta_cache, delete_kinsta_site, and get_kinsta_operation. run_dev_task ping_kinsta / list_kinsta_sites also work. read_knowledge slug "kinsta-wordpress" for env vars and workflows. Do not claim you lack Kinsta access — call the tool. ${brand.projectLabel} hosting is on Railway, not Kinsta; use Kinsta tools only for Kinsta-hosted WordPress client sites. When the user asks to delete a site, call delete_kinsta_site with the site_id; it is destructive and should be confirmed first.`,
@@ -320,8 +325,13 @@ async function runKnowledgeAgentInner(opts: {
       .map((b) => b.text)
       .join('\n')
       .trim();
-    return text || '(no text)';
+    return finalizeAgentReply(text || '(no text)', userText);
   }
 
-  return 'Stopped after max tool rounds. Try a narrower question.';
+  return finalizeAgentReply('Stopped after max tool rounds. Try a narrower question.', userText);
+}
+
+async function finalizeAgentReply(text: string, userText: string): Promise<string> {
+  if (!hasFeature('dev_infra')) return text;
+  return prependDeployBanner(text, { userText });
 }

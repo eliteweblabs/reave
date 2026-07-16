@@ -11,6 +11,7 @@ import {
   storeUpdateChatTitle,
 } from './chatStore';
 import { runKnowledgeAgent } from './agentRunner';
+import { prependDeployBanner } from './deployStatus';
 import type { ChatTurn } from './chatTypes';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
@@ -63,11 +64,12 @@ export async function postToSystemAlertsThread(opts: {
     const autoRun = opts.autoRun !== false && serverEnv('AGENT_ALERT_AUTO_RUN') !== '0';
 
     if (autoRun) {
-      const reply = await runKnowledgeAgent({
+      let reply = await runKnowledgeAgent({
         userText: opts.message,
         priorTurns,
         context: opts.emailId ? { userId, emailId: opts.emailId } : { userId },
       });
+      reply = await prependDeployBanner(reply, { userText: opts.message });
       await storeAppendChatMessages(userId, threadId, [
         { role: 'user', content: opts.message },
         { role: 'assistant', content: reply },
@@ -100,7 +102,7 @@ async function formatAlertMessage(opts: {
 }): Promise<string> {
   const railway = isRailwayAlertStatus(opts.status);
   const intro = railway
-    ? 'Railway alert email received (deploy/build crash notification). This is sometimes a false alarm during rollout while the new deployment is still starting — verify in the Railway dashboard before acting.'
+    ? 'Railway alert email received (deploy/build crash notification). You run inside this app on Railway — use your tools first, not manual dashboard/CLI steps.'
     : 'Inbound alert email received.';
 
   const lines = [
@@ -108,7 +110,7 @@ async function formatAlertMessage(opts: {
     '',
     `Status: ${opts.status}`,
     railway
-      ? 'Check Railway deploy logs, distinguish rollout teardown vs a real crash, and suggest next steps.'
+      ? 'Call check_deployment_status and get_git_status now. Distinguish rollout teardown vs a real crash, summarize what you found, and suggest next steps. You cannot fetch Railway logs via API — only mention dashboard logs if tools leave the cause unclear.'
       : 'Read the linked email (full content is in context) and suggest concrete next steps.',
   ];
 

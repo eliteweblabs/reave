@@ -55,7 +55,10 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (typeof branch === 'string') lines.push(`Branch: ${branch}`);
   if (typeof commit === 'string') lines.push(`Commit: ${String(commit).slice(0, 120)}`);
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
-  lines.push('', 'Check Railway logs and suggest next steps.');
+  lines.push(
+    '',
+    'You run inside this app on Railway. Call check_deployment_status and get_git_status now — report deployed commit vs GitHub latest and health ping. Distinguish rollout teardown vs a real crash. You cannot fetch Railway logs via API; only mention dashboard logs if tools leave the cause unclear.',
+  );
   return lines.join('\n');
 }
 
