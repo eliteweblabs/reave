@@ -1,12 +1,12 @@
 ---
-import { requireAuth } from '../../lib/auth';
-
 export const prerender = false;
 
-const user = await requireAuth(Astro);
-if (!user) return Astro.redirect('/api/auth/signin?redirect=/admin/import-contacts');
+const { userId } = Astro.locals.auth();
+if (!userId) {
+  const returnTo = encodeURIComponent('/admin/import-contacts');
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+}
 
-const userId = user.id;
 const companyBrand = { contactsLabel: 'Clients' };
 ---
 
