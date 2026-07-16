@@ -1341,7 +1341,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .de-input {
         font: inherit;
         font-size: max(16px, 0.84rem);
-        font-family: ui-monospace, monospace;
         color: var(--fg);
         background: var(--card);
         border: 1px solid var(--card-border);
@@ -1897,7 +1896,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         min-height: 4.5rem;
         font: inherit;
         font-size: max(16px, 0.84rem);
-        font-family: ui-monospace, monospace;
         color: var(--fg);
         background: var(--card);
         border: 1px solid var(--card-border);
@@ -2225,6 +2223,12 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       #clients-editor .de-fields .cl-website-field {
         max-width: none;
         width: 100%;
+      }
+      #clients-editor .de-textarea,
+      #clients-editor .cl-notes-textarea {
+        font-family: inherit;
+        font-size: max(16px, 0.875rem);
+        line-height: 1.45;
       }
       .cl-jobs-section {
         padding: 1rem 1rem var(--footer-scroll-pad);
