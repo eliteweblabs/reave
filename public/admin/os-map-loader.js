@@ -11656,12 +11656,13 @@ function bindEmailListSeenObserver(listEl) {
 
 function createEmailListItem(ev) {
   const summary = ev.summary || ev.bodySnippet || ev.subject || '(no summary)';
+  const catClass = isProjectReplyEmail(ev) ? 'em-list-item-urgent' : emailCategoryClass(ev.category);
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
-    'em-list-item' +
-    (ev.id === emailState.activeId ? ' active' : '') +
-    (isProjectReplyEmail(ev) ? ' em-list-item-urgent' : '');
+    'em-list-item ' +
+    catClass +
+    (ev.id === emailState.activeId ? ' active' : '');
   item.dataset.id = ev.id;
   item.innerHTML =
     `<span class="em-item-row em-item-header">` +
