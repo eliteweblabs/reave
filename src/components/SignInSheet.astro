@@ -16,7 +16,7 @@ const {
   autoOpen = false,
 } = Astro.props;
 
-/** Flush Clerk into the sheet — no nested card chrome or outer padding. */
+/** Clerk in the bottom sheet — no nested card chrome; body padding comes from ios-sheet. */
 const clerkAppearance = {
   options: {
     elevation: 'flush',
@@ -84,7 +84,7 @@ const clerkAppearance = {
   }
 
   #sign-in-sheet .ios-sheet-body {
-    padding: 0;
+    padding: 0.75rem 1.35rem 1.5rem;
   }
 
   #sign-in-sheet .cl-rootBox,
