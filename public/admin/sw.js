@@ -113,3 +113,22 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(Promise.all([self.clients.claim(), restoreBadgeFromCache()]));
 });
+
+/* Network-first fetch handler — required for reliable Chromium install prompts. */
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      if (event.request.mode === 'navigate') {
+        return new Response('Offline — reconnect to use the admin app.', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        });
+      }
+      throw new Error('Network error');
+    }),
+  );
+});

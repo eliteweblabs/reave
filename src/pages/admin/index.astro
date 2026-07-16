@@ -31,7 +31,10 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content={company.name || 'Business OS'} />
+    <meta name="application-name" content={company.name || 'Business OS'} />
     <link rel="manifest" href="/admin/manifest.webmanifest" />
     <title>{company.name} Admin</title>
     <Favicon />
@@ -5409,7 +5412,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
     <script>
       import '../../admin/agent-chat-mount.tsx';
     </script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20250715b"></script>
+    <script is:inline type="module" src="/admin/push-client.js?v=20260716a"></script>
     <script src="/ios-sheet.js" defer></script>
     <script is:inline define:vars={{ companyBrand, installConfigClient }}>
       window.__companyBrand = companyBrand;

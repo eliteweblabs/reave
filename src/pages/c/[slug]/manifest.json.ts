@@ -21,20 +21,29 @@ export const GET: APIRoute = async ({ params }) => {
         const company = contactStringField(res.data.company);
         if (company) name = company;
 
+        const defaultIcons = [
+          { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ];
+        // Custom logo alone is not enough for Chromium (needs 192 + 512); keep defaults as fallback.
         const icons = logoUrl
-          ? [{ src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' }]
-          : [
-              { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-              { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            ];
+          ? [
+              { src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },
+              ...defaultIcons,
+            ]
+          : defaultIcons;
 
         const startUrl = `/c/${encodeURIComponent(uid)}`;
         const manifest = {
+          id: startUrl,
           name,
           short_name: name.length > 12 ? `${name.slice(0, 12)}…` : name,
           start_url: startUrl,
           scope: startUrl,
           display: 'standalone',
+          display_override: ['standalone', 'minimal-ui'],
           background_color: '#0a0a0a',
           theme_color: '#0a0a0a',
           icons,
@@ -52,16 +61,20 @@ export const GET: APIRoute = async ({ params }) => {
 
   const startUrl = `/c/${encodeURIComponent(uid)}`;
   const manifest = {
+    id: startUrl,
     name,
     short_name: name.length > 12 ? `${name.slice(0, 12)}…` : name,
     start_url: startUrl,
     scope: startUrl,
     display: 'standalone',
+    display_override: ['standalone', 'minimal-ui'],
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
     icons: [
       { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
 

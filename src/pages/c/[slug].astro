@@ -965,5 +965,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .success-card h2 { margin: 0 0 10px; font-size: 22px; }
       .success-card p { margin: 0; color: rgba(255, 255, 255, 0.55); font-size: 15px; line-height: 1.6; }
     </style>
+    {
+      !notFound && (
+        <script is:inline>
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/c/sw.js', { scope: '/c/' }).catch(() => {});
+          }
+        </script>
+      )
+    }
   </body>
 </html>

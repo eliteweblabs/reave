@@ -6,6 +6,8 @@ const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 let setupAlertResizeObs = null;
+/** Stashed Chromium install event from `beforeinstallprompt`. */
+let deferredInstallPrompt = null;
 
 function syncSetupAlertInset() {
   const root = document.getElementById('admin-setup-alerts');
@@ -57,11 +59,21 @@ function isMobileViewport() {
   return window.matchMedia('(max-width: 768px)').matches;
 }
 
+function isDesktopSafari() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua) && !isIos();
+}
+
 export function needsPwaInstall() {
   if (isStandalonePwa()) return false;
   if (!isAdminSpa()) return false;
-  // iOS requires home-screen install for push; other mobile users benefit too.
-  return isIos() || isMobileViewport();
+  // iOS requires home-screen install for push; mobile + Chromium desktop (install prompt) too.
+  if (isIos() || isMobileViewport()) return true;
+  if (deferredInstallPrompt) return true;
+  // Safari macOS: File → Add to Dock (no beforeinstallprompt).
+  if (isDesktopSafari()) return true;
+  return false;
 }
 
 function isDismissed(key) {
@@ -120,7 +132,28 @@ function pwaInstallHint() {
   if (isIos()) {
     return 'Tap Share, then Add to Home Screen. Open the app from your home screen for push alerts and icon badges.';
   }
-  return 'Install this app to your home screen for push alerts and icon badges. Use your browser menu → Install app or Add to Home screen.';
+  if (isDesktopSafari()) {
+    return 'Choose File → Add to Dock to install this app on your Mac. It will open in its own window like a native app.';
+  }
+  if (deferredInstallPrompt) {
+    return 'Install to your Dock or taskbar for a standalone window, push alerts, and icon badges.';
+  }
+  return 'Install this app from the address-bar install icon, or your browser menu → Install app / Add to Home screen.';
+}
+
+async function promptPwaInstall() {
+  if (!deferredInstallPrompt) return false;
+  const evt = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  try {
+    await evt.prompt();
+    await evt.userChoice;
+  } catch (e) {
+    console.warn('[pwa] install prompt failed', e);
+  }
+  void syncAdminSetupAlerts();
+  void syncAdminPushButton();
+  return true;
 }
 
 function renderSetupAlert(kind) {
@@ -150,6 +183,18 @@ function renderSetupAlert(kind) {
 
   const actions = document.createElement('div');
   actions.className = 'admin-setup-alert-actions';
+
+  if (kind === 'pwa' && deferredInstallPrompt) {
+    const installBtn = document.createElement('button');
+    installBtn.type = 'button';
+    installBtn.className = 'admin-setup-alert-btn admin-setup-alert-btn--primary';
+    installBtn.textContent = 'Install app';
+    installBtn.addEventListener('click', async () => {
+      installBtn.disabled = true;
+      await promptPwaInstall();
+    });
+    actions.appendChild(installBtn);
+  }
 
   if (kind === 'push' && Notification.permission !== 'denied') {
     const enableBtn = document.createElement('button');
@@ -390,6 +435,21 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
   void registerAdminServiceWorker();
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    void syncAdminSetupAlerts();
+    void syncAdminPushButton();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    dismissAlert('pwa');
+    void syncAdminSetupAlerts();
+    void syncAdminPushButton();
+  });
+
   document.addEventListener('DOMContentLoaded', () => initAdminPushButton());
   window.addEventListener('pageshow', () => syncAdminPushButton());
   window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => syncAdminPushButton());
