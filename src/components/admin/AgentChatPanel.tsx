@@ -29,6 +29,9 @@ import {
   userMessageDisplayText,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
+import { getButtonProps } from '../../lib/chatResponseRenderer';
+import { useChatRenderer } from '../../hooks/useChatRenderer';
+import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
 
 type AgentProgressPhase = 'thinking' | 'tool' | 'complete';
@@ -283,8 +286,23 @@ function PendingDraftBoot({
   return null;
 }
 
-function AssistantMarkdown() {
-  return <MarkdownTextPrimitive remarkPlugins={[remarkGfm]} className="aui-md" />;
+function AssistantTextPart(props: { text?: string }) {
+  const { text, buttons } = useChatRenderer(props.text ?? '');
+
+  return (
+    <>
+      {text ? (
+        <MarkdownTextPrimitive text={text} remarkPlugins={[remarkGfm]} className="aui-md" />
+      ) : null}
+      {buttons.length > 0 ? (
+        <div className="aui-chat-buttons">
+          {buttons.map((button, idx) => (
+            <ChatButton key={`${button.href}-${idx}`} {...getButtonProps(button)} />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 function UserTextPart(props: { text?: string }) {
@@ -615,7 +633,7 @@ function ChatMessages({ threadId }: { threadId: string }) {
                 <div className="aui-msg aui-msg-assistant">
                   <MessagePrimitive.Parts
                     components={{
-                      Text: AssistantMarkdown,
+                      Text: AssistantTextPart,
                     }}
                   />
                 </div>
