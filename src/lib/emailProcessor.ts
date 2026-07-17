@@ -7,10 +7,11 @@ import { parseSenderEmail } from './emailAddress';
 import { classifyEmail, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
+import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
 import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
-import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
+import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
@@ -184,8 +185,10 @@ export function shouldSendInboxPush(opts: {
   ruleNotify: boolean;
   ruleStatus: string;
   isProjectReply?: boolean;
+  automationKind?: string | null;
 }): boolean {
   if (opts.isProjectReply) return true;
+  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created') return true;
 
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
@@ -221,6 +224,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let schedulingNote = '';
   let bookingUid: string | null = null;
   let bookingStart: string | null = null;
+  let automationKind: string | null = null;
 
   const contactRes = senderEmail.includes('@')
     ? await resolveContact({ email: senderEmail })
@@ -366,6 +370,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       bookingUid = autoBook.bookingUid;
       bookingStart = autoBook.bookingStart;
       routeNote = autoBook.routeNote;
+      automationKind = 'meeting_booked';
 
       const contactResult = await ensureContactForMeetingEmail({
         from,
@@ -391,14 +396,6 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
-  const notify = shouldSendInboxPush({
-    category,
-    action,
-    ruleNotify: ruleResult.notify,
-    ruleStatus: ruleResult.status,
-    isProjectReply,
-  });
-
   const record = await storeRecordEmailInbox({
     from,
     subject: email.subject ?? '',
@@ -413,7 +410,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     resendEmailId: email.resendEmailId,
     status: inboxStatus,
     action,
-    notified: notify,
+    notified: false,
     summary,
     category,
     contactUid,
@@ -425,42 +422,112 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     schedulingNote,
     bookingUid,
     bookingStart,
+    automationKind,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;
   });
 
-  if (record?.id && jobSlug) {
-    linkProjectItem(jobSlug, 'email', record.id).catch((e) =>
+  let inboxRecord = record;
+
+  if (inboxRecord?.id && jobSlug) {
+    linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
       console.warn('[email] project link failed', e),
     );
   }
 
-  if (record && notify) {
+  if (
+    inboxRecord?.id &&
+    !automationKind &&
+    !jobSlug &&
+    action !== 'project_reply' &&
+    action !== 'junk' &&
+    category !== 'junk'
+  ) {
+    const autoProject = await tryAutoCreateProjectFromInboundEmail({
+      from,
+      subject: email.subject ?? '',
+      summary,
+      bodyText,
+      bodySnippet: snippet(bodyText),
+      receivedAt: record.receivedAt,
+      contactUid,
+      contactName,
+      emailId: inboxRecord.id,
+    });
+    if (autoProject.ok) {
+      jobSlug = autoProject.slug;
+      jobTitle = autoProject.title;
+      contactUid = autoProject.contactUid;
+      contactName = autoProject.contactName;
+      action = 'matched';
+      category = 'client';
+      automationKind = 'project_created';
+      routeNote = autoProject.routeNote;
+      const updated = await storeUpdateEmailInbox(inboxRecord.id, {
+        action,
+        category: 'client',
+        status: 'MATCHED',
+        jobSlug,
+        jobTitle,
+        contactUid,
+        contactName,
+        routeNote,
+        automationKind,
+      });
+      if (updated) inboxRecord = updated;
+      linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
+        console.warn('[email] project link failed', e),
+      );
+    } else if (autoProject.reason !== 'not_applicable') {
+      console.warn('[email] auto project create failed', autoProject.error);
+    }
+  }
+
+  const notify = shouldSendInboxPush({
+    category,
+    action,
+    ruleNotify: ruleResult.notify,
+    ruleStatus: ruleResult.status,
+    isProjectReply,
+    automationKind,
+  });
+
+  if (inboxRecord && notify && !inboxRecord.notified) {
+    await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
+  }
+
+  if (inboxRecord && notify) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
-      : isRailwayAlertStatus(ruleResult.status)
-        ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
-        : category === 'client'
-          ? `Client: ${contactName ?? senderEmail}`
-          : summary.slice(0, 60);
+      : automationKind === 'project_created'
+        ? `New project: ${jobTitle ?? 'from email'}`
+        : automationKind === 'meeting_booked'
+          ? 'Meeting scheduled automatically'
+          : isRailwayAlertStatus(ruleResult.status)
+            ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
+            : category === 'client'
+              ? `Client: ${contactName ?? senderEmail}`
+              : summary.slice(0, 60);
     const pushBody = isProjectReply
       ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
-      : summary;
+      : automationKind === 'project_created'
+        ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
+        : summary;
     sendInboxPushNotification({
       title: pushTitle,
       body: pushBody,
-      tag: record.id,
-      emailId: record.id,
+      tag: inboxRecord.id,
+      emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 
-  if (record && isProjectReply) {
+  if (inboxRecord && isProjectReply) {
     notifyAdminAgentOfProjectReply({
       contactName: contactName ?? senderEmail,
       jobTitle: jobTitle ?? 'project',
       summary,
-      emailId: record.id,
+      emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] project reply agent alert failed', e));
   } else if (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) {
     notifyAdminAgentOfEmailAlert({
@@ -469,9 +536,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       subject: email.subject ?? '',
       summary,
       category,
-      emailId: record?.id,
+      emailId: inboxRecord?.id,
     }).catch((e) => console.warn('[email] agent alert failed', e));
   }
 
-  return { ok: true, category, status: inboxStatus, action, from, record };
+  return { ok: true, category, status: inboxStatus, action, from, record: inboxRecord };
 }

@@ -44,6 +44,8 @@ export interface EmailInboxRecord {
   seenAt: string | null;
   /** Set when the owner dismisses an automated-decision notification on the dashboard. */
   automationAckAt: string | null;
+  /** What was automated: meeting_booked, project_created, etc. */
+  automationKind: string | null;
 }
 
 export interface EmailInboxInput {
@@ -72,6 +74,7 @@ export interface EmailInboxInput {
   schedulingNote?: string;
   bookingUid?: string | null;
   bookingStart?: string | null;
+  automationKind?: string | null;
 }
 
 /** List API shape — omits full body/headers to keep payloads small. */
@@ -142,6 +145,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_ack_at TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_kind TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS to_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS cc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
@@ -161,7 +165,7 @@ const INDEX_SQL = [
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
-              automation_ack_at`;
+              automation_ack_at, automation_kind`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -255,6 +259,7 @@ type InboxRow = {
   booking_start?: Date | string | null;
   seen_at?: Date | string | null;
   automation_ack_at?: Date | string | null;
+  automation_kind?: string | null;
 };
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
@@ -312,6 +317,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     automationAckAt: row.automation_ack_at
       ? new Date(row.automation_ack_at).toISOString()
       : null,
+    automationKind: row.automation_kind ?? null,
   };
 }
 
@@ -349,6 +355,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       bookingStart: e.bookingStart ?? null,
       seenAt: e.seenAt ?? null,
       automationAckAt: e.automationAckAt ?? null,
+      automationKind: e.automationKind ?? null,
     }));
   } catch {
     return [];
@@ -427,6 +434,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     bookingStart: input.bookingStart ?? null,
     seenAt: null,
     automationAckAt: null,
+    automationKind: input.automationKind ?? null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
@@ -477,9 +485,9 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         (id, from_address, subject, body_snippet, body_text, to_addrs, cc_addrs, bcc_addrs,
          reply_to_addrs, headers_json, message_id, resend_email_id,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
-         route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start)
+         route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12,
-               $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+               $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -508,6 +516,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.schedulingNote ?? '',
         input.bookingUid ?? null,
         input.bookingStart ?? null,
+        input.automationKind ?? null,
       ],
     );
     return rows[0] ? rowToRecord(rows[0]) : null;
@@ -567,6 +576,7 @@ export type EmailInboxPatch = Partial<
     | 'routeNote'
     | 'contactUid'
     | 'contactName'
+    | 'automationKind'
   >
 > & {
   markSeen?: boolean;
@@ -595,6 +605,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.routeNote !== undefined ? { routeNote: patch.routeNote } : {}),
     ...(patch.contactUid !== undefined ? { contactUid: patch.contactUid } : {}),
     ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
+    ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
     ...(patch.markAutomationAck && !cur.automationAckAt
       ? { automationAckAt: new Date().toISOString() }
@@ -664,6 +675,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.contactName !== undefined) {
       sets.push(`contact_name = $${i++}`);
       vals.push(patch.contactName);
+    }
+    if (patch.automationKind !== undefined) {
+      sets.push(`automation_kind = $${i++}`);
+      vals.push(patch.automationKind);
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);

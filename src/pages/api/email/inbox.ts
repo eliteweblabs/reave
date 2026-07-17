@@ -10,6 +10,7 @@ import {
   toEmailInboxListRecord,
   type EmailInboxRecord,
 } from '../../../lib/emailInboxStore';
+import { countReviewNotifications } from '../../../lib/emailAutomation';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
@@ -50,7 +51,10 @@ export async function GET(context: APIContext): Promise<Response> {
   return json({
     ok: true,
     events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
-    digest: computeInboxDigest(allForDigest, !showJunk),
+    digest: {
+      ...computeInboxDigest(allForDigest, !showJunk),
+      reviewsPending: countReviewNotifications(allForDigest),
+    },
     storage: emailInboxStorageBackend(),
     pushConfigured: isPushConfigured(),
     pipeline: {

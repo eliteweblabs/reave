@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
-import { listMeetingReviewNotifications } from '../../../lib/emailAutomation';
+import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
 import { getDeployStatus } from '../../../lib/deployStatus';
 import { bookingsToday, isBookingConfigured, type DashboardEvent } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
@@ -74,10 +74,8 @@ export async function GET(context: APIContext): Promise<Response> {
   ]);
 
   const digest = computeInboxDigest(events, true);
-  const automationNotifications = listMeetingReviewNotifications(events);
-  const emailsNeedingAttention = events.filter(
-    (e) => e.category !== 'junk' && e.action !== 'filed',
-  ).length;
+  const automationNotifications = listReviewNotifications(events);
+  const reviewsPending = countReviewNotifications(events);
 
   const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;
@@ -124,9 +122,10 @@ export async function GET(context: APIContext): Promise<Response> {
     ok: true,
     generatedAt: new Date().toISOString(),
     stats: {
-      emails: emailsNeedingAttention,
+      emails: reviewsPending,
       emailsReview: digest.review,
-      automationPending: automationNotifications.length,
+      reviewsPending,
+      automationPending: reviewsPending,
       eventsToday: eventsToday.length,
       projectsPending,
       projectsActive,

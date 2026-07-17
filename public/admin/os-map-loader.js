@@ -1820,8 +1820,40 @@ function formatEmailWhen(iso) {
   }
 }
 
-function automationNotificationIcon() {
-  return '📅';
+function reviewNotificationIcon(type) {
+  return type === 'project' ? '📋' : '📅';
+}
+
+async function dismissReviewNotification(item, btn) {
+  if (!item?.emailId) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Dismissing…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markAutomationAck: true }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    updateInboxBadgesFromState();
+    if (MAP.type === 'home') await loadHomeDashboard();
+    if (emailState.activeId === item.emailId) renderEmailPanel();
+  } catch (e) {
+    await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Dismiss';
+    }
+  }
 }
 
 function setMeetingConfirmStep(bodyEl, stepKey, state, title, detail) {
@@ -1898,7 +1930,7 @@ async function runMeetingConfirmChecklist(item) {
           `<span class="meeting-confirm-step-icon" aria-hidden="true">○</span>` +
           `<div class="meeting-confirm-step-copy">` +
             `<div class="meeting-confirm-step-title">Clear from your review list</div>` +
-            `<div class="meeting-confirm-step-detail">Removes this from Meetings to review</div>` +
+            `<div class="meeting-confirm-step-detail">Removes this from your review list</div>` +
           `</div>` +
         `</li>` +
       `</ul>` +
@@ -1934,13 +1966,14 @@ async function runMeetingConfirmChecklist(item) {
           'review',
           'done',
           'Review cleared',
-          'Removed from Meetings to review on your dashboard',
+          'Removed from your review list on the dashboard',
         );
 
         if (data.event) {
           const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
           if (idx !== -1) emailState.allEvents[idx] = data.event;
         }
+        updateInboxBadgesFromState();
         if (emailState.activeId === item.emailId) renderEmailPanel();
 
         titleEl.textContent = 'Meeting confirmed';
@@ -2011,8 +2044,8 @@ function buildAutomationNotificationsPanel(notifications) {
   panel.innerHTML =
     `<div class="dash-panel-head">` +
       `<div class="dash-automation-head-copy">` +
-        `<h2 class="dash-panel-title">Meetings to review</h2>` +
-        `<p class="dash-automation-sub">Hit Confirm to notify the guest — we'll walk you through each step, no inbox required.</p>` +
+        `<h2 class="dash-panel-title">Automated reviews</h2>` +
+        `<p class="dash-automation-sub">Decisions the system made for you — confirm meetings or open new projects.</p>` +
       `</div>` +
     `</div>`;
 
@@ -2022,44 +2055,73 @@ function buildAutomationNotificationsPanel(notifications) {
   for (const item of notifications) {
     const li = document.createElement('li');
     li.className = 'dash-automation-item';
+    const isProject = item.type === 'project';
 
     const main = document.createElement('button');
     main.type = 'button';
     main.className = 'dash-automation-main';
     main.innerHTML =
-      `<span class="dash-automation-icon" aria-hidden="true">${automationNotificationIcon()}</span>` +
+      `<span class="dash-automation-icon" aria-hidden="true">${reviewNotificationIcon(item.type)}</span>` +
       `<span class="dash-automation-body">` +
         `<span class="dash-automation-title">${escHtml(item.title)}</span>` +
         `<span class="dash-automation-detail">${escHtml(item.detail)}</span>` +
         `<span class="dash-automation-meta">${escHtml(formatEmailWhen(item.receivedAt))}</span>` +
       `</span>`;
     main.addEventListener('click', () => {
+      if (isProject && item.jobSlug) {
+        navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
+        return;
+      }
       if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
     });
 
     const actions = document.createElement('div');
     actions.className = 'dash-automation-actions';
 
-    const confirmBtn = document.createElement('button');
-    confirmBtn.type = 'button';
-    confirmBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
-    confirmBtn.textContent = 'Confirm';
-    confirmBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      void confirmScheduledMeeting(item, confirmBtn);
-    });
+    if (isProject) {
+      const viewBtn = document.createElement('button');
+      viewBtn.type = 'button';
+      viewBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
+      viewBtn.textContent = 'View project';
+      viewBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (item.jobSlug) navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
+      });
 
-    const rescheduleBtn = document.createElement('button');
-    rescheduleBtn.type = 'button';
-    rescheduleBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
-    rescheduleBtn.textContent = 'Reschedule';
-    rescheduleBtn.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      rescheduleScheduledMeeting(item);
-    });
+      const dismissBtn = document.createElement('button');
+      dismissBtn.type = 'button';
+      dismissBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
+      dismissBtn.textContent = 'Dismiss';
+      dismissBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        void dismissReviewNotification(item, dismissBtn);
+      });
 
-    actions.appendChild(confirmBtn);
-    actions.appendChild(rescheduleBtn);
+      actions.appendChild(viewBtn);
+      actions.appendChild(dismissBtn);
+    } else {
+      const confirmBtn = document.createElement('button');
+      confirmBtn.type = 'button';
+      confirmBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
+      confirmBtn.textContent = 'Confirm';
+      confirmBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        void confirmScheduledMeeting(item, confirmBtn);
+      });
+
+      const rescheduleBtn = document.createElement('button');
+      rescheduleBtn.type = 'button';
+      rescheduleBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
+      rescheduleBtn.textContent = 'Reschedule';
+      rescheduleBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        rescheduleScheduledMeeting(item);
+      });
+
+      actions.appendChild(confirmBtn);
+      actions.appendChild(rescheduleBtn);
+    }
+
     li.appendChild(main);
     li.appendChild(actions);
     list.appendChild(li);
@@ -2092,14 +2154,14 @@ function renderHomeDashboard(data) {
   statsEl.className = 'dash-stats';
 
   statsEl.appendChild(buildDashStat({
-    value: stats.emails ?? 0,
-    label: 'Emails',
-    hint: stats.automationPending
-      ? `${stats.automationPending} meeting${stats.automationPending === 1 ? '' : 's'} to confirm`
+    value: stats.reviewsPending ?? stats.automationPending ?? 0,
+    label: 'Reviews',
+    hint: (stats.reviewsPending ?? stats.automationPending)
+      ? `${stats.reviewsPending ?? stats.automationPending} automated decision${(stats.reviewsPending ?? stats.automationPending) === 1 ? '' : 's'}`
       : stats.emailsReview
-        ? `${stats.emailsReview} awaiting decision`
-        : 'inbox clear',
-    onClick: () => setActiveMap('email', { force: activeKey === 'email' }),
+        ? `${stats.emailsReview} awaiting triage`
+        : 'all caught up',
+    onClick: () => setActiveMap('home', { force: activeKey === 'home' }),
   }));
 
   statsEl.appendChild(buildDashStat({
@@ -3296,8 +3358,7 @@ function syncFooterChatNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-chat-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    const badge = document.getElementById('footer-chat-badge');
-    btn.insertBefore(iconEl, badge || null);
+    btn.insertBefore(iconEl, btn.firstChild);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -3319,8 +3380,7 @@ function syncFooterWorkNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-work-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    const badge = document.getElementById('footer-work-badge');
-    btn.insertBefore(iconEl, badge || null);
+    btn.insertBefore(iconEl, btn.firstChild);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -3341,8 +3401,7 @@ function syncFooterInboxNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-inbox-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    const badge = document.getElementById('footer-inbox-badge');
-    btn.insertBefore(iconEl, badge || null);
+    btn.insertBefore(iconEl, btn.firstChild);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -3363,8 +3422,7 @@ function syncFooterScheduleNav() {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-schedule-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    const badge = document.getElementById('footer-schedule-badge');
-    btn.insertBefore(iconEl, badge || null);
+    btn.insertBefore(iconEl, btn.firstChild);
     btn.querySelector(':scope > svg')?.remove();
   }
   applyFooterNavBtnMode(btn, iconEl, {
@@ -4114,121 +4172,37 @@ async function buildMobileToolsMenu(order) {
   if (activeKey === 'home') loadHomeDashboard();
 }
 
-const footerBadgeCounts = { inbox: 0, schedule: 0, work: 0, chat: 0 };
+let reviewsPendingCount = 0;
 
-const FOOTER_BADGE_ENTRIES = [
-  { badgeId: 'footer-home-badge', btnId: 'footer-nav-home', key: 'home', label: 'Home' },
-  { badgeId: 'footer-inbox-badge', btnId: 'footer-nav-inbox', key: 'inbox', label: 'Inbox' },
-  { badgeId: 'footer-schedule-badge', btnId: 'footer-nav-schedule', key: 'schedule', label: 'Schedule' },
-  { badgeId: 'footer-work-badge', btnId: 'footer-nav-work', key: 'work', label: 'Projects' },
-  { badgeId: 'footer-chat-badge', btnId: 'footer-nav-chat', key: 'chat', label: 'Chats' },
-];
-
-function footerBadgeCountFor(key) {
-  if (key === 'home') {
-    return (
-      footerBadgeCounts.inbox +
-      footerBadgeCounts.schedule +
-      footerBadgeCounts.work +
-      footerBadgeCounts.chat
-    );
-  }
-  return footerBadgeCounts[key] ?? 0;
-}
-
-function footerBadgeKey(badgeId) {
-  const entry = FOOTER_BADGE_ENTRIES.find((e) => e.badgeId === badgeId);
-  return entry?.key && entry.key !== 'home' ? entry.key : null;
-}
-
-function footerNavBadgeSuppressed(key) {
-  if (footerNavCollapsed) return key !== 'home';
-  return footerNavShowsCreate(key) || footerNavShowsSave(key);
-}
-
-function renderFooterNavBadges() {
-  if (footerNavCollapsed) {
-    const total = footerBadgeCountFor('home');
-    for (const entry of FOOTER_BADGE_ENTRIES) {
-      const badge = document.getElementById(entry.badgeId);
-      const btn = document.getElementById(entry.btnId);
-      if (!badge || !btn) continue;
-      if (entry.key === 'home') {
-        if (total > 0) {
-          badge.hidden = false;
-          badge.textContent = total > 99 ? '99+' : String(total);
-          btn.setAttribute(
-            'aria-label',
-            `Show navigation (${total} notification${total === 1 ? '' : 's'})`,
-          );
-        } else {
-          badge.hidden = true;
-          badge.textContent = '0';
-          btn.setAttribute('aria-label', 'Show navigation');
-        }
-      } else {
-        badge.hidden = true;
-      }
-    }
-    return;
-  }
-
-  for (const entry of FOOTER_BADGE_ENTRIES) {
-    const badge = document.getElementById(entry.badgeId);
-    const btn = document.getElementById(entry.btnId);
-    if (!badge || !btn) continue;
-    if (footerNavBadgeSuppressed(entry.key)) {
-      badge.hidden = true;
-      continue;
-    }
-    const n = footerBadgeCountFor(entry.key);
-    if (n > 0) {
-      badge.hidden = false;
-      badge.textContent = n > 99 ? '99+' : String(n);
-      btn.setAttribute('aria-label', `${entry.label} (${n} notification${n === 1 ? '' : 's'})`);
-    } else {
-      badge.hidden = true;
-      badge.textContent = '0';
-      btn.setAttribute('aria-label', entry.label);
-    }
-  }
-}
-
-function setFooterNavBadge(badgeId, btnId, count, baseLabel) {
-  const key = footerBadgeKey(badgeId);
-  if (key) footerBadgeCounts[key] = Math.max(0, Number(count) || 0);
+function syncReviewBadge(count) {
+  reviewsPendingCount = Math.max(0, Number(count) || 0);
   renderFooterNavBadges();
 }
 
-function syncInboxBadge(count) {
-  setFooterNavBadge('footer-inbox-badge', 'footer-nav-inbox', count, 'Inbox');
-}
+function renderFooterNavBadges() {
+  const badge = document.getElementById('footer-home-badge');
+  const btn = document.getElementById('footer-nav-home');
+  if (!badge || !btn) return;
 
-function syncScheduleBadge(count) {
-  setFooterNavBadge('footer-schedule-badge', 'footer-nav-schedule', count, 'Schedule');
-}
-
-function syncWorkBadge(count) {
-  setFooterNavBadge('footer-work-badge', 'footer-nav-work', count, 'Projects');
+  const n = reviewsPendingCount;
+  if (n > 0) {
+    badge.hidden = false;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    const hint = `${n} review${n === 1 ? '' : 's'} pending`;
+    btn.setAttribute(
+      'aria-label',
+      footerNavCollapsed ? `Show navigation (${hint})` : `Home (${hint})`,
+    );
+  } else {
+    badge.hidden = true;
+    badge.textContent = '0';
+    btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Home');
+  }
 }
 
 function syncDashboardFooterBadges(stats) {
   if (!stats || typeof stats !== 'object') return;
-  syncScheduleBadge(stats.eventsToday ?? 0);
-  syncWorkBadge(stats.projectsPending ?? 0);
-}
-
-function syncWorkBadgeFromJobs(jobs) {
-  const n = (jobs || []).filter((j) => j.status === 'inquiry' || j.status === 'active').length;
-  syncWorkBadge(n);
-}
-
-function syncChatBadge(count) {
-  if (activeKey === 'chats' || activeKey === 'knowledge') {
-    setFooterNavBadge('footer-chat-badge', 'footer-nav-chat', 0, 'Chats');
-    return;
-  }
-  setFooterNavBadge('footer-chat-badge', 'footer-nav-chat', count, 'Chats');
+  syncReviewBadge(stats.reviewsPending ?? stats.automationPending ?? 0);
 }
 
 function initTopbarMenus() {
@@ -6378,7 +6352,6 @@ async function loadWorkTab(opts = {}) {
     workState.jobs = data.jobs || [];
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
-    syncWorkBadgeFromJobs(workState.jobs);
   } catch (e) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
@@ -11255,19 +11228,27 @@ function syncTopbarPanelContext() {
   clearTopbarPanelContext();
 }
 
-function unseenInboxCount(events) {
-  return (events || []).filter(
-    (ev) => ev.category !== 'junk' && ev.category !== 'receipt' && !isEmailRouted(ev) && !ev.seenAt,
-  ).length;
+function isPendingReviewNotification(ev) {
+  if (!ev || ev.automationAckAt) return false;
+  const action = String(ev.action || '').toLowerCase();
+  if (action === 'booked' && ev.bookingUid) return true;
+  if (ev.automationKind === 'project_created' && ev.jobSlug) return true;
+  return false;
 }
 
-function syncInboxBadges(count) {
-  syncInboxBadge(Math.max(0, Number(count) || 0));
+function pendingReviewCount(events) {
+  const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+  return (events || []).filter((ev) => {
+    if (!isPendingReviewNotification(ev)) return false;
+    const t = new Date(ev.receivedAt).getTime();
+    return Number.isFinite(t) && t >= cutoff;
+  }).length;
 }
 
 function updateInboxBadgesFromState() {
-  syncInboxBadges(unseenInboxCount(emailState.allEvents));
-  void setAppIconBadge(footerBadgeCountFor('home'));
+  const n = pendingReviewCount(emailState.allEvents);
+  syncReviewBadge(n);
+  void setAppIconBadge(n);
 }
 
 async function clearCachedBadgeCount() {
@@ -11308,10 +11289,13 @@ async function setAppIconBadge(n) {
   }
 }
 
-async function syncInboxAppBadge(events) {
-  const n = unseenInboxCount(events);
-  syncInboxBadges(n);
-  await setAppIconBadge(footerBadgeCountFor('home'));
+async function syncInboxAppBadge(events, reviewsPending) {
+  const n =
+    reviewsPending != null
+      ? Math.max(0, Number(reviewsPending) || 0)
+      : pendingReviewCount(events);
+  syncReviewBadge(n);
+  await setAppIconBadge(n);
 }
 
 async function refreshFooterBadgesQuiet() {
@@ -11330,10 +11314,10 @@ async function refreshFooterBadgesQuiet() {
       if (MAP.type === 'email' && emailState.allEvents.length) {
         mergeEmailSeenFromServer(events);
       }
-      await syncInboxAppBadge(events);
+      await syncInboxAppBadge(events, inboxData.digest?.reviewsPending);
       return;
     }
-    await setAppIconBadge(footerBadgeCountFor('home'));
+    await setAppIconBadge(reviewsPendingCount);
   } catch {}
 }
 

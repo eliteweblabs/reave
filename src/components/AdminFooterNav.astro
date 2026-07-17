@@ -24,7 +24,6 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
       aria-label="Chats"
     >
       <HatGlasses size={20} strokeWidth={1.75} />
-      <span id="footer-chat-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -34,7 +33,6 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
       aria-label="Inbox"
     >
       <Mail size={20} strokeWidth={1.75} />
-      <span id="footer-inbox-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -44,7 +42,6 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
       aria-label="Schedule"
     >
       <Calendar size={20} strokeWidth={1.75} />
-      <span id="footer-schedule-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -65,7 +62,6 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
       aria-label="Projects"
     >
       <Briefcase size={20} strokeWidth={1.75} />
-      <span id="footer-work-badge" class="footer-nav-badge" hidden>0</span>
     </button>
     <button
       type="button"
@@ -156,11 +152,6 @@ import { Home, HatGlasses, Mail, Calendar, Search, Briefcase, Users } from "luci
 
     .admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge {
       z-index: 10;
-    }
-
-    .admin-footer-nav.footer-nav-collapsed .footer-nav-btn:not(#footer-nav-home) .footer-nav-badge,
-    .admin-footer-nav.footer-nav-collapsed #footer-nav-work .footer-nav-badge {
-      display: none !important;
     }
 
     body.footer-chat-inline-home .admin-footer-nav.footer-nav-collapsed {
