@@ -13370,8 +13370,12 @@ function createEmailProjectDropdown(ev) {
   const trigger = document.createElement('button');
   trigger.type = 'button';
   trigger.className = 'em-btn-group-segment em-project-trigger';
-  trigger.textContent = 'Project ▾';
+  trigger.setAttribute('aria-label', 'Project');
   trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.innerHTML =
+    `<span class="em-project-trigger-icon" aria-hidden="true">${navIcon('briefcase', 16)}</span>` +
+    '<span class="em-project-trigger-label">Project</span>' +
+    '<span class="em-project-trigger-caret" aria-hidden="true">▾</span>';
 
   const menu = document.createElement('div');
   menu.className = 'em-project-menu';

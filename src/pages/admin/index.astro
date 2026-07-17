@@ -1335,7 +1335,11 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         display: flex;
         align-items: center;
         gap: 0.6rem;
-        padding: 0 1rem;
+        padding:
+          0
+          max(0.5rem, env(safe-area-inset-right, 0px))
+          0
+          max(0.5rem, env(safe-area-inset-left, 0px));
         min-height: var(--control-h);
         border-bottom: 1px solid var(--panel-border);
         flex: 0 0 auto;
@@ -3725,6 +3729,23 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         background: var(--brand-gradient);
         color: #fff;
       }
+      .em-project-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+      }
+      .em-project-trigger-icon {
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .em-project-trigger-icon svg {
+        display: block;
+      }
+      .em-project-trigger-caret {
+        font-size: 0.65em;
+        opacity: 0.85;
+      }
       .em-project-dropdown {
         position: relative;
         flex: 0 0 auto;
@@ -4233,6 +4254,33 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         }
         #email-panel.em-pane-active .ch-sidebar { display: none; }
         #email-panel.em-pane-active .ch-pane { display: flex; flex: 1 1 auto; }
+        #email-panel.em-pane-active .de-header {
+          flex-shrink: 0;
+          background: var(--bg);
+          gap: 0.3rem;
+          padding:
+            0.15rem
+            max(0.5rem, env(safe-area-inset-right, 0px))
+            0.2rem
+            max(0.5rem, env(safe-area-inset-left, 0px));
+        }
+        #email-panel.em-pane-active .de-header .ios-icon-btn {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
+        #email-panel.em-pane-active .de-header-actions {
+          gap: 0.15rem;
+        }
+        #email-panel.em-pane-active .em-project-trigger-label,
+        #email-panel.em-pane-active .em-project-trigger-caret {
+          display: none;
+        }
+        #email-panel.em-pane-active .em-project-trigger-icon {
+          display: inline-flex;
+        }
+        #email-panel.em-pane-active .em-btn-group-segment.em-project-trigger {
+          padding: 0.42rem 0.55rem;
+        }
         #schedule-panel.de-pane-active .de-pane {
           padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) - 0.85rem);
         }
