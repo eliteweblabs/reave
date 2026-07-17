@@ -4485,170 +4485,18 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .dash-stat--stale .dash-stat-value { color: #fbbf24; }
       .dash-stat--failed .dash-stat-value { color: #f87171; }
 
-      .dash-automation-panel {
-        border-color: rgba(251, 191, 36, 0.45);
-        background: rgba(251, 191, 36, 0.08);
-      }
-      .dash-review-banners {
-        border-color: rgba(96, 165, 250, 0.55);
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.04) 100%);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-      }
-      .dash-review-banners-head {
-        padding-bottom: 0.35rem;
-      }
-      .dash-review-banner-list {
-        gap: 0.65rem;
-        padding: 0 0.75rem 0.75rem;
-      }
-      .dash-review-banner .dash-automation-main {
-        border-color: rgba(96, 165, 250, 0.35);
-        background: var(--card);
-        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
-      }
-      .dash-review-banner--warn .dash-automation-main {
-        border-color: rgba(251, 191, 36, 0.55);
-        background: rgba(251, 191, 36, 0.08);
-      }
-      .dash-review-banner .dash-automation-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        line-height: 1.35;
-      }
-      .dash-automation-head-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        min-width: 0;
-      }
-      .dash-automation-sub {
-        margin: 0;
-        font-size: 0.78rem;
-        line-height: 1.4;
-        color: var(--muted);
-        font-weight: 400;
-      }
-      .dash-automation-list {
-        list-style: none;
-        margin: 0;
-        padding: 0 0.65rem 0.65rem;
+      .dash-review-alerts {
         display: flex;
         flex-direction: column;
         gap: 0.45rem;
+        margin-bottom: 0.85rem;
       }
-      .dash-automation-item {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.45rem;
+      .dash-review-alerts .admin-setup-alert {
+        max-width: none;
+        margin: 0;
       }
-      @media (min-width: 640px) {
-        .dash-automation-item {
-          flex-direction: row;
-          align-items: stretch;
-        }
-      }
-      .dash-automation-main {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        align-items: flex-start;
-        gap: 0.65rem;
-        padding: 0.7rem 0.75rem;
-        border-radius: 10px;
-        border: 1px solid var(--panel-border);
-        background: var(--card);
-        color: var(--fg);
+      .dash-review-alerts .admin-setup-alert-copy {
         cursor: pointer;
-        text-align: left;
-        font: inherit;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .dash-automation-main:hover {
-        border-color: rgba(251, 191, 36, 0.55);
-        background: var(--surface-hover);
-      }
-      .dash-automation-icon {
-        flex: 0 0 auto;
-        font-size: 1.1rem;
-        line-height: 1.2;
-      }
-      .dash-automation-body {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        min-width: 0;
-      }
-      .dash-automation-title {
-        font-size: 0.86rem;
-        font-weight: 700;
-        line-height: 1.3;
-      }
-      .dash-automation-detail {
-        font-size: 0.8rem;
-        line-height: 1.35;
-        color: var(--fg);
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      .dash-automation-meta {
-        font-size: 0.72rem;
-        color: var(--muted);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .dash-automation-actions {
-        display: flex;
-        flex-direction: row;
-        gap: 0.4rem;
-        flex: 0 0 auto;
-        padding: 0 0.65rem 0.65rem;
-      }
-      @media (min-width: 640px) {
-        .dash-automation-actions {
-          flex-direction: column;
-          justify-content: center;
-          padding: 0 0.65rem 0.65rem 0;
-          min-width: 7.5rem;
-        }
-      }
-      .dash-automation-btn {
-        flex: 1;
-        padding: 0.55rem 0.85rem;
-        border-radius: 10px;
-        border: 1px solid var(--panel-border);
-        font-size: 0.82rem;
-        font-weight: 600;
-        cursor: pointer;
-        font: inherit;
-        transition: border-color 0.15s, background 0.15s;
-      }
-      .dash-automation-btn-confirm {
-        background: #14b8a6;
-        color: #042f2e;
-        border-color: transparent;
-      }
-      .dash-automation-btn-confirm:hover:not(:disabled) { filter: brightness(1.05); }
-      .dash-automation-btn-reschedule {
-        background: var(--card);
-        color: var(--fg);
-      }
-      .dash-automation-btn-reschedule:hover:not(:disabled) {
-        background: var(--surface-hover);
-      }
-      .dash-automation-btn:disabled {
-        opacity: 0.65;
-        cursor: wait;
-      }
-      #home-dashboard button.dash-automation-btn {
-        border-radius: 10px;
-      }
-
-      #home-dashboard button.dash-automation-main {
-        border-radius: 10px;
       }
 
       .meeting-confirm-lead {
@@ -6160,6 +6008,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717b"></script>
   </body>
 </html>

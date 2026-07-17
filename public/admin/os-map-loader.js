@@ -1824,14 +1824,6 @@ function formatEmailWhen(iso) {
   }
 }
 
-function reviewNotificationIcon(type) {
-  if (type === 'project') return '📋';
-  if (type === 'meeting_followup') return '💬';
-  if (type === 'meeting_conflict') return '⚠️';
-  if (type === 'meeting_request') return '📅';
-  return '📅';
-}
-
 async function runReviewScheduleAction(item, action, btn) {
   const ev = emailState.allEvents.find((e) => e.id === item.emailId) || {
     id: item.emailId,
@@ -1845,9 +1837,10 @@ async function runReviewScheduleAction(item, action, btn) {
 
 async function dismissReviewNotification(item, btn) {
   if (!item?.emailId) return;
+  const prevLabel = btn?.textContent;
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Dismissing…';
+    if (prevLabel) btn.textContent = 'Dismissing…';
   }
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}`, {
@@ -1870,7 +1863,7 @@ async function dismissReviewNotification(item, btn) {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Dismiss';
+      if (prevLabel) btn.textContent = prevLabel;
     }
   }
 }
@@ -2057,156 +2050,127 @@ function rescheduleScheduledMeeting(item) {
   }
 }
 
-function buildAutomationNotificationsPanel(notifications) {
-  const panel = document.createElement('section');
-  panel.className = 'dash-panel dash-automation-panel dash-review-banners';
-  panel.innerHTML =
-    `<div class="dash-panel-head dash-review-banners-head">` +
-      `<div class="dash-automation-head-copy">` +
-        `<h2 class="dash-panel-title">Needs your attention</h2>` +
-        `<p class="dash-automation-sub">${notifications.length} item${notifications.length === 1 ? '' : 's'} to confirm or respond to</p>` +
-      `</div>` +
-    `</div>`;
+function reviewAlertVariant(type) {
+  if (type === 'meeting_conflict') return 'confirm';
+  if (type === 'project') return 'pwa';
+  return 'push';
+}
 
-  const list = document.createElement('ul');
-  list.className = 'dash-automation-list dash-review-banner-list';
+function appendReviewAlertAction(actions, { label, primary, onClick }) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `admin-setup-alert-btn${primary ? ' admin-setup-alert-btn--primary' : ''}`.trim();
+  btn.textContent = label;
+  btn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    onClick(btn);
+  });
+  actions.appendChild(btn);
+  return btn;
+}
 
-  for (const item of notifications) {
-    const li = document.createElement('li');
-    li.className =
-      'dash-automation-item dash-review-banner' +
-      (item.type === 'meeting_conflict' ? ' dash-review-banner--warn' : '');
+function openReviewNotificationTarget(item) {
+  if (item.type === 'project' && item.jobSlug) {
+    navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
+    return;
+  }
+  if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+}
 
-    const isProject = item.type === 'project';
-    const isMeetingFollowup = item.type === 'meeting_followup';
-    const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
-    const isAutoBookedMeeting = item.type === 'meeting';
+function buildReviewAlertBanner(item) {
+  const alert = document.createElement('div');
+  alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type)}`;
+  alert.setAttribute('role', 'status');
 
-    const main = document.createElement('button');
-    main.type = 'button';
-    main.className = 'dash-automation-main';
-    main.innerHTML =
-      `<span class="dash-automation-icon" aria-hidden="true">${reviewNotificationIcon(item.type)}</span>` +
-      `<span class="dash-automation-body">` +
-        `<span class="dash-automation-title">${escHtml(item.title)}</span>` +
-        `<span class="dash-automation-detail">${escHtml(item.detail)}</span>` +
-        `<span class="dash-automation-meta">${escHtml(formatEmailWhen(item.receivedAt))}</span>` +
-      `</span>`;
-    main.addEventListener('click', () => {
-      if (isProject && item.jobSlug) {
-        navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
-        return;
-      }
-      if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+  const copy = document.createElement('div');
+  copy.className = 'admin-setup-alert-copy';
+  const meta = formatEmailWhen(item.receivedAt);
+  copy.innerHTML =
+    `<strong>${escHtml(item.title)}</strong>` +
+    `<p>${escHtml(item.detail)}${meta ? ` · ${escHtml(meta)}` : ''}</p>`;
+  copy.addEventListener('click', () => openReviewNotificationTarget(item));
+
+  const actions = document.createElement('div');
+  actions.className = 'admin-setup-alert-actions';
+
+  const isProject = item.type === 'project';
+  const isMeetingFollowup = item.type === 'meeting_followup';
+  const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
+  const isAutoBookedMeeting = item.type === 'meeting';
+
+  if (isProject) {
+    appendReviewAlertAction(actions, {
+      label: 'View project',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
     });
-
-    const actions = document.createElement('div');
-    actions.className = 'dash-automation-actions';
-
-    if (isProject) {
-      const viewBtn = document.createElement('button');
-      viewBtn.type = 'button';
-      viewBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
-      viewBtn.textContent = 'View project';
-      viewBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (item.jobSlug) navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
-      });
-
-      const dismissBtn = document.createElement('button');
-      dismissBtn.type = 'button';
-      dismissBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
-      dismissBtn.textContent = 'Dismiss';
-      dismissBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        void dismissReviewNotification(item, dismissBtn);
-      });
-
-      actions.appendChild(viewBtn);
-      actions.appendChild(dismissBtn);
-    } else if (isMeetingFollowup) {
-      const viewBtn = document.createElement('button');
-      viewBtn.type = 'button';
-      viewBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
-      viewBtn.textContent = 'View email';
-      viewBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
-      });
-
-      const dismissBtn = document.createElement('button');
-      dismissBtn.type = 'button';
-      dismissBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
-      dismissBtn.textContent = 'Dismiss';
-      dismissBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        void dismissReviewNotification(item, dismissBtn);
-      });
-
-      actions.appendChild(viewBtn);
-      actions.appendChild(dismissBtn);
-    } else if (isMeetingRequest) {
-      const primaryBtn = document.createElement('button');
-      primaryBtn.type = 'button';
-      primaryBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
-      primaryBtn.textContent =
-        item.type === 'meeting_conflict' ? 'Notify conflict' : 'Accept & notify';
-      primaryBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
+  } else if (isMeetingFollowup) {
+    appendReviewAlertAction(actions, {
+      label: 'View email',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isMeetingRequest) {
+    appendReviewAlertAction(actions, {
+      label: item.type === 'meeting_conflict' ? 'Notify conflict' : 'Accept & notify',
+      primary: true,
+      onClick: (btn) =>
         void runReviewScheduleAction(
           item,
           item.type === 'meeting_conflict' ? 'notify-conflict' : 'accept-notify',
-          primaryBtn,
-        );
-      });
-
-      const altBtn = document.createElement('button');
-      altBtn.type = 'button';
-      altBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
-      altBtn.textContent = item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email';
-      altBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
+          btn,
+        ),
+    });
+    appendReviewAlertAction(actions, {
+      label: item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email',
+      onClick: () => {
         if (item.type === 'meeting_conflict' && item.emailId) {
           const inboxEv = emailState.allEvents.find((e) => e.id === item.emailId);
           if (inboxEv) openScheduleFromEmail(inboxEv);
           else setActiveMap('email', { force: true, emailId: item.emailId });
           return;
         }
-        if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
-      });
-
-      actions.appendChild(primaryBtn);
-      actions.appendChild(altBtn);
-    } else if (isAutoBookedMeeting) {
-      const confirmBtn = document.createElement('button');
-      confirmBtn.type = 'button';
-      confirmBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
-      confirmBtn.textContent = 'Confirm';
-      confirmBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        void confirmScheduledMeeting(item, confirmBtn);
-      });
-
-      const rescheduleBtn = document.createElement('button');
-      rescheduleBtn.type = 'button';
-      rescheduleBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
-      rescheduleBtn.textContent = 'Reschedule';
-      rescheduleBtn.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        rescheduleScheduledMeeting(item);
-      });
-
-      actions.appendChild(confirmBtn);
-      actions.appendChild(rescheduleBtn);
-    }
-
-    li.appendChild(main);
-    li.appendChild(actions);
-    list.appendChild(li);
+        openReviewNotificationTarget(item);
+      },
+    });
+  } else if (isAutoBookedMeeting) {
+    appendReviewAlertAction(actions, {
+      label: 'Confirm',
+      primary: true,
+      onClick: (btn) => void confirmScheduledMeeting(item, btn),
+    });
+    appendReviewAlertAction(actions, {
+      label: 'Reschedule',
+      onClick: () => rescheduleScheduledMeeting(item),
+    });
   }
 
-  panel.appendChild(list);
-  return panel;
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'admin-setup-alert-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss');
+  dismissBtn.innerHTML =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+  dismissBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    dismissBtn.disabled = true;
+    void dismissReviewNotification(item).finally(() => {
+      dismissBtn.disabled = false;
+    });
+  });
+  actions.appendChild(dismissBtn);
+
+  alert.append(copy, actions);
+  return alert;
+}
+
+function buildReviewAlertBanners(notifications) {
+  const wrap = document.createElement('div');
+  wrap.className = 'dash-review-alerts';
+  for (const item of notifications) {
+    wrap.appendChild(buildReviewAlertBanner(item));
+  }
+  return wrap;
 }
 
 function renderHomeDashboard(data) {
@@ -2225,7 +2189,7 @@ function renderHomeDashboard(data) {
     : [];
 
   if (automationNotifications.length) {
-    scroll.appendChild(buildAutomationNotificationsPanel(automationNotifications));
+    scroll.appendChild(buildReviewAlertBanners(automationNotifications));
   }
 
   const statsEl = document.createElement('div');
