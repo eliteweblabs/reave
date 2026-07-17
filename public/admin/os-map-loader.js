@@ -1945,7 +1945,7 @@ function renderHomeDashboard(data) {
   scroll.appendChild(statsEl);
 
   const eventsPanel = document.createElement('section');
-  eventsPanel.className = 'dash-panel';
+  eventsPanel.className = 'dash-panel dash-panel-today' + (events.length ? '' : ' dash-panel-today--empty');
   eventsPanel.innerHTML =
     `<div class="dash-panel-head">` +
       `<h2 class="dash-panel-title">Today</h2>` +
@@ -1956,6 +1956,8 @@ function renderHomeDashboard(data) {
   eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
     openScheduleTab();
   });
+  const eventsBody = document.createElement('div');
+  eventsBody.className = 'dash-panel-body';
   const eventsList = document.createElement('ul');
   eventsList.className = 'dash-events';
   if (!events.length) {
@@ -1964,14 +1966,14 @@ function renderHomeDashboard(data) {
     empty.textContent = scheduleLive
       ? 'Nothing scheduled today.'
       : 'Enable scheduling and BOOKING_API_URL to show Cal.com events here.';
-    eventsPanel.appendChild(empty);
+    eventsBody.appendChild(empty);
     if (scheduleLive) {
       const link = document.createElement('button');
       link.type = 'button';
       link.className = 'dash-panel-link dash-empty-link';
       link.textContent = 'Open full schedule';
       link.addEventListener('click', () => openScheduleTab());
-      eventsPanel.appendChild(link);
+      eventsBody.appendChild(link);
     }
   } else {
     for (const ev of events) {
@@ -2002,8 +2004,9 @@ function renderHomeDashboard(data) {
       }
       eventsList.appendChild(li);
     }
-    eventsPanel.appendChild(eventsList);
+    eventsBody.appendChild(eventsList);
   }
+  eventsPanel.appendChild(eventsBody);
   scroll.appendChild(eventsPanel);
 
   if (uptimeConfigured || uptimeSummary) {
