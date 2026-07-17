@@ -5471,23 +5471,41 @@ function renderTodoEditPane(pane, isNew) {
   });
 }
 
+async function ensureTodoJobsLoaded() {
+  if (todoState.jobs.length) return;
+  try {
+    const res = await fetch('/api/work', { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok) todoState.jobs = data.jobs || [];
+  } catch {
+    /* non-fatal */
+  }
+}
+
 function mountTodoProjectPicker(parent, draft, markDirty) {
+  let changing = !draft.job_slug?.trim();
+
   const wrap = document.createElement('div');
-  wrap.className = 'de-label';
-  wrap.textContent = 'Project';
+  wrap.className = 'wk-client-picker td-project-picker';
 
-  const row = document.createElement('div');
-  row.className = 'td-project-link';
+  const fieldLabel = document.createElement('span');
+  fieldLabel.className = 'de-label';
+  fieldLabel.textContent = 'Project';
+  wrap.appendChild(fieldLabel);
 
-  const label = document.createElement('span');
+  const selectedEl = document.createElement('div');
+  selectedEl.className = 'wk-client-selected';
+  const selectedName = document.createElement('span');
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'de-btn de-btn-ghost';
   changeBtn.textContent = 'Change';
+  selectedEl.appendChild(selectedName);
+  selectedEl.appendChild(changeBtn);
+  wrap.appendChild(selectedEl);
 
   const searchWrap = document.createElement('div');
   searchWrap.className = 'wk-client-search-wrap';
-  searchWrap.style.display = 'none';
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
@@ -5498,72 +5516,96 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   dropdown.style.display = 'none';
   searchWrap.appendChild(searchInput);
   searchWrap.appendChild(dropdown);
+  wrap.appendChild(searchWrap);
 
-  function renderSelected() {
-    const slug = draft.job_slug?.trim();
-    label.textContent = slug ? todoJobTitle(slug) : 'No project linked';
-    changeBtn.textContent = slug ? 'Change' : 'Link project';
+  function syncView() {
+    const has = !!draft.job_slug?.trim();
+    selectedEl.style.display = has && !changing ? 'flex' : 'none';
+    searchWrap.style.display = changing || !has ? 'block' : 'none';
+    if (has) selectedName.textContent = todoJobTitle(draft.job_slug);
   }
 
-  function showSearch(show) {
-    row.style.display = show ? 'none' : '';
-    searchWrap.style.display = show ? '' : 'none';
-    if (show) {
-      searchInput.value = '';
-      dropdown.innerHTML = '';
-      dropdown.style.display = 'none';
-      searchInput.focus();
-    }
-  }
-
-  function pickJob(job) {
-    draft.job_slug = job?.slug || '';
-    renderSelected();
-    showSearch(false);
-    markDirty();
-    void refreshTodoLinkedJob(draft.job_slug).then(() => renderTodoEditor());
-  }
-
-  changeBtn.addEventListener('click', () => showSearch(true));
-
-  searchInput.addEventListener('input', () => {
-    const q = searchInput.value.trim().toLowerCase();
+  function renderDropdown(matches, query) {
     dropdown.innerHTML = '';
-    if (!q) {
-      dropdown.style.display = 'none';
-      return;
-    }
-    const matches = todoState.jobs
-      .filter((job) =>
-        matchesListSearch(q, job.title, job.slug, job.contact_name, job.client, job.status),
-      )
-      .slice(0, 8);
-    if (matches.length === 0) {
-      dropdown.style.display = 'none';
-      return;
-    }
     for (const job of matches) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'wk-client-option';
-      btn.textContent = `${job.title || job.slug} · ${job.contact_name || job.client || '—'}`;
+      btn.innerHTML =
+        `${escHtml(job.title || job.slug)}` +
+        `<span class="sub">${escHtml(job.contact_name || job.client || '—')}</span>`;
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
       btn.addEventListener('click', () => pickJob(job));
       dropdown.appendChild(btn);
     }
-    const clearBtn = document.createElement('button');
-    clearBtn.type = 'button';
-    clearBtn.className = 'wk-client-option wk-client-option--muted';
-    clearBtn.textContent = 'Remove project link';
-    clearBtn.addEventListener('click', () => pickJob(null));
-    dropdown.appendChild(clearBtn);
-    dropdown.style.display = '';
+    if (query.length >= 1) {
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'wk-client-option wk-client-add';
+      clearBtn.textContent = 'Remove project link';
+      clearBtn.addEventListener('mousedown', (e) => e.preventDefault());
+      clearBtn.addEventListener('click', () => pickJob(null));
+      dropdown.appendChild(clearBtn);
+    }
+    dropdown.style.display = matches.length || query.length >= 1 ? 'block' : 'none';
+  }
+
+  function filterJobs(query) {
+    const q = query.trim().toLowerCase();
+    if (q.length < 1) return null;
+    return todoState.jobs
+      .filter((job) =>
+        matchesListSearch(q, job.title, job.slug, job.contact_name, job.client, job.status),
+      )
+      .slice(0, 8);
+  }
+
+  async function scheduleSearch() {
+    const q = searchInput.value.trim();
+    if (q.length < 1) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    await ensureTodoJobsLoaded();
+    const matches = filterJobs(q) || [];
+    renderDropdown(matches, q);
+  }
+
+  function pickJob(job) {
+    draft.job_slug = job?.slug || '';
+    changing = !draft.job_slug;
+    searchInput.value = '';
+    dropdown.style.display = 'none';
+    syncView();
+    markDirty();
+    void refreshTodoLinkedJob(draft.job_slug).then(() => renderTodoEditor());
+  }
+
+  changeBtn.addEventListener('click', () => {
+    changing = true;
+    syncView();
+    searchInput.focus();
+    void scheduleSearch();
   });
 
-  row.appendChild(label);
-  row.appendChild(changeBtn);
-  wrap.appendChild(row);
-  wrap.appendChild(searchWrap);
-  renderSelected();
+  searchInput.addEventListener('input', () => {
+    void scheduleSearch();
+  });
+  searchInput.addEventListener('focus', () => {
+    void scheduleSearch();
+  });
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!wrap.contains(document.activeElement) && draft.job_slug?.trim()) {
+        changing = false;
+        searchInput.value = '';
+        dropdown.style.display = 'none';
+        syncView();
+      }
+    }, 150);
+  });
+
+  syncView();
   parent.appendChild(wrap);
 }
 
