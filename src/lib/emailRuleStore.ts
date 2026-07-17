@@ -20,6 +20,8 @@ export interface EmailRuleRecord extends EmailRule {
 
 export interface EmailRulesConfig {
   notifyOnUnmatched: boolean;
+  /** ISO timestamp — ignore inbound mail sent before this (see inboundEmailSince.ts). */
+  inboundSince?: string | null;
   rules: EmailRuleRecord[];
 }
 
@@ -31,6 +33,7 @@ CREATE TABLE IF NOT EXISTS email_triage_config (
 );
 INSERT INTO email_triage_config (id, notify_on_unmatched) VALUES (1, true)
   ON CONFLICT (id) DO NOTHING;
+ALTER TABLE email_triage_config ADD COLUMN IF NOT EXISTS inbound_since TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS email_rules (
   id          UUID PRIMARY KEY,
@@ -170,6 +173,10 @@ function parseConfig(raw: string): EmailRulesConfig | null {
     if (!data || !Array.isArray(data.rules)) return null;
     return {
       notifyOnUnmatched: data.notifyOnUnmatched ?? NOTIFY_ON_UNMATCHED,
+      inboundSince:
+        data.inboundSince === null || data.inboundSince === undefined
+          ? null
+          : String(data.inboundSince),
       rules: data.rules.map((r, i) => ({
         id: String(r.id || randomUUID()),
         title: String(r.title || r.status || 'Rule'),
@@ -228,10 +235,14 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
     const pool = await ensureSchema();
     if (!pool) return null;
 
-    const cfgRes = await pool.query<{ notify_on_unmatched: boolean }>(
-      `SELECT notify_on_unmatched FROM email_triage_config WHERE id = 1`
+    const cfgRes = await pool.query<{ notify_on_unmatched: boolean; inbound_since: Date | string | null }>(
+      `SELECT notify_on_unmatched, inbound_since FROM email_triage_config WHERE id = 1`
     );
     const notifyOnUnmatched = cfgRes.rows[0]?.notify_on_unmatched ?? NOTIFY_ON_UNMATCHED;
+    const inboundSinceRaw = cfgRes.rows[0]?.inbound_since;
+    const inboundSince = inboundSinceRaw
+      ? new Date(inboundSinceRaw).toISOString()
+      : null;
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled
@@ -246,6 +257,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     return {
       notifyOnUnmatched,
+      inboundSince,
       rules: rows.map(rowToRecord),
     };
   } catch (e) {
@@ -421,5 +433,39 @@ export async function storeDeleteEmailRule(id: string): Promise<boolean> {
 export async function storeSetNotifyOnUnmatched(notify: boolean): Promise<boolean> {
   const config = await loadEmailRulesConfig();
   config.notifyOnUnmatched = notify;
+  return persistConfig(config);
+}
+
+export async function storeGetInboundSince(): Promise<string | null> {
+  const config = await loadEmailRulesConfig();
+  return config.inboundSince ?? null;
+}
+
+export async function storeSetInboundSince(iso: string): Promise<boolean> {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return false;
+
+  if (emailRulesStorageBackend() === 'postgres') {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return false;
+      await pool.query(
+        `INSERT INTO email_triage_config (id, notify_on_unmatched, inbound_since, updated_at)
+         VALUES (1, true, $1, now())
+         ON CONFLICT (id) DO UPDATE SET
+           inbound_since = COALESCE(email_triage_config.inbound_since, EXCLUDED.inbound_since),
+           updated_at = now()`,
+        [parsed.toISOString()]
+      );
+      return true;
+    } catch (e) {
+      console.error('[email-rules] pg set inbound_since failed', e);
+      return false;
+    }
+  }
+
+  const config = await loadEmailRulesConfig();
+  if (config.inboundSince) return true;
+  config.inboundSince = parsed.toISOString();
   return persistConfig(config);
 }

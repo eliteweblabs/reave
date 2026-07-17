@@ -1,8 +1,10 @@
 import { processInboundEmail } from './emailProcessor';
+import { parseEmailDate } from './emailDate';
+import { ensureInboundSince, isInboundEmailAllowed } from './inboundEmailSince';
 
 export interface InboundEmailResult {
   ok: boolean;
-  /** filed | junk | review | alert | rejected | classified | matched */
+  /** filed | junk | review | alert | rejected | classified | matched | ignored */
   action: string;
   status: string;
   from: string;
@@ -10,7 +12,7 @@ export interface InboundEmailResult {
 
 /**
  * Run an inbound email through the triage pipeline:
- * allowlist → AI summarize/classify → job routing → inbox log → push.
+ * cutoff date → allowlist → AI summarize/classify → job routing → inbox log → push.
  */
 export async function handleInboundEmail(email: {
   from?: string;
@@ -25,9 +27,21 @@ export async function handleInboundEmail(email: {
   messageId?: string;
   resendEmailId?: string;
 }): Promise<InboundEmailResult> {
-  const { isAllowedSender } = await import('./inboundEmailAllowlist');
   const from = email.from ?? '';
 
+  const since = await ensureInboundSince();
+  const emailDate = parseEmailDate(email.headers) ?? new Date();
+  if (!isInboundEmailAllowed(emailDate, since)) {
+    console.info('[email] skipped pre-cutoff message', {
+      from,
+      subject: email.subject ?? '',
+      emailDate: emailDate.toISOString(),
+      inboundSince: since?.toISOString(),
+    });
+    return { ok: true, action: 'ignored', status: 'IGNORED', from };
+  }
+
+  const { isAllowedSender } = await import('./inboundEmailAllowlist');
   if (!isAllowedSender(from)) {
     const { storeRecordEmailInbox } = await import('./emailInboxStore');
     await storeRecordEmailInbox({

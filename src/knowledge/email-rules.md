@@ -15,6 +15,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 ```
 
 - **Ingest:** Resend webhook at `/api/email/inbound` (copy mail here; keep reading in Proton).
+- **Cutoff:** Mail whose `Date` header is before go-live is dropped (not triaged, not stored). Cutoff auto-sets to the first webhook time; override with `EMAIL_INBOUND_SINCE`.
 - **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`).
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
@@ -39,6 +40,8 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `RESEND_API_KEY` / `RESEND_WEBHOOK_SECRET` | Resend receiving + webhook verify |
 | `ANTHROPIC_API_KEY` | Summarize + classify + pick job |
 | `EMAIL_AI_ENABLED` | Set `0` to disable AI (rules-only) |
+| `EMAIL_INBOUND_SINCE` | Optional ISO date — ignore mail sent before this (overrides DB cutoff) |
+| `EMAIL_INBOUND_FILTER` | Set `0` to disable the send-date cutoff (process all forwarded mail) |
 | `CONTACT_API_BASE_URL` | Resolve sender → client |
 | `DATABASE_URL` | Inbox log + jobs + push subscriptions |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web Push (generate: `npx web-push generate-vapid-keys`) |
