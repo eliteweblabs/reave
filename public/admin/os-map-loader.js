@@ -3362,7 +3362,7 @@ function footerNavShowsCreate(nav) {
     return activeKey === 'schedule' && activeNav === 'schedule' && !scheduleState.activeUid;
   }
   if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
-  if (nav === 'todo') return activeKey === 'todo' && activeNav === 'todo' && !todoState.activeId;
+  if (nav === 'todo') return activeKey === 'todo' && activeNav === 'todo';
   if (nav === 'clients') return activeKey === 'clients' && activeNav === 'clients' && !clientState.activeUid;
   return false;
 }
@@ -5084,6 +5084,12 @@ function todoPriorityDotClass(priority) {
   return 'td-priority-dot';
 }
 
+function todoSearchPlaceholder() {
+  const count = todoState.todos.filter((t) => t.status === todoState.filter).length;
+  const label = count === 1 ? 'To Do Item' : 'To Do Items';
+  return `Search ${count} ${label}`;
+}
+
 function filterTodoItems(todos) {
   const q = todoState.search.trim().toLowerCase();
   return todos.filter((todo) => {
@@ -5217,8 +5223,7 @@ function refreshTodoSidebarList() {
   }
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
-    const openCount = todoState.todos.filter((t) => t.status === 'open').length;
-    searchInput.placeholder = `Search ${openCount} open`;
+    searchInput.placeholder = todoSearchPlaceholder();
   }
   fillTodoSidebarList(list);
 }
@@ -5238,7 +5243,7 @@ function renderTodoEditor() {
     itemCount: openCount,
     search: {
       value: search,
-      placeholder: `Search ${openCount} open`,
+      placeholder: todoSearchPlaceholder(),
       onInput: (value) => {
         todoState.search = value;
         refreshTodoSidebarList();
