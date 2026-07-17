@@ -106,7 +106,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         --list-row-even: #ffffff;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --topbar-h: calc(4rem + var(--safe-top));
+        --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
         --footer-nav-pill-h: var(--control-h);
         --footer-nav-bottom-gap: 0px;
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
@@ -2570,6 +2570,13 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       }
       .ch-pane-header--nav-only {
         border-bottom: 1px solid var(--panel-border);
+      }
+      /* Desktop split view — chat pane subheader aligns with sidebar search row */
+      @media (min-width: 640px) {
+        body.admin-split-view #chat-panel .ch-pane-header {
+          padding-top: 0.35rem;
+          padding-bottom: 0.5rem;
+        }
       }
       .ch-messages {
         flex: 1;
