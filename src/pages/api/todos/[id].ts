@@ -62,6 +62,10 @@ export async function PATCH(context: APIContext): Promise<Response> {
     due_date?: string | null;
     priority?: ReturnType<typeof normalizeTodoPriority>;
     status?: ReturnType<typeof normalizeTodoStatus>;
+    job_slug?: string | null;
+    assignee?: string | null;
+    section?: string | null;
+    sort_order?: number;
   } = {};
 
   if (body.title != null) patch.title = String(body.title).trim();
@@ -80,6 +84,26 @@ export async function PATCH(context: APIContext): Promise<Response> {
     const status = normalizeTodoStatus(body.status);
     if (!status) return json({ ok: false, error: 'Invalid status' }, 400);
     patch.status = status;
+  }
+
+  if (body.job_slug !== undefined) {
+    patch.job_slug =
+      body.job_slug == null || body.job_slug === '' ? null : String(body.job_slug).trim();
+  }
+  if (body.assignee !== undefined) {
+    patch.assignee =
+      body.assignee == null || body.assignee === '' ? null : String(body.assignee).trim();
+  }
+  if (body.section !== undefined) {
+    patch.section =
+      body.section == null || body.section === '' ? null : String(body.section).trim();
+  }
+  if (body.sort_order != null) {
+    const sortOrder = Number(body.sort_order);
+    if (!Number.isInteger(sortOrder) || sortOrder < 0) {
+      return json({ ok: false, error: 'Invalid sort_order' }, 400);
+    }
+    patch.sort_order = sortOrder;
   }
 
   const result = await storeUpdateTodo(id, patch);

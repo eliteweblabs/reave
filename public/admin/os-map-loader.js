@@ -42,6 +42,7 @@ import {
   createIosIconBtn,
   createCenteredListEmpty,
   listSearchSubheader,
+  listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
   matchesListSearch,
@@ -463,10 +464,11 @@ function activateMapPanel(opts = {}) {
     loadEmailTab();
   } else if (MAP.type === 'rules') {
     loadRulesTab();
+  } else if (MAP.type === 'todo') {
+    loadTodoTab();
   } else {
     buildMap();
     finishMapLayout();
-    if (MAP.type === 'todo') loadAndBuildTodoNodes();
   }
 }
 
@@ -481,7 +483,8 @@ function isPanelTab() {
     MAP.type === 'clients' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
-    MAP.type === 'rules'
+    MAP.type === 'rules' ||
+    MAP.type === 'todo'
   );
 }
 
@@ -505,6 +508,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
+  setPanelDisplay('todo-editor', MAP.type === 'todo' ? 'flex' : 'none');
 }
 
 // ---- health polling ----
@@ -3539,7 +3543,7 @@ async function triggerFooterSave() {
 }
 
 const FOOTER_PANEL_SELECTOR =
-  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #search-overlay';
+  '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #search-overlay';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -4912,121 +4916,763 @@ async function startNewRule() {
   }
 }
 
-// ---- todo tab (node/canvas approach) ----
+// ---- todo tab ----
 
-/**
- * Fetch /api/todo, convert sections → MAP nodes + groups, rebuild the canvas.
- * Each file = one group. Each checkbox item = one draggable node.
- * Click the chip icon to toggle done/undone. Drag to reprioritize.
- * Positions are persisted to localStorage like every other map tab.
- */
-async function loadAndBuildTodoNodes() {
-  let sections;
+const TODO_PRIORITY_LABELS = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+};
+
+const TODO_STATUS_LABELS = {
+  open: 'Open',
+  done: 'Done',
+};
+
+let todoState = {
+  todos: [],
+  jobs: [],
+  priorities: ['low', 'normal', 'high', 'urgent'],
+  statuses: ['open', 'done'],
+  search: '',
+  filter: 'open',
+  activeId: null,
+  dirty: false,
+  draft: null,
+  linkedJob: null,
+};
+
+let todoSaveTimer = null;
+
+function getTodoEditor() {
+  return document.getElementById('todo-editor');
+}
+
+function todoJobTitle(slug) {
+  if (!slug) return '';
+  const job = todoState.jobs.find((j) => j.slug === slug);
+  return job?.title || slug;
+}
+
+function todoSubline(todo) {
+  const bits = [];
+  if (todo.section) bits.push(todo.section);
+  if (todo.job_slug) bits.push(todoJobTitle(todo.job_slug));
+  if (todo.assignee) bits.push(todo.assignee);
+  if (todo.due_date) bits.push(`Due ${todo.due_date}`);
+  if (todo.priority && todo.priority !== 'normal') {
+    bits.push(TODO_PRIORITY_LABELS[todo.priority] || todo.priority);
+  }
+  return bits.join(' · ');
+}
+
+function todoPriorityDotClass(priority) {
+  if (priority === 'urgent' || priority === 'high' || priority === 'low') {
+    return `td-priority-dot td-priority-dot--${priority}`;
+  }
+  return 'td-priority-dot';
+}
+
+function filterTodoItems(todos) {
+  const q = todoState.search.trim().toLowerCase();
+  return todos.filter((todo) => {
+    if (todo.status !== todoState.filter) return false;
+    if (!q) return true;
+    return matchesListSearch(
+      q,
+      todo.title,
+      todo.section,
+      todo.assignee,
+      todo.job_slug ? todoJobTitle(todo.job_slug) : '',
+      todoSubline(todo),
+    );
+  });
+}
+
+async function loadTodoTab() {
+  const root = getTodoEditor();
+  if (!root) return;
+  root.innerHTML = '<div class="de-loading">Loading to‑dos…</div>';
   try {
-    const res = await fetch('/api/todo', { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    sections = await res.json();
+    const [todoRes, workRes] = await Promise.all([
+      fetch('/api/todos', { cache: 'no-store' }),
+      fetch('/api/work', { cache: 'no-store' }),
+    ]);
+    const todoData = await todoRes.json();
+    const workData = await workRes.json();
+    if (!todoRes.ok) throw new Error(todoData.error || `HTTP ${todoRes.status}`);
+    todoState.todos = todoData.todos || [];
+    todoState.priorities = todoData.priorities || todoState.priorities;
+    todoState.statuses = todoData.statuses || todoState.statuses;
+    todoState.jobs = workRes.ok ? workData.jobs || [] : [];
   } catch (e) {
-    console.error('[todo] fetch failed:', e);
+    root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-
-  const nodes = [];
-  const groups = [];
-  const COL_W = 280;
-  const ROW_H = 132;
-  const MARGIN = 60;
-
-  let colX = MARGIN;
-  for (const section of sections) {
-    const memberIds = [];
-    // Unchecked first, then checked (ghost) at bottom
-    const ordered = [
-      ...section.items.filter((i) => !i.checked),
-      ...section.items.filter((i) => i.checked),
-    ];
-
-    let rowY = MARGIN;
-    for (const item of ordered) {
-      const id = `td_${section.slug}_${item.lineIndex}`;
-      memberIds.push(id);
-      const label = item.text.length > 44 ? item.text.slice(0, 43) + '…' : item.text;
-      nodes.push({
-        id,
-        title: label,
-        sub: section.title,
-        icon: item.checked ? '✅' : '☐', // legacy data field; chipHtml uses _checked
-        hue: item.checked ? 115 : 220,
-        ghost: item.checked,
-        x: colX,
-        y: rowY,
-        // private: not part of MAP schema, used by toggle handler below
-        _slug: section.slug,
-        _lineIndex: item.lineIndex,
-        _checked: item.checked,
-        _fullText: item.text,
-      });
-      rowY += ROW_H;
-    }
-
-    if (memberIds.length > 0) {
-      groups.push({
-        id: `grp_${section.slug}`,
-        title: section.title,
-        hue: 220,
-        members: memberIds,
-      });
-    }
-    colX += COL_W;
+  if (todoState.activeId && !todoState.todos.some((t) => t.id === todoState.activeId)) {
+    todoState.activeId = null;
+    todoState.draft = null;
+    todoState.linkedJob = null;
+    getTodoEditor()?.classList.remove('de-pane-active');
   }
+  renderTodoEditor();
+}
 
-  // Swap MAP content in-place so the existing position store key ('todo') still applies.
-  MAP.nodes = nodes;
-  MAP.groups = groups;
-  MAP.edges = [];
+function startNewTodo() {
+  todoState.activeId = '__new__';
+  todoState.dirty = false;
+  todoState.linkedJob = null;
+  todoState.draft = {
+    title: '',
+    priority: 'normal',
+    status: 'open',
+    due_date: '',
+    job_slug: '',
+    assignee: '',
+    section: '',
+  };
+  getTodoEditor()?.classList.add('de-pane-active');
+  renderTodoEditor();
+}
 
-  buildMap();
-  finishMapLayout();
-  buildLegend();
+function fillTodoSidebarList(list) {
+  const visible = filterTodoItems(todoState.todos);
+  list.innerHTML = '';
+  for (const todo of visible) {
+    list.appendChild(createTodoSwipeRow(todo));
+  }
+  if (visible.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = todoState.search.trim()
+      ? 'No matches.'
+      : todoState.filter === 'done'
+        ? 'No completed to‑dos yet.'
+        : 'No open to‑dos yet.';
+    list.appendChild(empty);
+  } else if (todoState.filter === 'open') {
+    attachTodoListReorder(list, visible.map((t) => t.id));
+  }
+}
 
-  // Wire up click-to-toggle on each node's chip after the DOM is built.
-  for (const n of nodes) {
-    const el = nodeEls.get(n.id);
-    if (!el) continue;
-    if (n._fullText && n._fullText !== n.title) el.title = n._fullText;
-    el.classList.toggle('todo-done', n._checked);
-    const chip = el.querySelector('.chip');
-    if (!chip) continue;
-    chip.style.cursor = 'pointer';
-    chip.title = n._checked ? 'Mark as undone' : 'Mark as done';
-    // Prevent drag start when clicking the chip.
-    chip.addEventListener('pointerdown', (e) => e.stopPropagation());
-    chip.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const newChecked = !n._checked;
-      // Optimistic DOM update
-      n._checked = newChecked;
-      chip.innerHTML = todoChipHtml(newChecked);
-      chip.title = newChecked ? 'Mark as undone' : 'Mark as done';
-      el.classList.toggle('ghost', newChecked);
-      el.classList.toggle('todo-done', newChecked);
-      el.style.setProperty('--h', newChecked ? 115 : 220);
-      // Persist to file
-      fetch('/api/todo/toggle', {
+function refreshTodoSidebarList() {
+  const root = getTodoEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderTodoEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput) {
+    const openCount = todoState.todos.filter((t) => t.status === 'open').length;
+    searchInput.placeholder = `Search ${openCount} open`;
+  }
+  fillTodoSidebarList(list);
+}
+
+function renderTodoEditor() {
+  const root = getTodoEditor();
+  if (!root) return;
+  const { todos, activeId, search, filter } = todoState;
+  root.innerHTML = '';
+
+  const sidebar = document.createElement('div');
+  sidebar.className = 'ch-sidebar';
+
+  const openCount = todos.filter((t) => t.status === 'open').length;
+  const doneCount = todos.filter((t) => t.status === 'done').length;
+  const subheader = listSearchAddNew({
+    itemCount: openCount,
+    search: {
+      value: search,
+      placeholder: `Search ${openCount} open`,
+      onInput: (value) => {
+        todoState.search = value;
+        refreshTodoSidebarList();
+      },
+    },
+    addNew: {
+      label: 'New to‑do',
+      onClick: () => startNewTodo(),
+    },
+  });
+  if (subheader) sidebar.appendChild(subheader.el);
+
+  const filterTabs = document.createElement('div');
+  filterTabs.className = 'td-filter-tabs';
+  for (const tab of [
+    { key: 'open', label: `Open (${openCount})` },
+    { key: 'done', label: `Done (${doneCount})` },
+  ]) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'td-filter-tab' + (filter === tab.key ? ' active' : '');
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => {
+      if (todoState.filter === tab.key) return;
+      todoState.filter = tab.key;
+      renderTodoEditor();
+    });
+    filterTabs.appendChild(btn);
+  }
+  sidebar.appendChild(filterTabs);
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
+  fillTodoSidebarList(list);
+  sidebar.appendChild(list);
+  root.appendChild(sidebar);
+
+  const pane = document.createElement('div');
+  pane.className = 'de-pane';
+  if (activeId === '__new__') {
+    renderTodoEditPane(pane, true);
+  } else if (activeId) {
+    renderTodoEditPane(pane, false);
+  } else {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'de-placeholder';
+    placeholder.innerHTML = placeholderHtml('check-square', '<p>Select a to‑do, or create a new one.</p>');
+    pane.appendChild(placeholder);
+  }
+  root.appendChild(pane);
+}
+
+function createTodoListItem(todo) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className =
+    'ch-list-item' +
+    (todo.id === todoState.activeId ? ' active' : '') +
+    (todo.status === 'done' ? ' ch-list-item--done' : '');
+  item.dataset.id = String(todo.id);
+  const grip =
+    todo.status === 'open'
+      ? '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'
+      : '';
+  item.innerHTML =
+    `<span class="td-list-row">${grip}` +
+    `<span class="${todoPriorityDotClass(todo.priority)}" aria-hidden="true"></span>` +
+    `<span class="td-list-body">` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(todo.title)}</span></span>` +
+    `<span class="de-item-slug">${escHtml(todoSubline(todo) || 'No project')}</span>` +
+    `</span></span>`;
+  item.addEventListener('click', () => openTodo(todo.id));
+  return item;
+}
+
+function createTodoSwipeRow(todo) {
+  const actions =
+    todo.status === 'open'
+      ? [
+          swipeArchiveAction({
+            label: 'Done',
+            onClick: () => markTodoDone(todo.id),
+          }),
+          swipeDeleteAction({ onClick: () => deleteTodo(todo.id) }),
+        ]
+      : [
+          swipeArchiveAction({
+            label: 'Reopen',
+            onClick: () => reopenTodo(todo.id),
+          }),
+          swipeDeleteAction({ onClick: () => deleteTodo(todo.id) }),
+        ];
+  return createSwipeRow(createTodoListItem(todo), actions);
+}
+
+async function openTodo(id) {
+  await flushTodoAutosave();
+  if (todoState.dirty && todoState.activeId && todoState.activeId !== id) {
+    if (!(await confirmDiscardChanges())) return;
+  }
+  const todo = todoState.todos.find((t) => t.id === id);
+  if (!todo) return;
+  todoState.activeId = id;
+  todoState.dirty = false;
+  todoState.draft = {
+    title: todo.title,
+    priority: todo.priority,
+    status: todo.status,
+    due_date: todo.due_date || '',
+    job_slug: todo.job_slug || '',
+    assignee: todo.assignee || '',
+    section: todo.section || '',
+  };
+  todoState.linkedJob = null;
+  if (todo.job_slug) {
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(todo.job_slug)}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok) todoState.linkedJob = data;
+    } catch {
+      todoState.linkedJob = null;
+    }
+  }
+  getTodoEditor()?.classList.add('de-pane-active');
+  renderTodoEditor();
+}
+
+async function closeTodoEditor(checkDirty = true) {
+  await flushTodoAutosave();
+  if (checkDirty && todoState.dirty && !(await confirmDiscardChanges())) return;
+  todoState.activeId = null;
+  todoState.draft = null;
+  todoState.linkedJob = null;
+  todoState.dirty = false;
+  getTodoEditor()?.classList.remove('de-pane-active');
+  renderTodoEditor();
+}
+
+function scheduleTodoAutosave(saveFn) {
+  if (todoSaveTimer) clearTimeout(todoSaveTimer);
+  todoSaveTimer = setTimeout(() => {
+    todoSaveTimer = null;
+    void saveFn();
+  }, 450);
+}
+
+async function flushTodoAutosave() {
+  if (todoSaveTimer) {
+    clearTimeout(todoSaveTimer);
+    todoSaveTimer = null;
+    await saveActiveTodoDraft(true);
+  }
+}
+
+async function saveActiveTodoDraft(silent = false) {
+  if (!todoState.draft) return true;
+  const isNew = todoState.activeId === '__new__';
+  const payload = {
+    title: todoState.draft.title.trim(),
+    priority: todoState.draft.priority || 'normal',
+    status: todoState.draft.status || 'open',
+    due_date: todoState.draft.due_date?.trim() || null,
+    job_slug: todoState.draft.job_slug?.trim() || null,
+    assignee: todoState.draft.assignee?.trim() || null,
+    section: todoState.draft.section?.trim() || null,
+  };
+  if (!payload.title) return false;
+
+  try {
+    if (isNew) {
+      const res = await fetch('/api/todos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug: n._slug, lineIndex: n._lineIndex, checked: newChecked }),
-      }).catch((err) => {
-        // Revert on network error
-        n._checked = !newChecked;
-        chip.innerHTML = todoChipHtml(!newChecked);
-        chip.title = !newChecked ? 'Mark as undone' : 'Mark as done';
-        el.classList.toggle('ghost', !newChecked);
-        el.classList.toggle('todo-done', !newChecked);
-        el.style.setProperty('--h', !newChecked ? 115 : 220);
-        console.error('[todo] toggle error:', err);
+        body: JSON.stringify(payload),
       });
+      const data = await readApiJson(res);
+      todoState.todos.unshift(data);
+      todoState.activeId = data.id;
+      todoState.dirty = false;
+      todoState.draft = {
+        title: data.title,
+        priority: data.priority,
+        status: data.status,
+        due_date: data.due_date || '',
+        job_slug: data.job_slug || '',
+        assignee: data.assignee || '',
+        section: data.section || '',
+      };
+      if (data.job_slug) await refreshTodoLinkedJob(data.job_slug);
+    } else {
+      const res = await fetch(`/api/todos/${todoState.activeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await readApiJson(res);
+      const idx = todoState.todos.findIndex((t) => t.id === data.id);
+      if (idx !== -1) todoState.todos[idx] = data;
+      todoState.dirty = false;
+      if (payload.job_slug !== (todoState.linkedJob?.slug || null)) {
+        await refreshTodoLinkedJob(payload.job_slug);
+      }
+    }
+    refreshTodoSidebarList();
+    return true;
+  } catch (e) {
+    if (!silent) osAlert({ title: 'Save failed', bodyHtml: escHtml(e.message) });
+    return false;
+  }
+}
+
+async function refreshTodoLinkedJob(slug) {
+  if (!slug) {
+    todoState.linkedJob = null;
+    return;
+  }
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+    const data = await res.json();
+    todoState.linkedJob = res.ok ? data : null;
+  } catch {
+    todoState.linkedJob = null;
+  }
+}
+
+function renderTodoEditPane(pane, isNew) {
+  const draft = todoState.draft;
+  if (!draft) return;
+
+  const header = document.createElement('div');
+  header.className = 'de-header';
+  header.appendChild(createPanelBackBtn({
+    label: 'Back to to‑dos',
+    onClick: () => closeTodoEditor(),
+  }));
+
+  const titleInput = document.createElement('input');
+  titleInput.className = 'de-doc-name de-header-title-input';
+  titleInput.value = draft.title;
+  titleInput.placeholder = 'To‑do title';
+  titleInput.setAttribute('aria-label', 'To‑do title');
+  header.appendChild(titleInput);
+
+  const linkTrackEl = document.createElement('div');
+  linkTrackEl.className = 'wk-link-track';
+  linkTrackEl.hidden = true;
+
+  const linked = todoState.linkedJob;
+  if (linked?.contact_uid) {
+    appendPortalShareBtn(header, linked.contact_uid, {
+      tab: 'work',
+      jobSlug: linked.slug,
+      trackEl: linkTrackEl,
+      title: `${linked.contact_name || linked.client || 'Client'} — Work`,
+      recipient: {
+        contactUid: linked.contact_uid,
+        name: linked.contact_name || linked.client || 'Client',
+        email: linked.contact_email,
+        phone: linked.contact_phone,
+      },
     });
+  }
+
+  const headerActions = document.createElement('div');
+  headerActions.className = 'de-header-actions';
+  if (!isNew) {
+    headerActions.appendChild(createIosIconBtn({
+      iconKey: 'trash',
+      label: 'Delete to‑do',
+      className: 'ios-icon-btn ch-delete-btn',
+      confirmDelete: true,
+      onClick: () => deleteTodo(todoState.activeId),
+    }));
+  }
+  header.appendChild(headerActions);
+  pane.appendChild(header);
+
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll';
+  const fields = document.createElement('div');
+  fields.className = 'de-fields';
+
+  const markDirty = () => {
+    todoState.dirty = true;
+    scheduleTodoAutosave(() => saveActiveTodoDraft(true));
+  };
+
+  const priorityPill = createSlidingPillSelect({
+    label: 'Priority',
+    value: draft.priority || 'normal',
+    options: todoState.priorities.map((p) => ({
+      value: p,
+      label: TODO_PRIORITY_LABELS[p] || p,
+    })),
+    ariaLabel: 'Priority',
+    onChange: () => {
+      draft.priority = priorityPill.getValue();
+      markDirty();
+    },
+  });
+  fields.appendChild(priorityPill.el);
+
+  const statusPill = createSlidingPillSelect({
+    label: 'Status',
+    value: draft.status || 'open',
+    options: todoState.statuses.map((s) => ({
+      value: s,
+      label: TODO_STATUS_LABELS[s] || s,
+    })),
+    ariaLabel: 'Status',
+    onChange: () => {
+      draft.status = statusPill.getValue();
+      markDirty();
+    },
+  });
+  fields.appendChild(statusPill.el);
+
+  const dueLabel = document.createElement('label');
+  dueLabel.className = 'de-label';
+  dueLabel.textContent = 'Due date';
+  const dueInput = document.createElement('input');
+  dueInput.className = 'de-input';
+  dueInput.type = 'date';
+  dueInput.value = draft.due_date || '';
+  dueInput.addEventListener('change', () => {
+    draft.due_date = dueInput.value;
+    markDirty();
+  });
+  dueLabel.appendChild(dueInput);
+  fields.appendChild(dueLabel);
+
+  const assigneeLabel = document.createElement('label');
+  assigneeLabel.className = 'de-label';
+  assigneeLabel.textContent = 'Assigned to';
+  const assigneeInput = document.createElement('input');
+  assigneeInput.className = 'de-input';
+  assigneeInput.placeholder = 'Name or team member';
+  assigneeInput.value = draft.assignee || '';
+  assigneeInput.addEventListener('input', () => {
+    draft.assignee = assigneeInput.value;
+    markDirty();
+  });
+  assigneeLabel.appendChild(assigneeInput);
+  fields.appendChild(assigneeLabel);
+
+  const sectionLabel = document.createElement('label');
+  sectionLabel.className = 'de-label';
+  sectionLabel.textContent = 'Section';
+  const sectionInput = document.createElement('input');
+  sectionInput.className = 'de-input';
+  sectionInput.placeholder = 'Product Backlog, Voice Agent…';
+  sectionInput.value = draft.section || '';
+  sectionInput.addEventListener('input', () => {
+    draft.section = sectionInput.value;
+    markDirty();
+  });
+  sectionLabel.appendChild(sectionInput);
+  fields.appendChild(sectionLabel);
+
+  mountTodoProjectPicker(fields, draft, markDirty);
+
+  scroll.appendChild(fields);
+  pane.appendChild(scroll);
+
+  titleInput.addEventListener('input', () => {
+    draft.title = titleInput.value;
+    markDirty();
+  });
+  titleInput.addEventListener('blur', () => {
+    void saveActiveTodoDraft(true);
+  });
+}
+
+function mountTodoProjectPicker(parent, draft, markDirty) {
+  const wrap = document.createElement('div');
+  wrap.className = 'de-label';
+  wrap.textContent = 'Project';
+
+  const row = document.createElement('div');
+  row.className = 'td-project-link';
+
+  const label = document.createElement('span');
+  const changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'de-btn de-btn-ghost';
+  changeBtn.textContent = 'Change';
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'wk-client-search-wrap';
+  searchWrap.style.display = 'none';
+  const searchInput = document.createElement('input');
+  searchInput.className = 'de-input';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search projects…';
+  searchInput.autocomplete = 'off';
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.style.display = 'none';
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(dropdown);
+
+  function renderSelected() {
+    const slug = draft.job_slug?.trim();
+    label.textContent = slug ? todoJobTitle(slug) : 'No project linked';
+    changeBtn.textContent = slug ? 'Change' : 'Link project';
+  }
+
+  function showSearch(show) {
+    row.style.display = show ? 'none' : '';
+    searchWrap.style.display = show ? '' : 'none';
+    if (show) {
+      searchInput.value = '';
+      dropdown.innerHTML = '';
+      dropdown.style.display = 'none';
+      searchInput.focus();
+    }
+  }
+
+  function pickJob(job) {
+    draft.job_slug = job?.slug || '';
+    renderSelected();
+    showSearch(false);
+    markDirty();
+    void refreshTodoLinkedJob(draft.job_slug).then(() => renderTodoEditor());
+  }
+
+  changeBtn.addEventListener('click', () => showSearch(true));
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    dropdown.innerHTML = '';
+    if (!q) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    const matches = todoState.jobs
+      .filter((job) =>
+        matchesListSearch(q, job.title, job.slug, job.contact_name, job.client, job.status),
+      )
+      .slice(0, 8);
+    if (matches.length === 0) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    for (const job of matches) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.textContent = `${job.title || job.slug} · ${job.contact_name || job.client || '—'}`;
+      btn.addEventListener('click', () => pickJob(job));
+      dropdown.appendChild(btn);
+    }
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'wk-client-option wk-client-option--muted';
+    clearBtn.textContent = 'Remove project link';
+    clearBtn.addEventListener('click', () => pickJob(null));
+    dropdown.appendChild(clearBtn);
+    dropdown.style.display = '';
+  });
+
+  row.appendChild(label);
+  row.appendChild(changeBtn);
+  wrap.appendChild(row);
+  wrap.appendChild(searchWrap);
+  renderSelected();
+  parent.appendChild(wrap);
+}
+
+function attachTodoListReorder(list, orderedIds) {
+  let dragId = null;
+  let dragEl = null;
+
+  list.querySelectorAll('.td-list-grip').forEach((grip) => {
+    grip.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const item = grip.closest('.ch-list-item');
+      const row = grip.closest('.swipe-row');
+      if (!item || !row) return;
+      dragId = Number(row.dataset.id || item.dataset.id);
+      dragEl = row;
+      row.classList.add('td-dragging');
+      grip.setPointerCapture(ev.pointerId);
+
+      function onMove(moveEv) {
+        list.querySelectorAll('.swipe-row').forEach((el) => el.classList.remove('td-drop-target'));
+        const target = document.elementFromPoint(moveEv.clientX, moveEv.clientY)?.closest('.swipe-row');
+        if (target && target !== dragEl) target.classList.add('td-drop-target');
+      }
+
+      function onUp(upEv) {
+        grip.releasePointerCapture(upEv.pointerId);
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        dragEl?.classList.remove('td-dragging');
+        list.querySelectorAll('.swipe-row').forEach((el) => el.classList.remove('td-drop-target'));
+        const target = document.elementFromPoint(upEv.clientX, upEv.clientY)?.closest('.swipe-row');
+        if (dragEl && target && target !== dragEl) {
+          const targetId = Number(target.dataset.id);
+          const ids = [...orderedIds];
+          const fromIdx = ids.indexOf(dragId);
+          const toIdx = ids.indexOf(targetId);
+          if (fromIdx !== -1 && toIdx !== -1) {
+            ids.splice(fromIdx, 1);
+            ids.splice(toIdx, 0, dragId);
+            void persistTodoOrder(ids);
+          }
+        }
+        dragId = null;
+        dragEl = null;
+      }
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+    });
+  });
+}
+
+async function persistTodoOrder(ids) {
+  try {
+    const res = await fetch('/api/todos/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await readApiJson(res);
+    todoState.todos = data.todos || todoState.todos;
+    refreshTodoSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
+    renderTodoEditor();
+  }
+}
+
+async function markTodoDone(id) {
+  try {
+    const res = await fetch(`/api/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done' }),
+    });
+    const data = await readApiJson(res);
+    const idx = todoState.todos.findIndex((t) => t.id === id);
+    if (idx !== -1) todoState.todos[idx] = data;
+    if (todoState.activeId === id) {
+      todoState.draft = { ...todoState.draft, status: 'done' };
+    }
+    refreshTodoSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Could not complete', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function reopenTodo(id) {
+  try {
+    const res = await fetch(`/api/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'open' }),
+    });
+    const data = await readApiJson(res);
+    const idx = todoState.todos.findIndex((t) => t.id === id);
+    if (idx !== -1) todoState.todos[idx] = data;
+    todoState.filter = 'open';
+    refreshTodoSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Could not reopen', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function deleteTodo(id) {
+  try {
+    const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+    await readApiJson(res);
+    todoState.todos = todoState.todos.filter((t) => t.id !== id);
+    if (todoState.activeId === id) {
+      todoState.activeId = null;
+      todoState.draft = null;
+      todoState.linkedJob = null;
+      getTodoEditor()?.classList.remove('de-pane-active');
+    }
+    renderTodoEditor();
+  } catch (e) {
+    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
   }
 }
 

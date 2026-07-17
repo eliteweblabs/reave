@@ -80,7 +80,14 @@ export async function POST(context: APIContext): Promise<Response> {
       ? null
       : String(dueRaw).trim();
 
-  const result = await storeCreateTodo({ title, due_date, priority });
+  const result = await storeCreateTodo({
+    title,
+    due_date,
+    priority,
+    job_slug: body.job_slug != null ? String(body.job_slug).trim() || null : undefined,
+    assignee: body.assignee != null ? String(body.assignee).trim() || null : undefined,
+    section: body.section != null ? String(body.section).trim() || null : undefined,
+  });
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
   return json({ ok: true, ...result.todo }, 201);
 }

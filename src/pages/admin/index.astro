@@ -253,6 +253,9 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       #work-editor > .de-sidebar,
       #work-editor > .de-pane,
       #work-editor > .ch-sidebar,
+      #todo-editor > .de-sidebar,
+      #todo-editor > .de-pane,
+      #todo-editor > .ch-sidebar,
       #schedule-panel > .ch-sidebar,
       #schedule-panel > .de-pane,
       #clients-editor > .de-sidebar,
@@ -274,6 +277,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       #email-panel,
       #knowledge-editor,
       #work-editor,
+      #todo-editor,
       #schedule-panel,
       #clients-editor,
       #rule-editor,
@@ -1599,6 +1603,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       /* ── Knowledge / Work / Clients / Rules tabs (reuse Documents editor classes) ── */
       #knowledge-editor,
       #work-editor,
+      #todo-editor,
       #schedule-panel,
       #clients-editor,
       #rule-editor {
@@ -1617,6 +1622,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       @media (max-width: 639px) {
         #knowledge-editor,
         #work-editor,
+        #todo-editor,
         #schedule-panel,
         #clients-editor,
         #rule-editor { flex-direction: column; }
@@ -1628,12 +1634,15 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         #clients-editor.de-pane-active .de-sidebar,
         #clients-editor.de-pane-active .ch-sidebar,
         #rule-editor.de-pane-active .de-sidebar,
-        #rule-editor.de-pane-active .ch-sidebar { display: none; }
+        #rule-editor.de-pane-active .ch-sidebar,
+        #todo-editor.de-pane-active .de-sidebar,
+        #todo-editor.de-pane-active .ch-sidebar { display: none; }
         #knowledge-editor.de-pane-active .de-pane,
         #work-editor.de-pane-active .de-pane,
         #schedule-panel.de-pane-active .de-pane,
         #clients-editor.de-pane-active .de-pane,
-        #rule-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
+        #rule-editor.de-pane-active .de-pane,
+        #todo-editor.de-pane-active .de-pane { display: flex; flex: 1 1 auto; }
       }
       .re-settings {
         padding: 0 0.65rem 0.65rem;
@@ -2343,6 +2352,85 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .cl-job-card-priority--low {
         color: #8b97a8;
         background: rgba(139, 151, 168, 0.12);
+      }
+      .td-list-grip {
+        flex: none;
+        width: 1.1rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1;
+        cursor: grab;
+        opacity: 0.55;
+        touch-action: none;
+        user-select: none;
+      }
+      .td-list-grip:active { cursor: grabbing; }
+      .td-list-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        min-width: 0;
+      }
+      .td-list-body { min-width: 0; flex: 1 1 auto; }
+      .td-priority-dot {
+        flex: none;
+        width: 0.5rem;
+        height: 0.5rem;
+        margin-top: 0.38rem;
+        border-radius: 50%;
+        background: rgba(139, 151, 168, 0.55);
+      }
+      .td-priority-dot--high { background: #fbbf24; }
+      .td-priority-dot--urgent { background: #f87171; }
+      .td-priority-dot--low { background: #64748b; }
+      .td-filter-tabs {
+        display: flex;
+        gap: 0.35rem;
+        padding: 0 0.65rem 0.55rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+      .td-filter-tab {
+        flex: 1 1 0;
+        min-height: 2rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--panel-border);
+        background: var(--surface-muted);
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 600;
+      }
+      .td-filter-tab.active {
+        color: var(--fg);
+        border-color: rgba(121, 192, 255, 0.35);
+        background: rgba(121, 192, 255, 0.1);
+      }
+      .ch-list-item.td-dragging,
+      .swipe-row.td-dragging { opacity: 0.45; }
+      .ch-list-item.td-drop-target,
+      .swipe-row.td-drop-target {
+        box-shadow: inset 0 2px 0 0 rgba(121, 192, 255, 0.75);
+      }
+      .ch-list-item--done .ch-item-title {
+        text-decoration: line-through;
+        color: var(--muted);
+      }
+      #todo-editor .sliding-pill-select { max-width: none; }
+      #todo-editor .de-input,
+      #todo-editor .de-textarea { max-width: none; }
+      .td-project-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--panel-border);
+        background: var(--surface-muted);
+        font-size: 0.82rem;
+      }
+      .td-project-link button {
+        flex: none;
+        font-size: 0.72rem;
       }
       .wk-comments-section { padding: 0 1rem 1rem; border-top: 1px solid var(--panel-border); margin-top: 0.5rem; }
       .wk-comment-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 0.75rem; }
@@ -5996,6 +6084,8 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
     <div id="clients-editor" style="display:none"></div>
 
     <div id="rule-editor" style="display:none"></div>
+
+    <div id="todo-editor" style="display:none"></div>
 
     <div id="os-dialog-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="false">
       <div class="ios-sheet os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">

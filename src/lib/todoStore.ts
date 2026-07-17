@@ -21,6 +21,8 @@ import {
   dbUpdateTodo,
   dbMarkTodoDone,
   dbDeleteTodo,
+  dbReorderTodos,
+  dbSeedTodosFromMarkdownIfEmpty,
   type ListTodosOpts,
   type TodoItem,
   type TodoPriority,
@@ -28,8 +30,13 @@ import {
 } from './pgTodos';
 
 export async function storeListTodos(opts?: ListTodosOpts): Promise<TodoItem[]> {
+  await storeSeedTodosFromMarkdownIfEmpty();
   const rows = await dbListTodos(opts ?? {});
   return rows ?? [];
+}
+
+export async function storeSeedTodosFromMarkdownIfEmpty(): Promise<number> {
+  return dbSeedTodosFromMarkdownIfEmpty();
 }
 
 export async function storeReadTodo(id: number): Promise<TodoItem | null> {
@@ -40,6 +47,10 @@ export async function storeCreateTodo(input: {
   title: string;
   due_date?: string | null;
   priority?: TodoPriority;
+  job_slug?: string | null;
+  assignee?: string | null;
+  section?: string | null;
+  sort_order?: number;
 }): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   return dbCreateTodo(input);
 }
@@ -51,6 +62,10 @@ export async function storeUpdateTodo(
     due_date?: string | null;
     priority?: TodoPriority;
     status?: TodoStatus;
+    job_slug?: string | null;
+    assignee?: string | null;
+    section?: string | null;
+    sort_order?: number;
   },
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   return dbUpdateTodo(id, patch);
@@ -64,4 +79,10 @@ export async function storeMarkTodoDone(
 
 export async function storeDeleteTodo(id: number): Promise<{ ok: boolean; error?: string }> {
   return dbDeleteTodo(id);
+}
+
+export async function storeReorderTodos(
+  ids: number[],
+): Promise<{ ok: true; todos: TodoItem[] } | { ok: false; error: string }> {
+  return dbReorderTodos(ids);
 }

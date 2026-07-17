@@ -689,6 +689,7 @@ const SPLIT_VIEW_TYPES = new Set([
   'documents',
   'rules',
   'schedule',
+  'todo',
 ]);
 const SIDEBAR_PANEL_IDS = [
   'email-panel',
@@ -699,6 +700,7 @@ const SIDEBAR_PANEL_IDS = [
   'doc-editor',
   'rule-editor',
   'schedule-panel',
+  'todo-editor',
 ];
 const SIDEBAR_MQ = window.matchMedia('(min-width: 640px)');
 

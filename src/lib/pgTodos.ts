@@ -4,6 +4,7 @@
 
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
+import { readMarkdownTodoSections } from './markdownTodoFiles';
 
 export const TODO_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type TodoPriority = (typeof TODO_PRIORITIES)[number];
@@ -17,11 +18,16 @@ export interface TodoItem {
   due_date: string | null;
   priority: TodoPriority;
   status: TodoStatus;
+  sort_order: number;
+  job_slug: string | null;
+  assignee: string | null;
+  section: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const TODO_COLUMNS = 'id, title, due_date, priority, status, created_at, updated_at';
+const TODO_COLUMNS =
+  'id, title, due_date, priority, status, sort_order, job_slug, assignee, section, created_at, updated_at';
 
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS todos (
@@ -33,12 +39,21 @@ CREATE TABLE IF NOT EXISTS todos (
   status VARCHAR(50) NOT NULL DEFAULT 'open'
     CHECK (status IN ('open', 'done')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  sort_order INT NOT NULL DEFAULT 0,
+  job_slug VARCHAR(255),
+  assignee VARCHAR(255),
+  section VARCHAR(255)
 );
 CREATE INDEX IF NOT EXISTS idx_todos_status ON todos (status);
 CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos (priority);
 CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos (due_date);
 CREATE INDEX IF NOT EXISTS idx_todos_status_due ON todos (status, due_date);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS job_slug VARCHAR(255);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS assignee VARCHAR(255);
+ALTER TABLE todos ADD COLUMN IF NOT EXISTS section VARCHAR(255);
+CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos (status, sort_order ASC, updated_at DESC);
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -110,6 +125,10 @@ function rowToTodo(row: TodoItem): TodoItem {
     due_date: row.due_date,
     priority: row.priority,
     status: row.status,
+    sort_order: row.sort_order ?? 0,
+    job_slug: row.job_slug ?? null,
+    assignee: row.assignee ?? null,
+    section: row.section ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -154,6 +173,7 @@ export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] 
        ${where}
        ORDER BY
          CASE status WHEN 'open' THEN 0 ELSE 1 END,
+         sort_order ASC,
          CASE priority
            WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3
          END,
@@ -187,6 +207,10 @@ export async function dbCreateTodo(input: {
   title: string;
   due_date?: string | null;
   priority?: TodoPriority;
+  job_slug?: string | null;
+  assignee?: string | null;
+  section?: string | null;
+  sort_order?: number;
 }): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   try {
     const pool = await ensureSchema();
@@ -201,11 +225,21 @@ export async function dbCreateTodo(input: {
     }
 
     const priority = input.priority ?? 'normal';
+    const jobSlug = input.job_slug?.trim() || null;
+    const assignee = input.assignee?.trim() || null;
+    const section = input.section?.trim() || null;
+    let sortOrder = input.sort_order;
+    if (sortOrder == null || !Number.isFinite(sortOrder)) {
+      const { rows: maxRows } = await pool.query<{ max: number | null }>(
+        `SELECT COALESCE(MAX(sort_order), -1) AS max FROM todos WHERE status = 'open'`,
+      );
+      sortOrder = (maxRows[0]?.max ?? -1) + 1;
+    }
     const { rows } = await pool.query<TodoItem>(
-      `INSERT INTO todos (title, due_date, priority)
-       VALUES ($1, $2, $3)
+      `INSERT INTO todos (title, due_date, priority, job_slug, assignee, section, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING ${TODO_COLUMNS}`,
-      [title, dueDate, priority],
+      [title, dueDate, priority, jobSlug, assignee, section, sortOrder],
     );
     const todo = rows[0];
     if (!todo) return { ok: false, error: 'insert failed' };
@@ -223,6 +257,10 @@ export async function dbUpdateTodo(
     due_date?: string | null;
     priority?: TodoPriority;
     status?: TodoStatus;
+    job_slug?: string | null;
+    assignee?: string | null;
+    section?: string | null;
+    sort_order?: number;
   },
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   try {
@@ -248,13 +286,19 @@ export async function dbUpdateTodo(
 
     const priority = patch.priority ?? existing.priority;
     const status = patch.status ?? existing.status;
+    const jobSlug = patch.job_slug !== undefined ? patch.job_slug?.trim() || null : existing.job_slug;
+    const assignee =
+      patch.assignee !== undefined ? patch.assignee?.trim() || null : existing.assignee;
+    const section = patch.section !== undefined ? patch.section?.trim() || null : existing.section;
+    const sortOrder = patch.sort_order ?? existing.sort_order;
 
     const { rows } = await pool.query<TodoItem>(
       `UPDATE todos
-       SET title = $2, due_date = $3, priority = $4, status = $5, updated_at = NOW()
+       SET title = $2, due_date = $3, priority = $4, status = $5,
+           job_slug = $6, assignee = $7, section = $8, sort_order = $9, updated_at = NOW()
        WHERE id = $1
        RETURNING ${TODO_COLUMNS}`,
-      [id, title, dueDate, priority, status],
+      [id, title, dueDate, priority, status, jobSlug, assignee, section, sortOrder],
     );
     const todo = rows[0];
     if (!todo) return { ok: false, error: 'Not found' };
@@ -269,6 +313,71 @@ export async function dbMarkTodoDone(
   id: number,
 ): Promise<{ ok: true; todo: TodoItem } | { ok: false; error: string }> {
   return dbUpdateTodo(id, { status: 'done' });
+}
+
+export async function dbSeedTodosFromMarkdownIfEmpty(): Promise<number> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+
+    const { rows } = await pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM todos');
+    if (Number(rows[0]?.count ?? 0) > 0) return 0;
+
+    const sections = readMarkdownTodoSections();
+    if (!sections.length) return 0;
+
+    let sortOrder = 0;
+    let created = 0;
+    for (const section of sections) {
+      for (const item of section.items) {
+        await pool.query(
+          `INSERT INTO todos (title, status, section, sort_order)
+           VALUES ($1, $2, $3, $4)`,
+          [item.text, item.checked ? 'done' : 'open', section.title, sortOrder++],
+        );
+        created++;
+      }
+    }
+    return created;
+  } catch (e) {
+    console.error('[todos:pg] seed error:', e);
+    return 0;
+  }
+}
+
+export async function dbReorderTodos(
+  ids: number[],
+): Promise<{ ok: true; todos: TodoItem[] } | { ok: false; error: string }> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return { ok: false, error: 'To-do DB not configured — set DATABASE_URL.' };
+
+    const cleanIds = ids.filter((id) => Number.isInteger(id) && id > 0);
+    if (cleanIds.length === 0) return { ok: false, error: 'ids required' };
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (let i = 0; i < cleanIds.length; i++) {
+        await client.query('UPDATE todos SET sort_order = $2, updated_at = NOW() WHERE id = $1', [
+          cleanIds[i],
+          i,
+        ]);
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    const todos = (await dbListTodos()) ?? [];
+    return { ok: true, todos };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
 }
 
 export async function dbDeleteTodo(
