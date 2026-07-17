@@ -10,11 +10,19 @@ export type GeoPoint = {
 };
 
 export function mapboxPublicToken(): string | null {
-  return serverEnv('PUBLIC_MAPBOX_ACCESS_TOKEN')?.trim() || null;
+  return (
+    serverEnv('PUBLIC_MAPBOX_ACCESS_TOKEN')?.trim() ||
+    serverEnv('MAPBOX_PUBLIC_KEY')?.trim() ||
+    null
+  );
 }
 
 function mapboxServerToken(): string | null {
-  return serverEnv('MAPBOX_ACCESS_TOKEN')?.trim() || mapboxPublicToken();
+  return (
+    serverEnv('MAPBOX_ACCESS_TOKEN')?.trim() ||
+    serverEnv('MAPBOX_PUBLIC_KEY')?.trim() ||
+    mapboxPublicToken()
+  );
 }
 
 export function isMapboxConfigured(): boolean {

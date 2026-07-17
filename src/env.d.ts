@@ -149,6 +149,8 @@ interface ImportMetaEnv {
   MAPBOX_ACCESS_TOKEN?: string;
   /** Mapbox public token for static map previews in /admin schedule detail. */
   PUBLIC_MAPBOX_ACCESS_TOKEN?: string;
+  /** Mavsafe / capco alias for the Mapbox public token (same pk.* value). */
+  MAPBOX_PUBLIC_KEY?: string;
   /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */
   VAPI_API_KEY?: string;
   /** Vapi assistant id override for sync (defaults to PUBLIC_VAPI_ASSISTANT_ID). */
