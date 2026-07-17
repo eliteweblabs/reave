@@ -2228,17 +2228,6 @@ function renderHomeDashboard(data) {
   statsEl.className = 'dash-stats';
 
   statsEl.appendChild(buildDashStat({
-    value: stats.reviewsPending ?? stats.automationPending ?? 0,
-    label: 'Reviews',
-    hint: (stats.reviewsPending ?? stats.automationPending)
-      ? `${stats.reviewsPending ?? stats.automationPending} automated decision${(stats.reviewsPending ?? stats.automationPending) === 1 ? '' : 's'}`
-      : stats.emailsReview
-        ? `${stats.emailsReview} awaiting triage`
-        : 'all caught up',
-    onClick: () => setActiveMap('home', { force: activeKey === 'home' }),
-  }));
-
-  statsEl.appendChild(buildDashStat({
     value: stats.eventsToday ?? 0,
     label: 'Events today',
     hint: scheduleLive
