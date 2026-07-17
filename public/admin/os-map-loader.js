@@ -4921,12 +4921,56 @@ function todoJobTitle(slug) {
   return job?.title || slug;
 }
 
+const TODO_WEEKDAY_SHORT = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'];
+
+/** Parse DATE or ISO timestamp without UTC day-shift on date-only values. */
+function parseTodoDueDate(raw) {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function todoDueDateInputValue(raw) {
+  const d = parseTodoDueDate(raw);
+  if (!d) return '';
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${mo}-${day}`;
+}
+
+function formatTodoDueTime(d) {
+  const h = d.getHours();
+  const min = d.getMinutes();
+  if (h === 0 && min === 0) return null;
+  const period = h >= 12 ? 'pm' : 'am';
+  const hour12 = h % 12 || 12;
+  if (min === 0) return `${hour12}${period}`;
+  return `${hour12}:${String(min).padStart(2, '0')}${period}`;
+}
+
+function formatTodoDueDate(raw) {
+  const d = parseTodoDueDate(raw);
+  if (!d) return '';
+  const wd = TODO_WEEKDAY_SHORT[d.getDay()];
+  const month = d.toLocaleDateString(undefined, { month: 'short' });
+  const day = d.getDate();
+  const time = formatTodoDueTime(d);
+  const datePart = `${wd}, ${month} ${day}`;
+  return time ? `Due ${datePart} @ ${time}` : `Due ${datePart}`;
+}
+
 function todoSubline(todo) {
   const bits = [];
   if (todo.section) bits.push(todo.section);
   if (todo.job_slug) bits.push(todoJobTitle(todo.job_slug));
   if (todo.assignee) bits.push(todo.assignee);
-  if (todo.due_date) bits.push(`Due ${todo.due_date}`);
+  if (todo.due_date) bits.push(formatTodoDueDate(todo.due_date));
   if (todo.priority && todo.priority !== 'normal') {
     bits.push(TODO_PRIORITY_LABELS[todo.priority] || todo.priority);
   }
@@ -5162,7 +5206,7 @@ async function openTodo(id) {
     title: todo.title,
     priority: todo.priority,
     status: todo.status,
-    due_date: todo.due_date || '',
+    due_date: todoDueDateInputValue(todo.due_date),
     job_slug: todo.job_slug || '',
     assignee: todo.assignee || '',
     section: todo.section || '',
@@ -5237,7 +5281,7 @@ async function saveActiveTodoDraft(silent = false) {
         title: data.title,
         priority: data.priority,
         status: data.status,
-        due_date: data.due_date || '',
+        due_date: todoDueDateInputValue(data.due_date),
         job_slug: data.job_slug || '',
         assignee: data.assignee || '',
         section: data.section || '',
@@ -5377,7 +5421,7 @@ function renderTodoEditPane(pane, isNew) {
   const dueInput = document.createElement('input');
   dueInput.className = 'de-input';
   dueInput.type = 'date';
-  dueInput.value = draft.due_date || '';
+  dueInput.value = todoDueDateInputValue(draft.due_date);
   dueInput.addEventListener('change', () => {
     draft.due_date = dueInput.value;
     markDirty();
