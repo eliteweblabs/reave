@@ -8998,7 +8998,7 @@ function openScheduleCreateDialog(initial = {}) {
           `</label>` +
         `</div>` +
         `<label class="de-label sched-create-field">` +
-          `<span>Address <span class="de-label-optional">(optional)</span></span>` +
+          `<span>Address</span>` +
           `<div class="control-field">` +
             `<input name="address" type="text" autocomplete="street-address" autocapitalize="words" enterkeyhint="next" placeholder="123 Main St, City, MA 02134">` +
           `</div>` +
@@ -9009,7 +9009,7 @@ function openScheduleCreateDialog(initial = {}) {
             `<textarea name="notes" rows="2" enterkeyhint="done"></textarea>` +
           `</div>` +
         `</label>` +
-        `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict. Address can be added later if needed.</p>` +
+        `<p class="sched-create-hint">Creates a Cal.com booking if the time does not conflict. Address is required unless BOOKING_DEFAULT_ADDRESS is configured.</p>` +
         `<p class="sched-create-error" id="sched-create-error" hidden></p>` +
         `<div class="em-book-alt-slots" id="sched-create-alts" hidden></div>` +
       `</form>`;
@@ -12959,7 +12959,7 @@ function showEmailScheduleDialog(ev, check) {
     }
     parts.push(
       '<label class="de-label sched-create-field em-book-address-field">' +
-        '<span>Meeting address <span class="de-label-optional">(optional)</span></span>' +
+        '<span>Meeting address</span>' +
         '<div class="control-field">' +
           `<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="123 Main St, City, MA 02134" value="${escHtml(readScheduleLastAddress())}">` +
         '</div>' +
@@ -13078,16 +13078,43 @@ function attendeeFromEmailEvent(ev) {
 
 async function runEmailScheduleAction(ev, action, btn) {
   const prevLabel = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = action === 'accept-notify' ? 'Booking…' : 'Sending…';
-  try {
+  const needsBooking = (action === 'accept-notify' && !ev.bookingUid) || action === 'book';
+  let address = needsBooking ? readScheduleLastAddress() : '';
+
+  async function postScheduleAction(addr) {
+    btn.disabled = true;
+    btn.textContent = action === 'accept-notify' ? 'Booking…' : 'Sending…';
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({
+        action,
+        ...(addr ? { address: addr } : {}),
+      }),
     });
     const data = await readApiJson(res);
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  try {
+    let data;
+    try {
+      data = await postScheduleAction(address);
+    } catch (err) {
+      if (needsBooking && isScheduleAddressError(err.message)) {
+        btn.disabled = false;
+        btn.textContent = prevLabel;
+        const prompted = await ensureScheduleAddress(address);
+        if (!prompted) return;
+        address = prompted;
+        data = await postScheduleAction(address);
+      } else {
+        throw err;
+      }
+    }
+
+    if (address) rememberScheduleAddress(address);
     if (data.event) {
       const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
       if (idx !== -1) emailState.allEvents[idx] = data.event;
