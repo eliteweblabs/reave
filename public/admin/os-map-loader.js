@@ -1823,7 +1823,20 @@ function formatEmailWhen(iso) {
 function reviewNotificationIcon(type) {
   if (type === 'project') return '📋';
   if (type === 'meeting_followup') return '💬';
+  if (type === 'meeting_conflict') return '⚠️';
+  if (type === 'meeting_request') return '📅';
   return '📅';
+}
+
+async function runReviewScheduleAction(item, action, btn) {
+  const ev = emailState.allEvents.find((e) => e.id === item.emailId) || {
+    id: item.emailId,
+    from: item.from,
+    contactName: item.attendeeName,
+  };
+  await runEmailScheduleAction(ev, action, btn);
+  updateInboxBadgesFromState();
+  if (MAP.type === 'home') await loadHomeDashboard();
 }
 
 async function dismissReviewNotification(item, btn) {
@@ -2042,23 +2055,27 @@ function rescheduleScheduledMeeting(item) {
 
 function buildAutomationNotificationsPanel(notifications) {
   const panel = document.createElement('section');
-  panel.className = 'dash-panel dash-automation-panel';
+  panel.className = 'dash-panel dash-automation-panel dash-review-banners';
   panel.innerHTML =
-    `<div class="dash-panel-head">` +
+    `<div class="dash-panel-head dash-review-banners-head">` +
       `<div class="dash-automation-head-copy">` +
-        `<h2 class="dash-panel-title">Automated reviews</h2>` +
-        `<p class="dash-automation-sub">Automated decisions and client follow-ups that need a quick look.</p>` +
+        `<h2 class="dash-panel-title">Needs your attention</h2>` +
+        `<p class="dash-automation-sub">${notifications.length} item${notifications.length === 1 ? '' : 's'} to confirm or respond to</p>` +
       `</div>` +
     `</div>`;
 
   const list = document.createElement('ul');
-  list.className = 'dash-automation-list';
+  list.className = 'dash-automation-list dash-review-banner-list';
 
   for (const item of notifications) {
     const li = document.createElement('li');
-    li.className = 'dash-automation-item';
+    li.className =
+      'dash-automation-item dash-review-banner' +
+      (item.type === 'meeting_conflict' ? ' dash-review-banner--warn' : '');
+
     const isProject = item.type === 'project';
     const isMeetingFollowup = item.type === 'meeting_followup';
+    const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
     const isAutoBookedMeeting = item.type === 'meeting';
 
     const main = document.createElement('button');
@@ -2124,6 +2141,38 @@ function buildAutomationNotificationsPanel(notifications) {
 
       actions.appendChild(viewBtn);
       actions.appendChild(dismissBtn);
+    } else if (isMeetingRequest) {
+      const primaryBtn = document.createElement('button');
+      primaryBtn.type = 'button';
+      primaryBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
+      primaryBtn.textContent =
+        item.type === 'meeting_conflict' ? 'Notify conflict' : 'Accept & notify';
+      primaryBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        void runReviewScheduleAction(
+          item,
+          item.type === 'meeting_conflict' ? 'notify-conflict' : 'accept-notify',
+          primaryBtn,
+        );
+      });
+
+      const altBtn = document.createElement('button');
+      altBtn.type = 'button';
+      altBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
+      altBtn.textContent = item.type === 'meeting_conflict' ? 'Suggest alternate' : 'View email';
+      altBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (item.type === 'meeting_conflict' && item.emailId) {
+          const inboxEv = emailState.allEvents.find((e) => e.id === item.emailId);
+          if (inboxEv) openScheduleFromEmail(inboxEv);
+          else setActiveMap('email', { force: true, emailId: item.emailId });
+          return;
+        }
+        if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+      });
+
+      actions.appendChild(primaryBtn);
+      actions.appendChild(altBtn);
     } else if (isAutoBookedMeeting) {
       const confirmBtn = document.createElement('button');
       confirmBtn.type = 'button';
@@ -11258,6 +11307,23 @@ function isPendingReviewNotification(ev) {
   const action = String(ev.action || '').toLowerCase();
   if (action === 'booked' && ev.bookingUid && ev.automationKind !== 'meeting_followup') return true;
   if (ev.automationKind === 'meeting_followup' && ev.bookingUid) return true;
+  if (
+    (ev.automationKind === 'meeting_request' || ev.automationKind === 'meeting_conflict') &&
+    !ev.bookingUid
+  ) {
+    return true;
+  }
+  if (!ev.bookingUid && !ev.automationKind && ev.category !== 'junk') {
+    const blob = [ev.summary, ev.subject, ev.schedulingNote, ev.bodySnippet].join(' ').toLowerCase();
+    const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
+    const mentionsTime =
+      ev.proposedMeetingStart ||
+      ev.schedulingNote ||
+      /\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m|p\.m)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+        blob,
+      );
+    if (mentionsMeeting && mentionsTime) return true;
+  }
   if (ev.automationKind === 'project_created' && ev.jobSlug) return true;
   return false;
 }
@@ -12339,7 +12405,7 @@ function createEmailListItem(ev) {
       (isEmailBooked(ev)
         ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>'
         : isEmailBookable(ev)
-          ? '<span class="em-status em-book-pending">Book</span>'
+          ? '<span class="em-status em-book-pending">Schedule pending</span>'
           : '') +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +

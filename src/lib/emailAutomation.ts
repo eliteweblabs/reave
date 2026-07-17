@@ -3,7 +3,7 @@
  */
 
 import type { EmailInboxRecord } from './emailInboxStore';
-import { attendeeFromEmail, formatMeetingWhenLabel } from './emailScheduling';
+import { attendeeFromEmail, formatMeetingWhenLabel, resolveProposedMeetingStart } from './emailScheduling';
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
 import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
 
@@ -54,9 +54,25 @@ export type MeetingFollowupReviewNotification = {
   attendeeEmail: string;
 };
 
+export type MeetingRequestReviewNotification = {
+  id: string;
+  type: 'meeting_request' | 'meeting_conflict';
+  title: string;
+  detail: string;
+  subject: string;
+  from: string;
+  receivedAt: string;
+  emailId: string;
+  proposedMeetingStart: string | null;
+  whenLabel: string;
+  attendeeName: string;
+  attendeeEmail: string;
+};
+
 export type ReviewNotification =
   | MeetingReviewNotification
   | MeetingFollowupReviewNotification
+  | MeetingRequestReviewNotification
   | ProjectReviewNotification;
 
 export function isAutoBookedMeetingPendingReview(
@@ -89,10 +105,52 @@ export function isMeetingFollowupPendingReview(
   );
 }
 
+export function isMeetingRequestPendingReview(
+  record: Pick<
+    EmailInboxRecord,
+    | 'automationKind'
+    | 'proposedMeetingStart'
+    | 'schedulingNote'
+    | 'bookingUid'
+    | 'automationAckAt'
+    | 'category'
+    | 'summary'
+    | 'subject'
+  >,
+): boolean {
+  if (record.bookingUid || record.automationAckAt) return false;
+  if (record.automationKind === 'meeting_request' || record.automationKind === 'meeting_conflict') {
+    return Boolean(record.proposedMeetingStart || record.schedulingNote);
+  }
+  return isLegacyMeetingRequestPendingReview(record);
+}
+
+/** Inbox rows ingested before automationKind existed — still need a banner. */
+export function isLegacyMeetingRequestPendingReview(
+  record: Pick<
+    EmailInboxRecord,
+    'automationKind' | 'proposedMeetingStart' | 'schedulingNote' | 'bookingUid' | 'automationAckAt' | 'category' | 'summary' | 'subject'
+  >,
+): boolean {
+  if (record.automationKind || record.bookingUid || record.automationAckAt) return false;
+  if (record.category === 'junk') return false;
+  const blob = [record.summary, record.subject, record.schedulingNote].join(' ').toLowerCase();
+  const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
+  const mentionsTime =
+    /\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m|p\.m)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+      blob,
+    );
+  if (record.proposedMeetingStart || record.schedulingNote) {
+    return mentionsMeeting;
+  }
+  return mentionsMeeting && mentionsTime;
+}
+
 export function isPendingReviewNotification(record: EmailInboxRecord): boolean {
   return (
     isAutoBookedMeetingPendingReview(record) ||
     isMeetingFollowupPendingReview(record) ||
+    isMeetingRequestPendingReview(record) ||
     isAutoProjectPendingReview(record)
   );
 }
@@ -153,6 +211,52 @@ export function toMeetingFollowupReviewNotification(
   };
 }
 
+function displayFirstName(input: { contactName?: string | null; from: string }): string {
+  const attendee = attendeeFromEmail(input);
+  const raw = (input.contactName || attendee.name || '').trim();
+  if (!raw) return 'Client';
+  return raw.split(/\s+/)[0] || 'Client';
+}
+
+export function toMeetingRequestReviewNotification(
+  record: EmailInboxRecord,
+): MeetingRequestReviewNotification {
+  const resolvedStart =
+    record.proposedMeetingStart ||
+    resolveProposedMeetingStart({
+      proposedMeetingStart: null,
+      schedulingNote: record.schedulingNote,
+      summary: record.summary,
+      bodyText: record.bodySnippet,
+      receivedAt: record.receivedAt,
+    });
+  const whenIso = resolvedStart || record.receivedAt;
+  const whenLabel = resolvedStart
+    ? formatMeetingWhenLabel(whenIso)
+    : record.schedulingNote || 'time TBD';
+  const attendee = attendeeFromEmail({ from: record.from, contactName: record.contactName });
+  const who = displayFirstName({ contactName: record.contactName, from: record.from });
+  const isConflict = record.automationKind === 'meeting_conflict';
+  const title = isConflict
+    ? `${who} requested ${whenLabel} — time slot is booked.`
+    : `${who} requested a meeting for ${whenLabel}.`;
+
+  return {
+    id: record.id,
+    type: isConflict ? 'meeting_conflict' : 'meeting_request',
+    title,
+    detail: meetingDetail(record),
+    subject: record.subject || '(no subject)',
+    from: record.from || '',
+    receivedAt: record.receivedAt,
+    emailId: record.id,
+    proposedMeetingStart: resolvedStart,
+    whenLabel,
+    attendeeName: attendee.name,
+    attendeeEmail: attendee.email,
+  };
+}
+
 export function toProjectReviewNotification(record: EmailInboxRecord): ProjectReviewNotification {
   const title = buildAutoProjectNotificationTitle({
     contactName: record.contactName,
@@ -196,6 +300,8 @@ export function listReviewNotifications(
       out.push(toMeetingReviewNotification(record));
     } else if (isMeetingFollowupPendingReview(record)) {
       out.push(toMeetingFollowupReviewNotification(record));
+    } else if (isMeetingRequestPendingReview(record)) {
+      out.push(toMeetingRequestReviewNotification(record));
     } else if (isAutoProjectPendingReview(record)) {
       out.push(toProjectReviewNotification(record));
     }

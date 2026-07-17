@@ -4401,6 +4401,32 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         border-color: rgba(251, 191, 36, 0.45);
         background: rgba(251, 191, 36, 0.08);
       }
+      .dash-review-banners {
+        border-color: rgba(96, 165, 250, 0.55);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0.04) 100%);
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+      .dash-review-banners-head {
+        padding-bottom: 0.35rem;
+      }
+      .dash-review-banner-list {
+        gap: 0.65rem;
+        padding: 0 0.75rem 0.75rem;
+      }
+      .dash-review-banner .dash-automation-main {
+        border-color: rgba(96, 165, 250, 0.35);
+        background: var(--card);
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+      }
+      .dash-review-banner--warn .dash-automation-main {
+        border-color: rgba(251, 191, 36, 0.55);
+        background: rgba(251, 191, 36, 0.08);
+      }
+      .dash-review-banner .dash-automation-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1.35;
+      }
       .dash-automation-head-copy {
         display: flex;
         flex-direction: column;

@@ -52,6 +52,7 @@ async function loadEmail(id: string): Promise<
     proposedMeetingStart: event.proposedMeetingStart,
     schedulingNote: event.schedulingNote,
     summary: event.summary,
+    bodyText: event.bodySnippet || event.bodyText,
     receivedAt: event.receivedAt,
   });
   if (!proposedStart) {
@@ -206,6 +207,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
+      markAutomationAck: true,
     });
     return json({
       ok: true,
@@ -327,7 +329,11 @@ export async function POST(context: APIContext): Promise<Response> {
         event: updated,
       });
     }
-    const filed = await storeUpdateEmailInbox(id, { action: 'filed', status: 'FILED' });
+    const filed = await storeUpdateEmailInbox(id, {
+      action: 'filed',
+      status: 'FILED',
+      markAutomationAck: true,
+    });
     return json({
       ok: true,
       booked: true,

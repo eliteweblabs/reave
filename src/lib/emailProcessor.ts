@@ -189,7 +189,7 @@ export function shouldSendInboxPush(opts: {
   automationKind?: string | null;
 }): boolean {
   if (opts.isProjectReply) return true;
-  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created' || opts.automationKind === 'meeting_followup') return true;
+  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created' || opts.automationKind === 'meeting_followup' || opts.automationKind === 'meeting_request' || opts.automationKind === 'meeting_conflict') return true;
 
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
@@ -259,6 +259,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
           proposedMeetingStart: null,
           schedulingNote,
           summary,
+          bodyText: snippet(bodyText, 2000),
           receivedAt: new Date().toISOString(),
         });
       }
@@ -421,7 +422,30 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       if (summary && !summary.toLowerCase().includes('scheduled automatically')) {
         summary = `${summary} Meeting scheduled automatically for ${autoBook.whenLabel}.`;
       }
+    } else if (proposedMeetingStart) {
+      automationKind = autoBook.reason === 'unavailable' ? 'meeting_conflict' : 'meeting_request';
+      routeNote =
+        autoBook.error ||
+        (autoBook.reason === 'unavailable'
+          ? 'Requested meeting time conflicts with an existing booking'
+          : 'Meeting request needs your review');
+      if (action !== 'filed' && action !== 'matched' && action !== 'project_reply') {
+        action = 'review';
+      }
+      if (category !== 'junk' && category !== 'alert') {
+        category = 'client';
+      }
     }
+  } else if (
+    !skipAutoBook &&
+    !suppressedAsJunk &&
+    proposedMeetingStart &&
+    !hasFeature('scheduling') &&
+    action !== 'project_reply'
+  ) {
+    automationKind = 'meeting_request';
+    routeNote = routeNote || 'Meeting request needs your review (scheduling module off)';
+    if (action !== 'filed' && action !== 'matched') action = 'review';
   }
 
   const record = await storeRecordEmailInbox({
@@ -532,7 +556,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         ? `New project: ${jobTitle ?? 'from email'}`
         : automationKind === 'meeting_followup'
           ? 'Meeting follow-up'
-          : automationKind === 'meeting_booked'
+          : automationKind === 'meeting_conflict'
+            ? 'Meeting time conflict'
+            : automationKind === 'meeting_request'
+              ? 'Meeting request'
+              : automationKind === 'meeting_booked'
           ? 'Meeting scheduled automatically'
           : isRailwayAlertStatus(ruleResult.status)
             ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`

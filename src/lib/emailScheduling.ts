@@ -190,10 +190,75 @@ export function parseRelativeMeetingTime(text: string, ref: Date): string | null
   return target.toISOString();
 }
 
+const MONTH_INDEX: Record<string, number> = {
+  january: 0,
+  jan: 0,
+  february: 1,
+  feb: 1,
+  march: 2,
+  mar: 2,
+  april: 3,
+  apr: 3,
+  may: 4,
+  june: 5,
+  jun: 5,
+  july: 6,
+  jul: 6,
+  august: 7,
+  aug: 7,
+  september: 8,
+  sep: 8,
+  sept: 8,
+  october: 9,
+  oct: 9,
+  november: 10,
+  nov: 10,
+  december: 11,
+  dec: 11,
+};
+
+/** Parse explicit calendar dates like "Wednesday, July 22, 2026 at 2:00 PM". */
+export function parseExplicitMeetingDateTime(text: string, ref: Date): string | null {
+  const source = String(text || '').trim();
+  if (!source) return null;
+  const time = parseTimeFromSchedulingText(source);
+  if (!time) return null;
+
+  const namedMonth = source.match(
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?\b/i,
+  );
+  if (namedMonth) {
+    const month = MONTH_INDEX[namedMonth[1].toLowerCase().replace(/\.$/, '')];
+    if (month === undefined) return null;
+    const day = parseInt(namedMonth[2], 10);
+    let year = namedMonth[3] ? parseInt(namedMonth[3], 10) : ref.getFullYear();
+    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
+    if (!namedMonth[3] && target.getTime() <= ref.getTime()) {
+      target.setFullYear(year + 1);
+    }
+    if (target.getTime() <= ref.getTime()) return null;
+    return target.toISOString();
+  }
+
+  const numeric = source.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  if (numeric) {
+    let year = parseInt(numeric[3], 10);
+    if (year < 100) year += 2000;
+    const month = parseInt(numeric[1], 10) - 1;
+    const day = parseInt(numeric[2], 10);
+    const target = new Date(year, month, day, time.hour, time.minute, 0, 0);
+    if (target.getTime() <= ref.getTime()) return null;
+    return target.toISOString();
+  }
+
+  return null;
+}
+
 export function resolveProposedMeetingStart(input: {
   proposedMeetingStart?: string | null;
   schedulingNote?: string | null;
   summary?: string | null;
+  bodyText?: string | null;
   receivedAt?: string | null;
 }): string | null {
   const direct = parseProposedMeetingStart(input.proposedMeetingStart);
@@ -202,8 +267,12 @@ export function resolveProposedMeetingStart(input: {
   const ref = input.receivedAt ? new Date(input.receivedAt) : new Date();
   if (Number.isNaN(ref.getTime())) return null;
 
-  for (const candidate of [input.schedulingNote, input.summary]) {
-    const parsed = parseRelativeMeetingTime(String(candidate || ''), ref);
+  for (const candidate of [input.schedulingNote, input.summary, input.bodyText]) {
+    const text = String(candidate || '').trim();
+    if (!text) continue;
+    const explicit = parseExplicitMeetingDateTime(text, ref);
+    if (explicit) return explicit;
+    const parsed = parseRelativeMeetingTime(text, ref);
     if (parsed) return parsed;
   }
   return null;
