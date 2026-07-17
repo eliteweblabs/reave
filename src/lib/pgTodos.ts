@@ -139,6 +139,8 @@ export interface ListTodosOpts {
   priority?: TodoPriority;
   due_before?: string;
   due_after?: string;
+  job_slug?: string;
+  unlinked?: boolean;
 }
 
 export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] | null> {
@@ -164,6 +166,13 @@ export async function dbListTodos(opts: ListTodosOpts = {}): Promise<TodoItem[] 
     if (opts.due_after) {
       params.push(opts.due_after);
       clauses.push(`due_date IS NOT NULL AND due_date >= $${params.length}`);
+    }
+    if (opts.job_slug) {
+      params.push(opts.job_slug);
+      clauses.push(`job_slug = $${params.length}`);
+    }
+    if (opts.unlinked) {
+      clauses.push('job_slug IS NULL');
     }
 
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';

@@ -467,7 +467,7 @@ function activateMapPanel(opts = {}) {
   } else if (MAP.type === 'rules') {
     loadRulesTab();
   } else if (MAP.type === 'todo') {
-    loadTodoTab();
+    loadTodoTab({ todoId: opts.todoId });
   } else {
     buildMap();
     finishMapLayout();
@@ -4907,6 +4907,7 @@ let todoState = {
   dirty: false,
   draft: null,
   linkedJob: null,
+  returnToWorkSlug: null,
 };
 
 let todoSaveTimer = null;
@@ -5000,10 +5001,16 @@ function filterTodoItems(todos) {
   });
 }
 
-async function loadTodoTab() {
+async function loadTodoTab(opts = {}) {
   const root = getTodoEditor();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading to‑dos…</div>';
+  const preserveNew =
+    todoState.activeId === '__new__' &&
+    todoState.draft &&
+    (opts.todoId === '__new__' || pendingTodoDeepLinkId === '__new__');
+  if (!preserveNew) {
+    root.innerHTML = '<div class="de-loading">Loading to‑dos…</div>';
+  }
   try {
     const [todoRes, workRes] = await Promise.all([
       fetch('/api/todos', { cache: 'no-store' }),
@@ -5020,28 +5027,63 @@ async function loadTodoTab() {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-  if (todoState.activeId && !todoState.todos.some((t) => t.id === todoState.activeId)) {
-    todoState.activeId = null;
-    todoState.draft = null;
-    todoState.linkedJob = null;
-    getTodoEditor()?.classList.remove('de-pane-active');
+
+  const deepId = opts.todoId ?? pendingTodoDeepLinkId;
+  pendingTodoDeepLinkId = null;
+
+  if (preserveNew) {
+    getTodoEditor()?.classList.add('de-pane-active');
+    renderTodoEditor();
+    return;
+  }
+
+  if (deepId === '__new__') {
+    startNewTodo({ keepReturnSlug: true });
+    return;
+  }
+
+  if (deepId) {
+    await openTodo(Number(deepId), { keepReturnSlug: true });
+    return;
+  }
+
+  if (
+    todoState.activeId &&
+    todoState.activeId !== '__new__' &&
+    !todoState.todos.some((t) => t.id === todoState.activeId)
+  ) {
+    try {
+      await openTodo(todoState.activeId, { keepReturnSlug: true });
+      return;
+    } catch {
+      todoState.activeId = null;
+      todoState.draft = null;
+      todoState.linkedJob = null;
+      getTodoEditor()?.classList.remove('de-pane-active');
+    }
   }
   renderTodoEditor();
 }
 
-function startNewTodo() {
+function startNewTodo(opts = {}) {
+  if (!opts.keepReturnSlug) todoState.returnToWorkSlug = null;
   todoState.activeId = '__new__';
   todoState.dirty = false;
   todoState.linkedJob = null;
-  todoState.draft = {
-    title: '',
-    priority: 'normal',
-    status: 'open',
-    due_date: '',
-    job_slug: '',
-    assignee: '',
-    section: '',
-  };
+  if (!todoState.draft || !opts.keepReturnSlug) {
+    todoState.draft = {
+      title: '',
+      priority: 'normal',
+      status: 'open',
+      due_date: '',
+      job_slug: opts.jobSlug || '',
+      assignee: '',
+      section: '',
+    };
+  }
+  if (todoState.draft.job_slug) {
+    void refreshTodoLinkedJob(todoState.draft.job_slug);
+  }
   getTodoEditor()?.classList.add('de-pane-active');
   renderTodoEditor();
 }
@@ -5193,13 +5235,28 @@ function createTodoSwipeRow(todo) {
   return createSwipeRow(createTodoListItem(todo), actions);
 }
 
-async function openTodo(id) {
+async function openTodo(id, opts = {}) {
   await flushTodoAutosave();
   if (todoState.dirty && todoState.activeId && todoState.activeId !== id) {
     if (!(await confirmDiscardChanges())) return;
   }
-  const todo = todoState.todos.find((t) => t.id === id);
-  if (!todo) return;
+  if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
+
+  let todo = todoState.todos.find((t) => t.id === id);
+  if (!todo) {
+    try {
+      const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      todo = data;
+      const idx = todoState.todos.findIndex((t) => t.id === id);
+      if (idx === -1) todoState.todos.unshift(todo);
+      else todoState.todos[idx] = todo;
+    } catch (e) {
+      osAlert({ title: 'To‑do not found', bodyHtml: escHtml(e.message) });
+      return;
+    }
+  }
+
   todoState.activeId = id;
   todoState.dirty = false;
   todoState.draft = {
@@ -5228,11 +5285,17 @@ async function openTodo(id) {
 async function closeTodoEditor(checkDirty = true) {
   await flushTodoAutosave();
   if (checkDirty && todoState.dirty && !(await confirmDiscardChanges())) return;
+  const returnSlug = todoState.returnToWorkSlug;
   todoState.activeId = null;
   todoState.draft = null;
   todoState.linkedJob = null;
   todoState.dirty = false;
+  todoState.returnToWorkSlug = null;
   getTodoEditor()?.classList.remove('de-pane-active');
+  if (returnSlug) {
+    navigateToWork(returnSlug);
+    return;
+  }
   renderTodoEditor();
 }
 
@@ -5330,7 +5393,7 @@ function renderTodoEditPane(pane, isNew) {
   const header = document.createElement('div');
   header.className = 'de-header';
   header.appendChild(createPanelBackBtn({
-    label: 'Back to to‑dos',
+    label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
     onClick: () => closeTodoEditor(),
   }));
 
@@ -5495,12 +5558,17 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   const selectedEl = document.createElement('div');
   selectedEl.className = 'wk-client-selected';
+  const profileLink = document.createElement('button');
+  profileLink.type = 'button';
+  profileLink.className = 'wk-client-profile-link';
   const selectedName = document.createElement('span');
+  selectedName.className = 'wk-client-name';
+  profileLink.appendChild(selectedName);
   const changeBtn = document.createElement('button');
   changeBtn.type = 'button';
   changeBtn.className = 'de-btn de-btn-ghost';
   changeBtn.textContent = 'Change';
-  selectedEl.appendChild(selectedName);
+  selectedEl.appendChild(profileLink);
   selectedEl.appendChild(changeBtn);
   wrap.appendChild(selectedEl);
 
@@ -5519,11 +5587,23 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   wrap.appendChild(searchWrap);
 
   function syncView() {
-    const has = !!draft.job_slug?.trim();
+    const slug = draft.job_slug?.trim();
+    const has = !!slug;
     selectedEl.style.display = has && !changing ? 'flex' : 'none';
     searchWrap.style.display = changing || !has ? 'block' : 'none';
-    if (has) selectedName.textContent = todoJobTitle(draft.job_slug);
+    if (has) {
+      selectedName.textContent = todoJobTitle(slug);
+      profileLink.title = `Open ${selectedName.textContent}`;
+    }
   }
+
+  profileLink.addEventListener('click', async () => {
+    const slug = draft.job_slug?.trim();
+    if (!slug) return;
+    await flushTodoAutosave();
+    const todoId = typeof todoState.activeId === 'number' ? todoState.activeId : null;
+    navigateToWork(slug, todoId ? { fromTodoId: todoId } : {});
+  });
 
   function renderDropdown(matches, query) {
     dropdown.innerHTML = '';
@@ -6708,6 +6788,7 @@ let workState = {
   dirty: false,
   draft: null,
   returnToEmailId: null,
+  returnToTodoId: null,
 };
 
 let workAutosaveTimer = null;
@@ -7851,8 +7932,9 @@ function renderEditWorkForm(pane) {
       const header = document.createElement('div');
       header.className = 'de-header';
       const returnEmailId = workState.returnToEmailId;
+      const returnTodoId = workState.returnToTodoId;
       header.appendChild(createPanelBackBtn({
-        label: returnEmailId ? 'Back to email' : 'Back to jobs',
+        label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to jobs',
         onClick: async () => {
           await flushWorkAutosave();
           if (workState.dirty && !(await confirmDiscardChanges())) return;
@@ -7861,6 +7943,14 @@ function renderEditWorkForm(pane) {
             workState.activeSlug = null;
             workState.draft = null;
             navigateToEmail(returnEmailId);
+            return;
+          }
+          if (returnTodoId) {
+            workState.returnToTodoId = null;
+            workState.activeSlug = null;
+            workState.draft = null;
+            getWorkEditor()?.classList.remove('de-pane-active');
+            navigateToTodo(returnTodoId, { fromWorkSlug: slug });
             return;
           }
           workState.activeSlug = null;
@@ -8002,6 +8092,7 @@ function renderEditWorkForm(pane) {
       renderWorkChecklistPanel(checklistMount, checklistOpts);
       mountWorkCommentsSection(scroll, slug);
       mountWorkFilesSection(scroll, slug, data.files);
+      mountWorkTodosSection(scroll, slug);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
 
       clearEditorFooterSave();
@@ -8016,6 +8107,7 @@ async function openWork(slug) {
   await flushWorkAutosave();
   if (workState.dirty && workState.activeSlug && !(await confirmDiscardChanges())) return;
   workState.returnToEmailId = null;
+  workState.returnToTodoId = null;
   workState.activeSlug = slug;
   workState.dirty = false;
   renderWorkEditor();
@@ -11476,6 +11568,7 @@ let emailState = {
 };
 let pendingEmailDeepLinkId = null;
 let pendingWorkDeepLinkSlug = null;
+let pendingTodoDeepLinkId = null;
 let pendingChatDeepLinkId = null;
 let pendingClientDeepLinkUid = null;
 let emailPollTimer = null;
@@ -11502,9 +11595,45 @@ function parseChatDeepLinkFromUrl() {
 
 function navigateToWork(slug, opts = {}) {
   if (!slug) return;
-  if (opts.fromEmailId) workState.returnToEmailId = opts.fromEmailId;
+  if (opts.fromEmailId) {
+    workState.returnToEmailId = opts.fromEmailId;
+    workState.returnToTodoId = null;
+  } else if (opts.fromTodoId) {
+    workState.returnToEmailId = null;
+    workState.returnToTodoId = opts.fromTodoId;
+    todoState.returnToWorkSlug = slug;
+  } else {
+    workState.returnToEmailId = null;
+    workState.returnToTodoId = null;
+  }
   pendingWorkDeepLinkSlug = slug;
   setActiveMap('work', { force: true, workSlug: slug });
+}
+
+function navigateToTodo(id, opts = {}) {
+  if (id == null || id === '') return;
+  if (opts.fromWorkSlug) todoState.returnToWorkSlug = opts.fromWorkSlug;
+  pendingTodoDeepLinkId = id;
+  setActiveMap('todo', { force: true, todoId: id });
+}
+
+function navigateToNewTodoForProject(jobSlug) {
+  if (!jobSlug) return;
+  todoState.returnToWorkSlug = jobSlug;
+  todoState.activeId = '__new__';
+  todoState.dirty = false;
+  todoState.linkedJob = null;
+  todoState.draft = {
+    title: '',
+    priority: 'normal',
+    status: 'open',
+    due_date: '',
+    job_slug: jobSlug,
+    assignee: '',
+    section: '',
+  };
+  pendingTodoDeepLinkId = '__new__';
+  setActiveMap('todo', { force: true, todoId: '__new__' });
 }
 
 function navigateToClient(uid) {
@@ -11687,6 +11816,174 @@ function mountWorkFilesSection(container, slug, initialFiles) {
 
   renderFiles(initialFiles || []);
   container.appendChild(section);
+}
+
+function mountWorkTodosSection(container, jobSlug) {
+  const section = document.createElement('div');
+  section.className = 'wk-todos-section';
+
+  const head = document.createElement('div');
+  head.className = 'wk-todos-head';
+  const title = document.createElement('div');
+  title.className = 'wk-todos-title';
+  title.textContent = 'To‑dos';
+  head.appendChild(title);
+  const newBtn = document.createElement('button');
+  newBtn.type = 'button';
+  newBtn.className = 'de-btn de-btn-ghost';
+  newBtn.textContent = 'New';
+  newBtn.addEventListener('click', () => navigateToNewTodoForProject(jobSlug));
+  head.appendChild(newBtn);
+  section.appendChild(head);
+
+  const list = document.createElement('div');
+  list.className = 'wk-todos-list';
+  list.innerHTML = '<div class="de-loading">Loading…</div>';
+  section.appendChild(list);
+
+  const linkWrap = document.createElement('div');
+  linkWrap.className = 'wk-todos-link-wrap';
+  section.appendChild(linkWrap);
+
+  container.appendChild(section);
+  void refreshWorkTodosSection(section, list, linkWrap, jobSlug);
+}
+
+async function refreshWorkTodosSection(section, listEl, linkWrap, jobSlug) {
+  listEl.innerHTML = '<div class="de-loading">Loading…</div>';
+  try {
+    const res = await fetch(`/api/todos?job_slug=${encodeURIComponent(jobSlug)}`, { cache: 'no-store' });
+    const data = await readApiJson(res);
+    const todos = data.todos || [];
+    listEl.innerHTML = '';
+    if (todos.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'de-empty';
+      empty.textContent = 'No linked to‑dos yet.';
+      listEl.appendChild(empty);
+    } else {
+      for (const todo of todos) {
+        listEl.appendChild(createWorkTodoRow(todo, jobSlug));
+      }
+    }
+    mountWorkTodoLinkPicker(linkWrap, jobSlug, () => refreshWorkTodosSection(section, listEl, linkWrap, jobSlug));
+  } catch (e) {
+    listEl.innerHTML = `<div class="de-empty de-error">${escHtml(e.message)}</div>`;
+  }
+}
+
+function createWorkTodoRow(todo, jobSlug) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'wk-related-item wk-todo-item' + (todo.status === 'done' ? ' wk-todo-item--done' : '');
+  const metaBits = [];
+  if (todo.priority && todo.priority !== 'normal') {
+    metaBits.push(TODO_PRIORITY_LABELS[todo.priority] || todo.priority);
+  }
+  if (todo.due_date) metaBits.push(formatTodoDueDate(todo.due_date));
+  else if (todo.status === 'done') metaBits.push('Done');
+  row.innerHTML =
+    `<span class="wk-related-kind">${todo.status === 'done' ? 'Done' : 'To‑do'}</span>` +
+    `<span class="wk-related-label">${escHtml(todo.title)}</span>` +
+    `<span class="wk-related-meta">${escHtml(metaBits.join(' · ') || 'Open')}</span>`;
+  row.addEventListener('click', () => navigateToTodo(todo.id, { fromWorkSlug: jobSlug }));
+  return row;
+}
+
+function mountWorkTodoLinkPicker(parent, jobSlug, onLinked) {
+  parent.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = 'de-label';
+  label.textContent = 'Link existing to‑do';
+  parent.appendChild(label);
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'wk-client-search-wrap';
+  const searchInput = document.createElement('input');
+  searchInput.className = 'de-input';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search unlinked to‑dos…';
+  searchInput.autocomplete = 'off';
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.style.display = 'none';
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(dropdown);
+  parent.appendChild(searchWrap);
+
+  let unlinkedTodos = [];
+
+  async function loadUnlinked() {
+    const res = await fetch('/api/todos?status=open&unlinked=1', { cache: 'no-store' });
+    const data = await readApiJson(res);
+    unlinkedTodos = data.todos || [];
+  }
+
+  function renderDropdown(query) {
+    const q = query.trim().toLowerCase();
+    dropdown.innerHTML = '';
+    if (q.length < 1) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    const matches = unlinkedTodos
+      .filter((todo) => matchesListSearch(q, todo.title, todo.section, todo.assignee))
+      .slice(0, 8);
+    if (matches.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'de-empty';
+      empty.style.padding = '0.45rem 0.6rem';
+      empty.textContent = 'No matches.';
+      dropdown.appendChild(empty);
+      dropdown.style.display = 'block';
+      return;
+    }
+    for (const todo of matches) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.innerHTML =
+        `${escHtml(todo.title)}` +
+        `<span class="sub">${escHtml(todoSubline(todo) || 'Unlinked')}</span>`;
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => void linkTodoToProject(todo.id, jobSlug));
+      dropdown.appendChild(btn);
+    }
+    dropdown.style.display = 'block';
+  }
+
+  async function linkTodoToProject(todoId, slug) {
+    try {
+      const res = await fetch(`/api/todos/${encodeURIComponent(todoId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_slug: slug }),
+      });
+      const data = await readApiJson(res);
+      const idx = todoState.todos.findIndex((t) => t.id === todoId);
+      if (idx !== -1) todoState.todos[idx] = data;
+      else todoState.todos.unshift(data);
+      searchInput.value = '';
+      dropdown.style.display = 'none';
+      unlinkedTodos = unlinkedTodos.filter((t) => t.id !== todoId);
+      onLinked?.();
+    } catch (e) {
+      osAlert({ title: 'Link failed', bodyHtml: escHtml(e.message) });
+    }
+  }
+
+  async function scheduleSearch() {
+    const q = searchInput.value.trim();
+    if (q.length < 1) {
+      dropdown.style.display = 'none';
+      return;
+    }
+    if (!unlinkedTodos.length) await loadUnlinked();
+    renderDropdown(q);
+  }
+
+  searchInput.addEventListener('input', () => void scheduleSearch());
+  searchInput.addEventListener('focus', () => void scheduleSearch());
 }
 
 function mountWorkRelatedSection(container, related, sourceChatId) {

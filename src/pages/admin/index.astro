@@ -3819,6 +3819,42 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         color: var(--muted);
         white-space: nowrap;
       }
+      .wk-todos-section {
+        margin-top: 1rem;
+        padding-top: 0.85rem;
+        border-top: 1px solid var(--card-border);
+      }
+      .wk-todos-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.55rem;
+      }
+      .wk-todos-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .wk-todos-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+      }
+      .wk-todo-item--done .wk-related-label {
+        text-decoration: line-through;
+        color: var(--muted);
+      }
+      .wk-todos-link-wrap {
+        position: relative;
+      }
+      .wk-todos-link-wrap .de-label {
+        display: block;
+        margin-bottom: 0.35rem;
+      }
       .wk-files-section {
         margin-top: 1rem;
         padding-top: 0.85rem;

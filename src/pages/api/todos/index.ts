@@ -32,6 +32,9 @@ export async function GET(context: APIContext): Promise<Response> {
   const priorityRaw = context.url.searchParams.get('priority')?.trim().toLowerCase();
   const dueBefore = context.url.searchParams.get('due_before')?.trim();
   const dueAfter = context.url.searchParams.get('due_after')?.trim();
+  const jobSlug = context.url.searchParams.get('job_slug')?.trim() || undefined;
+  const unlinkedRaw = context.url.searchParams.get('unlinked')?.trim().toLowerCase();
+  const unlinked = unlinkedRaw === '1' || unlinkedRaw === 'true';
 
   const status = normalizeTodoStatus(statusRaw);
   const priority = normalizeTodoPriority(priorityRaw);
@@ -44,6 +47,8 @@ export async function GET(context: APIContext): Promise<Response> {
     priority,
     due_before: dueBefore || undefined,
     due_after: dueAfter || undefined,
+    job_slug: jobSlug,
+    unlinked: unlinked || undefined,
   });
 
   return json({
