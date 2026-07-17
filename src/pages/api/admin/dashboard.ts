@@ -11,7 +11,12 @@ import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
 import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
 import { getDeployStatus } from '../../../lib/deployStatus';
-import { bookingsToday, isBookingConfigured, type DashboardEvent } from '../../../lib/bookingClient';
+import {
+  bookingList,
+  bookingsToday,
+  isBookingConfigured,
+  type DashboardEvent,
+} from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { getUptimeSummaryView, getUptimeMonitorsView } from '../../../lib/uptimeMonitoring';
 import { hasFeature } from '../../../lib/features';
@@ -66,14 +71,17 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const [events, jobs, threads, deploy] = await Promise.all([
+  const [events, inboxForCount, jobs, threads, deploy] = await Promise.all([
     storeListEmailInbox(100, { hideJunk: true }),
+    storeListEmailInbox(10_000, { hideJunk: true, forDigest: true }),
     storeListWork(),
     storeListChatThreads(userId, { archivedOnly: false }),
     getDeployStatus().catch(() => null),
   ]);
 
   const digest = computeInboxDigest(events, true);
+  const emailsTotal = computeInboxDigest(inboxForCount, true).visible;
+  const projectsTotal = jobs.length;
   const automationNotifications = listReviewNotifications(events);
   const reviewsPending = countReviewNotifications(events);
 
@@ -96,6 +104,21 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const eventsToday = await loadEventsToday();
   const schedulingConfigured = isBookingConfigured();
+
+  let meetingsTotal: number | null = null;
+  if (schedulingConfigured) {
+    const [upcomingRes, pastRes] = await Promise.all([
+      bookingList({ upcoming: true, status: 'accepted', limit: 500 }),
+      bookingList({ upcoming: false, status: 'accepted', limit: 500 }),
+    ]);
+    if (upcomingRes.ok && pastRes.ok) {
+      const seen = new Set<string>();
+      for (const b of [...upcomingRes.data.bookings, ...pastRes.data.bookings]) {
+        seen.add(b.uid);
+      }
+      meetingsTotal = seen.size;
+    }
+  }
 
   let uptime: Awaited<ReturnType<typeof getUptimeSummaryView>> | null = null;
   let uptimeMonitors: Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] = [];
@@ -123,12 +146,15 @@ export async function GET(context: APIContext): Promise<Response> {
     generatedAt: new Date().toISOString(),
     stats: {
       emails: reviewsPending,
+      emailsTotal,
       emailsReview: digest.review,
       reviewsPending,
       automationPending: reviewsPending,
       eventsToday: eventsToday.length,
+      meetingsTotal,
       projectsPending,
       projectsActive,
+      projectsTotal,
       todosOpen: countOpenTodos(),
       clients: clientsTotal,
       chats: threads.filter((t) => !t.archived).length,

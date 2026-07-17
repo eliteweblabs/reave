@@ -3600,6 +3600,7 @@ function collapseFooterNav() {
   syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
+  syncFooterNavCountTooltips();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -3616,6 +3617,7 @@ function expandFooterNav() {
   syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
+  syncFooterNavCountTooltips();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -4052,6 +4054,7 @@ function syncFooterNav() {
   syncFooterWorkNav();
   syncFooterTodoNav();
   syncFooterClientsNav();
+  syncFooterNavCountTooltips();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -4289,6 +4292,56 @@ async function buildMobileToolsMenu(order) {
 
 let reviewsPendingCount = 0;
 
+const footerNavCounts = {
+  chats: null,
+  emails: null,
+  meetings: null,
+  projects: null,
+  todos: null,
+  clients: null,
+};
+
+function footerNavCountLabel(n, singular, plural) {
+  const num = Math.max(0, Number(n) || 0);
+  return `${num} ${num === 1 ? singular : plural}`;
+}
+
+function footerNavShowsCountTooltip(btn) {
+  return (
+    btn &&
+    !btn.classList.contains('footer-nav-btn--create') &&
+    !btn.classList.contains('footer-nav-btn--save')
+  );
+}
+
+function syncFooterNavCountTooltips() {
+  const defs = [
+    { id: 'footer-nav-chat', key: 'chats', singular: 'chat', plural: 'chats' },
+    { id: 'footer-nav-inbox', key: 'emails', singular: 'email', plural: 'emails' },
+    { id: 'footer-nav-schedule', key: 'meetings', singular: 'meeting', plural: 'meetings' },
+    { id: 'footer-nav-work', key: 'projects', singular: 'project', plural: 'projects' },
+    { id: 'footer-nav-todo', key: 'todos', singular: 'to-do', plural: 'to-dos' },
+    { id: 'footer-nav-clients', key: 'clients', singular: 'client', plural: 'clients' },
+  ];
+
+  document.getElementById('footer-nav-home')?.removeAttribute('data-footer-count');
+
+  for (const { id, key, singular, plural } of defs) {
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    if (!footerNavShowsCountTooltip(btn)) {
+      btn.removeAttribute('data-footer-count');
+      continue;
+    }
+    const raw = footerNavCounts[key];
+    if (raw == null) {
+      btn.removeAttribute('data-footer-count');
+      continue;
+    }
+    btn.setAttribute('data-footer-count', footerNavCountLabel(raw, singular, plural));
+  }
+}
+
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
   window.ReviewBadge?.sync(reviewsPendingCount);
@@ -4297,6 +4350,13 @@ function syncReviewBadge(count) {
 function syncDashboardFooterBadges(stats) {
   if (!stats || typeof stats !== 'object') return;
   syncReviewBadge(stats.reviewsPending ?? stats.automationPending ?? 0);
+  footerNavCounts.chats = stats.chats ?? 0;
+  footerNavCounts.emails = stats.emailsTotal ?? stats.emails ?? 0;
+  footerNavCounts.meetings = stats.meetingsTotal ?? null;
+  footerNavCounts.projects = stats.projectsTotal ?? stats.projectsPending ?? 0;
+  footerNavCounts.todos = stats.todosOpen ?? 0;
+  footerNavCounts.clients = stats.clients ?? null;
+  syncFooterNavCountTooltips();
 }
 
 function initTopbarMenus() {

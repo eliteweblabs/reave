@@ -198,7 +198,7 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
     border: var(--footer-nav-glass-border);
     box-shadow: none;
     transition: gap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
+    overflow: visible;
   }
 
   .footer-nav-indicator {
@@ -276,6 +276,36 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from 
 
   .footer-nav-btn:hover {
     color: var(--nav-icon-hover);
+  }
+
+  .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save)::after {
+    content: attr(data-footer-count);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    background: var(--tooltip-bg, #ffffff);
+    border: 1px solid var(--tooltip-border, #e2e8f0);
+    color: var(--tooltip-fg, #475569);
+    font-size: 0.68rem;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 5px;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.12s;
+    z-index: 9999;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  }
+
+  .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save):hover::after,
+  .footer-nav-btn[data-footer-count]:not(.footer-nav-btn--create):not(.footer-nav-btn--save):focus-visible::after {
+    opacity: 1;
+    visibility: visible;
   }
 
   .footer-nav-btn.active,
