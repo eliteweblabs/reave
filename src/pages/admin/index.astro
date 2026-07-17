@@ -106,7 +106,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         --list-row-even: #ffffff;
         --safe-top: env(safe-area-inset-top, 0px);
         --safe-bottom: env(safe-area-inset-bottom, 0px);
-        --topbar-h: calc(4rem + var(--safe-top));
+        --topbar-h: calc(var(--app-header-h, 3.25rem) + var(--safe-top));
         --footer-nav-pill-h: var(--control-h);
         --footer-nav-bottom-gap: 0px;
         --footer-nav-h: calc(var(--footer-nav-pill-h) + var(--safe-bottom) + var(--footer-nav-bottom-gap));
@@ -1023,7 +1023,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       /* Sidebar list subheader — search-only (see admin-ui.js listSearchSubheader) */
       .panel-list-subheader {
         position: relative;
-        margin: 0.35rem 0.5rem 0.5rem;
+        margin: 0 0.5rem 0.5rem;
         flex: 0 0 auto;
       }
       .panel-list-subheader--fab-only {
@@ -1277,7 +1277,8 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         display: flex;
         align-items: center;
         gap: 0.6rem;
-        padding: 0.75rem 1rem 0.6rem;
+        padding: 0 1rem;
+        min-height: var(--control-h);
         border-bottom: 1px solid var(--panel-border);
         flex: 0 0 auto;
         min-width: 0;
@@ -1323,6 +1324,43 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         border: 1px solid #3b82f6;
         padding: 0.15rem 0.45rem;
         white-space: normal;
+      }
+      .de-header-title-field {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .de-header-title-edit-icon {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        color: var(--muted);
+        opacity: 0.72;
+        pointer-events: none;
+      }
+      .de-header-title-edit-icon svg {
+        display: block;
+        width: 16px;
+        height: 16px;
+      }
+      .de-header-title-field:focus-within .de-header-title-edit-icon,
+      .de-header-title-field--clickable:hover .de-header-title-edit-icon {
+        color: var(--fg);
+        opacity: 1;
+      }
+      .de-header-title-field--clickable {
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .de-header-title-field--clickable:hover .ch-header-title {
+        color: var(--fg);
+      }
+      .de-header-title-field .de-header-title-input,
+      .de-header-title-field > .de-doc-name {
+        flex: 1;
+        min-width: 0;
       }
       .de-doc-slug {
         font-size: 0.72rem;
@@ -2608,7 +2646,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         border-color: var(--panel-border);
       }
       .ch-header-title {
-        cursor: pointer;
+        cursor: inherit;
       }
       .ch-header-title:hover {
         color: var(--fg);

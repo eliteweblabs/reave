@@ -45,6 +45,8 @@ import {
   listSearchAddNew,
   createSlidingPillSelect,
   createPanelBackBtn,
+  createEditableHeaderTitleInput,
+  wrapEditableHeaderTitle,
   matchesListSearch,
   initSidebarLayout,
   syncAdminSplitView,
@@ -61,7 +63,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260716c';
+} from './admin-ui.js?v=20260717a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -5288,12 +5290,12 @@ function renderTodoEditPane(pane, isNew) {
     onClick: () => closeTodoEditor(),
   }));
 
-  const titleInput = document.createElement('input');
-  titleInput.className = 'de-doc-name de-header-title-input';
-  titleInput.value = draft.title;
-  titleInput.placeholder = 'To‑do title';
-  titleInput.setAttribute('aria-label', 'To‑do title');
-  header.appendChild(titleInput);
+  const { el: titleField, input: titleInput } = createEditableHeaderTitleInput({
+    value: draft.title,
+    placeholder: 'To‑do title',
+    ariaLabel: 'To‑do title',
+  });
+  header.appendChild(titleField);
 
   const linkTrackEl = document.createElement('div');
   linkTrackEl.className = 'wk-link-track';
@@ -7565,13 +7567,11 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 }
 
 function createWorkHeaderTitleInput(value, placeholder) {
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'de-doc-name de-header-title-input';
-  input.placeholder = placeholder || 'Job title';
-  input.value = value || '';
-  input.setAttribute('aria-label', 'Job title');
-  return input;
+  return createEditableHeaderTitleInput({
+    value: value || '',
+    placeholder: placeholder || 'Job title',
+    ariaLabel: 'Job title',
+  });
 }
 
 function createWorkFormScroll(pane) {
@@ -7594,8 +7594,8 @@ function renderNewWorkForm(pane) {
       renderWorkEditor();
     },
   }));
-  const titleInput = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
-  header.appendChild(titleInput);
+  const { el: titleField, input: titleInput } = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
+  header.appendChild(titleField);
   pane.appendChild(header);
 
   const scroll = createWorkFormScroll(pane);
@@ -7783,8 +7783,8 @@ function renderEditWorkForm(pane) {
           renderWorkEditor();
         },
       }));
-      const titleInput = createWorkHeaderTitleInput(workState.draft.title);
-      header.appendChild(titleInput);
+      const { el: titleField, input: titleInput } = createWorkHeaderTitleInput(workState.draft.title);
+      header.appendChild(titleField);
 
       const linkTrackEl = document.createElement('div');
       linkTrackEl.className = 'wk-link-track';
@@ -10869,8 +10869,10 @@ async function saveChatTitle(threadId, title) {
 
 function startChatTitleEdit(titleEl, threadId, originalTitle) {
   if (!titleEl || titleEl.dataset.editing === '1') return;
+  const wrap = titleEl.closest('.de-header-title-field');
   const prior = (originalTitle || titleEl.textContent || 'New chat').trim() || 'New chat';
   titleEl.dataset.editing = '1';
+  if (wrap) wrap.classList.add('de-header-title-field--editing');
 
   const input = document.createElement('input');
   input.type = 'text';
@@ -10880,6 +10882,7 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
 
   const finish = async (save) => {
     titleEl.dataset.editing = '0';
+    if (wrap) wrap.classList.remove('de-header-title-field--editing');
     const next = (input.value || '').trim() || prior;
     if (save && next !== prior) {
       try {
@@ -10897,7 +10900,7 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
   };
 
   titleEl.hidden = true;
-  titleEl.insertAdjacentElement('afterend', input);
+  (wrap || titleEl.parentElement).appendChild(input);
   input.focus();
   input.select();
 
@@ -10918,18 +10921,13 @@ function createHeaderChatTitle(threadId, title) {
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name ch-header-title';
   titleEl.textContent = (title || '').trim() || 'New chat';
-  titleEl.setAttribute('role', 'button');
-  titleEl.setAttribute('tabindex', '0');
-  titleEl.title = 'Click to rename';
   const start = () => startChatTitleEdit(titleEl, threadId, titleEl.textContent);
-  titleEl.addEventListener('click', start);
-  titleEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      start();
-    }
+  return wrapEditableHeaderTitle(titleEl, {
+    clickable: true,
+    onActivate: start,
+    hint: 'Click to rename',
+    ariaLabel: 'Rename chat',
   });
-  return titleEl;
 }
 
 function syncChatPaneHeaderTitle(title) {

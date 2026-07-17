@@ -643,6 +643,53 @@ export function pullRefreshContentRoot(scrollEl) {
   return scrollEl.querySelector(':scope > .ios-ptr-content') || scrollEl;
 }
 
+/** Pencil icon beside editable pane titles (todo, work, chat rename, etc.). */
+export function wrapEditableHeaderTitle(titleEl, opts = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'de-header-title-field';
+  if (opts.clickable) wrap.classList.add('de-header-title-field--clickable');
+
+  const icon = document.createElement('span');
+  icon.className = 'de-header-title-edit-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.innerHTML = IOS_ICONS.edit;
+
+  wrap.appendChild(icon);
+  wrap.appendChild(titleEl);
+
+  if (opts.clickable && typeof opts.onActivate === 'function') {
+    const activate = (e) => {
+      if (titleEl.dataset.editing === '1') return;
+      e.preventDefault();
+      opts.onActivate();
+    };
+    wrap.addEventListener('click', activate);
+    wrap.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') activate(e);
+    });
+    wrap.setAttribute('role', 'button');
+    wrap.setAttribute('tabindex', '0');
+    wrap.title = opts.hint || 'Click to edit title';
+    wrap.setAttribute('aria-label', opts.ariaLabel || opts.hint || 'Edit title');
+  }
+
+  return wrap;
+}
+
+/**
+ * Header title `<input>` with edit affordance.
+ * @returns {{ el: HTMLElement, input: HTMLInputElement }}
+ */
+export function createEditableHeaderTitleInput(opts = {}) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'de-doc-name de-header-title-input';
+  if (opts.placeholder) input.placeholder = opts.placeholder;
+  if (opts.value != null) input.value = opts.value;
+  input.setAttribute('aria-label', opts.ariaLabel || opts.placeholder || 'Title');
+  return { el: wrapEditableHeaderTitle(input), input };
+}
+
 /**
  * Detail-pane subheader (.de-header): optional back chevron + title/subtitle/actions.
  */
