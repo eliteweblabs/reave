@@ -1299,16 +1299,19 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         color: var(--fg);
       }
       .de-header-title-input {
-        font: inherit;
         background: transparent;
         border: none;
         border-radius: 6px;
         padding: 0;
         outline: none;
-        width: 100%;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      .cl-title-field .de-header-title-input {
+        font-size: max(16px, 0.95rem);
+        font-weight: 700;
+        color: var(--fg);
       }
       .de-header-title-input::placeholder {
         color: var(--muted);
@@ -1319,6 +1322,12 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         border: 1px solid #3b82f6;
         padding: 0.15rem 0.45rem;
         white-space: normal;
+      }
+      .cl-title-field .de-header-title-input:focus {
+        background: transparent;
+        border: none;
+        padding: 0;
+        white-space: nowrap;
       }
       .de-doc-slug {
         font-size: 0.72rem;

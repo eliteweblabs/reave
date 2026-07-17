@@ -6667,13 +6667,31 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 }
 
 function createWorkHeaderTitleInput(value, placeholder) {
+  const wrap = document.createElement('div');
+  wrap.className = 'cl-title-wrap';
+
+  const field = document.createElement('div');
+  field.className = 'cl-title-field';
+
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'de-doc-name de-header-title-input';
+  input.className = 'cl-title-input de-header-title-input';
   input.placeholder = placeholder || 'Job title';
   input.value = value || '';
   input.setAttribute('aria-label', 'Job title');
-  return input;
+
+  const editHint = document.createElement('span');
+  editHint.className = 'cl-title-edit-hint';
+  editHint.innerHTML = IOS_ICONS.edit;
+  editHint.setAttribute('aria-hidden', 'true');
+
+  field.appendChild(input);
+  field.appendChild(editHint);
+  wrap.appendChild(field);
+  syncClTitleInputWidth(input);
+  input.addEventListener('input', () => syncClTitleInputWidth(input));
+
+  return { wrap, input };
 }
 
 function createWorkFormScroll(pane) {
@@ -6696,8 +6714,8 @@ function renderNewWorkForm(pane) {
       renderWorkEditor();
     },
   }));
-  const titleInput = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
-  header.appendChild(titleInput);
+  const { wrap: titleWrap, input: titleInput } = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
+  header.appendChild(titleWrap);
   pane.appendChild(header);
 
   const scroll = createWorkFormScroll(pane);
@@ -6885,8 +6903,8 @@ function renderEditWorkForm(pane) {
           renderWorkEditor();
         },
       }));
-      const titleInput = createWorkHeaderTitleInput(workState.draft.title);
-      header.appendChild(titleInput);
+      const { wrap: titleWrap, input: titleInput } = createWorkHeaderTitleInput(workState.draft.title);
+      header.appendChild(titleWrap);
 
       const linkTrackEl = document.createElement('div');
       linkTrackEl.className = 'wk-link-track';
