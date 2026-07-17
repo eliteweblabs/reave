@@ -100,6 +100,11 @@ export function resolveBookingAddress(raw: unknown): string | undefined {
   return fromBody || undefined;
 }
 
+/** Address for calcom-booking-api create/reschedule — field is required server-side. */
+export function bookingAddressForCreate(raw?: unknown): string {
+  return resolveBookingAddress(raw) || bookingDefaultAddress() || 'Remote meeting';
+}
+
 /** Public Cal.com booking page for the default event type slug. */
 export function publicBookingPageUrl(eventSlug = '30min'): string | null {
   const web = calcomWebappUrl();
@@ -227,10 +232,14 @@ export async function bookingCreate(input: {
   notes?: string;
   address?: string;
 }): Promise<BookingResult<{ booking?: { uid?: string; startTime?: string } }>> {
+  const { address: _address, ...rest } = input;
   return bookingFetch('/api/booking/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...rest,
+      address: bookingAddressForCreate(_address),
+    }),
   });
 }
 
@@ -242,10 +251,14 @@ export async function bookingReschedule(
   uid: string,
   input: { start: string; address?: string; notes?: string; phone?: string },
 ): Promise<BookingResult<{ success?: boolean }>> {
+  const { address: _address, ...rest } = input;
   return bookingFetch(`/api/booking/${encodeURIComponent(uid)}/reschedule`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...rest,
+      address: bookingAddressForCreate(_address),
+    }),
   });
 }
 
