@@ -7680,6 +7680,12 @@ function openScheduleCreateDialog(initial = {}) {
     if (addressInput) {
       addressInput.value = initial.address || readScheduleLastAddress();
     }
+    if (initial.name) nameInput.value = String(initial.name);
+    if (initial.email) emailInput.value = String(initial.email);
+    if (initial.notes) {
+      const notesInput = form.querySelector('[name="notes"]');
+      if (notesInput) notesInput.value = String(initial.notes);
+    }
     destroyGuestAutocomplete = mountScheduleGuestAutocomplete(nameInput, emailInput);
 
     function readStartIso() {
@@ -10812,7 +10818,19 @@ function isEmailRouted(ev) {
 }
 
 function isEmailBookable(ev) {
-  return Boolean(ev.proposedMeetingStart) && String(ev.category || '').toLowerCase() !== 'junk';
+  return isEmailSchedulingRequest(ev);
+}
+
+function isEmailSchedulingRequest(ev) {
+  if (String(ev.category || '').toLowerCase() === 'junk') return false;
+  if (ev.proposedMeetingStart || ev.schedulingNote) return true;
+  const blob = [ev.summary, ev.subject, ev.bodySnippet, ev.routeNote].join(' ').toLowerCase();
+  const mentionsMeeting = /\b(meeting|meet\b|schedule|get together|calendar|appointment)\b/.test(blob);
+  const mentionsTime =
+    /\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m|p\.m)|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+      blob,
+    );
+  return mentionsMeeting && mentionsTime;
 }
 
 function isEmailBooked(ev) {
@@ -11474,6 +11492,120 @@ async function startEmailScheduleFlow(ev) {
     return;
   }
   await showEmailScheduleDialog(ev, data.check);
+}
+
+function attendeeFromEmailEvent(ev) {
+  const email = parseSenderEmail(ev.from);
+  const raw = String(ev.from || '').trim();
+  const nameMatch = raw.match(/^([^<]+)</);
+  const parsedName = nameMatch?.[1]?.replace(/"/g, '').trim();
+  const name = (ev.contactName || parsedName || email.split('@')[0] || 'Guest').trim();
+  return { name, email: email.includes('@') ? email : '' };
+}
+
+async function runEmailScheduleAction(ev, action, btn) {
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = action === 'accept-notify' ? 'Booking…' : 'Sending…';
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    renderEmailPanel();
+    if (action === 'accept-notify') {
+      await osAlert({
+        title: data.alreadyBooked ? 'Notification sent' : 'Meeting accepted',
+        bodyHtml: data.notifyError
+          ? `<p>Meeting booked, but the notification email failed: ${escHtml(data.notifyError)}</p>`
+          : `<p>Calendar updated and ${escHtml(attendeeFromEmailEvent(ev).name || 'the sender')} was notified.</p>`,
+      });
+    } else {
+      await osAlert({
+        title: 'Notification sent',
+        bodyHtml: `<p>Let ${escHtml(attendeeFromEmailEvent(ev).name || 'the sender')} know that time is booked.</p>`,
+      });
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+    await osAlert({ title: 'Could not complete action', bodyHtml: escHtml(err.message) });
+  }
+}
+
+function openScheduleFromEmail(ev) {
+  const attendee = attendeeFromEmailEvent(ev);
+  const notes = [
+    ev.subject ? `Re: ${ev.subject}` : '',
+    ev.schedulingNote ? `Requested: ${ev.schedulingNote}` : '',
+    ev.summary ? ev.summary.slice(0, 200) : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const iso = ev.bookingStart || ev.proposedMeetingStart;
+  let dateKey;
+  let hour;
+  let minute;
+  if (iso) {
+    const d = new Date(iso);
+    dateKey = scheduleDateKey(d);
+    hour = d.getHours();
+    minute = d.getMinutes();
+  }
+
+  openScheduleTab({ date: dateKey, view: 'week' });
+  void openScheduleCreateDialog({
+    dateKey,
+    hour,
+    minute,
+    name: attendee.name,
+    email: attendee.email,
+    notes,
+  });
+}
+
+async function mountEmailScheduleActions(container, ev) {
+  if (!container || isEmailBooked(ev)) return;
+
+  const primaryBtn = container.querySelector('.em-schedule-action-primary');
+  const altBtn = container.querySelector('.em-schedule-action-secondary');
+  altBtn?.addEventListener('click', () => openScheduleFromEmail(ev));
+
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/schedule`, {
+      cache: 'no-store',
+    });
+    const data = await readApiJson(res);
+    if (emailState.activeId !== ev.id) return;
+
+    if (!res.ok || !data.check) {
+      if (primaryBtn) {
+        primaryBtn.hidden = true;
+      }
+      return;
+    }
+
+    if (primaryBtn) {
+      primaryBtn.hidden = false;
+      primaryBtn.disabled = false;
+      const action = data.check.available ? 'accept-notify' : 'notify-conflict';
+      primaryBtn.textContent = data.check.available ? 'Accept and Notify' : 'Time slot is booked';
+      primaryBtn.dataset.action = action;
+      primaryBtn.addEventListener('click', () => {
+        void runEmailScheduleAction(ev, action, primaryBtn);
+      });
+    }
+  } catch {
+    if (emailState.activeId === ev.id && primaryBtn) primaryBtn.hidden = true;
+  }
 }
 
 function shouldShowEmailProjectActions(ev) {
@@ -12449,11 +12581,11 @@ function renderEmailPanel() {
     headerActions.appendChild(agentBtn);
   }
 
-  if (isEmailBookable(ev)) {
+  if (isEmailBookable(ev) && !isEmailBooked(ev)) {
     const schedBtn = document.createElement('button');
     schedBtn.type = 'button';
-    schedBtn.className = 'de-new-btn em-schedule-btn em-header-action-btn' + (isEmailBooked(ev) ? ' em-schedule-btn-done' : '');
-    schedBtn.textContent = isEmailBooked(ev) ? 'Scheduled ✓' : 'Schedule meeting';
+    schedBtn.className = 'de-new-btn em-schedule-btn em-header-action-btn';
+    schedBtn.textContent = 'Schedule meeting';
     schedBtn.addEventListener('click', () => startEmailScheduleFlow(ev));
     headerActions.appendChild(schedBtn);
   }
@@ -12469,19 +12601,32 @@ function renderEmailPanel() {
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (isEmailBookable(ev)) {
-    const whenLabel = formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart);
+    const whenLabel =
+      ev.bookingStart || ev.proposedMeetingStart
+        ? formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart)
+        : ev.schedulingNote || 'Meeting time pending';
     detailHtml +=
       `<div class="em-book-card">` +
         `<div class="em-book-card-title">${isEmailBooked(ev) ? 'Meeting scheduled' : 'Meeting requested'}</div>` +
         `<div class="em-book-card-when">${escHtml(whenLabel)}</div>` +
-        (ev.schedulingNote ? `<div class="em-book-card-note">${escHtml(ev.schedulingNote)}</div>` : '') +
+        (ev.schedulingNote && (ev.bookingStart || ev.proposedMeetingStart)
+          ? `<div class="em-book-card-note">${escHtml(ev.schedulingNote)}</div>`
+          : '') +
         (isEmailBooked(ev) && ev.bookingUid
           ? `<div class="em-hint">Cal.com booking · ${escHtml(ev.bookingUid.slice(0, 8))}…</div>`
-          : `<button type="button" class="em-book-card-btn">Schedule meeting</button>`) +
+          : '') +
       `</div>`;
   }
   detailHtml +=
-    (summary ? `<div class="em-detail-summary">${linkifyPlainText(summary)}</div>` : '') +
+    (summary ? `<div class="em-detail-summary">${linkifyPlainText(summary)}</div>` : '');
+  if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
+    detailHtml +=
+      `<div class="em-schedule-actions">` +
+        `<button type="button" class="em-schedule-action-primary de-new-btn" disabled>Checking availability…</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-new-btn">Suggest alternate time</button>` +
+      `</div>`;
+  }
+  detailHtml +=
     `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
     `<div class="em-detail-meta">` +
       `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
@@ -12505,7 +12650,7 @@ function renderEmailPanel() {
       if (emailState.activeId === full.id) renderEmailPanel();
     });
   }
-  detail.querySelector('.em-book-card-btn')?.addEventListener('click', () => startEmailScheduleFlow(ev));
+  void mountEmailScheduleActions(detail.querySelector('.em-schedule-actions'), ev);
   detail.querySelector('.em-project-link')?.addEventListener('click', () =>
     navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
   );

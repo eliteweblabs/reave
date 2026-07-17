@@ -118,6 +118,126 @@ export function parseProposedMeetingStart(raw: unknown): string | null {
   return d.toISOString();
 }
 
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const;
+
+function parseTimeFromSchedulingText(text: string): { hour: number; minute: number } | null {
+  const m = text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/i);
+  if (!m) return null;
+  let hour = parseInt(m[1], 10);
+  const minute = m[2] ? parseInt(m[2], 10) : 0;
+  const meridiem = (m[3] || '').toLowerCase().replace(/\./g, '').replace(/\s/g, '');
+  if (meridiem.startsWith('p') && hour < 12) hour += 12;
+  if (meridiem.startsWith('a') && hour === 12) hour = 0;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return { hour, minute };
+}
+
+function parseWeekdayFromSchedulingText(text: string): { day: number; next: boolean } | null {
+  const lower = text.toLowerCase();
+  const next = /\bnext\b/.test(lower);
+  for (let i = 0; i < WEEKDAYS.length; i++) {
+    if (new RegExp(`\\b${WEEKDAYS[i]}\\b`, 'i').test(lower)) return { day: i, next };
+  }
+  return null;
+}
+
+/** Best-effort parse of phrases like "next Tuesday at 2:00 p.m." relative to receivedAt. */
+export function parseRelativeMeetingTime(text: string, ref: Date): string | null {
+  const source = String(text || '').trim();
+  if (!source) return null;
+  const time = parseTimeFromSchedulingText(source);
+  if (!time) return null;
+
+  const weekday = parseWeekdayFromSchedulingText(source);
+  const target = new Date(ref);
+
+  if (weekday) {
+    const refDay = ref.getDay();
+    let daysAhead = (weekday.day - refDay + 7) % 7;
+    if (weekday.next && daysAhead === 0) daysAhead = 7;
+    else if (!weekday.next && daysAhead === 0) {
+      target.setHours(time.hour, time.minute, 0, 0);
+      if (target.getTime() <= ref.getTime()) daysAhead = 7;
+    }
+    target.setDate(ref.getDate() + daysAhead);
+  }
+
+  target.setHours(time.hour, time.minute, 0, 0);
+  if (target.getTime() <= ref.getTime()) return null;
+  return target.toISOString();
+}
+
+export function resolveProposedMeetingStart(input: {
+  proposedMeetingStart?: string | null;
+  schedulingNote?: string | null;
+  summary?: string | null;
+  receivedAt?: string | null;
+}): string | null {
+  const direct = parseProposedMeetingStart(input.proposedMeetingStart);
+  if (direct) return direct;
+
+  const ref = input.receivedAt ? new Date(input.receivedAt) : new Date();
+  if (Number.isNaN(ref.getTime())) return null;
+
+  for (const candidate of [input.schedulingNote, input.summary]) {
+    const parsed = parseRelativeMeetingTime(String(candidate || ''), ref);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+export function buildMeetingAcceptNotifyEmail(input: {
+  attendeeName: string;
+  whenLabel: string;
+  companyName?: string | null;
+}): { subject: string; text: string } {
+  const name = input.attendeeName.trim() || 'there';
+  const when = input.whenLabel.trim();
+  const signOff = input.companyName?.trim() || 'Thanks';
+  const text = [
+    `Hi ${name},`,
+    '',
+    when
+      ? `Thanks for reaching out. I've confirmed our meeting for ${when}.`
+      : `Thanks for reaching out. I've confirmed our meeting.`,
+    '',
+    'Looking forward to speaking with you.',
+    '',
+    signOff,
+  ].join('\n');
+  return { subject: 'Meeting confirmed', text };
+}
+
+export function buildMeetingSlotBookedEmail(input: {
+  attendeeName: string;
+  whenLabel: string;
+  companyName?: string | null;
+}): { subject: string; text: string } {
+  const name = input.attendeeName.trim() || 'there';
+  const when = input.whenLabel.trim();
+  const signOff = input.companyName?.trim() || 'Thanks';
+  const text = [
+    `Hi ${name},`,
+    '',
+    when
+      ? `Thanks for your message. Unfortunately I'm already booked at ${when}.`
+      : `Thanks for your message. Unfortunately that time is already booked.`,
+    '',
+    "I'd be happy to find another time — I'll follow up shortly with some options.",
+    '',
+    signOff,
+  ].join('\n');
+  return { subject: 'Re: Meeting time', text };
+}
+
 export async function checkEmailMeetingSlot(input: {
   proposedStart: string;
   from: string;

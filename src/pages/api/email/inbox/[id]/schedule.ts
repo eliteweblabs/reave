@@ -1,20 +1,28 @@
 /**
  * GET  /api/email/inbox/[id]/schedule — check proposed slot vs Cal.com
  * POST /api/email/inbox/[id]/schedule — book meeting and mark inbox item
+ *   action: "book" (default) | "accept-notify" | "notify-conflict"
  */
 
 import type { APIContext } from 'astro';
 import { bookingCreate, resolveBookingAddress } from '../../../../../lib/bookingClient';
+import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
   storeGetEmailInbox,
   storeUpdateEmailInbox,
+  type EmailInboxRecord,
 } from '../../../../../lib/emailInboxStore';
+import { buildReplyEmailHeaders, buildReplySubject, resolveReplyRecipient } from '../../../../../lib/emailReply';
 import {
   attendeeFromEmail,
+  buildMeetingAcceptNotifyEmail,
+  buildMeetingSlotBookedEmail,
   checkEmailMeetingSlot,
   DEFAULT_MEETING_MINUTES,
+  resolveProposedMeetingStart,
 } from '../../../../../lib/emailScheduling';
 import { hasFeature } from '../../../../../lib/features';
+import { isEmailSendConfigured, sendEmail } from '../../../../../lib/outbound';
 
 export const prerender = false;
 
@@ -29,13 +37,48 @@ function schedulingEnabled(): boolean {
   return hasFeature('scheduling');
 }
 
-async function loadEmail(id: string) {
+type LoadedEmail = {
+  event: EmailInboxRecord;
+  proposedStart: string;
+};
+
+async function loadEmail(id: string): Promise<
+  | LoadedEmail
+  | { error: string; status: 404 | 400 }
+> {
   const event = await storeGetEmailInbox(id);
-  if (!event) return { error: 'Not found', status: 404 as const };
-  if (!event.proposedMeetingStart) {
-    return { error: 'No proposed meeting time on this message', status: 400 as const };
+  if (!event) return { error: 'Not found', status: 404 };
+  const proposedStart = resolveProposedMeetingStart({
+    proposedMeetingStart: event.proposedMeetingStart,
+    schedulingNote: event.schedulingNote,
+    summary: event.summary,
+    receivedAt: event.receivedAt,
+  });
+  if (!proposedStart) {
+    return { error: 'No proposed meeting time on this message', status: 400 };
   }
-  return { event };
+  return { event, proposedStart };
+}
+
+async function sendSchedulingReply(
+  event: EmailInboxRecord,
+  message: { subject: string; text: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isEmailSendConfigured()) {
+    return { ok: false, error: 'Outbound email is not configured (RESEND_API_KEY)' };
+  }
+  const to = resolveReplyRecipient(event);
+  if (!to.includes('@')) {
+    return { ok: false, error: 'Could not determine reply recipient' };
+  }
+  const result = await sendEmail({
+    to,
+    subject: buildReplySubject(event.subject || message.subject),
+    text: message.text,
+    headers: buildReplyEmailHeaders(event),
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -52,9 +95,9 @@ export async function GET(context: APIContext): Promise<Response> {
   const loaded = await loadEmail(id);
   if ('error' in loaded) return json({ ok: false, error: loaded.error }, loaded.status);
 
-  const { event } = loaded;
+  const { event, proposedStart } = loaded;
   const checkRes = await checkEmailMeetingSlot({
-    proposedStart: event.proposedMeetingStart!,
+    proposedStart,
     from: event.from,
     contactName: event.contactName,
   });
@@ -65,6 +108,7 @@ export async function GET(context: APIContext): Promise<Response> {
     alreadyBooked: Boolean(event.bookingUid),
     bookingUid: event.bookingUid,
     bookingStart: event.bookingStart,
+    resolvedStart: proposedStart,
     check: checkRes.check,
   });
 }
@@ -83,16 +127,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const loaded = await loadEmail(id);
   if ('error' in loaded) return json({ ok: false, error: loaded.error }, loaded.status);
 
-  const { event } = loaded;
-  if (event.bookingUid) {
-    return json({
-      ok: true,
-      alreadyBooked: true,
-      bookingUid: event.bookingUid,
-      bookingStart: event.bookingStart,
-      event,
-    });
-  }
+  const { event, proposedStart } = loaded;
 
   let body: unknown;
   try {
@@ -101,7 +136,9 @@ export async function POST(context: APIContext): Promise<Response> {
     body = {};
   }
   const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-  const startRaw = rec.start != null ? String(rec.start).trim() : event.proposedMeetingStart!;
+  const action = String(rec.action ?? 'book').trim().toLowerCase();
+
+  const startRaw = rec.start != null ? String(rec.start).trim() : proposedStart;
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
     return json({ ok: false, error: 'Invalid start time' }, 400);
@@ -113,7 +150,48 @@ export async function POST(context: APIContext): Promise<Response> {
     contactName: event.contactName,
   });
   if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
-  if (!checkRes.check.available) {
+
+  const company = await getCompanyConfig();
+  const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
+
+  if (action === 'notify-conflict') {
+    if (checkRes.check.available) {
+      return json(
+        { ok: false, error: 'That time appears to be open — use Accept and Notify instead', check: checkRes.check },
+        409,
+      );
+    }
+    const mail = buildMeetingSlotBookedEmail({
+      attendeeName: attendee.name,
+      whenLabel: checkRes.check.proposedLabel,
+      companyName: company.name,
+    });
+    const sent = await sendSchedulingReply(event, mail);
+    if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+
+    const updated = await storeUpdateEmailInbox(id, {
+      action: 'filed',
+      status: 'FILED',
+    });
+    return json({
+      ok: true,
+      notified: true,
+      action: 'notify-conflict',
+      event: updated ?? event,
+    });
+  }
+
+  if (event.bookingUid && action !== 'accept-notify') {
+    return json({
+      ok: true,
+      alreadyBooked: true,
+      bookingUid: event.bookingUid,
+      bookingStart: event.bookingStart,
+      event,
+    });
+  }
+
+  if (!checkRes.check.available && action === 'accept-notify') {
     return json(
       {
         ok: false,
@@ -124,7 +202,37 @@ export async function POST(context: APIContext): Promise<Response> {
     );
   }
 
-  const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
+  if (!checkRes.check.available && action === 'book') {
+    return json(
+      {
+        ok: false,
+        error: checkRes.check.conflictReason || 'Time slot is not available',
+        check: checkRes.check,
+      },
+      409,
+    );
+  }
+
+  if (action === 'accept-notify' && event.bookingUid) {
+    const mail = buildMeetingAcceptNotifyEmail({
+      attendeeName: attendee.name,
+      whenLabel: formatWhenLabel(event.bookingStart || start.toISOString()),
+      companyName: company.name,
+    });
+    const sent = await sendSchedulingReply(event, mail);
+    if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+    const updated = await storeUpdateEmailInbox(id, { action: 'filed', status: 'FILED' });
+    return json({
+      ok: true,
+      alreadyBooked: true,
+      notified: true,
+      action: 'accept-notify',
+      bookingUid: event.bookingUid,
+      bookingStart: event.bookingStart,
+      event: updated ?? event,
+    });
+  }
+
   if (!attendee.email.includes('@')) {
     return json({ ok: false, error: 'Could not determine attendee email from sender' }, 400);
   }
@@ -163,6 +271,37 @@ export async function POST(context: APIContext): Promise<Response> {
   });
   if (!updated) return json({ ok: false, error: 'Booked but failed to update inbox record' }, 500);
 
+  if (action === 'accept-notify') {
+    const mail = buildMeetingAcceptNotifyEmail({
+      attendeeName: attendee.name,
+      whenLabel: formatWhenLabel(bookingStart),
+      companyName: company.name,
+    });
+    const sent = await sendSchedulingReply(updated, mail);
+    if (!sent.ok) {
+      return json({
+        ok: true,
+        booked: true,
+        notifyError: sent.error,
+        bookingUid,
+        bookingStart,
+        durationMinutes: DEFAULT_MEETING_MINUTES,
+        event: updated,
+      });
+    }
+    const filed = await storeUpdateEmailInbox(id, { action: 'filed', status: 'FILED' });
+    return json({
+      ok: true,
+      booked: true,
+      notified: true,
+      action: 'accept-notify',
+      bookingUid,
+      bookingStart,
+      durationMinutes: DEFAULT_MEETING_MINUTES,
+      event: filed ?? updated,
+    });
+  }
+
   return json({
     ok: true,
     bookingUid,
@@ -170,4 +309,18 @@ export async function POST(context: APIContext): Promise<Response> {
     durationMinutes: DEFAULT_MEETING_MINUTES,
     event: updated,
   });
+}
+
+function formatWhenLabel(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
 }

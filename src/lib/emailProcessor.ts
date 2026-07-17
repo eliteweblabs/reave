@@ -11,7 +11,7 @@ import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { linkProjectItem } from './projectLinks';
-import { parseProposedMeetingStart } from './emailScheduling';
+import { parseProposedMeetingStart, resolveProposedMeetingStart } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
@@ -243,6 +243,14 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       routeNote = ai.reason ?? '';
       proposedMeetingStart = ai.proposed_meeting_start;
       schedulingNote = ai.scheduling_note ?? '';
+      if (!proposedMeetingStart && (schedulingNote || /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary))) {
+        proposedMeetingStart = resolveProposedMeetingStart({
+          proposedMeetingStart: null,
+          schedulingNote,
+          summary,
+          receivedAt: new Date().toISOString(),
+        });
+      }
       const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
       if (job && category === 'client' && ai.note_to_append?.trim()) {
         const appended = await storeAppendWorkNote(job.slug, ai.note_to_append.trim(), {

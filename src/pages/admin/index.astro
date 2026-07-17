@@ -3901,6 +3901,28 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         cursor: pointer;
       }
       .em-book-card-btn:hover { filter: brightness(1.05); }
+      .em-schedule-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+      }
+      .em-schedule-action-primary {
+        background: #14b8a6;
+        color: #042f2e;
+        border: none;
+      }
+      .em-schedule-action-primary:hover:not(:disabled) { filter: brightness(1.05); }
+      .em-schedule-action-primary:disabled {
+        opacity: 0.7;
+        cursor: wait;
+      }
+      .em-schedule-action-secondary {
+        background: var(--card);
+        color: var(--fg);
+        border: 1px solid var(--card-border);
+      }
+      .em-schedule-action-secondary:hover { background: var(--surface-hover); }
       .em-schedule-btn { margin-left: 0.35rem; }
       .em-schedule-btn-done {
         opacity: 0.85;
