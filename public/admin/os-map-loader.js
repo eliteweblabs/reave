@@ -1821,7 +1821,9 @@ function formatEmailWhen(iso) {
 }
 
 function reviewNotificationIcon(type) {
-  return type === 'project' ? '📋' : '📅';
+  if (type === 'project') return '📋';
+  if (type === 'meeting_followup') return '💬';
+  return '📅';
 }
 
 async function dismissReviewNotification(item, btn) {
@@ -2045,7 +2047,7 @@ function buildAutomationNotificationsPanel(notifications) {
     `<div class="dash-panel-head">` +
       `<div class="dash-automation-head-copy">` +
         `<h2 class="dash-panel-title">Automated reviews</h2>` +
-        `<p class="dash-automation-sub">Decisions the system made for you — confirm meetings or open new projects.</p>` +
+        `<p class="dash-automation-sub">Automated decisions and client follow-ups that need a quick look.</p>` +
       `</div>` +
     `</div>`;
 
@@ -2056,6 +2058,8 @@ function buildAutomationNotificationsPanel(notifications) {
     const li = document.createElement('li');
     li.className = 'dash-automation-item';
     const isProject = item.type === 'project';
+    const isMeetingFollowup = item.type === 'meeting_followup';
+    const isAutoBookedMeeting = item.type === 'meeting';
 
     const main = document.createElement('button');
     main.type = 'button';
@@ -2099,7 +2103,28 @@ function buildAutomationNotificationsPanel(notifications) {
 
       actions.appendChild(viewBtn);
       actions.appendChild(dismissBtn);
-    } else {
+    } else if (isMeetingFollowup) {
+      const viewBtn = document.createElement('button');
+      viewBtn.type = 'button';
+      viewBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
+      viewBtn.textContent = 'View email';
+      viewBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+      });
+
+      const dismissBtn = document.createElement('button');
+      dismissBtn.type = 'button';
+      dismissBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
+      dismissBtn.textContent = 'Dismiss';
+      dismissBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        void dismissReviewNotification(item, dismissBtn);
+      });
+
+      actions.appendChild(viewBtn);
+      actions.appendChild(dismissBtn);
+    } else if (isAutoBookedMeeting) {
       const confirmBtn = document.createElement('button');
       confirmBtn.type = 'button';
       confirmBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
@@ -11231,7 +11256,8 @@ function syncTopbarPanelContext() {
 function isPendingReviewNotification(ev) {
   if (!ev || ev.automationAckAt) return false;
   const action = String(ev.action || '').toLowerCase();
-  if (action === 'booked' && ev.bookingUid) return true;
+  if (action === 'booked' && ev.bookingUid && ev.automationKind !== 'meeting_followup') return true;
+  if (ev.automationKind === 'meeting_followup' && ev.bookingUid) return true;
   if (ev.automationKind === 'project_created' && ev.jobSlug) return true;
   return false;
 }

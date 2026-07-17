@@ -5,6 +5,7 @@
 import type { EmailInboxRecord } from './emailInboxStore';
 import { attendeeFromEmail, formatMeetingWhenLabel } from './emailScheduling';
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
+import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
 
 export type MeetingReviewNotification = {
   id: string;
@@ -37,7 +38,26 @@ export type ProjectReviewNotification = {
   contactName: string | null;
 };
 
-export type ReviewNotification = MeetingReviewNotification | ProjectReviewNotification;
+export type MeetingFollowupReviewNotification = {
+  id: string;
+  type: 'meeting_followup';
+  title: string;
+  detail: string;
+  subject: string;
+  from: string;
+  receivedAt: string;
+  emailId: string;
+  bookingUid: string;
+  bookingStart: string;
+  whenLabel: string;
+  attendeeName: string;
+  attendeeEmail: string;
+};
+
+export type ReviewNotification =
+  | MeetingReviewNotification
+  | MeetingFollowupReviewNotification
+  | ProjectReviewNotification;
 
 export function isAutoBookedMeetingPendingReview(
   record: Pick<EmailInboxRecord, 'action' | 'bookingUid' | 'automationAckAt'>,
@@ -59,8 +79,22 @@ export function isAutoProjectPendingReview(
   );
 }
 
+export function isMeetingFollowupPendingReview(
+  record: Pick<EmailInboxRecord, 'automationKind' | 'bookingUid' | 'automationAckAt'>,
+): boolean {
+  return (
+    record.automationKind === 'meeting_followup' &&
+    Boolean(record.bookingUid) &&
+    !record.automationAckAt
+  );
+}
+
 export function isPendingReviewNotification(record: EmailInboxRecord): boolean {
-  return isAutoBookedMeetingPendingReview(record) || isAutoProjectPendingReview(record);
+  return (
+    isAutoBookedMeetingPendingReview(record) ||
+    isMeetingFollowupPendingReview(record) ||
+    isAutoProjectPendingReview(record)
+  );
 }
 
 function meetingDetail(record: EmailInboxRecord): string {
@@ -88,6 +122,34 @@ export function toMeetingReviewNotification(record: EmailInboxRecord): MeetingRe
     attendeeName: attendee.name,
     attendeeEmail: attendee.email,
     jobSlug: record.jobSlug,
+  };
+}
+
+export function toMeetingFollowupReviewNotification(
+  record: EmailInboxRecord,
+): MeetingFollowupReviewNotification {
+  const whenIso = record.bookingStart || record.proposedMeetingStart || record.receivedAt;
+  const whenLabel = formatMeetingWhenLabel(whenIso);
+  const attendee = attendeeFromEmail({ from: record.from, contactName: record.contactName });
+  const title = buildMeetingFollowupNotificationTitle({
+    contactName: record.contactName,
+    from: record.from,
+  });
+
+  return {
+    id: record.id,
+    type: 'meeting_followup',
+    title,
+    detail: `${whenLabel} · ${record.subject || '(no subject)'}`,
+    subject: record.subject || '(no subject)',
+    from: record.from || '',
+    receivedAt: record.receivedAt,
+    emailId: record.id,
+    bookingUid: record.bookingUid!,
+    bookingStart: record.bookingStart || whenIso,
+    whenLabel,
+    attendeeName: attendee.name,
+    attendeeEmail: attendee.email,
   };
 }
 
@@ -132,6 +194,8 @@ export function listReviewNotifications(
     if (out.length >= limit) break;
     if (isAutoBookedMeetingPendingReview(record)) {
       out.push(toMeetingReviewNotification(record));
+    } else if (isMeetingFollowupPendingReview(record)) {
+      out.push(toMeetingFollowupReviewNotification(record));
     } else if (isAutoProjectPendingReview(record)) {
       out.push(toProjectReviewNotification(record));
     }

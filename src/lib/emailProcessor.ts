@@ -14,6 +14,7 @@ import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
+import { detectMeetingFollowUp } from './emailMeetingFollowup';
 import { parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
@@ -188,7 +189,7 @@ export function shouldSendInboxPush(opts: {
   automationKind?: string | null;
 }): boolean {
   if (opts.isProjectReply) return true;
-  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created') return true;
+  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created' || opts.automationKind === 'meeting_followup') return true;
 
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
@@ -351,7 +352,34 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
+  let skipAutoBook = false;
+
+  if (!suppressedAsJunk && hasFeature('scheduling') && action !== 'project_reply' && senderEmail.includes('@')) {
+    const followUp = await detectMeetingFollowUp({
+      from,
+      contactName,
+      subject: email.subject ?? '',
+      summary,
+      bodyText,
+      proposedMeetingStart,
+    });
+    if (followUp) {
+      skipAutoBook = true;
+      automationKind = 'meeting_followup';
+      bookingUid = followUp.booking.uid;
+      bookingStart = followUp.booking.startTime;
+      routeNote = followUp.routeNote;
+      if (action !== 'filed' && action !== 'matched' && action !== 'project_reply') {
+        action = 'review';
+      }
+      if (category !== 'junk' && category !== 'alert') {
+        category = 'client';
+      }
+    }
+  }
+
   if (
+    !skipAutoBook &&
     !suppressedAsJunk &&
     proposedMeetingStart &&
     hasFeature('scheduling') &&
@@ -502,7 +530,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_created'
         ? `New project: ${jobTitle ?? 'from email'}`
-        : automationKind === 'meeting_booked'
+        : automationKind === 'meeting_followup'
+          ? 'Meeting follow-up'
+          : automationKind === 'meeting_booked'
           ? 'Meeting scheduled automatically'
           : isRailwayAlertStatus(ruleResult.status)
             ? `Railway: ${email.subject?.slice(0, 50) || 'deploy alert'}`
@@ -513,7 +543,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
       : automationKind === 'project_created'
         ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
-        : summary;
+        : automationKind === 'meeting_followup'
+          ? summary.slice(0, 240)
+          : summary;
     sendInboxPushNotification({
       title: pushTitle,
       body: pushBody,
