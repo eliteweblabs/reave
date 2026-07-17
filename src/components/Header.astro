@@ -131,6 +131,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
                 aria-haspopup="true"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
               </button>
               <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               {profileMenu.map((key) => (
@@ -159,6 +160,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
           title="Administration"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
         </a>
       ) : (
         <>
@@ -210,6 +212,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
               ) : (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               )}
+              <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
             </button>
             <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
               {staffPreview && (
@@ -245,6 +248,10 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
 {!userId && (
   <SignInSheet fallbackRedirectUrl={signInRedirect} autoOpen={signInAutoOpen} />
+)}
+
+{userId && (
+  <script src="/review-badge.js?v=20260717a" defer></script>
 )}
 
 <style is:global>
@@ -470,6 +477,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   }
 
   .app-header-admin-entry {
+    position: relative;
     margin-left: auto;
     width: 32px;
     height: 32px;
@@ -553,6 +561,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
   .app-header-profile-btn,
   .topbar-profile-btn {
+    position: relative;
     width: 24px;
     height: 24px;
     min-width: 24px;
@@ -706,7 +715,12 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     line-height: 16px;
     text-align: center;
     pointer-events: none;
-    box-shadow: 0 0 0 2px var(--bg, #0a0d14);
+    box-shadow: 0 0 0 2px var(--badge-ring, var(--bg, #0a0d14));
+    z-index: 2;
+  }
+
+  .topbar-badge[hidden] {
+    display: none !important;
   }
 
   .app-header-dropdown,

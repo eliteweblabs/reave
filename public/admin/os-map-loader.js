@@ -46,6 +46,7 @@ import {
   createSlidingPillSelect,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
+  createPaneSubheader,
   wrapEditableHeaderTitle,
   matchesListSearch,
   initSidebarLayout,
@@ -63,7 +64,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260717h';
+} from './admin-ui.js?v=20260717i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -270,6 +271,39 @@ function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create N
     placeholder.appendChild(createBtn);
   }
   return placeholder;
+}
+
+function mapPaneTitle(mapKey) {
+  return MAPS[mapKey]?.title || mapKey || '';
+}
+
+/** Empty detail pane: subheader title + centered placeholder with create action. */
+function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'Create New', onCreate }) {
+  const { header } = createPaneSubheader({ title: mapPaneTitle(mapKey) });
+  pane.appendChild(header);
+  const body = document.createElement('div');
+  body.className = 'de-pane-empty-body';
+  body.appendChild(createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel, onCreate }));
+  pane.appendChild(body);
+}
+
+function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
+  return createIosIconBtn({
+    iconKey: 'trash',
+    label,
+    className: 'ios-icon-btn ch-delete-btn',
+    confirmDelete,
+    onClick,
+  });
+}
+
+function paneShareIcon({ label, onClick }) {
+  return createIosIconBtn({
+    iconKey: 'share',
+    label,
+    className: 'ios-icon-btn de-share-btn',
+    onClick,
+  });
 }
 
 function todoChipHtml(checked) {
@@ -3566,7 +3600,6 @@ function collapseFooterNav() {
   syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
-  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -3583,7 +3616,6 @@ function expandFooterNav() {
   syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
-  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -4020,7 +4052,6 @@ function syncFooterNav() {
   syncFooterWorkNav();
   syncFooterTodoNav();
   syncFooterClientsNav();
-  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -4260,28 +4291,7 @@ let reviewsPendingCount = 0;
 
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
-  renderFooterNavBadges();
-}
-
-function renderFooterNavBadges() {
-  const badge = document.getElementById('footer-home-badge');
-  const btn = document.getElementById('footer-nav-home');
-  if (!badge || !btn) return;
-
-  const n = reviewsPendingCount;
-  if (n > 0) {
-    badge.hidden = false;
-    badge.textContent = n > 99 ? '99+' : String(n);
-    const hint = `${n} review${n === 1 ? '' : 's'} pending`;
-    btn.setAttribute(
-      'aria-label',
-      footerNavCollapsed ? `Show navigation (${hint})` : `Home (${hint})`,
-    );
-  } else {
-    badge.hidden = true;
-    badge.textContent = '0';
-    btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Home');
-  }
+  window.ReviewBadge?.sync(reviewsPendingCount);
 }
 
 function syncDashboardFooterBadges(stats) {
@@ -4575,13 +4585,12 @@ function renderRulesEditor() {
     renderRuleEditPane(pane);
   } else {
     clearEditorFooterSave();
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'zap',
-        bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
-        onCreate: () => void startNewRule(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'rules',
+      iconName: 'zap',
+      bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
+      onCreate: () => void startNewRule(),
+    });
   }
   root.appendChild(pane);
 }
@@ -4614,27 +4623,17 @@ function renderRuleEditPane(pane) {
     return;
   }
 
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({ label: 'Back to rules', onClick: () => closeRuleEditor() }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = rule.title || rule.status || 'Rule';
-  header.appendChild(titleEl);
-  const statusEl = document.createElement('span');
-  statusEl.className = 'de-doc-slug';
-  statusEl.textContent = rule.status || '';
-  header.appendChild(statusEl);
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'trash',
-    label: 'Delete rule',
-    className: 'ios-icon-btn ch-delete-btn',
-    confirmDelete: true,
-    onClick: () => deleteRule(rule.id),
-  }));
-  header.appendChild(headerActions);
+  const header = createPaneSubheader({
+    back: { label: 'Back to rules', onClick: () => closeRuleEditor() },
+    title: rule.title || rule.status || 'Rule',
+    subtitle: rule.status || '',
+    icons: [
+      paneDeleteIcon({
+        label: 'Delete rule',
+        onClick: () => deleteRule(rule.id),
+      }),
+    ],
+  }).header;
   pane.appendChild(header);
 
   const form = document.createElement('div');
@@ -5308,13 +5307,12 @@ function renderTodoEditor() {
   } else if (activeId) {
     renderTodoEditPane(pane, false);
   } else {
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'check-square',
-        bodyHtml: '<p>Select a to‑do, or create a new one.</p>',
-        onCreate: () => startNewTodo(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'todo',
+      iconName: 'check-square',
+      bodyHtml: '<p>Select a to‑do, or create a new one.</p>',
+      onCreate: () => startNewTodo(),
+    });
   }
   root.appendChild(pane);
 }
@@ -5519,52 +5517,48 @@ function renderTodoEditPane(pane, isNew) {
   const draft = todoState.draft;
   if (!draft) return;
 
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
-    onClick: () => closeTodoEditor(),
-  }));
-
-  const { el: titleField, input: titleInput } = createEditableHeaderTitleInput({
-    value: draft.title,
-    placeholder: 'To‑do title',
-    ariaLabel: 'To‑do title',
-  });
-  header.appendChild(titleField);
-
   const linkTrackEl = document.createElement('div');
   linkTrackEl.className = 'wk-link-track';
   linkTrackEl.hidden = true;
 
   const linked = todoState.linkedJob;
-  if (linked?.contact_uid) {
-    appendPortalShareBtn(header, linked.contact_uid, {
-      tab: 'work',
-      jobSlug: linked.slug,
-      trackEl: linkTrackEl,
-      title: `${linked.contact_name || linked.client || 'Client'} — Work`,
-      recipient: {
-        contactUid: linked.contact_uid,
-        name: linked.contact_name || linked.client || 'Client',
-        email: linked.contact_email,
-        phone: linked.contact_phone,
-      },
-    });
+  const icons = [];
+  const shareBtn = linked?.contact_uid
+    ? createPortalShareBtn(linked.contact_uid, {
+        tab: 'work',
+        jobSlug: linked.slug,
+        trackEl: linkTrackEl,
+        title: `${linked.contact_name || linked.client || 'Client'} — Work`,
+        recipient: {
+          contactUid: linked.contact_uid,
+          name: linked.contact_name || linked.client || 'Client',
+          email: linked.contact_email,
+          phone: linked.contact_phone,
+        },
+      })
+    : null;
+  if (shareBtn) icons.push(shareBtn);
+  if (!isNew) {
+    icons.push(
+      paneDeleteIcon({
+        label: 'Delete to‑do',
+        onClick: () => deleteTodo(todoState.activeId),
+      }),
+    );
   }
 
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
-  if (!isNew) {
-    headerActions.appendChild(createIosIconBtn({
-      iconKey: 'trash',
-      label: 'Delete to‑do',
-      className: 'ios-icon-btn ch-delete-btn',
-      confirmDelete: true,
-      onClick: () => deleteTodo(todoState.activeId),
-    }));
-  }
-  header.appendChild(headerActions);
+  const { header, titleInput } = createPaneSubheader({
+    back: {
+      label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
+      onClick: () => closeTodoEditor(),
+    },
+    editableTitle: {
+      value: draft.title,
+      placeholder: 'To‑do title',
+      ariaLabel: 'To‑do title',
+    },
+    icons,
+  });
   pane.appendChild(header);
 
   const scroll = document.createElement('div');
@@ -6080,13 +6074,12 @@ function renderDocEditor() {
     renderEditForm(pane);
   } else {
     clearEditorFooterSave();
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'file-text',
-        bodyHtml: '<p>Select a template to edit, or create a new one.</p>',
-        onCreate: () => void startNewDocument(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'documents',
+      iconName: 'file-text',
+      bodyHtml: '<p>Select a template to edit, or create a new one.</p>',
+      onCreate: () => void startNewDocument(),
+    });
   }
 
   root.appendChild(pane);
@@ -6094,14 +6087,12 @@ function renderDocEditor() {
 
 function renderNewForm(pane) {
   pane.innerHTML = '';
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({ label: 'Back to documents', onClick: () => backToList() }));
-  const nameEl = document.createElement('span');
-  nameEl.className = 'de-doc-name';
-  nameEl.textContent = 'New Document';
-  header.appendChild(nameEl);
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneSubheader({
+      back: { label: 'Back to documents', onClick: () => backToList() },
+      title: 'New Document',
+    }).header,
+  );
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
@@ -6143,21 +6134,6 @@ function renderEditForm(pane) {
     .then(({ html }) => {
       pane.innerHTML = '';
 
-      // ── Header ──
-      const header = document.createElement('div');
-      header.className = 'de-header';
-
-      header.appendChild(createPanelBackBtn({ label: 'Back to documents', onClick: () => backToList() }));
-
-      const nameEl2 = document.createElement('span');
-      nameEl2.className = 'de-doc-name';
-      nameEl2.textContent = tpl?.title ?? slug;
-      header.appendChild(nameEl2);
-
-      const headerSpacer = document.createElement('span');
-      headerSpacer.style.flex = '1';
-      header.appendChild(headerSpacer);
-
       const modeTabs = document.createElement('div');
       modeTabs.className = 'de-mode-tabs';
 
@@ -6171,18 +6147,18 @@ function renderEditForm(pane) {
 
       modeTabs.appendChild(editTab);
       modeTabs.appendChild(viewTab);
-      header.appendChild(modeTabs);
 
-      const headerActions = document.createElement('div');
-      headerActions.className = 'de-header-actions';
-      headerActions.appendChild(createIosIconBtn({
-        iconKey: 'trash',
-        label: 'Delete document',
-        className: 'ios-icon-btn ch-delete-btn',
-        confirmDelete: true,
-        onClick: () => deleteDocument(slug),
-      }));
-      header.appendChild(headerActions);
+      const { header } = createPaneSubheader({
+        back: { label: 'Back to documents', onClick: () => backToList() },
+        title: tpl?.title ?? slug,
+        afterTitle: modeTabs,
+        icons: [
+          paneDeleteIcon({
+            label: 'Delete document',
+            onClick: () => deleteDocument(slug),
+          }),
+        ],
+      });
       pane.appendChild(header);
 
       docState.savedHtml = html;
@@ -6711,13 +6687,12 @@ function renderKnowledgeEditor() {
     renderEditKnowledgeForm(pane);
   } else {
     clearEditorFooterSave();
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'book-open',
-        bodyHtml: '<p>Select a doc to edit, or create a new one.</p>',
-        onCreate: () => startNewKnowledge(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'knowledge',
+      iconName: 'book-open',
+      bodyHtml: '<p>Select a doc to edit, or create a new one.</p>',
+      onCreate: () => startNewKnowledge(),
+    });
   }
 
   root.appendChild(pane);
@@ -6732,21 +6707,19 @@ function startNewKnowledge() {
 
 function renderNewKnowledgeForm(pane) {
   pane.innerHTML = '';
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to knowledge',
-    onClick: () => {
-      knowledgeState.activeSlug = null;
-      getKnowledgeEditor()?.classList.remove('de-pane-active');
-      renderKnowledgeEditor();
-    },
-  }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = 'New knowledge doc';
-  header.appendChild(titleEl);
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneSubheader({
+      back: {
+        label: 'Back to knowledge',
+        onClick: () => {
+          knowledgeState.activeSlug = null;
+          getKnowledgeEditor()?.classList.remove('de-pane-active');
+          renderKnowledgeEditor();
+        },
+      },
+      title: 'New knowledge doc',
+    }).header,
+  );
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
@@ -6783,37 +6756,27 @@ function renderEditKnowledgeForm(pane) {
       knowledgeState.dirty = false;
       pane.innerHTML = '';
 
-      const header = document.createElement('div');
-      header.className = 'de-header';
-      header.appendChild(createPanelBackBtn({
-        label: 'Back to knowledge',
-        onClick: async () => {
-          await flushKnowledgeAutosave();
-          if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
-          knowledgeState.activeSlug = null;
-          knowledgeState.dirty = false;
-          getKnowledgeEditor()?.classList.remove('de-pane-active');
-          renderKnowledgeEditor();
+      const { header } = createPaneSubheader({
+        back: {
+          label: 'Back to knowledge',
+          onClick: async () => {
+            await flushKnowledgeAutosave();
+            if (knowledgeState.dirty && !(await confirmDiscardChanges())) return;
+            knowledgeState.activeSlug = null;
+            knowledgeState.dirty = false;
+            getKnowledgeEditor()?.classList.remove('de-pane-active');
+            renderKnowledgeEditor();
+          },
         },
-      }));
-      const titleEl = document.createElement('span');
-      titleEl.className = 'de-doc-name';
-      titleEl.textContent = data.title || entry?.title || slug;
-      header.appendChild(titleEl);
-      const slugEl = document.createElement('span');
-      slugEl.className = 'de-doc-slug';
-      slugEl.textContent = slug;
-      header.appendChild(slugEl);
-      const headerActions = document.createElement('div');
-      headerActions.className = 'de-header-actions';
-      headerActions.appendChild(createIosIconBtn({
-        iconKey: 'trash',
-        label: 'Delete knowledge doc',
-        className: 'ios-icon-btn ch-delete-btn',
-        confirmDelete: true,
-        onClick: () => deleteKnowledge(slug),
-      }));
-      header.appendChild(headerActions);
+        title: data.title || entry?.title || slug,
+        subtitle: slug,
+        icons: [
+          paneDeleteIcon({
+            label: 'Delete knowledge doc',
+            onClick: () => deleteKnowledge(slug),
+          }),
+        ],
+      });
       pane.appendChild(header);
 
       const ta = document.createElement('textarea');
@@ -7456,13 +7419,12 @@ function renderWorkEditor() {
     renderEditWorkForm(pane);
   } else {
     clearEditorFooterSave();
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'briefcase',
-        bodyHtml: '<p>Select a job to edit, or create a new one.</p>',
-        onCreate: () => startNewProject(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'work',
+      iconName: 'briefcase',
+      bodyHtml: '<p>Select a job to edit, or create a new one.</p>',
+      onCreate: () => startNewProject(),
+    });
   }
 
   root.appendChild(pane);
@@ -7889,14 +7851,6 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   };
 }
 
-function createWorkHeaderTitleInput(value, placeholder) {
-  return createEditableHeaderTitleInput({
-    value: value || '',
-    placeholder: placeholder || 'Job title',
-    ariaLabel: 'Job title',
-  });
-}
-
 function createWorkFormScroll(pane) {
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll wk-form-scroll';
@@ -7906,19 +7860,22 @@ function createWorkFormScroll(pane) {
 
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to jobs',
-    onClick: () => {
-      workState.activeSlug = null;
-      workState.draft = null;
-      getWorkEditor()?.classList.remove('de-pane-active');
-      renderWorkEditor();
+  const { header, titleInput } = createPaneSubheader({
+    back: {
+      label: 'Back to jobs',
+      onClick: () => {
+        workState.activeSlug = null;
+        workState.draft = null;
+        getWorkEditor()?.classList.remove('de-pane-active');
+        renderWorkEditor();
+      },
     },
-  }));
-  const { el: titleField, input: titleInput } = createWorkHeaderTitleInput(workState.draft?.title || '', 'New job');
-  header.appendChild(titleField);
+    editableTitle: {
+      value: workState.draft?.title || '',
+      placeholder: 'New job',
+      ariaLabel: 'Job title',
+    },
+  });
   pane.appendChild(header);
 
   const scroll = createWorkFormScroll(pane);
@@ -8085,69 +8042,70 @@ function renderEditWorkForm(pane) {
       workState.dirty = false;
       pane.innerHTML = '';
 
-      const header = document.createElement('div');
-      header.className = 'de-header';
       const returnEmailId = workState.returnToEmailId;
       const returnTodoId = workState.returnToTodoId;
-      header.appendChild(createPanelBackBtn({
-        label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to jobs',
-        onClick: async () => {
-          await flushWorkAutosave();
-          if (workState.dirty && !(await confirmDiscardChanges())) return;
-          if (returnEmailId) {
-            workState.returnToEmailId = null;
-            workState.activeSlug = null;
-            workState.draft = null;
-            navigateToEmail(returnEmailId);
-            return;
-          }
-          if (returnTodoId) {
-            workState.returnToTodoId = null;
-            workState.activeSlug = null;
-            workState.draft = null;
-            getWorkEditor()?.classList.remove('de-pane-active');
-            navigateToTodo(returnTodoId, { fromWorkSlug: slug });
-            return;
-          }
-          workState.activeSlug = null;
-          workState.draft = null;
-          getWorkEditor()?.classList.remove('de-pane-active');
-          renderWorkEditor();
-        },
-      }));
-      const { el: titleField, input: titleInput } = createWorkHeaderTitleInput(workState.draft.title);
-      header.appendChild(titleField);
 
       const linkTrackEl = document.createElement('div');
       linkTrackEl.className = 'wk-link-track';
       linkTrackEl.hidden = true;
 
-      if (data.contact_uid) {
-        appendPortalShareBtn(header, data.contact_uid, {
-          tab: 'work',
-          jobSlug: slug,
-          trackEl: linkTrackEl,
-          title: `${data.contact_name || data.client || 'Client'} — Work`,
-          recipient: {
-            contactUid: data.contact_uid,
-            name: data.contact_name || data.client || 'Client',
-            email: data.contact_email,
-            phone: data.contact_phone,
+      const icons = [];
+      const shareBtn = data.contact_uid
+        ? createPortalShareBtn(data.contact_uid, {
+            tab: 'work',
+            jobSlug: slug,
+            trackEl: linkTrackEl,
+            title: `${data.contact_name || data.client || 'Client'} — Work`,
+            recipient: {
+              contactUid: data.contact_uid,
+              name: data.contact_name || data.client || 'Client',
+              email: data.contact_email,
+              phone: data.contact_phone,
+            },
+          })
+        : null;
+      if (shareBtn) icons.push(shareBtn);
+      icons.push(
+        paneDeleteIcon({
+          label: 'Delete project',
+          onClick: () => deleteWork(slug),
+        }),
+      );
+
+      const { header, titleInput } = createPaneSubheader({
+        back: {
+          label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to jobs',
+          onClick: async () => {
+            await flushWorkAutosave();
+            if (workState.dirty && !(await confirmDiscardChanges())) return;
+            if (returnEmailId) {
+              workState.returnToEmailId = null;
+              workState.activeSlug = null;
+              workState.draft = null;
+              navigateToEmail(returnEmailId);
+              return;
+            }
+            if (returnTodoId) {
+              workState.returnToTodoId = null;
+              workState.activeSlug = null;
+              workState.draft = null;
+              getWorkEditor()?.classList.remove('de-pane-active');
+              navigateToTodo(returnTodoId, { fromWorkSlug: slug });
+              return;
+            }
+            workState.activeSlug = null;
+            workState.draft = null;
+            getWorkEditor()?.classList.remove('de-pane-active');
+            renderWorkEditor();
           },
-        });
-      }
-
-      const headerActions = document.createElement('div');
-      headerActions.className = 'de-header-actions';
-      headerActions.appendChild(createIosIconBtn({
-        iconKey: 'trash',
-        label: 'Delete project',
-        className: 'ios-icon-btn ch-delete-btn',
-        confirmDelete: true,
-        onClick: () => deleteWork(slug),
-      }));
-      header.appendChild(headerActions);
-
+        },
+        editableTitle: {
+          value: workState.draft.title,
+          placeholder: 'Job title',
+          ariaLabel: 'Job title',
+        },
+        icons,
+      });
       pane.appendChild(header);
 
       const scroll = createWorkFormScroll(pane);
@@ -9022,40 +8980,46 @@ function scheduleShareBookingUrl() {
 function renderScheduleDetail(pane, booking) {
   pane.innerHTML = '';
   const who = scheduleBookingWho(booking);
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to schedule',
-    onClick: () => closeScheduleDetail(),
-  }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = booking.title || 'Meeting';
-  header.appendChild(titleEl);
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'share',
-    label: 'Share with guest',
-    className: 'ios-icon-btn de-share-btn',
-    onClick: () =>
-      openReaveShareSheet({
-        kind: 'booking',
-        recipient: { name: who, email: booking.email || undefined },
-        booking: {
-          uid: booking.uid,
-          title: booking.title,
-          startTime: booking.startTime,
-          endTime: booking.endTime,
-          location: booking.location,
-          description: booking.description,
-        },
-        url: scheduleShareBookingUrl(),
-        shareTitle: booking.title || 'Meeting',
+  const statusNorm = String(booking.status || '').toLowerCase();
+  const icons = [
+    paneShareIcon({
+      label: 'Share with guest',
+      onClick: () =>
+        openReaveShareSheet({
+          kind: 'booking',
+          recipient: { name: who, email: booking.email || undefined },
+          booking: {
+            uid: booking.uid,
+            title: booking.title,
+            startTime: booking.startTime,
+            endTime: booking.endTime,
+            location: booking.location,
+            description: booking.description,
+          },
+          url: scheduleShareBookingUrl(),
+          shareTitle: booking.title || 'Meeting',
+        }),
+    }),
+  ];
+  if (statusNorm === 'accepted' || statusNorm === 'pending') {
+    icons.push(
+      paneDeleteIcon({
+        label: 'Cancel booking',
+        onClick: () => cancelScheduleBooking(booking.uid),
       }),
-  }));
-  header.appendChild(headerActions);
-  pane.appendChild(header);
+    );
+  }
+
+  pane.appendChild(
+    createPaneSubheader({
+      back: {
+        label: 'Back to schedule',
+        onClick: () => closeScheduleDetail(),
+      },
+      title: booking.title || 'Meeting',
+      icons,
+    }).header,
+  );
 
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll schedule-detail-scroll';
@@ -9111,15 +9075,6 @@ function renderScheduleDetail(pane, booking) {
     calLink.rel = 'noopener';
     calLink.textContent = 'Cal.com admin';
     actions.appendChild(calLink);
-  }
-  const statusNorm = String(booking.status || '').toLowerCase();
-  if (statusNorm === 'accepted' || statusNorm === 'pending') {
-    const cancelBtn = document.createElement('button');
-    cancelBtn.type = 'button';
-    cancelBtn.className = 'de-btn de-btn-danger';
-    cancelBtn.textContent = 'Cancel booking';
-    cancelBtn.addEventListener('click', () => cancelScheduleBooking(booking.uid));
-    actions.appendChild(cancelBtn);
   }
   scroll.appendChild(actions);
   pane.appendChild(scroll);
@@ -9549,14 +9504,13 @@ function renderSchedulePanel() {
   if (active) {
     renderScheduleDetail(pane, active);
   } else {
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'calendar',
-        bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
-        btnLabel: 'Book Time',
-        onCreate: () => scheduleOpenCreateDialog(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'schedule',
+      iconName: 'calendar',
+      bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
+      btnLabel: 'Book Time',
+      onCreate: () => scheduleOpenCreateDialog(),
+    });
   }
   root.appendChild(pane);
 }
@@ -9783,14 +9737,13 @@ function renderClientsEditor() {
     renderEditClientForm(pane);
   } else {
     clearEditorFooterSave();
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'users',
-        bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
-        btnLabel: 'Add New',
-        onCreate: () => startNewClient(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'clients',
+      iconName: 'users',
+      bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
+      btnLabel: 'Add New',
+      onCreate: () => startNewClient(),
+    });
   }
 
   root.appendChild(pane);
@@ -9879,22 +9832,20 @@ function mountClientWebsiteField(parent, value) {
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to clients',
-    onClick: () => {
-      clientState.activeUid = null;
-      clientState.draft = null;
-      getClientsEditor()?.classList.remove('de-pane-active');
-      renderClientsEditor();
-    },
-  }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = 'New client';
-  header.appendChild(titleEl);
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneSubheader({
+      back: {
+        label: 'Back to clients',
+        onClick: () => {
+          clientState.activeUid = null;
+          clientState.draft = null;
+          getClientsEditor()?.classList.remove('de-pane-active');
+          renderClientsEditor();
+        },
+      },
+      title: 'New client',
+    }).header,
+  );
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
@@ -9986,21 +9937,6 @@ function renderEditClientForm(pane) {
       clientState.autosaveGetPayload = null;
       pane.innerHTML = '';
 
-      const header = document.createElement('div');
-      header.className = 'de-header';
-      header.appendChild(createPanelBackBtn({
-        label: 'Back to clients',
-        onClick: async () => {
-          await flushClientAutosave();
-          if (clientState.dirty && !(await confirmDiscardChanges())) return;
-          clientState.activeUid = null;
-          clientState.draft = null;
-          clientState.autosaveGetPayload = null;
-          getClientsEditor()?.classList.remove('de-pane-active');
-          renderClientsEditor();
-        },
-      }));
-
       const titleWrap = document.createElement('div');
       titleWrap.className = 'cl-title-wrap';
       const titleField = document.createElement('div');
@@ -10017,13 +9953,10 @@ function renderEditClientForm(pane) {
       titleField.appendChild(nameInput);
       titleField.appendChild(editHint);
       titleWrap.appendChild(titleField);
-      header.appendChild(titleWrap);
       syncClTitleInputWidth(nameInput);
       nameInput.addEventListener('input', () => syncClTitleInputWidth(nameInput));
 
-      const headerActions = document.createElement('div');
-      headerActions.className = 'de-header-actions';
-      appendPortalShareBtn(headerActions, uid, {
+      const shareBtn = createPortalShareBtn(uid, {
         title: `${clientState.draft.name || 'Client'} — portal`,
         recipient: {
           contactUid: uid,
@@ -10032,13 +9965,30 @@ function renderEditClientForm(pane) {
           phone: clientState.draft.phone,
         },
       });
-      headerActions.appendChild(createIosIconBtn({
-        iconKey: 'trash',
-        label: 'Delete client',
-        className: 'ios-icon-btn ch-delete-btn',
-        onClick: () => deleteClient(uid, nameInput.value.trim() || 'Client'),
-      }));
-      header.appendChild(headerActions);
+
+      const { header } = createPaneSubheader({
+        back: {
+          label: 'Back to clients',
+          onClick: async () => {
+            await flushClientAutosave();
+            if (clientState.dirty && !(await confirmDiscardChanges())) return;
+            clientState.activeUid = null;
+            clientState.draft = null;
+            clientState.autosaveGetPayload = null;
+            getClientsEditor()?.classList.remove('de-pane-active');
+            renderClientsEditor();
+          },
+        },
+        titleNode: titleWrap,
+        icons: [
+          shareBtn,
+          paneDeleteIcon({
+            label: 'Delete client',
+            confirmDelete: false,
+            onClick: () => deleteClient(uid, nameInput.value.trim() || 'Client'),
+          }),
+        ].filter(Boolean),
+      });
       pane.appendChild(header);
 
       const fields = document.createElement('div');
@@ -10949,10 +10899,10 @@ async function openReaveShareSheet(opts = {}) {
   });
 }
 
-function appendPortalShareBtn(parent, uid, opts = {}) {
+function createPortalShareBtn(uid, opts = {}) {
   const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, recipient } = opts;
   if (!uid) return null;
-  const btn = createIosIconBtn({
+  return createIosIconBtn({
     iconKey: 'share',
     label: 'Share with client',
     className,
@@ -10967,7 +10917,11 @@ function appendPortalShareBtn(parent, uid, opts = {}) {
         shareTitle: title || 'Your client page',
       }),
   });
-  parent.appendChild(btn);
+}
+
+function appendPortalShareBtn(parent, uid, opts = {}) {
+  const btn = createPortalShareBtn(uid, opts);
+  if (btn && parent) parent.appendChild(btn);
   return btn;
 }
 
@@ -11585,14 +11539,13 @@ function renderChatPanel() {
   pane.className = 'ch-pane';
 
   if (!chatState.activeId) {
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'agent',
-        bodyHtml: '<p>Select a chat or start a new one.</p>',
-        btnLabel: 'Start New Chat',
-        onCreate: () => void startNewChat(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'chats',
+      iconName: 'agent',
+      bodyHtml: '<p>Select a chat or start a new one.</p>',
+      btnLabel: 'Start New Chat',
+      onCreate: () => void startNewChat(),
+    });
     root.appendChild(pane);
     clearTopbarPanelContext();
     setChatComposeFocused(false);
@@ -12382,56 +12335,45 @@ function buildChatPaneNavHeader() {
 }
 
 function buildChatPaneHeader() {
-  const header = document.createElement('div');
-  header.className = 'de-header ch-pane-header';
-
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to chats',
-    onClick: () => closeActiveChat(),
-  }));
-
   const main = document.createElement('div');
   main.className = 'ch-pane-header-main';
   main.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
 
-  header.appendChild(main);
-  header.appendChild(createChatModelSwitcher());
-
   const transcript = chatTranscriptText();
   const thread = activeChatThread();
   const isArchived = !!thread?.archived;
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'copy',
-    label: 'Copy entire conversation',
-    className: 'ios-icon-btn ch-copy-chat-btn',
-    onClick: (btn) => copyChatText(transcript, btn),
-  }));
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'share',
-    label: 'Share entire conversation',
-    className: 'ios-icon-btn ch-share-chat-btn',
-    onClick: (btn) => shareChatText(transcript, 'assistant', btn),
-  }));
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'archive',
-    label: isArchived ? 'Unarchive chat' : 'Archive chat',
-    className: 'ios-icon-btn ch-archive-chat-btn',
-    onClick: () => {
-      const t = activeChatThread();
-      if (t) void archiveChat(t);
-    },
-  }));
-  headerActions.appendChild(createIosIconBtn({
-    iconKey: 'trash',
-    label: 'Delete chat',
-    className: 'ios-icon-btn ch-delete-btn',
-    confirmDelete: true,
-    onClick: () => deleteChat(chatState.activeId),
-  }));
-  header.appendChild(headerActions);
-  return header;
+
+  return createPaneSubheader({
+    className: 'ch-pane-header',
+    back: { label: 'Back to chats', onClick: () => closeActiveChat() },
+    titleNode: main,
+    afterTitle: createChatModelSwitcher(),
+    icons: [
+      createIosIconBtn({
+        iconKey: 'copy',
+        label: 'Copy entire conversation',
+        className: 'ios-icon-btn ch-copy-chat-btn',
+        onClick: (btn) => copyChatText(transcript, btn),
+      }),
+      paneShareIcon({
+        label: 'Share entire conversation',
+        onClick: (btn) => shareChatText(transcript, 'assistant', btn),
+      }),
+      createIosIconBtn({
+        iconKey: 'archive',
+        label: isArchived ? 'Unarchive chat' : 'Archive chat',
+        className: 'ios-icon-btn ch-archive-chat-btn',
+        onClick: () => {
+          const t = activeChatThread();
+          if (t) void archiveChat(t);
+        },
+      }),
+      paneDeleteIcon({
+        label: 'Delete chat',
+        onClick: () => deleteChat(chatState.activeId),
+      }),
+    ],
+  }).header;
 }
 
 function syncTopbarPanelContext() {
@@ -13915,18 +13857,17 @@ async function sendEmailCompose() {
   }
 }
 
+function emailShareText(ev) {
+  return [ev.subject, ev.from, ev.summary || ev.bodySnippet].filter(Boolean).join('\n\n');
+}
+
 function renderEmailComposePane(pane) {
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to inbox',
-    onClick: () => closeEmailCompose(),
-  }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = emailState.replyToId ? 'Reply' : 'New message';
-  header.appendChild(titleEl);
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneSubheader({
+      back: { label: 'Back to inbox', onClick: () => closeEmailCompose() },
+      title: emailState.replyToId ? 'Reply' : 'New message',
+    }).header,
+  );
 
   const form = document.createElement('div');
   form.className = 'em-compose';
@@ -14026,47 +13967,26 @@ function renderEmailPanel() {
 
   const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
   if (!ev) {
-    pane.appendChild(
-      createDetailEmptyPlaceholder({
-        iconName: 'mail',
-        bodyHtml:
-          '<p>Select a message or compose a new one.</p>' +
-          '<p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
-        btnLabel: 'Compose',
-        onCreate: () => startNewEmail(),
-      }),
-    );
+    appendEmptyDetailPane(pane, {
+      mapKey: 'email',
+      iconName: 'mail',
+      bodyHtml:
+        '<p>Select a message or compose a new one.</p>' +
+        '<p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
+      btnLabel: 'Compose',
+      onCreate: () => startNewEmail(),
+    });
     root.appendChild(pane);
     getEmailPanel()?.classList.remove('em-pane-active');
     syncFooterNav();
     return;
   }
 
-  const header = document.createElement('div');
-  header.className = 'de-header';
-  header.appendChild(createPanelBackBtn({
-    label: 'Back to inbox',
-    onClick: () => {
-      emailState.activeId = null;
-      emailState.composing = false;
-      getEmailPanel()?.classList.remove('em-pane-active');
-      renderEmailPanel();
-    },
-  }));
-  const titleEl = document.createElement('span');
-  titleEl.className = 'de-doc-name';
-  titleEl.textContent = ev.subject || '(no subject)';
-  header.appendChild(titleEl);
-
-  const headerActions = document.createElement('div');
-  headerActions.className = 'de-header-actions';
-
   const replyBtn = document.createElement('button');
   replyBtn.type = 'button';
   replyBtn.className = 'de-new-btn em-header-action-btn';
   replyBtn.textContent = 'Reply';
   replyBtn.addEventListener('click', () => void startReplyEmail(ev));
-  headerActions.appendChild(replyBtn);
 
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
@@ -14075,16 +13995,17 @@ function renderEmailPanel() {
   agentBtn.innerHTML = navIcon('agent', 16);
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
 
+  const beforeIcons = [replyBtn];
   if (shouldShowEmailProjectActions(ev)) {
     agentBtn.className = 'em-btn-group-segment em-agent-btn';
     const group = document.createElement('div');
     group.className = 'em-btn-group';
     group.appendChild(agentBtn);
     group.appendChild(createEmailProjectDropdown(ev));
-    headerActions.appendChild(group);
+    beforeIcons.push(group);
   } else {
     agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-    headerActions.appendChild(agentBtn);
+    beforeIcons.push(agentBtn);
   }
 
   if (isEmailBookable(ev) && !isEmailBooked(ev)) {
@@ -14093,11 +14014,34 @@ function renderEmailPanel() {
     schedBtn.className = 'de-new-btn em-schedule-btn em-header-action-btn';
     schedBtn.textContent = 'Schedule meeting';
     schedBtn.addEventListener('click', () => startEmailScheduleFlow(ev));
-    headerActions.appendChild(schedBtn);
+    beforeIcons.push(schedBtn);
   }
 
-  header.appendChild(headerActions);
-  pane.appendChild(header);
+  pane.appendChild(
+    createPaneSubheader({
+      back: {
+        label: 'Back to inbox',
+        onClick: () => {
+          emailState.activeId = null;
+          emailState.composing = false;
+          getEmailPanel()?.classList.remove('em-pane-active');
+          renderEmailPanel();
+        },
+      },
+      title: ev.subject || '(no subject)',
+      beforeIcons,
+      icons: [
+        paneShareIcon({
+          label: 'Share message',
+          onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
+        }),
+        paneDeleteIcon({
+          label: 'Delete message',
+          onClick: () => deleteEmail(ev),
+        }),
+      ],
+    }).header,
+  );
 
   const detail = document.createElement('div');
   detail.className = 'em-detail';

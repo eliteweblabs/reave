@@ -1233,6 +1233,13 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
           display: none;
         }
       }
+      .de-pane-empty-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: auto;
+      }
       .de-placeholder {
         margin: auto;
         text-align: center;
@@ -6099,6 +6106,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717h"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717i"></script>
   </body>
 </html>

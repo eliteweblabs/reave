@@ -702,35 +702,77 @@ export function createEditableHeaderTitleInput(opts = {}) {
 }
 
 /**
- * Detail-pane subheader (.de-header): optional back chevron + title/subtitle/actions.
+ * Standard detail-pane subheader: back + title + optional middle + icon actions.
+ *
+ * @param {object} opts
+ * @param {object|false} [opts.back] — back button opts; omit for none
+ * @param {string} [opts.title] — static title text
+ * @param {object} [opts.editableTitle] — passed to createEditableHeaderTitleInput
+ * @param {HTMLElement} [opts.titleNode] — custom title block (click-to-edit, client name, etc.)
+ * @param {string} [opts.subtitle]
+ * @param {Node|Node[]} [opts.afterTitle] — nodes between title and actions (tabs, model switcher)
+ * @param {Node|Node[]} [opts.beforeIcons] — nodes in .de-header-actions before icon buttons
+ * @param {Node|Node[]} [opts.icons] — share, delete, etc. in .de-header-actions
+ * @param {string} [opts.className] — extra classes on .de-header
+ * @returns {{ header: HTMLElement, titleInput: HTMLInputElement|null }}
  */
-export function createPanelHeader(opts = {}) {
+export function createPaneSubheader(opts = {}) {
   const header = document.createElement('div');
-  header.className = 'de-header';
+  header.className = 'de-header' + (opts.className ? ` ${opts.className}` : '');
+
   if (opts.back) {
     header.appendChild(createPanelBackBtn(opts.back));
   }
-  if (opts.title != null && opts.title !== '') {
+
+  let titleInput = null;
+  if (opts.editableTitle) {
+    const created = createEditableHeaderTitleInput(opts.editableTitle);
+    titleInput = created.input;
+    header.appendChild(created.el);
+  } else if (opts.titleNode) {
+    header.appendChild(opts.titleNode);
+    const found = opts.titleNode.querySelector?.('.de-header-title-input, .cl-title-input');
+    if (found instanceof HTMLInputElement) titleInput = found;
+  } else if (opts.title != null && opts.title !== '') {
     const titleEl = document.createElement('span');
-    titleEl.className = 'de-doc-name';
+    titleEl.className = 'de-doc-name' + (opts.titleClass ? ` ${opts.titleClass}` : '');
     titleEl.textContent = opts.title;
     header.appendChild(titleEl);
   }
+
   if (opts.subtitle != null && opts.subtitle !== '') {
     const subEl = document.createElement('span');
     subEl.className = 'de-doc-slug';
     subEl.textContent = opts.subtitle;
     header.appendChild(subEl);
   }
-  for (const node of opts.nodes || []) {
-    if (node) header.appendChild(node);
+
+  for (const node of [].concat(opts.afterTitle || []).filter(Boolean)) {
+    header.appendChild(node);
   }
-  if (opts.actions) {
+
+  const beforeIcons = [].concat(opts.beforeIcons || []).filter(Boolean);
+  const icons = [].concat(opts.icons || []).filter(Boolean);
+  if (beforeIcons.length || icons.length) {
     const actions = document.createElement('div');
     actions.className = 'de-header-actions';
-    actions.appendChild(opts.actions);
+    for (const node of beforeIcons) actions.appendChild(node);
+    for (const node of icons) actions.appendChild(node);
     header.appendChild(actions);
   }
+
+  return { header, titleInput };
+}
+
+/** @deprecated Use createPaneSubheader */
+export function createPanelHeader(opts = {}) {
+  const { header } = createPaneSubheader({
+    back: opts.back,
+    title: opts.title,
+    subtitle: opts.subtitle,
+    afterTitle: opts.nodes,
+    beforeIcons: opts.actions,
+  });
   return header;
 }
 
