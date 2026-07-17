@@ -280,7 +280,7 @@ export function bookingToDashboardEvent(b: BookingSummary): DashboardEvent {
   };
 }
 
-/** Bookings whose start falls on today in BOOKING_TIMEZONE. */
+/** Bookings whose start falls on today in BOOKING_TIMEZONE (includes past events today). */
 export async function bookingsToday(): Promise<
   BookingResult<{ events: DashboardEvent[]; configured: boolean }>
 > {
@@ -288,14 +288,24 @@ export async function bookingsToday(): Promise<
     return { ok: true, data: { events: [], configured: false } };
   }
 
-  const listed = await bookingList({ upcoming: true, status: 'accepted', limit: 50 });
-  if (!listed.ok) return listed;
+  const limit = 50;
+  const [upcomingRes, pastRes] = await Promise.all([
+    bookingList({ upcoming: true, status: 'accepted', limit }),
+    bookingList({ upcoming: false, status: 'accepted', limit }),
+  ]);
+  if (!upcomingRes.ok) return upcomingRes;
+  if (!pastRes.ok) return pastRes;
 
   const today = todayKeyInTimezone();
-  const events = listed.data.bookings
-    .filter((b) => dateKeyInTimezone(b.startTime) === today)
-    .map(bookingToDashboardEvent)
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const seen = new Set<string>();
+  const events: DashboardEvent[] = [];
+  for (const b of [...upcomingRes.data.bookings, ...pastRes.data.bookings]) {
+    if (seen.has(b.uid)) continue;
+    seen.add(b.uid);
+    if (dateKeyInTimezone(b.startTime) !== today) continue;
+    events.push(bookingToDashboardEvent(b));
+  }
+  events.sort((a, b) => a.time.localeCompare(b.time));
 
   return { ok: true, data: { events, configured: true } };
 }
