@@ -14009,7 +14009,7 @@ function renderEmailSidebar() {
     itemCount: countForTab,
     search: {
       value: emailState.search,
-      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'message' : 'messages'}`,
+      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'email' : 'emails'}`,
       onInput: (value) => {
         emailState.search = value;
         if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
