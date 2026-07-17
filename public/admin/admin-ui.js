@@ -915,6 +915,15 @@ function armContextDeleteConfirm(btn, originalLabel, timeout) {
   }, timeout);
 }
 
+function contextMenuItemsFromSwipeActions(actions) {
+  return (actions || []).map((act) => ({
+    label: act.label || 'Action',
+    action: () => act.onClick?.(),
+    confirmDelete: act.confirmDelete,
+    confirmTimeout: act.confirmTimeout,
+  }));
+}
+
 /** Fixed-position menu for sidebar rows and other list items (right-click / long-press). */
 export function showContextMenu(x, y, items) {
   const menuItems = (items || [])
@@ -930,20 +939,30 @@ export function showContextMenu(x, y, items) {
   menu.className = 'ch-context-menu';
   menu.setAttribute('role', 'menu');
 
+  const activateItem = async (btn, item, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (item.confirmDelete && btn.dataset.confirmArmed !== '1') {
+      armContextDeleteConfirm(btn, item.label, item.confirmTimeout);
+      return;
+    }
+    closeContextMenu();
+    await item.run();
+  };
+
   for (const item of menuItems) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ch-context-item';
     btn.textContent = item.label;
     btn.setAttribute('role', 'menuitem');
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (item.confirmDelete && btn.dataset.confirmArmed !== '1') {
-        armContextDeleteConfirm(btn, item.label, item.confirmTimeout);
-        return;
-      }
-      closeContextMenu();
-      await item.run();
+    btn.addEventListener('pointerup', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      void activateItem(btn, item, e);
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      void activateItem(btn, item, e);
     });
     menu.appendChild(btn);
   }
@@ -958,16 +977,19 @@ export function showContextMenu(x, y, items) {
   const onKey = (ev) => {
     if (ev.key === 'Escape') close({ target: document.body });
   };
+  const unbindDismiss = () => {
+    document.removeEventListener('click', close, true);
+    document.removeEventListener('contextmenu', close, true);
+    document.removeEventListener('keydown', onKey, true);
+  };
   const close = (ev) => {
     if (contextMenuWithinOpenGrace()) return;
     if (menu.contains(ev.target)) return;
     closeContextMenu();
-    document.removeEventListener('pointerdown', close, true);
-    document.removeEventListener('contextmenu', close, true);
-    document.removeEventListener('keydown', onKey, true);
+    unbindDismiss();
   };
   window.setTimeout(() => {
-    document.addEventListener('pointerdown', close, true);
+    document.addEventListener('click', close, true);
     document.addEventListener('contextmenu', close, true);
     document.addEventListener('keydown', onKey, true);
   }, 250);
@@ -977,7 +999,7 @@ function bindSwipeRowContextMenu(row, contentEl, actions) {
   const handler = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showContextMenu(e.clientX, e.clientY, actions);
+    showContextMenu(e.clientX, e.clientY, contextMenuItemsFromSwipeActions(actions));
   };
   row.addEventListener('contextmenu', handler);
   contentEl.addEventListener('contextmenu', handler);

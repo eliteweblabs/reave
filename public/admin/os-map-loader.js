@@ -60,7 +60,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260716c';
+} from './admin-ui.js?v=20260717b';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
