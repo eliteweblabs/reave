@@ -14167,12 +14167,6 @@ function renderEmailPanel() {
     return;
   }
 
-  const replyBtn = document.createElement('button');
-  replyBtn.type = 'button';
-  replyBtn.className = 'de-new-btn em-header-action-btn';
-  replyBtn.textContent = 'Reply';
-  replyBtn.addEventListener('click', () => void startReplyEmail(ev));
-
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
   agentBtn.setAttribute('aria-label', 'Agent');
@@ -14180,7 +14174,7 @@ function renderEmailPanel() {
   agentBtn.innerHTML = navIcon('agent', 16);
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
 
-  const beforeIcons = [replyBtn];
+  const beforeIcons = [];
   if (shouldShowEmailProjectActions(ev)) {
     agentBtn.className = 'em-btn-group-segment em-agent-btn';
     const group = document.createElement('div');
@@ -14191,15 +14185,6 @@ function renderEmailPanel() {
   } else {
     agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
     beforeIcons.push(agentBtn);
-  }
-
-  if (isEmailBookable(ev) && !isEmailBooked(ev)) {
-    const schedBtn = document.createElement('button');
-    schedBtn.type = 'button';
-    schedBtn.className = 'de-new-btn em-schedule-btn em-header-action-btn';
-    schedBtn.textContent = 'Schedule meeting';
-    schedBtn.addEventListener('click', () => startEmailScheduleFlow(ev));
-    beforeIcons.push(schedBtn);
   }
 
   pane.appendChild(
@@ -14216,6 +14201,12 @@ function renderEmailPanel() {
       title: ev.subject || '(no subject)',
       beforeIcons,
       icons: [
+        createIosIconBtn({
+          iconKey: 'reply',
+          label: 'Reply',
+          className: 'ios-icon-btn em-reply-btn',
+          onClick: () => void startReplyEmail(ev),
+        }),
         paneShareIcon({
           label: 'Share message',
           onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),

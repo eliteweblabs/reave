@@ -1342,6 +1342,11 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         min-width: 0;
         overflow: hidden;
       }
+      #email-panel .de-header {
+        overflow: visible;
+        position: relative;
+        z-index: 3;
+      }
       .de-back-btn {
         display: none;
       }
@@ -2250,6 +2255,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         gap: 0.35rem;
         margin-left: auto;
         flex-shrink: 0;
+        overflow: visible;
       }
       .cl-title-wrap {
         flex: 1;
@@ -3733,7 +3739,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         max-width: min(20rem, 70vw);
         max-height: 16rem;
         overflow-y: auto;
-        z-index: 40;
+        z-index: 120;
         background: var(--dropdown-bg);
         border: 1px solid var(--card-border);
         border-radius: 8px;
