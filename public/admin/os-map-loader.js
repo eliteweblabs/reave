@@ -207,6 +207,8 @@ const NAV_ICON_PATHS = {
   zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
   briefcase: '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
   calendar: '<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
+  'calendar-check':
+    '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
@@ -2108,6 +2110,23 @@ function reviewAlertVariant(type) {
   return 'push';
 }
 
+function reviewAlertIconName(type) {
+  switch (type) {
+    case 'meeting_conflict':
+      return 'alert-triangle';
+    case 'meeting_request':
+      return 'calendar';
+    case 'meeting':
+      return 'calendar-check';
+    case 'meeting_followup':
+      return 'mail';
+    case 'project':
+      return 'briefcase';
+    default:
+      return 'bell';
+  }
+}
+
 function appendReviewAlertAction(actions, { label, primary, onClick }) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -2133,6 +2152,12 @@ function buildReviewAlertBanner(item) {
   const alert = document.createElement('div');
   alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type)}`;
   alert.setAttribute('role', 'status');
+
+  const iconWrap = document.createElement('div');
+  iconWrap.className = 'admin-setup-alert-icon';
+  iconWrap.dataset.type = item.type;
+  iconWrap.setAttribute('aria-hidden', 'true');
+  iconWrap.innerHTML = navIcon(reviewAlertIconName(item.type), 18);
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
@@ -2212,7 +2237,7 @@ function buildReviewAlertBanner(item) {
   });
   actions.appendChild(dismissBtn);
 
-  alert.append(copy, actions);
+  alert.append(iconWrap, copy, actions);
   return alert;
 }
 
@@ -8699,6 +8724,79 @@ function rememberScheduleAddress(value) {
   } catch {
     /* ignore quota / private mode */
   }
+}
+
+function isScheduleAddressError(message) {
+  const m = String(message || '').toLowerCase();
+  return (
+    m.includes('address') &&
+    (m.includes('geocod') || m.includes('required') || m.includes('missing'))
+  );
+}
+
+/** Collect a geocodable street address before creating a booking. */
+function ensureScheduleAddress(initial = readScheduleLastAddress()) {
+  const preset = String(initial || '').trim();
+  if (preset) return Promise.resolve(preset);
+
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(null);
+    };
+
+    titleEl.textContent = 'Meeting address';
+    bodyEl.innerHTML =
+      '<p class="em-book-dialog-lead">Enter the job site or meeting location so the booking can be placed on the map.</p>' +
+      '<label class="de-label sched-create-field em-book-address-field">' +
+        '<span>Street address</span>' +
+        '<div class="control-field">' +
+          '<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="123 Main St, City, MA 02134" required>' +
+        '</div>' +
+      '</label>';
+    actionsEl.innerHTML = '';
+    const addressInput = bodyEl.querySelector('#em-book-address');
+
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(null));
+    mkBtn('Continue', '', () => {
+      const address = addressInput?.value.trim() || '';
+      if (!address) {
+        addressInput?.focus();
+        return;
+      }
+      finish(address);
+    });
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, () => finish(null), true);
+    document.addEventListener('keydown', onKey);
+    addressInput?.focus();
+  });
 }
 
 function mountScheduleGuestAutocomplete(nameInput, emailInput) {

@@ -100,9 +100,9 @@ export function resolveBookingAddress(raw: unknown): string | undefined {
   return fromBody || undefined;
 }
 
-/** Address for calcom-booking-api create/reschedule — field is required server-side. */
-export function bookingAddressForCreate(raw?: unknown): string {
-  return resolveBookingAddress(raw) || bookingDefaultAddress() || 'Remote meeting';
+/** Address for calcom-booking-api create/reschedule — must geocode (see BOOKING_DEFAULT_ADDRESS). */
+export function bookingAddressForCreate(raw?: unknown): string | undefined {
+  return resolveBookingAddress(raw) || bookingDefaultAddress();
 }
 
 /** Public Cal.com booking page for the default event type slug. */
@@ -233,12 +233,21 @@ export async function bookingCreate(input: {
   address?: string;
 }): Promise<BookingResult<{ booking?: { uid?: string; startTime?: string } }>> {
   const { address: _address, ...rest } = input;
+  const address = bookingAddressForCreate(_address);
+  if (!address) {
+    return {
+      ok: false,
+      error:
+        'Meeting address is required. Enter a street address or set BOOKING_DEFAULT_ADDRESS.',
+      status: 400,
+    };
+  }
   return bookingFetch('/api/booking/create', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...rest,
-      address: bookingAddressForCreate(_address),
+      address,
     }),
   });
 }
@@ -252,12 +261,21 @@ export async function bookingReschedule(
   input: { start: string; address?: string; notes?: string; phone?: string },
 ): Promise<BookingResult<{ success?: boolean }>> {
   const { address: _address, ...rest } = input;
+  const address = bookingAddressForCreate(_address);
+  if (!address) {
+    return {
+      ok: false,
+      error:
+        'Meeting address is required. Enter a street address or set BOOKING_DEFAULT_ADDRESS.',
+      status: 400,
+    };
+  }
   return bookingFetch(`/api/booking/${encodeURIComponent(uid)}/reschedule`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...rest,
-      address: bookingAddressForCreate(_address),
+      address,
     }),
   });
 }
