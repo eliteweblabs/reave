@@ -33,7 +33,7 @@ const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS todos (
   id SERIAL PRIMARY KEY,
   title VARCHAR(500) NOT NULL,
-  due_date DATE,
+  due_date TIMESTAMPTZ,
   priority VARCHAR(50) NOT NULL DEFAULT 'normal'
     CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
   status VARCHAR(50) NOT NULL DEFAULT 'open'
@@ -53,6 +53,9 @@ ALTER TABLE todos ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0;
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS job_slug VARCHAR(255);
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS assignee VARCHAR(255);
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS section VARCHAR(255);
+ALTER TABLE todos ALTER COLUMN due_date TYPE TIMESTAMPTZ USING (
+  CASE WHEN due_date IS NULL THEN NULL ELSE due_date::timestamptz END
+);
 CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos (status, sort_order ASC, updated_at DESC);
 `;
 
@@ -111,18 +114,55 @@ export function normalizeTodoStatus(raw: unknown): TodoStatus | undefined {
   return TODO_STATUSES.includes(v as TodoStatus) ? (v as TodoStatus) : undefined;
 }
 
+/** Parse due date/time from ISO, datetime-local, or YYYY-MM-DD (local midnight). */
 function parseDueDate(raw: unknown): string | null | undefined {
   if (raw == null || raw === '') return null;
   const v = String(raw).trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return undefined;
-  return v;
+
+  const localMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (localMatch) {
+    const d = new Date(
+      Number(localMatch[1]),
+      Number(localMatch[2]) - 1,
+      Number(localMatch[3]),
+      Number(localMatch[4]),
+      Number(localMatch[5]),
+      Number(localMatch[6] || 0),
+      0,
+    );
+    if (Number.isNaN(d.getTime())) return undefined;
+    return d.toISOString();
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const [y, m, d] = v.split('-').map(Number);
+    const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
+    if (Number.isNaN(dt.getTime())) return undefined;
+    return dt.toISOString();
+  }
+
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+/** Normalize DB/API due values to ISO strings. */
+function formatDueDateValue(raw: unknown): string | null {
+  if (raw == null || raw === '') return null;
+  if (raw instanceof Date) {
+    if (Number.isNaN(raw.getTime())) return null;
+    return raw.toISOString();
+  }
+  const parsed = parseDueDate(raw);
+  if (parsed === undefined) return null;
+  return parsed;
 }
 
 function rowToTodo(row: TodoItem): TodoItem {
   return {
     id: row.id,
     title: row.title,
-    due_date: row.due_date,
+    due_date: formatDueDateValue(row.due_date),
     priority: row.priority,
     status: row.status,
     sort_order: row.sort_order ?? 0,
@@ -230,8 +270,9 @@ export async function dbCreateTodo(input: {
 
     const dueDate = input.due_date ?? null;
     if (dueDate !== null && parseDueDate(dueDate) === undefined) {
-      return { ok: false, error: 'due_date must be YYYY-MM-DD' };
+      return { ok: false, error: 'due_date must be a valid date or datetime' };
     }
+    const dueForDb = dueDate === null ? null : parseDueDate(dueDate);
 
     const priority = input.priority ?? 'normal';
     const jobSlug = input.job_slug?.trim() || null;
@@ -248,7 +289,7 @@ export async function dbCreateTodo(input: {
       `INSERT INTO todos (title, due_date, priority, job_slug, assignee, section, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING ${TODO_COLUMNS}`,
-      [title, dueDate, priority, jobSlug, assignee, section, sortOrder],
+      [title, dueForDb, priority, jobSlug, assignee, section, sortOrder],
     );
     const todo = rows[0];
     if (!todo) return { ok: false, error: 'insert failed' };
@@ -288,7 +329,7 @@ export async function dbUpdateTodo(
         dueDate = null;
       } else {
         const parsed = parseDueDate(patch.due_date);
-        if (parsed === undefined) return { ok: false, error: 'due_date must be YYYY-MM-DD' };
+        if (parsed === undefined) return { ok: false, error: 'due_date must be a valid date or datetime' };
         dueDate = parsed;
       }
     }

@@ -4924,25 +4924,72 @@ function todoJobTitle(slug) {
 
 const TODO_WEEKDAY_SHORT = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'];
 
-/** Parse DATE or ISO timestamp without UTC day-shift on date-only values. */
-function parseTodoDueDate(raw) {
+/** True for legacy DATE-only values stored as UTC midnight. */
+function isUtcDateOnlyInstant(raw, d) {
+  if (!d) return false;
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return true;
+  return (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  );
+}
+
+function parseTodoDueInstant(raw) {
   if (raw == null || raw === '') return null;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
   const s = String(raw).trim();
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) {
-    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
   }
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function todoDueDateInputValue(raw) {
-  const d = parseTodoDueDate(raw);
+function normalizeTodoDueDateRaw(raw) {
+  if (raw == null || raw === '') return null;
+  const d = parseTodoDueInstant(raw);
+  return d ? d.toISOString() : null;
+}
+
+function normalizeTodoItemDates(todo) {
+  if (!todo || typeof todo !== 'object') return todo;
+  return { ...todo, due_date: normalizeTodoDueDateRaw(todo.due_date) };
+}
+
+function todoDueDatePart(raw) {
+  const d = parseTodoDueInstant(raw);
   if (!d) return '';
+  if (isUtcDateOnlyInstant(raw, d)) {
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${mo}-${day}`;
+  }
   const y = d.getFullYear();
   const mo = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${mo}-${day}`;
+}
+
+function todoDueTimePart(raw) {
+  const d = parseTodoDueInstant(raw);
+  if (!d) return '';
+  if (isUtcDateOnlyInstant(raw, d)) return '';
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${min}`;
+}
+
+function combineTodoDueDateTime(dateStr, timeStr) {
+  if (!dateStr?.trim()) return null;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = (timeStr?.trim() || '00:00').split(':').map(Number);
+  const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt.toISOString();
 }
 
 function formatTodoDueTime(d) {
@@ -4956,12 +5003,20 @@ function formatTodoDueTime(d) {
 }
 
 function formatTodoDueDate(raw) {
-  const d = parseTodoDueDate(raw);
+  const d = parseTodoDueInstant(raw);
   if (!d) return '';
-  const wd = TODO_WEEKDAY_SHORT[d.getDay()];
-  const month = d.toLocaleDateString(undefined, { month: 'short' });
-  const day = d.getDate();
-  const time = formatTodoDueTime(d);
+  const dateOnly = isUtcDateOnlyInstant(raw, d);
+  const wd = dateOnly
+    ? TODO_WEEKDAY_SHORT[new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).getUTCDay()]
+    : TODO_WEEKDAY_SHORT[d.getDay()];
+  const month = dateOnly
+    ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toLocaleDateString(undefined, {
+        month: 'short',
+        timeZone: 'UTC',
+      })
+    : d.toLocaleDateString(undefined, { month: 'short' });
+  const day = dateOnly ? d.getUTCDate() : d.getDate();
+  const time = dateOnly ? null : formatTodoDueTime(d);
   const datePart = `${wd}, ${month} ${day}`;
   return time ? `Due ${datePart} @ ${time}` : `Due ${datePart}`;
 }
@@ -5019,7 +5074,7 @@ async function loadTodoTab(opts = {}) {
     const todoData = await todoRes.json();
     const workData = await workRes.json();
     if (!todoRes.ok) throw new Error(todoData.error || `HTTP ${todoRes.status}`);
-    todoState.todos = todoData.todos || [];
+    todoState.todos = (todoData.todos || []).map(normalizeTodoItemDates);
     todoState.priorities = todoData.priorities || todoState.priorities;
     todoState.statuses = todoData.statuses || todoState.statuses;
     todoState.jobs = workRes.ok ? workData.jobs || [] : [];
@@ -5247,7 +5302,7 @@ async function openTodo(id, opts = {}) {
     try {
       const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, { cache: 'no-store' });
       const data = await readApiJson(res);
-      todo = data;
+      todo = normalizeTodoItemDates(data);
       const idx = todoState.todos.findIndex((t) => t.id === id);
       if (idx === -1) todoState.todos.unshift(todo);
       else todoState.todos[idx] = todo;
@@ -5263,7 +5318,7 @@ async function openTodo(id, opts = {}) {
     title: todo.title,
     priority: todo.priority,
     status: todo.status,
-    due_date: todoDueDateInputValue(todo.due_date),
+    due_date: normalizeTodoDueDateRaw(todo.due_date),
     job_slug: todo.job_slug || '',
     assignee: todo.assignee || '',
     section: todo.section || '',
@@ -5322,7 +5377,7 @@ async function saveActiveTodoDraft(silent = false) {
     title: todoState.draft.title.trim(),
     priority: todoState.draft.priority || 'normal',
     status: todoState.draft.status || 'open',
-    due_date: todoState.draft.due_date?.trim() || null,
+    due_date: normalizeTodoDueDateRaw(todoState.draft.due_date),
     job_slug: todoState.draft.job_slug?.trim() || null,
     assignee: todoState.draft.assignee?.trim() || null,
     section: todoState.draft.section?.trim() || null,
@@ -5337,14 +5392,14 @@ async function saveActiveTodoDraft(silent = false) {
         body: JSON.stringify(payload),
       });
       const data = await readApiJson(res);
-      todoState.todos.unshift(data);
+      todoState.todos.unshift(normalizeTodoItemDates(data));
       todoState.activeId = data.id;
       todoState.dirty = false;
       todoState.draft = {
         title: data.title,
         priority: data.priority,
         status: data.status,
-        due_date: todoDueDateInputValue(data.due_date),
+        due_date: normalizeTodoDueDateRaw(data.due_date),
         job_slug: data.job_slug || '',
         assignee: data.assignee || '',
         section: data.section || '',
@@ -5358,7 +5413,7 @@ async function saveActiveTodoDraft(silent = false) {
       });
       const data = await readApiJson(res);
       const idx = todoState.todos.findIndex((t) => t.id === data.id);
-      if (idx !== -1) todoState.todos[idx] = data;
+      if (idx !== -1) todoState.todos[idx] = normalizeTodoItemDates(data);
       todoState.dirty = false;
       if (payload.job_slug !== (todoState.linkedJob?.slug || null)) {
         await refreshTodoLinkedJob(payload.job_slug);
@@ -5478,19 +5533,29 @@ function renderTodoEditPane(pane, isNew) {
   });
   fields.appendChild(statusPill.el);
 
-  const dueLabel = document.createElement('label');
-  dueLabel.className = 'de-label';
-  dueLabel.textContent = 'Due date';
-  const dueInput = document.createElement('input');
-  dueInput.className = 'de-input';
-  dueInput.type = 'date';
-  dueInput.value = todoDueDateInputValue(draft.due_date);
-  dueInput.addEventListener('change', () => {
-    draft.due_date = dueInput.value;
+  const dueWrap = document.createElement('div');
+  dueWrap.className = 'de-label td-due-field';
+  dueWrap.textContent = 'Due';
+  const dueRow = document.createElement('div');
+  dueRow.className = 'td-due-row';
+  const dueDateInput = document.createElement('input');
+  dueDateInput.className = 'de-input';
+  dueDateInput.type = 'date';
+  dueDateInput.value = todoDueDatePart(draft.due_date);
+  const dueTimeInput = document.createElement('input');
+  dueTimeInput.className = 'de-input';
+  dueTimeInput.type = 'time';
+  dueTimeInput.value = todoDueTimePart(draft.due_date);
+  const syncDueDraft = () => {
+    draft.due_date = combineTodoDueDateTime(dueDateInput.value, dueTimeInput.value);
     markDirty();
-  });
-  dueLabel.appendChild(dueInput);
-  fields.appendChild(dueLabel);
+  };
+  dueDateInput.addEventListener('change', syncDueDraft);
+  dueTimeInput.addEventListener('change', syncDueDraft);
+  dueRow.appendChild(dueDateInput);
+  dueRow.appendChild(dueTimeInput);
+  dueWrap.appendChild(dueRow);
+  fields.appendChild(dueWrap);
 
   const assigneeLabel = document.createElement('label');
   assigneeLabel.className = 'de-label';
@@ -5764,7 +5829,7 @@ async function markTodoDone(id) {
     });
     const data = await readApiJson(res);
     const idx = todoState.todos.findIndex((t) => t.id === id);
-    if (idx !== -1) todoState.todos[idx] = data;
+    if (idx !== -1) todoState.todos[idx] = normalizeTodoItemDates(data);
     if (todoState.activeId === id) {
       todoState.draft = { ...todoState.draft, status: 'done' };
     }
@@ -5783,7 +5848,7 @@ async function reopenTodo(id) {
     });
     const data = await readApiJson(res);
     const idx = todoState.todos.findIndex((t) => t.id === id);
-    if (idx !== -1) todoState.todos[idx] = data;
+    if (idx !== -1) todoState.todos[idx] = normalizeTodoItemDates(data);
     todoState.filter = 'open';
     refreshTodoSidebarList();
   } catch (e) {
@@ -11961,7 +12026,7 @@ function mountWorkTodoLinkPicker(parent, jobSlug, onLinked) {
       });
       const data = await readApiJson(res);
       const idx = todoState.todos.findIndex((t) => t.id === todoId);
-      if (idx !== -1) todoState.todos[idx] = data;
+      if (idx !== -1) todoState.todos[idx] = normalizeTodoItemDates(data);
       else todoState.todos.unshift(data);
       searchInput.value = '';
       dropdown.style.display = 'none';
