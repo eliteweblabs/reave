@@ -3325,7 +3325,6 @@ async function refreshVapiPluginStatus() {
 }
 
 function footerNavActiveKey() {
-  if (searchOverlayOpen) return 'search';
   if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
@@ -3609,7 +3608,7 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'search', 'work', 'clients'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'work', 'clients'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -3736,10 +3735,6 @@ function activateFooterNavFromDrag(nav) {
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
-    return;
-  }
-  if (nav === 'search') {
-    toggleSearchOverlay();
     return;
   }
   if (nav === 'work') {
@@ -3998,7 +3993,6 @@ function syncFooterNav() {
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
   });
-  document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
   syncFooterChatNav();
   syncFooterInboxNav();
   syncFooterScheduleNav();
@@ -4036,9 +4030,6 @@ function initFooterNav() {
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
-  });
-  document.getElementById('footer-nav-search')?.addEventListener('click', () => {
-    toggleSearchOverlay();
   });
   document.getElementById('footer-nav-work')?.addEventListener('click', () => {
     closeSearchOverlay();
