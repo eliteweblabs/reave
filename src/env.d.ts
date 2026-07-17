@@ -145,6 +145,10 @@ interface ImportMetaEnv {
   BOOKING_TIMEZONE?: string;
   /** Default job-site address when callers omit one (optional). */
   BOOKING_DEFAULT_ADDRESS?: string;
+  /** Mapbox secret token for server-side geocoding (falls back to PUBLIC_MAPBOX_ACCESS_TOKEN). */
+  MAPBOX_ACCESS_TOKEN?: string;
+  /** Mapbox public token for static map previews in /admin schedule detail. */
+  PUBLIC_MAPBOX_ACCESS_TOKEN?: string;
   /** Vapi private API key — prebuild assistant sync (scripts/sync-vapi-assistant.ts). */
   VAPI_API_KEY?: string;
   /** Vapi assistant id override for sync (defaults to PUBLIC_VAPI_ASSISTANT_ID). */

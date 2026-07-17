@@ -47,6 +47,7 @@ const SYSTEM_NODES = [
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.reave.app · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
+  { id: 'mapbox', title: 'Mapbox', sub: 'schedule geocode · static map preview', icon: '🗺️', brand: 'mapbox', hue: 45, status: true, group: 'external', x: 1160, y: 1420 },
 ];
 
 const SYSTEM_EDGES = [
@@ -87,6 +88,7 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
   { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
   { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
+  { from: 'astro', to: 'mapbox', label: 'geocode · static map', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site alerts' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
@@ -96,7 +98,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web', 'mapbox'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────

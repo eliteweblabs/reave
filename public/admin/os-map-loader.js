@@ -7110,6 +7110,7 @@ let scheduleState = {
     bookingFormUrl: '/form/schedule',
     publicBookingUrl: null,
     calcomAdminUrl: null,
+    mapboxToken: null,
   },
   loading: false,
   error: '',
@@ -7781,6 +7782,89 @@ function scheduleShareBookingUrl() {
   return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
+const scheduleGeocodeCache = new Map();
+
+function scheduleBookingGeo(booking) {
+  const geo = booking?.geo;
+  if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+    return { lat: geo.lat, lng: geo.lng, resolved: geo.resolved };
+  }
+  return null;
+}
+
+function scheduleDirectionsUrl(address, geo) {
+  const dest =
+    geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)
+      ? `${geo.lat},${geo.lng}`
+      : encodeURIComponent(address);
+  return `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+}
+
+function scheduleStaticMapUrl(lng, lat, token) {
+  const pin = `pin-s+007cbf(${lng},${lat})`;
+  return (
+    `https://api.mapbox.com/styles/v1/mapbox/streets-v12/static/${pin}/${lng},${lat},14,0/` +
+    `640x280@2x?access_token=${encodeURIComponent(token)}`
+  );
+}
+
+async function geocodeScheduleAddress(address) {
+  const key = address.trim().toLowerCase();
+  if (scheduleGeocodeCache.has(key)) return scheduleGeocodeCache.get(key);
+
+  let geo = null;
+  try {
+    const res = await adminFetch(`/api/mapbox/geocode?address=${encodeURIComponent(address)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.geo) geo = data.geo;
+    }
+  } catch {
+    // map hidden when geocode fails
+  }
+
+  scheduleGeocodeCache.set(key, geo);
+  return geo;
+}
+
+async function mountScheduleLocationMap(booking, address, mapSection) {
+  const mapImg = mapSection.querySelector('.schedule-detail-map-img');
+  const directionsBtn = mapSection.querySelector('.schedule-directions-btn');
+  const mapStatus = mapSection.querySelector('.schedule-detail-map-status');
+  if (!directionsBtn) return;
+
+  let geo = scheduleBookingGeo(booking);
+  if (!geo) geo = await geocodeScheduleAddress(address);
+
+  directionsBtn.href = scheduleDirectionsUrl(address, geo);
+
+  const token = scheduleState.meta.mapboxToken;
+  if (!token) {
+    if (mapImg) mapImg.hidden = true;
+    if (mapStatus) {
+      mapStatus.textContent = 'Map preview unavailable — Mapbox token not configured.';
+      mapStatus.hidden = false;
+    }
+    return;
+  }
+
+  if (!geo) {
+    if (mapImg) mapImg.hidden = true;
+    if (mapStatus) {
+      mapStatus.textContent = 'Could not locate this address on the map.';
+      mapStatus.hidden = false;
+    }
+    return;
+  }
+
+  if (mapImg) {
+    mapImg.src = scheduleStaticMapUrl(geo.lng, geo.lat, token);
+    mapImg.alt = `Map showing ${geo.resolved || address}`;
+    mapImg.hidden = false;
+  }
+  if (mapStatus) mapStatus.hidden = true;
+}
+
 function renderScheduleDetail(pane, booking) {
   pane.innerHTML = '';
   const who = scheduleBookingWho(booking);
@@ -7862,6 +7946,35 @@ function renderScheduleDetail(pane, booking) {
   addField('Location', booking.location);
   if (booking.description?.trim()) addField('Notes', booking.description.trim());
   scroll.appendChild(fields);
+
+  const locationAddress = booking.location?.trim();
+  if (locationAddress) {
+    const mapSection = document.createElement('div');
+    mapSection.className = 'schedule-detail-map';
+
+    const mapImg = document.createElement('img');
+    mapImg.className = 'schedule-detail-map-img';
+    mapImg.alt = `Map showing ${locationAddress}`;
+    mapImg.loading = 'lazy';
+    mapImg.hidden = true;
+    mapSection.appendChild(mapImg);
+
+    const mapStatus = document.createElement('p');
+    mapStatus.className = 'schedule-detail-map-status';
+    mapStatus.hidden = true;
+    mapSection.appendChild(mapStatus);
+
+    const directionsBtn = document.createElement('a');
+    directionsBtn.className = 'de-btn de-btn-ghost schedule-directions-btn';
+    directionsBtn.textContent = 'Get Directions';
+    directionsBtn.target = '_blank';
+    directionsBtn.rel = 'noopener noreferrer';
+    directionsBtn.href = scheduleDirectionsUrl(locationAddress, scheduleBookingGeo(booking));
+    mapSection.appendChild(directionsBtn);
+
+    scroll.appendChild(mapSection);
+    mountScheduleLocationMap(booking, locationAddress, mapSection);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'de-actions schedule-detail-actions';

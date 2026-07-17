@@ -4645,6 +4645,30 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .schedule-detail-actions {
         margin-top: 1rem;
       }
+      .schedule-detail-map {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .schedule-detail-map-img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--surface-muted);
+      }
+      .schedule-detail-map-status {
+        margin: 0;
+        font-size: 0.72rem;
+        color: var(--muted);
+        line-height: 1.4;
+      }
+      .schedule-directions-btn {
+        align-self: flex-start;
+        text-decoration: none;
+      }
       .schedule-cal-link {
         color: var(--muted);
       }
@@ -5807,6 +5831,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717b"></script>
   </body>
 </html>

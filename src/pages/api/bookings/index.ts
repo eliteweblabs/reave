@@ -18,6 +18,7 @@ import {
 } from '../../../lib/bookingClient';
 import { checkEmailMeetingSlot } from '../../../lib/emailScheduling';
 import { hasFeature } from '../../../lib/features';
+import { mapboxPublicToken } from '../../../lib/mapboxClient';
 
 export const prerender = false;
 
@@ -89,6 +90,7 @@ export async function GET(context: APIContext): Promise<Response> {
       bookingFormUrl: '/form/schedule',
       publicBookingUrl: publicBookingPageUrl() ?? null,
       calcomAdminUrl: calcomAdmin ?? null,
+      mapboxToken: mapboxPublicToken(),
     },
   });
 }

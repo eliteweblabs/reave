@@ -8,6 +8,12 @@
 import { cachedCompanyBrandName, cachedCompanyDomain } from './companyConfig';
 import { serverEnv } from './serverEnv';
 
+export type BookingGeo = {
+  lat: number;
+  lng: number;
+  resolved?: string;
+};
+
 export type BookingSummary = {
   uid: string;
   title: string;
@@ -19,6 +25,8 @@ export type BookingSummary = {
   location?: string;
   description?: string;
   attendeeTimezone?: string;
+  /** Populated when calcom-booking-api geocodes the job-site address. */
+  geo?: BookingGeo;
 };
 
 export type BookingEventType = {
