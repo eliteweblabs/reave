@@ -4130,6 +4130,136 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         }
       }
 
+      /* Reave share sheet */
+      #reave-share-backdrop {
+        z-index: 5500;
+      }
+      #reave-share-backdrop .ios-sheet {
+        --ios-sheet-bg: var(--panel);
+        --ios-sheet-fg: var(--fg);
+        --ios-sheet-border: var(--panel-border);
+        --ios-sheet-muted: var(--muted);
+        --ios-sheet-grabber: color-mix(in srgb, var(--muted) 55%, transparent);
+        --ios-sheet-close-bg: var(--surface-hover);
+        --ios-sheet-close-hover: var(--surface-hover-strong);
+        max-width: 420px;
+      }
+      #reave-share-backdrop .ios-sheet-header {
+        border-bottom-color: var(--panel-border);
+      }
+      .reave-share-body {
+        padding: 0 1rem  max(1rem, env(safe-area-inset-bottom));
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .reave-share-sub {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      .reave-share-note-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .reave-share-optional {
+        font-weight: 500;
+        opacity: 0.75;
+      }
+      .reave-share-note {
+        width: 100%;
+        min-height: 3.2rem;
+        resize: vertical;
+        font: inherit;
+        font-size: max(16px, 0.88rem);
+        line-height: 1.45;
+        padding: 0.55rem 0.65rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--surface);
+        color: var(--fg);
+      }
+      .reave-share-note:focus {
+        outline: none;
+        border-color: #0a84ff;
+      }
+      .reave-share-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-top: 0.15rem;
+      }
+      .reave-share-btn {
+        width: 100%;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 0.72rem 0.85rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--tab-active-bg);
+        color: var(--fg);
+        cursor: pointer;
+        text-align: left;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .reave-share-btn:hover:not(:disabled) {
+        border-color: #4b5563;
+      }
+      .reave-share-btn:disabled {
+        opacity: 0.38;
+        cursor: default;
+      }
+      .reave-share-btn--primary {
+        background: #0a84ff;
+        border-color: #0a84ff;
+        color: #fff;
+        text-align: center;
+      }
+      .reave-share-btn--primary:hover:not(:disabled) {
+        background: #0077e6;
+        border-color: #0077e6;
+      }
+      .reave-share-btn--ghost {
+        background: transparent;
+        color: var(--muted);
+        text-align: center;
+      }
+      .reave-share-btn--ghost:hover:not(:disabled) {
+        color: var(--fg);
+        background: var(--surface-hover);
+      }
+      .reave-share-btn small {
+        display: block;
+        font-size: 0.74rem;
+        font-weight: 500;
+        opacity: 0.82;
+        margin-top: 0.12rem;
+      }
+      .reave-share-status {
+        margin: 0;
+        font-size: 0.82rem;
+        padding: 0.55rem 0.65rem;
+        border-radius: 8px;
+        line-height: 1.4;
+      }
+      .reave-share-status.is-ok {
+        color: #167c3e;
+        background: color-mix(in srgb, #22c55e 12%, transparent);
+        border: 1px solid color-mix(in srgb, #22c55e 28%, transparent);
+      }
+      .reave-share-status.is-err {
+        color: #b42318;
+        background: color-mix(in srgb, #ef4444 10%, transparent);
+        border: 1px solid color-mix(in srgb, #ef4444 24%, transparent);
+      }
+      .reave-share-status.is-pending {
+        color: var(--muted);
+        background: var(--surface-hover);
+      }
+
       /* ── Home dashboard ── */
       #home-dashboard {
         position: fixed;
@@ -5620,6 +5750,25 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       </div>
     </div>
 
+    <div id="reave-share-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="true">
+      <div class="ios-sheet reave-share-sheet" role="dialog" aria-modal="true" aria-labelledby="reave-share-title">
+        <div class="ios-sheet-grabber" aria-hidden="true"></div>
+        <header class="ios-sheet-header">
+          <button type="button" class="ios-sheet-close" data-ios-sheet-close aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <h2 class="ios-sheet-title" id="reave-share-title">Share</h2>
+        </header>
+        <div class="ios-sheet-body reave-share-body">
+          <p class="reave-share-sub" id="reave-share-sub"></p>
+          <label class="reave-share-note-label" for="reave-share-note">Personal note <span class="reave-share-optional">(optional)</span></label>
+          <textarea id="reave-share-note" class="reave-share-note" rows="2" placeholder="Add a short note for the recipient…"></textarea>
+          <div class="reave-share-actions" id="reave-share-actions"></div>
+          <p class="reave-share-status" id="reave-share-status" hidden role="status"></p>
+        </div>
+      </div>
+    </div>
+
     <AdminFooterNav />
 
     <script is:inline>
@@ -5658,6 +5807,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260716c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717a"></script>
   </body>
 </html>

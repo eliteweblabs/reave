@@ -6898,6 +6898,12 @@ function renderEditWorkForm(pane) {
           jobSlug: slug,
           trackEl: linkTrackEl,
           title: `${data.contact_name || data.client || 'Client'} — Work`,
+          recipient: {
+            contactUid: data.contact_uid,
+            name: data.contact_name || data.client || 'Client',
+            email: data.contact_email,
+            phone: data.contact_phone,
+          },
         });
       }
 
@@ -7792,10 +7798,23 @@ function renderScheduleDetail(pane, booking) {
   headerActions.className = 'de-header-actions';
   headerActions.appendChild(createIosIconBtn({
     iconKey: 'share',
-    label: 'Share booking link',
+    label: 'Share with guest',
     className: 'ios-icon-btn de-share-btn',
-    onClick: (btn) =>
-      sharePortalLink(scheduleShareBookingUrl(), booking.title || 'Book a meeting', btn),
+    onClick: () =>
+      openReaveShareSheet({
+        kind: 'booking',
+        recipient: { name: who, email: booking.email || undefined },
+        booking: {
+          uid: booking.uid,
+          title: booking.title,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          location: booking.location,
+          description: booking.description,
+        },
+        url: scheduleShareBookingUrl(),
+        shareTitle: booking.title || 'Meeting',
+      }),
   }));
   header.appendChild(headerActions);
   pane.appendChild(header);
@@ -7846,20 +7865,6 @@ function renderScheduleDetail(pane, booking) {
 
   const actions = document.createElement('div');
   actions.className = 'de-actions schedule-detail-actions';
-  if (booking.email) {
-    const mailBtn = document.createElement('a');
-    mailBtn.className = 'de-btn de-btn-ghost';
-    mailBtn.href = `mailto:${encodeURIComponent(booking.email)}`;
-    mailBtn.textContent = 'Email guest';
-    actions.appendChild(mailBtn);
-  }
-  const shareBtn = document.createElement('a');
-  shareBtn.className = 'de-btn de-btn-ghost';
-  shareBtn.href = scheduleShareBookingUrl();
-  shareBtn.target = '_blank';
-  shareBtn.rel = 'noopener';
-  shareBtn.textContent = 'Share booking link';
-  actions.appendChild(shareBtn);
   if (scheduleState.meta.calcomAdminUrl) {
     const calLink = document.createElement('a');
     calLink.className = 'de-btn de-btn-ghost schedule-cal-link';
@@ -8775,7 +8780,15 @@ function renderEditClientForm(pane) {
 
       const headerActions = document.createElement('div');
       headerActions.className = 'de-header-actions';
-      appendPortalShareBtn(headerActions, uid, { title: `${clientState.draft.name || 'Client'} — portal` });
+      appendPortalShareBtn(headerActions, uid, {
+        title: `${clientState.draft.name || 'Client'} — portal`,
+        recipient: {
+          contactUid: uid,
+          name: clientState.draft.name || 'Client',
+          email: clientState.draft.email,
+          phone: clientState.draft.phone,
+        },
+      });
       headerActions.appendChild(createIosIconBtn({
         iconKey: 'trash',
         label: 'Delete client',
@@ -9419,11 +9432,11 @@ function clientPortalShareUrl(uid, tab) {
   return tab ? `${base}?tab=${encodeURIComponent(tab)}` : base;
 }
 
-async function sharePortalLink(url, _title, btn) {
+async function sharePortalLink(url, title, btn) {
   if (!url) return false;
   if (navigator.share) {
     try {
-      await navigator.share({ url });
+      await navigator.share({ url, title: title || undefined });
       return true;
     } catch (e) {
       if (e?.name === 'AbortError') return false;
@@ -9494,24 +9507,222 @@ async function refreshWorkLinkTrackStatus(container, jobSlug) {
   }
 }
 
-async function shareTrackedProjectPortal(jobSlug, contactUid, tab, title, btn, trackEl) {
-  const url = jobSlug
-    ? await createTrackedProjectShareUrl(jobSlug, contactUid, tab)
-    : clientPortalShareUrl(contactUid, tab);
-  const shared = await sharePortalLink(url, title, btn);
-  if (shared && jobSlug) void refreshWorkLinkTrackStatus(trackEl, jobSlug);
-  return shared;
+let _reaveShareState = null;
+
+function closeReaveShareSheet() {
+  window.IosSheet?.close('reave-share-backdrop');
+  _reaveShareState = null;
+}
+
+function setReaveShareStatus(msg, kind) {
+  const el = document.getElementById('reave-share-status');
+  if (!el) return;
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = '';
+    el.className = 'reave-share-status';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+  el.className = `reave-share-status is-${kind || 'pending'}`;
+}
+
+function reaveShareKindLabel(kind) {
+  if (kind === 'work') return 'Project link';
+  if (kind === 'booking') return 'Meeting details';
+  return 'Client portal link';
+}
+
+async function resolveReaveShareUrl(state) {
+  if (state.url) return state.url;
+  if (state.kind === 'work' && state.jobSlug && state.recipient?.contactUid) {
+    return createTrackedProjectShareUrl(state.jobSlug, state.recipient.contactUid, state.tab || 'work');
+  }
+  if (state.recipient?.contactUid) {
+    return clientPortalShareUrl(state.recipient.contactUid, state.tab);
+  }
+  if (state.kind === 'booking') return scheduleShareBookingUrl();
+  return '';
+}
+
+async function sendViaReaveShare(channel, state) {
+  setReaveShareStatus('Sending…', 'pending');
+  const noteEl = document.getElementById('reave-share-note');
+  const message = noteEl?.value?.trim() || undefined;
+  let url;
+  if (state.kind === 'booking') {
+    url = state.url || scheduleShareBookingUrl();
+  } else if (!state.jobSlug && state.recipient?.contactUid) {
+    url = clientPortalShareUrl(state.recipient.contactUid, state.tab);
+  } else if (state.url && !state.jobSlug) {
+    url = state.url;
+  }
+  const payload = {
+    kind: state.kind === 'work' ? 'work' : state.kind,
+    channel,
+    recipient: state.recipient,
+    message,
+    url: url || undefined,
+    jobSlug: state.jobSlug || undefined,
+    tab: state.tab || undefined,
+    booking: state.booking || undefined,
+  };
+
+  const buttons = document.querySelectorAll('#reave-share-actions .reave-share-btn--primary');
+  buttons.forEach((b) => { b.disabled = true; });
+
+  try {
+    const res = await fetch('/api/share/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    setReaveShareStatus(`Sent via ${data.channel} to ${data.dest}`, 'ok');
+    if (state.jobSlug && state.trackEl) void refreshWorkLinkTrackStatus(state.trackEl, state.jobSlug);
+    state.onSent?.(data);
+  } catch (e) {
+    setReaveShareStatus(e?.message || 'Send failed', 'err');
+    buttons.forEach((b) => { b.disabled = false; });
+  }
+}
+
+function buildReaveShareActions(state, opts = {}) {
+  const actionsEl = document.getElementById('reave-share-actions');
+  if (!actionsEl) return;
+
+  const recipient = state.recipient || {};
+  const name = recipient.name?.trim() || 'recipient';
+  const firstName = name.split(/\s+/)[0] || name;
+  const email = recipient.email?.trim();
+  const phone = recipient.phone?.trim();
+  const canEmail = !!email || !!recipient.contactUid || state.kind === 'booking';
+  const canSms = !!phone || !!email || !!recipient.contactUid;
+
+  actionsEl.innerHTML = '';
+
+  const mkBtn = (label, className, onClick, disabled, hint) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `reave-share-btn ${className}`.trim();
+    btn.disabled = !!disabled;
+    if (hint) {
+      btn.innerHTML = `${escHtml(label)}<small>${escHtml(hint)}</small>`;
+    } else {
+      btn.textContent = label;
+    }
+    btn.addEventListener('click', onClick);
+    return btn;
+  };
+
+  actionsEl.appendChild(
+    mkBtn(
+      `Email ${firstName}`,
+      'reave-share-btn--primary',
+      () => sendViaReaveShare('email', state),
+      !canEmail,
+      email || (canEmail ? 'Via Reave' : 'No email on file'),
+    ),
+  );
+  actionsEl.appendChild(
+    mkBtn(
+      `Text ${firstName}`,
+      'reave-share-btn--primary',
+      () => sendViaReaveShare('sms', state),
+      !canSms,
+      phone || (canSms ? 'Via Reave' : 'No phone on file'),
+    ),
+  );
+  actionsEl.appendChild(
+    mkBtn('Copy link', 'reave-share-btn--ghost', async () => {
+      const url = await resolveReaveShareUrl(state);
+      let text = url;
+      if (state.kind === 'booking' && state.booking) {
+        text = [formatScheduleRange(state.booking.startTime, state.booking.endTime), url]
+          .filter(Boolean)
+          .join('\n');
+      }
+      if (text && (await copyChatText(text))) setReaveShareStatus('Copied to clipboard', 'ok');
+    }),
+  );
+  if (navigator.share) {
+    actionsEl.appendChild(
+      mkBtn('More options…', 'reave-share-btn--ghost', async () => {
+        const url = await resolveReaveShareUrl(state);
+        const sharePayload = { title: opts.shareTitle || `Share with ${name}` };
+        if (url) sharePayload.url = url;
+        if (opts.shareText) sharePayload.text = opts.shareText;
+        try {
+          await navigator.share(sharePayload);
+        } catch (e) {
+          if (e?.name !== 'AbortError') setReaveShareStatus(e?.message || 'Share cancelled', 'err');
+        }
+      }),
+    );
+  }
+}
+
+async function openReaveShareSheet(opts = {}) {
+  const backdrop = document.getElementById('reave-share-backdrop');
+  if (!backdrop) return;
+
+  const recipient = { ...(opts.recipient || {}) };
+  if (opts.contactUid && !recipient.contactUid) recipient.contactUid = opts.contactUid;
+  const name = recipient.name?.trim() || 'Guest';
+  recipient.name = name;
+  const kind = opts.kind || 'portal';
+  const brandName = window.__companyBrand?.name || 'Reave';
+
+  const state = {
+    kind,
+    recipient,
+    url: opts.url,
+    jobSlug: opts.jobSlug,
+    tab: opts.tab,
+    booking: opts.booking,
+    trackEl: opts.trackEl,
+    onSent: opts.onSent,
+  };
+  _reaveShareState = state;
+
+  const titleEl = document.getElementById('reave-share-title');
+  const subEl = document.getElementById('reave-share-sub');
+  const noteEl = document.getElementById('reave-share-note');
+  if (titleEl) titleEl.textContent = `Share with ${name}`;
+  if (subEl) {
+    subEl.textContent =
+      kind === 'booking'
+        ? `Send meeting details via ${brandName} — branded email or SMS, not your personal account.`
+        : `Send ${reaveShareKindLabel(kind).toLowerCase()} via ${brandName}.`;
+  }
+  if (noteEl) noteEl.value = '';
+  setReaveShareStatus('', null);
+  buildReaveShareActions(state, opts);
+
+  window.IosSheet?.open('reave-share-backdrop', {
+    onClose: () => { _reaveShareState = null; },
+  });
 }
 
 function appendPortalShareBtn(parent, uid, opts = {}) {
-  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl } = opts;
+  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, recipient } = opts;
   if (!uid) return null;
   const btn = createIosIconBtn({
     iconKey: 'share',
-    label: 'Share client portal link',
+    label: 'Share with client',
     className,
     onClick: () =>
-      shareTrackedProjectPortal(jobSlug, uid, tab, title || 'Your client page', btn, trackEl),
+      openReaveShareSheet({
+        kind: jobSlug ? 'work' : 'portal',
+        contactUid: uid,
+        recipient: recipient || { contactUid: uid, name: opts.recipientName },
+        tab,
+        jobSlug,
+        trackEl,
+        shareTitle: title || 'Your client page',
+      }),
   });
   parent.appendChild(btn);
   return btn;

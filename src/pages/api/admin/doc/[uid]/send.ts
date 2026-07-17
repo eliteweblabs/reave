@@ -1,7 +1,7 @@
 import type { APIContext } from 'astro';
 import { getContact, siteBaseUrl } from '../../../../../lib/contactApi';
 import { getTemplate } from '../../../../../lib/documentTemplates';
-import { sendDocumentLink } from '../../../../../lib/documentDelivery';
+import { deliverShare } from '../../../../../lib/shareDelivery';
 
 export const prerender = false;
 
@@ -43,13 +43,18 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, 404);
 
   const docUrl = `${siteBaseUrl(context.request)}/doc/${encodeURIComponent(uid)}/${encodeURIComponent(template)}`;
-  const result = await sendDocumentLink({
-    contact: contactRes.data,
-    docUrl,
-    docTitle: tmpl.title,
+  const result = await deliverShare({
+    kind: 'document',
     channel,
+    recipient: { contactUid: uid },
+    url: docUrl,
+    template,
+    docTitle: tmpl.title,
+    sentBy: userId,
+    request: context.request,
+    source: 'admin_doc_send',
   });
 
   if (!result.ok) return json(result, 400);
-  return json(result);
+  return json({ ok: true, channel: result.channel, dest: result.dest });
 }

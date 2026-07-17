@@ -67,7 +67,6 @@ import {
   resolveWorkClientDecision,
   searchClientsEnhanced,
 } from './clientSearch';
-import { createTrackedProjectLink } from './linkTracking';
 import {
   isCraterConfigured,
   craterCreateInvoice,
@@ -118,7 +117,7 @@ import {
   codeDevReadFile,
   codeDevWriteFile,
 } from './codeDevTools';
-import { brandedEmailHtml } from './emailTemplates';
+import { deliverShare } from './shareDelivery';
 import { braveSearch, formatBraveResults, isBraveConfigured } from './braveClient';
 import { fetchUrl } from './fetchUrlClient';
 import {
@@ -3450,17 +3449,6 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
       const c = current.data;
 
-      const portal = extractPortal(c);
-      if (portal && portal.enabled === false) {
-        return JSON.stringify({ error: 'This client’s page is hidden (enabled:false). Re-enable it before sending.' });
-      }
-
-      let url = clientPortalUrl(target.uid);
-      let tracked: { token?: string; job_slug?: string } | undefined;
-
-      const firstName = (c.firstName || c.name || '').trim().split(/\s+/)[0] || 'there';
-      const intro = typeof args.message === 'string' && args.message.trim() ? `${args.message.trim()}\n\n` : '';
-
       const channel = String(args.channel ?? 'auto');
       let useEmail = false;
       let useSms = false;
@@ -3480,70 +3468,46 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
 
       const jobSlug = typeof args.job_slug === 'string' ? args.job_slug.trim() : '';
-      let linkedJobTitle = '';
-      if (jobSlug && isSafeWorkSlug(jobSlug)) {
-        const job = await storeReadWork(jobSlug);
-        if (job) linkedJobTitle = job.title;
-        if (job && (job.contact_uid === target.uid || !job.contact_uid)) {
-          const created = await createTrackedProjectLink({
-            jobSlug,
-            contactUid: target.uid,
-            channel: useSms && !useEmail ? 'sms' : 'email',
-            sentBy: null,
-          });
-          if (created.ok) {
-            url = created.url;
-            tracked = { token: created.link.token, job_slug: jobSlug };
-          }
-        }
-      }
-
+      const message =
+        typeof args.message === 'string' && args.message.trim() ? args.message.trim() : undefined;
       const sent: Record<string, unknown> = {};
+      let url = clientPortalUrl(target.uid);
+      let tracked: { token?: string; job_slug?: string } | undefined;
+
       if (useEmail) {
-        const subject = c.company ? `Your client page — ${c.company}` : 'Your client page';
-        const introLines = intro ? [intro.trim()] : [];
-        const text =
-          `${intro}Hi ${firstName},\n\n` +
-          `Here's your personal client page — your details and any outstanding invoices live here:\n\n${url}\n\n` +
-          `Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.`;
-        const html = await brandedEmailHtml({
-          firstName,
-          paragraphs: [
-            ...introLines,
-            "Here's your personal client page — your details and any outstanding invoices live here:",
-          ],
-          cta: { label: 'Open your client page', url },
-          note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
+        const r = await deliverShare({
+          kind: 'portal',
+          channel: 'email',
+          recipient: { contactUid: target.uid },
+          message,
+          jobSlug: jobSlug || undefined,
+          sentBy: getAgentContext().userId ?? null,
+          source: 'agent_send_client_portal',
         });
-        const r = await sendEmail({ to: c.email as string, subject, text, html });
-        sent.email = r.ok ? { ok: true, to: c.email, id: r.id } : { ok: false, error: r.error };
-        if (r.ok && tracked?.job_slug) {
-          void recordProjectOutboundEmail({
-            jobSlug: tracked.job_slug,
-            jobTitle: linkedJobTitle,
-            contactUid: target.uid,
-            toEmail: c.email as string,
-            subject,
-            resendId: r.id,
-            sentBy: getAgentContext().userId ?? null,
-            source: 'agent_send_client_portal',
-          });
-        } else if (r.ok) {
-          void logOutboundEmailForProject({
-            toEmail: c.email as string,
-            subject,
-            resendId: r.id,
-            sentBy: getAgentContext().userId ?? null,
-            source: 'agent_send_client_portal',
-            contactUid: target.uid,
-            jobSlug: jobSlug || null,
-          });
+        sent.email = r.ok
+          ? { ok: true, to: c.email, id: undefined }
+          : { ok: false, error: r.error };
+        if (r.ok) {
+          url = r.url;
+          if (r.tracked) tracked = { token: r.tracked.token, job_slug: r.tracked.job_slug };
         }
       }
       if (useSms) {
-        const body = `${intro}Hi ${firstName}, here's your client page: ${url}`;
-        const r = await sendSms({ to: c.phone as string, body });
-        sent.sms = r.ok ? { ok: true, to: c.phone, id: r.id } : { ok: false, error: r.error };
+        const r = await deliverShare({
+          kind: 'portal',
+          channel: 'sms',
+          recipient: { contactUid: target.uid },
+          message,
+          jobSlug: jobSlug || undefined,
+          url: useEmail && sent.email && (sent.email as { ok?: boolean }).ok ? url : undefined,
+          sentBy: getAgentContext().userId ?? null,
+          source: 'agent_send_client_portal',
+        });
+        sent.sms = r.ok ? { ok: true, to: c.phone, id: undefined } : { ok: false, error: r.error };
+        if (r.ok && !useEmail) {
+          url = r.url;
+          if (r.tracked) tracked = { token: r.tracked.token, job_slug: r.tracked.job_slug };
+        }
       }
 
       const anyOk = Object.values(sent).some((v) => (v as { ok?: boolean }).ok);
