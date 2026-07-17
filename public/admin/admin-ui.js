@@ -893,14 +893,86 @@ function contextMenuWithinOpenGrace() {
 }
 
 function normalizeContextMenuItem(item) {
+  if (item?.submenu?.length) {
+    const submenu = item.submenu.map(normalizeContextMenuItem).filter(Boolean);
+    if (!submenu.length) return null;
+    return { label: item.label || 'Menu', submenu };
+  }
   const label = item.label || 'Action';
   const run = item.action || item.onClick;
+  if (typeof run !== 'function') return null;
   return {
     label,
-    run: typeof run === 'function' ? run : null,
+    run,
+    disabled: !!item.disabled,
     confirmDelete: !!item.confirmDelete,
     confirmTimeout: item.confirmTimeout ?? DELETE_CONFIRM_MS,
   };
+}
+
+function positionContextMenu(menu, x, y) {
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+}
+
+function appendContextMenuItem(menu, item) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.setAttribute('role', 'menuitem');
+  if (item.disabled) {
+    btn.className = 'ch-context-item ch-context-item--disabled';
+    btn.disabled = true;
+    btn.textContent = item.label;
+    menu.appendChild(btn);
+    return;
+  }
+  if (item.submenu) {
+    btn.className = 'ch-context-item ch-context-item--submenu';
+    btn.textContent = item.label;
+    const chevron = document.createElement('span');
+    chevron.className = 'ch-context-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '›';
+    btn.appendChild(chevron);
+    let subMenuEl = null;
+    const closeSub = () => {
+      subMenuEl?.remove();
+      subMenuEl = null;
+    };
+    const openSub = () => {
+      closeSub();
+      subMenuEl = document.createElement('div');
+      subMenuEl.className = 'ch-context-menu ch-context-submenu';
+      subMenuEl.setAttribute('role', 'menu');
+      for (const subItem of item.submenu) appendContextMenuItem(subMenuEl, subItem);
+      document.body.appendChild(subMenuEl);
+      const btnRect = btn.getBoundingClientRect();
+      positionContextMenu(subMenuEl, btnRect.right + 4, btnRect.top);
+      if (subMenuEl.getBoundingClientRect().right > window.innerWidth - 8) {
+        positionContextMenu(subMenuEl, btnRect.left - subMenuEl.offsetWidth - 4, btnRect.top);
+      }
+    };
+    btn.addEventListener('mouseenter', openSub);
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSub();
+    });
+    menu.appendChild(btn);
+    return;
+  }
+  btn.className = 'ch-context-item';
+  btn.textContent = item.label;
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (item.confirmDelete && btn.dataset.confirmArmed !== '1') {
+      armContextDeleteConfirm(btn, item.label, item.confirmTimeout);
+      return;
+    }
+    closeContextMenu();
+    await item.run();
+  });
+  menu.appendChild(btn);
 }
 
 function armContextDeleteConfirm(btn, originalLabel, timeout) {
@@ -917,9 +989,7 @@ function armContextDeleteConfirm(btn, originalLabel, timeout) {
 
 /** Fixed-position menu for sidebar rows and other list items (right-click / long-press). */
 export function showContextMenu(x, y, items) {
-  const menuItems = (items || [])
-    .map(normalizeContextMenuItem)
-    .filter((item) => item.run);
+  const menuItems = (items || []).map(normalizeContextMenuItem).filter(Boolean);
   if (!menuItems.length) return;
 
   closeContextMenu();
@@ -930,30 +1000,12 @@ export function showContextMenu(x, y, items) {
   menu.className = 'ch-context-menu';
   menu.setAttribute('role', 'menu');
 
-  for (const item of menuItems) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'ch-context-item';
-    btn.textContent = item.label;
-    btn.setAttribute('role', 'menuitem');
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (item.confirmDelete && btn.dataset.confirmArmed !== '1') {
-        armContextDeleteConfirm(btn, item.label, item.confirmTimeout);
-        return;
-      }
-      closeContextMenu();
-      await item.run();
-    });
-    menu.appendChild(btn);
-  }
+  for (const item of menuItems) appendContextMenuItem(menu, item);
 
   document.body.appendChild(menu);
   openContextMenu = menu;
 
-  const rect = menu.getBoundingClientRect();
-  menu.style.left = `${Math.min(x, window.innerWidth - rect.width - 8)}px`;
-  menu.style.top = `${Math.min(y, window.innerHeight - rect.height - 8)}px`;
+  positionContextMenu(menu, x, y);
 
   const onKey = (ev) => {
     if (ev.key === 'Escape') close({ target: document.body });
@@ -1159,7 +1211,8 @@ function attachSwipeRow(row, contentEl, revealPx) {
 }
 
 /** iOS-style swipe row — pass content element + swipeAction() descriptors. */
-export function createSwipeRow(contentEl, actions) {
+export function createSwipeRow(contentEl, actions, opts = {}) {
+  const { contextMenuItems = actions } = opts;
   const row = document.createElement('div');
   row.className = 'swipe-row';
   if (contentEl.dataset?.id) row.dataset.id = contentEl.dataset.id;
@@ -1197,7 +1250,7 @@ export function createSwipeRow(contentEl, actions) {
   row.appendChild(actionsEl);
   row.appendChild(content);
 
-  bindSwipeRowContextMenu(row, content, actions);
+  bindSwipeRowContextMenu(row, content, contextMenuItems);
 
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);

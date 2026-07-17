@@ -54,13 +54,14 @@ import {
   closeOpenSwipeRow,
   bindSwipeListScroll,
   showContextMenu,
+  closeContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
   swipeDeleteAction,
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260716c';
+} from './admin-ui.js?v=20260717a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -5703,6 +5704,13 @@ const WORK_STATUS_LABELS = {
   archived: 'Archived',
 };
 
+const WORK_CONTEXT_STATUS_LABELS = {
+  inquiry: 'Inquiry',
+  active: 'Active',
+  done: 'Completed',
+  archived: 'Archive',
+};
+
 const WORK_PRIORITY_LABELS = {
   low: 'Low',
   normal: 'Normal',
@@ -5823,10 +5831,26 @@ function filterWorkJobs(jobs, query) {
       job.client,
       job.status,
       WORK_STATUS_LABELS[job.status],
+      WORK_CONTEXT_STATUS_LABELS[job.status],
       job.slug,
       job.tags,
     ),
   );
+}
+
+function isWorkJobInactive(status) {
+  return status === 'done' || status === 'archived';
+}
+
+function sortWorkJobs(jobs) {
+  const byUpdated = (a, b) => {
+    const aT = a.updated || a.created || a.slug;
+    const bT = b.updated || b.created || b.slug;
+    return bT.localeCompare(aT);
+  };
+  const active = jobs.filter((j) => !isWorkJobInactive(j.status)).sort(byUpdated);
+  const inactive = jobs.filter((j) => isWorkJobInactive(j.status)).sort(byUpdated);
+  return [...active, ...inactive];
 }
 
 function getWorkEditor() { return document.getElementById('work-editor'); }
@@ -6114,7 +6138,7 @@ async function loadWorkTab(opts = {}) {
     const res = await fetch('/api/work', { cache: 'no-store' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    workState.jobs = data.jobs || [];
+    workState.jobs = sortWorkJobs(data.jobs || []);
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
     syncWorkBadgeFromJobs(workState.jobs);
@@ -6168,7 +6192,7 @@ function startNewClient() {
 
 function fillWorkSidebarList(list) {
   const { search } = workState;
-  const visibleJobs = filterWorkJobs(workState.jobs, search);
+  const visibleJobs = sortWorkJobs(filterWorkJobs(workState.jobs, search));
   list.innerHTML = '';
   for (const job of visibleJobs) {
     list.appendChild(createWorkSwipeRow(job));
@@ -7095,6 +7119,89 @@ async function deleteWork(slug) {
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
   }
+}
+
+function syncOpenWorkEditorStatus(status) {
+  const statusSelect = [...(getWorkEditor()?.querySelectorAll('.sliding-pill-select') || [])].find(
+    (wrap) => wrap.querySelector('.de-label')?.textContent === 'Status',
+  );
+  const pill = statusSelect?.querySelector('.sliding-pill');
+  if (!pill) return;
+  pill.querySelectorAll('.sliding-pill-btn').forEach((btn) => {
+    const active = btn.dataset.value === status;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  const indicator = pill.querySelector('.sliding-pill-indicator');
+  const activeBtn = pill.querySelector(`.sliding-pill-btn[data-value="${CSS.escape(status)}"]`);
+  if (indicator instanceof HTMLElement && activeBtn instanceof HTMLElement) {
+    indicator.hidden = false;
+    const pillRect = pill.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    indicator.style.width = `${btnRect.width}px`;
+    indicator.style.transform = `translateX(${btnRect.left - pillRect.left}px)`;
+  }
+}
+
+async function updateWorkStatus(job, status) {
+  closeOpenSwipeRow();
+  closeContextMenu();
+  if (!job?.slug || job.status === status) return;
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(job.slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: job.title,
+        contact_uid: job.contact_uid,
+        contact_name: job.contact_name,
+        client: job.client,
+        status,
+        priority: job.priority || 'normal',
+        due_date: job.due_date,
+        value: job.value,
+        tags: job.tags,
+        source: job.source,
+      }),
+    });
+    await readApiJson(res);
+    const idx = workState.jobs.findIndex((j) => j.slug === job.slug);
+    if (idx !== -1) {
+      workState.jobs[idx] = {
+        ...workState.jobs[idx],
+        status,
+        updated: new Date().toISOString(),
+      };
+    }
+    workState.jobs = sortWorkJobs(workState.jobs);
+    syncWorkBadgeFromJobs(workState.jobs);
+    if (workState.activeSlug === job.slug && workState.draft) {
+      workState.draft.status = status;
+      syncOpenWorkEditorStatus(status);
+    }
+    refreshWorkSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Could not update status', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function workStatusContextMenuItems(job) {
+  return workState.statuses.map((status) => ({
+    label: WORK_CONTEXT_STATUS_LABELS[status] || WORK_STATUS_LABELS[status] || status,
+    disabled: job.status === status,
+    onClick: () => updateWorkStatus(job, status),
+  }));
+}
+
+function workRowContextMenuItems(job, swipeActions) {
+  return [
+    swipeActions[0],
+    {
+      label: 'Change status',
+      submenu: workStatusContextMenuItems(job),
+    },
+    swipeActions[1],
+  ];
 }
 
 // ---- schedule tab ----
@@ -11256,12 +11363,25 @@ function createKnowledgeSwipeRow(entry) {
 }
 
 function createWorkListItem(job) {
+  const inactive = isWorkJobInactive(job.status);
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'ch-list-item' + (job.slug === workState.activeSlug ? ' active' : '');
+  item.className =
+    'ch-list-item' +
+    (job.slug === workState.activeSlug ? ' active' : '') +
+    (inactive ? ' ch-list-item--archived' : '');
   item.dataset.slug = job.slug;
+  const statusIcon =
+    job.status === 'archived'
+      ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
+      : job.status === 'done'
+        ? `<span class="ch-item-archived-icon" title="Completed" aria-label="Completed">${navIcon('check-square', 13)}</span>`
+        : '';
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
+    `<span class="ch-item-row">` +
+      statusIcon +
+      `<span class="ch-item-title">${escHtml(job.title)}</span>` +
+    `</span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
     `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
@@ -11271,12 +11391,15 @@ function createWorkListItem(job) {
 }
 
 function createWorkSwipeRow(job) {
-  return createSwipeRow(createWorkListItem(job), [
+  const swipeActions = [
     swipeAgentAction(() => askAgentAboutWork(job)),
     swipeDeleteAction({
       onClick: () => deleteWork(job.slug),
     }),
-  ]);
+  ];
+  return createSwipeRow(createWorkListItem(job), swipeActions, {
+    contextMenuItems: workRowContextMenuItems(job, swipeActions),
+  });
 }
 
 function createClientListItem(c) {

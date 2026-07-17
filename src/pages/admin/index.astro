@@ -3013,6 +3013,29 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .ch-context-item--danger:hover {
         background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent);
       }
+      .ch-context-item--submenu {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .ch-context-chevron {
+        flex-shrink: 0;
+        opacity: 0.45;
+        font-size: 0.95rem;
+        line-height: 1;
+      }
+      .ch-context-submenu {
+        position: fixed;
+        z-index: 10001;
+      }
+      .ch-context-item--disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .ch-context-item--disabled:hover {
+        background: transparent;
+      }
 
       /* iOS pull-to-refresh (sidebar lists) */
       .ch-list.ios-ptr-host {
