@@ -63,7 +63,7 @@ async function loadEmail(id: string): Promise<
 async function sendSchedulingReply(
   event: EmailInboxRecord,
   message: { subject: string; text: string },
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<{ ok: true; to: string; emailId?: string } | { ok: false; error: string }> {
   if (!isEmailSendConfigured()) {
     return { ok: false, error: 'Outbound email is not configured (RESEND_API_KEY)' };
   }
@@ -78,7 +78,7 @@ async function sendSchedulingReply(
     headers: buildReplyEmailHeaders(event),
   });
   if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true };
+  return { ok: true, to, emailId: result.id };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -138,6 +138,43 @@ export async function POST(context: APIContext): Promise<Response> {
   const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const action = String(rec.action ?? 'book').trim().toLowerCase();
 
+  const company = await getCompanyConfig();
+  const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
+
+  if (action === 'confirm') {
+    if (!event.bookingUid) {
+      return json({ ok: false, error: 'No booking on this message' }, 400);
+    }
+    const whenLabel = formatWhenLabel(event.bookingStart || proposedStart);
+    const mail = buildMeetingAcceptNotifyEmail({
+      attendeeName: attendee.name,
+      whenLabel,
+      companyName: company.name,
+    });
+    const sent = await sendSchedulingReply(event, mail);
+    if (!sent.ok) {
+      return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+    }
+    const updated = await storeUpdateEmailInbox(id, {
+      action: 'filed',
+      status: 'FILED',
+      markAutomationAck: true,
+    });
+    return json({
+      ok: true,
+      confirmed: true,
+      notified: true,
+      action: 'confirm',
+      bookingUid: event.bookingUid,
+      bookingStart: event.bookingStart,
+      whenLabel,
+      attendeeName: attendee.name,
+      attendeeEmail: sent.to,
+      notifyEmailId: sent.emailId ?? null,
+      event: updated ?? event,
+    });
+  }
+
   const startRaw = rec.start != null ? String(rec.start).trim() : proposedStart;
   const start = new Date(startRaw);
   if (Number.isNaN(start.getTime())) {
@@ -150,9 +187,6 @@ export async function POST(context: APIContext): Promise<Response> {
     contactName: event.contactName,
   });
   if (!checkRes.ok) return json({ ok: false, error: checkRes.error }, 503);
-
-  const company = await getCompanyConfig();
-  const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
 
   if (action === 'notify-conflict') {
     if (checkRes.check.available) {
@@ -181,7 +215,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
   }
 
-  if (event.bookingUid && action !== 'accept-notify') {
+  if (event.bookingUid && action !== 'accept-notify' && action !== 'confirm') {
     return json({
       ok: true,
       alreadyBooked: true,
@@ -221,7 +255,11 @@ export async function POST(context: APIContext): Promise<Response> {
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
-    const updated = await storeUpdateEmailInbox(id, { action: 'filed', status: 'FILED' });
+    const updated = await storeUpdateEmailInbox(id, {
+      action: 'filed',
+      status: 'FILED',
+      markAutomationAck: true,
+    });
     return json({
       ok: true,
       alreadyBooked: true,

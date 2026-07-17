@@ -42,6 +42,8 @@ export interface EmailInboxRecord {
   bookingStart: string | null;
   /** Set when the message has scrolled into view in the inbox list (server-synced). */
   seenAt: string | null;
+  /** Set when the owner dismisses an automated-decision notification on the dashboard. */
+  automationAckAt: string | null;
 }
 
 export interface EmailInboxInput {
@@ -139,6 +141,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_uid TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_ack_at TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS to_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS cc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
@@ -157,7 +160,8 @@ const INDEX_SQL = [
 
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
-              proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at`;
+              proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
+              automation_ack_at`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -250,6 +254,7 @@ type InboxRow = {
   booking_uid?: string | null;
   booking_start?: Date | string | null;
   seen_at?: Date | string | null;
+  automation_ack_at?: Date | string | null;
 };
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
@@ -304,6 +309,9 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     bookingUid: row.booking_uid ?? null,
     bookingStart: row.booking_start ? new Date(row.booking_start).toISOString() : null,
     seenAt: row.seen_at ? new Date(row.seen_at).toISOString() : null,
+    automationAckAt: row.automation_ack_at
+      ? new Date(row.automation_ack_at).toISOString()
+      : null,
   };
 }
 
@@ -340,6 +348,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       bookingUid: e.bookingUid ?? null,
       bookingStart: e.bookingStart ?? null,
       seenAt: e.seenAt ?? null,
+      automationAckAt: e.automationAckAt ?? null,
     }));
   } catch {
     return [];
@@ -417,6 +426,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     bookingUid: input.bookingUid ?? null,
     bookingStart: input.bookingStart ?? null,
     seenAt: null,
+    automationAckAt: null,
   };
   const next = [record, ...existing].slice(0, MAX_FILE_EVENTS);
   if (!writeFileEvents(next)) return null;
@@ -560,6 +570,7 @@ export type EmailInboxPatch = Partial<
   >
 > & {
   markSeen?: boolean;
+  markAutomationAck?: boolean;
 };
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
@@ -585,6 +596,9 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.contactUid !== undefined ? { contactUid: patch.contactUid } : {}),
     ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
+    ...(patch.markAutomationAck && !cur.automationAckAt
+      ? { automationAckAt: new Date().toISOString() }
+      : {}),
   };
   events[idx] = next;
   if (!writeFileEvents(events)) return null;
@@ -653,6 +667,9 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);
+    }
+    if (patch.markAutomationAck) {
+      sets.push(`automation_ack_at = COALESCE(automation_ack_at, now())`);
     }
     if (!sets.length) return null;
     vals.push(id);

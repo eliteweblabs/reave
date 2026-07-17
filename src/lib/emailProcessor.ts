@@ -6,12 +6,14 @@ import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
 import { classifyEmail, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
+import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
 import { storeRecordEmailInbox, type EmailInboxRecord } from './emailInboxStore';
 import { linkProjectItem } from './projectLinks';
-import { parseProposedMeetingStart, resolveProposedMeetingStart } from './emailScheduling';
+import { hasFeature } from './features';
+import { parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
@@ -194,6 +196,8 @@ export function shouldSendInboxPush(opts: {
   if (status === 'DELETE' || status === 'AUTO_ARCHIVED') return false;
   // Auto-sorted to a job — visible under Routed, no ping needed (except urgent project replies).
   if (action === 'filed' || action === 'matched') return false;
+  // Auto-booked meeting — owner should review and confirm with the sender.
+  if (action === 'booked') return true;
 
   return true;
 }
@@ -215,6 +219,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let action = 'classified';
   let proposedMeetingStart: string | null = null;
   let schedulingNote = '';
+  let bookingUid: string | null = null;
+  let bookingStart: string | null = null;
 
   const contactRes = senderEmail.includes('@')
     ? await resolveContact({ email: senderEmail })
@@ -341,6 +347,50 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
+  if (
+    !suppressedAsJunk &&
+    proposedMeetingStart &&
+    hasFeature('scheduling') &&
+    action !== 'project_reply'
+  ) {
+    const autoBook = await tryAutoBookInboundMeeting({
+      proposedStart: proposedMeetingStart,
+      from,
+      contactName,
+      subject: email.subject ?? '',
+      schedulingNote,
+      summary,
+    });
+    if (autoBook.ok) {
+      action = 'booked';
+      bookingUid = autoBook.bookingUid;
+      bookingStart = autoBook.bookingStart;
+      routeNote = autoBook.routeNote;
+
+      const contactResult = await ensureContactForMeetingEmail({
+        from,
+        bodyText,
+        summary,
+        existingContactUid: contactUid,
+        existingContactName: contactName,
+      });
+      if (contactResult?.ok) {
+        contactUid = contactResult.uid;
+        contactName = contactResult.name;
+        if (contactResult.created) {
+          const companyBit = contactResult.company ? ` (${contactResult.company})` : '';
+          routeNote = `${routeNote} · Added ${contactResult.name}${companyBit} to clients`;
+        }
+      } else if (contactResult && !contactResult.ok) {
+        console.warn('[email] auto-book contact ensure failed', contactResult.error);
+      }
+
+      if (summary && !summary.toLowerCase().includes('scheduled automatically')) {
+        summary = `${summary} Meeting scheduled automatically for ${autoBook.whenLabel}.`;
+      }
+    }
+  }
+
   const notify = shouldSendInboxPush({
     category,
     action,
@@ -373,6 +423,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     routeNote,
     proposedMeetingStart,
     schedulingNote,
+    bookingUid,
+    bookingStart,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;

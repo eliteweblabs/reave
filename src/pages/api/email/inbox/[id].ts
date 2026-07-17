@@ -43,6 +43,7 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
     patch.bookingStart = rec.bookingStart == null ? null : String(rec.bookingStart);
   }
   if (rec.seen === true || rec.markSeen === true) patch.markSeen = true;
+  if (rec.markAutomationAck === true || rec.automationAck === true) patch.markAutomationAck = true;
   return Object.keys(patch).length ? patch : null;
 }
 

@@ -1820,6 +1820,255 @@ function formatEmailWhen(iso) {
   }
 }
 
+function automationNotificationIcon() {
+  return '📅';
+}
+
+function setMeetingConfirmStep(bodyEl, stepKey, state, title, detail) {
+  const step = bodyEl.querySelector(`[data-step="${stepKey}"]`);
+  if (!step) return;
+  step.className = `meeting-confirm-step meeting-confirm-step--${state}`;
+  step.setAttribute('data-state', state);
+  const icon = step.querySelector('.meeting-confirm-step-icon');
+  if (icon) {
+    icon.textContent = state === 'done' ? '✓' : state === 'active' ? '…' : state === 'error' ? '!' : '○';
+  }
+  const titleEl = step.querySelector('.meeting-confirm-step-title');
+  if (titleEl) titleEl.textContent = title;
+  const detailEl = step.querySelector('.meeting-confirm-step-detail');
+  if (detailEl) detailEl.textContent = detail || '';
+  else if (detail) {
+    const copy = step.querySelector('.meeting-confirm-step-copy');
+    const el = document.createElement('div');
+    el.className = 'meeting-confirm-step-detail';
+    el.textContent = detail;
+    copy?.appendChild(el);
+  }
+}
+
+function sleepMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runMeetingConfirmChecklist(item) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
+    return { ok: false, error: 'Dialog not available' };
+  }
+
+  const whenLabel = item.whenLabel || formatScheduleWhen(item.bookingStart);
+  const attendeeLabel = item.attendeeName || item.attendeeEmail || item.from || 'Guest';
+  const emailTarget = item.attendeeEmail || parseSenderEmail(item.from) || 'the sender';
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish({ ok: false, cancelled: true });
+    };
+
+    titleEl.textContent = 'Confirming meeting';
+    bodyEl.innerHTML =
+      `<p class="meeting-confirm-lead">Working through your checklist — no need to open the inbox.</p>` +
+      `<ul class="meeting-confirm-steps">` +
+        `<li class="meeting-confirm-step meeting-confirm-step--done" data-step="calendar" data-state="done">` +
+          `<span class="meeting-confirm-step-icon" aria-hidden="true">✓</span>` +
+          `<div class="meeting-confirm-step-copy">` +
+            `<div class="meeting-confirm-step-title">Calendar booking finalized</div>` +
+            `<div class="meeting-confirm-step-detail">${escHtml(whenLabel)} · ${escHtml(attendeeLabel)}</div>` +
+          `</div>` +
+        `</li>` +
+        `<li class="meeting-confirm-step meeting-confirm-step--active" data-step="email" data-state="active">` +
+          `<span class="meeting-confirm-step-icon" aria-hidden="true">…</span>` +
+          `<div class="meeting-confirm-step-copy">` +
+            `<div class="meeting-confirm-step-title">Sending confirmation email</div>` +
+            `<div class="meeting-confirm-step-detail">Notifying ${escHtml(emailTarget)}</div>` +
+          `</div>` +
+        `</li>` +
+        `<li class="meeting-confirm-step meeting-confirm-step--pending" data-step="review" data-state="pending">` +
+          `<span class="meeting-confirm-step-icon" aria-hidden="true">○</span>` +
+          `<div class="meeting-confirm-step-copy">` +
+            `<div class="meeting-confirm-step-title">Clear from your review list</div>` +
+            `<div class="meeting-confirm-step-detail">Removes this from Meetings to review</div>` +
+          `</div>` +
+        `</li>` +
+      `</ul>` +
+      `<p class="meeting-confirm-error" id="meeting-confirm-error" hidden></p>`;
+    actionsEl.innerHTML = '';
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, () => finish({ ok: false, cancelled: true }), true);
+    document.addEventListener('keydown', onKey);
+
+    void (async () => {
+      try {
+        const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'confirm' }),
+        });
+        const data = await readApiJson(res);
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+        const sentTo = data.attendeeEmail || emailTarget;
+        const sentWhen = data.whenLabel || whenLabel;
+        setMeetingConfirmStep(
+          bodyEl,
+          'email',
+          'done',
+          'Confirmation email sent',
+          `Reply delivered to ${sentTo}`,
+        );
+        await sleepMs(350);
+        setMeetingConfirmStep(
+          bodyEl,
+          'review',
+          'done',
+          'Review cleared',
+          'Removed from Meetings to review on your dashboard',
+        );
+
+        if (data.event) {
+          const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
+          if (idx !== -1) emailState.allEvents[idx] = data.event;
+        }
+        if (emailState.activeId === item.emailId) renderEmailPanel();
+
+        titleEl.textContent = 'Meeting confirmed';
+        bodyEl.querySelector('.meeting-confirm-lead').textContent =
+          `All set for ${sentWhen}. ${attendeeLabel} has been notified.`;
+
+        actionsEl.innerHTML = '';
+        const doneBtn = document.createElement('button');
+        doneBtn.type = 'button';
+        doneBtn.className = 'os-dialog-btn';
+        doneBtn.textContent = 'Done';
+        doneBtn.addEventListener('click', async () => {
+          finish({ ok: true, data });
+          if (MAP.type === 'home') await loadHomeDashboard();
+        });
+        actionsEl.appendChild(doneBtn);
+      } catch (e) {
+        setMeetingConfirmStep(
+          bodyEl,
+          'email',
+          'error',
+          'Confirmation email failed',
+          e.message || String(e),
+        );
+        setMeetingConfirmStep(bodyEl, 'review', 'pending', 'Clear from your review list', 'Waiting…');
+        titleEl.textContent = 'Could not confirm';
+        actionsEl.innerHTML = '';
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+        closeBtn.textContent = 'Close';
+        closeBtn.addEventListener('click', () => finish({ ok: false, error: e.message }));
+        actionsEl.appendChild(closeBtn);
+      }
+    })();
+  });
+}
+
+async function confirmScheduledMeeting(item, btn) {
+  if (!item?.emailId) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Confirming…';
+  }
+  const result = await runMeetingConfirmChecklist(item);
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Confirm';
+  }
+  if (!result.ok && !result.cancelled && result.error) {
+    await osAlert({ title: 'Could not confirm', bodyHtml: escHtml(result.error) });
+  }
+}
+
+function rescheduleScheduledMeeting(item) {
+  if (item?.bookingUid) {
+    openScheduleTab({ uid: item.bookingUid, view: 'week' });
+    return;
+  }
+  if (item?.emailId) {
+    setActiveMap('email', { force: true, emailId: item.emailId });
+  }
+}
+
+function buildAutomationNotificationsPanel(notifications) {
+  const panel = document.createElement('section');
+  panel.className = 'dash-panel dash-automation-panel';
+  panel.innerHTML =
+    `<div class="dash-panel-head">` +
+      `<div class="dash-automation-head-copy">` +
+        `<h2 class="dash-panel-title">Meetings to review</h2>` +
+        `<p class="dash-automation-sub">Hit Confirm to notify the guest — we'll walk you through each step, no inbox required.</p>` +
+      `</div>` +
+    `</div>`;
+
+  const list = document.createElement('ul');
+  list.className = 'dash-automation-list';
+
+  for (const item of notifications) {
+    const li = document.createElement('li');
+    li.className = 'dash-automation-item';
+
+    const main = document.createElement('button');
+    main.type = 'button';
+    main.className = 'dash-automation-main';
+    main.innerHTML =
+      `<span class="dash-automation-icon" aria-hidden="true">${automationNotificationIcon()}</span>` +
+      `<span class="dash-automation-body">` +
+        `<span class="dash-automation-title">${escHtml(item.title)}</span>` +
+        `<span class="dash-automation-detail">${escHtml(item.detail)}</span>` +
+        `<span class="dash-automation-meta">${escHtml(formatEmailWhen(item.receivedAt))}</span>` +
+      `</span>`;
+    main.addEventListener('click', () => {
+      if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'dash-automation-actions';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.className = 'dash-automation-btn dash-automation-btn-confirm';
+    confirmBtn.textContent = 'Confirm';
+    confirmBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      void confirmScheduledMeeting(item, confirmBtn);
+    });
+
+    const rescheduleBtn = document.createElement('button');
+    rescheduleBtn.type = 'button';
+    rescheduleBtn.className = 'dash-automation-btn dash-automation-btn-reschedule';
+    rescheduleBtn.textContent = 'Reschedule';
+    rescheduleBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      rescheduleScheduledMeeting(item);
+    });
+
+    actions.appendChild(confirmBtn);
+    actions.appendChild(rescheduleBtn);
+    li.appendChild(main);
+    li.appendChild(actions);
+    list.appendChild(li);
+  }
+
+  panel.appendChild(list);
+  return panel;
+}
+
 function renderHomeDashboard(data) {
   const root = document.getElementById('home-dashboard');
   if (!root) return;
@@ -1831,13 +2080,25 @@ function renderHomeDashboard(data) {
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
   const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
+  const automationNotifications = Array.isArray(data?.automationNotifications)
+    ? data.automationNotifications
+    : [];
+
+  if (automationNotifications.length) {
+    scroll.appendChild(buildAutomationNotificationsPanel(automationNotifications));
+  }
+
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
 
   statsEl.appendChild(buildDashStat({
     value: stats.emails ?? 0,
     label: 'Emails',
-    hint: stats.emailsReview ? `${stats.emailsReview} need review` : 'inbox clear',
+    hint: stats.automationPending
+      ? `${stats.automationPending} meeting${stats.automationPending === 1 ? '' : 's'} to confirm`
+      : stats.emailsReview
+        ? `${stats.emailsReview} awaiting decision`
+        : 'inbox clear',
     onClick: () => setActiveMap('email', { force: activeKey === 'email' }),
   }));
 
@@ -11572,11 +11833,41 @@ function openScheduleFromEmail(ev) {
   });
 }
 
+function isMeetingPendingConfirm(ev) {
+  return isEmailBooked(ev) && !ev.automationAckAt;
+}
+
 async function mountEmailScheduleActions(container, ev) {
-  if (!container || isEmailBooked(ev)) return;
+  if (!container) return;
 
   const primaryBtn = container.querySelector('.em-schedule-action-primary');
   const altBtn = container.querySelector('.em-schedule-action-secondary');
+
+  if (container.classList.contains('em-schedule-actions-confirm')) {
+    primaryBtn?.addEventListener('click', () => {
+      const attendee = attendeeFromEmailEvent(ev);
+      void confirmScheduledMeeting(
+        {
+          emailId: ev.id,
+          bookingUid: ev.bookingUid,
+          bookingStart: ev.bookingStart,
+          whenLabel: formatScheduleWhen(ev.bookingStart || ev.proposedMeetingStart),
+          attendeeName: attendee.name,
+          attendeeEmail: attendee.email,
+          from: ev.from,
+        },
+        primaryBtn,
+      );
+    });
+    altBtn?.addEventListener('click', () => {
+      if (ev.bookingUid) openScheduleTab({ uid: ev.bookingUid, view: 'week' });
+      else openScheduleFromEmail(ev);
+    });
+    return;
+  }
+
+  if (isEmailBooked(ev)) return;
+
   altBtn?.addEventListener('click', () => openScheduleFromEmail(ev));
 
   try {
@@ -12619,7 +12910,13 @@ function renderEmailPanel() {
   }
   detailHtml +=
     (summary ? `<div class="em-detail-summary">${linkifyPlainText(summary)}</div>` : '');
-  if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
+  if (isMeetingPendingConfirm(ev)) {
+    detailHtml +=
+      `<div class="em-schedule-actions em-schedule-actions-confirm">` +
+        `<button type="button" class="em-schedule-action-primary de-new-btn">Confirm</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-new-btn">Reschedule</button>` +
+      `</div>`;
+  } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions">` +
         `<button type="button" class="em-schedule-action-primary de-new-btn" disabled>Checking availability…</button>` +

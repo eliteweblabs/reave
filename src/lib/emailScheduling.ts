@@ -5,6 +5,7 @@
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import {
   bookingAvailability,
+  bookingCreate,
   bookingList,
   isBookingConfigured,
   type AvailabilitySlot,
@@ -40,6 +41,20 @@ function formatWhen(iso: string): string {
     });
   } catch {
     return iso;
+  }
+}
+
+/** Human-readable meeting time for notifications and copy. */
+export function formatMeetingWhenLabel(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'long',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return formatWhen(iso);
   }
 }
 
@@ -294,5 +309,88 @@ export async function checkEmailMeetingSlot(input: {
       attendeeEmail: attendee.email,
       durationMinutes,
     },
+  };
+}
+
+export type AutoBookMeetingResult =
+  | {
+      ok: true;
+      bookingUid: string;
+      bookingStart: string;
+      whenLabel: string;
+      routeNote: string;
+    }
+  | {
+      ok: false;
+      reason: 'not_configured' | 'unavailable' | 'no_attendee' | 'invalid_time' | 'booking_failed';
+      error?: string;
+    };
+
+/** Book an inbound meeting request when the proposed slot is open. */
+export async function tryAutoBookInboundMeeting(input: {
+  proposedStart: string;
+  from: string;
+  contactName?: string | null;
+  subject: string;
+  schedulingNote?: string;
+  summary?: string;
+}): Promise<AutoBookMeetingResult> {
+  if (!isBookingConfigured()) {
+    return { ok: false, reason: 'not_configured' };
+  }
+
+  const proposed = new Date(input.proposedStart);
+  if (Number.isNaN(proposed.getTime())) {
+    return { ok: false, reason: 'invalid_time' };
+  }
+
+  const checkRes = await checkEmailMeetingSlot({
+    proposedStart: proposed.toISOString(),
+    from: input.from,
+    contactName: input.contactName,
+  });
+  if (!checkRes.ok) {
+    return { ok: false, reason: 'booking_failed', error: checkRes.error };
+  }
+  if (!checkRes.check.available) {
+    return { ok: false, reason: 'unavailable', error: checkRes.check.conflictReason ?? undefined };
+  }
+
+  const attendee = attendeeFromEmail({ from: input.from, contactName: input.contactName });
+  if (!attendee.email.includes('@')) {
+    return { ok: false, reason: 'no_attendee' };
+  }
+
+  const notes = [
+    `From inbox: ${input.subject || '(no subject)'}`,
+    input.schedulingNote ? `Requested: ${input.schedulingNote}` : '',
+    input.summary ? input.summary.slice(0, 200) : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const created = await bookingCreate({
+    name: attendee.name,
+    email: attendee.email,
+    start: proposed.toISOString(),
+    notes: notes.slice(0, 500),
+  });
+  if (!created.ok) {
+    return { ok: false, reason: 'booking_failed', error: created.error };
+  }
+
+  const bookingUid = created.data.booking?.uid ?? null;
+  const bookingStart = created.data.booking?.startTime ?? proposed.toISOString();
+  if (!bookingUid) {
+    return { ok: false, reason: 'booking_failed', error: 'Booking API did not return a booking id' };
+  }
+
+  const whenLabel = formatMeetingWhenLabel(bookingStart);
+  return {
+    ok: true,
+    bookingUid,
+    bookingStart,
+    whenLabel,
+    routeNote: `Meeting scheduled automatically for ${whenLabel}`,
   };
 }
