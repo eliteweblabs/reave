@@ -295,9 +295,9 @@ export function createListEmptyState(opts = {}) {
   return btn;
 }
 
-/** Detail-pane placeholder — optional tap-to-create for the whole block. */
+/** Detail-pane placeholder — optional Create New button or tap-to-create for the whole block. */
 export function createPanePlaceholder(opts = {}) {
-  const { innerHtml, onAction, ariaLabel } = opts;
+  const { innerHtml, onAction, onCreate, btnLabel = 'Create New', ariaLabel } = opts;
   const el = document.createElement(onAction ? 'button' : 'div');
   if (onAction) {
     el.type = 'button';
@@ -308,6 +308,17 @@ export function createPanePlaceholder(opts = {}) {
     el.className = 'de-placeholder';
   }
   el.innerHTML = innerHtml;
+  if (onCreate) {
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'de-placeholder-create-btn';
+    createBtn.textContent = btnLabel;
+    createBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onCreate(createBtn);
+    });
+    el.appendChild(createBtn);
+  }
   return el;
 }
 

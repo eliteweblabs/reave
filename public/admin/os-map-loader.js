@@ -63,7 +63,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260717a';
+} from './admin-ui.js?v=20260717h';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -254,6 +254,22 @@ function chipHtml(n) {
 
 function placeholderHtml(iconName, bodyHtml) {
   return `<div class="de-placeholder-icon">${navIcon(iconName, 40)}</div>${bodyHtml}`;
+}
+
+/** Detail-pane empty state — icon, message, optional Create New action (matches to-do). */
+function createDetailEmptyPlaceholder({ iconName, bodyHtml, btnLabel = 'Create New', onCreate }) {
+  const placeholder = document.createElement('div');
+  placeholder.className = 'de-placeholder';
+  placeholder.innerHTML = placeholderHtml(iconName, bodyHtml);
+  if (onCreate) {
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'de-placeholder-create-btn';
+    createBtn.textContent = btnLabel;
+    createBtn.addEventListener('click', () => onCreate());
+    placeholder.appendChild(createBtn);
+  }
+  return placeholder;
 }
 
 function todoChipHtml(checked) {
@@ -4559,10 +4575,13 @@ function renderRulesEditor() {
     renderRuleEditPane(pane);
   } else {
     clearEditorFooterSave();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('zap', '<p>Select a rule to edit, or create a new one.</p>');
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'zap',
+        bodyHtml: '<p>Select a rule to edit, or create a new one.</p>',
+        onCreate: () => void startNewRule(),
+      }),
+    );
   }
   root.appendChild(pane);
 }
@@ -5289,16 +5308,13 @@ function renderTodoEditor() {
   } else if (activeId) {
     renderTodoEditPane(pane, false);
   } else {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('check-square', '<p>Select a to‑do, or create a new one.</p>');
-    const createBtn = document.createElement('button');
-    createBtn.type = 'button';
-    createBtn.className = 'de-placeholder-create-btn';
-    createBtn.textContent = 'Create New';
-    createBtn.addEventListener('click', () => startNewTodo());
-    placeholder.appendChild(createBtn);
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'check-square',
+        bodyHtml: '<p>Select a to‑do, or create a new one.</p>',
+        onCreate: () => startNewTodo(),
+      }),
+    );
   }
   root.appendChild(pane);
 }
@@ -6064,10 +6080,13 @@ function renderDocEditor() {
     renderEditForm(pane);
   } else {
     clearEditorFooterSave();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('file-text', '<p>Select a template to edit, or create a new one.</p>');
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'file-text',
+        bodyHtml: '<p>Select a template to edit, or create a new one.</p>',
+        onCreate: () => void startNewDocument(),
+      }),
+    );
   }
 
   root.appendChild(pane);
@@ -6692,13 +6711,23 @@ function renderKnowledgeEditor() {
     renderEditKnowledgeForm(pane);
   } else {
     clearEditorFooterSave();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('book-open', '<p>Select a doc to edit, or create a new one.</p>');
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'book-open',
+        bodyHtml: '<p>Select a doc to edit, or create a new one.</p>',
+        onCreate: () => startNewKnowledge(),
+      }),
+    );
   }
 
   root.appendChild(pane);
+}
+
+function startNewKnowledge() {
+  knowledgeState.activeSlug = '__new__';
+  knowledgeState.dirty = false;
+  renderKnowledgeEditor();
+  getKnowledgeEditor()?.classList.add('de-pane-active');
 }
 
 function renderNewKnowledgeForm(pane) {
@@ -7427,10 +7456,13 @@ function renderWorkEditor() {
     renderEditWorkForm(pane);
   } else {
     clearEditorFooterSave();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('briefcase', '<p>Select a job to edit, or create a new one.</p>');
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'briefcase',
+        bodyHtml: '<p>Select a job to edit, or create a new one.</p>',
+        onCreate: () => startNewProject(),
+      }),
+    );
   }
 
   root.appendChild(pane);
@@ -9517,13 +9549,14 @@ function renderSchedulePanel() {
   if (active) {
     renderScheduleDetail(pane, active);
   } else {
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml(
-      'calendar',
-      '<p>Select an event to view guest details. Use the <strong>+</strong> button in the nav to book a new time.</p>',
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'calendar',
+        bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
+        btnLabel: 'Book Time',
+        onCreate: () => scheduleOpenCreateDialog(),
+      }),
     );
-    pane.appendChild(placeholder);
   }
   root.appendChild(pane);
 }
@@ -9750,10 +9783,14 @@ function renderClientsEditor() {
     renderEditClientForm(pane);
   } else {
     clearEditorFooterSave();
-    const placeholder = document.createElement('div');
-    placeholder.className = 'de-placeholder';
-    placeholder.innerHTML = placeholderHtml('users', '<p>Select a client to edit, or add a new one.</p>');
-    pane.appendChild(placeholder);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'users',
+        bodyHtml: '<p>Select a client to edit, or add a new one.</p>',
+        btnLabel: 'Add New',
+        onCreate: () => startNewClient(),
+      }),
+    );
   }
 
   root.appendChild(pane);
@@ -11548,10 +11585,14 @@ function renderChatPanel() {
   pane.className = 'ch-pane';
 
   if (!chatState.activeId) {
-    const ph = document.createElement('div');
-    ph.className = 'de-placeholder';
-    ph.innerHTML = placeholderHtml('agent', 'Select a chat or start a new one.');
-    pane.appendChild(ph);
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'agent',
+        bodyHtml: '<p>Select a chat or start a new one.</p>',
+        btnLabel: 'Start New Chat',
+        onCreate: () => void startNewChat(),
+      }),
+    );
     root.appendChild(pane);
     clearTopbarPanelContext();
     setChatComposeFocused(false);
@@ -13985,13 +14026,16 @@ function renderEmailPanel() {
 
   const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
   if (!ev) {
-    const ph = document.createElement('div');
-    ph.className = 'de-placeholder';
-    ph.innerHTML = placeholderHtml(
-      'mail',
-      '<p>Select a message or tap <strong>+</strong> in the footer to compose.</p><p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
+    pane.appendChild(
+      createDetailEmptyPlaceholder({
+        iconName: 'mail',
+        bodyHtml:
+          '<p>Select a message or compose a new one.</p>' +
+          '<p class="em-hint">Inbound mail arrives via Resend — forward or BCC to your receiving address.</p>',
+        btnLabel: 'Compose',
+        onCreate: () => startNewEmail(),
+      }),
     );
-    pane.appendChild(ph);
     root.appendChild(pane);
     getEmailPanel()?.classList.remove('em-pane-active');
     syncFooterNav();
