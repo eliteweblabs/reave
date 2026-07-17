@@ -17,6 +17,12 @@ interface ImportMetaEnv {
   BRAVE_API_KEY?: string;
   /** Optional Google Cloud API key for PageSpeed Insights (higher quota than anonymous) */
   GOOGLE_PAGESPEED_API_KEY?: string;
+  /** Google Maps / Places server key for address autocomplete (admin scheduling). */
+  GOOGLE_MAPS_API_KEY?: string;
+  /** Alias for GOOGLE_MAPS_API_KEY. */
+  GOOGLE_PLACES_API_KEY?: string;
+  /** Optional default location bias for Places autocomplete (`lat,lng` or `@lat,lng`). */
+  GOOGLE_PLACES_DEFAULT_BIAS?: string;
   /** Optional: max user+assistant turns kept per admin chat (default 20) */
   AGENT_CHAT_HISTORY_TURNS?: string;
   /** Set to "1" on test/staging to expose /sign-up and link from sign-in (production stays sign-in only). */

@@ -8706,6 +8706,7 @@ async function submitScheduleCreate(payload) {
 }
 
 let schedGuestSearchTimer = null;
+let schedAddressSearchTimer = null;
 const SCHED_LAST_ADDRESS_KEY = 'sched:lastAddress';
 
 function readScheduleLastAddress() {
@@ -8749,9 +8750,11 @@ function ensureScheduleAddress(initial = readScheduleLastAddress()) {
 
   return new Promise((resolve) => {
     let settled = false;
+    let destroyAddressAutocomplete = () => {};
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      destroyAddressAutocomplete();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
@@ -8795,8 +8798,137 @@ function ensureScheduleAddress(initial = readScheduleLastAddress()) {
     openOsDialogBackdrop();
     bindOsDialogDismiss(backdrop, () => finish(null), true);
     document.addEventListener('keydown', onKey);
+    destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
     addressInput?.focus();
   });
+}
+
+function formatScheduleAddressLabel(text) {
+  return String(text || '').replace(/, USA$/i, '').trim();
+}
+
+function mountScheduleAddressAutocomplete(addressInput) {
+  const portal = document.getElementById('os-dialog-backdrop');
+  if (!portal || !addressInput) return () => {};
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'sched-guest-dropdown';
+  dropdown.style.display = 'none';
+  portal.appendChild(dropdown);
+
+  let repositionHandler = null;
+
+  function positionDropdown() {
+    const rect = addressInput.getBoundingClientRect();
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.width = `${rect.width}px`;
+  }
+
+  function setDropdownOpen(open) {
+    if (open) {
+      positionDropdown();
+      dropdown.style.display = 'block';
+      addressInput.setAttribute('aria-expanded', 'true');
+      if (!repositionHandler) {
+        repositionHandler = () => positionDropdown();
+        window.addEventListener('resize', repositionHandler);
+        window.addEventListener('scroll', repositionHandler, true);
+        window.visualViewport?.addEventListener('resize', repositionHandler);
+        window.visualViewport?.addEventListener('scroll', repositionHandler);
+      }
+      return;
+    }
+    dropdown.style.display = 'none';
+    addressInput.setAttribute('aria-expanded', 'false');
+    if (repositionHandler) {
+      window.removeEventListener('resize', repositionHandler);
+      window.removeEventListener('scroll', repositionHandler, true);
+      window.visualViewport?.removeEventListener('resize', repositionHandler);
+      window.visualViewport?.removeEventListener('scroll', repositionHandler);
+      repositionHandler = null;
+    }
+  }
+
+  function pick(description) {
+    addressInput.value = formatScheduleAddressLabel(description);
+    setDropdownOpen(false);
+  }
+
+  function renderDropdown(predictions, query) {
+    dropdown.innerHTML = '';
+    if (!predictions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'sched-guest-empty';
+      empty.textContent = query.trim() ? 'No matching addresses.' : 'Type to search addresses.';
+      dropdown.appendChild(empty);
+      setDropdownOpen(true);
+      return;
+    }
+    for (const p of predictions) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sched-guest-option';
+      btn.textContent = formatScheduleAddressLabel(p.description);
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('click', () => pick(p.description));
+      dropdown.appendChild(btn);
+    }
+    setDropdownOpen(true);
+  }
+
+  async function runSearch() {
+    const q = addressInput.value.trim();
+    if (q.length < 2) {
+      setDropdownOpen(false);
+      dropdown.innerHTML = '';
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ input: q, types: 'address' });
+      const res = await adminFetch(`/api/google/places-autocomplete?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.errorMessage || `HTTP ${res.status}`);
+      renderDropdown(data.predictions || [], q);
+    } catch (e) {
+      if (e.message === 'Session expired') return;
+      dropdown.innerHTML = `<div class="sched-guest-empty">${escHtml(e.message)}</div>`;
+      setDropdownOpen(true);
+    }
+  }
+
+  function scheduleSearch() {
+    clearTimeout(schedAddressSearchTimer);
+    const q = addressInput.value.trim();
+    if (!q) {
+      setDropdownOpen(false);
+      dropdown.innerHTML = '';
+      return;
+    }
+    schedAddressSearchTimer = setTimeout(runSearch, 300);
+  }
+
+  const onInput = () => scheduleSearch();
+  const onBlur = () => {
+    setTimeout(() => {
+      if (!dropdown.contains(document.activeElement)) setDropdownOpen(false);
+    }, 150);
+  };
+
+  addressInput.autocomplete = 'off';
+  addressInput.setAttribute('role', 'combobox');
+  addressInput.setAttribute('aria-autocomplete', 'list');
+  addressInput.setAttribute('aria-expanded', 'false');
+  addressInput.addEventListener('input', onInput);
+  addressInput.addEventListener('blur', onBlur);
+
+  return () => {
+    clearTimeout(schedAddressSearchTimer);
+    addressInput.removeEventListener('input', onInput);
+    addressInput.removeEventListener('blur', onBlur);
+    setDropdownOpen(false);
+    dropdown.remove();
+  };
 }
 
 function mountScheduleGuestAutocomplete(nameInput, emailInput) {
@@ -8955,10 +9087,12 @@ function openScheduleCreateDialog(initial = {}) {
   return new Promise((resolve) => {
     let settled = false;
     let destroyGuestAutocomplete = () => {};
+    let destroyAddressAutocomplete = () => {};
     const finish = (value) => {
       if (settled) return;
       settled = true;
       destroyGuestAutocomplete();
+      destroyAddressAutocomplete();
       releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
@@ -9035,6 +9169,9 @@ function openScheduleCreateDialog(initial = {}) {
       if (notesInput) notesInput.value = String(initial.notes);
     }
     destroyGuestAutocomplete = mountScheduleGuestAutocomplete(nameInput, emailInput);
+    if (addressInput) {
+      destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
+    }
 
     function readStartIso() {
       const [y, m, d] = dateInput.value.split('-').map(Number);
@@ -12925,9 +13062,11 @@ function showEmailScheduleDialog(ev, check) {
 
   return new Promise((resolve) => {
     let settled = false;
+    let destroyAddressAutocomplete = () => {};
     const finish = (value) => {
       if (settled) return;
       settled = true;
+      destroyAddressAutocomplete();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
@@ -13040,6 +13179,9 @@ function showEmailScheduleDialog(ev, check) {
     openOsDialogBackdrop();
     bindOsDialogDismiss(backdrop, finish, true);
     document.addEventListener('keydown', onKey);
+    if (addressInput) {
+      destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
+    }
   });
 }
 
