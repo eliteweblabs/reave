@@ -1,5 +1,5 @@
 ---
-import { Home, HatGlasses, Mail, Calendar, Briefcase, Users } from "lucide-astro";
+import { Home, HatGlasses, Mail, Calendar, Briefcase, CheckSquare, Users } from "lucide-astro";
 ---
 
 <nav id="admin-footer-nav" class="admin-footer-nav" aria-label="Admin navigation">
@@ -51,6 +51,15 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, Users } from "lucide-astro
       aria-label="Projects"
     >
       <Briefcase size={20} strokeWidth={1.75} />
+    </button>
+    <button
+      type="button"
+      id="footer-nav-todo"
+      class="footer-nav-btn"
+      data-nav="todo"
+      aria-label="To‑dos"
+    >
+      <CheckSquare size={20} strokeWidth={1.75} />
     </button>
     <button
       type="button"
@@ -334,6 +343,7 @@ import { Home, HatGlasses, Mail, Calendar, Briefcase, Users } from "lucide-astro
   .footer-nav-inbox-icon svg,
   .footer-nav-schedule-icon svg,
   .footer-nav-work-icon svg,
+  .footer-nav-todo-icon svg,
   .footer-nav-clients-icon svg {
     display: block;
     pointer-events: none;

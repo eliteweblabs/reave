@@ -1272,6 +1272,25 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       }
       .de-placeholder-icon { margin-bottom: 0.6rem; display: flex; justify-content: center; color: var(--muted); opacity: 0.55; }
       .de-placeholder-icon svg { display: block; }
+      .de-placeholder-create-btn {
+        margin-top: 1rem;
+        padding: 0.5rem 1.25rem;
+        font: inherit;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #fff;
+        background: var(--brand-gradient);
+        box-shadow: var(--brand-gradient-shadow);
+        border: none;
+        border-radius: var(--radius-input);
+        cursor: pointer;
+      }
+      .de-placeholder-create-btn:hover {
+        filter: brightness(1.08);
+      }
+      .de-placeholder-create-btn:active {
+        filter: brightness(0.96);
+      }
 
       .de-header {
         display: flex;
@@ -6080,6 +6099,6 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       window.__companyBrand = companyBrand;
       window.__installConfig = installConfigClient;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717d"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260717f"></script>
   </body>
 </html>

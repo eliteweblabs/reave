@@ -3300,6 +3300,7 @@ function footerNavActiveKey() {
   if (activeKey === 'email') return 'inbox';
   if (activeKey === 'schedule') return 'schedule';
   if (activeKey === 'work') return 'work';
+  if (activeKey === 'todo') return 'todo';
   if (activeKey === 'clients') return 'clients';
   return null;
 }
@@ -3361,6 +3362,7 @@ function footerNavShowsCreate(nav) {
     return activeKey === 'schedule' && activeNav === 'schedule' && !scheduleState.activeUid;
   }
   if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
+  if (nav === 'todo') return activeKey === 'todo' && activeNav === 'todo' && !todoState.activeId;
   if (nav === 'clients') return activeKey === 'clients' && activeNav === 'clients' && !clientState.activeUid;
   return false;
 }
@@ -3421,6 +3423,27 @@ function syncFooterWorkNav() {
     icon: 'briefcase',
     label: 'Projects',
     title: 'New project',
+  });
+}
+
+function syncFooterTodoNav() {
+  const btn = document.getElementById('footer-nav-todo');
+  if (!btn) return;
+  const create = footerNavShowsCreate('todo');
+  let iconEl = btn.querySelector('.footer-nav-todo-icon');
+  if (!iconEl) {
+    iconEl = document.createElement('span');
+    iconEl.className = 'footer-nav-todo-icon';
+    iconEl.setAttribute('aria-hidden', 'true');
+    btn.insertBefore(iconEl, btn.firstChild);
+    btn.querySelector(':scope > svg')?.remove();
+  }
+  applyFooterNavBtnMode(btn, iconEl, {
+    save: false,
+    create,
+    icon: 'check-square',
+    label: 'To‑dos',
+    title: 'New to‑do',
   });
 }
 
@@ -3524,6 +3547,7 @@ function collapseFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
   renderFooterNavBadges();
@@ -3540,6 +3564,7 @@ function expandFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterChatInlineHome();
   renderFooterNavBadges();
@@ -3578,7 +3603,7 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'work', 'clients'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'work', 'todo', 'clients'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -3588,7 +3613,8 @@ function footerNavIndicatorHidden() {
     (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
     (activeKey === 'email' && footerNavCreateModeActive('inbox')) ||
     (activeKey === 'schedule' && footerNavCreateModeActive('schedule')) ||
-    (activeKey === 'work' && footerNavCreateModeActive('work'))
+    (activeKey === 'work' && footerNavCreateModeActive('work')) ||
+    (activeKey === 'todo' && footerNavCreateModeActive('todo'))
   );
 }
 
@@ -3719,6 +3745,14 @@ function activateFooterNavFromDrag(nav) {
     setActiveMap('work', { force: activeKey === 'work' });
     return;
   }
+  if (nav === 'todo') {
+    if (activeKey === 'todo') {
+      startNewTodo();
+      return;
+    }
+    setActiveMap('todo', { force: activeKey === 'todo' });
+    return;
+  }
   if (nav === 'clients') {
     if (footerNavShowsSave('clients')) {
       void triggerFooterSave();
@@ -3830,7 +3864,8 @@ function syncFooterNavIndicator() {
     (activeNav === 'chat' && (footerNavCreateModeActive('chat') || footerNavShowsSave('chat'))) ||
     (activeNav === 'inbox' && footerNavCreateModeActive('inbox')) ||
     (activeNav === 'schedule' && footerNavCreateModeActive('schedule')) ||
-    (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work')));
+    (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work'))) ||
+    (activeNav === 'todo' && footerNavCreateModeActive('todo'));
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
@@ -3967,6 +4002,7 @@ function syncFooterNav() {
   syncFooterInboxNav();
   syncFooterScheduleNav();
   syncFooterWorkNav();
+  syncFooterTodoNav();
   syncFooterClientsNav();
   renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
@@ -4012,6 +4048,14 @@ function initFooterNav() {
       return;
     }
     setActiveMap('work', { force: activeKey === 'work' });
+  });
+  document.getElementById('footer-nav-todo')?.addEventListener('click', () => {
+    closeSearchOverlay();
+    if (activeKey === 'todo') {
+      startNewTodo();
+      return;
+    }
+    setActiveMap('todo', { force: activeKey === 'todo' });
   });
   document.getElementById('footer-nav-clients')?.addEventListener('click', () => {
     closeSearchOverlay();
@@ -5141,6 +5185,7 @@ function startNewTodo(opts = {}) {
   }
   getTodoEditor()?.classList.add('de-pane-active');
   renderTodoEditor();
+  syncFooterNav();
 }
 
 function fillTodoSidebarList(list) {
@@ -5242,6 +5287,12 @@ function renderTodoEditor() {
     const placeholder = document.createElement('div');
     placeholder.className = 'de-placeholder';
     placeholder.innerHTML = placeholderHtml('check-square', '<p>Select a to‑do, or create a new one.</p>');
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'de-placeholder-create-btn';
+    createBtn.textContent = 'Create New';
+    createBtn.addEventListener('click', () => startNewTodo());
+    placeholder.appendChild(createBtn);
     pane.appendChild(placeholder);
   }
   root.appendChild(pane);
@@ -5335,6 +5386,7 @@ async function openTodo(id, opts = {}) {
   }
   getTodoEditor()?.classList.add('de-pane-active');
   renderTodoEditor();
+  syncFooterNav();
 }
 
 async function closeTodoEditor(checkDirty = true) {
@@ -5352,6 +5404,7 @@ async function closeTodoEditor(checkDirty = true) {
     return;
   }
   renderTodoEditor();
+  syncFooterNav();
 }
 
 function scheduleTodoAutosave(saveFn) {
@@ -5868,6 +5921,7 @@ async function deleteTodo(id) {
       getTodoEditor()?.classList.remove('de-pane-active');
     }
     renderTodoEditor();
+    syncFooterNav();
   } catch (e) {
     osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
   }
