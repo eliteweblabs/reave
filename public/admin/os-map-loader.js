@@ -2939,7 +2939,6 @@ async function refreshVapiPluginStatus() {
 }
 
 function footerNavActiveKey() {
-  if (searchOverlayOpen) return 'search';
   if (activeKey === 'home') return 'home';
   if (activeKey === 'chats' || activeKey === 'knowledge') return 'chat';
   if (activeKey === 'email') return 'inbox';
@@ -3227,7 +3226,7 @@ function initFooterNavScrollCollapse() {
   document.addEventListener('scroll', onPanelScrollCollapse, { capture: true, passive: true });
 }
 
-const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'search', 'work', 'clients'];
+const FOOTER_NAV_DRAG_ORDER = ['home', 'chat', 'inbox', 'schedule', 'work', 'clients'];
 const FOOTER_NAV_DRAG_THRESHOLD = 8;
 
 function footerNavIndicatorHidden() {
@@ -3354,10 +3353,6 @@ function activateFooterNavFromDrag(nav) {
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
-    return;
-  }
-  if (nav === 'search') {
-    toggleSearchOverlay();
     return;
   }
   if (nav === 'work') {
@@ -3616,7 +3611,6 @@ function syncFooterNav() {
   document.querySelectorAll('.footer-nav-btn[data-nav]').forEach((btn) => {
     btn.classList.toggle('active', activeNav != null && btn.dataset.nav === activeNav);
   });
-  document.getElementById('footer-nav-search')?.setAttribute('aria-expanded', searchOverlayOpen ? 'true' : 'false');
   syncFooterChatNav();
   syncFooterInboxNav();
   syncFooterScheduleNav();
@@ -3654,9 +3648,6 @@ function initFooterNav() {
       return;
     }
     setActiveMap('schedule', { force: activeKey === 'schedule' });
-  });
-  document.getElementById('footer-nav-search')?.addEventListener('click', () => {
-    toggleSearchOverlay();
   });
   document.getElementById('footer-nav-work')?.addEventListener('click', () => {
     closeSearchOverlay();
@@ -3839,13 +3830,79 @@ function initSearchOverlay() {
     renderSearchResults('');
     input.focus();
   });
+}
 
-  if (!document.documentElement.dataset.searchOverlayBound) {
-    document.documentElement.dataset.searchOverlayBound = '1';
-    document.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape' && searchOverlayOpen) closeSearchOverlay();
-    });
+function isEditableKeyboardTarget(el) {
+  if (!(el instanceof Element)) return false;
+  if (el.closest('#search-overlay-input')) return true;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function keyboardShortcutBlocked() {
+  if (document.getElementById('os-dialog-backdrop')?.classList.contains('open')) return true;
+  if (document.querySelector('.ch-context-menu')) return true;
+  return false;
+}
+
+async function handleArchiveKeyboardShortcut() {
+  if (activeKey === 'chats' || activeKey === 'knowledge') {
+    const thread = activeChatThread();
+    if (thread) await archiveChat(thread);
+    return;
   }
+  if (activeKey === 'work') {
+    const slug = workState.activeSlug;
+    if (slug) await archiveWork(slug);
+    return;
+  }
+  if (activeKey === 'email') {
+    const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
+    if (!ev || ev.category === 'junk') return;
+    if (isEmailRouted(ev)) await unarchiveEmail(ev);
+    else await archiveEmail(ev);
+  }
+}
+
+function archiveKeyboardShortcutAvailable() {
+  if (activeKey === 'chats' || activeKey === 'knowledge') {
+    return !!activeChatThread();
+  }
+  if (activeKey === 'work') {
+    return !!workState.activeSlug && workState.activeSlug !== '__new__';
+  }
+  if (activeKey === 'email') {
+    const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
+    return !!ev && ev.category !== 'junk';
+  }
+  return false;
+}
+
+function initKeyboardShortcuts() {
+  if (document.documentElement.dataset.keyboardShortcutsBound) return;
+  document.documentElement.dataset.keyboardShortcutsBound = '1';
+  document.addEventListener('keydown', (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') {
+      ev.preventDefault();
+      toggleSearchOverlay();
+      return;
+    }
+
+    if (ev.key === 'Escape' && searchOverlayOpen) {
+      closeSearchOverlay();
+      return;
+    }
+
+    if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+    if (keyboardShortcutBlocked()) return;
+    if (searchOverlayOpen) return;
+    if (isEditableKeyboardTarget(ev.target)) return;
+    if (!archiveKeyboardShortcutAvailable()) return;
+
+    ev.preventDefault();
+    void handleArchiveKeyboardShortcut();
+  });
 }
 
 async function buildMobileToolsMenu(order) {
@@ -7094,6 +7151,83 @@ async function deleteWork(slug) {
     await loadWorkTab();
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
+  }
+}
+
+async function archiveWork(slug) {
+  if (!slug || slug === '__new__') return;
+  closeOpenSwipeRow();
+  const job = workState.jobs.find((j) => j.slug === slug);
+  const currentlyArchived =
+    (workState.activeSlug === slug && workState.draft?.status === 'archived') ||
+    job?.status === 'archived';
+  const newStatus = currentlyArchived ? 'done' : 'archived';
+  let payload;
+
+  if (workState.activeSlug === slug && workState.draft) {
+    payload = {
+      title: workState.draft.title,
+      contact_uid: workState.draft.contact_uid,
+      contact_name: workState.draft.contact_name,
+      status: newStatus,
+      priority: workState.draft.priority || 'normal',
+      due_date: workState.draft.due_date || '',
+      value: workState.draft.value ?? '',
+      tags: workState.draft.tags || [],
+      source: workState.draft.source || '',
+      body: workState.draft.body || '',
+    };
+  } else {
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      payload = {
+        title: data.title,
+        contact_uid: data.contact_uid,
+        contact_name: data.contact_name || data.client,
+        status: newStatus,
+        priority: data.priority || 'normal',
+        due_date: data.due_date || '',
+        value: data.value ?? '',
+        tags: data.tags || [],
+        source: data.source || '',
+        body: data.body || '',
+      };
+    } catch (e) {
+      osAlert({
+        title: currentlyArchived ? 'Could not restore project' : 'Could not archive project',
+        bodyHtml: escHtml(e.message),
+      });
+      return;
+    }
+  }
+
+  try {
+    await flushWorkAutosave();
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (workState.activeSlug === slug && workState.draft) {
+      workState.draft.status = newStatus;
+    }
+    workState.dirty = false;
+    const idx = workState.jobs.findIndex((j) => j.slug === slug);
+    if (idx !== -1) workState.jobs[idx].status = newStatus;
+    if (workState.activeSlug === slug) {
+      renderWorkEditor();
+    } else {
+      refreshWorkSidebarList();
+    }
+  } catch (e) {
+    osAlert({
+      title: currentlyArchived ? 'Could not restore project' : 'Could not archive project',
+      bodyHtml: escHtml(e.message),
+    });
   }
 }
 
@@ -11684,6 +11818,38 @@ async function markEmailJunk(ev) {
   }
 }
 
+async function archiveEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const patch = { action: 'filed', status: 'FILED' };
+    if (ev.category === 'review') patch.category = 'internal';
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function unarchiveEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not unarchive', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function applyEmailPatchResult(id, event) {
   if (!event) return;
   const idx = emailState.allEvents.findIndex((e) => e.id === id);
@@ -12587,6 +12753,7 @@ async function boot() {
   initFooterNavScrollCollapse();
   initChatComposeFocusLayout();
   initSearchOverlay();
+  initKeyboardShortcuts();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
   MOBILE_TABS_MQ.addEventListener('change', () => {
