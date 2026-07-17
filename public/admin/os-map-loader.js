@@ -7958,7 +7958,9 @@ function createCalAgendaItem(booking) {
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
-    'cal-agenda-item' + (booking.uid === scheduleState.activeUid ? ' active' : '');
+    'cal-agenda-item' +
+    (scheduleBookingIsPast(booking) ? ' cal-agenda-item--past' : '') +
+    (booking.uid === scheduleState.activeUid ? ' active' : '');
   const who = scheduleBookingWho(booking);
   item.innerHTML =
     `<span class="cal-agenda-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>` +
@@ -8085,9 +8087,22 @@ function renderCalMonthView(parent) {
   renderCalDayAgenda(parent, scheduleState.selectedDate, { showDayViewAction: true });
 }
 
+function scheduleBookingEndTime(booking) {
+  const start = new Date(booking.startTime);
+  return booking.endTime ? new Date(booking.endTime) : new Date(start.getTime() + 30 * 60 * 1000);
+}
+
+function scheduleBookingIsPast(booking) {
+  try {
+    return scheduleBookingEndTime(booking).getTime() <= Date.now();
+  } catch {
+    return false;
+  }
+}
+
 function scheduleEventLayout(booking) {
   const start = new Date(booking.startTime);
-  const end = booking.endTime ? new Date(booking.endTime) : new Date(start.getTime() + 30 * 60 * 1000);
+  const end = scheduleBookingEndTime(booking);
   const startMin = start.getHours() * 60 + start.getMinutes();
   const endMin = end.getHours() * 60 + end.getMinutes();
   const top = (startMin / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX);
@@ -8192,7 +8207,9 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       const block = document.createElement('button');
       block.type = 'button';
       block.className =
-        'cal-event-block' + (booking.uid === scheduleState.activeUid ? ' active' : '');
+        'cal-event-block' +
+        (scheduleBookingIsPast(booking) ? ' cal-event-block--past' : '') +
+        (booking.uid === scheduleState.activeUid ? ' active' : '');
       block.style.top = `${top}px`;
       block.style.height = `${height}px`;
       block.innerHTML =

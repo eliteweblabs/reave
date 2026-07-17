@@ -4814,6 +4814,13 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .cal-agenda-item.active {
         background: var(--surface-hover-strong);
       }
+      .cal-agenda-item--past {
+        opacity: 0.52;
+      }
+      .cal-agenda-item--past:hover,
+      .cal-agenda-item--past.active {
+        opacity: 0.78;
+      }
       .cal-agenda-time {
         flex: 0 0 auto;
         min-width: 3.2rem;
@@ -4911,6 +4918,16 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
       .cal-event-block:hover,
       .cal-event-block.active {
         background: rgba(121, 192, 255, 0.32);
+      }
+      .cal-event-block--past {
+        opacity: 0.48;
+        background: rgba(121, 192, 255, 0.12);
+        border-left-color: rgba(121, 192, 255, 0.45);
+      }
+      .cal-event-block--past:hover,
+      .cal-event-block--past.active {
+        opacity: 0.68;
+        background: rgba(121, 192, 255, 0.2);
       }
       .cal-event-block-title {
         display: block;
