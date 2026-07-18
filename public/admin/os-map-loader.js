@@ -4500,6 +4500,17 @@ function syncDashboardFooterBadges(stats) {
   syncFooterNavCountTooltips();
 }
 
+function syncDashboardFooterBadgesWithoutReview(stats) {
+  if (!stats || typeof stats !== 'object') return;
+  footerNavCounts.chats = stats.chats ?? 0;
+  footerNavCounts.emails = stats.emailsTotal ?? stats.emails ?? 0;
+  footerNavCounts.meetings = stats.meetingsTotal ?? null;
+  footerNavCounts.projects = stats.projectsTotal ?? stats.projectsPending ?? 0;
+  footerNavCounts.todos = stats.todosOpen ?? 0;
+  footerNavCounts.clients = stats.clients ?? null;
+  syncFooterNavCountTooltips();
+}
+
 function initTopbarMenus() {
   if (!document.documentElement.dataset.topbarMenuBound) {
     document.documentElement.dataset.topbarMenuBound = '1';
@@ -13298,11 +13309,20 @@ async function refreshFooterBadgesQuiet() {
       fetch('/api/admin/dashboard', { cache: 'no-store' }),
       fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
     ]);
+    
+    const inboxOk = inboxRes.ok;
+    
     if (dashRes.ok) {
       const dash = await dashRes.json();
-      if (dash.ok) syncDashboardFooterBadges(dash.stats);
+      if (dash.ok) {
+        if (inboxOk) {
+          syncDashboardFooterBadgesWithoutReview(dash.stats);
+        } else {
+          syncDashboardFooterBadges(dash.stats);
+        }
+      }
     }
-    if (inboxRes.ok) {
+    if (inboxOk) {
       const inboxData = await inboxRes.json();
       const events = inboxData.events || [];
       if (MAP.type === 'email' && emailState.allEvents.length) {
