@@ -5,7 +5,13 @@
  */
 
 import type { APIContext } from 'astro';
-import { bookingCreate, resolveBookingAddress } from '../../../../../lib/bookingClient';
+import {
+  bookingCreate,
+  bookingGet,
+  bookingManageUrl,
+  publicBookingPageUrl,
+  resolveBookingAddress,
+} from '../../../../../lib/bookingClient';
 import { getCompanyConfig } from '../../../../../lib/companyConfig';
 import {
   storeGetEmailInbox,
@@ -64,7 +70,7 @@ async function loadEmail(id: string): Promise<
 
 async function sendSchedulingReply(
   event: EmailInboxRecord,
-  message: { subject: string; text: string },
+  message: { subject: string; text: string; html?: string },
 ): Promise<{ ok: true; to: string; emailId?: string } | { ok: false; error: string }> {
   if (!isEmailSendConfigured()) {
     return { ok: false, error: 'Outbound email is not configured (RESEND_API_KEY)' };
@@ -77,10 +83,23 @@ async function sendSchedulingReply(
     to,
     subject: buildReplySubject(event.subject || message.subject),
     text: message.text,
+    ...(message.html ? { html: message.html } : {}),
     headers: buildReplyEmailHeaders(event),
   });
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, to, emailId: result.id };
+}
+
+/** Best-effort meeting location for the confirmation email's "Where" row. */
+async function resolveBookingLocation(uid: string | null | undefined): Promise<string | null> {
+  if (!uid) return null;
+  try {
+    const got = await bookingGet(uid);
+    if (got.ok) return got.data.booking.location?.trim() || null;
+  } catch {
+    // best-effort — omit the row if the lookup fails
+  }
+  return null;
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -148,10 +167,12 @@ export async function POST(context: APIContext): Promise<Response> {
       return json({ ok: false, error: 'No booking on this message' }, 400);
     }
     const whenLabel = formatWhenLabel(event.bookingStart || proposedStart);
-    const mail = buildMeetingAcceptNotifyEmail({
+    const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel,
       companyName: company.name,
+      manageUrl: bookingManageUrl(event.bookingUid),
+      locationLabel: await resolveBookingLocation(event.bookingUid),
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) {
@@ -197,10 +218,11 @@ export async function POST(context: APIContext): Promise<Response> {
         409,
       );
     }
-    const mail = buildMeetingSlotBookedEmail({
+    const mail = await buildMeetingSlotBookedEmail({
       attendeeName: attendee.name,
       whenLabel: checkRes.check.proposedLabel,
       companyName: company.name,
+      bookingUrl: publicBookingPageUrl(),
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
@@ -251,10 +273,12 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (action === 'accept-notify' && event.bookingUid) {
-    const mail = buildMeetingAcceptNotifyEmail({
+    const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel: formatWhenLabel(event.bookingStart || start.toISOString()),
       companyName: company.name,
+      manageUrl: bookingManageUrl(event.bookingUid),
+      locationLabel: await resolveBookingLocation(event.bookingUid),
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
@@ -328,10 +352,12 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!updated) return json({ ok: false, error: 'Booked but failed to update inbox record' }, 500);
 
   if (action === 'accept-notify') {
-    const mail = buildMeetingAcceptNotifyEmail({
+    const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel: formatWhenLabel(bookingStart),
       companyName: company.name,
+      manageUrl: bookingManageUrl(bookingUid),
+      locationLabel: await resolveBookingLocation(bookingUid),
     });
     const sent = await sendSchedulingReply(updated, mail);
     if (!sent.ok) {

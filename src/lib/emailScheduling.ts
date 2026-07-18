@@ -278,36 +278,91 @@ export function resolveProposedMeetingStart(input: {
   return null;
 }
 
-export function buildMeetingAcceptNotifyEmail(input: {
+function firstNameFrom(fullName: string): string {
+  const trimmed = fullName.trim();
+  if (!trimmed) return 'there';
+  return trimmed.split(/\s+/)[0] || 'there';
+}
+
+export type MeetingEmail = { subject: string; text: string; html?: string };
+
+/**
+ * Meeting-confirmation reply sent after a booking is accepted. Returns a
+ * plain-text body (threaded personal reply) plus a branded HTML version with a
+ * "Manage your appointment" button when a Cal.com manage link is available, so
+ * the attendee can reschedule or cancel themselves.
+ */
+export async function buildMeetingAcceptNotifyEmail(input: {
   attendeeName: string;
   whenLabel: string;
   companyName?: string | null;
-}): { subject: string; text: string } {
+  /** Cal.com booking page where the attendee can reschedule/cancel. */
+  manageUrl?: string | null;
+  /** Optional meeting location shown as a "Where" row. */
+  locationLabel?: string | null;
+}): Promise<MeetingEmail> {
   const name = input.attendeeName.trim() || 'there';
   const when = input.whenLabel.trim();
+  const manageUrl = input.manageUrl?.trim() || '';
+  const location = input.locationLabel?.trim() || '';
   const signOff = input.companyName?.trim() || 'Thanks';
+
   const text = [
     `Hi ${name},`,
     '',
     when
       ? `Thanks for reaching out. I've confirmed our meeting for ${when}.`
       : `Thanks for reaching out. I've confirmed our meeting.`,
+    location ? `` : '',
+    location ? `Where: ${location}` : '',
     '',
     'Looking forward to speaking with you.',
+    manageUrl ? '' : '',
+    manageUrl ? `Need to reschedule or cancel? Manage your appointment here:` : '',
+    manageUrl ? manageUrl : '',
     '',
     signOff,
-  ].join('\n');
-  return { subject: 'Meeting confirmed', text };
+  ]
+    .filter((line, i, arr) => !(line === '' && arr[i - 1] === ''))
+    .join('\n');
+
+  const { brandedEmailHtml } = await import('./emailTemplates');
+  const metaRows: [string, string][] = [];
+  if (when) metaRows.push(['When', when]);
+  if (location) metaRows.push(['Where', location]);
+  const html = await brandedEmailHtml({
+    firstName: firstNameFrom(name),
+    paragraphs: [
+      "Thanks for reaching out — your meeting is confirmed.",
+      'Looking forward to speaking with you.',
+    ],
+    metaRows,
+    cta: manageUrl ? { label: 'Manage your appointment', url: manageUrl } : undefined,
+    note: manageUrl
+      ? 'Need to make a change? Use the button above to reschedule or cancel — no account required.'
+      : undefined,
+  });
+
+  return { subject: 'Meeting confirmed', text, html };
 }
 
-export function buildMeetingSlotBookedEmail(input: {
+/**
+ * Reply sent when the attendee's requested time is already booked. Branded HTML
+ * with an optional "See available times" button pointing at the public booking
+ * page so they can self-serve a new slot.
+ */
+export async function buildMeetingSlotBookedEmail(input: {
   attendeeName: string;
   whenLabel: string;
   companyName?: string | null;
-}): { subject: string; text: string } {
+  /** Public Cal.com booking page for picking another time. */
+  bookingUrl?: string | null;
+}): Promise<MeetingEmail> {
   const name = input.attendeeName.trim() || 'there';
   const when = input.whenLabel.trim();
+  const bookingUrl = input.bookingUrl?.trim() || '';
   const signOff = input.companyName?.trim() || 'Thanks';
+
   const text = [
     `Hi ${name},`,
     '',
@@ -315,11 +370,31 @@ export function buildMeetingSlotBookedEmail(input: {
       ? `Thanks for your message. Unfortunately I'm already booked at ${when}.`
       : `Thanks for your message. Unfortunately that time is already booked.`,
     '',
-    "I'd be happy to find another time — I'll follow up shortly with some options.",
+    bookingUrl
+      ? 'You can grab another time that works for you here:'
+      : "I'd be happy to find another time — I'll follow up shortly with some options.",
+    bookingUrl ? bookingUrl : '',
     '',
     signOff,
-  ].join('\n');
-  return { subject: 'Re: Meeting time', text };
+  ]
+    .filter((line, i, arr) => !(line === '' && arr[i - 1] === ''))
+    .join('\n');
+
+  const { brandedEmailHtml } = await import('./emailTemplates');
+  const html = await brandedEmailHtml({
+    firstName: firstNameFrom(name),
+    paragraphs: [
+      when
+        ? `Thanks for your message — unfortunately I'm already booked at ${when}.`
+        : 'Thanks for your message — unfortunately that time is already booked.',
+      bookingUrl
+        ? 'No problem though — you can grab another time that works for you below.'
+        : "I'd be happy to find another time — I'll follow up shortly with some options.",
+    ],
+    cta: bookingUrl ? { label: 'See available times', url: bookingUrl } : undefined,
+  });
+
+  return { subject: 'Re: Meeting time', text, html };
 }
 
 export async function checkEmailMeetingSlot(input: {

@@ -120,6 +120,18 @@ export function publicBookingPageUrl(eventSlug = '30min'): string | null {
   return null;
 }
 
+/**
+ * Attendee-facing Cal.com page for an existing booking. Shows the booking
+ * details and offers Reschedule / Cancel (Cal.com's `{bookerUrl}/booking/{uid}`
+ * page; reschedule → `/reschedule/{uid}`, cancel → `?cancel=true`). Cal.com may
+ * ask the attendee to confirm their email before making changes.
+ */
+export function bookingManageUrl(uid: string | null | undefined): string | null {
+  const web = calcomWebappUrl();
+  if (!web || !uid) return null;
+  return `${web}/booking/${encodeURIComponent(uid)}`;
+}
+
 /** Gateway statuses that usually mean the service is restarting/cold-starting. */
 const TRANSIENT_BOOKING_STATUSES = new Set([502, 503, 504]);
 const TRANSIENT_BOOKING_MESSAGE =
