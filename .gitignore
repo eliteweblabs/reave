@@ -12,6 +12,8 @@ dist
 src/knowledge/chats/*.md
 src/knowledge/email-rules.json
 src/knowledge/email-inbox.json
+# Social OAuth access tokens (secrets — never commit)
+src/knowledge/social-tokens.json
 
 # Twilio credentials (already covered by .env, but being explicit)
 # TWILIO_ACCOUNT_SID

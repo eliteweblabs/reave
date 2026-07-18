@@ -3257,6 +3257,37 @@ function bindCompanyForm(root, company) {
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
 }
 
+const SOCIAL_OAUTH_ERRORS = {
+  not_configured: "That platform isn't set up yet — add its API credentials first.",
+  denied: 'Authorization was cancelled.',
+  state_mismatch: 'Security check failed. Please try connecting again.',
+  missing_code: "The provider didn't return an authorization code.",
+  exchange_failed: 'Could not complete the connection. Check the app credentials and callback URL.',
+  unknown_platform: 'Unknown platform.',
+};
+
+function showSocialOAuthReturnAlert(root) {
+  const params = new URLSearchParams(location.search);
+  const connected = params.get('social_connected');
+  const error = params.get('social_error');
+  const errPlatform = params.get('platform');
+  if (!connected && !error) return;
+
+  const alertEl = root.querySelector('#socials-alert');
+  if (connected) {
+    showProfileAlert(alertEl, `Connected ${socialPlatformLabel(connected)}.`, 'success');
+  } else if (error) {
+    const prefix = errPlatform ? `${socialPlatformLabel(errPlatform)}: ` : '';
+    showProfileAlert(alertEl, prefix + (SOCIAL_OAUTH_ERRORS[error] || 'Connection failed.'), 'error');
+  }
+
+  params.delete('social_connected');
+  params.delete('social_error');
+  params.delete('platform');
+  const qs = params.toString();
+  history.replaceState({}, '', location.pathname + (qs ? `?${qs}` : '') + location.hash);
+}
+
 function bindSocialsForm(root) {
   bindAutosaveForm(root, {
     formSelector: '#socials-form',
@@ -3271,6 +3302,25 @@ function bindSocialsForm(root) {
       return { ok: res.ok, error: json.error };
     },
   });
+
+  root.querySelectorAll('[data-soc-disconnect]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const platform = btn.getAttribute('data-soc-disconnect');
+      if (!platform) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(`/api/admin/social/disconnect/${platform}`, { method: 'POST' });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+        await loadSocialsTab();
+      } catch (e) {
+        btn.disabled = false;
+        showProfileAlert(root.querySelector('#socials-alert'), e.message || 'Disconnect failed.', 'error');
+      }
+    });
+  });
+
+  showSocialOAuthReturnAlert(root);
 }
 
 function industriesRowsHtml(industries) {
@@ -3494,7 +3544,79 @@ function renderCompanyPanel(company) {
   );
 }
 
-function renderSocialsPanel(company) {
+const SOCIAL_PLATFORM_LABELS = {
+  twitter: 'X / Twitter',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+};
+
+function socialPlatformLabel(platform) {
+  return SOCIAL_PLATFORM_LABELS[platform] || platform || '';
+}
+
+function socialSetupDetails(conn) {
+  return (
+    `<details class="soc-conn-setup">` +
+      `<summary>Setup &amp; callback URL</summary>` +
+      `<p class="soc-conn-hint">${escHtml(conn.setupHint || '')}</p>` +
+      `<div class="soc-conn-kv"><span>Callback URL</span><code>${escHtml(conn.callbackUrl || '')}</code></div>` +
+      `<div class="soc-conn-kv"><span>Env vars</span><code>${escHtml((conn.envVars || []).join(', '))}</code></div>` +
+      (conn.developerPortal
+        ? `<a class="soc-conn-portal" href="${escHtml(conn.developerPortal)}" target="_blank" rel="noopener noreferrer">Open developer portal ↗</a>`
+        : '') +
+    `</details>`
+  );
+}
+
+function socialConnectionRow(conn) {
+  let statusHtml;
+  let actionHtml;
+  if (!conn.configured) {
+    statusHtml = `<span class="soc-conn-pill soc-conn-pill--muted">Setup required</span>`;
+    actionHtml = '';
+  } else if (conn.connected && !conn.expired) {
+    statusHtml = `<span class="soc-conn-pill soc-conn-pill--ok">Connected</span>`;
+    actionHtml =
+      `<button type="button" class="prof-btn-secondary soc-conn-btn" data-soc-disconnect="${escHtml(conn.platform)}">Disconnect</button>`;
+  } else if (conn.connected && conn.expired) {
+    statusHtml = `<span class="soc-conn-pill soc-conn-pill--warn">Expired</span>`;
+    actionHtml = `<a class="prof-btn-secondary soc-conn-btn" href="${escHtml(conn.connectUrl)}">Reconnect</a>`;
+  } else {
+    statusHtml = `<span class="soc-conn-pill">Not connected</span>`;
+    actionHtml = `<a class="prof-btn-secondary soc-conn-btn" href="${escHtml(conn.connectUrl)}">Connect</a>`;
+  }
+  const meta =
+    conn.connected && conn.accountLabel
+      ? `<span class="soc-conn-account">${escHtml(conn.accountLabel)}</span>`
+      : '';
+  return (
+    `<div class="soc-conn-item">` +
+      `<div class="soc-conn-row">` +
+        `<span class="soc-conn-id">${socialPlatformIcon(conn.platform)}` +
+          `<span class="soc-conn-name">${escHtml(conn.label)}${meta}</span></span>` +
+        `<div class="soc-conn-actions">${statusHtml}${actionHtml}</div>` +
+      `</div>` +
+      socialSetupDetails(conn) +
+    `</div>`
+  );
+}
+
+function renderSocialConnectionsCard(connections) {
+  const list = Array.isArray(connections) ? connections : [];
+  const rows = list.map(socialConnectionRow).join('');
+  return (
+    `<div class="prof-card">` +
+      `<h2 class="prof-title prof-title--section">API access</h2>` +
+      `<p class="prof-subtitle">Connect an account to pull real metrics into the Social dashboard. You'll sign in on the provider and authorize access — the token is stored securely on the server.</p>` +
+      `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>` +
+    `</div>`
+  );
+}
+
+function renderSocialsPanel(company, connections) {
   const c = company || {};
   const field = (id, name, label, placeholder) =>
     `<div class="prof-field"><label for="${id}">${label}</label>` +
@@ -3515,6 +3637,7 @@ function renderSocialsPanel(company) {
           field('social-tiktok', 'socialTiktok', 'TikTok', 'https://tiktok.com/@yourcompany') +
         `</form>` +
       `</div>` +
+      renderSocialConnectionsCard(connections) +
     `</div>`
   );
 }
@@ -3620,10 +3743,22 @@ async function loadSocialsTab() {
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
 
   try {
-    const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
+    const [companyRes, connRes] = await Promise.all([
+      fetch('/api/admin/company', { cache: 'no-store' }),
+      fetch('/api/admin/social/connections', { cache: 'no-store' }),
+    ]);
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
-    root.innerHTML = renderSocialsPanel(companyData.company);
+
+    let connections = [];
+    try {
+      const connData = await connRes.json();
+      if (connRes.ok && connData.ok) connections = connData.connections || [];
+    } catch {
+      /* connection status is best-effort */
+    }
+
+    root.innerHTML = renderSocialsPanel(companyData.company, connections);
     bindSocialsForm(root);
   } catch (e) {
     root.innerHTML =
