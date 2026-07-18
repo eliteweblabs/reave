@@ -8723,16 +8723,6 @@ function closeScheduleDetail() {
 }
 
 async function cancelScheduleBooking(uid) {
-  const booking = findScheduleBooking(uid);
-  const who = booking ? scheduleBookingWho(booking) : 'this meeting';
-  const ok = await osConfirm({
-    title: 'Cancel booking',
-    bodyHtml: `<p>Cancel <strong>${escHtml(who)}</strong>? This removes it from your calendar.</p>`,
-    confirmLabel: 'Cancel booking',
-    danger: true,
-  });
-  if (!ok) return;
-
   const res = await fetch(`/api/bookings/${encodeURIComponent(uid)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
