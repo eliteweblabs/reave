@@ -549,6 +549,21 @@ export async function storeWriteWork(
     void enrichClientPortalBrand(contact.uid);
   }
 
+  // Fire project-complete + review automations when a job transitions to done.
+  if (result.ok && result.doc.status === 'done' && existingBefore?.status !== 'done') {
+    const doc = result.doc;
+    void import('./newsletterEngine')
+      .then((m) =>
+        m.onJobCompleted({
+          slug: doc.slug,
+          title: doc.title,
+          contact_uid: doc.contact_uid,
+          contact_name: doc.contact_name,
+        }),
+      )
+      .catch((e) => console.warn('[newsletter] onJobCompleted failed', e));
+  }
+
   return result;
 }
 

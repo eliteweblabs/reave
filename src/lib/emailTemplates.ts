@@ -35,6 +35,10 @@ export async function brandedEmailHtml(opts: {
   cta?: EmailCta;
   metaRows?: EmailMetaRow[];
   note?: string;
+  /** Marketing footer: one-click unsubscribe link (adds CAN-SPAM footer row). */
+  unsubscribeUrl?: string;
+  /** Marketing footer: physical mailing address (CAN-SPAM requirement). */
+  footerAddress?: string;
 }): Promise<string> {
   const company = await getCompanyConfig();
   const base = siteBaseUrl();
@@ -87,6 +91,19 @@ export async function brandedEmailHtml(opts: {
   const noteHtml = opts.note
     ? `<tr><td style="padding:20px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.5">${esc(opts.note)}</p></td></tr>`
     : '';
+
+  const complianceHtml =
+    opts.unsubscribeUrl || opts.footerAddress
+      ? `<tr><td style="padding:18px 0 0"><p class="email-note" style="margin:0;color:#999;font-size:12px;line-height:1.6">${
+          opts.footerAddress ? `${esc(opts.footerAddress)}<br />` : ''
+        }${
+          opts.unsubscribeUrl
+            ? `You're receiving this because you're a contact of ${esc(brandName)}. <a href="${esc(
+                opts.unsubscribeUrl,
+              )}" class="email-link" style="color:#a855f7;text-decoration:underline">Unsubscribe</a>.`
+            : ''
+        }</p></td></tr>`
+      : '';
 
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
@@ -154,6 +171,9 @@ export async function brandedEmailHtml(opts: {
 
                 <!-- Note -->
                 ${noteHtml}
+
+                <!-- Marketing compliance footer (unsubscribe + address) -->
+                ${complianceHtml}
 
               </table>
             </td>

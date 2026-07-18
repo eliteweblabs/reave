@@ -48,5 +48,10 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ ok: false, error: result.error }, result.status ?? 502);
   }
 
+  // Fire the welcome/follow-up automations (non-blocking).
+  void import('../../../lib/newsletterEngine')
+    .then((m) => m.onContactCreated(result.data))
+    .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
+
   return json({ ok: true, contact: result.data }, 201);
 };

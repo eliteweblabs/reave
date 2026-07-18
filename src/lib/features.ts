@@ -21,6 +21,7 @@ export const FEATURE_IDS = [
   'scheduling',
   'dev_infra',
   'code_dev',
+  'email_marketing',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -88,6 +89,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   scheduling: 'Cal.com scheduling & meetings',
   dev_infra: 'Dev & infrastructure (Git, Railway, Kinsta, deploy)',
   code_dev: 'Local code tools (read/write/list/exec) — Reave install only',
+  email_marketing: 'Newsletter & email automation (welcome, follow-ups, review requests, broadcasts)',
 };
 
 export const CORE_FEATURE_NOTE =

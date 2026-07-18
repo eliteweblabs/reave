@@ -86,5 +86,11 @@ export async function POST(context: APIContext): Promise<Response> {
   });
 
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
+
+  // Fire the welcome/follow-up automations (non-blocking).
+  void import('../../../lib/newsletterEngine')
+    .then((m) => m.onContactCreated(result.data))
+    .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
+
   return json({ ok: true, ...contactSummary(result.data), notes: result.data.notes ?? '' }, 201);
 }

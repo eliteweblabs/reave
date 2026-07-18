@@ -12,7 +12,8 @@
     "carddav",
     "scheduling",
     "dev_infra",
-    "code_dev"
+    "code_dev",
+    "email_marketing"
   ],
   "footerNav": [
     "__system__",
@@ -23,6 +24,7 @@
     "chats",
     "email",
     "rules",
+    "newsletter",
     "work",
     "schedule",
     "clients",
