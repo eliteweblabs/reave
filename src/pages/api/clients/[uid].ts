@@ -6,9 +6,10 @@ import {
   getContact,
   isContactApiConfigured,
   updateContact,
+  type ContactRecord,
 } from '../../../lib/contactApi';
 import { portalSiteUrl } from '../../../lib/siteMonitoring';
-import { setClientPortalWebsite, websiteFromNotes } from '../../../lib/clientBrand';
+import { setClientPortalWebsite, websiteFromNotes, setClientPortalAddress, parseClientGeoInput } from '../../../lib/clientBrand';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
@@ -18,6 +19,39 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+async function saveClientPortalFields(
+  uid: string,
+  body: Record<string, unknown>,
+  contactData: ContactRecord,
+) {
+  let website = '';
+  if (typeof body.website === 'string') {
+    const saved = await setClientPortalWebsite(uid, body.website);
+    if (!saved.ok) return { ok: false as const, error: saved.error };
+    website = saved.website;
+  } else {
+    const portal = extractPortal(contactData);
+    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
+  }
+
+  let address = '';
+  let geo: ReturnType<typeof parseClientGeoInput> | null = null;
+  if (typeof body.address === 'string') {
+    const geoInput =
+      body.geo === null ? null : body.geo != null ? parseClientGeoInput(body.geo) : undefined;
+    const saved = await setClientPortalAddress(uid, body.address, geoInput);
+    if (!saved.ok) return { ok: false as const, error: saved.error };
+    address = saved.address;
+    geo = saved.geo ?? null;
+  } else {
+    const portal = extractPortal(contactData);
+    address = contactStringField(portal?.address) || '';
+    geo = portal?.geo ?? null;
+  }
+
+  return { ok: true as const, website, address, geo };
 }
 
 export const GET: APIRoute = async ({ params, locals, url }) => {
@@ -51,6 +85,8 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
     website,
+    address: contactStringField(portal?.address) || '',
+    geo: portal?.geo ?? null,
     logoUrl: contactStringField(portal?.logoUrl) || '',
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
@@ -83,21 +119,16 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   });
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
 
-  let website = '';
-  if (typeof body.website === 'string') {
-    const saved = await setClientPortalWebsite(uid, body.website);
-    if (!saved.ok) return json({ ok: false, error: saved.error }, 502);
-    website = saved.website;
-  } else {
-    const portal = extractPortal(res.data);
-    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
-  }
+  const portalSaved = await saveClientPortalFields(uid, body, res.data);
+  if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
-    website,
+    website: portalSaved.website,
+    address: portalSaved.address,
+    geo: portalSaved.geo,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });
@@ -129,21 +160,16 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
 
-  let website = '';
-  if (typeof body.website === 'string') {
-    const saved = await setClientPortalWebsite(uid, body.website);
-    if (!saved.ok) return json({ ok: false, error: saved.error }, 502);
-    website = saved.website;
-  } else {
-    const portal = extractPortal(res.data);
-    website = portal?.website?.trim() || portalSiteUrl(portal) || '';
-  }
+  const portalSaved = await saveClientPortalFields(uid, body, res.data);
+  if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
   return json({
     ok: true,
     ...contactSummary(res.data),
     notes: res.data.notes ?? '',
-    website,
+    website: portalSaved.website,
+    address: portalSaved.address,
+    geo: portalSaved.geo,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });

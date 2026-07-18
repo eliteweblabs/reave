@@ -178,6 +178,14 @@ export function normalizeContactRecord(contact: ContactRecord): ContactRecord {
 
 export type ClientPortalField = { label: string; value: string };
 
+export type ClientPortalGeo = {
+  lat: number;
+  lng: number;
+  placeId?: string;
+  /** ISO timestamp when coords were last resolved. */
+  geocodedAt?: string;
+};
+
 /**
  * A handoff "Data" entry shared with a web-design client: a credential, a DNS
  * record, hosting info, etc. `password` is masked on the page (reveal/copy).
@@ -239,6 +247,10 @@ export type ClientPortal = {
   website?: string;
   /** Short company blurb (often from site meta description). */
   tagline?: string;
+  /** Client street / mailing address (shown on admin client page + optional portal). */
+  address?: string;
+  /** Geocoded coordinates for `address`. */
+  geo?: ClientPortalGeo;
   fields?: ClientPortalField[];
   /** Web-design handoff data (passwords, DNS, hosting…) shown in the Data tab. */
   data?: ClientDataEntry[];
@@ -512,6 +524,19 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
     logoUrl: contactStringField(raw.logoUrl) || undefined,
     website: contactStringField(raw.website) || undefined,
     tagline: contactStringField(raw.tagline) || undefined,
+    address: contactStringField(raw.address) || undefined,
+    geo:
+      raw.geo &&
+      typeof raw.geo === 'object' &&
+      Number.isFinite(Number((raw.geo as ClientPortalGeo).lat)) &&
+      Number.isFinite(Number((raw.geo as ClientPortalGeo).lng))
+        ? {
+            lat: Number((raw.geo as ClientPortalGeo).lat),
+            lng: Number((raw.geo as ClientPortalGeo).lng),
+            placeId: contactStringField((raw.geo as ClientPortalGeo).placeId) || undefined,
+            geocodedAt: contactStringField((raw.geo as ClientPortalGeo).geocodedAt) || undefined,
+          }
+        : undefined,
     updatedAt: contactStringField(raw.updatedAt) || undefined,
     fields: Array.isArray(raw.fields)
       ? raw.fields

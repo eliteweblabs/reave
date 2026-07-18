@@ -261,3 +261,68 @@ export async function setClientPortalWebsite(
 
   return { ok: true, website };
 }
+
+function parseClientGeoInput(raw: unknown): ClientPortal['geo'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const lat = Number((raw as { lat?: unknown }).lat);
+  const lng = Number((raw as { lng?: unknown }).lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+  const placeId =
+    typeof (raw as { placeId?: unknown }).placeId === 'string'
+      ? (raw as { placeId: string }).placeId.trim()
+      : undefined;
+  return {
+    lat,
+    lng,
+    placeId: placeId || undefined,
+    geocodedAt: new Date().toISOString(),
+  };
+}
+
+/** Persist address + geocoded coordinates on the client portal. */
+export async function setClientPortalAddress(
+  uid: string,
+  addressInput: string,
+  geoInput?: ClientPortal['geo'] | null,
+): Promise<
+  | { ok: true; address: string; geo?: ClientPortal['geo'] }
+  | { ok: false; error: string }
+> {
+  const res = await getContact(uid);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const portal = extractPortal(res.data) ?? {};
+  const address = addressInput.trim();
+  let geo = geoInput ?? undefined;
+
+  if (address) {
+    const coordsMissing = !geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng);
+    const addressChanged = address !== (portal.address ?? '').trim();
+    if (coordsMissing || addressChanged) {
+      const { geocodeAddress } = await import('./mapbox');
+      const geocoded = await geocodeAddress(address);
+      if (geocoded) {
+        geo = {
+          lat: geocoded.lat,
+          lng: geocoded.lng,
+          placeId: geocoded.placeId,
+          geocodedAt: geocoded.geocodedAt,
+        };
+      }
+    }
+  } else {
+    geo = undefined;
+  }
+
+  const saved = await setContactPortal(uid, {
+    ...portal,
+    address: address || undefined,
+    geo: address && geo ? geo : undefined,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!saved.ok) return { ok: false, error: saved.error };
+
+  return { ok: true, address, geo: address ? geo : undefined };
+}
+
+export { parseClientGeoInput };

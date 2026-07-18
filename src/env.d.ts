@@ -19,6 +19,10 @@ interface ImportMetaEnv {
   GOOGLE_PAGESPEED_API_KEY?: string;
   /** Google Maps / Places server key for address autocomplete (admin scheduling). */
   GOOGLE_MAPS_API_KEY?: string;
+  /** Mapbox access token — server geocoding/directions + admin map when PUBLIC_* unset. */
+  MAPBOX_ACCESS_TOKEN?: string;
+  /** Mapbox token exposed to authenticated admin UI for map rendering. */
+  PUBLIC_MAPBOX_ACCESS_TOKEN?: string;
   /** Alias for GOOGLE_MAPS_API_KEY. */
   GOOGLE_PLACES_API_KEY?: string;
   /** Optional default location bias for Places autocomplete (`lat,lng` or `@lat,lng`). */

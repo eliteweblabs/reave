@@ -1,4 +1,5 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
+import { createClientMap } from '/admin/client-map.js';
 
 function companyBrand() {
   return (
@@ -8813,12 +8814,16 @@ function formatScheduleAddressLabel(text) {
 
 function mountScheduleAddressAutocomplete(addressInput) {
   const portal = document.getElementById('os-dialog-backdrop');
-  if (!portal || !addressInput) return () => {};
+  return mountAddressAutocomplete(addressInput, portal);
+}
+
+function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
+  if (!dropdownPortal || !addressInput) return () => {};
 
   const dropdown = document.createElement('div');
   dropdown.className = 'sched-guest-dropdown';
   dropdown.style.display = 'none';
-  portal.appendChild(dropdown);
+  dropdownPortal.appendChild(dropdown);
 
   let repositionHandler = null;
 
@@ -8857,6 +8862,7 @@ function mountScheduleAddressAutocomplete(addressInput) {
   function pick(description) {
     addressInput.value = formatScheduleAddressLabel(description);
     setDropdownOpen(false);
+    if (typeof onPick === 'function') void onPick(addressInput.value);
   }
 
   function renderDropdown(predictions, query) {
@@ -9827,15 +9833,31 @@ let clientState = {
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
 let clientFieldRegistry = [];
+let clientMapController = null;
+let clientPendingGeo = null;
+let destroyClientAddressAutocomplete = null;
+
+function destroyClientMap() {
+  if (clientMapController) {
+    clientMapController.destroy();
+    clientMapController = null;
+  }
+}
+
+function clearClientFieldRegistry() {
+  clientFieldRegistry = [];
+  destroyClientMap();
+  if (destroyClientAddressAutocomplete) {
+    destroyClientAddressAutocomplete();
+    destroyClientAddressAutocomplete = null;
+  }
+  clientPendingGeo = null;
+}
 
 const CLIENT_FIELD_VALID = 'de-field-valid';
 const CLIENT_FIELD_INVALID = 'de-field-invalid';
 
 let clientActiveField = null;
-
-function clearClientFieldRegistry() {
-  clientFieldRegistry = [];
-}
 
 function phoneDigits(value) {
   return (value || '').replace(/\D/g, '');
@@ -10062,6 +10084,47 @@ function appendClientField(parent, label, input) {
   parent.appendChild(wrap);
 }
 
+async function geocodeClientAddressPreview(address) {
+  const q = (address || '').trim();
+  if (!q) return null;
+  try {
+    const res = await adminFetch(`/api/mapbox/geocode?${new URLSearchParams({ address: q })}`);
+    const data = await res.json();
+    if (!res.ok || !data.geo) return null;
+    return data.geo;
+  } catch {
+    return null;
+  }
+}
+
+function mountClientAddressField(parent, value) {
+  const input = document.createElement('input');
+  input.className = 'de-input cl-address-input';
+  input.placeholder = 'Street address';
+  input.value = value || '';
+  input.autocomplete = 'street-address';
+  appendClientField(parent, 'Address', input);
+  return input;
+}
+
+function mountClientMapSection(parent, draft) {
+  const section = document.createElement('section');
+  section.className = 'cl-map-section';
+  const mapHost = document.createElement('div');
+  mapHost.className = 'cl-map-host';
+  section.appendChild(mapHost);
+  parent.appendChild(section);
+
+  const geo = draft?.geo;
+  clientMapController = createClientMap(mapHost, {
+    token: window.__mapboxAccessToken,
+    lat: geo?.lat,
+    lng: geo?.lng,
+    address: draft?.address || '',
+  });
+  return section;
+}
+
 function normalizeWebsiteUrl(raw) {
   const v = (raw || '').trim();
   if (!v) return '';
@@ -10227,6 +10290,8 @@ function renderEditClientForm(pane) {
         phone: contact.phone || '',
         company: contact.company || '',
         website: data.website || contact.website || '',
+        address: data.address || '',
+        geo: data.geo || null,
         notes: contact.notes || '',
         portal_url: contact.portal_url ?? data.portal_url,
         createdAt: contact.createdAt ?? data.createdAt,
@@ -10316,6 +10381,25 @@ function renderEditClientForm(pane) {
       const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
+      const addressInput = mountClientAddressField(fields, clientState.draft.address || '');
+      registerClientField(addressInput, () => true);
+      destroyClientAddressAutocomplete = mountAddressAutocomplete(
+        addressInput,
+        getClientsEditor() || document.body,
+        async (pickedAddress) => {
+          clientPendingGeo = await geocodeClientAddressPreview(pickedAddress);
+          if (clientPendingGeo && clientMapController) {
+            clientMapController.setLocation(
+              clientPendingGeo.lat,
+              clientPendingGeo.lng,
+              pickedAddress,
+            );
+          }
+        },
+      );
+
+      mountClientMapSection(fields, clientState.draft);
+
       const notesLabel = document.createElement('label');
       notesLabel.className = 'de-label cl-notes-label';
       notesLabel.textContent = 'Notes (internal)';
@@ -10331,14 +10415,19 @@ function renderEditClientForm(pane) {
       pane.appendChild(fields);
       mountClientWorkSection(pane, uid);
 
-      const getPayload = () => ({
-        name: nameInput.value.trim(),
-        email: emailInput.value.trim(),
-        phone: phoneToStorage(phoneInput.value),
-        company: companyInput.value.trim(),
-        website: websiteInput.value.trim(),
-        notes: notesTa.value.trim(),
-      });
+      const getPayload = () => {
+        const payload = {
+          name: nameInput.value.trim(),
+          email: emailInput.value.trim(),
+          phone: phoneToStorage(phoneInput.value),
+          company: companyInput.value.trim(),
+          website: websiteInput.value.trim(),
+          address: addressInput.value.trim(),
+          notes: notesTa.value.trim(),
+        };
+        if (clientPendingGeo) payload.geo = clientPendingGeo;
+        return payload;
+      };
       clientState.autosaveGetPayload = getPayload;
 
       const markDirty = () => {
@@ -10348,6 +10437,7 @@ function renderEditClientForm(pane) {
           phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
           companyInput.value !== clientState.draft.company ||
           websiteInput.value !== clientState.draft.website ||
+          addressInput.value !== clientState.draft.address ||
           notesTa.value !== clientState.draft.notes;
       };
       const queueAutosave = () => {
@@ -10358,14 +10448,24 @@ function renderEditClientForm(pane) {
         markDirty();
         await autosaveClient(uid, getPayload());
       };
-      for (const el of [nameInput, emailInput, phoneInput, companyInput, websiteInput, notesTa]) {
+      for (const el of [nameInput, emailInput, phoneInput, companyInput, websiteInput, addressInput, notesTa]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
+          if (el === addressInput) clientPendingGeo = null;
           queueAutosave();
         });
         el.addEventListener('blur', () => {
           clientActiveField = el;
-          void saveNow();
+          void (async () => {
+            if (el === addressInput && addressInput.value.trim()) {
+              const geo = await geocodeClientAddressPreview(addressInput.value);
+              if (geo) {
+                clientPendingGeo = geo;
+                clientMapController?.setLocation(geo.lat, geo.lng, addressInput.value.trim());
+              }
+            }
+            await saveNow();
+          })();
         });
       }
 
@@ -10447,6 +10547,7 @@ async function autosaveClient(uid, payload) {
     payload.phone === draft.phone &&
     payload.company === draft.company &&
     payload.website === draft.website &&
+    payload.address === draft.address &&
     payload.notes === draft.notes;
   if (unchanged) {
     clientState.dirty = false;
@@ -10465,7 +10566,25 @@ async function autosaveClient(uid, payload) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    Object.assign(clientState.draft, payload);
+    Object.assign(clientState.draft, {
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+      company: payload.company,
+      website: payload.website,
+      address: data.address ?? payload.address,
+      geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
+      notes: payload.notes,
+    });
+    clientPendingGeo = null;
+    if (clientMapController) {
+      const geo = clientState.draft.geo;
+      if (geo?.lat != null && geo?.lng != null) {
+        clientMapController.setLocation(geo.lat, geo.lng, clientState.draft.address || '');
+      } else if (!clientState.draft.address) {
+        clientMapController.setLocation(null, null, '');
+      }
+    }
     clientState.dirty = false;
     const c = clientState.clients.find((x) => x.uid === uid);
     if (c) {
