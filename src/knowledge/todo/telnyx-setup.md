@@ -1,6 +1,6 @@
 # Telnyx Setup
 
-Go live with Telnyx SMS and the AI phone agent. Add vars to Railway → Astro service → Variables.
+Go live with Telnyx SMS, the AI phone agent, and Siri Shortcuts integration. Add vars to Railway → Astro service → Variables.
 
 - [ ] Get API key from https://portal.telnyx.com/#/app/api-keys
 - [ ] Add TELNYX_API_KEY to Railway vars
@@ -15,3 +15,5 @@ Go live with Telnyx SMS and the AI phone agent. Add vars to Railway → Astro se
 - [ ] Set VOICE_AGENT_ENABLED=1 (or use /voice on in Telegram) and call the number
 - [ ] Set TELNYX_VOICE and TELNYX_VOICE_LANGUAGE if you want a different TTS voice
 - [ ] Set SMS_AI_REPLY_ENABLED=1 if you want Claude to auto-reply to inbound texts
+- [ ] For Siri Shortcuts: generate a key (`openssl rand -base64 32`) and add SIRI_API_KEY to Railway vars
+- [ ] Test Siri integration: create a shortcut calling POST /api/siri (see knowledge: siri-shortcuts)

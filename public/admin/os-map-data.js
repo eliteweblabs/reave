@@ -21,6 +21,7 @@ const SYSTEM_NODES = [
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 520 },
+  { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
 
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
@@ -54,6 +55,7 @@ const SYSTEM_EDGES = [
   { from: 'web', to: 'vapi', label: 'voice widget', dashed: true },
   { from: 'web', to: 'portal', label: 'share link', dashed: true },
   { from: 'sms_caller', to: 'telnyx', label: 'SMS / call' },
+  { from: 'siri', to: 'astro', label: '/api/siri' },
   { from: 'dev', to: 'clerk', label: 'sign-in' },
   { from: 'clerk', to: 'astro', dashed: true },
   { from: 'dev', to: 'contacts_dash', label: 'view DB', dashed: true },
@@ -94,7 +96,7 @@ const SYSTEM_EDGES = [
 ];
 
 const SYSTEM_GROUPS = [
-  { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi'] },
+  { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi', 'siri'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
 ];
