@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
+import { resolvePlacesLocationBias } from '../../../lib/placesLocationBias';
 
 export const prerender = false;
 
@@ -70,35 +71,16 @@ export async function GET(context: APIContext): Promise<Response> {
       requestBody.includedPrimaryTypes = [types];
     }
 
-    const defaultBias =
-      import.meta.env.GOOGLE_PLACES_DEFAULT_BIAS ||
-      (typeof process !== 'undefined' ? process.env.GOOGLE_PLACES_DEFAULT_BIAS : undefined);
-    const biasSource = locationBias || defaultBias;
-
-    if (biasSource) {
-      let lat: string | undefined;
-      let lng: string | undefined;
-      if (biasSource.includes('@')) {
-        const parts = biasSource.split('@');
-        [lat, lng] = parts[1].split(',');
-      } else {
-        [lat, lng] = biasSource.split(',');
-      }
-
-      const latNum = parseFloat(lat?.trim() ?? '');
-      const lngNum = parseFloat(lng?.trim() ?? '');
-      if (!Number.isNaN(latNum) && !Number.isNaN(lngNum)) {
-        requestBody.locationBias = {
-          circle: {
-            center: {
-              latitude: latNum,
-              longitude: lngNum,
-            },
-            radius: 50000,
-          },
-        };
-      }
-    }
+    const { lat, lng } = await resolvePlacesLocationBias(locationBias);
+    requestBody.locationBias = {
+      circle: {
+        center: {
+          latitude: lat,
+          longitude: lng,
+        },
+        radius: 50000,
+      },
+    };
 
     const response = await fetch(googleApiUrl.toString(), {
       method: 'POST',
