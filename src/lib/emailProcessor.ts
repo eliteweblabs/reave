@@ -388,6 +388,19 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     hasFeature('scheduling') &&
     action !== 'project_reply'
   ) {
+    // Ensure the sender's contact first (exact-email resolve / create) so the
+    // booking service receives a definite contact uid and skips its fuzzy name
+    // match — otherwise a sender like "joel.martinez" can loosely match an
+    // unrelated contact ("Martin …") and the auto-book silently fails.
+    const contactResult = await ensureContactForMeetingEmail({
+      from,
+      bodyText,
+      summary,
+      existingContactUid: contactUid,
+      existingContactName: contactName,
+    });
+    const confirmContactUid = contactResult?.ok ? contactResult.uid : undefined;
+
     const autoBook = await tryAutoBookInboundMeeting({
       proposedStart: proposedMeetingStart,
       from,
@@ -395,6 +408,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       subject: email.subject ?? '',
       schedulingNote,
       summary,
+      confirmContactUid,
     });
     if (autoBook.ok) {
       action = 'booked';
@@ -403,13 +417,6 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       routeNote = autoBook.routeNote;
       automationKind = 'meeting_booked';
 
-      const contactResult = await ensureContactForMeetingEmail({
-        from,
-        bodyText,
-        summary,
-        existingContactUid: contactUid,
-        existingContactName: contactName,
-      });
       if (contactResult?.ok) {
         contactUid = contactResult.uid;
         contactName = contactResult.name;

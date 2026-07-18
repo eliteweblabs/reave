@@ -12,6 +12,7 @@ import {
   storeUpdateEmailInbox,
   type EmailInboxRecord,
 } from '../../../../../lib/emailInboxStore';
+import { ensureContactForMeetingEmail } from '../../../../../lib/emailContactExtract';
 import { buildReplyEmailHeaders, buildReplySubject, resolveReplyRecipient } from '../../../../../lib/emailReply';
 import {
   attendeeFromEmail,
@@ -287,12 +288,27 @@ export async function POST(context: APIContext): Promise<Response> {
     .filter(Boolean)
     .join('\n');
 
+  // This attendee already emailed us to request the meeting — they're a known
+  // person, not an ambiguous lead. Resolve/ensure their contact by exact email
+  // on our side and hand the booking service a definite contact uid, so it
+  // skips its fuzzy name match (which would otherwise flag unrelated contacts
+  // like "Martin …" for a sender named "joel.martinez" and block approval).
+  const ensuredContact = await ensureContactForMeetingEmail({
+    from: event.from,
+    bodyText: event.bodySnippet || event.bodyText || undefined,
+    summary: event.summary || undefined,
+    existingContactUid: event.contactUid,
+    existingContactName: event.contactName,
+  });
+  const confirmContactUid = ensuredContact?.ok ? ensuredContact.uid : undefined;
+
   const created = await bookingCreate({
     name: attendee.name,
     email: attendee.email,
     start: start.toISOString(),
     notes: notes.slice(0, 500),
     ...(address ? { address } : {}),
+    ...(confirmContactUid ? { confirmContactUid } : {}),
   });
   if (!created.ok) {
     return json({ ok: false, error: created.error }, created.status ?? 502);

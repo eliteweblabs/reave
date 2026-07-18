@@ -346,8 +346,15 @@ export async function bookingCreate(input: {
   phone?: string;
   notes?: string;
   address?: string;
+  /**
+   * When set, the booking service uses this contact directly and SKIPS its
+   * fuzzy name/email resolution — so a known meeting attendee never gets
+   * blocked by a "possible matching contacts" prompt. Resolve/ensure the
+   * contact on our side (by exact email), then pass the uid here.
+   */
+  confirmContactUid?: string;
 }): Promise<BookingResult<{ booking?: { uid?: string; startTime?: string } }>> {
-  const { address: _address, ...rest } = input;
+  const { address: _address, confirmContactUid, ...rest } = input;
   const address = await bookingAddressForCreate(_address);
   if (!address) {
     return {
@@ -363,6 +370,7 @@ export async function bookingCreate(input: {
     body: JSON.stringify({
       ...rest,
       address,
+      ...(confirmContactUid ? { confirmContactUid } : {}),
     }),
   });
   if (!result.ok && isBookingGeocodeError(result.error)) {

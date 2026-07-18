@@ -403,6 +403,13 @@ export async function tryAutoBookInboundMeeting(input: {
   subject: string;
   schedulingNote?: string;
   summary?: string;
+  /**
+   * Known contact uid for the sender (resolved by exact email). Passed through
+   * to the booking service so it skips its fuzzy name match instead of
+   * silently failing to auto-book when a sender's name loosely matches an
+   * unrelated existing contact.
+   */
+  confirmContactUid?: string;
 }): Promise<AutoBookMeetingResult> {
   if (!isBookingConfigured()) {
     return { ok: false, reason: 'not_configured' };
@@ -443,6 +450,7 @@ export async function tryAutoBookInboundMeeting(input: {
     email: attendee.email,
     start: proposed.toISOString(),
     notes: notes.slice(0, 500),
+    ...(input.confirmContactUid ? { confirmContactUid: input.confirmContactUid } : {}),
   });
   if (!created.ok) {
     return { ok: false, reason: 'booking_failed', error: created.error };
