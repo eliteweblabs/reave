@@ -78,7 +78,9 @@ export async function GET(context: APIContext): Promise<Response> {
           latitude: lat,
           longitude: lng,
         },
-        radius: 50000,
+        // Tighter radius keeps suggestions centered on the company/office address
+        // instead of scattering across the wider metro/state region.
+        radius: 30000,
       },
     };
 

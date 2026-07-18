@@ -71,6 +71,19 @@ export async function geocodeAddress(query: string): Promise<GeocodeResult | nul
   };
 }
 
+/**
+ * Geocode a street address, preferring Mapbox and falling back to Google when
+ * Mapbox is unconfigured or returns no match. Lets deployments that only set a
+ * Google Maps key still resolve the company address for map bias / directions.
+ */
+export async function resolveAddressCoordinates(query: string): Promise<GeocodeResult | null> {
+  const viaMapbox = await geocodeAddress(query);
+  if (viaMapbox) return viaMapbox;
+
+  const { geocodeAddressGoogle } = await import('./googleGeocode');
+  return geocodeAddressGoogle(query);
+}
+
 /** Office / job-site origin for driving directions (company address, then BOOKING_DEFAULT_ADDRESS). */
 export async function getOfficeCoordinates(): Promise<{ lat: number; lng: number; label: string } | null> {
   if (officeCoordsCache !== undefined) return officeCoordsCache;
@@ -87,7 +100,7 @@ export async function getOfficeCoordinates(): Promise<{ lat: number; lng: number
       return officeCoordsCache;
     }
 
-    const geocodedStored = await geocodeAddress(storedAddress);
+    const geocodedStored = await resolveAddressCoordinates(storedAddress);
     if (geocodedStored) {
       officeCoordsCache = {
         lat: geocodedStored.lat,
@@ -104,7 +117,7 @@ export async function getOfficeCoordinates(): Promise<{ lat: number; lng: number
     return null;
   }
 
-  const geocoded = await geocodeAddress(label);
+  const geocoded = await resolveAddressCoordinates(label);
   if (!geocoded) {
     officeCoordsCache = null;
     return null;

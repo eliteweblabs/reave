@@ -363,8 +363,8 @@ export async function resolveCompanyAddressGeo(
     };
   }
 
-  const { geocodeAddress } = await import('./mapbox');
-  const geocoded = await geocodeAddress(address);
+  const { resolveAddressCoordinates } = await import('./mapbox');
+  const geocoded = await resolveAddressCoordinates(address);
   if (!geocoded) return coordsMissing ? null : {
     lat: geoInput!.lat,
     lng: geoInput!.lng,
