@@ -30,11 +30,45 @@ import {
 
 export { isKnowledgeDbConfigured, type KnowledgeEntry };
 
+/**
+ * "Default" knowledge = app-mechanics playbooks that ship with the product and
+ * describe how the agent works with the app itself. They are NOT tied to the
+ * business or owner of any one installation. Everything else (owner credentials,
+ * business overview, admin/bot-authored notes) is treated as "custom".
+ *
+ * Keyed by slug so it stays correct whether a doc is bundled or has been seeded
+ * into the DB (source: 'db').
+ */
+export const DEFAULT_KNOWLEDGE_SLUGS: ReadonlySet<string> = new Set([
+  'carddav',
+  'client-portal',
+  'code-dev-tools',
+  'contact-api-reference',
+  'contact-import',
+  'crater-billing',
+  'email-rules',
+  'github-dev-tools',
+  'kinsta-wordpress',
+  'newsletter',
+  'railway-deploy-webhook',
+  'siri-examples',
+  'siri-quick-reference',
+  'siri-shortcuts',
+  'uptime-monitoring',
+]);
+
+/** Whether a slug is one of the built-in app-mechanics playbooks (vs. custom). */
+export function isDefaultKnowledgeSlug(slug: string): boolean {
+  return DEFAULT_KNOWLEDGE_SLUGS.has(slug);
+}
+
 export interface KnowledgePreview {
   slug: string;
   title: string;
   preview: string;
   source: 'db' | 'bundled';
+  /** True for built-in app playbooks; false for business/owner-specific docs. */
+  isDefault: boolean;
   tags?: string[];
   updated_at?: string;
 }
@@ -59,6 +93,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
       title: b.preview,
       preview: b.preview,
       source: 'bundled' as const,
+      isDefault: isDefaultKnowledgeSlug(b.slug),
     }));
   }
 
@@ -68,6 +103,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
     title: r.title,
     preview: r.preview,
     source: 'db' as const,
+    isDefault: isDefaultKnowledgeSlug(r.slug),
     tags: r.tags,
     updated_at: r.updated_at,
   }));
@@ -79,6 +115,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
       title: b.preview,
       preview: b.preview,
       source: 'bundled' as const,
+      isDefault: isDefaultKnowledgeSlug(b.slug),
     }));
 
   return [...dbPreviews, ...bundledOnly];

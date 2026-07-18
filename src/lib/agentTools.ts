@@ -2201,6 +2201,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
           title: e.title,
           preview: e.preview,
           source: e.source,
+          kind: e.isDefault ? 'default' : 'custom',
           ...(e.tags?.length ? { tags: e.tags } : {}),
           ...(e.updated_at ? { updated_at: e.updated_at } : {}),
         })),

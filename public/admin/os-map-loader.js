@@ -7737,7 +7737,7 @@ function renderKnowledgeEditor() {
   if (!root) return;
   const { entries, activeSlug, dirty, search } = knowledgeState;
   const visibleEntries = entries.filter((entry) =>
-    matchesListSearch(search, entry.title, entry.slug, entry.source),
+    matchesListSearch(search, entry.title, entry.slug, entry.source, entry.isDefault ? 'default' : 'custom'),
   );
   root.innerHTML = '';
 
@@ -14200,11 +14200,14 @@ function createKnowledgeListItem(entry) {
   item.type = 'button';
   item.className = 'ch-list-item' + (entry.slug === knowledgeState.activeSlug ? ' active' : '');
   item.dataset.slug = entry.slug;
+  const typeBadge = entry.isDefault
+    ? '<span class="ch-item-badge ch-item-badge--default" title="Default app playbook — controls how the agent works with the app">Default</span>'
+    : '<span class="ch-item-badge ch-item-badge--custom" title="Custom doc — specific to this business/owner">Custom</span>';
   const sourceBadge = entry.source === 'db'
     ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
     : '';
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${sourceBadge}</span>` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
   item.addEventListener('click', () => openKnowledge(entry.slug));
   return item;
