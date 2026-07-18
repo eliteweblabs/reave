@@ -306,6 +306,39 @@ async function explainBookingGeocodeError(
   };
 }
 
+type BookingApiResponse = {
+  success?: boolean;
+  needsConfirmation?: boolean;
+  message?: string;
+  candidates?: Array<{ uid?: string; name?: string; email?: string }>;
+  booking?: { uid?: string; startTime?: string };
+};
+
+/**
+ * The calcom-booking-api can reply HTTP 200 with `success:false` +
+ * `needsConfirmation` when the attendee ambiguously matches existing contacts
+ * (a "possible" fuzzy match). Because it's a 200, bookingFetch treats it as ok;
+ * surface it as a clear 409 instead of the misleading "did not return a booking
+ * id" 502 the caller would otherwise emit.
+ */
+function bookingConfirmationError(
+  data: BookingApiResponse,
+): { ok: false; error: string; status?: number } | null {
+  if (data.success !== false && !data.needsConfirmation) return null;
+  const names = (data.candidates ?? [])
+    .map((c) => (c.name || c.email || '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .join(', ');
+  const base =
+    data.message?.trim() || 'The booking service could not complete this booking.';
+  return {
+    ok: false,
+    status: 409,
+    error: names ? `${base} (possible existing contacts: ${names})` : base,
+  };
+}
+
 export async function bookingCreate(input: {
   name: string;
   email: string;
@@ -324,19 +357,20 @@ export async function bookingCreate(input: {
       status: 400,
     };
   }
-  const result = await bookingFetch<{ booking?: { uid?: string; startTime?: string } }>(
-    '/api/booking/create',
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...rest,
-        address,
-      }),
-    },
-  );
+  const result = await bookingFetch<BookingApiResponse>('/api/booking/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ...rest,
+      address,
+    }),
+  });
   if (!result.ok && isBookingGeocodeError(result.error)) {
     return explainBookingGeocodeError(address, result.status);
+  }
+  if (result.ok) {
+    const confirmErr = bookingConfirmationError(result.data);
+    if (confirmErr) return confirmErr;
   }
   return result;
 }
@@ -366,7 +400,7 @@ export async function bookingReschedule(
       status: 400,
     };
   }
-  const result = await bookingFetch<{ success?: boolean }>(
+  const result = await bookingFetch<BookingApiResponse>(
     `/api/booking/${encodeURIComponent(uid)}/reschedule`,
     {
       method: 'PATCH',
@@ -379,6 +413,10 @@ export async function bookingReschedule(
   );
   if (!result.ok && isBookingGeocodeError(result.error)) {
     return explainBookingGeocodeError(address, result.status);
+  }
+  if (result.ok) {
+    const confirmErr = bookingConfirmationError(result.data);
+    if (confirmErr) return confirmErr;
   }
   return result;
 }
