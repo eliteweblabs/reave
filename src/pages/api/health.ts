@@ -5,7 +5,7 @@ import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from '../../lib/vapiP
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
-import { getCompanyBrandContext } from '../../lib/companyConfig';
+import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
 
 /**
@@ -105,7 +105,8 @@ async function githubProbe(token: string, userAgent: string): Promise<Probe> {
 
 export const GET: APIRoute = async () => {
   const brand = await getCompanyBrandContext();
-  const healthUserAgent = `${brand.name.toLowerCase().replace(/\s+/g, '-')}-health-probe/1.0`;
+  const safeBrand = headerSafe(brand.name).toLowerCase().replace(/\s+/g, '-') || 'app';
+  const healthUserAgent = `${safeBrand}-health-probe/1.0`;
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();

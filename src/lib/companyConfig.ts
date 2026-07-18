@@ -8,6 +8,17 @@ import { BRANDING_LOGO_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
 
+/**
+ * Make a string safe to use as an HTTP header value. `fetch` requires header
+ * values to be ISO-8859-1 (Latin1); any code point above U+00FF throws
+ * "Cannot convert argument to a ByteString". Brand names may contain stylized
+ * non-ASCII glyphs (e.g. "λ"), so strip anything outside printable ASCII before
+ * building User-Agent strings and similar headers from them.
+ */
+export function headerSafe(value: string): string {
+  return value.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+}
+
 /** Sync cache — updated whenever getCompanyConfig resolves. */
 let _cachedName: string = SITE.name;
 let _cachedDomain = '';
@@ -57,6 +68,7 @@ export function companyToBrandContext(company: CompanyBrandSource, request?: Req
     : siteBaseUrl(request).replace(/\/?$/, '/');
   const fromEmail = trim(company.fromEmail);
   const supportEmail = trim(company.supportEmail);
+  const headerSafeName = headerSafe(name).replace(/\s+/g, '') || 'App';
   return {
     name,
     description: trim(company.description) || SITE.description,
@@ -65,7 +77,7 @@ export function companyToBrandContext(company: CompanyBrandSource, request?: Req
     supportEmail,
     fromEmail,
     contactsLabel: `${name} Contacts`,
-    botUserAgent: `${name.replace(/\s+/g, '')}Bot/1.0`,
+    botUserAgent: `${headerSafeName}Bot/1.0`,
     projectLabel: `${name} App`,
     inboundEmailExample: fromEmail || (domain ? `inbox@mail.${domain}` : 'inbox@mail.example.com'),
   };

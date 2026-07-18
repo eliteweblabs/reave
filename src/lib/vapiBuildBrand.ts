@@ -67,7 +67,8 @@ function brandFromParts(input: {
     domain,
     siteUrl,
     contactsLabel: `${name} Contacts`,
-    botUserAgent: `${name.replace(/\s+/g, '')}Bot/1.0`,
+    // Header-safe: strip non-ASCII so a stylized brand name can't break fetch headers.
+    botUserAgent: `${name.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, '') || 'App'}Bot/1.0`,
     projectLabel: `${name} App`,
     inboundEmailExample: fromEmail || (domain ? `inbox@mail.${domain}` : 'inbox@mail.example.com'),
   };
