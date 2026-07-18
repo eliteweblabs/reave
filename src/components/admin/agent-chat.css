@@ -518,7 +518,8 @@
 }
 
 .aui-helper-item:hover,
-.aui-helper-item:focus-visible {
+.aui-helper-item:focus-visible,
+.aui-helper-item.active {
   background: var(--surface-hover-strong);
   outline: none;
 }

@@ -390,19 +390,27 @@ function AssistantMessageActions() {
 function HelperCommandsPanel({
   commands,
   onPick,
+  activeIdx = -1,
 }: {
   commands: AgentHelperCommand[];
   onPick: (command: AgentHelperCommand) => void;
+  activeIdx?: number;
 }) {
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
   return (
     <div className="aui-helper-panel" onPointerDown={(e) => e.preventDefault()}>
       <ul className="aui-helper-list" role="listbox" aria-label="Helper commands">
-        {commands.map((command) => (
+        {commands.map((command, i) => (
           <li key={command.slash}>
             <button
               type="button"
-              className="aui-helper-item"
+              className={`aui-helper-item${i === activeIdx ? ' active' : ''}`}
               role="option"
+              aria-selected={i === activeIdx}
+              ref={i === activeIdx ? activeRef : undefined}
               onClick={() => onPick(command)}
             >
               <span className="aui-helper-item-slash">{command.slash}</span>
@@ -423,11 +431,16 @@ function useSlashHelpers(
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [composeText, setComposeText] = useState('');
   const [helpersOpen, setHelpersOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRunning = useAuiState((s) => s.thread.isRunning);
 
   const filtered = filterHelperCommands(composeText, commands);
   const showHelpers = helpersOpen && filtered.length > 0;
+
+  useEffect(() => {
+    setActiveIdx(-1);
+  }, [composeText, helpersOpen]);
 
   const clearBlurTimer = () => {
     if (blurTimer.current) {
@@ -502,12 +515,32 @@ function useSlashHelpers(
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showHelpers && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      const n = filtered.length;
+      setActiveIdx((idx) => {
+        if (n === 0) return -1;
+        if (e.key === 'ArrowDown') return idx < 0 ? 0 : (idx + 1) % n;
+        return idx <= 0 ? n - 1 : idx - 1;
+      });
+      return;
+    }
+    if (showHelpers && e.key === 'Escape') {
+      e.preventDefault();
+      setHelpersOpen(false);
+      return;
+    }
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       if (composer.getState().canSend) void composer.send();
       return;
     }
     if (e.key !== 'Enter' || e.shiftKey) return;
+    if (showHelpers && activeIdx >= 0 && filtered[activeIdx]) {
+      e.preventDefault();
+      applyCommand(filtered[activeIdx]);
+      return;
+    }
     e.preventDefault();
     const matched = matchHelperCommand(composeText, commands);
     if (matched && composeText.trim().toLowerCase() === matched.slash) {
@@ -522,6 +555,7 @@ function useSlashHelpers(
     inputRef,
     filtered,
     showHelpers,
+    activeIdx,
     applyCommand,
     onFocus,
     onBlur,
@@ -581,7 +615,11 @@ function ClaudeComposer({
   return (
     <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
       {helpers.showHelpers ? (
-        <HelperCommandsPanel commands={helpers.filtered} onPick={helpers.applyCommand} />
+        <HelperCommandsPanel
+          commands={helpers.filtered}
+          onPick={helpers.applyCommand}
+          activeIdx={helpers.activeIdx}
+        />
       ) : null}
       <ComposerPrimitive.Root className="aui-composer-card">
         <ComposerPrimitive.Input

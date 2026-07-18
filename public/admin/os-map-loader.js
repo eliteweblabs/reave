@@ -4410,6 +4410,15 @@ function initSearchOverlay() {
     searchDebounceTimer = setTimeout(() => renderSearchResults(input.value), 180);
   });
 
+  const resultsRoot = document.getElementById('search-overlay-results');
+  if (input instanceof HTMLInputElement && resultsRoot && !input.dataset.keyNavBound) {
+    input.dataset.keyNavBound = '1';
+    attachAutosuggestKeyboardNav(input, resultsRoot, {
+      optionSelector: '.search-result-item',
+      onClose: () => closeSearchOverlay(),
+    });
+  }
+
   clearBtn?.addEventListener('click', () => {
     if (!input) return;
     input.value = '';
@@ -6324,6 +6333,12 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
         syncView();
       }
     }, 150);
+  });
+  attachAutosuggestKeyboardNav(searchInput, dropdown, {
+    optionSelector: '.wk-client-option',
+    onClose: () => {
+      dropdown.style.display = 'none';
+    },
   });
 
   syncView();
@@ -8292,6 +8307,13 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       if (!wrap.contains(document.activeElement) && changing && !showingNew) exitChangeMode();
     }, 0);
   });
+  attachAutosuggestKeyboardNav(searchInput, dropdown, {
+    optionSelector: '.wk-client-option',
+    onClose: () => {
+      dropdown.style.display = 'none';
+      if (changing && !showingNew) exitChangeMode();
+    },
+  });
 
   newCancel.addEventListener('click', () => {
     showingNew = false;
@@ -9231,6 +9253,53 @@ function mountScheduleAddressAutocomplete(addressInput) {
   return mountAddressAutocomplete(addressInput, portal);
 }
 
+// Shared arrow-key navigation for autosuggest dropdowns. The active option is
+// tracked purely via the `.active` class in the DOM so it self-heals when the
+// dropdown re-renders on each new search.
+function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
+  if (!input || !dropdown) return () => {};
+  const optionSelector = options.optionSelector || 'button';
+  const onClose = typeof options.onClose === 'function' ? options.onClose : null;
+
+  function isOpen() {
+    return dropdown.style.display !== 'none' && dropdown.offsetParent !== null;
+  }
+  function getOptions() {
+    return [...dropdown.querySelectorAll(optionSelector)].filter(
+      (el) => !el.disabled && el.offsetParent !== null,
+    );
+  }
+  function setActive(opts, idx) {
+    opts.forEach((el, i) => el.classList.toggle('active', i === idx));
+    if (idx >= 0) opts[idx]?.scrollIntoView({ block: 'nearest' });
+  }
+  const onKeyDown = (ev) => {
+    if (!isOpen()) return;
+    const opts = getOptions();
+    if (!opts.length) return;
+    const currentIdx = opts.findIndex((el) => el.classList.contains('active'));
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      setActive(opts, currentIdx < 0 ? 0 : (currentIdx + 1) % opts.length);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      setActive(opts, currentIdx <= 0 ? opts.length - 1 : currentIdx - 1);
+    } else if (ev.key === 'Enter') {
+      if (currentIdx >= 0) {
+        ev.preventDefault();
+        opts[currentIdx].click();
+      }
+    } else if (ev.key === 'Escape') {
+      if (onClose) {
+        ev.preventDefault();
+        onClose();
+      }
+    }
+  };
+  input.addEventListener('keydown', onKeyDown);
+  return () => input.removeEventListener('keydown', onKeyDown);
+}
+
 function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   if (!dropdownPortal || !addressInput) return () => {};
 
@@ -9345,11 +9414,16 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   addressInput.setAttribute('aria-expanded', 'false');
   addressInput.addEventListener('input', onInput);
   addressInput.addEventListener('blur', onBlur);
+  const detachKeyNav = attachAutosuggestKeyboardNav(addressInput, dropdown, {
+    optionSelector: '.sched-guest-option',
+    onClose: () => setDropdownOpen(false),
+  });
 
   return () => {
     clearTimeout(schedAddressSearchTimer);
     addressInput.removeEventListener('input', onInput);
     addressInput.removeEventListener('blur', onBlur);
+    detachKeyNav();
     setDropdownOpen(false);
     dropdown.remove();
   };
@@ -9472,11 +9546,16 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   nameInput.setAttribute('aria-expanded', 'false');
   nameInput.addEventListener('input', onInput);
   nameInput.addEventListener('blur', onBlur);
+  const detachKeyNav = attachAutosuggestKeyboardNav(nameInput, dropdown, {
+    optionSelector: '.sched-guest-option',
+    onClose: () => setDropdownOpen(false),
+  });
 
   return () => {
     clearTimeout(schedGuestSearchTimer);
     nameInput.removeEventListener('input', onInput);
     nameInput.removeEventListener('blur', onBlur);
+    detachKeyNav();
     setDropdownOpen(false);
     dropdown.remove();
   };
@@ -12934,6 +13013,12 @@ function mountWorkTodoLinkPicker(parent, jobSlug, onLinked) {
 
   searchInput.addEventListener('input', () => void scheduleSearch());
   searchInput.addEventListener('focus', () => void scheduleSearch());
+  attachAutosuggestKeyboardNav(searchInput, dropdown, {
+    optionSelector: '.wk-client-option',
+    onClose: () => {
+      dropdown.style.display = 'none';
+    },
+  });
 }
 
 function mountWorkRelatedSection(container, related, sourceChatId) {

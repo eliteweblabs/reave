@@ -2274,7 +2274,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-size: 0.82rem;
         cursor: pointer;
       }
-      .wk-client-option:hover { background: var(--surface-hover-strong); }
+      .wk-client-option:hover,
+      .wk-client-option.active { background: var(--surface-hover-strong); }
       .wk-client-option .sub { display: block; font-size: 0.68rem; color: var(--muted); margin-top: 0.1rem; }
       .wk-client-option.wk-client-add {
         color: #79c0ff;
@@ -5603,7 +5604,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-size: 0.82rem;
         cursor: pointer;
       }
-      .sched-guest-option:hover { background: var(--surface-hover-strong); }
+      .sched-guest-option:hover,
+      .sched-guest-option.active { background: var(--surface-hover-strong); }
       .sched-guest-option .sub {
         display: block;
         font-size: 0.68rem;
@@ -6366,7 +6368,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font: inherit;
         text-decoration: none;
       }
-      .search-result-item:hover {
+      .search-result-item:hover,
+      .search-result-item.active {
         background: var(--surface-hover-strong);
         border-color: var(--panel-border);
       }
