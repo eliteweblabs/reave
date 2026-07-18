@@ -455,6 +455,7 @@ function setActiveMap(key, opts = {}) {
   syncHealthLifecycle();
   syncEmailPoll();
   syncFooterNav();
+  syncProfileMenuActive();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
   if (MAP.type !== 'email') {
@@ -4183,6 +4184,14 @@ function syncFooterNav() {
   syncFooterClientsNav();
   syncFooterNavCountTooltips();
   scheduleFooterNavIndicatorSync();
+}
+
+function syncProfileMenuActive() {
+  const activeSection = isSettingsMapType(MAP?.type) ? MAP.type : null;
+  for (const key of window.__installConfig?.profileMenu || []) {
+    const el = document.getElementById(`topbar-${key}-link`);
+    if (el) el.classList.toggle('active', activeSection === key);
+  }
 }
 
 function initFooterNav() {
@@ -14739,6 +14748,7 @@ async function boot() {
   syncEmailPoll();
   syncInboxBadgePoll();
   syncFooterNav();
+  syncProfileMenuActive();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
   scanPanelSidebars();
