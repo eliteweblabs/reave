@@ -9577,6 +9577,40 @@ function renderCalMonthView(parent) {
   }
   parent.appendChild(grid);
 
+  // Add swipe gesture support for navigating between months
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
+  let touchEndY = 0;
+  
+  const handleSwipeGesture = () => {
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+    const minSwipeDistance = 50;
+    
+    // Only trigger swipe if horizontal movement is greater than vertical
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > minSwipeDistance) {
+      if (diffX > 0) {
+        // Swipe right - go to previous month
+        scheduleShiftFocus(-1);
+      } else {
+        // Swipe left - go to next month
+        scheduleShiftFocus(1);
+      }
+    }
+  };
+  
+  grid.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+  
+  grid.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipeGesture();
+  }, { passive: true });
+
   renderCalDayAgenda(parent, scheduleState.selectedDate, { showDayViewAction: true });
 }
 

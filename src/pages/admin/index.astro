@@ -5179,7 +5179,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         opacity: 0.55;
       }
       .cal-day--today .cal-day-num {
-        background: #ff3b30;
+        background: var(--brand-gradient);
         color: #fff;
       }
       .cal-day--selected:not(.cal-day--today) .cal-day-num {
@@ -5187,7 +5187,7 @@ const isOwner = userId ? await isDeploymentOwner(Astro) : false;
         color: #fff;
       }
       .cal-day--selected.cal-day--today .cal-day-num {
-        background: #ff3b30;
+        background: var(--brand-gradient);
         color: #fff;
       }
       .cal-day-dots {
