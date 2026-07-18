@@ -252,8 +252,15 @@ export async function bookingCreate(input: {
   });
 }
 
-export async function bookingCancel(uid: string): Promise<BookingResult<{ success?: boolean }>> {
-  return bookingFetch(`/api/booking/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+export async function bookingCancel(
+  uid: string,
+  reason?: string,
+): Promise<BookingResult<{ success?: boolean }>> {
+  return bookingFetch(`/api/booking/${encodeURIComponent(uid)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: reason ? JSON.stringify({ cancellationReason: reason }) : undefined,
+  });
 }
 
 export async function bookingReschedule(

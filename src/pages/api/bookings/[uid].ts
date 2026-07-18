@@ -52,7 +52,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, request, locals }) => {
   const { userId } = locals.auth?.() ?? {};
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
@@ -66,7 +66,20 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
-  const result = await bookingCancel(uid);
+  let body: Record<string, unknown> = {};
+  try {
+    const text = await request.text();
+    if (text) body = JSON.parse(text);
+  } catch {
+    // Empty body is fine, use default reason
+  }
+
+  const reason =
+    typeof body.cancellationReason === 'string' && body.cancellationReason.trim()
+      ? body.cancellationReason.trim()
+      : 'Cancelled by user';
+
+  const result = await bookingCancel(uid, reason);
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
   return json({ ok: true, cancelled: true, uid });

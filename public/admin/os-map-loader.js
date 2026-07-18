@@ -8650,7 +8650,11 @@ async function cancelScheduleBooking(uid) {
   });
   if (!ok) return;
 
-  const res = await fetch(`/api/bookings/${encodeURIComponent(uid)}`, { method: 'DELETE' });
+  const res = await fetch(`/api/bookings/${encodeURIComponent(uid)}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cancellationReason: 'Cancelled by user' }),
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     await osAlert({ title: 'Could not cancel', bodyHtml: escHtml(data.error || `HTTP ${res.status}`) });
