@@ -53,6 +53,8 @@ export function createClientMap(container, opts = {}) {
   const routeSourceId = 'cl-route';
   const routeLayerId = 'cl-route-line';
   let currentGeo = null;
+  let currentAddress = (opts.address || '').trim();
+  let mapReady = false;
 
   const metaEl = document.createElement('div');
   metaEl.className = 'cl-map-meta';
@@ -95,10 +97,17 @@ export function createClientMap(container, opts = {}) {
 
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
-    emptyEl.hidden = !!hasGeo;
+    const mapWorking = hasGeo && mapReady;
+    const hideEmpty = mapWorking;
+    emptyEl.hidden = hideEmpty;
     mapEl.hidden = !hasGeo;
     directionsBtn.disabled = !hasGeo;
     openMapsBtn.hidden = !hasGeo;
+    if (!hideEmpty && !hasGeo && currentAddress) {
+      emptyEl.textContent = 'Loading map…';
+    } else if (!hideEmpty && !hasGeo) {
+      emptyEl.textContent = 'Enter an address to show the map.';
+    }
     if (hasGeo) {
       openMapsBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
         `${currentGeo.lat},${currentGeo.lng}`,
@@ -138,10 +147,12 @@ export function createClientMap(container, opts = {}) {
   }
 
   async function setLocation(lat, lng, address) {
+    if (typeof address === 'string') currentAddress = address.trim();
     currentGeo =
       Number.isFinite(lat) && Number.isFinite(lng)
-        ? { lat: Number(lat), lng: Number(lng), address: address || '' }
+        ? { lat: Number(lat), lng: Number(lng), address: address || currentAddress || '' }
         : null;
+    if (!currentGeo) mapReady = false;
     syncEmptyState();
     metaEl.hidden = true;
     metaEl.textContent = '';
@@ -163,6 +174,9 @@ export function createClientMap(container, opts = {}) {
     } else {
       marker.setLngLat([currentGeo.lng, currentGeo.lat]);
     }
+
+    mapReady = true;
+    syncEmptyState();
   }
 
   function clearRoute() {
@@ -244,6 +258,7 @@ export function createClientMap(container, opts = {}) {
     showDirections,
     destroy() {
       destroyed = true;
+      mapReady = false;
       clearRoute();
       marker?.remove();
       marker = null;
