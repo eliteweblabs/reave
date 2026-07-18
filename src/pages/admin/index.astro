@@ -6382,6 +6382,66 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .soc-conn-portal:hover {
         text-decoration: underline;
       }
+      .soc-conn-steps {
+        margin: 0;
+        padding-left: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        color: var(--muted);
+      }
+      .soc-conn-steps li {
+        font-size: 0.76rem;
+        line-height: 1.45;
+      }
+      .soc-conn-steps a {
+        color: var(--fg);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .soc-conn-steps a:hover {
+        text-decoration: underline;
+      }
+      .soc-conn-steps strong {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .soc-step-body {
+        display: block;
+      }
+      .soc-copy-row {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-top: 0.3rem;
+        flex-wrap: wrap;
+      }
+      .soc-copy-row > code {
+        font-size: 0.72rem;
+        word-break: break-all;
+        background: rgba(100, 116, 139, 0.12);
+        padding: 0.15rem 0.4rem;
+        border-radius: 5px;
+        color: var(--fg);
+      }
+      .soc-copy-btn {
+        font: inherit;
+        font-size: 0.64rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 0.15rem 0.45rem;
+        border-radius: 6px;
+        border: 1px solid var(--panel-border);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        flex: none;
+      }
+      .soc-copy-btn:hover {
+        color: var(--fg);
+        background: rgba(100, 116, 139, 0.12);
+      }
 
       /* ── Settings panel (profile, company, socials, …) ── */
       #settings-panel {

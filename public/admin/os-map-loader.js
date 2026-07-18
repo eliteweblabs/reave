@@ -3457,6 +3457,13 @@ function bindSocialsForm(root) {
     },
   });
 
+  root.querySelectorAll('[data-soc-copy]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      copyChatText(btn.getAttribute('data-soc-copy') || '', btn);
+    });
+  });
+
   root.querySelectorAll('[data-soc-disconnect]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const platform = btn.getAttribute('data-soc-disconnect');
@@ -3711,16 +3718,32 @@ function socialPlatformLabel(platform) {
   return SOCIAL_PLATFORM_LABELS[platform] || platform || '';
 }
 
+function socialCopyRow(value) {
+  const val = value || '';
+  return (
+    `<span class="soc-copy-row">` +
+      `<code>${escHtml(val)}</code>` +
+      `<button type="button" class="soc-copy-btn" data-soc-copy="${escHtml(val)}" aria-label="Copy">Copy</button>` +
+    `</span>`
+  );
+}
+
 function socialSetupDetails(conn) {
+  const portalLink = conn.developerPortal
+    ? `<a href="${escHtml(conn.developerPortal)}" target="_blank" rel="noopener noreferrer">developer portal ↗</a>`
+    : 'developer portal';
+  const envVars = (conn.envVars || []).join(', ');
+  const steps = [
+    `<li><span class="soc-step-body">Open the ${portalLink} and create/register an OAuth app. ${escHtml(conn.setupHint || '')}</span></li>`,
+    `<li><span class="soc-step-body">Add this redirect / callback URL to the app:</span>${socialCopyRow(conn.callbackUrl)}</li>`,
+    `<li><span class="soc-step-body">Set these environment variables on the server (Railway), then redeploy:</span>${socialCopyRow(envVars)}</li>`,
+    `<li><span class="soc-step-body">Return here — the status flips to <strong>Not connected</strong> and a <strong>Connect</strong> button appears so you can sign in and authorize.</span></li>`,
+  ];
+  const summary = conn.configured ? 'Setup &amp; callback URL' : 'How to set this up ↓';
   return (
     `<details class="soc-conn-setup">` +
-      `<summary>Setup &amp; callback URL</summary>` +
-      `<p class="soc-conn-hint">${escHtml(conn.setupHint || '')}</p>` +
-      `<div class="soc-conn-kv"><span>Callback URL</span><code>${escHtml(conn.callbackUrl || '')}</code></div>` +
-      `<div class="soc-conn-kv"><span>Env vars</span><code>${escHtml((conn.envVars || []).join(', '))}</code></div>` +
-      (conn.developerPortal
-        ? `<a class="soc-conn-portal" href="${escHtml(conn.developerPortal)}" target="_blank" rel="noopener noreferrer">Open developer portal ↗</a>`
-        : '') +
+      `<summary>${summary}</summary>` +
+      `<ol class="soc-conn-steps">${steps.join('')}</ol>` +
     `</details>`
   );
 }
@@ -3764,7 +3787,7 @@ function renderSocialConnectionsCard(connections) {
   return (
     `<div class="prof-card">` +
       `<h2 class="prof-title prof-title--section">API access</h2>` +
-      `<p class="prof-subtitle">Connect an account to pull real metrics into the Social dashboard. You'll sign in on the provider and authorize access — the token is stored securely on the server.</p>` +
+      `<p class="prof-subtitle">Connect an account to pull real metrics into the Social dashboard. Each platform needs a one-time app setup first (expand “How to set this up” below to add credentials); once configured, a Connect button appears so you can sign in and authorize. Tokens are stored securely on the server.</p>` +
       `<div class="soc-conn-list">${rows || '<p class="dash-empty">No platforms available.</p>'}</div>` +
     `</div>`
   );
