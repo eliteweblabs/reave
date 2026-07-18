@@ -5778,10 +5778,7 @@ function renderTodoEditor() {
         refreshTodoSidebarList();
       },
     },
-    addNew: {
-      label: 'New to‑do',
-      onClick: () => startNewTodo(),
-    },
+    addNew: false,
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
