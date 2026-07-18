@@ -60,7 +60,7 @@ export function userMessageDisplayText(text: string): string {
   if (received) lines.push(`Received: ${received}`);
 
   if (lines.length) {
-    lines.push('', 'What should I do with this email?');
+    lines.push('', 'Please wait for instructions on how to deal with this email.');
     return lines.join('\n');
   }
 

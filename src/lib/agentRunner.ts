@@ -104,7 +104,7 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
   if (!email) return null;
   const lines = [
     'This chat is linked to an inbox email. The full message (headers + body) is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
-    'The user opened this for triage: recommend an action, one sentence on why, and execute inbox tools yourself. Do not recap the email body back to the user. If replying makes sense, include a draft.',
+    'The user sent you this email so you have it on hand — they have NOT yet told you what to do with it. Do not decide on your own or take any action (do not archive, junk, label, reply, create projects, or run inbox tools) unless the user explicitly asks. Briefly acknowledge you have the email and wait for their instructions. Do not recap the email body back to the user.',
   ];
   if (email.contactName) lines.push(`Client: ${email.contactName}`);
   if (email.jobSlug || email.jobTitle) {

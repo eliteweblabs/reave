@@ -14781,13 +14781,17 @@ document.addEventListener('click', (e) => {
 
 function buildEmailAgentPrompt(ev) {
   const received = formatEmailWhen(ev.receivedAt) || ev.receivedAt || 'unknown';
-  return [
+  const lines = [
     `From: ${ev.from || '(unknown)'}`,
     `Subject: ${ev.subject || '(no subject)'}`,
     `Received: ${received}`,
-    '',
-    'What should I do with this email?',
-  ].join('\n');
+  ];
+  const body = (ev.bodyText || ev.bodySnippet || '').trim();
+  if (body) {
+    lines.push('', 'Body:', body);
+  }
+  lines.push('', 'Please wait for instructions on how to deal with this email.');
+  return lines.join('\n');
 }
 
 async function fetchFullEmailRecord(ev) {
@@ -14807,9 +14811,10 @@ async function fetchFullEmailRecord(ev) {
 }
 
 async function askAgentAboutEmail(ev) {
-  await askAgentWithPrompt(buildEmailAgentPrompt(ev), {
-    sourceEmailId: ev.id,
-    sourceJobSlug: ev.jobSlug || null,
+  const full = await fetchFullEmailRecord(ev);
+  await askAgentWithPrompt(buildEmailAgentPrompt(full), {
+    sourceEmailId: full.id || ev.id,
+    sourceJobSlug: full.jobSlug || ev.jobSlug || null,
   });
 }
 
