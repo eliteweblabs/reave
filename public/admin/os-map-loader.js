@@ -8841,9 +8841,11 @@ function isScheduleAddressError(message) {
 }
 
 /** Collect a geocodable street address before creating a booking. */
-function ensureScheduleAddress(initial = readScheduleLastAddress()) {
-  const preset = String(initial || '').trim();
-  if (preset) return Promise.resolve(preset);
+function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
+  if (!forcePrompt) {
+    const preset = String(initial || readScheduleLastAddress() || '').trim();
+    if (preset) return Promise.resolve(preset);
+  }
 
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -13470,7 +13472,7 @@ async function runEmailScheduleAction(ev, action, btn) {
       if (needsBooking && isScheduleAddressError(err.message)) {
         btn.disabled = false;
         btn.textContent = prevLabel;
-        const prompted = await ensureScheduleAddress(address);
+        const prompted = await ensureScheduleAddress({ forcePrompt: true, initial: address });
         if (!prompted) return;
         address = prompted;
         data = await postScheduleAction(address);

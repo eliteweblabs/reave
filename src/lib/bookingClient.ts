@@ -6,6 +6,7 @@
  * PUBLIC_BOOKING_API_URL for local dev.
  */
 import { cachedCompanyBrandName, cachedCompanyDomain } from './companyConfig';
+import { getStoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
 
 export type BookingSummary = {
@@ -100,9 +101,16 @@ export function resolveBookingAddress(raw: unknown): string | undefined {
   return fromBody || undefined;
 }
 
-/** Address for calcom-booking-api create/reschedule — must geocode (see BOOKING_DEFAULT_ADDRESS). */
-export function bookingAddressForCreate(raw?: unknown): string | undefined {
-  return resolveBookingAddress(raw) || bookingDefaultAddress();
+/** Address for calcom-booking-api create/reschedule — must geocode. */
+export async function bookingAddressForCreate(raw?: unknown): Promise<string | undefined> {
+  const fromBody = resolveBookingAddress(raw);
+  if (fromBody) return fromBody;
+
+  const stored = await getStoredCompanyConfig();
+  const companyAddress = stored?.address?.trim();
+  if (companyAddress) return companyAddress;
+
+  return bookingDefaultAddress();
 }
 
 /** Public Cal.com booking page for the default event type slug. */
@@ -233,12 +241,12 @@ export async function bookingCreate(input: {
   address?: string;
 }): Promise<BookingResult<{ booking?: { uid?: string; startTime?: string } }>> {
   const { address: _address, ...rest } = input;
-  const address = bookingAddressForCreate(_address);
+  const address = await bookingAddressForCreate(_address);
   if (!address) {
     return {
       ok: false,
       error:
-        'Meeting address is required. Enter a street address or set BOOKING_DEFAULT_ADDRESS.',
+        'Meeting address is required. Enter a street address or set your business address in Admin → Company.',
       status: 400,
     };
   }
@@ -268,12 +276,12 @@ export async function bookingReschedule(
   input: { start: string; address?: string; notes?: string; phone?: string },
 ): Promise<BookingResult<{ success?: boolean }>> {
   const { address: _address, ...rest } = input;
-  const address = bookingAddressForCreate(_address);
+  const address = await bookingAddressForCreate(_address);
   if (!address) {
     return {
       ok: false,
       error:
-        'Meeting address is required. Enter a street address or set BOOKING_DEFAULT_ADDRESS.',
+        'Meeting address is required. Enter a street address or set your business address in Admin → Company.',
       status: 400,
     };
   }
