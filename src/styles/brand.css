@@ -28,12 +28,12 @@
   }
 }
 
-/** Count badges — brand gradient fill, black numeral */
+/** Count badges — brand gradient fill, white numeral */
 .topbar-badge,
 .footer-nav-badge {
   border-radius: 9999px;
   background: var(--brand-gradient);
-  color: #000;
-  -webkit-text-fill-color: #000;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   box-shadow: none;
 }
