@@ -1,6 +1,5 @@
 import type { CSSProperties, KeyboardEvent, RefObject } from 'react';
 import {
-  ActionBarPrimitive,
   AssistantRuntimeProvider,
   AuiIf,
   ComposerPrimitive,
@@ -8,7 +7,6 @@ import {
   ThreadPrimitive,
   useComposerRuntime,
   useLocalRuntime,
-  useMessage,
   useAuiState,
   useThreadViewportAutoScroll,
   type ChatModelAdapter,
@@ -329,68 +327,6 @@ function UserImagePart(props: { image?: string; alt?: string }) {
   );
 }
 
-function MessageCopyButton({ label }: { label: string }) {
-  return (
-    <ActionBarPrimitive.Copy asChild>
-      <button type="button" className="aui-msg-action" aria-label={label}>
-        Copy
-      </button>
-    </ActionBarPrimitive.Copy>
-  );
-}
-
-function UserMessageActions() {
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      className="aui-msg-actions aui-msg-actions-user"
-    >
-      <MessageCopyButton label="Copy message" />
-    </ActionBarPrimitive.Root>
-  );
-}
-
-function AssistantMessageActions() {
-  const message = useMessage();
-  const plain = (message.content ?? [])
-    .filter((part) => part.type === 'text')
-    .map((part) => ('text' in part ? part.text : ''))
-    .join('\n');
-
-  const share = async () => {
-    const brandName = readCompanyBrandName();
-    const payload = { text: plain, title: `Assistant — ${brandName} chat` };
-    if (navigator.share) {
-      try {
-        await navigator.share(payload);
-        return;
-      } catch (e) {
-        if (e instanceof Error && e.name === 'AbortError') return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(plain);
-    } catch {
-      /* ignore */
-    }
-  };
-
-  return (
-    <ActionBarPrimitive.Root
-      hideWhenRunning
-      autohide="not-last"
-      autohideFloat="single-branch"
-      className="aui-msg-actions aui-msg-actions-assistant"
-    >
-      <MessageCopyButton label="Copy response" />
-      <button type="button" className="aui-msg-action" aria-label="Share" onClick={() => void share()}>
-        Share
-      </button>
-    </ActionBarPrimitive.Root>
-  );
-}
-
 function HelperCommandsPanel({
   commands,
   onPick,
@@ -667,7 +603,8 @@ function ChatMessages() {
                     }}
                   />
                 </div>
-                <UserMessageActions />
+                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
+                    behavior caused layout jumpiness on non-mobile devices. */}
               </div>
             </MessagePrimitive.Root>
           ),
@@ -681,7 +618,8 @@ function ChatMessages() {
                     }}
                   />
                 </div>
-                <AssistantMessageActions />
+                {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
+                    behavior caused layout jumpiness on non-mobile devices. */}
               </div>
             </MessagePrimitive.Root>
           ),
