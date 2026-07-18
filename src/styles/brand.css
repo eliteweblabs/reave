@@ -27,3 +27,37 @@
     --create-fab-shadow: var(--brand-gradient-shadow);
   }
 }
+
+/** Count badges — brand ring, black fill, gradient numeral */
+.topbar-badge,
+.footer-nav-badge {
+  isolation: isolate;
+  border-radius: 9999px;
+  background-color: transparent;
+  background-image: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  box-shadow: none;
+}
+
+.topbar-badge::before,
+.footer-nav-badge::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #000;
+  z-index: -1;
+}
+
+.topbar-badge::after,
+.footer-nav-badge::after {
+  content: "";
+  position: absolute;
+  inset: var(--count-badge-stroke-inset, -1.5px);
+  border-radius: inherit;
+  background: var(--brand-gradient);
+  z-index: -2;
+}

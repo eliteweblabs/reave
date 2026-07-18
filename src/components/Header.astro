@@ -726,15 +726,15 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     min-width: calc(16px * var(--app-header-chrome-scale));
     height: calc(16px * var(--app-header-chrome-scale));
     padding: 0 calc(4px * var(--app-header-chrome-scale));
-    border-radius: var(--radius-input, 8px);
-    background: #ef4444;
-    color: #fff;
+    --count-badge-stroke-inset: calc(-1.5px * var(--app-header-chrome-scale));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     font-size: calc(0.58rem * var(--app-header-chrome-scale));
     font-weight: 700;
-    line-height: calc(16px * var(--app-header-chrome-scale));
+    line-height: 1;
     text-align: center;
     pointer-events: none;
-    box-shadow: 0 0 0 2px var(--badge-ring, var(--bg, #0a0d14));
     z-index: 2;
   }
 
