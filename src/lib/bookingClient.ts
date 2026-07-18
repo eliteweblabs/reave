@@ -120,6 +120,11 @@ export function publicBookingPageUrl(eventSlug = '30min'): string | null {
   return null;
 }
 
+/** Gateway statuses that usually mean the service is restarting/cold-starting. */
+const TRANSIENT_BOOKING_STATUSES = new Set([502, 503, 504]);
+const TRANSIENT_BOOKING_MESSAGE =
+  'The booking service is temporarily unavailable (it may be restarting). Please try again in a moment.';
+
 async function bookingFetch<T>(
   path: string,
   init: RequestInit & { query?: Record<string, string | number | boolean | undefined> } = {},
@@ -142,32 +147,56 @@ async function bookingFetch<T>(
   const key = bookingApiKey();
   if (key) headers.set('X-API-Key', key);
 
-  let res: Response;
-  try {
-    res = await fetch(url, { ...init, headers });
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
-  }
+  // Only retry safe/idempotent reads — retrying a create/reschedule/cancel on a
+  // 502 risks duplicating a request the service may have already processed.
+  const method = (init.method ?? 'GET').toUpperCase();
+  const retryable = method === 'GET' || method === 'HEAD';
+  const maxAttempts = retryable ? 3 : 1;
 
-  const text = await res.text().catch(() => '');
-  let parsed: unknown = undefined;
-  if (text) {
+  let lastError: { ok: false; error: string; status?: number } = {
+    ok: false,
+    error: 'Booking service request failed',
+  };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let res: Response;
     try {
-      parsed = JSON.parse(text);
-    } catch {
-      // non-JSON
+      res = await fetch(url, { ...init, headers });
+    } catch (e) {
+      lastError = { ok: false, error: e instanceof Error ? e.message : String(e) };
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 300 * attempt));
+        continue;
+      }
+      return lastError;
     }
+
+    const text = await res.text().catch(() => '');
+    let parsed: unknown = undefined;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // non-JSON
+      }
+    }
+
+    if (!res.ok) {
+      const upstreamMsg = (parsed as { error?: string })?.error || text.slice(0, 200);
+      const isTransient = TRANSIENT_BOOKING_STATUSES.has(res.status);
+      const msg = upstreamMsg || (isTransient ? TRANSIENT_BOOKING_MESSAGE : `HTTP ${res.status}`);
+      lastError = { ok: false, error: msg, status: res.status };
+      if (isTransient && attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 300 * attempt));
+        continue;
+      }
+      return lastError;
+    }
+
+    return { ok: true, data: parsed as T };
   }
 
-  if (!res.ok) {
-    const msg =
-      (parsed as { error?: string })?.error ||
-      text.slice(0, 200) ||
-      `HTTP ${res.status}`;
-    return { ok: false, error: msg, status: res.status };
-  }
-
-  return { ok: true, data: parsed as T };
+  return lastError;
 }
 
 /** Cal.com Postgres enum values are lowercase (accepted, cancelled, …). */
