@@ -1458,6 +1458,24 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         outline: none;
         width: 100%;
         max-width: 340px;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .de-input::placeholder {
+        font: inherit;
+        font-size: inherit;
+        opacity: 1;
+        color: var(--muted);
+      }
+      .de-input::-webkit-input-placeholder {
+        font: inherit;
+        font-size: inherit;
+        color: var(--muted);
+      }
+      .de-input::-webkit-search-cancel-button,
+      .de-input::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
       }
       .de-input:focus { border-color: #3b82f6; }
       .de-input.de-field-valid,
