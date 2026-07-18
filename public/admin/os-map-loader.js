@@ -701,66 +701,230 @@ function modelBaseLabel(opt) {
   return opt.label || opt.id;
 }
 
-function modelOptionLabel(opt) {
-  const base = modelBaseLabel(opt);
-  const bal = anthropicBalanceLabel();
-  return bal ? `${base} · ${bal}` : base;
-}
+// ---- custom (non-native) model dropdown widget ----
+// Replaces the standard HTML <select> so the picker matches the app's design
+// language and works consistently across platforms. No external deps.
+const modelDropdowns = new Set();
+let openModelDropdown = null;
+let modelDropdownGlobalBound = false;
 
-function renderModelSelectOptions() {
-  const el = modelSelectEl();
-  if (!el) return;
-  el.innerHTML = '';
-  for (const opt of agentModelState.options) {
-    const option = document.createElement('option');
-    option.value = opt.id;
-    option.textContent = modelOptionLabel(opt);
-    el.appendChild(option);
-  }
-  if (agentModelState.model && !agentModelState.options.some((o) => o.id === agentModelState.model)) {
-    const option = document.createElement('option');
-    option.value = agentModelState.model;
-    option.textContent = agentModelState.model;
-    el.appendChild(option);
-  }
-  el.value = agentModelState.model;
-  el.disabled = agentModelState.loading || agentModelState.saving;
-  const balTitle = anthropicBalanceTitle();
-  el.title = agentModelState.loading
-    ? 'Loading model…'
-    : balTitle
-      ? `${balTitle} — chat and dashboard agent`
-      : `Claude model (${agentModelState.source}) — chat and dashboard agent`;
-  const paneModelSel = document.querySelector(
-    '#chat-panel .ch-pane-header .ch-model-switcher-select',
+const MODEL_DD_CHEVRON =
+  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+const MODEL_DD_CHECK =
+  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+function currentModelOption() {
+  return (
+    agentModelState.options.find((o) => o.id === agentModelState.model) ||
+    (agentModelState.model ? { id: agentModelState.model } : null)
   );
-  if (paneModelSel) populateModelSelectOptions(paneModelSel);
 }
 
-function populateModelSelectOptions(sel) {
-  if (!sel) return;
-  sel.innerHTML = '';
-  for (const opt of agentModelState.options) {
-    const option = document.createElement('option');
-    option.value = opt.id;
-    option.textContent = modelOptionLabel(opt);
-    sel.appendChild(option);
+function modelDropdownLabelText() {
+  const current = currentModelOption();
+  if (!current) return agentModelState.loading ? 'Loading…' : 'Model';
+  return modelBaseLabel(current);
+}
+
+function modelDropdownOptions() {
+  if (agentModelState.options.length) return agentModelState.options;
+  const current = currentModelOption();
+  return current ? [current] : [];
+}
+
+function closeModelDropdown() {
+  if (!openModelDropdown) return;
+  const entry = openModelDropdown;
+  openModelDropdown = null;
+  entry.root.classList.remove('open');
+  entry.menu.hidden = true;
+  entry.trigger.setAttribute('aria-expanded', 'false');
+}
+
+function positionModelDropdownMenu(entry) {
+  const menu = entry.menu;
+  const rect = entry.trigger.getBoundingClientRect();
+  menu.style.visibility = 'hidden';
+  menu.hidden = false;
+  const mw = menu.offsetWidth;
+  const mh = menu.offsetHeight;
+  const gap = 6;
+  let top = rect.bottom + gap;
+  if (top + mh > window.innerHeight - 8 && rect.top - gap - mh > 8) {
+    top = rect.top - gap - mh;
   }
-  if (agentModelState.model && !agentModelState.options.some((o) => o.id === agentModelState.model)) {
-    const option = document.createElement('option');
-    option.value = agentModelState.model;
-    option.textContent = agentModelState.model;
-    sel.appendChild(option);
+  // Compact switchers sit near the right edge → align menu's right edge to trigger.
+  let left = entry.compact ? rect.right - mw : rect.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+  menu.style.top = `${Math.round(top)}px`;
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.minWidth = `${Math.round(rect.width)}px`;
+  menu.style.visibility = '';
+}
+
+function openModelDropdownFor(entry) {
+  if (agentModelState.loading || agentModelState.saving) return;
+  if (openModelDropdown && openModelDropdown !== entry) closeModelDropdown();
+  openModelDropdown = entry;
+  entry.root.classList.add('open');
+  entry.menu.hidden = false;
+  entry.trigger.setAttribute('aria-expanded', 'true');
+  positionModelDropdownMenu(entry);
+  const selected =
+    entry.menu.querySelector('.model-dd-option[aria-selected="true"]') ||
+    entry.menu.querySelector('.model-dd-option');
+  selected?.focus();
+}
+
+function toggleModelDropdown(entry) {
+  if (openModelDropdown === entry) closeModelDropdown();
+  else openModelDropdownFor(entry);
+}
+
+function chooseModel(entry, id) {
+  closeModelDropdown();
+  entry.trigger.focus();
+  if (id && id !== agentModelState.model) saveAgentModel(id);
+}
+
+function onModelDropdownKeydown(entry, e) {
+  if (e.key === 'Escape') {
+    if (openModelDropdown !== entry) return;
+    e.preventDefault();
+    closeModelDropdown();
+    entry.trigger.focus();
+    return;
   }
-  sel.value = agentModelState.model;
-  sel.disabled = agentModelState.loading || agentModelState.saving;
-  const current = agentModelState.options.find((o) => o.id === agentModelState.model) || { id: agentModelState.model };
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+    e.preventDefault();
+    if (openModelDropdown !== entry) {
+      openModelDropdownFor(entry);
+      return;
+    }
+    const items = Array.from(entry.menu.querySelectorAll('.model-dd-option'));
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    let next = idx;
+    if (e.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
+    else if (e.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - 1);
+    else if (e.key === 'Home') next = 0;
+    else next = items.length - 1;
+    items[next]?.focus();
+    return;
+  }
+  const active = document.activeElement;
+  if ((e.key === 'Enter' || e.key === ' ') && active?.classList.contains('model-dd-option')) {
+    e.preventDefault();
+    chooseModel(entry, active.dataset.value);
+  }
+}
+
+function renderModelDropdown(entry) {
+  entry.label.textContent = modelDropdownLabelText();
+  const disabled = agentModelState.loading || agentModelState.saving;
+  entry.trigger.disabled = disabled;
+  if (disabled && openModelDropdown === entry) closeModelDropdown();
   const balTitle = anthropicBalanceTitle();
-  sel.title = agentModelState.loading
+  const labelText = modelDropdownLabelText();
+  entry.trigger.title = agentModelState.loading
     ? 'Loading model…'
     : balTitle
-      ? `${balTitle} — ${modelBaseLabel(current)}`
-      : `Agent model: ${modelBaseLabel(current)} (${agentModelState.source})`;
+      ? `${balTitle} — ${labelText}`
+      : `Agent model: ${labelText} (${agentModelState.source})`;
+
+  entry.menu.innerHTML = '';
+  const bal = anthropicBalanceLabel();
+  for (const opt of modelDropdownOptions()) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'model-dd-option';
+    item.setAttribute('role', 'option');
+    item.dataset.value = opt.id;
+    const selected = opt.id === agentModelState.model;
+    item.setAttribute('aria-selected', selected ? 'true' : 'false');
+
+    const check = document.createElement('span');
+    check.className = 'model-dd-check';
+    check.innerHTML = selected ? MODEL_DD_CHECK : '';
+
+    const text = document.createElement('span');
+    text.className = 'model-dd-option-label';
+    text.textContent = modelBaseLabel(opt);
+
+    item.append(check, text);
+    if (bal) {
+      const b = document.createElement('span');
+      b.className = 'model-dd-option-bal';
+      b.textContent = bal;
+      item.appendChild(b);
+    }
+    item.addEventListener('click', () => chooseModel(entry, opt.id));
+    entry.menu.appendChild(item);
+  }
+  if (openModelDropdown === entry) positionModelDropdownMenu(entry);
+}
+
+// Kept the historical name so existing call sites (load/save) keep working.
+function renderModelSelectOptions() {
+  for (const entry of Array.from(modelDropdowns)) {
+    if (!entry.root.isConnected) {
+      if (openModelDropdown === entry) closeModelDropdown();
+      modelDropdowns.delete(entry);
+      continue;
+    }
+    renderModelDropdown(entry);
+  }
+}
+
+function bindModelDropdownGlobals() {
+  if (modelDropdownGlobalBound) return;
+  modelDropdownGlobalBound = true;
+  document.addEventListener('click', (e) => {
+    if (openModelDropdown && !openModelDropdown.root.contains(e.target)) closeModelDropdown();
+  });
+  window.addEventListener('resize', closeModelDropdown);
+  window.addEventListener('scroll', closeModelDropdown, true);
+}
+
+function createModelDropdown(opts = {}) {
+  bindModelDropdownGlobals();
+  const root = document.createElement('div');
+  root.className = 'model-dd' + (opts.compact ? ' model-dd--compact' : '');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'model-dd-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', 'Agent model');
+
+  const label = document.createElement('span');
+  label.className = 'model-dd-label';
+
+  const caret = document.createElement('span');
+  caret.className = 'model-dd-caret';
+  caret.innerHTML = MODEL_DD_CHEVRON;
+
+  trigger.append(label, caret);
+
+  const menu = document.createElement('div');
+  menu.className = 'model-dd-menu';
+  menu.setAttribute('role', 'listbox');
+  menu.hidden = true;
+
+  root.append(trigger, menu);
+
+  const entry = { root, trigger, label, menu, compact: !!opts.compact };
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleModelDropdown(entry);
+  });
+  trigger.addEventListener('keydown', (e) => onModelDropdownKeydown(entry, e));
+  menu.addEventListener('keydown', (e) => onModelDropdownKeydown(entry, e));
+
+  modelDropdowns.add(entry);
+  renderModelDropdown(entry);
+  return { root, entry };
 }
 
 function createChatModelSwitcher() {
@@ -773,17 +937,8 @@ function createChatModelSwitcher() {
   icon.setAttribute('aria-hidden', 'true');
   wrap.appendChild(icon);
 
-  const sel = document.createElement('select');
-  sel.className = 'ch-model-switcher-select';
-  sel.setAttribute('aria-label', 'Agent model');
-  populateModelSelectOptions(sel);
-  if (!sel.dataset.bound) {
-    sel.dataset.bound = '1';
-    sel.addEventListener('change', () => {
-      if (sel.value && sel.value !== agentModelState.model) saveAgentModel(sel.value);
-    });
-  }
-  wrap.appendChild(sel);
+  const { root } = createModelDropdown({ compact: true });
+  wrap.appendChild(root);
   return wrap;
 }
 
@@ -859,9 +1014,8 @@ function initModelSelector() {
   const el = modelSelectEl();
   if (!el || el.dataset.bound) return;
   el.dataset.bound = '1';
-  el.addEventListener('change', () => {
-    if (el.value && el.value !== agentModelState.model) saveAgentModel(el.value);
-  });
+  const { root } = createModelDropdown();
+  el.appendChild(root);
   loadAgentModel();
   syncModelSelectorVisibility();
 }
@@ -12788,12 +12942,6 @@ function scrollChatToBottom(container, smooth = true) {
 }
 
 function getAgentModelForChat() {
-  const sel = document.querySelector(
-    '#chat-panel .ch-pane-header .ch-model-switcher-select',
-  );
-  if (sel?.value) return sel.value;
-  const legacy = modelSelectEl();
-  if (legacy?.value) return legacy.value;
   return agentModelState.model || undefined;
 }
 

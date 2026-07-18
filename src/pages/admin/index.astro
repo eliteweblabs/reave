@@ -735,19 +735,13 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
 
       #model-select {
-        font: inherit;
-        font-size: 0.72rem;
-        color: var(--fg);
-        background: var(--accent-select-bg);
-        border: 1px solid var(--panel-border);
-        border-radius: 7px;
-        padding: 0.28rem 1.6rem 0.28rem 0.55rem;
-        max-width: 13rem;
-        cursor: pointer;
-        appearance: none;
+        display: inline-flex;
+        align-items: center;
       }
-      #model-select:hover:not(:disabled) { border-color: #3b82f6; }
-      #model-select:disabled { opacity: 0.55; cursor: default; }
+      #model-select .model-dd-trigger {
+        background: var(--accent-select-bg);
+        max-width: 13rem;
+      }
 
       /* ── Tooltips ──
          Default: centered below the trigger.
@@ -3277,25 +3271,121 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .ch-model-switcher-icon svg {
         display: block;
       }
-      .ch-model-switcher-select {
+      /* ── Custom agent model dropdown (replaces native <select>) ── */
+      .model-dd {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+      }
+      .model-dd-trigger {
         font: inherit;
-        font-size: 0.68rem;
+        font-size: 0.72rem;
         color: var(--muted);
         background: transparent;
         border: 1px solid var(--panel-border);
-        border-radius: var(--radius-input);
-        padding: 0.12rem 0.5rem;
-        max-width: min(11rem, 34vw);
+        border-radius: var(--radius-input, 7px);
+        padding: 0.28rem 0.5rem 0.28rem 0.55rem;
+        max-width: 13rem;
         cursor: pointer;
-        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        white-space: nowrap;
+        transition: border-color 0.15s ease, color 0.15s ease;
       }
-      .ch-model-switcher-select:hover:not(:disabled) {
+      .model-dd-trigger:hover:not(:disabled),
+      .model-dd.open .model-dd-trigger {
         border-color: #3b82f6;
         color: var(--fg);
       }
-      .ch-model-switcher-select:disabled {
+      .model-dd-trigger:disabled {
         opacity: 0.55;
         cursor: default;
+      }
+      .model-dd-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .model-dd-caret {
+        display: inline-flex;
+        align-items: center;
+        opacity: 0.65;
+        transition: transform 0.15s ease;
+      }
+      .model-dd.open .model-dd-caret {
+        transform: rotate(180deg);
+      }
+      .model-dd-caret svg {
+        display: block;
+      }
+      .model-dd--compact .model-dd-trigger {
+        font-size: 0.68rem;
+        padding: 0.12rem 0.4rem 0.12rem 0.5rem;
+        max-width: min(11rem, 34vw);
+      }
+      .model-dd-menu {
+        position: fixed;
+        z-index: 10000;
+        min-width: 9rem;
+        max-width: min(16rem, 90vw);
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0.3rem;
+        background: var(--popover-bg);
+        border: 1px solid var(--popover-border, var(--panel-border));
+        border-radius: 10px;
+        box-shadow: var(--popover-shadow, var(--shadow-lg));
+      }
+      .model-dd-menu[hidden] {
+        display: none;
+      }
+      .model-dd-option {
+        font: inherit;
+        font-size: 0.76rem;
+        color: var(--muted);
+        background: transparent;
+        border: none;
+        border-radius: 7px;
+        padding: 0.4rem 0.6rem 0.4rem 0.4rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        text-align: left;
+        width: 100%;
+      }
+      .model-dd-option:hover,
+      .model-dd-option:focus-visible {
+        color: var(--fg);
+        background: var(--tab-active-bg, var(--msg-action-hover));
+        outline: none;
+      }
+      .model-dd-option[aria-selected='true'] {
+        color: var(--fg);
+      }
+      .model-dd-check {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1rem;
+        flex-shrink: 0;
+        color: #3b82f6;
+      }
+      .model-dd-check svg {
+        display: block;
+      }
+      .model-dd-option-label {
+        flex: 1 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .model-dd-option-bal {
+        flex-shrink: 0;
+        font-size: 0.68rem;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
       }
       @media (max-width: 639px) {
         .ch-model-switcher {
@@ -3305,17 +3395,25 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         .ch-model-switcher-icon {
           display: inline-flex;
         }
-        .ch-model-switcher-select {
+        .ch-model-switcher .model-dd {
           position: absolute;
           inset: 0;
-          opacity: 0;
+        }
+        .ch-model-switcher .model-dd-trigger {
+          position: absolute;
+          inset: 0;
           width: 100%;
           height: 100%;
           max-width: none;
           padding: 0;
           border: none;
           border-radius: 50%;
-          cursor: pointer;
+          background: transparent;
+          color: transparent;
+        }
+        .ch-model-switcher .model-dd-label,
+        .ch-model-switcher .model-dd-caret {
+          display: none;
         }
       }
       .ch-delete-btn {
@@ -6786,9 +6884,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
     <div id="topbar-utilities" hidden aria-hidden="true">
       <div id="tabs-scroll"><div id="tabs"></div></div>
-      <select id="model-select" style="display:none" aria-label="Agent model">
-        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
-      </select>
+      <div id="model-select" style="display:none"></div>
       <span id="health-checked" class="tb-icon" data-tooltip="">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       </span>
