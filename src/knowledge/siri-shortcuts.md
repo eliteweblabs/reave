@@ -381,9 +381,9 @@ The endpoint has no built-in rate limiting. If needed, add Cloudflare rate limit
 
 ### Workarounds
 
-- **Complex forms**: Use the web app or Telegram bot for data-heavy tasks
+- **Complex forms**: Use the web app or admin dashboard for data-heavy tasks
 - **File attachments**: Use `/api/work/[slug]/files` separately after creating work item
-- **Real-time chat**: Siri Shortcuts aren't for conversations — use Telegram bot or Vapi voice agent
+- **Real-time chat**: Siri Shortcuts aren't for conversations — use the admin Chat interface or Vapi voice agent
 
 ## Troubleshooting
 
@@ -444,9 +444,9 @@ Siri Shortcuts are iOS/macOS only. For desktop/CLI access, use:
 
 ## See Also
 
-- **Telegram Bot** (`/start` in Telegram): Full conversational AI agent with Claude
 - **Vapi Voice Agent**: Call your Telnyx number for AI phone support
 - **Client Portal** (`/c/<uid>`): Share links with clients (iOS Home Screen support)
+- **Admin Dashboard** (`/admin`): Full web interface for managing clients, work, and services
 
 ---
 

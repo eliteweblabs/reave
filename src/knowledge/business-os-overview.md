@@ -4,7 +4,7 @@ You are helping the owner of a solo web/app studio (~25 clients).
 
 ## Principles
 
-- **Pull, not push:** the owner checks the dashboard (or Telegram) when convenient.
+- **Pull, not push:** the owner checks the dashboard, Siri Shortcuts, or voice agent when convenient.
 - **Billing:** Crater on Railway is authoritative for invoices (see `crater-billing.md`) — do not invent invoice actions here.
 - **Email:** inbound triage runs inside this app via a Resend webhook (see `email-rules.md`) — there is no separate email service.
 - **Stack direction:** API + Postgres truth; knowledge files are **playbooks**, not live financial data.

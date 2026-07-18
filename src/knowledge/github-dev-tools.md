@@ -1,4 +1,4 @@
-# GitHub — commit files & open PRs from Telegram
+# GitHub — commit files & open PRs from Admin Agent
 
 The Claude tool loop can **write files** and **open pull requests** on the Reave repo via the GitHub REST API. Read-only status tools (`get_git_status`, `get_recent_commits`, etc.) work with a read token; writes need extra scopes.
 
@@ -40,7 +40,7 @@ Create a branch pointing at the tip of an existing branch.
 
 | Param | Required | Notes |
 |-------|----------|-------|
-| `branch` | yes | New branch name, e.g. `telegram/fix-typo` |
+| `branch` | yes | New branch name, e.g. `feature/fix-typo` |
 | `from_branch` | no | Defaults to **`main`** |
 | `repo` | no | Defaults to `GITHUB_REPO` / `eliteweblabs/reave` |
 
@@ -78,8 +78,8 @@ Returns: PR `number`, `url`, `state`, `head`, `base`.
 
 ## Example owner phrases
 
-- “Add a file `docs/notes.md` on branch `telegram/docs-update` with …”
-- “Update `src/lib/foo.ts` on `fix/telegram-typo` and open a PR into main”
+- “Add a file `docs/notes.md` on branch `feature/docs-update` with …”
+- “Update `src/lib/foo.ts` on `fix/typo` and open a PR into main”
 - “Commit this change to GitHub and open a pull request”
 
 ## Limits & safety

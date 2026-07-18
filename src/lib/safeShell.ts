@@ -1,5 +1,5 @@
 /**
- * Sandboxed, read-only command runner for the Telegram assistant.
+ * Sandboxed, read-only command runner for the admin agent.
  *
  * Hard constraints (defense in depth):
  *  - No shell. We use execFile, so there is no globbing, no pipes, no `;`/`&&`,

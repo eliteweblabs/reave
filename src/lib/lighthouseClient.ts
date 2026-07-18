@@ -188,7 +188,7 @@ export async function lighthouseAudit(opts: {
   return { ok: true, url, results };
 }
 
-/** Compact text summary for Telegram tool output. */
+/** Compact text summary for tool output. */
 export function formatLighthouseResults(data: Extract<LighthouseAuditResponse, { ok: true }>): string {
   const lines: string[] = [`Lighthouse audit: ${data.url}`];
   for (const r of data.results) {

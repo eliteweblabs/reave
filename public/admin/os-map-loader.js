@@ -121,7 +121,6 @@ const MAP_ICON_KEYS = {
   home: 'home',
   system: 'monitor',
   tooling: 'wrench',
-  telegram: 'send',
   todo: 'check-square',
   documents: 'file-text',
   knowledge: 'book-open',

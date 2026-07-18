@@ -41,7 +41,7 @@ export interface WorkJobSummary {
   tags: string[];
   /** How the lead came in — instagram, email, referral, phone, etc. */
   source: string;
-  /** Who/what created the record — manual, telegram, dashboard (file storage only). */
+  /** Who/what created the record — manual, api, siri, dashboard (file storage only). */
   record_origin?: string;
   /** Dashboard chat thread that spawned or owns this project. */
   source_chat_id?: string;
@@ -69,7 +69,7 @@ export interface WorkJobInput {
   /** Lead source channel (instagram, email, referral, phone). */
   source?: string;
   body?: string;
-  /** Record creation origin — manual, telegram, dashboard (not the lead source). */
+  /** Record creation origin — manual, api, siri, dashboard (not the lead source). */
   record_origin?: string;
   /** Dashboard chat thread to link back to (set when created from chat). */
   source_chat_id?: string;
@@ -180,7 +180,7 @@ function normalizePriority(raw: string | undefined): WorkPriority {
 export const normalizeWorkStatus = normalizeStatus;
 export const normalizeWorkPriority = normalizePriority;
 
-const RECORD_ORIGINS = new Set(['manual', 'telegram', 'dashboard', 'file', 'db']);
+const RECORD_ORIGINS = new Set(['manual', 'api', 'siri', 'dashboard', 'file', 'db']);
 
 function parseTags(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];

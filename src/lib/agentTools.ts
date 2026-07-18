@@ -1110,7 +1110,7 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
               type: 'string',
               description: `owner/repo (defaults to ${githubRepoSlug()} when omitted)`,
             },
-            branch: { type: 'string', description: 'New branch name, e.g. telegram/fix-typo' },
+            branch: { type: 'string', description: 'New branch name, e.g. feature/fix-typo' },
             from_branch: {
               type: 'string',
               description: `Existing branch to branch from (defaults to ${githubDefaultBranch()})`,

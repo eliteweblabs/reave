@@ -27,7 +27,7 @@ export function requestOrigin(request: Request): string {
   return siteOriginFallback();
 }
 
-/** Origin when no HTTP request exists (Telegram bot, background jobs). */
+/** Origin when no HTTP request exists (background jobs, scheduled tasks). */
 export function siteOriginFallback(): string {
   const railway = serverEnv('RAILWAY_PUBLIC_DOMAIN')?.trim();
   if (railway) {

@@ -11,8 +11,8 @@ Go live with Telnyx SMS, the AI phone agent, and Siri Shortcuts integration. Add
 - [ ] Add TELNYX_WEBHOOK_PUBLIC_KEY to Railway vars
 - [ ] Set TELNYX_OPERATOR_NUMBER to your personal phone (E.164) for /takeover
 - [ ] Create a Call Control Application in Telnyx portal and copy its ID as TELNYX_APP_ID (needed for outbound calls)
-- [ ] Test inbound SMS: text your Telnyx number and verify Telegram alert fires
-- [ ] Set VOICE_AGENT_ENABLED=1 (or use /voice on in Telegram) and call the number
+- [ ] Test inbound SMS: text your Telnyx number and verify webhook handling works
+- [ ] Set VOICE_AGENT_ENABLED=1 and call the number to test the voice agent
 - [ ] Set TELNYX_VOICE and TELNYX_VOICE_LANGUAGE if you want a different TTS voice
 - [ ] Set SMS_AI_REPLY_ENABLED=1 if you want Claude to auto-reply to inbound texts
 - [ ] For Siri Shortcuts: generate a key (`openssl rand -base64 32`) and add SIRI_API_KEY to Railway vars

@@ -748,7 +748,7 @@ export async function craterBillingDashboardStats(): Promise<CraterResult<Billin
   };
 }
 
-/** Format a created invoice for a Telegram reply. */
+/** Format a created invoice for display/API response. */
 export function formatCreatedInvoice(inv: CreatedInvoice): string {
   const lines = [
     'Created!',

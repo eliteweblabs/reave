@@ -4,8 +4,8 @@
  *
  * Renders the filled document exactly as the client will see it, then lets the
  * operator send the signing link (Email/SMS) straight from this page. This is
- * the hand-off target from the Telegram Documents flow: review → send in one
- * place, no bouncing back to Telegram to pick a channel. Gated by Clerk via
+ * the hand-off target from the admin Documents flow: review → send in one
+ * place. Gated by Clerk via
  * middleware plus a belt-and-suspenders check here.
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';

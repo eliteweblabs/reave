@@ -86,23 +86,15 @@ fields — name, company, phone, email, and the portal URL — never the interna
 linked from the client portal UI — use CardDAV or admin when staff need the
 contact on their phone.
 
-## Manage it from Telegram
+## Manage it via API or Admin
 
-With `ANTHROPIC_API_KEY` + `CONTACT_API_BASE_URL` set, the bot has these tools:
+Use the `/api/clients` endpoints or admin dashboard to manage client portals:
 
-- **`list_contacts`** — list/search all clients; each row includes its
-  `portal_url`. (Every client already has a page.)
-- **`set_client_portal`** — customize a client's portal content, or hide it
-  (`enabled:false`). Identify by `uid` or by `name` (fuzzy-resolved; if ambiguous
-  it returns candidates to confirm). Updates merge with existing content.
-- **`get_client_portal`** — fetch the link + current content for one client.
+- **List contacts** — `GET /api/clients` with optional `?q=` search
+- **Set portal content** — Update portal metadata via contact API
+- **Get portal link** — Each client's portal is at `/c/<uid>`
 
-Examples (freeform to the bot):
-
-- "Make a client page for Tony Vello with the headline 'Hosting & support' and a
-  field Site URL → https://tonyvello.com" → returns the link to send him.
-- "What's the portal link for Acme?" → returns `https://reave.app/c/<uid>`.
-- "Hide Acme's client page" → sets `enabled:false`.
+Use the admin dashboard or Siri Shortcuts for quick access to client portal management.
 
 ## Env
 

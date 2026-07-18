@@ -1,5 +1,5 @@
 /**
- * GitHub REST API client for the Telegram dev/status and file-write tools.
+ * GitHub REST API client for the admin agent dev/status and file-write tools.
  *
  * The deployed assistant runs on Railway from a built `dist/` with no local git
  * repo, so "is this committed / pushed?" must be answered against GitHub — the

@@ -72,7 +72,7 @@ export async function braveSearch(query: string, limit = 5): Promise<BraveSearch
   }
 }
 
-/** Plain-text summary for Telegram-friendly tool output. */
+/** Plain-text summary for tool output. */
 export function formatBraveResults(data: Extract<BraveSearchResponse, { ok: true }>): string {
   if (data.results.length === 0) return `No web results for "${data.query}".`;
   const lines = data.results.map(

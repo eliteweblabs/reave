@@ -61,9 +61,7 @@ Reave-side search (agent tools + `/api/clients?q=`) also matches **phone suffix*
 
 `DELETE /api/contacts/:uid` — soft-archives the contact (`archived = true`).
 
-Telegram: `update_contact` and `delete_contact` tools (Reave checks linked jobs/invoices before delete; pass `force: true` to confirm).
-
-Telegram shortcuts in this app: `/resolve <name>` and `/who <name>`.
+The API checks for linked jobs/invoices before allowing deletion to prevent data loss.
 
 ## CardDAV (iOS sync)
 

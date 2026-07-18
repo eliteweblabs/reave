@@ -1,7 +1,7 @@
 /**
  * Deliver a document-signing link to a client over a specific channel.
  *
- * Factored out so both the Telegram flow and the admin "review & send" page can
+ * Factored out so both API integrations and the admin "review & send" page can
  * send the exact same email/SMS. Returns a plain result (no side-channel UI) so
  * callers can render the outcome however they like.
  */

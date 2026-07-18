@@ -367,7 +367,7 @@ export async function bookingPing(): Promise<
   };
 }
 
-/** One-line summary for Telegram. */
+/** One-line summary for display. */
 export function formatBookingLine(b: BookingSummary, tz = bookingTimezone()): string {
   const when = new Date(b.startTime).toLocaleString('en-US', {
     timeZone: tz,

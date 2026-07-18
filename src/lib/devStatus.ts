@@ -1,5 +1,5 @@
 /**
- * High-level dev/status helpers for the Telegram assistant so it can verify,
+ * High-level dev/status helpers for the admin agent so it can verify,
  * without a human, whether work was committed, pushed, and deployed.
  *
  * Source of truth:

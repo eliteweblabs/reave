@@ -9,7 +9,7 @@ alwaysApply: false
 The `/admin/` page (also `/dashboard`) is an interactive, Railway-style
 canvas meant to be a true visual of the project's guts and workflow. When you
 add, remove, or significantly change a feature, service, API route, external
-integration, or Telegram bot command, update the map **in the same change**.
+integration, or API endpoint, update the map **in the same change**.
 
 Single source of truth: **`public/admin/os-map-data.js`**
 

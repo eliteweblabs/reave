@@ -1,6 +1,6 @@
 # Crater billing (custom API)
 
-Crater is the authoritative invoicing system, hosted at **https://ap.reave.app** (Railway service `crater` in the Reave App project). The Telegram bot talks to Crater's **custom** routes (`eliteweblabs/crater-invoicing` → `routes/api-custom.php`), mounted under `/api/custom/*`.
+Crater is the authoritative invoicing system, hosted at **https://ap.reave.app** (Railway service `crater` in the Reave App project). The admin dashboard and API integrations use Crater's **custom** routes (`eliteweblabs/crater-invoicing` → `routes/api-custom.php`), mounted under `/api/custom/*`.
 
 ## Auth
 
@@ -15,13 +15,11 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | `CRATER_API_BASE_URL` | Crater host, no trailing slash. Prefer `https://${{ crater.RAILWAY_PUBLIC_DOMAIN }}`. |
 | `CRATER_API_TOKEN` | Mirror of Crater's `CRATER_API_TOKEN`; sent as `X-Crater-Api-Token`. |
 
-## Telegram usage
+## Admin & API Usage
 
-- **Read-only:** `/invoices` lists recent invoices.
-- **Billing (buttons):** in a `/contacts` action card, tap **Billing** → choose **+ New invoice** or **Add to existing** (pick an unsent DRAFT) → send a line item as `description | amount | qty` (qty optional). Adds to the draft (or creates one), then offers **+ Add another**.
-- **Freeform (needs `ANTHROPIC_API_KEY`):** natural language → Claude calls Crater tools via `src/lib/agentTools.ts` (still includes invoice creation).
-
-> The deterministic `/invoice <customer> | <amount>` slash command was removed for now; create_invoice remains available via the freeform LLM path.
+- **Admin Dashboard:** Manage invoices through the `/admin` interface
+- **Agent Tools (needs `ANTHROPIC_API_KEY`):** Natural language → Claude calls Crater tools via `src/lib/agentTools.ts` for invoice creation and management
+- **Siri Shortcuts:** Can be extended to integrate with Crater invoice APIs for voice-controlled billing
 
 ## Custom API endpoints (all wired as assistant tools)
 
