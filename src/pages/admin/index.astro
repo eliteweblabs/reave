@@ -3682,6 +3682,124 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         color: var(--muted);
         line-height: 1.45;
       }
+      .em-compose-to-wrap {
+        position: relative;
+        min-width: 0;
+      }
+      .em-compose-to-chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 2.35rem;
+        padding: 0.35rem 0.45rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+      }
+      .em-compose-to-chips:focus-within {
+        border-color: #3b82f6;
+      }
+      .em-compose-to-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        max-width: 100%;
+        padding: 0.15rem 0.35rem 0.15rem 0.45rem;
+        border-radius: 999px;
+        background: var(--surface-hover-strong);
+        color: var(--fg);
+        font-size: 0.82rem;
+        line-height: 1.2;
+      }
+      .em-compose-to-chip-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .em-compose-to-chip-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1rem;
+        height: 1.1rem;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .em-compose-to-chip-remove:hover {
+        background: rgba(0, 0, 0, 0.08);
+        color: var(--fg);
+      }
+      .em-compose-to-input {
+        flex: 1 1 8rem;
+        min-width: 6rem;
+        border: none;
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.9rem;
+        padding: 0.15rem 0.25rem;
+        outline: none;
+      }
+      .em-compose-to-input:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+      .em-compose-to-dropdown {
+        position: absolute;
+        z-index: 40;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow-lg);
+      }
+      .em-compose-to-option {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.45rem 0.6rem;
+        border: none;
+        background: transparent;
+        color: var(--fg);
+        font-size: 0.82rem;
+        cursor: pointer;
+      }
+      .em-compose-to-option:hover,
+      .em-compose-to-option.active {
+        background: var(--surface-hover-strong);
+      }
+      .em-compose-to-option--disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .em-compose-to-option .sub {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.1rem;
+      }
+      .em-compose-to-option-add {
+        border-top: 1px solid var(--panel-border);
+        color: #3b82f6;
+        font-weight: 500;
+      }
+      .em-compose-to-empty {
+        padding: 0.45rem 0.6rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
       .em-detail-subject {
         font-size: 1.05rem;
         font-weight: 600;

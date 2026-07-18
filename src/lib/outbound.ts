@@ -17,7 +17,7 @@ export function isSmsSendConfigured(): boolean {
 }
 
 export async function sendEmail(opts: {
-  to: string;
+  to: string | string[];
   subject: string;
   text: string;
   html?: string;
@@ -28,13 +28,6 @@ export async function sendEmail(opts: {
 }): Promise<SendResult> {
   const key = serverEnv('RESEND_API_KEY')?.trim();
   if (!key) return { ok: false, error: 'RESEND_API_KEY is not set' };
-  const to = opts.to.trim();
-  if (!to) return { ok: false, error: 'recipient email is required' };
-
-  const from = opts.from?.trim() || (await resolveEmailFrom());
-  if (!from) {
-    return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
-  }
 
   const normalizeList = (raw?: string | string[]): string[] | undefined => {
     if (!raw) return undefined;
@@ -43,6 +36,14 @@ export async function sendEmail(opts: {
       .filter(Boolean);
     return items.length ? items : undefined;
   };
+
+  const to = normalizeList(opts.to);
+  if (!to?.length) return { ok: false, error: 'recipient email is required' };
+
+  const from = opts.from?.trim() || (await resolveEmailFrom());
+  if (!from) {
+    return { ok: false, error: 'Set RESEND_FROM or configure company outbound email in admin profile' };
+  }
 
   const cc = normalizeList(opts.cc);
   const bcc = normalizeList(opts.bcc);
@@ -53,7 +54,7 @@ export async function sendEmail(opts: {
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from,
-        to: [to],
+        to,
         subject: opts.subject,
         text: opts.text,
         ...(opts.html ? { html: opts.html } : {}),

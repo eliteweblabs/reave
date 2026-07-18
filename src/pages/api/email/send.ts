@@ -32,7 +32,17 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const to = String(body.to ?? '').trim();
+  const normalizeList = (raw: unknown): string[] => {
+    if (Array.isArray(raw)) {
+      return raw.map((v) => String(v).trim()).filter(Boolean);
+    }
+    return String(raw ?? '')
+      .split(/[,;]+/)
+      .map((v) => v.trim())
+      .filter(Boolean);
+  };
+
+  const to = normalizeList(body.to);
   const subject = String(body.subject ?? '').trim();
   const html = String(body.html ?? '').trim() || undefined;
   const text = String(body.text ?? body.body ?? '').trim();
@@ -41,7 +51,7 @@ export async function POST(context: APIContext): Promise<Response> {
   const bcc = body.bcc;
   const inReplyToEmailId = String(body.inReplyToEmailId ?? body.in_reply_to_email_id ?? '').trim() || null;
 
-  if (!to) return json({ ok: false, success: false, error: 'Recipient (to) is required' }, 400);
+  if (!to.length) return json({ ok: false, success: false, error: 'Recipient (to) is required' }, 400);
   if (!subject) return json({ ok: false, success: false, error: 'Subject is required' }, 400);
   if (!text && !html) return json({ ok: false, success: false, error: 'Message body is required' }, 400);
 
@@ -71,15 +81,17 @@ export async function POST(context: APIContext): Promise<Response> {
   });
   if (!result.ok) return json({ ok: false, success: false, error: result.error }, 502);
 
-  void logOutboundEmailForProject({
-    toEmail: to,
-    subject,
-    resendId: result.id,
-    sentBy: userId,
-    source: inReplyToEmailId ? 'admin_reply' : 'admin_compose',
-    jobSlug,
-    contactUid,
-  });
+  for (const toEmail of to) {
+    void logOutboundEmailForProject({
+      toEmail,
+      subject,
+      resendId: result.id,
+      sentBy: userId,
+      source: inReplyToEmailId ? 'admin_reply' : 'admin_compose',
+      jobSlug,
+      contactUid,
+    });
+  }
 
   let routed = false;
   if (inReplyToEmailId) {

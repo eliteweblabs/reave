@@ -12198,7 +12198,7 @@ let emailState = {
   activeId: null,
   composing: false,
   replyToId: null,
-  compose: { to: '', subject: '', body: '' },
+  compose: { to: [], subject: '', body: '' },
   sending: false,
   storage: 'files',
   digest: null,
@@ -14289,6 +14289,323 @@ function renderEmailSidebar() {
   return sidebar;
 }
 
+function normalizeEmailRecipient(raw) {
+  if (typeof raw === 'string') {
+    const email = raw.trim().toLowerCase();
+    return email ? { email, name: '', uid: null } : null;
+  }
+  if (raw && typeof raw === 'object' && raw.email) {
+    const email = String(raw.email).trim().toLowerCase();
+    if (!email) return null;
+    return {
+      email,
+      name: String(raw.name || '').trim(),
+      uid: raw.uid ? String(raw.uid) : null,
+    };
+  }
+  return null;
+}
+
+function emailRecipientLabel(r) {
+  return r.name || r.email;
+}
+
+function isValidEmailAddress(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+let emailToSearchTimer = null;
+
+/**
+ * Multi-recipient To field: client autocomplete + removable chips.
+ * Returns { getRecipients, focus }.
+ */
+function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
+  const disabled = opts.disabled === true;
+  let recipients = (Array.isArray(initial) ? initial : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
+  let highlightIdx = -1;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'em-compose-to-wrap';
+
+  const chipsEl = document.createElement('div');
+  chipsEl.className = 'em-compose-to-chips';
+
+  const input = document.createElement('input');
+  input.id = 'em-compose-to';
+  input.type = 'text';
+  input.className = 'em-compose-to-input';
+  input.placeholder = 'Search clients or type an email…';
+  input.autocomplete = 'off';
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-expanded', 'false');
+  input.disabled = disabled;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'em-compose-to-dropdown';
+  dropdown.style.display = 'none';
+  dropdown.setAttribute('role', 'listbox');
+
+  chipsEl.appendChild(input);
+  wrap.appendChild(chipsEl);
+  wrap.appendChild(dropdown);
+  parent.appendChild(wrap);
+
+  function syncPlaceholder() {
+    input.placeholder = recipients.length ? 'Add another…' : 'Search clients or type an email…';
+  }
+
+  function hasRecipient(email) {
+    const key = String(email || '').trim().toLowerCase();
+    return recipients.some((r) => r.email === key);
+  }
+
+  function emitChange() {
+    onChange?.(recipients.map((r) => ({ ...r })));
+  }
+
+  function addRecipient(recipient) {
+    const next = normalizeEmailRecipient(recipient);
+    if (!next || hasRecipient(next.email)) return false;
+    recipients.push(next);
+    renderChips();
+    emitChange();
+    return true;
+  }
+
+  function removeRecipient(email) {
+    const key = String(email || '').trim().toLowerCase();
+    const before = recipients.length;
+    recipients = recipients.filter((r) => r.email !== key);
+    if (recipients.length === before) return;
+    renderChips();
+    emitChange();
+  }
+
+  function renderChips() {
+    chipsEl.querySelectorAll('.em-compose-to-chip').forEach((el) => el.remove());
+    for (const r of recipients) {
+      const chip = document.createElement('span');
+      chip.className = 'em-compose-to-chip';
+      const label = document.createElement('span');
+      label.className = 'em-compose-to-chip-label';
+      label.textContent = emailRecipientLabel(r);
+      label.title = r.email;
+      chip.appendChild(label);
+      if (!disabled) {
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'em-compose-to-chip-remove';
+        removeBtn.setAttribute('aria-label', `Remove ${emailRecipientLabel(r)}`);
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => {
+          removeRecipient(r.email);
+          input.focus();
+        });
+        chip.appendChild(removeBtn);
+      }
+      chipsEl.insertBefore(chip, input);
+    }
+    syncPlaceholder();
+  }
+
+  function setDropdownOpen(open) {
+    dropdown.style.display = open ? 'block' : 'none';
+    input.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) highlightIdx = -1;
+  }
+
+  function pickClient(client) {
+    const email = String(client?.email || '').trim().toLowerCase();
+    if (!email) return;
+    addRecipient({
+      email,
+      name: client.name || '',
+      uid: client.uid || null,
+    });
+    input.value = '';
+    setDropdownOpen(false);
+    dropdown.innerHTML = '';
+    input.focus();
+  }
+
+  function renderDropdown(clients, query) {
+    dropdown.innerHTML = '';
+    highlightIdx = -1;
+    const q = query.trim();
+    if (!clients.length && !q) {
+      setDropdownOpen(false);
+      return;
+    }
+    if (!clients.length) {
+      const empty = document.createElement('div');
+      empty.className = 'em-compose-to-empty';
+      empty.textContent = q ? 'No matching clients.' : 'No clients yet.';
+      dropdown.appendChild(empty);
+      if (isValidEmailAddress(q) && !hasRecipient(q)) {
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'em-compose-to-option em-compose-to-option-add';
+        addBtn.textContent = `Use ${q}`;
+        addBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+        addBtn.addEventListener('click', () => {
+          addRecipient({ email: q.toLowerCase(), name: '', uid: null });
+          input.value = '';
+          setDropdownOpen(false);
+          dropdown.innerHTML = '';
+          input.focus();
+        });
+        dropdown.appendChild(addBtn);
+      }
+      setDropdownOpen(true);
+      return;
+    }
+    clients.forEach((c, idx) => {
+      const email = String(c.email || '').trim().toLowerCase();
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'em-compose-to-option';
+      btn.dataset.idx = String(idx);
+      btn.innerHTML =
+        `${escHtml(c.name || 'Client')}` +
+        `<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+      if (!email) {
+        btn.disabled = true;
+        btn.classList.add('em-compose-to-option--disabled');
+      } else if (hasRecipient(email)) {
+        btn.disabled = true;
+        btn.classList.add('em-compose-to-option--disabled');
+      }
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('click', () => pickClient(c));
+      dropdown.appendChild(btn);
+    });
+    if (isValidEmailAddress(q) && !hasRecipient(q)) {
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'em-compose-to-option em-compose-to-option-add';
+      addBtn.textContent = `Use ${q}`;
+      addBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      addBtn.addEventListener('click', () => {
+        addRecipient({ email: q.toLowerCase(), name: '', uid: null });
+        input.value = '';
+        setDropdownOpen(false);
+        dropdown.innerHTML = '';
+        input.focus();
+      });
+      dropdown.appendChild(addBtn);
+    }
+    setDropdownOpen(true);
+  }
+
+  async function runSearch() {
+    const q = input.value.trim();
+    if (!q) {
+      try {
+        const res = await adminFetch('/api/clients?limit=20');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        renderDropdown(data.clients || [], '');
+        return;
+      } catch (e) {
+        if (e.message === 'Session expired') return;
+        dropdown.innerHTML = `<div class="em-compose-to-empty">${escHtml(e.message)}</div>`;
+        setDropdownOpen(true);
+      }
+      return;
+    }
+    try {
+      const params = new URLSearchParams({ q, limit: '20' });
+      const res = await adminFetch(`/api/clients?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      renderDropdown(data.clients || [], q);
+    } catch (e) {
+      if (e.message === 'Session expired') return;
+      dropdown.innerHTML = `<div class="em-compose-to-empty">${escHtml(e.message)}</div>`;
+      setDropdownOpen(true);
+    }
+  }
+
+  function scheduleSearch() {
+    clearTimeout(emailToSearchTimer);
+    emailToSearchTimer = setTimeout(runSearch, 250);
+  }
+
+  function commitTypedRecipient() {
+    const raw = input.value.trim().replace(/[,;]+$/, '').trim();
+    if (!raw) return false;
+    if (!isValidEmailAddress(raw)) return false;
+    const added = addRecipient({ email: raw.toLowerCase(), name: '', uid: null });
+    if (added) {
+      input.value = '';
+      setDropdownOpen(false);
+      dropdown.innerHTML = '';
+    }
+    return added;
+  }
+
+  function highlightOption(nextIdx) {
+    const options = [...dropdown.querySelectorAll('.em-compose-to-option:not(:disabled)')];
+    if (!options.length) {
+      highlightIdx = -1;
+      return;
+    }
+    highlightIdx = ((nextIdx % options.length) + options.length) % options.length;
+    options.forEach((btn, i) => btn.classList.toggle('active', i === highlightIdx));
+    options[highlightIdx]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('focus', () => scheduleSearch());
+  input.addEventListener('input', () => scheduleSearch());
+  input.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (!wrap.contains(document.activeElement)) setDropdownOpen(false);
+    }, 150);
+  });
+  input.addEventListener('keydown', (ev) => {
+    const options = [...dropdown.querySelectorAll('.em-compose-to-option:not(:disabled)')];
+    if (ev.key === 'ArrowDown') {
+      if (dropdown.style.display !== 'none' && options.length) {
+        ev.preventDefault();
+        highlightOption(highlightIdx + 1);
+      }
+      return;
+    }
+    if (ev.key === 'ArrowUp') {
+      if (dropdown.style.display !== 'none' && options.length) {
+        ev.preventDefault();
+        highlightOption(highlightIdx <= 0 ? options.length - 1 : highlightIdx - 1);
+      }
+      return;
+    }
+    if (ev.key === 'Enter' || ev.key === 'Tab' || ev.key === ',') {
+      if (dropdown.style.display !== 'none' && highlightIdx >= 0 && options[highlightIdx]) {
+        ev.preventDefault();
+        options[highlightIdx].click();
+        return;
+      }
+      if (ev.key === 'Enter' || ev.key === ',') {
+        if (commitTypedRecipient()) ev.preventDefault();
+      }
+      return;
+    }
+    if (ev.key === 'Backspace' && !input.value && recipients.length) {
+      removeRecipient(recipients[recipients.length - 1].email);
+    }
+  });
+
+  renderChips();
+
+  return {
+    getRecipients: () => recipients.map((r) => ({ ...r })),
+    focus: () => input.focus(),
+  };
+}
+
 function parseEmailAddress(from) {
   const raw = String(from || '').trim();
   const angle = raw.match(/<([^>]+)>/);
@@ -14315,7 +14632,7 @@ function buildReplyQuoteClient(ev) {
 function closeEmailCompose() {
   emailState.composing = false;
   emailState.replyToId = null;
-  emailState.compose = { to: '', subject: '', body: '' };
+  emailState.compose = { to: [], subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
@@ -14326,13 +14643,13 @@ function startNewEmail() {
   emailState.activeId = null;
   emailState.composing = true;
   emailState.replyToId = null;
-  emailState.compose = { to: '', subject: '', body: '' };
+  emailState.compose = { to: [], subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.add('em-pane-active');
   renderEmailPanel();
   syncFooterNav();
   requestAnimationFrame(() => {
-    getEmailPanel()?.querySelector('.em-compose-input')?.focus();
+    getEmailPanel()?.querySelector('.em-compose-to-input')?.focus();
   });
 }
 
@@ -14342,7 +14659,7 @@ async function startReplyEmail(ev) {
   emailState.composing = true;
   emailState.replyToId = ev.id;
   emailState.sending = false;
-  emailState.compose = { to: '', subject: '', body: '' };
+  emailState.compose = { to: [], subject: '', body: '' };
   getEmailPanel()?.classList.add('em-pane-active');
   renderEmailPanel();
   syncFooterNav();
@@ -14352,7 +14669,7 @@ async function startReplyEmail(ev) {
     (Array.isArray(full.replyTo) && full.replyTo[0]) || full.from || '',
   );
   emailState.compose = {
-    to: toAddr,
+    to: toAddr ? [{ email: toAddr, name: '', uid: null }] : [],
     subject: buildReplySubjectClient(full.subject),
     body: buildReplyQuoteClient(full),
   };
@@ -14369,16 +14686,23 @@ async function startReplyEmail(ev) {
 
 async function sendEmailCompose() {
   const { to, subject, body } = emailState.compose;
-  const toTrim = to.trim();
+  const recipients = (Array.isArray(to) ? to : [])
+    .map(normalizeEmailRecipient)
+    .filter(Boolean);
+  const toEmails = recipients.map((r) => r.email);
   const subjectTrim = subject.trim();
   const bodyTrim = body.trim();
-  if (!toTrim || !subjectTrim || !bodyTrim || emailState.sending) return;
+  if (!toEmails.length || !subjectTrim || !bodyTrim || emailState.sending) return;
 
   emailState.sending = true;
   renderEmailPanel();
 
   try {
-    const payload = { to: toTrim, subject: subjectTrim, text: bodyTrim };
+    const payload = {
+      to: toEmails.length === 1 ? toEmails[0] : toEmails,
+      subject: subjectTrim,
+      text: bodyTrim,
+    };
     if (emailState.replyToId) payload.inReplyToEmailId = emailState.replyToId;
     const res = await fetch('/api/email/send', {
       method: 'POST',
@@ -14431,17 +14755,14 @@ function renderEmailComposePane(pane) {
   const toField = document.createElement('div');
   toField.className = 'em-compose-field';
   toField.innerHTML = '<label class="em-compose-label" for="em-compose-to">To</label>';
-  const toInput = document.createElement('input');
-  toInput.id = 'em-compose-to';
-  toInput.type = 'email';
-  toInput.className = 'em-compose-input';
-  toInput.placeholder = 'client@example.com';
-  toInput.value = emailState.compose.to;
-  toInput.disabled = emailState.sending;
-  toInput.addEventListener('input', () => {
-    emailState.compose.to = toInput.value;
-  });
-  toField.appendChild(toInput);
+  mountEmailToRecipientsPicker(
+    toField,
+    emailState.compose.to,
+    (next) => {
+      emailState.compose.to = next;
+    },
+    { disabled: emailState.sending },
+  );
 
   const subjectField = document.createElement('div');
   subjectField.className = 'em-compose-field';
