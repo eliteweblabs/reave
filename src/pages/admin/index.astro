@@ -282,6 +282,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #todo-editor,
       #schedule-panel,
       #clients-editor,
+      #social-panel,
       #rule-editor,
       #home-dashboard,
       #settings-panel,
@@ -5909,6 +5910,266 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         height: 240px;
       }
 
+      /* ── Social media dashboard ── */
+      #social-panel {
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        display: none;
+        flex-direction: column;
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+      }
+      .social-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem) 1rem var(--footer-scroll-pad);
+        display: flex;
+        flex-direction: column;
+        gap: 1.1rem;
+      }
+      .soc-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .soc-title {
+        margin: 0 0 0.2rem;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .soc-sub {
+        margin: 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .soc-badge {
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+      }
+      .soc-badge--demo {
+        color: #f59e0b;
+        background: rgba(245, 158, 11, 0.14);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+      }
+      .soc-range {
+        display: inline-flex;
+        gap: 0.15rem;
+        padding: 0.2rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        background: var(--surface-muted);
+      }
+      .soc-range-btn {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 0.3rem 0.7rem;
+        border-radius: 7px;
+        cursor: pointer;
+      }
+      .soc-range-btn.active {
+        color: #fff;
+        background: var(--brand-gradient);
+      }
+      .soc-totals {
+        margin: 0;
+      }
+      .soc-total-delta--up .dash-stat-value,
+      .soc-delta--up {
+        color: #22c55e;
+      }
+      .soc-total-delta--down .dash-stat-value,
+      .soc-delta--down {
+        color: #ef4444;
+      }
+      .soc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 0.85rem;
+      }
+      .soc-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 1rem 1.05rem 1.1rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 14px;
+        background: var(--surface-muted);
+        border-top: 3px solid var(--soc-accent, var(--panel-border));
+      }
+      .soc-card-head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .soc-icon {
+        width: 26px;
+        height: 26px;
+        flex-shrink: 0;
+        display: inline-block;
+        background: var(--soc-color, #64748b);
+        -webkit-mask: var(--soc-icon) center / contain no-repeat;
+        mask: var(--soc-icon) center / contain no-repeat;
+      }
+      .soc-icon--fallback {
+        border-radius: 6px;
+      }
+      .soc-card-id {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .soc-card-name {
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+      .soc-card-handle {
+        font-size: 0.76rem;
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .soc-card-handle:hover {
+        text-decoration: underline;
+      }
+      .soc-card-followers {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+      }
+      .soc-card-count {
+        font-size: 1.7rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .soc-card-count-label {
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .soc-card-deltas {
+        display: flex;
+        gap: 0.6rem;
+      }
+      .soc-delta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .soc-delta--flat {
+        color: var(--muted);
+      }
+      .soc-delta svg {
+        width: 13px;
+        height: 13px;
+      }
+      .soc-delta-pct {
+        font-weight: 600;
+        opacity: 0.85;
+      }
+      .soc-delta-label {
+        color: var(--muted);
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 0.62rem;
+        letter-spacing: 0.03em;
+      }
+      .soc-spark {
+        width: 100%;
+        height: 44px;
+        display: block;
+      }
+      .soc-card-mini {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.35rem;
+        border-top: 1px solid var(--panel-border);
+        padding-top: 0.7rem;
+      }
+      .soc-mini {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.1rem;
+      }
+      .soc-mini-value {
+        font-size: 0.88rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .soc-mini-label {
+        font-size: 0.6rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .soc-section-title {
+        margin: 0 0 0.6rem;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+      .soc-tags {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .soc-tag-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        padding: 0.7rem 0.9rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        background: var(--surface-muted);
+      }
+      .soc-tag-name {
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+      .soc-tag-metrics {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .soc-tag-metric b {
+        color: var(--fg);
+        font-variant-numeric: tabular-nums;
+      }
+      .soc-empty-card {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        max-width: 560px;
+      }
+      .soc-empty-hint {
+        margin: 0;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+
       /* ── Settings panel (profile, company, socials, …) ── */
       #settings-panel {
         position: fixed;
@@ -6480,6 +6741,9 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
     <!-- Clients tab panel (hidden unless clients tab is active) -->
     <div id="clients-editor" style="display:none"></div>
 
+    <!-- Social dashboard panel (hidden unless social tab is active) -->
+    <div id="social-panel" style="display:none" aria-label="Social"></div>
+
     <div id="rule-editor" style="display:none"></div>
 
     <div id="newsletter-editor" style="display:none"></div>
@@ -6560,6 +6824,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260718g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260718h"></script>
   </body>
 </html>

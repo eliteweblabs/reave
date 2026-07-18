@@ -131,6 +131,7 @@ const MAP_ICON_KEYS = {
   work: 'briefcase',
   schedule: 'calendar',
   clients: 'users',
+  social: 'trending-up',
   finance: 'wallet',
   profile: 'user',
   company: 'building-2',
@@ -211,6 +212,8 @@ const NAV_ICON_PATHS = {
   'calendar-check':
     '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'trending-up': '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  'trending-down': '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
   wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
   database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
   'help-circle': '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
@@ -477,6 +480,7 @@ function isPanelMapKey(key) {
     t === 'knowledge' ||
     t === 'work' ||
     t === 'clients' ||
+    t === 'social' ||
     t === 'chats' ||
     t === 'email' ||
     t === 'todo' ||
@@ -509,6 +513,8 @@ function activateMapPanel(opts = {}) {
     loadScheduleTab();
   } else if (MAP.type === 'clients') {
     loadClientsTab({ clientUid: opts.clientUid });
+  } else if (MAP.type === 'social') {
+    loadSocialTab();
   } else if (MAP.type === 'chats') {
     if (opts.chatId) pendingChatDeepLinkId = opts.chatId;
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -540,6 +546,7 @@ function isPanelTab() {
     MAP.type === 'work' ||
     MAP.type === 'schedule' ||
     MAP.type === 'clients' ||
+    MAP.type === 'social' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
     MAP.type === 'rules' ||
@@ -565,6 +572,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('work-editor', MAP.type === 'work' ? 'flex' : 'none');
   setPanelDisplay('schedule-panel', MAP.type === 'schedule' ? 'flex' : 'none');
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
+  setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
@@ -2578,6 +2586,263 @@ async function loadHomeDashboard() {
     root.innerHTML =
       `<div class="home-dashboard-scroll">` +
         `<p class="dash-empty">Could not load dashboard: ${escHtml(e.message)}</p>` +
+      `</div>`;
+  }
+}
+
+// ---- Social media dashboard ----
+let socialRangeDays = 30;
+
+const SOCIAL_PLATFORM_UI = {
+  twitter: { slug: 'x', color: '#1d9bf0' },
+  instagram: { slug: 'instagram', color: '#e1306c' },
+  linkedin: { slug: 'linkedin', color: '#0a66c2' },
+  facebook: { slug: 'facebook', color: '#1877f2' },
+  youtube: { slug: 'youtube', color: '#ff0000' },
+  tiktok: { slug: 'tiktok', color: '#ff0050' },
+};
+
+const SOCIAL_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
+
+function socialNumFmt(n) {
+  const num = Number(n) || 0;
+  if (Math.abs(num) >= 1000) {
+    return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(num);
+  }
+  return String(Math.round(num));
+}
+
+function socialDeltaHtml(delta, label) {
+  const abs = Number(delta?.absolute) || 0;
+  const pct = Number(delta?.percent) || 0;
+  const dir = abs > 0 ? 'up' : abs < 0 ? 'down' : 'flat';
+  const icon = dir === 'down' ? 'trending-down' : 'trending-up';
+  const sign = abs > 0 ? '+' : abs < 0 ? '−' : '';
+  const pctSign = pct > 0 ? '+' : pct < 0 ? '−' : '';
+  return (
+    `<span class="soc-delta soc-delta--${dir}">` +
+      (dir === 'flat' ? '' : navIcon(icon, 14)) +
+      `<span class="soc-delta-val">${sign}${socialNumFmt(Math.abs(abs))}</span>` +
+      `<span class="soc-delta-pct">${pctSign}${Math.abs(pct)}%</span>` +
+      (label ? `<span class="soc-delta-label">${escHtml(label)}</span>` : '') +
+    `</span>`
+  );
+}
+
+function socialSparkline(series, color) {
+  const pts = Array.isArray(series) ? series : [];
+  if (pts.length < 2) return '';
+  const W = 240;
+  const H = 48;
+  const pad = 3;
+  const values = pts.map((p) => Number(p.value) || 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 1;
+  const stepX = (W - pad * 2) / (values.length - 1);
+  const coords = values.map((v, i) => {
+    const x = pad + i * stepX;
+    const y = pad + (H - pad * 2) * (1 - (v - min) / span);
+    return [x, y];
+  });
+  const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area =
+    `${pad},${H - pad} ` + line + ` ${(W - pad).toFixed(1)},${H - pad}`;
+  return (
+    `<svg class="soc-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">` +
+      `<polygon class="soc-spark-fill" points="${area}" fill="${color}" opacity="0.12" />` +
+      `<polyline points="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />` +
+    `</svg>`
+  );
+}
+
+function socialPlatformIcon(platform) {
+  const ui = SOCIAL_PLATFORM_UI[platform];
+  if (!ui) return `<span class="soc-icon soc-icon--fallback"></span>`;
+  return (
+    `<span class="soc-icon" style="--soc-color:${ui.color};` +
+    `--soc-icon:url('${ICON_CDN(ui.slug)}')"></span>`
+  );
+}
+
+function socialMiniStat(value, label) {
+  return (
+    `<div class="soc-mini">` +
+      `<span class="soc-mini-value">${escHtml(socialNumFmt(value))}</span>` +
+      `<span class="soc-mini-label">${escHtml(label)}</span>` +
+    `</div>`
+  );
+}
+
+function socialPlatformCard(p) {
+  const ui = SOCIAL_PLATFORM_UI[p.platform] || { color: '#64748b' };
+  return (
+    `<div class="soc-card" style="--soc-accent:${ui.color}">` +
+      `<div class="soc-card-head">` +
+        socialPlatformIcon(p.platform) +
+        `<div class="soc-card-id">` +
+          `<span class="soc-card-name">${escHtml(p.label)}</span>` +
+          `<a class="soc-card-handle" href="${escHtml(p.url)}" target="_blank" rel="noopener noreferrer">@${escHtml(p.handle)}</a>` +
+        `</div>` +
+      `</div>` +
+      `<div class="soc-card-followers">` +
+        `<span class="soc-card-count">${escHtml(socialNumFmt(p.followers))}</span>` +
+        `<span class="soc-card-count-label">${escHtml(p.followersLabel || 'Followers')}</span>` +
+      `</div>` +
+      `<div class="soc-card-deltas">` +
+        socialDeltaHtml(p.change?.week, 'wk') +
+        socialDeltaHtml(p.change?.month, 'mo') +
+      `</div>` +
+      socialSparkline(p.followerSeries, ui.color) +
+      `<div class="soc-card-mini">` +
+        socialMiniStat(p.posts, 'Posts') +
+        socialMiniStat(p.mentions, 'Mentions') +
+        socialMiniStat(p.reactions, 'Reactions') +
+        socialMiniStat(`${p.engagementRate}%`, 'Engagement') +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function socialHashtagRow(h) {
+  return (
+    `<div class="soc-tag-row">` +
+      `<span class="soc-tag-name">${escHtml(h.tag)}</span>` +
+      `<div class="soc-tag-metrics">` +
+        `<span class="soc-tag-metric"><b>${escHtml(socialNumFmt(h.mentions))}</b> mentions</span>` +
+        `<span class="soc-tag-metric"><b>${escHtml(socialNumFmt(h.reach))}</b> reach</span>` +
+        socialDeltaHtml(h.change, '') +
+      `</div>` +
+    `</div>`
+  );
+}
+
+function socialRangeTabs() {
+  return (
+    `<div class="soc-range" role="tablist" aria-label="Reporting window">` +
+      [7, 30, 90]
+        .map(
+          (d) =>
+            `<button type="button" class="soc-range-btn${d === socialRangeDays ? ' active' : ''}" data-social-range="${d}">${d}d</button>`,
+        )
+        .join('') +
+    `</div>`
+  );
+}
+
+function renderSocialDashboard(root, d) {
+  const platforms = Array.isArray(d?.platforms) ? d.platforms : [];
+  const totals = d?.totals || {};
+  const hashtags = Array.isArray(d?.hashtags) ? d.hashtags : [];
+  const rangeLabel = SOCIAL_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
+
+  const providerNote = d?.live
+    ? ''
+    : `<span class="soc-badge soc-badge--demo">Demo data</span>`;
+
+  const header =
+    `<div class="soc-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">Social ${providerNote}</h1>` +
+        `<p class="soc-sub">Followers, engagement and mentions across your connected profiles · ${escHtml(rangeLabel)}</p>` +
+      `</div>` +
+      socialRangeTabs() +
+    `</div>`;
+
+  if (!platforms.length) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">No social profiles are connected yet.</p>` +
+          `<p class="soc-empty-hint">Add your handles under <b>Socials</b> and they'll show up here automatically.</p>` +
+          `<button type="button" class="prof-btn-secondary" data-social-open-settings>Open Socials settings</button>` +
+        `</div>` +
+      `</div>`;
+    bindSocialControls(root);
+    return;
+  }
+
+  const statsEl =
+    `<div class="dash-stats soc-totals">` +
+      buildSocialTotal(socialNumFmt(totals.followers ?? 0), 'Total followers', d.accounts + ' profiles') +
+      buildSocialTotalDelta(totals.followersChangeWeek, 'Followers this week') +
+      buildSocialTotalDelta(totals.followersChangeMonth, 'Followers this month') +
+      buildSocialTotal(socialNumFmt(totals.posts ?? 0), 'Posts', rangeLabel) +
+      buildSocialTotal(socialNumFmt(totals.mentions ?? 0), 'Mentions', rangeLabel) +
+      buildSocialTotal(socialNumFmt(totals.reactions ?? 0), 'Reactions', rangeLabel) +
+    `</div>`;
+
+  const cards =
+    `<div class="soc-grid">` + platforms.map(socialPlatformCard).join('') + `</div>`;
+
+  const tags = hashtags.length
+    ? `<div class="soc-section">` +
+        `<h2 class="soc-section-title">Tracked hashtags</h2>` +
+        `<div class="soc-tags">` + hashtags.map(socialHashtagRow).join('') + `</div>` +
+      `</div>`
+    : '';
+
+  root.innerHTML =
+    `<div class="social-scroll">` + header + statsEl + cards + tags + `</div>`;
+  bindSocialControls(root);
+}
+
+function buildSocialTotal(value, label, hint) {
+  return (
+    `<div class="dash-stat dash-stat--muted">` +
+      `<span class="dash-stat-value">${escHtml(String(value))}</span>` +
+      `<span class="dash-stat-label">${escHtml(label)}</span>` +
+      (hint ? `<span class="dash-stat-hint">${escHtml(hint)}</span>` : '') +
+    `</div>`
+  );
+}
+
+function buildSocialTotalDelta(delta, label) {
+  const abs = Number(delta?.absolute) || 0;
+  const dir = abs > 0 ? 'up' : abs < 0 ? 'down' : 'flat';
+  const sign = abs > 0 ? '+' : abs < 0 ? '−' : '';
+  const pct = Number(delta?.percent) || 0;
+  const pctSign = pct > 0 ? '+' : pct < 0 ? '−' : '';
+  return (
+    `<div class="dash-stat dash-stat--muted soc-total-delta soc-total-delta--${dir}">` +
+      `<span class="dash-stat-value">${sign}${escHtml(socialNumFmt(Math.abs(abs)))}</span>` +
+      `<span class="dash-stat-label">${escHtml(label)}</span>` +
+      `<span class="dash-stat-hint">${pctSign}${Math.abs(pct)}%</span>` +
+    `</div>`
+  );
+}
+
+function bindSocialControls(root) {
+  root.querySelectorAll('[data-social-range]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = Number(btn.getAttribute('data-social-range'));
+      if (!next || next === socialRangeDays) return;
+      socialRangeDays = next;
+      void loadSocialTab();
+    });
+  });
+  const settingsBtn = root.querySelector('[data-social-open-settings]');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => setActiveMap('socials'));
+  }
+}
+
+async function loadSocialTab() {
+  const root = document.getElementById('social-panel');
+  if (!root) return;
+  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading social dashboard…</div></div>';
+
+  try {
+    const res = await fetch(`/api/admin/social?range=${socialRangeDays}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderSocialDashboard(root, data.dashboard);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Social</h1>` +
+        `<p class="dash-empty">Could not load social dashboard: ${escHtml(e.message)}</p></div>` +
       `</div>`;
   }
 }
