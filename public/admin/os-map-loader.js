@@ -9895,7 +9895,7 @@ function renderSchedulePanel() {
       mapKey: 'schedule',
       iconName: 'calendar',
       bodyHtml: '<p>Select an event to view guest details, or book a new time.</p>',
-      btnLabel: 'Book Time',
+      btnLabel: 'book meeting.',
       onCreate: () => scheduleOpenCreateDialog(),
     });
   }
