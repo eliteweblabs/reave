@@ -82,6 +82,13 @@ export function defaultVapidSubjectFromCompany(company: CompanyConfig): string {
   return 'mailto:noreply@localhost';
 }
 
+export type CompanyGeo = {
+  lat: number;
+  lng: number;
+  placeId?: string;
+  geocodedAt?: string;
+};
+
 export type CompanyConfig = {
   /** Display name (titles, emails, "Powered by …"). */
   name: string;
@@ -96,6 +103,9 @@ export type CompanyConfig = {
   supportPhone: string;
   /** Default outbound From address (local part + domain). */
   fromEmail: string;
+  /** Office / business street address (maps, directions, meeting defaults). */
+  address: string;
+  geo?: CompanyGeo;
   /** Root-relative or absolute logo URL; empty = hidden. */
   logoPath: string;
   /** Where logoPath came from — drives homepage hero behavior. */
@@ -196,6 +206,17 @@ export function homepageHeroLogo(company: CompanyConfig): string | null {
   return companyLogoUrl(company.logoPath, company.logoVersion) || '/logo.png';
 }
 
+function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | undefined {
+  const geo = stored?.geo;
+  if (!geo || !Number.isFinite(geo.lat) || !Number.isFinite(geo.lng)) return undefined;
+  return {
+    lat: geo.lat,
+    lng: geo.lng,
+    placeId: trim(geo.placeId) || undefined,
+    geocodedAt: trim(geo.geocodedAt) || undefined,
+  };
+}
+
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
   const domain = domainFromEnvOrRequest(request);
   const logo = resolveLogo(stored);
@@ -218,6 +239,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     serverEnv('COMPANY_FROM_EMAIL'),
     domain ? `noreply@${domain}` : '',
   );
+  const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
+  const geo = resolveCompanyGeo(stored);
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
     serverEnv('VAPI_ASSISTANT_ID'),
@@ -232,6 +255,8 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     supportEmail,
     supportPhone,
     fromEmail,
+    address,
+    geo,
     vapiAssistantId,
     vapiFirstMessage: stored?.vapiFirstMessage?.trim() || '',
     vapiSystemPrompt: stored?.vapiSystemPrompt?.trim() || '',
@@ -277,6 +302,8 @@ export type CompanyConfigInput = {
   supportEmail?: string;
   supportPhone?: string;
   fromEmail?: string;
+  address?: string;
+  geo?: CompanyGeo | null;
   vapiAssistantId?: string;
   vapiFirstMessage?: string;
   vapiSystemPrompt?: string;
@@ -296,6 +323,7 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.supportEmail !== undefined) out.supportEmail = trim(input.supportEmail) || null;
   if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
   if (input.fromEmail !== undefined) out.fromEmail = trim(input.fromEmail) || null;
+  if (input.address !== undefined) out.address = trim(input.address) || null;
   if (input.vapiAssistantId !== undefined) out.vapiAssistantId = trim(input.vapiAssistantId) || null;
   if (input.vapiFirstMessage !== undefined) {
     out.vapiFirstMessage = input.vapiFirstMessage.trim() ? input.vapiFirstMessage : null;
@@ -310,4 +338,44 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.socialYoutube !== undefined) out.socialYoutube = trim(input.socialYoutube) || null;
   if (input.socialTiktok !== undefined) out.socialTiktok = trim(input.socialTiktok) || null;
   return out;
+}
+
+/** Resolve geocoordinates when saving a company address. */
+export async function resolveCompanyAddressGeo(
+  addressInput: string | undefined | null,
+  geoInput: CompanyGeo | null | undefined,
+  previousAddress?: string | null,
+): Promise<StoredCompanyConfig['geo']> {
+  const address = trim(addressInput);
+  if (!address) return null;
+
+  const prev = trim(previousAddress);
+  const coordsMissing =
+    !geoInput || !Number.isFinite(geoInput.lat) || !Number.isFinite(geoInput.lng);
+  const addressChanged = address !== prev;
+
+  if (!coordsMissing && !addressChanged) {
+    return {
+      lat: geoInput.lat,
+      lng: geoInput.lng,
+      placeId: geoInput.placeId || null,
+      geocodedAt: geoInput.geocodedAt || new Date().toISOString(),
+    };
+  }
+
+  const { geocodeAddress } = await import('./mapbox');
+  const geocoded = await geocodeAddress(address);
+  if (!geocoded) return coordsMissing ? null : {
+    lat: geoInput!.lat,
+    lng: geoInput!.lng,
+    placeId: geoInput!.placeId || null,
+    geocodedAt: geoInput!.geocodedAt || null,
+  };
+
+  return {
+    lat: geocoded.lat,
+    lng: geocoded.lng,
+    placeId: geocoded.placeId || null,
+    geocodedAt: geocoded.geocodedAt || new Date().toISOString(),
+  };
 }

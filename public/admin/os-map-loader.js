@@ -2782,6 +2782,7 @@ async function flushSettingsAutosave() {
     await settingsAutosaveFlush();
     settingsAutosaveFlush = null;
   }
+  destroyCompanyMap();
 }
 
 function showProfileAlert(el, msg, type) {
@@ -2878,17 +2879,93 @@ function bindProfileForm(root) {
   });
 }
 
-function bindCompanyForm(root) {
+let companyMapController = null;
+let companyPendingGeo = null;
+let destroyCompanyAddressAutocomplete = null;
+
+function destroyCompanyMap() {
+  if (companyMapController) {
+    companyMapController.destroy();
+    companyMapController = null;
+  }
+  if (destroyCompanyAddressAutocomplete) {
+    destroyCompanyAddressAutocomplete();
+    destroyCompanyAddressAutocomplete = null;
+  }
+  companyPendingGeo = null;
+}
+
+function bindCompanyForm(root, company) {
+  destroyCompanyMap();
+
+  const addressInput = root.querySelector('#company-address');
+  const mapHost = root.querySelector('#company-map-host');
+  if (mapHost) {
+    companyMapController = createClientMap(mapHost, {
+      token: window.__mapboxAccessToken,
+      lat: company?.geo?.lat,
+      lng: company?.geo?.lng,
+      address: company?.address || '',
+      showDirections: false,
+    });
+  }
+
+  if (addressInput) {
+    destroyCompanyAddressAutocomplete = mountAddressAutocomplete(
+      addressInput,
+      root.closest('.profile-panel-scroll') || document.getElementById('settings-panel'),
+      async (pickedAddress) => {
+        companyPendingGeo = await geocodeClientAddressPreview(pickedAddress);
+        if (companyPendingGeo && companyMapController) {
+          companyMapController.setLocation(
+            companyPendingGeo.lat,
+            companyPendingGeo.lng,
+            pickedAddress,
+          );
+        }
+      },
+    );
+
+    addressInput.addEventListener('input', () => {
+      companyPendingGeo = null;
+    });
+    addressInput.addEventListener('blur', () => {
+      void (async () => {
+        const q = addressInput.value.trim();
+        if (!q) {
+          companyMapController?.setLocation(null, null, '');
+          return;
+        }
+        const geo = await geocodeClientAddressPreview(q);
+        if (geo) {
+          companyPendingGeo = geo;
+          companyMapController?.setLocation(geo.lat, geo.lng, q);
+        }
+      })();
+    });
+
+    if (company?.address?.trim() && !company?.geo?.lat) {
+      void geocodeClientAddressPreview(company.address).then((geo) => {
+        if (geo && companyMapController) {
+          companyPendingGeo = geo;
+          companyMapController.setLocation(geo.lat, geo.lng, company.address);
+        }
+      });
+    }
+  }
+
   bindAutosaveForm(root, {
     formSelector: '#company-form',
     alertEl: root.querySelector('#company-alert'),
     async save(payload) {
+      if (companyPendingGeo) payload.geo = companyPendingGeo;
       const res = await fetch('/api/admin/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const json = await res.json();
+      if (res.ok) companyPendingGeo = null;
       return { ok: res.ok, error: json.error };
     },
   });
@@ -3098,6 +3175,10 @@ function renderCompanyPanel(company) {
           `<span class="prof-hint">Used in contracts and NDAs. Defaults to display name if empty.</span></div>` +
           `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
           `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
+          `<div class="prof-field"><label for="company-address">Business address</label>` +
+          `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="123 Main St, Boston, MA 02108" autocomplete="street-address" autocapitalize="words" />` +
+          `<span class="prof-hint prof-hint--block">Office location for the map below, driving directions, and address autocomplete defaults.</span></div>` +
+          `<div id="company-map-host" class="cl-map-section"></div>` +
           `<div class="prof-field"><label for="company-logo-file">Logo</label>` +
           `<div class="prof-logo-upload">` +
             `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(companyLogoPreviewUrl(c))}" alt="" ${companyLogoPreviewUrl(c) ? '' : 'hidden'} />` +
@@ -3222,6 +3303,7 @@ async function loadProfileTab() {
 
 async function loadCompanyTab() {
   await flushSettingsAutosave();
+  destroyCompanyMap();
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
@@ -3231,7 +3313,7 @@ async function loadCompanyTab() {
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
     root.innerHTML = renderCompanyPanel(companyData.company);
-    bindCompanyForm(root);
+    bindCompanyForm(root, companyData.company);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +

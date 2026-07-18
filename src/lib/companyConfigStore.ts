@@ -14,6 +14,13 @@ export type StoredCompanyLogo = {
   mediaType: string;
 };
 
+export type StoredCompanyGeo = {
+  lat: number;
+  lng: number;
+  placeId?: string | null;
+  geocodedAt?: string | null;
+};
+
 export type StoredCompanyConfig = {
   name?: string | null;
   legalName?: string | null;
@@ -22,6 +29,9 @@ export type StoredCompanyConfig = {
   supportEmail?: string | null;
   supportPhone?: string | null;
   fromEmail?: string | null;
+  /** Office / business street address (admin Company panel + map). */
+  address?: string | null;
+  geo?: StoredCompanyGeo | null;
   /** Legacy external/path override; empty string = hide default logo. */
   logoPath?: string | null;
   logoData?: string | null;
@@ -68,6 +78,11 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_linkedin TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_facebook TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_youtube TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_tiktok TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lat DOUBLE PRECISION;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lng DOUBLE PRECISION;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_place_id TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_geocoded_at TIMESTAMPTZ;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -130,6 +145,27 @@ function configFilePath(): string {
   return join(projectRoot(), 'src', 'knowledge', 'company-config.json');
 }
 
+function parseStoredGeo(raw: unknown): StoredCompanyGeo | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const lat = Number((raw as { lat?: unknown }).lat);
+  const lng = Number((raw as { lng?: unknown }).lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const placeId =
+    typeof (raw as { placeId?: unknown }).placeId === 'string'
+      ? (raw as { placeId: string }).placeId.trim()
+      : '';
+  const geocodedAt =
+    typeof (raw as { geocodedAt?: unknown }).geocodedAt === 'string'
+      ? (raw as { geocodedAt: string }).geocodedAt.trim()
+      : '';
+  return {
+    lat,
+    lng,
+    placeId: placeId || null,
+    geocodedAt: geocodedAt || null,
+  };
+}
+
 function normalizeStored(raw: unknown): StoredCompanyConfig {
   if (!raw || typeof raw !== 'object') return {};
   const o = raw as Record<string, unknown>;
@@ -137,6 +173,14 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     const v = o[k];
     return typeof v === 'string' ? v.trim() : '';
   };
+  const geo =
+    parseStoredGeo(o.geo) ||
+    parseStoredGeo({
+      lat: o.geoLat ?? o.geo_lat,
+      lng: o.geoLng ?? o.geo_lng,
+      placeId: o.geoPlaceId ?? o.geo_place_id,
+      geocodedAt: o.geoGeocodedAt ?? o.geo_geocoded_at,
+    });
   return {
     name: str('name') || null,
     legalName: str('legalName') || null,
@@ -145,6 +189,8 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     supportEmail: str('supportEmail') || null,
     supportPhone: str('supportPhone') || null,
     fromEmail: str('fromEmail') || null,
+    address: str('address') || null,
+    geo,
     logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
     logoData: typeof o.logoData === 'string' && o.logoData ? o.logoData : null,
     logoMediaType: typeof o.logoMediaType === 'string' && o.logoMediaType ? o.logoMediaType.trim() : null,
@@ -207,13 +253,19 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     social_facebook: string | null;
     social_youtube: string | null;
     social_tiktok: string | null;
+    address: string | null;
+    geo_lat: number | null;
+    geo_lng: number | null;
+    geo_place_id: string | null;
+    geo_geocoded_at: Date | string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
             logo_path, logo_data, logo_media_type,
             vapi_assistant_id, vapi_first_message, vapi_system_prompt,
             social_twitter, social_instagram, social_linkedin, social_facebook,
-            social_youtube, social_tiktok, updated_at
+            social_youtube, social_tiktok, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
+            updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -238,6 +290,16 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     socialFacebook: row.social_facebook,
     socialYoutube: row.social_youtube,
     socialTiktok: row.social_tiktok,
+    address: row.address,
+    geo:
+      row.geo_lat != null && row.geo_lng != null
+        ? {
+            lat: row.geo_lat,
+            lng: row.geo_lng,
+            placeId: row.geo_place_id,
+            geocodedAt: row.geo_geocoded_at ? String(row.geo_geocoded_at) : null,
+          }
+        : null,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -266,6 +328,11 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        social_facebook = $17,
        social_youtube = $18,
        social_tiktok = $19,
+       address = $20,
+       geo_lat = $21,
+       geo_lng = $22,
+       geo_place_id = $23,
+       geo_geocoded_at = $24,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -288,6 +355,11 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.socialFacebook ?? null,
       config.socialYoutube ?? null,
       config.socialTiktok ?? null,
+      config.address ?? null,
+      config.geo?.lat ?? null,
+      config.geo?.lng ?? null,
+      config.geo?.placeId ?? null,
+      config.geo?.geocodedAt ? new Date(config.geo.geocodedAt) : null,
     ],
   );
   return true;

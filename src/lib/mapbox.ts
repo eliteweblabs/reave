@@ -1,5 +1,6 @@
 import { serverEnv } from './serverEnv';
 import { getMapboxAccessToken } from './mapboxAccessToken';
+import { getStoredCompanyConfig } from './companyConfigStore';
 import type { ClientPortalGeo } from './contactApi';
 
 export type GeocodeResult = ClientPortalGeo & {
@@ -20,6 +21,10 @@ export type DirectionsResult = {
 };
 
 let officeCoordsCache: { lat: number; lng: number; label: string } | null | undefined;
+
+export function invalidateOfficeCoordsCache(): void {
+  officeCoordsCache = undefined;
+}
 
 function cleanAddress(address: string | undefined): string {
   if (!address) return '';
@@ -66,9 +71,32 @@ export async function geocodeAddress(query: string): Promise<GeocodeResult | nul
   };
 }
 
-/** Office / job-site origin for driving directions (BOOKING_DEFAULT_ADDRESS). */
+/** Office / job-site origin for driving directions (company address, then BOOKING_DEFAULT_ADDRESS). */
 export async function getOfficeCoordinates(): Promise<{ lat: number; lng: number; label: string } | null> {
   if (officeCoordsCache !== undefined) return officeCoordsCache;
+
+  const stored = await getStoredCompanyConfig();
+  const storedAddress = stored?.address?.trim() || '';
+  if (storedAddress) {
+    if (stored?.geo && Number.isFinite(stored.geo.lat) && Number.isFinite(stored.geo.lng)) {
+      officeCoordsCache = {
+        lat: stored.geo.lat,
+        lng: stored.geo.lng,
+        label: storedAddress,
+      };
+      return officeCoordsCache;
+    }
+
+    const geocodedStored = await geocodeAddress(storedAddress);
+    if (geocodedStored) {
+      officeCoordsCache = {
+        lat: geocodedStored.lat,
+        lng: geocodedStored.lng,
+        label: geocodedStored.resolved || storedAddress,
+      };
+      return officeCoordsCache;
+    }
+  }
 
   const label = serverEnv('BOOKING_DEFAULT_ADDRESS')?.trim() || '';
   if (!label) {

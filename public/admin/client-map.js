@@ -89,6 +89,10 @@ export function createClientMap(container, opts = {}) {
   container.classList.add('cl-map-wrap');
   container.replaceChildren(metaEl, mapEl, emptyEl, actions);
 
+  if (opts.showDirections === false) {
+    directionsBtn.hidden = true;
+  }
+
   function syncEmptyState() {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
     emptyEl.hidden = !!hasGeo;
