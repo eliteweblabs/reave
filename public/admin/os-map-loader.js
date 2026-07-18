@@ -2050,7 +2050,7 @@ async function runMeetingConfirmChecklist(item) {
         actionsEl.innerHTML = '';
         const doneBtn = document.createElement('button');
         doneBtn.type = 'button';
-        doneBtn.className = 'os-dialog-btn';
+        doneBtn.className = 'os-dialog-btn os-dialog-btn--primary';
         doneBtn.textContent = 'Done';
         doneBtn.addEventListener('click', async () => {
           finish({ ok: true, data });
@@ -8863,7 +8863,7 @@ function ensureScheduleAddress(initial = readScheduleLastAddress()) {
     };
 
     mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(null));
-    mkBtn('Continue', '', () => {
+    mkBtn('Continue', 'os-dialog-btn--primary', () => {
       const address = addressInput?.value.trim() || '';
       if (!address) {
         addressInput?.focus();
@@ -9299,7 +9299,7 @@ function openScheduleCreateDialog(initial = {}) {
 
     mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
 
-    const saveBtn = mkBtn('Add event', '', async () => {
+    const saveBtn = mkBtn('Add event', 'os-dialog-btn--primary', async () => {
       if (!form.reportValidity()) return;
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
@@ -10789,7 +10789,7 @@ function osDialog(opts) {
     }
     const primary = mkBtn(
       opts.confirmLabel || 'OK',
-      opts.danger ? 'os-dialog-btn--danger' : '',
+      opts.danger ? 'os-dialog-btn--danger' : 'os-dialog-btn--primary',
       true,
     );
 
@@ -13318,7 +13318,7 @@ function showEmailScheduleDialog(ev, check) {
     if (check.available) {
       const bookBtn = document.createElement('button');
       bookBtn.type = 'button';
-      bookBtn.className = 'os-dialog-btn';
+      bookBtn.className = 'os-dialog-btn os-dialog-btn--primary';
       bookBtn.textContent = 'Book meeting';
       bookBtn.addEventListener('click', async () => {
         const address = addressInput?.value.trim() || '';
