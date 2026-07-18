@@ -396,17 +396,18 @@ const companyBrand = { contactsLabel: 'Clients' };
     </div>
 
     <script>
-      const form = document.getElementById('import-form');
+      const form = document.getElementById('import-form') as HTMLFormElement | null;
       const statusDiv = document.getElementById('import-status');
-      const submitBtn = form.querySelector('button[type="submit"]');
+      const submitBtn = form?.querySelector('button[type="submit"]') as HTMLButtonElement | null;
 
-      form.addEventListener('submit', async (e) => {
+      form?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const fileInput = document.getElementById('file-input');
-        const updateExisting = document.getElementById('update-existing').checked;
+        const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
+        const updateExistingEl = document.getElementById('update-existing') as HTMLInputElement | null;
+        const updateExisting = updateExistingEl?.checked ?? false;
 
-        if (!fileInput.files || fileInput.files.length === 0) {
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
           showAlert('error', 'Please select a file to import.');
           return;
         }
@@ -415,9 +416,13 @@ const companyBrand = { contactsLabel: 'Clients' };
         formData.append('file', fileInput.files[0]);
         formData.append('updateExisting', updateExisting ? 'true' : 'false');
 
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Importing...';
-        statusDiv.innerHTML = '<div class="import-alert import-alert-info">Importing contacts...</div>';
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Importing...';
+        }
+        if (statusDiv) {
+          statusDiv.innerHTML = '<div class="import-alert import-alert-info">Importing contacts...</div>';
+        }
 
         try {
           const response = await fetch('/api/contacts/import', {
@@ -429,23 +434,33 @@ const companyBrand = { contactsLabel: 'Clients' };
 
           if (result.ok && result.results) {
             showResults(result.results);
-            form.reset();
+            form?.reset();
           } else {
             showAlert('error', result.error || 'Import failed');
           }
         } catch (error) {
-          showAlert('error', 'Import failed: ' + error.message);
+          showAlert('error', 'Import failed: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Import Contacts';
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Import Contacts';
+          }
         }
       });
 
-      function showAlert(type, message) {
+      function showAlert(type: string, message: string) {
+        if (!statusDiv) return;
         statusDiv.innerHTML = `<div class="import-alert import-alert-${type}">${message}</div>`;
       }
 
-      function showResults(results) {
+      function showResults(results: {
+        created: number;
+        updated: number;
+        skipped: number;
+        total: number;
+        errors?: string[];
+      }) {
+        if (!statusDiv) return;
         const hasErrors = results.errors && results.errors.length > 0;
         const successCount = results.created + results.updated;
 
@@ -458,11 +473,11 @@ const companyBrand = { contactsLabel: 'Clients' };
         html += `<div class="import-stat"><div class="import-stat-value">${results.total}</div><div class="import-stat-label">Total</div></div>`;
         html += '</div>';
 
-        if (hasErrors) {
+        if (hasErrors && results.errors) {
           html += '<div class="import-errors">';
           html += `<div class="import-errors-title">Errors (${results.errors.length})</div>`;
           html += '<ul class="import-error-list">';
-          results.errors.slice(0, 10).forEach(error => {
+          results.errors.slice(0, 10).forEach((error: string) => {
             html += `<li class="import-error-item">${error}</li>`;
           });
           if (results.errors.length > 10) {

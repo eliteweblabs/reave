@@ -223,6 +223,8 @@ export async function cloudflareVerifyToken(): Promise<CfResult<{ id: string; st
 
   return {
     ok: false,
-    error: userVerify.error || accounts.ok === false ? accounts.error : 'Cloudflare token could not be verified',
+    error:
+      userVerify.error ||
+      (accounts.ok ? 'Cloudflare token could not be verified' : accounts.error),
   };
 }

@@ -8,7 +8,7 @@ import {
   storeListEmailInbox,
   computeInboxDigest,
   toEmailInboxListRecord,
-  type EmailInboxRecord,
+  type EmailInboxListRecord,
 } from '../../../lib/emailInboxStore';
 import { countReviewNotifications } from '../../../lib/emailAutomation';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
@@ -17,7 +17,7 @@ import { isPushConfigured } from '../../../lib/webPush';
 
 export const prerender = false;
 
-function enrichEmailEvent(event: EmailInboxRecord) {
+function enrichEmailEvent(event: EmailInboxListRecord) {
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   return {
     ...event,

@@ -23,7 +23,6 @@ import {
   Monitor,
   Wallet,
   ClipboardList,
-  type LucideIcon,
 } from 'lucide-astro';
 
 export const prerender = false;
@@ -34,7 +33,7 @@ const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
 
 /** Same Lucide set as admin header/footer nav, mapped to deck sections. */
-const DOCK_ICONS: Record<string, LucideIcon> = {
+const DOCK_ICONS: Record<string, typeof Home> = {
   homepage: Home,
   pwa: Bell,
   scheduling: Calendar,

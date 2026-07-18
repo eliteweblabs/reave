@@ -9,7 +9,7 @@ import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfi
 import { serverEnv } from './serverEnv';
 
 /** Sync cache — updated whenever getCompanyConfig resolves. */
-let _cachedName = SITE.name;
+let _cachedName: string = SITE.name;
 let _cachedDomain = '';
 
 export type CompanyBrandContext = {
@@ -36,19 +36,20 @@ export function cachedCompanyDomain(): string {
 export function defaultBrandContext(): CompanyBrandContext {
   return companyToBrandContext({
     name: SITE.name,
-    legalName: SITE.name,
     description: SITE.description,
     domain: cachedCompanyDomain(),
     supportEmail: '',
-    supportPhone: '',
     fromEmail: '',
-    logoPath: SITE.logoPath,
-    logoSource: 'default',
-    logoVersion: '',
   });
 }
 
-export function companyToBrandContext(company: CompanyConfig, request?: Request): CompanyBrandContext {
+/** Fields companyToBrandContext actually reads — accepts a full CompanyConfig too. */
+type CompanyBrandSource = Pick<
+  CompanyConfig,
+  'name' | 'description' | 'domain' | 'supportEmail' | 'fromEmail'
+>;
+
+export function companyToBrandContext(company: CompanyBrandSource, request?: Request): CompanyBrandContext {
   const name = trim(company.name) || SITE.name;
   const domain = trim(company.domain);
   const siteUrl = domain

@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export interface LighthouseAuditResult {
   categories: {
     performance: { score: number };

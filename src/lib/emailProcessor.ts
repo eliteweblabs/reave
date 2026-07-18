@@ -231,7 +231,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     ? await resolveContact({ email: senderEmail })
     : null;
   const contact = contactRes?.ok ? extractContact(contactRes.data) : null;
-  const contactEmailOnRecord = contactRes?.ok ? contactRes.data.email ?? null : null;
+  const contactEmailOnRecord = contactRes?.ok
+    ? ((contactRes.data as { contact?: { email?: string | null } }).contact?.email ?? null)
+    : null;
   if (contact) {
     contactUid = contact.uid;
     contactName = contact.name;
@@ -502,7 +504,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       summary,
       bodyText,
       bodySnippet: snippet(bodyText),
-      receivedAt: record.receivedAt,
+      receivedAt: inboxRecord.receivedAt,
       contactUid,
       contactName,
       emailId: inboxRecord.id,

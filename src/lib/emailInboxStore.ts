@@ -577,6 +577,7 @@ export type EmailInboxPatch = Partial<
     | 'contactUid'
     | 'contactName'
     | 'automationKind'
+    | 'notified'
   >
 > & {
   markSeen?: boolean;
@@ -606,6 +607,7 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.contactUid !== undefined ? { contactUid: patch.contactUid } : {}),
     ...(patch.contactName !== undefined ? { contactName: patch.contactName } : {}),
     ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
+    ...(patch.notified !== undefined ? { notified: patch.notified } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
     ...(patch.markAutomationAck && !cur.automationAckAt
       ? { automationAckAt: new Date().toISOString() }
@@ -679,6 +681,10 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.automationKind !== undefined) {
       sets.push(`automation_kind = $${i++}`);
       vals.push(patch.automationKind);
+    }
+    if (patch.notified !== undefined) {
+      sets.push(`notified = $${i++}`);
+      vals.push(patch.notified);
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);

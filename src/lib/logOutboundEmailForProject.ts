@@ -35,7 +35,9 @@ export async function logOutboundEmailForProject(opts: {
   if (!jobSlug) {
     if (!contactUid) {
       const contactRes = await resolveContact({ email: toEmail });
-      if (contactRes.ok) contactUid = contactRes.data.uid;
+      if (contactRes.ok) {
+        contactUid = (contactRes.data as { contact?: { uid?: string } }).contact?.uid ?? null;
+      }
     }
     if (contactUid) {
       const jobs = (await storeListWork({ contact_uid: contactUid })).filter(

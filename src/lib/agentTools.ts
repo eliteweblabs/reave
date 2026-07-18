@@ -2402,16 +2402,21 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         if (!isContactApiConfigured()) {
           return JSON.stringify({ error: 'contact-api not configured' });
         }
-        const resolved = await resolveContact(client);
-        if (!resolved?.uid) {
-          return JSON.stringify({ error: 'client not found', client, matches: resolved?.matches ?? [] });
+        const resolved = await resolveContact({ name: client });
+        const resolvedData =
+          resolved.ok && resolved.data && typeof resolved.data === 'object'
+            ? (resolved.data as { contact?: { uid?: string; name?: string }; candidates?: unknown[] })
+            : null;
+        const contact = resolvedData?.contact ?? null;
+        if (!contact?.uid) {
+          return JSON.stringify({ error: 'client not found', client, matches: resolvedData?.candidates ?? [] });
         }
-        const jobs = await storeListWork({ contact_uid: resolved.uid });
+        const jobs = await storeListWork({ contact_uid: contact.uid });
         if (!jobs.length) {
           return JSON.stringify({
             error: 'no projects for this client',
-            client: resolved.name,
-            contact_uid: resolved.uid,
+            client: contact.name,
+            contact_uid: contact.uid,
           });
         }
         slug = jobs[0].slug;
@@ -2698,6 +2703,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       return JSON.stringify({ ok: true, slug, title, db: isKnowledgeDbConfigured() });
     }
     if (name === 'read_email_inbox') {
+      const ctx = getAgentContext();
       const emailId = String(args.email_id ?? ctx.emailId ?? '').trim();
       if (!emailId) {
         return JSON.stringify({ error: 'email_id is required (or open this chat from an inbox message)' });
@@ -3834,7 +3840,7 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
       const result = await syncResendDnsToCloudflare(domain);
       if (!result.ok) return JSON.stringify({ error: result.error });
-      return JSON.stringify({ ok: true, ...result });
+      return JSON.stringify({ ...result, ok: true });
     }
 
     return JSON.stringify({ error: `unknown tool ${name}` });

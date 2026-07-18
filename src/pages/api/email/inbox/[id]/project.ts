@@ -124,9 +124,9 @@ export async function POST(context: APIContext): Promise<Response> {
     const title = String(body.title ?? emailRecord.subject ?? '').trim() || 'New project';
 
     const contact = await ensureWorkContact({
-      contact_uid: body.contact_uid ?? emailRecord.contactUid,
-      contact_name: body.contact_name ?? emailRecord.contactName,
-      client: body.client ?? emailRecord.contactName,
+      contact_uid: (body.contact_uid as string | undefined) ?? emailRecord.contactUid,
+      contact_name: (body.contact_name as string | undefined) ?? emailRecord.contactName,
+      client: (body.client as string | undefined) ?? emailRecord.contactName,
       from: emailRecord.from,
     });
     if (!contact.ok) return json({ ok: false, error: contact.error }, 400);

@@ -287,7 +287,7 @@ function buildMarkdown(
 }
 
 export async function resolveWorkContact(
-  input: WorkJobInput,
+  input: Pick<WorkJobInput, 'contact_uid' | 'contact_name' | 'client'>,
 ): Promise<{ ok: true; uid: string; name: string } | { ok: false; error: string }> {
   const uid = input.contact_uid?.trim();
   const name = input.contact_name?.trim();

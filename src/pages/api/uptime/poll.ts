@@ -33,7 +33,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
   }
   ensureUptimePollScheduler();
   const result = await runUptimePoll();
-  if (!result.ok) return json({ ok: false, ...result }, result.error ? 503 : 500);
+  if (!result.ok) return json({ ...result, ok: false }, result.error ? 503 : 500);
   return json({ ok: true, synced: result.synced });
 };
 

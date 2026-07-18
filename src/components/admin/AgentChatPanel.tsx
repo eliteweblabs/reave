@@ -29,7 +29,7 @@ import {
   userMessageDisplayText,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
-import { getButtonProps } from '../../lib/chatResponseRenderer';
+import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -181,7 +181,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
   }
   const { text, images } = parseStoredChatContent(message.content);
   const displayText = message.role === 'user' ? userMessageDisplayText(text) : text;
-  const content: ThreadMessageLike['content'] = [];
+  const content: Extract<ThreadMessageLike['content'], readonly unknown[]>[number][] = [];
   if (displayText) content.push({ type: 'text', text: displayText });
   for (const img of images) {
     content.push({
@@ -296,7 +296,11 @@ function AssistantTextPart(props: { text?: string }) {
   return (
     <>
       {text ? (
-        <MarkdownTextPrimitive text={text} remarkPlugins={[remarkGfm]} className="aui-md" />
+        <MarkdownTextPrimitive
+          remarkPlugins={[remarkGfm]}
+          className="aui-md"
+          preprocess={(raw) => parseAssistantChatButtons(raw).text}
+        />
       ) : null}
       {buttons.length > 0 ? (
         <div className="aui-chat-buttons">

@@ -73,10 +73,13 @@ async function ensureSchema(): Promise<pg.Pool | null> {
   const pool = getPool();
   if (!pool) return null;
   if (!_schemaReady) {
-    _schemaReady = pool.query(SCHEMA_SQL).catch((e) => {
-      _schemaReady = null;
-      throw e;
-    }) as Promise<void>;
+    _schemaReady = pool
+      .query(SCHEMA_SQL)
+      .then(() => undefined)
+      .catch((e) => {
+        _schemaReady = null;
+        throw e;
+      });
   }
   await _schemaReady;
   return pool;

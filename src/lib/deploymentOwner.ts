@@ -1,3 +1,4 @@
+import type { APIContext } from 'astro';
 import { cachedCompanyBrandName } from './companyConfig';
 import { SITE } from '../config/site';
 import { clerkClient } from '@clerk/astro/server';
