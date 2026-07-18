@@ -232,6 +232,51 @@ export async function bookingEventTypes(): Promise<
   return { ok: true, data: { eventTypes: out.data.eventTypes ?? [] } };
 }
 
+/** True when the calcom-booking-api rejected the request at its Mapbox geocode step. */
+function isBookingGeocodeError(error: string | undefined): boolean {
+  return Boolean(error) && /could not be geocoded/i.test(error!);
+}
+
+/**
+ * The calcom-booking-api microservice geocodes every booking address through
+ * Mapbox before creating the Cal.com event. When its MAPBOX_ACCESS_TOKEN is
+ * missing/invalid it rejects EVERY address — even "New York" — with
+ * "Address could not be geocoded", which misleadingly looks like a bad address.
+ *
+ * Re-check the address with our own (independently configured) geocoder so the
+ * operator gets an accurate message: a genuinely bad address vs. a booking
+ * service whose Mapbox token needs fixing.
+ */
+async function explainBookingGeocodeError(
+  address: string,
+  status?: number,
+): Promise<{ ok: false; error: string; status?: number }> {
+  let resolvesHere = false;
+  try {
+    const { resolveAddressCoordinates } = await import('./mapbox');
+    resolvesHere = Boolean(await resolveAddressCoordinates(address));
+  } catch {
+    resolvesHere = false;
+  }
+
+  if (resolvesHere) {
+    return {
+      ok: false,
+      status,
+      error:
+        `Scheduling is temporarily unavailable. The booking service could not geocode ` +
+        `“${address}”, even though it resolves here — the calcom-booking-api MAPBOX_ACCESS_TOKEN ` +
+        `is likely missing or invalid. Set a valid Mapbox token on that Railway service to restore bookings.`,
+    };
+  }
+
+  return {
+    ok: false,
+    status,
+    error: `Could not locate “${address}” on the map. Double-check the street address, city, state, and ZIP, then try again.`,
+  };
+}
+
 export async function bookingCreate(input: {
   name: string;
   email: string;
@@ -250,14 +295,21 @@ export async function bookingCreate(input: {
       status: 400,
     };
   }
-  return bookingFetch('/api/booking/create', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...rest,
-      address,
-    }),
-  });
+  const result = await bookingFetch<{ booking?: { uid?: string; startTime?: string } }>(
+    '/api/booking/create',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...rest,
+        address,
+      }),
+    },
+  );
+  if (!result.ok && isBookingGeocodeError(result.error)) {
+    return explainBookingGeocodeError(address, result.status);
+  }
+  return result;
 }
 
 export async function bookingCancel(
@@ -285,14 +337,21 @@ export async function bookingReschedule(
       status: 400,
     };
   }
-  return bookingFetch(`/api/booking/${encodeURIComponent(uid)}/reschedule`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...rest,
-      address,
-    }),
-  });
+  const result = await bookingFetch<{ success?: boolean }>(
+    `/api/booking/${encodeURIComponent(uid)}/reschedule`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...rest,
+        address,
+      }),
+    },
+  );
+  if (!result.ok && isBookingGeocodeError(result.error)) {
+    return explainBookingGeocodeError(address, result.status);
+  }
+  return result;
 }
 
 const DEFAULT_TZ = 'America/New_York';
