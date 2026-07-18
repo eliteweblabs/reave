@@ -11,6 +11,7 @@ import AdminFooterNav from "../../components/AdminFooterNav.astro";
 import { getCompanyConfig, companyToBrandContext } from "../../lib/companyConfig";
 import { getInstallConfigClient, PROFILE_MENU_LABELS } from "../../lib/installConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
+import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import "../../styles/brand.css";
 
 export const prerender = false;
@@ -20,10 +21,7 @@ const company = await getCompanyConfig(Astro.request);
 const companyBrand = companyToBrandContext(company, Astro.request);
 const installConfigClient = getInstallConfigClient();
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
-const mapboxAccessToken =
-  import.meta.env.PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() ||
-  import.meta.env.MAPBOX_ACCESS_TOKEN?.trim() ||
-  '';
+const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 ---
 
 <!doctype html>
