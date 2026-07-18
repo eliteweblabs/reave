@@ -5991,12 +5991,25 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         width: 100%;
         min-width: 0;
       }
+      .prof-logo-preview-wrap {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+      }
+      .prof-logo-preview-wrap[hidden],
+      .prof-logo-file-wrap[hidden] {
+        display: none !important;
+      }
+      .prof-logo-file-wrap {
+        width: 100%;
+      }
       .prof-logo-upload input[type="file"] {
         width: 100%;
         max-width: 100%;
         box-sizing: border-box;
       }
       .prof-logo-preview {
+        display: block;
         max-width: 220px;
         max-height: 72px;
         width: auto;
@@ -6006,8 +6019,33 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         background: rgba(255, 255, 255, 0.04);
         padding: 0.35rem;
       }
-      .prof-logo-preview[hidden] {
-        display: none !important;
+      .prof-logo-remove {
+        position: absolute;
+        top: -0.35rem;
+        right: -0.35rem;
+        width: 1.35rem;
+        height: 1.35rem;
+        padding: 0;
+        border: 2px solid var(--bg, #fff);
+        border-radius: 9999px;
+        background: #dc2626;
+        color: #fff;
+        font: inherit;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      }
+      .prof-logo-remove:hover:not(:disabled) {
+        background: #b91c1c;
+      }
+      .prof-logo-remove:disabled {
+        opacity: 0.6;
+        cursor: wait;
       }
 
       /* ── Search overlay ── */
@@ -6270,6 +6308,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260718b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260718c"></script>
   </body>
 </html>

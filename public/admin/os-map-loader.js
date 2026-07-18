@@ -2805,18 +2805,29 @@ function companyLogoPreviewUrl(company) {
   return `${path.startsWith('/') ? path : `/${path}`}${v}`;
 }
 
+function hasCustomCompanyLogo(company) {
+  return company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company);
+}
+
 function bindCompanyLogoUpload(root, companyAlert) {
   const fileInput = root.querySelector('#company-logo-file');
+  const fileWrap = root.querySelector('#company-logo-file-wrap');
+  const previewWrap = root.querySelector('#company-logo-preview-wrap');
   const preview = root.querySelector('#company-logo-preview');
   const removeBtn = root.querySelector('#company-logo-remove');
 
   const refreshPreview = (company) => {
-    if (!(preview instanceof HTMLImageElement)) return;
-    const url = companyLogoPreviewUrl(company);
-    preview.src = url || '';
-    preview.hidden = !url;
-    if (removeBtn instanceof HTMLButtonElement) {
-      removeBtn.hidden = !url || company?.logoSource === 'default';
+    const hasLogo = hasCustomCompanyLogo(company);
+    const url = hasLogo ? companyLogoPreviewUrl(company) : '';
+
+    if (preview instanceof HTMLImageElement) {
+      preview.src = url;
+    }
+    if (previewWrap instanceof HTMLElement) {
+      previewWrap.hidden = !hasLogo;
+    }
+    if (fileWrap instanceof HTMLElement) {
+      fileWrap.hidden = hasLogo;
     }
   };
 
@@ -2826,6 +2837,7 @@ function bindCompanyLogoUpload(root, companyAlert) {
     const fd = new FormData();
     fd.append('logo', file);
     if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
+    fileInput.disabled = true;
     try {
       const res = await fetch('/api/admin/company/logo', { method: 'POST', body: fd });
       const json = await res.json();
@@ -2839,6 +2851,7 @@ function bindCompanyLogoUpload(root, companyAlert) {
       showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
     } finally {
       fileInput.value = '';
+      fileInput.disabled = false;
       if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
     }
   });
@@ -3161,6 +3174,8 @@ function renderProfileOnlyPanel(profile) {
 
 function renderCompanyPanel(company) {
   const c = company || {};
+  const logoUrl = companyLogoPreviewUrl(c);
+  const hasLogo = hasCustomCompanyLogo(c);
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -3181,9 +3196,13 @@ function renderCompanyPanel(company) {
           `<div id="company-map-host" class="cl-map-section"></div>` +
           `<div class="prof-field"><label for="company-logo-file">Logo</label>` +
           `<div class="prof-logo-upload">` +
-            `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(companyLogoPreviewUrl(c))}" alt="" ${companyLogoPreviewUrl(c) ? '' : 'hidden'} />` +
-            `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
-            `<button type="button" id="company-logo-remove" class="prof-btn-secondary"${c.logoSource === 'admin' && companyLogoPreviewUrl(c) ? '' : ' hidden'}>Remove logo</button>` +
+            `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
+              `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
+              `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
+            `</div>` +
+            `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
+              `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
+            `</div>` +
           `</div>` +
           `<span class="prof-hint prof-hint--block">PNG, JPEG, or WebP — max 2 MB. Updates the header and homepage immediately.</span>` +
           (c.domain
