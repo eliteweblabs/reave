@@ -5585,6 +5585,29 @@ async function loadRulesTab() {
   renderRulesEditor();
 }
 
+function createRuleListItem(rule, activeId) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false ? ' re-list-disabled' : ''}`;
+  btn.dataset.id = rule.id;
+  btn.innerHTML = `
+    <span class="ch-item-row">
+      <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
+    </span>
+    <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
+  btn.addEventListener('click', () => openRuleEditor(rule.id));
+  return btn;
+}
+
+function createRuleSwipeRow(rule, activeId) {
+  return createSwipeRow(createRuleListItem(rule, activeId), [
+    swipeAgentAction(() => askAgentAboutRule(rule)),
+    swipeDeleteAction({
+      onClick: () => deleteRule(rule.id),
+    }),
+  ]);
+}
+
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
@@ -5656,16 +5679,7 @@ function renderRulesEditor() {
   list.className = 'ch-list';
   bindSwipeListScroll(list);
   for (const rule of ordered) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false ? ' re-list-disabled' : ''}`;
-    btn.innerHTML = `
-      <span class="ch-item-row">
-        <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
-      </span>
-      <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
-    btn.addEventListener('click', () => openRuleEditor(rule.id));
-    list.appendChild(btn);
+    list.appendChild(createRuleSwipeRow(rule, activeId));
   }
   if (ordered.length === 0) {
     const empty = document.createElement('div');
@@ -5720,10 +5734,19 @@ function renderRuleEditPane(pane) {
     return;
   }
 
+  const agentBtn = document.createElement('button');
+  agentBtn.type = 'button';
+  agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+  agentBtn.setAttribute('aria-label', 'Agent');
+  agentBtn.title = 'Agent';
+  agentBtn.innerHTML = navIcon('agent', 16);
+  agentBtn.addEventListener('click', () => askAgentAboutRule(rule));
+
   const header = createPaneSubheader({
     back: { label: 'Back to rules', onClick: () => closeRuleEditor() },
     title: rule.title || rule.status || 'Rule',
     subtitle: rule.status || '',
+    beforeIcons: [agentBtn],
     icons: [
       paneDeleteIcon({
         label: 'Delete rule',
@@ -7856,6 +7879,14 @@ function renderEditKnowledgeForm(pane) {
       knowledgeState.dirty = false;
       pane.innerHTML = '';
 
+      const agentBtn = document.createElement('button');
+      agentBtn.type = 'button';
+      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+      agentBtn.setAttribute('aria-label', 'Agent');
+      agentBtn.title = 'Agent';
+      agentBtn.innerHTML = navIcon('agent', 16);
+      agentBtn.addEventListener('click', () => askAgentAboutKnowledge(entry || { slug, title: data.title }));
+
       const { header } = createPaneSubheader({
         back: {
           label: 'Back to knowledge',
@@ -7870,6 +7901,7 @@ function renderEditKnowledgeForm(pane) {
         },
         title: data.title || entry?.title || slug,
         subtitle: slug,
+        beforeIcons: [agentBtn],
         icons: [
           paneDeleteIcon({
             label: 'Delete knowledge doc',
@@ -14145,6 +14177,32 @@ async function askAgentAboutKnowledge(entry) {
       data.content,
     );
     await askAgentWithPrompt(prompt);
+  } catch (e) {
+    osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function askAgentAboutRule(rule) {
+  try {
+    const lines = [
+      'Help me understand and improve this email triage rule:',
+      '',
+      `Title: ${rule.title || rule.status}`,
+      `Status tag: ${rule.status}`,
+    ];
+    if (rule.description) lines.push(`Description: ${rule.description}`);
+    lines.push(`Match mode: ${rule.matchMode === 'all' ? 'All phrases must match' : 'Any phrase matches'}`);
+    lines.push(`Search in: ${(rule.fields || ['subject', 'body']).join(', ')}`);
+    if (rule.phrases && rule.phrases.length > 0) {
+      lines.push('', 'Keywords / phrases:');
+      for (const phrase of rule.phrases) {
+        lines.push(`  - ${phrase}`);
+      }
+    }
+    lines.push('', `Enabled: ${rule.enabled !== false ? 'Yes' : 'No'}`);
+    lines.push(`Send alert: ${rule.notify ? 'Yes' : 'No'}`);
+    lines.push('', 'Please suggest improvements or explain how this rule works.');
+    await askAgentWithPrompt(lines.join('\n'));
   } catch (e) {
     osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });
   }
