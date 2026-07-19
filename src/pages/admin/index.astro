@@ -3931,7 +3931,34 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         padding-top: 0.25rem;
       }
       .em-compose-send {
-        min-width: 5.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--control-h);
+        height: var(--control-h);
+        min-width: var(--control-h);
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: var(--radius-input);
+        background: var(--brand-gradient);
+        box-shadow: var(--brand-gradient-shadow);
+        color: #fff;
+        cursor: pointer;
+        transition: filter 0.12s ease, opacity 0.12s ease;
+      }
+      .em-compose-send:hover:not(:disabled) {
+        filter: brightness(1.08);
+      }
+      .em-compose-send:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .em-compose-send svg {
+        display: block;
+        width: 1.25rem;
+        height: 1.25rem;
+        stroke-width: 2;
       }
       .em-compose-hint {
         font-size: 0.78rem;

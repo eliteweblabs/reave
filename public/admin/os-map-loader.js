@@ -16181,8 +16181,10 @@ function renderEmailComposePane(pane) {
   actions.className = 'em-compose-actions';
   const sendBtn = document.createElement('button');
   sendBtn.type = 'button';
-  sendBtn.className = 'de-new-btn em-compose-send';
-  sendBtn.textContent = emailState.sending ? 'Sending…' : 'Send';
+  sendBtn.className = 'em-compose-send';
+  sendBtn.setAttribute('aria-label', emailState.sending ? 'Sending…' : 'Send');
+  sendBtn.title = emailState.sending ? 'Sending…' : 'Send';
+  sendBtn.innerHTML = IOS_ICONS.send || '';
   sendBtn.disabled = emailState.sending;
   sendBtn.addEventListener('click', () => void sendEmailCompose());
 
