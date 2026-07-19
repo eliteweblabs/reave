@@ -2079,6 +2079,7 @@ async function dismissReviewNotification(item, btn) {
       if (idx !== -1) emailState.allEvents[idx] = data.event;
     }
     updateInboxBadgesFromState();
+    removeReviewAlertBanner(item.emailId);
     if (MAP.type === 'home') await loadHomeDashboard();
     if (emailState.activeId === item.emailId) renderEmailPanel();
   } catch (e) {
@@ -2208,6 +2209,7 @@ async function runMeetingConfirmChecklist(item) {
           if (idx !== -1) emailState.allEvents[idx] = data.event;
         }
         updateInboxBadgesFromState();
+        removeReviewAlertBanner(item.emailId);
         if (emailState.activeId === item.emailId) renderEmailPanel();
 
         titleEl.textContent = 'Meeting confirmed';
@@ -2218,9 +2220,8 @@ async function runMeetingConfirmChecklist(item) {
         doneBtn.type = 'button';
         doneBtn.className = 'os-dialog-btn os-dialog-btn--primary';
         doneBtn.textContent = 'Done';
-        doneBtn.addEventListener('click', async () => {
+        doneBtn.addEventListener('click', () => {
           finish({ ok: true, data });
-          if (MAP.type === 'home') await loadHomeDashboard();
         });
         actionsEl.appendChild(doneBtn);
       } catch (e) {
@@ -2319,6 +2320,7 @@ function buildReviewAlertBanner(item) {
   const alert = document.createElement('div');
   alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type)}`;
   alert.setAttribute('role', 'status');
+  if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
 
   const iconWrap = document.createElement('div');
   iconWrap.className = 'admin-setup-alert-icon';
@@ -2415,6 +2417,19 @@ function buildReviewAlertBanners(notifications) {
     wrap.appendChild(buildReviewAlertBanner(item));
   }
   return wrap;
+}
+
+/** Drop a resolved review alert from the home dashboard immediately (no poll / reload wait). */
+function removeReviewAlertBanner(emailId) {
+  const id = String(emailId || '').trim();
+  if (!id) return;
+  const banner = document.querySelector(
+    `.dash-review-alerts [data-review-email-id="${CSS.escape(id)}"]`,
+  );
+  if (!banner) return;
+  const wrap = banner.closest('.dash-review-alerts');
+  banner.remove();
+  if (wrap && wrap.children.length === 0) wrap.remove();
 }
 
 function renderHomeDashboard(data) {
@@ -14563,6 +14578,10 @@ async function runEmailScheduleAction(ev, action, btn) {
     if (data.event) {
       const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
       if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    if (data.event?.automationAckAt) {
+      removeReviewAlertBanner(ev.id);
+      updateInboxBadgesFromState();
     }
     renderEmailPanel();
     if (action === 'accept-notify') {
