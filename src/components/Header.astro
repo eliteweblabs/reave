@@ -61,6 +61,9 @@ const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
+const inAdminRoute = adminShell || path.startsWith("/admin");
+const logoHref = inAdminRoute ? "/admin/" : "/";
+const logoAriaLabel = inAdminRoute ? "Dashboard" : company.name || "Home";
 const returnTo = Astro.url.searchParams.get("returnTo");
 const signInRedirect =
   returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
@@ -79,7 +82,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   {!hideLogo && logoSrc ? (
-    <a href="/" class="app-header-logo brand" aria-label={company.name || "Home"}>
+    <a href={logoHref} class="app-header-logo brand" aria-label={logoAriaLabel}>
       <img src={logoSrc} alt={company.name} class="app-header-logo-img brand-img logo-img" />
     </a>
   ) : null}
