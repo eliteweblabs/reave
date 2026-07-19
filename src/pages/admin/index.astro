@@ -5122,6 +5122,28 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .dash-review-alerts .admin-setup-alert {
         max-width: none;
         margin: 0;
+        box-shadow: none;
+        border: 1px solid transparent;
+        background:
+          linear-gradient(#fff, #fff) padding-box,
+          var(--brand-gradient) border-box;
+      }
+      .dash-review-alerts .admin-setup-alert--push,
+      .dash-review-alerts .admin-setup-alert--pwa,
+      .dash-review-alerts .admin-setup-alert--confirm {
+        border-color: transparent;
+        background:
+          linear-gradient(#fff, #fff) padding-box,
+          var(--brand-gradient) border-box;
+      }
+      .dash-review-alerts .admin-setup-alert-btn--primary {
+        border: none;
+        background: var(--brand-gradient);
+        color: #fff;
+      }
+      .dash-review-alerts .admin-setup-alert-btn--primary:hover {
+        filter: brightness(1.06);
+        background: var(--brand-gradient);
       }
       .dash-review-alerts .admin-setup-alert-copy {
         cursor: pointer;
