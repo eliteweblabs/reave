@@ -12,6 +12,7 @@ import {
   storeSeedBundled,
   isKnowledgeDbConfigured,
 } from '../../../../lib/knowledgeStore';
+import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../../lib/sidebarOrderStore';
 
 export const prerender = false;
 
@@ -27,7 +28,18 @@ export async function GET(context: APIContext): Promise<Response> {
   if (auth instanceof Response) return auth;
 
   const entries = await storeListKnowledge();
-  return json({ ok: true, entries, db: isKnowledgeDbConfigured() });
+  const orderMap = await storeGetSidebarOrder('knowledge');
+  const sorted = sortBySidebarOrder(
+    entries,
+    orderMap,
+    (e) => e.slug,
+    (a, b) => {
+      const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return bTime - aTime;
+    },
+  );
+  return json({ ok: true, entries: sorted, db: isKnowledgeDbConfigured() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {

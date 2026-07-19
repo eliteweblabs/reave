@@ -79,6 +79,8 @@ const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
 const userId = document.body?.dataset?.userId?.trim() || '';
 const isDeploymentOwnerClient = document.body?.dataset?.isOwner === '1';
 const KNOWLEDGE_API = '/api/admin/knowledge';
+const SIDEBAR_LIST_GRIP =
+  '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
@@ -6360,7 +6362,7 @@ function fillTodoSidebarList(list) {
         ? 'No completed to‑dos yet.'
         : 'No open to‑dos yet.';
     list.appendChild(empty);
-  } else if (todoState.filter === 'open') {
+  } else if (todoState.filter === 'open' && !todoState.search.trim()) {
     attachTodoListReorder(list, visible.map((t) => t.id));
   }
 }
@@ -6457,7 +6459,7 @@ function createTodoListItem(todo) {
   item.dataset.id = String(todo.id);
   const grip =
     todo.status === 'open'
-      ? '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>'
+      ? SIDEBAR_LIST_GRIP
       : '';
   item.innerHTML =
     `<span class="td-list-row">${grip}` +
@@ -6958,8 +6960,8 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   parent.appendChild(wrap);
 }
 
-function attachTodoListReorder(list, orderedIds) {
-  let dragId = null;
+function attachSidebarListReorder(list, orderedKeys, persistFn) {
+  let dragKey = null;
   let dragEl = null;
 
   list.querySelectorAll('.td-list-grip').forEach((grip) => {
@@ -6969,7 +6971,7 @@ function attachTodoListReorder(list, orderedIds) {
       const item = grip.closest('.ch-list-item');
       const row = grip.closest('.swipe-row');
       if (!item || !row) return;
-      dragId = Number(row.dataset.id || item.dataset.id);
+      dragKey = row.dataset.id || row.dataset.slug || item.dataset.id || item.dataset.slug || '';
       dragEl = row;
       row.classList.add('td-dragging');
       grip.setPointerCapture(ev.pointerId);
@@ -6987,18 +6989,20 @@ function attachTodoListReorder(list, orderedIds) {
         dragEl?.classList.remove('td-dragging');
         list.querySelectorAll('.swipe-row').forEach((el) => el.classList.remove('td-drop-target'));
         const target = document.elementFromPoint(upEv.clientX, upEv.clientY)?.closest('.swipe-row');
-        if (dragEl && target && target !== dragEl) {
-          const targetId = Number(target.dataset.id);
-          const ids = [...orderedIds];
-          const fromIdx = ids.indexOf(dragId);
-          const toIdx = ids.indexOf(targetId);
+        if (dragEl && target && target !== dragEl && dragKey) {
+          const targetKey =
+            target.dataset.id || target.dataset.slug || target.querySelector('.ch-list-item')?.dataset.id ||
+            target.querySelector('.ch-list-item')?.dataset.slug || '';
+          const keys = [...orderedKeys];
+          const fromIdx = keys.indexOf(dragKey);
+          const toIdx = keys.indexOf(targetKey);
           if (fromIdx !== -1 && toIdx !== -1) {
-            ids.splice(fromIdx, 1);
-            ids.splice(toIdx, 0, dragId);
-            void persistTodoOrder(ids);
+            keys.splice(fromIdx, 1);
+            keys.splice(toIdx, 0, dragKey);
+            void persistFn(keys);
           }
         }
-        dragId = null;
+        dragKey = null;
         dragEl = null;
       }
 
@@ -7008,12 +7012,17 @@ function attachTodoListReorder(list, orderedIds) {
   });
 }
 
+function attachTodoListReorder(list, orderedIds) {
+  attachSidebarListReorder(list, orderedIds.map(String), persistTodoOrder);
+}
+
 async function persistTodoOrder(ids) {
   try {
+    const numericIds = ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
     const res = await fetch('/api/todos/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids: numericIds }),
     });
     const data = await readApiJson(res);
     todoState.todos = data.todos || todoState.todos;
@@ -7021,6 +7030,72 @@ async function persistTodoOrder(ids) {
   } catch (e) {
     osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
     renderTodoEditor();
+  }
+}
+
+async function persistChatOrder(ids) {
+  try {
+    const res = await fetch('/api/chats/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await readApiJson(res);
+    chatState.threads = data.threads || chatState.threads;
+    refreshChatSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
+    refreshChatSidebarList();
+  }
+}
+
+async function persistWorkOrder(slugs) {
+  try {
+    const res = await fetch('/api/work/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slugs }),
+    });
+    const data = await readApiJson(res);
+    workState.jobs = data.jobs || workState.jobs;
+    refreshWorkSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
+    refreshWorkSidebarList();
+  }
+}
+
+async function persistKnowledgeOrder(slugs) {
+  try {
+    const res = await adminFetch(`${KNOWLEDGE_API}/reorder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slugs }),
+    });
+    const data = await readApiJson(res);
+    knowledgeState.entries = data.entries || knowledgeState.entries;
+    refreshKnowledgeSidebarList();
+  } catch (e) {
+    if (e.message === 'Session expired') return;
+    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
+    refreshKnowledgeSidebarList();
+  }
+}
+
+async function persistClientOrder(uids) {
+  try {
+    const res = await fetch('/api/clients/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uids }),
+    });
+    const data = await readApiJson(res);
+    clientState.clients = data.clients || clientState.clients;
+    clientState.total = data.total ?? clientState.clients.length;
+    refreshClientsSidebarList();
+  } catch (e) {
+    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
+    refreshClientsSidebarList();
   }
 }
 
@@ -7786,6 +7861,8 @@ function fillKnowledgeSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = knowledgeState.search.trim() ? 'No matches.' : 'No knowledge files yet.';
     list.appendChild(empty);
+  } else if (!knowledgeState.search.trim()) {
+    attachSidebarListReorder(list, visibleEntries.map((e) => e.slug), persistKnowledgeOrder);
   }
 }
 
@@ -8590,6 +8667,8 @@ function fillWorkSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
     list.appendChild(empty);
+  } else if (!search.trim()) {
+    attachSidebarListReorder(list, visibleJobs.map((j) => j.slug), persistWorkOrder);
   }
 }
 
@@ -11244,6 +11323,38 @@ function scheduleClientSearch() {
   }, 300);
 }
 
+function fillClientsSidebarList(list) {
+  const { clients } = clientState;
+  list.innerHTML = '';
+  for (const c of clients) {
+    list.appendChild(createClientSwipeRow(c));
+  }
+  if (clients.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = clientState.search.trim() ? 'No matches.' : 'No clients yet.';
+    list.appendChild(empty);
+  } else if (!clientState.search.trim()) {
+    attachSidebarListReorder(list, clients.map((c) => c.uid), persistClientOrder);
+  }
+}
+
+function refreshClientsSidebarList() {
+  const root = getClientsEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderClientsEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput) {
+    const total = clientState.total;
+    const clientLabel = total === 1 ? 'client' : 'clients';
+    searchInput.placeholder = `Search ${total} ${clientLabel}`;
+  }
+  fillClientsSidebarList(list);
+}
+
 function renderClientsEditor() {
   const root = getClientsEditor();
   if (!root) return;
@@ -11270,15 +11381,7 @@ function renderClientsEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const c of clients) {
-    list.appendChild(createClientSwipeRow(c));
-  }
-  if (clients.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = clientState.search.trim() ? 'No matches.' : 'No clients yet.';
-    list.appendChild(empty);
-  }
+  fillClientsSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
 
@@ -13003,6 +13106,7 @@ function createChatListItem(t) {
     : '';
   item.innerHTML =
     `<span class="ch-item-row">` +
+      SIDEBAR_LIST_GRIP +
       archivedIcon +
       `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
       `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
@@ -13045,6 +13149,8 @@ function fillChatSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = chatState.search.trim() ? 'No matches.' : 'No chats yet.';
     target.appendChild(empty);
+  } else if (!chatState.search.trim()) {
+    attachSidebarListReorder(list, visibleThreads.map((t) => t.id), persistChatOrder);
   }
 }
 
@@ -14448,7 +14554,7 @@ function createKnowledgeListItem(entry) {
     ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
     : '';
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
+    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
   item.addEventListener('click', () => openKnowledge(entry.slug));
   return item;
@@ -14469,7 +14575,7 @@ function createWorkListItem(job) {
   item.className = 'ch-list-item' + (job.slug === workState.activeSlug ? ' active' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
+    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(job.title)}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
     `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
@@ -14493,7 +14599,7 @@ function createClientListItem(c) {
   item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
   item.dataset.id = c.uid;
   item.innerHTML =
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(c.name)}</span></span>` +
+    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(c.name)}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +

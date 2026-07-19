@@ -14,6 +14,7 @@ import {
   WORK_STATUSES,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
+import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 
 export const prerender = false;
 
@@ -34,12 +35,21 @@ export async function GET(context: APIContext): Promise<Response> {
     ? (statusRaw as (typeof WORK_STATUSES)[number])
     : undefined;
 
+  const jobs = await storeListWork({
+    contact_uid: contactUid || undefined,
+    status,
+  });
+  const orderMap = await storeGetSidebarOrder('work');
+  const sorted = sortBySidebarOrder(
+    jobs,
+    orderMap,
+    (j) => j.slug,
+    (a, b) => (b.updated || b.created || '').localeCompare(a.updated || a.created || ''),
+  );
+
   return json({
     ok: true,
-    jobs: await storeListWork({
-      contact_uid: contactUid || undefined,
-      status,
-    }),
+    jobs: sorted,
     statuses: WORK_STATUSES,
     priorities: WORK_PRIORITIES,
   });

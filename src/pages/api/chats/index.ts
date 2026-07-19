@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
 
@@ -36,7 +37,14 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const archivedOnly = context.url.searchParams.get('archived') === '1';
   const threads = await storeListChatThreads(userId, { archivedOnly });
-  const enriched = await enrichThreadsWithLinks(threads);
+  const orderMap = await storeGetSidebarOrder('chats');
+  const sorted = sortBySidebarOrder(
+    threads,
+    orderMap,
+    (t) => t.id,
+    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
+  const enriched = await enrichThreadsWithLinks(sorted);
   return json({ ok: true, threads: enriched, storage: chatStorageBackend() });
 }
 
