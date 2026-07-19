@@ -7805,6 +7805,19 @@ function refreshKnowledgeSidebarList() {
   syncKnowledgeSidebarActiveState();
 }
 
+function scrollSidebarListItemIntoView(list, itemEl) {
+  const row = itemEl.closest('.swipe-row') || itemEl;
+  const listRect = list.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const padding = 8;
+  if (rowRect.top >= listRect.top + padding && rowRect.bottom <= listRect.bottom - padding) return;
+  if (rowRect.top < listRect.top) {
+    list.scrollTop += rowRect.top - listRect.top - padding;
+  } else if (rowRect.bottom > listRect.bottom) {
+    list.scrollTop += rowRect.bottom - listRect.bottom + padding;
+  }
+}
+
 function syncKnowledgeSidebarActiveState(opts = {}) {
   const { scroll = false } = opts;
   const root = getKnowledgeEditor();
@@ -7821,10 +7834,10 @@ function syncKnowledgeSidebarActiveState(opts = {}) {
     }
   });
   if (scroll && activeEl) {
-    const row = activeEl.closest('.swipe-row') || activeEl;
-    requestAnimationFrame(() => {
-      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    });
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => scrollSidebarListItemIntoView(list, activeEl));
+    }
   }
 }
 
