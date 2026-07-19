@@ -58,10 +58,34 @@ export function formatUsdAmount(amount: number): string {
 
 /** Payment/receipt language — used with a detected dollar amount to auto-file tax receipts. */
 const RECEIPT_HINT =
-  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|order\s+confirm(?:ation)?|paid|purchase|purchased|transaction|charged|billing\s+statement|amount\s+paid|you\s+paid)\b/i;
+  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|payment\s+of|received\s+a\s+payment|you\s+(?:just\s+)?received(?:\s+a\s+payment)?|order\s+confirm(?:ation)?|paid|purchase|purchased|transaction|charged|billing\s+statement|amount\s+paid|you\s+paid)\b/i;
+
+const PAYMENT_PROCESSOR_FROM =
+  /@(?:[\w.-]+\.)?(?:stripe|paypal|squareup|square|cash\.app)\.com\b/i;
+
+/** Stripe/PayPal/Square payment notifications — not client work requests. */
+export function looksLikePaymentNotification(ev: {
+  from?: string;
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+}): boolean {
+  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) return true;
+  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  if (!text.trim()) return false;
+  // Stripe dashboard subject: "Payment of $200.00 from Joel Williams for Eliteweblabs"
+  if (/\bpayment\s+of\s+\$/i.test(text)) return true;
+  const amount = extractMonetaryAmountFromText(text);
+  if (amount == null) return false;
+  return /\b(?:received\s+a\s+payment|you\s+just\s+received|payment\s+from|sent\s+you\s+\$|money\s+(?:was\s+)?deposited)\b/i.test(
+    text,
+  );
+}
 
 /** Auto-file as receipt when text has both a dollar amount and receipt/payment keywords. */
 export function shouldAutoFileAsReceipt(ev: {
+  from?: string;
   subject?: string;
   summary?: string;
   bodySnippet?: string;
@@ -69,6 +93,9 @@ export function shouldAutoFileAsReceipt(ev: {
 }): { amount: number; routeNote: string } | null {
   const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
   const amount = extractMonetaryAmountFromText(text);
-  if (amount == null || !RECEIPT_HINT.test(text)) return null;
-  return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+  if (amount == null) return null;
+  if (looksLikePaymentNotification(ev) || RECEIPT_HINT.test(text)) {
+    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+  }
+  return null;
 }

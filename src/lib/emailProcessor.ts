@@ -20,7 +20,7 @@ import { sendInboxPushNotification } from './webPush';
 import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
-import { shouldAutoFileAsReceipt } from './emailMoney';
+import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt';
 
@@ -46,6 +46,7 @@ function ruleCategory(status: string): EmailCategory {
   const s = status.toUpperCase();
   if (s === 'DELETE') return 'junk';
   if (s === 'AUTO_ARCHIVED') return 'junk';
+  if (s === 'RECEIPT') return 'receipt';
   if (s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK') return 'alert';
   return 'review';
 }
@@ -248,7 +249,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   let isProjectReply = false;
 
-  if (category !== 'junk' && aiEnabled()) {
+  if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
     const ai = await runAiTriage(email, jobs, contactName);
     if (ai) {
       category = ai.category;
@@ -300,6 +301,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   } else if (category === 'junk') {
     action = 'junk';
     summary = email.subject || 'Filtered as junk';
+  } else if (category === 'receipt') {
+    action = 'receipt';
   } else if (contact && jobs.length === 1) {
     category = 'client';
     action = 'review';
@@ -340,8 +343,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   let inboxStatus = isProjectReply ? 'PROJECT_REPLY' : ruleResult.status;
-  if (!isProjectReply && category !== 'junk' && category !== 'client') {
+  if (!isProjectReply && category !== 'junk') {
     const autoReceipt = shouldAutoFileAsReceipt({
+      from,
       subject: email.subject ?? '',
       summary,
       bodyText,
@@ -352,6 +356,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       action = 'receipt';
       inboxStatus = 'RECEIPT';
       routeNote = autoReceipt.routeNote;
+    } else if (category === 'receipt' && action === 'receipt' && !routeNote) {
+      routeNote = 'Payment notification — filed as receipt';
     }
   }
 
@@ -497,13 +503,24 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     );
   }
 
+  const paymentNotification = looksLikePaymentNotification({
+    from,
+    subject: email.subject ?? '',
+    summary,
+    bodyText,
+    bodySnippet: snippet(bodyText),
+  });
+
   if (
     inboxRecord?.id &&
     !automationKind &&
     !jobSlug &&
     action !== 'project_reply' &&
     action !== 'junk' &&
-    category !== 'junk'
+    action !== 'receipt' &&
+    category !== 'junk' &&
+    category !== 'receipt' &&
+    !paymentNotification
   ) {
     const autoProject = await tryAutoCreateProjectFromInboundEmail({
       from,

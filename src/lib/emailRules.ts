@@ -73,6 +73,15 @@ export const DEFAULT_RULES: EmailRule[] = [
     enabled: true,
   },
   {
+    status: 'RECEIPT',
+    description: 'Stripe/PayPal payment notifications — auto-file as receipt, no alert.',
+    phrases: ['stripe.com', 'notify@stripe.com', 'Payment of $'],
+    matchMode: 'any',
+    fields: ['from', 'subject'],
+    notify: false,
+    enabled: true,
+  },
+  {
     status: 'RAILWAY_ALERT',
     description: 'Railway deploy/build crash emails — inbox alert + admin agent.',
     phrases: [

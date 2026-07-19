@@ -3,6 +3,7 @@
  */
 
 import { parseSenderName } from './emailAddress';
+import { looksLikePaymentNotification } from './emailMoney';
 import {
   emailToMergeSource,
   mergeEmailIntoProjectBody,
@@ -19,10 +20,12 @@ import {
 import { parseWorkJobInput } from './workJobInput';
 
 export function looksLikeNewWorkRequest(input: {
+  from?: string;
   subject?: string;
   summary?: string;
   bodyText?: string;
 }): boolean {
+  if (looksLikePaymentNotification(input)) return false;
   const blob = [input.subject, input.summary, input.bodyText].join(' ').toLowerCase();
   if (!blob.trim()) return false;
   if (/\b(meet(ing)?|schedule|calendar|appointment|get together)\b/.test(blob) &&
