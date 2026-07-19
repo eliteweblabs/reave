@@ -10,6 +10,8 @@
  * - create_client: { action: "create_client", name: string, email?, phone?, company? }
  * - list_work: { action: "list_work", status?: string }
  * - create_work: { action: "create_work", title: string, client: string, status?, priority?, body? }
+ * - find_client: { action: "find_client", client?: string, query?: string } — lookup for Shortcuts conditionals
+ * - create_project: { action: "create_project", title: string, client?, first_name?, last_name?, company?, email? }
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  *
@@ -115,6 +117,12 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'create_work':
         result = await handleCreateWork(body);
+        break;
+      case 'find_client':
+        result = await handleFindClient(body);
+        break;
+      case 'create_project':
+        result = await handleCreateProject(body);
         break;
       case 'send_sms':
         result = await handleSendSms(body);
@@ -298,6 +306,161 @@ async function handleListWork(params: Record<string, unknown>): Promise<SiriResp
   };
 }
 
+function buildPersonName(params: Record<string, unknown>): string {
+  const full = String(params.name ?? '').trim();
+  if (full) return full;
+  const first = String(params.first_name ?? '').trim();
+  const last = String(params.last_name ?? '').trim();
+  return [first, last].filter(Boolean).join(' ');
+}
+
+async function resolveClientForProject(
+  params: Record<string, unknown>,
+): Promise<
+  | { ok: true; uid: string; name: string; created: boolean }
+  | { ok: false; error: string; text?: string }
+> {
+  if (!isContactApiConfigured()) {
+    return { ok: false, error: 'Contact API not configured' };
+  }
+
+  const clientQuery = String(params.client ?? params.client_name ?? '').trim();
+  const firstName = String(params.first_name ?? '').trim();
+  const lastName = String(params.last_name ?? '').trim();
+  const company = String(params.company ?? '').trim() || undefined;
+  const email = String(params.email ?? '').trim() || undefined;
+  const phone = String(params.phone ?? '').trim() || undefined;
+
+  if (clientQuery) {
+    const result = await searchClientsEnhanced(clientQuery, 5);
+    if (!result.ok) return { ok: false, error: result.error };
+
+    const matches = result.data.contacts.filter((c) => !c.archived);
+    if (matches.length > 0) {
+      const exact = matches.find(
+        (c) => c.name.trim().toLowerCase() === clientQuery.toLowerCase(),
+      );
+      const client = exact ?? matches[0];
+      return { ok: true, uid: client.uid, name: client.name.trim(), created: false };
+    }
+  }
+
+  const newName = buildPersonName(params);
+  if (!newName) {
+    const msg = clientQuery
+      ? `Client not found: ${clientQuery}. Provide first name and last name to create a new client.`
+      : 'Client first name and last name are required when no existing client is selected.';
+    return { ok: false, error: msg, text: msg };
+  }
+
+  if (!String(params.name ?? '').trim() && (!firstName || !lastName)) {
+    const msg = 'First name and last name are required for a new client.';
+    return { ok: false, error: msg, text: msg };
+  }
+
+  const created = await createContact({
+    name: newName,
+    email,
+    phone,
+    company,
+  });
+  if (!created.ok) return { ok: false, error: created.error };
+
+  return {
+    ok: true,
+    uid: created.data.uid,
+    name: created.data.name.trim(),
+    created: true,
+  };
+}
+
+async function handleFindClient(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isContactApiConfigured()) {
+    return { ok: false, error: 'Contact API not configured' };
+  }
+
+  const query = String(params.query ?? params.client ?? params.name ?? '').trim();
+  if (!query) return { ok: false, error: 'client or query is required' };
+
+  const result = await searchClientsEnhanced(query, 5);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const matches = result.data.contacts.filter((c) => !c.archived).map(contactSummary);
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      text: `No client found for ${query}`,
+      data: { found: false, query },
+    };
+  }
+
+  const client = matches[0];
+  const text =
+    matches.length === 1
+      ? `Found ${client.name}${client.company ? ` at ${client.company}` : ''}`
+      : `Found ${client.name}${client.company ? ` at ${client.company}` : ''} (${matches.length} matches)`;
+
+  return {
+    ok: true,
+    text,
+    data: { found: true, client, match_count: matches.length },
+  };
+}
+
+async function handleCreateProject(params: Record<string, unknown>): Promise<SiriResponse> {
+  const title = String(params.title ?? '').trim();
+  if (!title) {
+    const msg = 'Project title is required.';
+    return { ok: false, error: msg, text: msg };
+  }
+
+  const clientResult = await resolveClientForProject(params);
+  if (!clientResult.ok) {
+    return { ok: false, error: clientResult.error, text: clientResult.text ?? clientResult.error };
+  }
+
+  let slug = String(params.slug ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '-');
+  if (!slug) slug = slugFromTitle(title);
+
+  if (!slug || !isSafeWorkSlug(slug)) {
+    return { ok: false, error: 'Invalid project slug' };
+  }
+
+  if (await storeReadWork(slug)) {
+    const msg = `A project named "${title}" already exists.`;
+    return { ok: false, error: msg, text: msg };
+  }
+
+  const parsed = parseWorkJobInput({
+    ...params,
+    title,
+    client: clientResult.name,
+    contact_uid: clientResult.uid,
+    contact_name: clientResult.name,
+    record_origin: 'siri',
+  });
+  if ('error' in parsed) return { ok: false, error: parsed.error, text: parsed.error };
+
+  const result = await storeWriteWork(slug, parsed);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  const clientNote = clientResult.created
+    ? `Created new client ${clientResult.name}. `
+    : '';
+
+  return {
+    ok: true,
+    text: `${clientNote}Created project ${result.doc.title} for ${result.doc.client}. Status: ${result.doc.status}.`,
+    data: {
+      job: result.doc,
+      client: { uid: clientResult.uid, name: clientResult.name, created: clientResult.created },
+    },
+  };
+}
+
 async function handleCreateWork(params: Record<string, unknown>): Promise<SiriResponse> {
   const title = String(params.title ?? '').trim();
   if (!title) return { ok: false, error: 'title is required' };
@@ -353,12 +516,14 @@ async function handleStatus(): Promise<SiriResponse> {
     anthropic: Boolean(serverEnv('ANTHROPIC_API_KEY')),
   };
 
+  const statusWord = (up: boolean) => (up ? 'online' : 'offline');
+
   const lines = [
-    '📊 Reave Status',
+    'Reave Status',
     '',
-    `Contact API: ${checks.contactApi ? '✅' : '❌'}`,
-    `Telnyx: ${checks.telnyx ? '✅' : '❌'}`,
-    `Claude: ${checks.anthropic ? '✅' : '❌'}`,
+    `Contact API: ${statusWord(checks.contactApi)}`,
+    `Telnyx: ${statusWord(checks.telnyx)}`,
+    `Claude: ${statusWord(checks.anthropic)}`,
   ];
 
   return {

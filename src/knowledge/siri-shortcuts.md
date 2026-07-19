@@ -177,6 +177,52 @@ ACTIVE: Brand refresh · Local Cafe
 
 **Siri phrase**: "list my work" or "show active projects"
 
+### Find Client
+
+**What it does**: Look up a client by name. Returns `found: true/false` in JSON for Shortcuts conditionals.
+
+**JSON body**:
+
+```json
+{
+  "action": "find_client",
+  "client": "Tony Vello"
+}
+```
+
+### Create Project
+
+**What it does**: Find or create a client, then create a work/project item in one call. Use with the **Create Reave Project** Siri shortcut.
+
+**JSON body**:
+
+```json
+{
+  "action": "create_project",
+  "client": "Tony Vello",
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "company": "Smith Industries",
+  "email": "jane@example.com",
+  "title": "Website redesign",
+  "format": "text"
+}
+```
+
+**Parameters**:
+- `title` (required): Project title
+- `client` (optional): Existing client name to look up first
+- `first_name`, `last_name` (required for new clients): Used when `client` is blank or not found
+- `company`, `email`, `phone` (optional): Saved on new clients only
+
+**Example response**:
+
+```
+Created project Website redesign for Tony Vello. Status: active.
+```
+
+**Siri phrase**: "create reave project" or "new reave project"
+
 ### Create Work Item
 
 **What it does**: Start a new project/work item.
@@ -259,11 +305,11 @@ Client: Acme Corp
 **Example response**:
 
 ```
-📊 Reave Status
+Reave Status
 
-Contact API: ✅
-Telnyx: ✅
-Claude: ✅
+Contact API: online
+Telnyx: online
+Claude: online
 ```
 
 **Siri phrase**: "check reave status"

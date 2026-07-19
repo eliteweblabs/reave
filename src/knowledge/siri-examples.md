@@ -191,7 +191,78 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 6: "Send Client SMS"
+## Example 6: "Create Reave Project"
+
+**What it does**: Finds an existing client or creates a new one, then starts a project. Prompts for missing details via Siri.
+
+**Siri phrase**: "create reave project" or "new reave project"
+
+**Shortcut steps**:
+
+1. **Ask for Input**
+   - Prompt: `Existing client name? Leave blank for a new client.`
+   - Variable: `ClientQuery`
+
+2. **If** `ClientQuery` **has any value**
+   - **Text** (build lookup JSON):
+     ```json
+     {
+       "action": "find_client",
+       "client": "ClientQuery"
+     }
+     ```
+   - **Get Contents of URL**
+     - URL: `https://reave.app/api/siri`
+     - Method: POST
+     - Headers: `X-Siri-Key` + `Content-Type: application/json`
+     - Request Body: Text (from above)
+   - **Get Dictionary from Input** → Input: Contents of URL
+   - **Get Dictionary Value** → Key: `data`, Dictionary: Dictionary
+   - **Get Dictionary Value** → Key: `found`, Dictionary: Dictionary Value
+   - **Set Variable** → Name: `ClientFound`, Value: Dictionary Value
+   - **Otherwise**
+   - **Set Variable** → Name: `ClientFound`, Value: `false`
+
+3. **If** `ClientFound` **is** `false`
+   - **Ask for Input** → Prompt: `Client first name?`, Variable: `FirstName`
+   - **Ask for Input** → Prompt: `Client last name?`, Variable: `LastName`
+   - **Ask for Input** → Prompt: `Company name?`, Variable: `Company`
+   - **Ask for Input** → Prompt: `Email address?`, Variable: `Email`
+
+4. **Ask for Input**
+   - Prompt: `Project title?`
+   - Variable: `ProjectTitle`
+
+5. **Text** (build create JSON — Shortcuts replaces variables automatically)
+   ```json
+   {
+     "action": "create_project",
+     "client": "ClientQuery",
+     "first_name": "FirstName",
+     "last_name": "LastName",
+     "company": "Company",
+     "email": "Email",
+     "title": "ProjectTitle",
+     "format": "text"
+   }
+   ```
+
+6. **Get Contents of URL**
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body: Text (from step 5)
+
+7. **Speak Text** → Text: Contents of URL
+
+**Notes**:
+- When an existing client is found, the first/last/company/email fields are ignored.
+- Leave `ClientQuery` blank to always create a new client.
+- Use **Speak Text** instead of **Show Result** if you want Siri to read the confirmation aloud.
+
+---
+
+## Example 7: "Send Client SMS"
 
 **What it does**: Sends a text message via Telnyx.
 
@@ -228,7 +299,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 7: "Morning Briefing" (Automation)
+## Example 8: "Morning Briefing" (Automation)
 
 **What it does**: Runs every weekday at 9am, speaks your active work and status.
 
@@ -275,7 +346,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 8: "Reave Status" (Widget/Lock Screen)
+## Example 9: "Reave Status" (Widget/Lock Screen)
 
 **What it does**: Quick health check you can run from Lock Screen widget.
 
