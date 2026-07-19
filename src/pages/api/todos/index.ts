@@ -24,40 +24,45 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
-  if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
+  try {
+    const { userId } = context.locals.auth();
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+    if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
 
-  const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
-  const priorityRaw = context.url.searchParams.get('priority')?.trim().toLowerCase();
-  const dueBefore = context.url.searchParams.get('due_before')?.trim();
-  const dueAfter = context.url.searchParams.get('due_after')?.trim();
-  const jobSlug = context.url.searchParams.get('job_slug')?.trim() || undefined;
-  const unlinkedRaw = context.url.searchParams.get('unlinked')?.trim().toLowerCase();
-  const unlinked = unlinkedRaw === '1' || unlinkedRaw === 'true';
+    const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
+    const priorityRaw = context.url.searchParams.get('priority')?.trim().toLowerCase();
+    const dueBefore = context.url.searchParams.get('due_before')?.trim();
+    const dueAfter = context.url.searchParams.get('due_after')?.trim();
+    const jobSlug = context.url.searchParams.get('job_slug')?.trim() || undefined;
+    const unlinkedRaw = context.url.searchParams.get('unlinked')?.trim().toLowerCase();
+    const unlinked = unlinkedRaw === '1' || unlinkedRaw === 'true';
 
-  const status = normalizeTodoStatus(statusRaw);
-  const priority = normalizeTodoPriority(priorityRaw);
+    const status = normalizeTodoStatus(statusRaw);
+    const priority = normalizeTodoPriority(priorityRaw);
 
-  if (statusRaw && !status) return json({ ok: false, error: 'Invalid status' }, 400);
-  if (priorityRaw && !priority) return json({ ok: false, error: 'Invalid priority' }, 400);
+    if (statusRaw && !status) return json({ ok: false, error: 'Invalid status' }, 400);
+    if (priorityRaw && !priority) return json({ ok: false, error: 'Invalid priority' }, 400);
 
-  const todos = await storeListTodos({
-    status,
-    priority,
-    due_before: dueBefore || undefined,
-    due_after: dueAfter || undefined,
-    job_slug: jobSlug,
-    unlinked: unlinked || undefined,
-  });
+    const todos = await storeListTodos({
+      status,
+      priority,
+      due_before: dueBefore || undefined,
+      due_after: dueAfter || undefined,
+      job_slug: jobSlug,
+      unlinked: unlinked || undefined,
+    });
 
-  return json({
-    ok: true,
-    todos,
-    count: todos.length,
-    statuses: TODO_STATUSES,
-    priorities: TODO_PRIORITIES,
-  });
+    return json({
+      ok: true,
+      todos,
+      count: todos.length,
+      statuses: TODO_STATUSES,
+      priorities: TODO_PRIORITIES,
+    });
+  } catch (e) {
+    console.error('[todos] GET error:', e);
+    return json({ ok: false, error: 'Failed to load to-dos' }, 500);
+  }
 }
 
 export async function POST(context: APIContext): Promise<Response> {

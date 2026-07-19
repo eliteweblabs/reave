@@ -106,6 +106,23 @@ async function adminFetch(url, opts = {}) {
   return res;
 }
 
+/** Parse admin API JSON without Safari's opaque "expected pattern" failures. */
+async function readAdminJson(res, label = 'response') {
+  const text = await res.text();
+  if (!text.trim()) {
+    throw new Error(`${label}: empty response (HTTP ${res.status})`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const snippet = text.trim().slice(0, 80).replace(/\s+/g, ' ');
+    if (snippet.startsWith('<!DOCTYPE') || snippet.startsWith('<html') || snippet.startsWith('<')) {
+      throw new Error(`${label}: server returned HTML (HTTP ${res.status})`);
+    }
+    throw new Error(`${label}: invalid JSON (HTTP ${res.status})`);
+  }
+}
+
 function titleFromKnowledgeMarkdown(content, slug) {
   const first = content.split('\n').find((l) => l.trim().length > 0) ?? '';
   const fromHeading = first.replace(/^#\s*/, '').trim();
@@ -6504,18 +6521,23 @@ async function loadTodoTab(opts = {}) {
     root.innerHTML = '<div class="de-loading">Loading to‑dos…</div>';
   }
   try {
-    const [todoRes, workRes] = await Promise.all([
-      fetch('/api/todos', { cache: 'no-store' }),
-      fetch('/api/work', { cache: 'no-store' }),
-    ]);
-    const todoData = await todoRes.json();
-    const workData = await workRes.json();
+    const todoRes = await adminFetch('/api/todos');
+    const todoData = await readAdminJson(todoRes, 'To-dos');
     if (!todoRes.ok) throw new Error(todoData.error || `HTTP ${todoRes.status}`);
     todoState.todos = (todoData.todos || []).map(normalizeTodoItemDates);
     todoState.priorities = todoData.priorities || todoState.priorities;
     todoState.statuses = todoData.statuses || todoState.statuses;
-    todoState.jobs = workRes.ok ? workData.jobs || [] : [];
+    todoState.jobs = [];
+    try {
+      const workRes = await adminFetch('/api/work');
+      const workData = await readAdminJson(workRes, 'Projects');
+      if (workRes.ok) todoState.jobs = workData.jobs || [];
+    } catch (workErr) {
+      if (workErr.message === 'Session expired') throw workErr;
+      console.warn('[todo] project list unavailable', workErr);
+    }
   } catch (e) {
+    if (e.message === 'Session expired') return;
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
