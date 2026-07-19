@@ -283,6 +283,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #schedule-panel,
       #clients-editor,
       #social-panel,
+      #analytics-panel,
       #rule-editor,
       #home-dashboard,
       #settings-panel,
@@ -6344,6 +6345,76 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         color: var(--muted);
       }
 
+      /* ── Plausible analytics dashboard ── */
+      #analytics-panel {
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        display: none;
+        flex-direction: column;
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+      }
+      .ana-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+      }
+      .ana-open-link {
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .ana-live {
+        color: #22c55e;
+        font-weight: 700;
+      }
+      .ana-metric-delta {
+        display: block;
+        margin-top: 0.25rem;
+      }
+      .ana-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .ana-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        background: var(--surface-muted);
+      }
+      .ana-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      .ana-table th,
+      .ana-table td {
+        padding: 0.65rem 0.85rem;
+        text-align: left;
+        border-bottom: 1px solid var(--panel-border);
+        font-variant-numeric: tabular-nums;
+      }
+      .ana-table th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .ana-table tr:last-child td {
+        border-bottom: none;
+      }
+      .ana-table-label {
+        max-width: 16rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+
       /* ── Socials → API access (OAuth connect) ── */
       .soc-conn-list {
         display: flex;
@@ -7090,6 +7161,9 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
     <!-- Social dashboard panel (hidden unless social tab is active) -->
     <div id="social-panel" style="display:none" aria-label="Social"></div>
+
+    <!-- Analytics dashboard panel (hidden unless analytics tab is active) -->
+    <div id="analytics-panel" style="display:none" aria-label="Analytics"></div>
 
     <div id="rule-editor" style="display:none"></div>
 

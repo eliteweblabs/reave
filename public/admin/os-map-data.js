@@ -49,6 +49,7 @@ const SYSTEM_NODES = [
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
   { id: 'calcom_web', title: 'Cal.com', sub: 'cal.reave.app · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
+  { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
 ];
 
 const SYSTEM_EDGES = [
@@ -92,7 +93,9 @@ const SYSTEM_EDGES = [
   { from: 'astro', to: 'uptimerobot', label: 'getMonitors poll', dashed: true },
   { from: 'astro', to: 'calcom_api', label: 'bookings API', dashed: true },
   { from: 'web', to: 'calcom_api', label: '/form/schedule', dashed: true },
+  { from: 'web', to: 'plausible', label: 'pageviews', dashed: true },
   { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
+  { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
   { from: 'astro', to: 'web_push', label: 'inbox · site alerts' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
@@ -102,7 +105,7 @@ const SYSTEM_EDGES = [
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi', 'siri'] },
   { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
-  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'clerk', 'calcom_web'] },
+  { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible'] },
 ];
 
 // ───────────────────────── MCP & CLI (dev tooling plane) ─────────────────────────
@@ -218,6 +221,7 @@ export const MAPS = {
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   social:    { id: 'social',    title: 'Social',     icon: '📣',  type: 'social',        nodes: [],             edges: [],             groups: [] },
+  analytics: { id: 'analytics', title: 'Analytics',  icon: '📈',  type: 'analytics',     nodes: [],             edges: [],             groups: [] },
   profile:   { id: 'profile',   title: 'Profile',    icon: '👤',  type: 'profile',       nodes: [],             edges: [],             groups: [] },
   company:   { id: 'company',   title: 'Company',    icon: '🏢',  type: 'company',       nodes: [],             edges: [],             groups: [] },
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },

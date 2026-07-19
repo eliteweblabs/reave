@@ -134,6 +134,7 @@ const MAP_ICON_KEYS = {
   schedule: 'calendar',
   clients: 'users',
   social: 'trending-up',
+  analytics: 'bar-chart-2',
   finance: 'wallet',
   profile: 'user',
   company: 'building-2',
@@ -483,6 +484,7 @@ function isPanelMapKey(key) {
     t === 'work' ||
     t === 'clients' ||
     t === 'social' ||
+    t === 'analytics' ||
     t === 'chats' ||
     t === 'email' ||
     t === 'todo' ||
@@ -517,6 +519,8 @@ function activateMapPanel(opts = {}) {
     loadClientsTab({ clientUid: opts.clientUid });
   } else if (MAP.type === 'social') {
     loadSocialTab();
+  } else if (MAP.type === 'analytics') {
+    loadAnalyticsTab();
   } else if (MAP.type === 'chats') {
     if (opts.chatId) pendingChatDeepLinkId = opts.chatId;
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -549,6 +553,7 @@ function isPanelTab() {
     MAP.type === 'schedule' ||
     MAP.type === 'clients' ||
     MAP.type === 'social' ||
+    MAP.type === 'analytics' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
     MAP.type === 'rules' ||
@@ -575,6 +580,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('schedule-panel', MAP.type === 'schedule' ? 'flex' : 'none');
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
+  setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
@@ -3012,6 +3018,222 @@ async function loadSocialTab() {
       `<div class="social-scroll">` +
         `<div class="prof-card"><h1 class="prof-title">Social</h1>` +
         `<p class="dash-empty">Could not load social dashboard: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
+const ANALYTICS_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
+let analyticsRangeDays = 30;
+
+function analyticsNumFmt(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '0';
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (Math.abs(v) >= 10_000) return `${Math.round(v / 100) / 10}k`.replace(/\.0k$/, 'k');
+  return String(Math.round(v * 10) / 10);
+}
+
+function analyticsDurationFmt(seconds) {
+  const s = Math.max(0, Math.round(Number(seconds) || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, '0')}`;
+}
+
+function analyticsPctFmt(value) {
+  const v = Number(value);
+  if (!Number.isFinite(v)) return '0%';
+  return `${Math.round(v * 10) / 10}%`;
+}
+
+function analyticsDeltaHtml(change) {
+  const c = Number(change);
+  if (!Number.isFinite(c) || c === 0) {
+    return `<span class="soc-delta soc-delta--flat"><span class="soc-delta-val">—</span></span>`;
+  }
+  const up = c > 0;
+  const sign = up ? '+' : '−';
+  return (
+    `<span class="soc-delta soc-delta--${up ? 'up' : 'down'}">` +
+      `<span class="soc-delta-val">${sign}${Math.abs(Math.round(c))}%</span>` +
+    `</span>`
+  );
+}
+
+function analyticsSparkline(series, color) {
+  const points = Array.isArray(series) ? series : [];
+  if (points.length < 2) return '';
+  const values = points.map((p) => Number(p.visitors) || 0);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const span = max - min || 1;
+  const w = 280;
+  const h = 44;
+  const coords = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * w;
+    const y = h - ((v - min) / span) * (h - 6) - 3;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return (
+    `<svg class="soc-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">` +
+      `<polyline fill="none" stroke="${escHtml(color)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${coords.join(' ')}"></polyline>` +
+    `</svg>`
+  );
+}
+
+function analyticsRangeTabs() {
+  return (
+    `<div class="soc-range" role="tablist" aria-label="Reporting window">` +
+      [7, 30, 90]
+        .map(
+          (d) =>
+            `<button type="button" class="soc-range-btn${d === analyticsRangeDays ? ' active' : ''}" data-analytics-range="${d}">${d}d</button>`,
+        )
+        .join('') +
+    `</div>`
+  );
+}
+
+function analyticsMetricCard(value, label, hint, change) {
+  return (
+    `<div class="dash-stat dash-stat--muted">` +
+      `<span class="dash-stat-value">${escHtml(String(value))}</span>` +
+      `<span class="dash-stat-label">${escHtml(label)}</span>` +
+      (hint ? `<span class="dash-stat-hint">${escHtml(hint)}</span>` : '') +
+      (change != null ? `<span class="ana-metric-delta">${analyticsDeltaHtml(change)}</span>` : '') +
+    `</div>`
+  );
+}
+
+function analyticsBreakdownTable(title, rows, labelCol = 'Source') {
+  if (!rows.length) {
+    return (
+      `<section class="ana-section">` +
+        `<h2 class="soc-section-title">${escHtml(title)}</h2>` +
+        `<p class="dash-empty">No data for this period.</p>` +
+      `</section>`
+    );
+  }
+  return (
+    `<section class="ana-section">` +
+      `<h2 class="soc-section-title">${escHtml(title)}</h2>` +
+      `<div class="ana-table-wrap">` +
+        `<table class="ana-table">` +
+          `<thead><tr><th>${escHtml(labelCol)}</th><th>Visitors</th><th>Pageviews</th></tr></thead>` +
+          `<tbody>` +
+            rows
+              .map(
+                (row) =>
+                  `<tr>` +
+                    `<td class="ana-table-label">${escHtml(row.label)}</td>` +
+                    `<td>${escHtml(analyticsNumFmt(row.visitors))}</td>` +
+                    `<td>${escHtml(analyticsNumFmt(row.pageviews))}</td>` +
+                  `</tr>`,
+              )
+              .join('') +
+          `</tbody>` +
+        `</table>` +
+      `</div>` +
+    `</section>`
+  );
+}
+
+function bindAnalyticsControls(root) {
+  root.querySelectorAll('[data-analytics-range]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = Number(btn.getAttribute('data-analytics-range'));
+      if (!next || next === analyticsRangeDays) return;
+      analyticsRangeDays = next;
+      void loadAnalyticsTab();
+    });
+  });
+}
+
+function renderAnalyticsDashboard(root, d) {
+  const rangeLabel = ANALYTICS_RANGE_LABEL[d?.rangeDays] || `last ${d?.rangeDays || 30} days`;
+  const siteId = d?.siteId || '';
+  const dashboardUrl = d?.dashboardUrl || '';
+  const realtime =
+    d?.realtimeVisitors != null ? analyticsNumFmt(d.realtimeVisitors) : null;
+
+  const openLink = dashboardUrl
+    ? `<a class="prof-btn-secondary ana-open-link" href="${escHtml(dashboardUrl)}" target="_blank" rel="noopener noreferrer">Open in Plausible</a>`
+    : '';
+
+  const header =
+    `<div class="soc-header">` +
+      `<div class="soc-header-titles">` +
+        `<h1 class="soc-title">Analytics</h1>` +
+        `<p class="soc-sub">${escHtml(siteId || 'Site analytics')} · ${escHtml(rangeLabel)}` +
+          (realtime != null ? ` · <span class="ana-live">${escHtml(realtime)} live</span>` : '') +
+        `</p>` +
+      `</div>` +
+      `<div class="ana-header-actions">` + analyticsRangeTabs() + openLink + `</div>` +
+    `</div>`;
+
+  if (!d?.configured) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">Plausible is not configured on this deployment.</p>` +
+          `<p class="soc-empty-hint">Set <code>PLAUSIBLE_API_BASE_URL</code>, <code>PLAUSIBLE_API_KEY</code>, and optionally <code>PLAUSIBLE_SITE_ID</code> on Railway.</p>` +
+        `</div>` +
+      `</div>`;
+    bindAnalyticsControls(root);
+    return;
+  }
+
+  if (d?.error) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        header +
+        `<div class="prof-card soc-empty-card">` +
+          `<p class="dash-empty">Could not load analytics: ${escHtml(d.error)}</p>` +
+        `</div>` +
+      `</div>`;
+    bindAnalyticsControls(root);
+    return;
+  }
+
+  const m = d?.metrics || {};
+  const statsEl =
+    `<div class="dash-stats soc-totals">` +
+      analyticsMetricCard(analyticsNumFmt(m.visitors?.value ?? 0), 'Visitors', 'unique', m.visitors?.change) +
+      analyticsMetricCard(analyticsNumFmt(m.pageviews?.value ?? 0), 'Pageviews', rangeLabel, m.pageviews?.change) +
+      analyticsMetricCard(analyticsPctFmt(m.bounceRate?.value ?? 0), 'Bounce rate', 'sessions', m.bounceRate?.change) +
+      analyticsMetricCard(analyticsDurationFmt(m.visitDuration?.value ?? 0), 'Visit duration', 'avg session', m.visitDuration?.change) +
+    `</div>`;
+
+  const chart =
+    `<section class="ana-section">` +
+      `<h2 class="soc-section-title">Visitors over time</h2>` +
+      analyticsSparkline(d?.series, '#6366f1') +
+    `</section>`;
+
+  const pages = analyticsBreakdownTable('Top pages', Array.isArray(d?.topPages) ? d.topPages : [], 'Page');
+  const sources = analyticsBreakdownTable('Top sources', Array.isArray(d?.topSources) ? d.topSources : [], 'Source');
+
+  root.innerHTML =
+    `<div class="social-scroll">` + header + statsEl + chart + pages + sources + `</div>`;
+  bindAnalyticsControls(root);
+}
+
+async function loadAnalyticsTab() {
+  const root = document.getElementById('analytics-panel');
+  if (!root) return;
+  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading analytics…</div></div>';
+
+  try {
+    const res = await fetch(`/api/admin/analytics?range=${analyticsRangeDays}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderAnalyticsDashboard(root, data.dashboard);
+  } catch (e) {
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Analytics</h1>` +
+        `<p class="dash-empty">Could not load analytics: ${escHtml(e.message)}</p></div>` +
       `</div>`;
   }
 }

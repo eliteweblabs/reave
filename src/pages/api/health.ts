@@ -4,6 +4,7 @@ import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../
 import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from '../../lib/vapiPlugin';
 import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
+import { isPlausibleConfigured } from '../../lib/plausibleClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
@@ -200,6 +201,9 @@ export const GET: APIRoute = async () => {
         : isVapiAdminPluginEnabled()
           ? unconfigured('VAPI_API_KEY or assistant id not set')
           : unconfigured('vapi plugin disabled'),
+    plausible: isPlausibleConfigured()
+      ? configured('PLAUSIBLE_API_BASE_URL + PLAUSIBLE_API_KEY set')
+      : unconfigured('Plausible not configured'),
   };
 
   const features = [...enabledFeatures()].map((id: FeatureId) => ({
