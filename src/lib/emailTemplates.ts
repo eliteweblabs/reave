@@ -18,7 +18,8 @@ function esc(s: string): string {
 }
 
 export type EmailCta = { label: string; url: string };
-export type EmailMetaRow = [string, string];
+/** Label, display value, optional link (e.g. calendar download or maps directions). */
+export type EmailMetaRow = [string, string, string?];
 
 /**
  * Wraps email content in the organization branded wrapper.
@@ -76,13 +77,15 @@ export async function brandedEmailHtml(opts: {
           <table cellpadding="0" cellspacing="0" width="100%"
                  class="email-meta-table" style="border-top:1px solid #e5e5e5;border-collapse:collapse">
             ${opts.metaRows
-              .map(
-                ([label, value]) =>
-                  `<tr>
+              .map(([label, value, href]) => {
+                const valueCell = href
+                  ? `<a href="${esc(href)}" class="email-link email-meta-value" style="color:#a855f7;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all;text-decoration:underline">${esc(value)}</a>`
+                  : `<span class="email-meta-value" style="color:#1a1a1a;font-size:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</span>`;
+                return `<tr>
                     <td class="email-meta-label" style="padding:8px 16px 8px 0;font-size:13px;font-weight:600;color:#666;white-space:nowrap;vertical-align:top">${esc(label)}</td>
-                    <td class="email-meta-value" style="padding:8px 0;font-size:13px;color:#1a1a1a;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all">${esc(value)}</td>
-                  </tr>`,
-              )
+                    <td style="padding:8px 0">${valueCell}</td>
+                  </tr>`;
+              })
               .join('\n')}
           </table>
         </td></tr>`

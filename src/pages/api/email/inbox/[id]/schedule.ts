@@ -173,6 +173,7 @@ export async function POST(context: APIContext): Promise<Response> {
       companyName: company.name,
       manageUrl: bookingManageUrl(event.bookingUid),
       locationLabel: await resolveBookingLocation(event.bookingUid),
+      bookingUid: event.bookingUid,
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) {
@@ -279,6 +280,7 @@ export async function POST(context: APIContext): Promise<Response> {
       companyName: company.name,
       manageUrl: bookingManageUrl(event.bookingUid),
       locationLabel: await resolveBookingLocation(event.bookingUid),
+      bookingUid: event.bookingUid,
     });
     const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
@@ -358,6 +360,7 @@ export async function POST(context: APIContext): Promise<Response> {
       companyName: company.name,
       manageUrl: bookingManageUrl(bookingUid),
       locationLabel: await resolveBookingLocation(bookingUid),
+      bookingUid,
     });
     const sent = await sendSchedulingReply(updated, mail);
     if (!sent.ok) {

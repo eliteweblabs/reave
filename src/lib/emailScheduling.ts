@@ -6,11 +6,13 @@ import { parseSenderEmail, parseSenderName } from './emailAddress';
 import {
   bookingAvailability,
   bookingCreate,
+  bookingGet,
   bookingList,
   isBookingConfigured,
   type AvailabilitySlot,
   type BookingSummary,
 } from './bookingClient';
+import { bookingCalendarUrl, mapsDirectionsUrl } from './calendarLinks';
 
 export const DEFAULT_MEETING_MINUTES = 30;
 const SLOT_MATCH_MS = 5 * 60 * 1000;
@@ -300,12 +302,29 @@ export async function buildMeetingAcceptNotifyEmail(input: {
   manageUrl?: string | null;
   /** Optional meeting location shown as a "Where" row. */
   locationLabel?: string | null;
+  /** When set, enriches location/times and enables an Add to calendar link. */
+  bookingUid?: string | null;
 }): Promise<MeetingEmail> {
   const name = input.attendeeName.trim() || 'there';
   const when = input.whenLabel.trim();
   const manageUrl = input.manageUrl?.trim() || '';
-  const location = input.locationLabel?.trim() || '';
+  let location = input.locationLabel?.trim() || '';
   const signOff = input.companyName?.trim() || 'Thanks';
+  const bookingUid = input.bookingUid?.trim() || '';
+
+  if (bookingUid) {
+    try {
+      const got = await bookingGet(bookingUid);
+      if (got.ok && !location) {
+        location = got.data.booking.location?.trim() || '';
+      }
+    } catch {
+      // best-effort — keep caller-provided location
+    }
+  }
+
+  const calendarUrl = bookingUid ? bookingCalendarUrl(bookingUid) : '';
+  const directionsUrl = location ? mapsDirectionsUrl(location) : '';
 
   const text = [
     `Hi ${name},`,
@@ -313,8 +332,9 @@ export async function buildMeetingAcceptNotifyEmail(input: {
     when
       ? `Thanks for reaching out. I've confirmed our meeting for ${when}.`
       : `Thanks for reaching out. I've confirmed our meeting.`,
-    location ? `` : '',
+    calendarUrl ? `Add to calendar: ${calendarUrl}` : '',
     location ? `Where: ${location}` : '',
+    directionsUrl ? `Directions: ${directionsUrl}` : '',
     '',
     'Looking forward to speaking with you.',
     manageUrl ? '' : '',
@@ -327,9 +347,9 @@ export async function buildMeetingAcceptNotifyEmail(input: {
     .join('\n');
 
   const { brandedEmailHtml } = await import('./emailTemplates');
-  const metaRows: [string, string][] = [];
-  if (when) metaRows.push(['When', when]);
-  if (location) metaRows.push(['Where', location]);
+  const metaRows: [string, string, string?][] = [];
+  if (when) metaRows.push(['When', when, calendarUrl || undefined]);
+  if (location) metaRows.push(['Where', location, directionsUrl || undefined]);
   const html = await brandedEmailHtml({
     firstName: firstNameFrom(name),
     paragraphs: [
