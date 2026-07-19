@@ -14022,8 +14022,15 @@ async function refreshFooterBadgesQuiet() {
   } catch {}
 }
 
-async function refreshInboxBadgeQuiet() {
+async function refreshInboxBadgeQuiet(forceHome = false) {
+  const prevCount = reviewsPendingCount;
   await refreshFooterBadgesQuiet();
+  // Re-render the home review-alert banners when the pending-review count
+  // changes (polling) or when forced by a push, so they update without a tab
+  // switch. Push forces it because a new mail may not always change the count.
+  if (MAP.type === 'home' && (forceHome || reviewsPendingCount !== prevCount)) {
+    await loadHomeDashboard();
+  }
 }
 
 function stopInboxBadgePoll() {
@@ -16110,7 +16117,7 @@ if ('serviceWorker' in navigator) {
     .then(() => refreshInboxBadgeQuiet())
     .catch(() => undefined);
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet();
+    if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet(true);
     if (event.data?.type === 'reave-notification-open') handleNotificationOpen(event.data.url);
   });
 }
