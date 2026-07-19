@@ -12311,6 +12311,7 @@ function buildReaveShareActions(state, opts = {}) {
   const recipient = state.recipient || {};
   const name = recipient.name?.trim() || 'recipient';
   const firstName = name.split(/\s+/)[0] || name;
+  const brandName = window.__companyBrand?.name || 'Reave';
   const email = recipient.email?.trim();
   const phone = recipient.phone?.trim();
   const canEmail = !!email || !!recipient.contactUid || state.kind === 'booking';
@@ -12334,20 +12335,20 @@ function buildReaveShareActions(state, opts = {}) {
 
   actionsEl.appendChild(
     mkBtn(
-      `Email ${firstName}`,
+      `Email ${brandName}`,
       'reave-share-btn--primary',
       () => sendViaReaveShare('email', state),
       !canEmail,
-      email || (canEmail ? 'Via Reave' : 'No email on file'),
+      email || (canEmail ? `Via ${brandName}` : 'No email on file'),
     ),
   );
   actionsEl.appendChild(
     mkBtn(
-      `Text ${firstName}`,
+      `Text ${brandName}`,
       'reave-share-btn--primary',
       () => sendViaReaveShare('sms', state),
       !canSms,
-      phone || (canSms ? 'Via Reave' : 'No phone on file'),
+      phone || (canSms ? `Via ${brandName}` : 'No phone on file'),
     ),
   );
   actionsEl.appendChild(
