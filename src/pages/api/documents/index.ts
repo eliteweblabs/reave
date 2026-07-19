@@ -24,7 +24,7 @@ function projectRoot(): string {
 }
 
 function docsDir(): string {
-  return join(projectRoot(), 'src', 'content', 'documents');
+  return join(projectRoot(), 'src', 'documents');
 }
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
