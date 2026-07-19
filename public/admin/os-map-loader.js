@@ -11544,7 +11544,6 @@ function renderEditClientForm(pane) {
           shareBtn,
           paneDeleteIcon({
             label: 'Delete client',
-            confirmDelete: false,
             onClick: () => deleteClient(uid, clientDisplayLabel(clientState.draft)),
           }),
         ].filter(Boolean),
@@ -14422,9 +14421,7 @@ function createClientListItem(c) {
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
     swipeDeleteAction({
-      // Keep the preview sheet — clients can cascade-delete projects.
-      confirmDelete: false,
-      onClick: () => deleteClient(c.uid, c.name),
+      onClick: () => deleteClient(c.uid, c.company || c.name),
     }),
   ]);
 }
