@@ -5386,6 +5386,18 @@ function initTopbarMenus() {
       }
     });
   }
+
+  const logoLink = document.querySelector('.app-header-logo');
+  if (logoLink && !logoLink.dataset.bound) {
+    logoLink.dataset.bound = '1';
+    logoLink.addEventListener('click', (ev) => {
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      closeTopbarMenus();
+      closeSearchOverlay();
+      setActiveMap('home', { force: true });
+    });
+  }
 }
 
 const DEPLOY_POLL_MS = 60_000;

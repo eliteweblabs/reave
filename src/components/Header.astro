@@ -62,7 +62,7 @@ const userId = auth?.userId ?? null;
 
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 const inAdminRoute = adminShell || path.startsWith("/admin");
-const logoHref = inAdminRoute ? "/admin/" : "/";
+const logoHref = inAdminRoute ? "/admin/?tab=home" : "/";
 const logoAriaLabel = inAdminRoute ? "Dashboard" : company.name || "Home";
 const returnTo = Astro.url.searchParams.get("returnTo");
 const signInRedirect =
