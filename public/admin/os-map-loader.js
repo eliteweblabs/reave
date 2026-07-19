@@ -2187,7 +2187,6 @@ async function runMeetingConfirmChecklist(item) {
         if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
         const sentTo = data.attendeeEmail || emailTarget;
-        const sentWhen = data.whenLabel || whenLabel;
         setMeetingConfirmStep(
           bodyEl,
           'email',
@@ -2212,8 +2211,7 @@ async function runMeetingConfirmChecklist(item) {
         if (emailState.activeId === item.emailId) renderEmailPanel();
 
         titleEl.textContent = 'Meeting confirmed';
-        bodyEl.querySelector('.meeting-confirm-lead').textContent =
-          `All set for ${sentWhen}. ${attendeeLabel} has been notified.`;
+        bodyEl.querySelector('.meeting-confirm-lead')?.remove();
 
         actionsEl.innerHTML = '';
         const doneBtn = document.createElement('button');
