@@ -10818,6 +10818,8 @@ function renderCalMonthView(parent) {
   const grid = document.createElement('div');
   grid.className = 'cal-month-grid';
   const today = scheduleTodayKey();
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
   for (let i = 0; i < 42; i++) {
     const dayDate = scheduleAddDays(gridStart, i);
@@ -10827,7 +10829,10 @@ function renderCalMonthView(parent) {
     btn.type = 'button';
     btn.className = 'cal-day';
     if (dayDate.getMonth() !== month) btn.classList.add('cal-day--other');
-    if (key === today) btn.classList.add('cal-day--today');
+    const isToday = dayDate.getFullYear() === now.getFullYear() && 
+                     dayDate.getMonth() === now.getMonth() && 
+                     dayDate.getDate() === now.getDate();
+    if (isToday) btn.classList.add('cal-day--today');
     if (key === scheduleState.selectedDate) btn.classList.add('cal-day--selected');
 
     const num = document.createElement('span');
@@ -10933,12 +10938,17 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
     const header = document.createElement('div');
     header.className = 'cal-week-header';
     const today = scheduleTodayKey();
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
     for (const key of dayKeys) {
       const d = scheduleParseDateKey(key);
       const col = document.createElement('button');
       col.type = 'button';
       col.className = 'cal-week-header-col';
-      if (key === today) col.classList.add('cal-week-header-col--today');
+      const isToday = d.getFullYear() === now.getFullYear() && 
+                       d.getMonth() === now.getMonth() && 
+                       d.getDate() === now.getDate();
+      if (isToday) col.classList.add('cal-week-header-col--today');
       if (key === scheduleState.selectedDate) col.classList.add('cal-week-header-col--selected');
       col.innerHTML =
         `<span class="cal-week-header-dow">${escHtml(d.toLocaleDateString(undefined, { weekday: 'short' }))}</span>` +
