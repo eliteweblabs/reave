@@ -83,6 +83,8 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   return json({
     ok: true,
     ...contactSummary(res.data),
+    firstName: contactStringField(res.data.firstName),
+    lastName: contactStringField(res.data.lastName),
     notes: res.data.notes ?? '',
     website,
     address: contactStringField(portal?.address) || '',
@@ -125,6 +127,8 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   return json({
     ok: true,
     ...contactSummary(res.data),
+    firstName: contactStringField(res.data.firstName),
+    lastName: contactStringField(res.data.lastName),
     notes: res.data.notes ?? '',
     website: portalSaved.website,
     address: portalSaved.address,
@@ -166,6 +170,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   return json({
     ok: true,
     ...contactSummary(res.data),
+    firstName: contactStringField(res.data.firstName),
+    lastName: contactStringField(res.data.lastName),
     notes: res.data.notes ?? '',
     website: portalSaved.website,
     address: portalSaved.address,

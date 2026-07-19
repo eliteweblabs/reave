@@ -11225,6 +11225,26 @@ function syncClTitleInputWidth(input) {
   input.style.width = `${Math.max(text.length, 4)}ch`;
 }
 
+function splitClientNameParts(contact) {
+  const first = (contact.firstName || '').trim();
+  const last = (contact.lastName || '').trim();
+  if (first || last) return { firstName: first, lastName: last };
+  const full = (contact.name || '').trim();
+  if (!full) return { firstName: '', lastName: '' };
+  const parts = full.split(/\s+/);
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
+function joinClientFullName(firstName, lastName, company = '') {
+  const person = [firstName, lastName].map((s) => s.trim()).filter(Boolean).join(' ');
+  return person || company.trim();
+}
+
+function clientDisplayLabel(draft) {
+  return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
+}
+
 function appendClientField(parent, label, input) {
   const wrap = document.createElement('label');
   wrap.className = 'de-label';
@@ -11343,6 +11363,26 @@ function mountClientWebsiteField(parent, value) {
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
+
+  const titleWrap = document.createElement('div');
+  titleWrap.className = 'cl-title-wrap';
+  const titleField = document.createElement('div');
+  titleField.className = 'cl-title-field';
+  const companyInput = document.createElement('input');
+  companyInput.className = 'cl-title-input';
+  companyInput.placeholder = 'Company name';
+  companyInput.value = clientState.draft?.company || '';
+  companyInput.setAttribute('aria-label', 'Company name');
+  const editHint = document.createElement('span');
+  editHint.className = 'cl-title-edit-hint';
+  editHint.innerHTML = IOS_ICONS.edit;
+  editHint.setAttribute('aria-hidden', 'true');
+  titleField.appendChild(companyInput);
+  titleField.appendChild(editHint);
+  titleWrap.appendChild(titleField);
+  syncClTitleInputWidth(companyInput);
+  companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
+
   pane.appendChild(
     createPaneSubheader({
       back: {
@@ -11354,27 +11394,28 @@ function renderNewClientForm(pane) {
           renderClientsEditor();
         },
       },
-      title: 'New client',
+      titleNode: titleWrap,
     }).header,
   );
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
-  const nameInput = document.createElement('input');
-  nameInput.className = 'de-input';
-  nameInput.placeholder = 'Full name';
-  nameInput.value = clientState.draft?.name || '';
-  appendClientField(fields, 'Name', nameInput);
-  registerClientField(nameInput, () => !!nameInput.value.trim());
+  const firstNameInput = document.createElement('input');
+  firstNameInput.className = 'de-input';
+  firstNameInput.placeholder = 'First name';
+  firstNameInput.autocomplete = 'given-name';
+  firstNameInput.value = clientState.draft?.firstName || '';
+  appendClientField(fields, 'First name', firstNameInput);
+  registerClientField(firstNameInput, () => true);
 
-  const emailInput = document.createElement('input');
-  emailInput.className = 'de-input';
-  emailInput.type = 'email';
-  emailInput.placeholder = 'email@example.com';
-  emailInput.value = clientState.draft?.email || '';
-  appendClientField(fields, 'Email', emailInput);
-  registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
+  const lastNameInput = document.createElement('input');
+  lastNameInput.className = 'de-input';
+  lastNameInput.placeholder = 'Last name';
+  lastNameInput.autocomplete = 'family-name';
+  lastNameInput.value = clientState.draft?.lastName || '';
+  appendClientField(fields, 'Last name', lastNameInput);
+  registerClientField(lastNameInput, () => true);
 
   const phoneInput = document.createElement('input');
   phoneInput.className = 'de-input';
@@ -11383,12 +11424,13 @@ function renderNewClientForm(pane) {
   attachPhoneFormatter(phoneInput);
   registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
-  const companyInput = document.createElement('input');
-  companyInput.className = 'de-input';
-  companyInput.placeholder = 'Company';
-  companyInput.value = clientState.draft?.company || '';
-  appendClientField(fields, 'Company', companyInput);
-  registerClientField(companyInput, () => true);
+  const emailInput = document.createElement('input');
+  emailInput.className = 'de-input';
+  emailInput.type = 'email';
+  emailInput.placeholder = 'email@example.com';
+  emailInput.value = clientState.draft?.email || '';
+  appendClientField(fields, 'Email', emailInput);
+  registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
@@ -11405,14 +11447,16 @@ function renderNewClientForm(pane) {
   fields.appendChild(notesLabel);
 
   pane.appendChild(fields);
+  registerClientField(companyInput, () => !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value));
   registerClientField(notesTa, () => true);
 
   setEditorFooterSave(() => {
     refreshAllClientFields();
-    if (!nameInput.value.trim()) return;
+    const name = joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value);
+    if (!name) return;
     if (!isValidClientEmail(emailInput.value) || !isValidClientPhone(phoneInput.value)) return;
     return createClient({
-      name: nameInput.value.trim(),
+      name,
       email: emailInput.value.trim(),
       phone: phoneToStorage(phoneInput.value),
       company: companyInput.value.trim(),
@@ -11433,8 +11477,11 @@ function renderEditClientForm(pane) {
     .then(({ ok, data }) => {
       if (!ok) throw new Error(data.error || 'Failed to load');
       const contact = data.contact ?? data;
+      const { firstName, lastName } = splitClientNameParts(contact);
       clientState.draft = {
         name: contact.name || '',
+        firstName,
+        lastName,
         email: contact.email || '',
         phone: contact.phone || '',
         company: contact.company || '',
@@ -11454,26 +11501,26 @@ function renderEditClientForm(pane) {
       titleWrap.className = 'cl-title-wrap';
       const titleField = document.createElement('div');
       titleField.className = 'cl-title-field';
-      const nameInput = document.createElement('input');
-      nameInput.className = 'cl-title-input';
-      nameInput.value = clientState.draft.name || '';
-      nameInput.placeholder = 'Client name';
-      nameInput.setAttribute('aria-label', 'Client name');
+      const companyInput = document.createElement('input');
+      companyInput.className = 'cl-title-input';
+      companyInput.value = clientState.draft.company || '';
+      companyInput.placeholder = 'Company name';
+      companyInput.setAttribute('aria-label', 'Company name');
       const editHint = document.createElement('span');
       editHint.className = 'cl-title-edit-hint';
       editHint.innerHTML = IOS_ICONS.edit;
       editHint.setAttribute('aria-hidden', 'true');
-      titleField.appendChild(nameInput);
+      titleField.appendChild(companyInput);
       titleField.appendChild(editHint);
       titleWrap.appendChild(titleField);
-      syncClTitleInputWidth(nameInput);
-      nameInput.addEventListener('input', () => syncClTitleInputWidth(nameInput));
+      syncClTitleInputWidth(companyInput);
+      companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
       const shareBtn = createPortalShareBtn(uid, {
-        title: `${clientState.draft.name || 'Client'} — portal`,
+        title: `${clientDisplayLabel(clientState.draft)} — portal`,
         recipient: {
           contactUid: uid,
-          name: clientState.draft.name || 'Client',
+          name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Client',
           email: clientState.draft.email,
           phone: clientState.draft.phone,
         },
@@ -11498,7 +11545,7 @@ function renderEditClientForm(pane) {
           paneDeleteIcon({
             label: 'Delete client',
             confirmDelete: false,
-            onClick: () => deleteClient(uid, nameInput.value.trim() || 'Client'),
+            onClick: () => deleteClient(uid, clientDisplayLabel(clientState.draft)),
           }),
         ].filter(Boolean),
       });
@@ -11507,12 +11554,21 @@ function renderEditClientForm(pane) {
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
-      const emailInput = document.createElement('input');
-      emailInput.className = 'de-input';
-      emailInput.type = 'email';
-      emailInput.value = clientState.draft.email || '';
-      appendClientField(fields, 'Email', emailInput);
-      registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
+      const firstNameInput = document.createElement('input');
+      firstNameInput.className = 'de-input';
+      firstNameInput.placeholder = 'First name';
+      firstNameInput.autocomplete = 'given-name';
+      firstNameInput.value = clientState.draft.firstName || '';
+      appendClientField(fields, 'First name', firstNameInput);
+      registerClientField(firstNameInput, () => true);
+
+      const lastNameInput = document.createElement('input');
+      lastNameInput.className = 'de-input';
+      lastNameInput.placeholder = 'Last name';
+      lastNameInput.autocomplete = 'family-name';
+      lastNameInput.value = clientState.draft.lastName || '';
+      appendClientField(fields, 'Last name', lastNameInput);
+      registerClientField(lastNameInput, () => true);
 
       const phoneInput = document.createElement('input');
       phoneInput.className = 'de-input';
@@ -11521,11 +11577,12 @@ function renderEditClientForm(pane) {
       attachPhoneFormatter(phoneInput);
       registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
-      const companyInput = document.createElement('input');
-      companyInput.className = 'de-input';
-      companyInput.value = clientState.draft.company || '';
-      appendClientField(fields, 'Company', companyInput);
-      registerClientField(companyInput, () => true);
+      const emailInput = document.createElement('input');
+      emailInput.className = 'de-input';
+      emailInput.type = 'email';
+      emailInput.value = clientState.draft.email || '';
+      appendClientField(fields, 'Email', emailInput);
+      registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
       const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
@@ -11559,17 +11616,22 @@ function renderEditClientForm(pane) {
       notesLabel.appendChild(notesTa);
       fields.appendChild(notesLabel);
       registerClientField(notesTa, () => true);
-      registerClientField(nameInput, () => !!nameInput.value.trim());
+      registerClientField(companyInput, () =>
+        !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value),
+      );
 
       pane.appendChild(fields);
       mountClientWorkSection(pane, uid);
 
       const getPayload = () => {
+        const firstName = firstNameInput.value.trim();
+        const lastName = lastNameInput.value.trim();
+        const company = companyInput.value.trim();
         const payload = {
-          name: nameInput.value.trim(),
+          name: joinClientFullName(firstName, lastName, company),
           email: emailInput.value.trim(),
           phone: phoneToStorage(phoneInput.value),
-          company: companyInput.value.trim(),
+          company,
           website: websiteInput.value.trim(),
           address: addressInput.value.trim(),
           notes: notesTa.value.trim(),
@@ -11581,10 +11643,11 @@ function renderEditClientForm(pane) {
 
       const markDirty = () => {
         clientState.dirty =
-          nameInput.value !== clientState.draft.name ||
+          firstNameInput.value !== clientState.draft.firstName ||
+          lastNameInput.value !== clientState.draft.lastName ||
+          companyInput.value !== clientState.draft.company ||
           emailInput.value !== clientState.draft.email ||
           phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
-          companyInput.value !== clientState.draft.company ||
           websiteInput.value !== clientState.draft.website ||
           addressInput.value !== clientState.draft.address ||
           notesTa.value !== clientState.draft.notes;
@@ -11597,7 +11660,16 @@ function renderEditClientForm(pane) {
         markDirty();
         await autosaveClient(uid, getPayload());
       };
-      for (const el of [nameInput, emailInput, phoneInput, companyInput, websiteInput, addressInput, notesTa]) {
+      for (const el of [
+        companyInput,
+        firstNameInput,
+        lastNameInput,
+        emailInput,
+        phoneInput,
+        websiteInput,
+        addressInput,
+        notesTa,
+      ]) {
         el.addEventListener('input', () => {
           clientActiveField = el;
           if (el === addressInput) clientPendingGeo = null;
@@ -11635,7 +11707,7 @@ async function openClient(uid) {
 }
 
 async function createClient(payload) {
-  if (!payload.name) { alert('Enter a name.'); return; }
+  if (!payload.name) { alert('Enter a company or contact name.'); return; }
   try {
     const res = await fetch('/api/clients', {
       method: 'POST',
@@ -11715,8 +11787,15 @@ async function autosaveClient(uid, payload) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const nameParts = splitClientNameParts({
+      name: payload.name,
+      firstName: data.firstName,
+      lastName: data.lastName,
+    });
     Object.assign(clientState.draft, {
       name: payload.name,
+      firstName: nameParts.firstName,
+      lastName: nameParts.lastName,
       email: payload.email,
       phone: payload.phone,
       company: payload.company,
