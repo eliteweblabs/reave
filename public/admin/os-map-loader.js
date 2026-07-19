@@ -7768,13 +7768,97 @@ async function loadKnowledgeTab() {
   renderKnowledgeEditor();
 }
 
+function visibleKnowledgeEntries() {
+  const { entries, search } = knowledgeState;
+  return entries.filter((entry) =>
+    matchesListSearch(search, entry.title, entry.slug, entry.source, entry.isDefault ? 'default' : 'custom'),
+  );
+}
+
+function fillKnowledgeSidebarList(list) {
+  const visibleEntries = visibleKnowledgeEntries();
+  list.innerHTML = '';
+  for (const entry of visibleEntries) {
+    list.appendChild(createKnowledgeSwipeRow(entry));
+  }
+  if (visibleEntries.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'de-empty';
+    empty.textContent = knowledgeState.search.trim() ? 'No matches.' : 'No knowledge files yet.';
+    list.appendChild(empty);
+  }
+}
+
+function refreshKnowledgeSidebarList() {
+  const root = getKnowledgeEditor();
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) {
+    renderKnowledgeEditor();
+    return;
+  }
+  const searchInput = root.querySelector('.panel-list-search');
+  if (searchInput) {
+    const count = knowledgeState.entries.length;
+    searchInput.placeholder = `Search ${count} ${count === 1 ? 'doc' : 'docs'}`;
+  }
+  fillKnowledgeSidebarList(list);
+  syncKnowledgeSidebarActiveState();
+}
+
+function syncKnowledgeSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
+  const root = getKnowledgeEditor();
+  if (!root) return;
+  let activeEl = null;
+  root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
+    const isActive = el.dataset.slug === knowledgeState.activeSlug;
+    el.classList.toggle('active', isActive);
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
+  });
+  if (scroll && activeEl) {
+    const row = activeEl.closest('.swipe-row') || activeEl;
+    requestAnimationFrame(() => {
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }
+}
+
+function renderKnowledgePane() {
+  const root = getKnowledgeEditor();
+  if (!root) return;
+  let pane = root.querySelector('.de-pane');
+  if (!pane) {
+    renderKnowledgeEditor();
+    return;
+  }
+  const { activeSlug } = knowledgeState;
+
+  if (activeSlug === '__new__') {
+    renderNewKnowledgeForm(pane);
+  } else if (activeSlug) {
+    renderEditKnowledgeForm(pane);
+  } else {
+    clearEditorFooterSave();
+    pane.innerHTML = '';
+    appendEmptyDetailPane(pane, {
+      mapKey: 'knowledge',
+      iconName: 'book-open',
+      bodyHtml: '<p>Select a doc to edit, or create a new one.</p>',
+      onCreate: () => startNewKnowledge(),
+    });
+    root.classList.remove('de-pane-active');
+  }
+}
+
 function renderKnowledgeEditor() {
   const root = getKnowledgeEditor();
   if (!root) return;
-  const { entries, activeSlug, dirty, search } = knowledgeState;
-  const visibleEntries = entries.filter((entry) =>
-    matchesListSearch(search, entry.title, entry.slug, entry.source, entry.isDefault ? 'default' : 'custom'),
-  );
+  const { entries, search } = knowledgeState;
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
@@ -7787,7 +7871,7 @@ function renderKnowledgeEditor() {
       placeholder: `Search ${entries.length} ${entries.length === 1 ? 'doc' : 'docs'}`,
       onInput: (value) => {
         knowledgeState.search = value;
-        renderKnowledgeEditor();
+        refreshKnowledgeSidebarList();
       },
     },
   });
@@ -7802,43 +7886,21 @@ function renderKnowledgeEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
-  for (const entry of visibleEntries) {
-    list.appendChild(createKnowledgeSwipeRow(entry));
-  }
-  if (visibleEntries.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'de-empty';
-    empty.textContent = search.trim() ? 'No matches.' : 'No knowledge files yet.';
-    list.appendChild(empty);
-  }
+  fillKnowledgeSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
 
   const pane = document.createElement('div');
   pane.className = 'de-pane';
-
-  if (activeSlug === '__new__') {
-    renderNewKnowledgeForm(pane);
-  } else if (activeSlug) {
-    renderEditKnowledgeForm(pane);
-  } else {
-    clearEditorFooterSave();
-    appendEmptyDetailPane(pane, {
-      mapKey: 'knowledge',
-      iconName: 'book-open',
-      bodyHtml: '<p>Select a doc to edit, or create a new one.</p>',
-      onCreate: () => startNewKnowledge(),
-    });
-  }
-
   root.appendChild(pane);
+  renderKnowledgePane();
 }
 
 function startNewKnowledge() {
   knowledgeState.activeSlug = '__new__';
   knowledgeState.dirty = false;
-  renderKnowledgeEditor();
-  getKnowledgeEditor()?.classList.add('de-pane-active');
+  syncKnowledgeSidebarActiveState();
+  renderKnowledgePane();
 }
 
 function renderNewKnowledgeForm(pane) {
@@ -7850,7 +7912,8 @@ function renderNewKnowledgeForm(pane) {
         onClick: () => {
           knowledgeState.activeSlug = null;
           getKnowledgeEditor()?.classList.remove('de-pane-active');
-          renderKnowledgeEditor();
+          syncKnowledgeSidebarActiveState();
+          renderKnowledgePane();
         },
       },
       title: 'New knowledge doc',
@@ -7909,7 +7972,8 @@ function renderEditKnowledgeForm(pane) {
             knowledgeState.activeSlug = null;
             knowledgeState.dirty = false;
             getKnowledgeEditor()?.classList.remove('de-pane-active');
-            renderKnowledgeEditor();
+            syncKnowledgeSidebarActiveState();
+            renderKnowledgePane();
           },
         },
         title: data.title || entry?.title || slug,
@@ -7947,11 +8011,16 @@ function renderEditKnowledgeForm(pane) {
 }
 
 async function openKnowledge(slug) {
+  if (slug === knowledgeState.activeSlug) {
+    syncKnowledgeSidebarActiveState({ scroll: true });
+    return;
+  }
   await flushKnowledgeAutosave();
   if (knowledgeState.dirty && knowledgeState.activeSlug && !(await confirmDiscardChanges())) return;
   knowledgeState.activeSlug = slug;
   knowledgeState.dirty = false;
-  renderKnowledgeEditor();
+  syncKnowledgeSidebarActiveState({ scroll: true });
+  renderKnowledgePane();
 }
 
 async function createKnowledge(slug, content) {
@@ -7974,7 +8043,8 @@ async function createKnowledge(slug, content) {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     await loadKnowledgeTab();
     knowledgeState.activeSlug = slug;
-    renderKnowledgeEditor();
+    syncKnowledgeSidebarActiveState({ scroll: true });
+    renderKnowledgePane();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
   }
@@ -7998,7 +8068,8 @@ async function saveKnowledge(slug, content) {
     knowledgeState.dirty = false;
     await loadKnowledgeTab();
     knowledgeState.activeSlug = slug;
-    renderKnowledgeEditor();
+    syncKnowledgeSidebarActiveState({ scroll: true });
+    renderKnowledgePane();
   } catch (e) {
     alert(`Failed to save: ${e.message}`);
   }
