@@ -68,11 +68,23 @@ export function parseHandle(raw: string): string {
   if (!value) return '';
 
   // Full URL → take the last meaningful path segment.
-  if (/^https?:\/\//i.test(value) || value.includes('/')) {
+  if (/^https?:\/\//i.test(value)) {
     try {
-      const url = new URL(value.startsWith('http') ? value : `https://${value}`);
+      const url = new URL(value);
       const segments = url.pathname.split('/').filter(Boolean);
       // "linkedin.com/company/foo" → "foo"; "x.com/foo" → "foo".
+      const last = segments[segments.length - 1] || '';
+      return last.replace(/^@/, '');
+    } catch {
+      /* fall through to bare-handle handling */
+    }
+  }
+
+  // Path-like value without http:// prefix (e.g. "example.com/foo")
+  if (value.includes('/')) {
+    try {
+      const url = new URL(`https://${value}`);
+      const segments = url.pathname.split('/').filter(Boolean);
       const last = segments[segments.length - 1] || '';
       return last.replace(/^@/, '');
     } catch {
