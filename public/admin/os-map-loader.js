@@ -2862,8 +2862,12 @@ async function syncUptimeSitesFromPlatforms() {
   openOsDialogBackdrop();
 
   try {
-    const res = await fetch('/api/uptime/sync', { method: 'POST' });
-    const data = await res.json();
+    const res = await fetch('/api/uptime/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json().catch(() => null);
+    if (!data) throw new Error(`HTTP ${res.status}`);
     if (!res.ok || !data.ok) throw new Error(data.error || data.errors?.[0] || `HTTP ${res.status}`);
 
     const createdLines = (data.createdItems || [])
@@ -2915,8 +2919,12 @@ async function syncUptimeMonitorsFromApi() {
   openOsDialogBackdrop();
 
   try {
-    const res = await fetch('/api/admin/uptimerobot', { method: 'POST' });
-    const data = await res.json();
+    const res = await fetch('/api/admin/uptimerobot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json().catch(() => null);
+    if (!data) throw new Error(`HTTP ${res.status}`);
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
     bodyEl.innerHTML = `<p>Synced <strong>${data.synced}</strong> monitor${data.synced === 1 ? '' : 's'} from UptimeRobot.</p>`;
