@@ -6,13 +6,13 @@ import { isKinstaConfigured } from './kinstaClient';
 import { isRailwayConfigured } from './railwayClient';
 import { isUptimeRobotConfigured } from './uptimerobotClient';
 import { isUptimeDbConfigured } from './pgUptime';
-import { syncPlatformUrlsToUptime, syncUptimeMonitorsFromApi } from './uptimeMonitoring';
+import { syncUptimeMonitorsFromApi } from './uptimeMonitoring';
+import { runUptimePlatformSyncJob } from './uptimePlatformSyncJob';
 import { serverEnv } from './serverEnv';
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 let _discoverTimer: ReturnType<typeof setInterval> | null = null;
 let _running = false;
-let _discovering = false;
 
 function pollIntervalMs(): number {
   const min = Number(serverEnv('UPTIMEROBOT_POLL_MINUTES') || 5);
@@ -48,27 +48,21 @@ export async function runUptimePoll(): Promise<{ ok: boolean; synced?: number; e
  * Idempotent: existing monitors are skipped.
  */
 export async function runUptimeDiscovery(): Promise<{ ok: boolean; created?: number; error?: string }> {
-  if (_discovering) return { ok: false, error: 'discovery already running' };
-  _discovering = true;
-  try {
-    const result = await syncPlatformUrlsToUptime();
-    if (result.created > 0) {
-      console.info('[uptime-poll] discovery created monitors', { created: result.created });
-    }
-    if (result.errors.length) {
-      console.warn('[uptime-poll] discovery errors', result.errors);
-    }
-    if (result.account) {
-      console.info('[uptime-poll] UptimeRobot account', {
-        used: result.account.monitorCount,
-        limit: result.account.monitorLimit,
-        local: result.localMonitorCount,
-      });
-    }
-    return { ok: result.ok, created: result.created };
-  } finally {
-    _discovering = false;
+  const result = await runUptimePlatformSyncJob();
+  if (result.created > 0) {
+    console.info('[uptime-poll] discovery created monitors', { created: result.created });
   }
+  if (result.errors.length) {
+    console.warn('[uptime-poll] discovery errors', result.errors);
+  }
+  if (result.account) {
+    console.info('[uptime-poll] UptimeRobot account', {
+      used: result.account.monitorCount,
+      limit: result.account.monitorLimit,
+      local: result.localMonitorCount,
+    });
+  }
+  return { ok: result.ok, created: result.created, error: result.error };
 }
 
 export function ensureUptimePollScheduler(): void {

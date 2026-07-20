@@ -1,9 +1,9 @@
 /**
- * POST /api/uptime/sync — start background Kinsta/Railway → UptimeRobot sync.
+ * GET /api/uptime/sync/status — poll background site sync progress.
  */
 import type { APIRoute } from 'astro';
-import { hasFeature } from '../../../lib/features';
-import { startUptimePlatformSyncBackground } from '../../../lib/uptimePlatformSyncJob';
+import { hasFeature } from '../../../../lib/features';
+import { getUptimePlatformSyncStatus } from '../../../../lib/uptimePlatformSyncJob';
 
 export const prerender = false;
 
@@ -14,7 +14,7 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const POST: APIRoute = async ({ locals }) => {
+export const GET: APIRoute = async ({ locals }) => {
   const { userId } = locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
@@ -22,10 +22,5 @@ export const POST: APIRoute = async ({ locals }) => {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);
   }
 
-  const started = startUptimePlatformSyncBackground();
-  if (!started) {
-    return json({ ok: false, error: 'Sync already running', alreadyRunning: true }, 409);
-  }
-
-  return json({ ok: true, started: true });
+  return json({ ok: true, ...getUptimePlatformSyncStatus() });
 };

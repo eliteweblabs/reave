@@ -2089,6 +2089,73 @@ function formatUptimeAccountHint(uptimeAccount) {
   return null;
 }
 
+let uptimePlatformSyncPollTimer = null;
+
+function setUptimeSyncButtonLabel(syncBtn, status) {
+  const nameEl = syncBtn?.querySelector('.dash-uptime-name');
+  if (!nameEl) return;
+  if (!status?.running) {
+    nameEl.textContent = 'Sync sites';
+    return;
+  }
+  if (status.created > 0) {
+    nameEl.textContent = `Syncing… ${status.created} added`;
+  } else {
+    nameEl.textContent = 'Syncing sites…';
+  }
+}
+
+function stopUptimePlatformSyncPolling() {
+  if (uptimePlatformSyncPollTimer != null) {
+    clearInterval(uptimePlatformSyncPollTimer);
+    uptimePlatformSyncPollTimer = null;
+  }
+}
+
+function ensureUptimePlatformSyncPolling(syncBtn) {
+  if (uptimePlatformSyncPollTimer != null) return;
+
+  const poll = async () => {
+    try {
+      const res = await fetch('/api/uptime/sync/status');
+      const data = await res.json().catch(() => null);
+      if (!data?.ok) return;
+
+      setUptimeSyncButtonLabel(syncBtn, data);
+
+      if (!data.running) {
+        stopUptimePlatformSyncPolling();
+        if (syncBtn) {
+          syncBtn.disabled = false;
+          setUptimeSyncButtonLabel(syncBtn, null);
+        }
+        await loadHomeDashboard();
+      }
+    } catch {
+      /* ignore transient poll errors while job runs */
+    }
+  };
+
+  void poll();
+  uptimePlatformSyncPollTimer = setInterval(poll, 4000);
+}
+
+async function refreshUptimeSyncButtonState(syncBtn) {
+  if (!syncBtn) return;
+  try {
+    const res = await fetch('/api/uptime/sync/status');
+    const data = await res.json().catch(() => null);
+    if (!data?.ok) return;
+    if (data.running) {
+      syncBtn.disabled = true;
+      setUptimeSyncButtonLabel(syncBtn, data);
+      ensureUptimePlatformSyncPolling(syncBtn);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 function renderUptimeSyncResultHtml(data, httpOk) {
   const createdLines = (data.createdItems || [])
     .slice(0, 12)
@@ -2995,9 +3062,10 @@ function renderHomeDashboard(data) {
     syncBtn.innerHTML =
       `<span class="dash-uptime-add-icon" aria-hidden="true">↻</span>` +
       `<div class="dash-uptime-name">Sync sites</div>`;
-    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms());
+    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms(syncBtn));
     syncLi.appendChild(syncBtn);
     list.appendChild(syncLi);
+    void refreshUptimeSyncButtonState(syncBtn);
 
     if (isDeploymentOwnerClient && uptimeConfigured) {
       const pullLi = document.createElement('li');
@@ -3170,17 +3238,8 @@ function showAddUptimeSiteDialog() {
   });
 }
 
-async function syncUptimeSitesFromPlatforms() {
-  const backdrop = document.getElementById('os-dialog-backdrop');
-  const titleEl = document.getElementById('os-dialog-title');
-  const bodyEl = document.getElementById('os-dialog-body');
-  const actionsEl = document.getElementById('os-dialog-actions');
-  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
-
-  titleEl.textContent = 'Sync sites';
-  bodyEl.innerHTML = '<p class="em-book-dialog-lead">Checking Kinsta and Railway for URLs not yet in UptimeRobot…</p>';
-  actionsEl.innerHTML = '';
-  openOsDialogBackdrop();
+async function syncUptimeSitesFromPlatforms(syncBtn) {
+  if (syncBtn?.disabled) return;
 
   try {
     const res = await fetch('/api/uptime/sync', {
@@ -3190,21 +3249,29 @@ async function syncUptimeSitesFromPlatforms() {
     const data = await res.json().catch(() => null);
     if (!data) throw new Error(`HTTP ${res.status}`);
 
-    bodyEl.innerHTML = renderUptimeSyncResultHtml(data, res.ok);
+    if (data.alreadyRunning) {
+      if (syncBtn) {
+        syncBtn.disabled = true;
+        setUptimeSyncButtonLabel(syncBtn, { running: true, phase: 'creating' });
+        ensureUptimePlatformSyncPolling(syncBtn);
+      }
+      return;
+    }
 
-    actionsEl.innerHTML = '';
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'os-dialog-btn os-dialog-btn--primary';
-    closeBtn.textContent = 'Done';
-    closeBtn.addEventListener('click', async () => {
-      closeOsDialogBackdrop();
-      if (data.created > 0 || data.account) await loadHomeDashboard();
-    });
-    actionsEl.appendChild(closeBtn);
-    closeBtn.focus();
+    if (!data.ok || !data.started) {
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+
+    if (syncBtn) {
+      syncBtn.disabled = true;
+      setUptimeSyncButtonLabel(syncBtn, { running: true, phase: 'starting' });
+      ensureUptimePlatformSyncPolling(syncBtn);
+    }
   } catch (e) {
-    closeOsDialogBackdrop();
+    if (syncBtn) {
+      syncBtn.disabled = false;
+      setUptimeSyncButtonLabel(syncBtn, null);
+    }
     await osAlert({ title: 'Sync failed', bodyHtml: escHtml(e.message || String(e)) });
   }
 }

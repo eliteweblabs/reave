@@ -34,6 +34,7 @@ import {
   urGetMonitors,
   urNewMonitor,
   urResolveCreateContext,
+  parseUptimeRobotRetrySeconds,
   normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
   uptimeStatusLabel,
@@ -360,11 +361,38 @@ export type UptimePlatformSyncResult = {
   error?: string;
 };
 
+export type UptimePlatformSyncProgress = {
+  phase: 'starting' | 'listing' | 'discovering' | 'creating' | 'done';
+  discovered: number;
+  created: number;
+  skipped: number;
+  pending: number;
+  currentSite?: string;
+};
+
+export type SyncPlatformUrlsOptions = {
+  /** Process every discovered site with rate-limit backoff (background job). */
+  background?: boolean;
+  onProgress?: (progress: UptimePlatformSyncProgress) => void;
+};
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** ~9 creates/min — stays under UptimeRobot free-plan 10 req/min. */
+const BACKGROUND_CREATE_GAP_MS = 6500;
+
+function emitProgress(
+  onProgress: SyncPlatformUrlsOptions['onProgress'],
+  progress: UptimePlatformSyncProgress,
+): void {
+  onProgress?.(progress);
+}
+
 /**
- * Max monitor-creation attempts per sync run. Bounds request time (each attempt
- * is a sequential UptimeRobot API call) and avoids hammering the API rate limit
- * when many new domains are discovered. The hourly discovery scheduler chips
- * away at any remainder over subsequent runs. Override via env; 0/blank = default.
+ * Max monitor-creation attempts per interactive sync run. Background jobs ignore
+ * this cap and throttle instead. Override via env; 0/blank = default.
  */
 function platformSyncMaxPerRun(): number {
   const raw = serverEnv('UPTIMEROBOT_SYNC_MAX_PER_RUN');
@@ -373,7 +401,12 @@ function platformSyncMaxPerRun(): number {
   return Math.min(Math.max(1, Math.round(n)), 200);
 }
 
-export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResult> {
+export async function syncPlatformUrlsToUptime(
+  opts: SyncPlatformUrlsOptions = {},
+): Promise<UptimePlatformSyncResult> {
+  const background = opts.background === true;
+  const onProgress = opts.onProgress;
+
   const empty: UptimePlatformSyncResult = {
     ok: false,
     discovered: 0,
@@ -395,6 +428,14 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     return { ...empty, errors: ['DATABASE_URL not configured'] };
   }
 
+  emitProgress(onProgress, {
+    phase: 'starting',
+    discovered: 0,
+    created: 0,
+    skipped: 0,
+    pending: 0,
+  });
+
   const warnings: string[] = [];
   const accountRes = await urGetAccountDetails();
   const localRows = await dbListUptimeMonitors();
@@ -406,6 +447,14 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
 
   const createContext = await urResolveCreateContext({
     accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
+  });
+
+  emitProgress(onProgress, {
+    phase: 'listing',
+    discovered: 0,
+    created: 0,
+    skipped: 0,
+    pending: 0,
   });
 
   const existing = new Set<string>();
@@ -428,6 +477,14 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
 
   const kinstaItems: UptimePlatformSyncItem[] = [];
   const railwayItems: UptimePlatformSyncItem[] = [];
+
+  emitProgress(onProgress, {
+    phase: 'discovering',
+    discovered: 0,
+    created: 0,
+    skipped: 0,
+    pending: 0,
+  });
 
   if (isKinstaConfigured()) {
     const kinsta = await kinstaCollectMonitorUrls();
@@ -476,12 +533,11 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     unique.push(item);
   }
 
-  const maxAttempts = platformSyncMaxPerRun();
+  const maxAttempts = background ? Number.POSITIVE_INFINITY : platformSyncMaxPerRun();
   let created = 0;
   let skipped = 0;
   let attempts = 0;
   let pending = 0;
-  let rateLimited = false;
   let monitorLimited = false;
   let planSettingsBlocked = false;
   const errors: string[] = [];
@@ -491,33 +547,55 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     if (!errors.includes(line)) errors.push(line);
   };
 
+  const reportCreating = (currentSite?: string) => {
+    emitProgress(onProgress, {
+      phase: 'creating',
+      discovered: unique.length,
+      created,
+      skipped,
+      pending,
+      currentSite,
+    });
+  };
+
+  reportCreating();
+
   for (const item of unique) {
     const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
     if (key && existing.has(key)) {
       skipped += 1;
+      reportCreating();
       continue;
     }
 
-    // Once the cap or an UptimeRobot account limit is hit, stop attempting —
-    // further calls in this run would just fail. The remainder is picked up by
-    // the next (scheduled or manual) run.
-    if (attempts >= maxAttempts || rateLimited || monitorLimited || planSettingsBlocked) {
-      pending += 1;
-      continue;
-    }
-    attempts += 1;
+    let retrySame = true;
+    while (retrySame) {
+      retrySame = false;
 
-    const result = await createUptimeMonitor({
-      url: item.url,
-      friendlyName: item.friendlyName,
-      fetchDetails: false,
-      createContext,
-    });
-    if (result.ok) {
-      created += 1;
-      if (key) existing.add(key);
-      createdItems.push(item);
-    } else {
+      if (attempts >= maxAttempts || monitorLimited || planSettingsBlocked) {
+        pending += 1;
+        reportCreating();
+        break;
+      }
+      attempts += 1;
+
+      reportCreating(item.friendlyName);
+
+      const result = await createUptimeMonitor({
+        url: item.url,
+        friendlyName: item.friendlyName,
+        fetchDetails: false,
+        createContext,
+      });
+      if (result.ok) {
+        created += 1;
+        if (key) existing.add(key);
+        createdItems.push(item);
+        reportCreating();
+        if (background) await sleep(BACKGROUND_CREATE_GAP_MS);
+        break;
+      }
+
       const err = result.error || 'unknown error';
       const classified = classifyUptimeRobotError(err);
       console.warn('[uptime-sync] create failed', {
@@ -528,33 +606,55 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       });
 
       if (classified.kind === 'rate_limit') {
-        rateLimited = true;
+        if (background) {
+          const waitSec = parseUptimeRobotRetrySeconds(classified.raw) ?? 60;
+          warnings.push(`Rate limited — waiting ${waitSec}s (${item.friendlyName})`);
+          reportCreating(item.friendlyName);
+          await sleep((waitSec + 2) * 1000);
+          attempts -= 1;
+          retrySame = true;
+          continue;
+        }
         pending += 1;
         warnings.push(`${classified.summary} — ${classified.raw}`);
-      } else if (classified.kind === 'monitor_limit') {
+        reportCreating();
+        break;
+      }
+
+      if (classified.kind === 'monitor_limit') {
         monitorLimited = true;
         pending += 1;
         noteError(`${classified.summary} — ${classified.raw}`);
-      } else if (classified.kind === 'duplicate') {
+        reportCreating();
+        break;
+      }
+
+      if (classified.kind === 'duplicate') {
         skipped += 1;
         if (key) existing.add(key);
         warnings.push(`${item.friendlyName}: ${classified.raw}`);
-      } else if (classified.kind === 'plan_feature') {
+        reportCreating();
+        break;
+      }
+
+      if (classified.kind === 'plan_feature') {
         errors.push(`${item.friendlyName}: ${classified.raw}`);
         if (/not allowed to use some settings/i.test(classified.raw)) {
           planSettingsBlocked = true;
           pending += 1;
-          noteError(
-            `${classified.summary} — ${classified.raw} (alert contacts sent as free-plan _0_0; interval omitted)`,
-          );
+          noteError(`${classified.summary} — ${classified.raw}`);
         }
-      } else {
-        errors.push(`${item.friendlyName}: ${classified.raw}`);
+        reportCreating();
+        break;
       }
+
+      errors.push(`${item.friendlyName}: ${classified.raw}`);
+      reportCreating();
+      break;
     }
   }
 
-  if (rateLimited && pending > 0) {
+  if (!background && pending > 0 && warnings.some((w) => /rate limit/i.test(w))) {
     warnings.push(
       `${pending} site${pending === 1 ? '' : 's'} queued — UptimeRobot allows 10 API requests/min on the free plan. Run sync again in a minute to continue.`,
     );
@@ -565,7 +665,16 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     );
   }
 
-  const ok = created > 0 || errors.length === 0 || (rateLimited && pending > 0);
+  const ok = created > 0 || errors.length === 0 || (background && pending > 0);
+
+  emitProgress(onProgress, {
+    phase: 'done',
+    discovered: unique.length,
+    created,
+    skipped,
+    pending,
+  });
+
   return {
     ok,
     discovered: unique.length,
