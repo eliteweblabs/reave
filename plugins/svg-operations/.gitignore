@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+*.tsbuildinfo
+
+# Test outputs
+test/output/
+test/fixtures/*.svg
+test/fixtures/*.json
+
+# Environment
+.env
+.env.local

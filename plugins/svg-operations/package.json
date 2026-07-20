@@ -1,0 +1,30 @@
+{
+  "name": "@reave/svg-operations-plugin",
+  "version": "1.0.0",
+  "description": "SVG operations plugin for image tracing, OCR, and font recognition",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "test": "node --experimental-strip-types test/index.test.ts"
+  },
+  "keywords": [
+    "svg",
+    "vectorization",
+    "ocr",
+    "font-recognition",
+    "image-tracing"
+  ],
+  "dependencies": {
+    "potrace": "^2.1.8",
+    "tesseract.js": "^5.1.1",
+    "sharp": "^0.34.5",
+    "opentype.js": "^1.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.9.3"
+  }
+}

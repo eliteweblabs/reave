@@ -1,20 +1,11 @@
-node_modules
-dist
-
-# Environment variables
+node_modules/
+dist/
+.DS_Store
 .env
 .env.local
-.env.*.local
-# Snapshot from `railway variable list` (optional local sync)
-.env.railway
 
-# Runtime dashboard chat archives (markdown); commit manually if you want backups in git
-src/knowledge/chats/*.md
-src/knowledge/email-rules.json
-src/knowledge/email-inbox.json
-# Social OAuth access tokens (secrets — never commit)
-src/knowledge/social-tokens.json
+# Astro
+.astro/
 
-# Twilio credentials (already covered by .env, but being explicit)
-# TWILIO_ACCOUNT_SID
-# TWILIO_AUTH_TOKEN
+# Cursor
+.cursor/
