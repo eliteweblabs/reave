@@ -11464,7 +11464,11 @@ function openScheduleCreateDialog(initial = {}) {
   });
 }
 
-function scheduleShareBookingUrl() {
+function scheduleShareBookingUrl(booking) {
+  const calBase = scheduleState.meta.calcomAdminUrl?.replace(/\/+$/, '');
+  if (booking?.uid && calBase) {
+    return `${calBase}/booking/${encodeURIComponent(booking.uid)}`;
+  }
   const formUrl = scheduleState.meta.bookingFormUrl || '/form/schedule';
   const url = scheduleState.meta.publicBookingUrl || formUrl;
   if (url.startsWith('http')) return url;
@@ -11490,7 +11494,7 @@ function renderScheduleDetail(pane, booking) {
             location: booking.location,
             description: booking.description,
           },
-          url: scheduleShareBookingUrl(),
+          url: scheduleShareBookingUrl(booking),
           shareTitle: booking.title || 'Meeting',
         }),
     }),
@@ -13517,7 +13521,7 @@ async function resolveReaveShareUrl(state) {
   if (state.recipient?.contactUid) {
     return clientPortalShareUrl(state.recipient.contactUid, state.tab);
   }
-  if (state.kind === 'booking') return scheduleShareBookingUrl();
+  if (state.kind === 'booking') return scheduleShareBookingUrl(state.booking);
   return '';
 }
 
@@ -13529,7 +13533,7 @@ async function sendViaReaveShare(channel, state) {
   if (state.kind === 'document') {
     url = state.url;
   } else if (state.kind === 'booking') {
-    url = state.url || scheduleShareBookingUrl();
+    url = state.url || scheduleShareBookingUrl(state.booking);
   } else if (!state.jobSlug && state.recipient?.contactUid) {
     url = clientPortalShareUrl(state.recipient.contactUid, state.tab);
   } else if (state.url && !state.jobSlug) {

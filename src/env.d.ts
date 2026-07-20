@@ -141,8 +141,10 @@ interface ImportMetaEnv {
   BOOKING_API_KEY?: string;
   /** Public calcom-booking-api URL for browser form (/form/schedule). */
   PUBLIC_BOOKING_API_URL?: string;
-  /** Cal.com web app URL (e.g. https://cal.reave.app). */
+  /** Cal.com web app URL (e.g. https://cal.reave.app). Must be public — not *.railway.internal. */
   CALCOM_WEBAPP_URL?: string;
+  /** Public Cal.com URL for attendee-facing links when CALCOM_WEBAPP_URL is internal. */
+  PUBLIC_CALCOM_WEBAPP_URL?: string;
   /** Legacy alias for CALCOM_WEBAPP_URL. */
   CALCOM_API_URL?: string;
   /** Cal.com username slug (default reave). */

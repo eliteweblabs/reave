@@ -75,12 +75,37 @@ export function isBookingConfigured(): boolean {
   return Boolean(bookingBaseUrl());
 }
 
+/** Hostnames that are not reachable from email/SMS recipients or admin browsers. */
+function isPrivateCalcomHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  return h === 'localhost' || h.startsWith('127.') || h.endsWith('.internal');
+}
+
+function normalizePublicCalcomBase(raw: string | undefined): string | null {
+  const trimmed = raw?.trim();
+  if (!trimmed || trimmed === 'https://') return null;
+  const base = trimmed.replace(/\/+$/, '');
+  try {
+    const host = new URL(base.startsWith('http') ? base : `https://${base}`).hostname;
+    if (isPrivateCalcomHost(host)) return null;
+  } catch {
+    return null;
+  }
+  return base;
+}
+
+/** Public Cal.com web app base URL (custom domain or Railway public domain). */
 export function calcomWebappUrl(): string | null {
-  const raw =
-    serverEnv('CALCOM_WEBAPP_URL')?.trim() ||
-    serverEnv('CALCOM_API_URL')?.trim();
-  if (!raw || raw === 'https://') return null;
-  return raw.replace(/\/+$/, '');
+  const candidates = [
+    serverEnv('PUBLIC_CALCOM_WEBAPP_URL'),
+    serverEnv('CALCOM_WEBAPP_URL'),
+    serverEnv('CALCOM_API_URL'),
+  ];
+  for (const raw of candidates) {
+    const url = normalizePublicCalcomBase(raw);
+    if (url) return url;
+  }
+  return null;
 }
 
 export function calcomUsername(): string {

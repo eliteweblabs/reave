@@ -2,7 +2,7 @@
  * Branded outbound share delivery — email (Resend) and SMS (Telnyx).
  * Used by the admin share sheet, agent tools, and document send API.
  */
-import { bookingGet } from './bookingClient';
+import { bookingGet, bookingManageUrl, publicBookingPageUrl } from './bookingClient';
 import {
   clientPortalUrl,
   extractPortal,
@@ -188,6 +188,28 @@ async function resolveShareUrl(
   return { url, tracked };
 }
 
+function isPrivateShareUrl(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.toLowerCase();
+    return h.endsWith('.internal') || h === 'localhost' || h.startsWith('127.');
+  } catch {
+    return false;
+  }
+}
+
+function resolveBookingShareUrl(input: { url?: string; booking?: ShareBookingInput }): string {
+  let url = input.url?.trim() || '';
+  if (url && isPrivateShareUrl(url)) url = '';
+  if (!url && input.booking?.uid) {
+    url = bookingManageUrl(input.booking.uid) || publicBookingPageUrl() || '';
+  }
+  return url;
+}
+
+function bookingShareCtaLabel(url: string): string {
+  return url.includes('/booking/') ? 'Manage your appointment' : 'View booking page';
+}
+
 function bookingDetailsLines(booking: ShareBookingInput): string[] {
   const lines: string[] = [];
   const when = formatBookingWhen(booking.startTime, booking.endTime);
@@ -286,7 +308,7 @@ async function sendBookingShare(opts: {
   const title = booking.title?.trim() || 'Meeting';
   const when = formatBookingWhen(booking.startTime, booking.endTime);
   const detailLines = bookingDetailsLines(booking);
-  const shareUrl = url?.trim() || '';
+  const shareUrl = resolveBookingShareUrl({ url, booking });
 
   if (channel === 'email') {
     if (!isEmailSendConfigured()) return { ok: false, error: 'Email not configured. Set RESEND_API_KEY.' };
@@ -308,7 +330,7 @@ async function sendBookingShare(opts: {
     const html = await brandedEmailHtml({
       firstName: recipient.firstName,
       paragraphs,
-      ...(shareUrl ? { cta: { label: 'View booking page', url: shareUrl } } : {}),
+      ...(shareUrl ? { cta: { label: bookingShareCtaLabel(shareUrl), url: shareUrl } } : {}),
     });
     const r = await sendEmail({ to, subject, text, html });
     if (!r.ok) return { ok: false, error: r.error };
@@ -388,7 +410,7 @@ export async function deliverShare(input: DeliverShareInput): Promise<DeliverSha
       recipient,
       channel,
       booking,
-      url: input.url,
+      url: resolveBookingShareUrl({ url: input.url, booking }),
       message: input.message,
     });
   }
