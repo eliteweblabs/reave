@@ -2157,6 +2157,18 @@ async function refreshUptimeSyncButtonState(syncBtn) {
 }
 
 function renderUptimeSyncResultHtml(data, httpOk) {
+  if (data?.started) {
+    return (
+      '<p class="em-book-dialog-lead">Site sync is running in the background. ' +
+      'The <strong>Sync sites</strong> button shows progress — refresh the page if it still looks idle.</p>'
+    );
+  }
+
+  const created = data?.created ?? 0;
+  const skipped = data?.skipped ?? 0;
+  const discovered = data?.discovered ?? 0;
+  const pending = data?.pending ?? 0;
+
   const createdLines = (data.createdItems || [])
     .slice(0, 12)
     .map((item) => `<li>${escHtml(item.friendlyName)} <span class="dash-muted-inline">(${escHtml(item.source)})</span></li>`)
@@ -2170,8 +2182,8 @@ function renderUptimeSyncResultHtml(data, httpOk) {
     .map((msg) => `<li>${escHtml(msg)}</li>`)
     .join('');
 
-  const pendingNote = data.pending > 0
-    ? ` · <strong>${data.pending}</strong> pending (run again to continue)`
+  const pendingNote = pending > 0
+    ? ` · <strong>${pending}</strong> pending (run again to continue)`
     : '';
 
   const accountLine = data.account
@@ -2190,7 +2202,7 @@ function renderUptimeSyncResultHtml(data, httpOk) {
   return (
     failLead +
     accountLine +
-    `<p><strong>${data.created ?? 0}</strong> added · <strong>${data.skipped ?? 0}</strong> already monitored · <strong>${data.discovered ?? 0}</strong> found${pendingNote}</p>` +
+    `<p><strong>${created}</strong> added · <strong>${skipped}</strong> already monitored · <strong>${discovered}</strong> found${pendingNote}</p>` +
     (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
     (warningLines ? `<p class="dash-empty">Warnings</p><ul class="meeting-confirm-steps">${warningLines}</ul>` : '') +
     (errorLines ? `<p class="dash-empty">Errors</p><ul class="meeting-confirm-steps">${errorLines}</ul>` : '')
