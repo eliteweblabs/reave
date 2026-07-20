@@ -7240,6 +7240,7 @@ function refreshTodoSidebarList() {
 function renderTodoEditor() {
   const root = getTodoEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { todos, activeId, search, filter } = todoState;
   root.innerHTML = '';
 
@@ -7303,6 +7304,7 @@ function renderTodoEditor() {
     });
   }
   root.appendChild(pane);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 function createTodoListItem(todo) {
@@ -8105,6 +8107,7 @@ async function loadDocumentsTab() {
 function renderDocEditor() {
   const root = getDocEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { templates, activeSlug, dirty, search } = docState;
   const visibleTemplates = templates.filter((tpl) =>
     matchesListSearch(search, tpl.title, tpl.slug),
@@ -8204,6 +8207,7 @@ function renderDocEditor() {
   }
 
   root.appendChild(pane);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 function renderNewForm(pane) {
@@ -8876,6 +8880,7 @@ function renderKnowledgePane() {
 function renderKnowledgeEditor() {
   const root = getKnowledgeEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { entries, search } = knowledgeState;
   root.innerHTML = '';
 
@@ -8912,6 +8917,7 @@ function renderKnowledgeEditor() {
   pane.className = 'de-pane';
   root.appendChild(pane);
   renderKnowledgePane();
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 function startNewKnowledge() {
@@ -9630,6 +9636,7 @@ function refreshWorkSidebarList() {
 function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { jobs, activeSlug, search } = workState;
   root.innerHTML = '';
 
@@ -9675,6 +9682,7 @@ function renderWorkEditor() {
   }
 
   root.appendChild(pane);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 function workStatusPillOptions() {
@@ -12342,6 +12350,7 @@ function refreshClientsSidebarList() {
 function renderClientsEditor() {
   const root = getClientsEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { clients, activeUid, total } = clientState;
   root.innerHTML = '';
 
@@ -12388,6 +12397,7 @@ function renderClientsEditor() {
   }
 
   root.appendChild(pane);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 function syncClTitleInputWidth(input) {
@@ -14265,15 +14275,27 @@ async function readApiJson(res) {
   return data;
 }
 
-function syncChatSidebarActiveState() {
+function syncChatSidebarActiveState(opts = {}) {
+  const { scroll = false } = opts;
   const root = getChatPanel();
   if (!root) return;
+  let activeEl = null;
   root.querySelectorAll('.ch-sidebar .ch-list-item').forEach((el) => {
     const isActive = el.dataset.id === chatState.activeId;
     el.classList.toggle('active', isActive);
-    if (isActive) el.setAttribute('aria-current', 'page');
-    else el.removeAttribute('aria-current');
+    if (isActive) {
+      el.setAttribute('aria-current', 'page');
+      activeEl = el;
+    } else {
+      el.removeAttribute('aria-current');
+    }
   });
+  if (scroll && activeEl) {
+    const list = root.querySelector('.ch-sidebar .ch-list');
+    if (list) {
+      requestAnimationFrame(() => scrollSidebarListItemIntoView(list, activeEl));
+    }
+  }
 }
 
 function createChatListItem(t) {
@@ -14549,6 +14571,7 @@ function mountChatThreadRoot(threadHost) {
 function renderChatPanel() {
   const root = getChatPanel();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   unmountChatThreadRoot(root);
   root.innerHTML = '';
 
@@ -14569,6 +14592,7 @@ function renderChatPanel() {
     clearTopbarPanelContext();
     setChatComposeFocused(false);
     syncFooterNav();
+    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -14584,6 +14608,7 @@ function renderChatPanel() {
   syncTopbarPanelContext();
   syncFooterNav();
   mountChatThreadRoot(threadHost);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 async function startNewChat(opts = {}) {
@@ -14612,7 +14637,7 @@ async function startNewChat(opts = {}) {
 
 async function openChat(id) {
   if (id === chatState.activeId) {
-    syncChatSidebarActiveState();
+    syncChatSidebarActiveState({ scroll: true });
     return;
   }
   try {
@@ -17574,6 +17599,7 @@ function openEmailEvent(id) {
 function renderEmailPanel() {
   const root = getEmailPanel();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   root.innerHTML = '';
   root.appendChild(renderEmailSidebar());
 
@@ -17585,6 +17611,7 @@ function renderEmailPanel() {
     root.appendChild(pane);
     getEmailPanel()?.classList.add('em-pane-active');
     syncFooterNav();
+    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -17602,6 +17629,7 @@ function renderEmailPanel() {
     root.appendChild(pane);
     getEmailPanel()?.classList.remove('em-pane-active');
     syncFooterNav();
+    finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
@@ -17729,6 +17757,7 @@ function renderEmailPanel() {
   root.appendChild(pane);
   getEmailPanel()?.classList.add('em-pane-active');
   syncFooterNav();
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 // ---- persistence ----
