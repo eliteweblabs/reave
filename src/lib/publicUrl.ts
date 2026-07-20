@@ -38,6 +38,18 @@ export function normalizePublicUrl(raw: string, preferHttps = true): URL | null 
   }
 }
 
+/**
+ * Heuristic: does a label look like a non-production (staging/dev/preview)
+ * environment or service, rather than a live site? Used to keep uptime
+ * monitoring focused on production primary domains.
+ */
+export function isNonProductionLabel(label: string | null | undefined): boolean {
+  if (!label) return false;
+  return /(^|[\s\-_(./])(staging|stage|stg|dev|development|preview|test|testing|qa|demo|sandbox|template|tmp)([\s\-_)./]|$)/i.test(
+    label,
+  );
+}
+
 export function normalizeDomain(raw: string): string | null {
   const trimmed = raw.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
   if (!trimmed || trimmed.includes('/') || isPrivateHost(trimmed.split(':')[0] ?? trimmed)) return null;

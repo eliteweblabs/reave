@@ -2,6 +2,7 @@
  * Kinsta REST API v2 client for the admin agent.
  * @see https://kinsta.com/docs/kinsta-api/
  */
+import { isNonProductionLabel } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
@@ -467,6 +468,8 @@ export async function kinstaCollectMonitorUrls(): Promise<
     for (const env of site.environments) {
       const domain = env.primary_domain?.trim();
       if (!domain) continue;
+      // Only monitor production environments — skip staging/dev.
+      if (isNonProductionLabel(env.name) || isNonProductionLabel(env.display_name)) continue;
       const key = normalizeDomainKey(domain);
       if (!key || seen.has(key)) continue;
       seen.add(key);

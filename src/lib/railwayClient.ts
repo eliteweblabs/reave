@@ -3,6 +3,7 @@
  * @see https://docs.railway.com/integrations/api
  */
 import { cachedCompanyBrandName } from './companyConfig';
+import { isNonProductionLabel } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -424,10 +425,14 @@ export async function railwayCollectMonitorUrls(): Promise<
     }
 
     for (const svc of net.data.services) {
-      const domains = [
-        ...svc.railway_domains.map((d) => d.domain),
-        ...svc.custom_domains.map((d) => d.domain),
-      ];
+      // Skip non-production / non-site services (staging, preview, templates, etc.).
+      if (isNonProductionLabel(svc.service_name)) continue;
+
+      // Prefer the primary custom domain; fall back to the Railway subdomain only
+      // when no custom domain is configured (avoids monitoring both for one site).
+      const customDomains = svc.custom_domains.map((d) => d.domain).filter(Boolean);
+      const domains =
+        customDomains.length > 0 ? customDomains : svc.railway_domains.map((d) => d.domain);
       for (const domain of domains) {
         const trimmed = domain?.trim();
         if (!trimmed) continue;
