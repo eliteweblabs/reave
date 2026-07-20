@@ -28,6 +28,7 @@ import {
   DEFAULT_MEETING_MINUTES,
   resolveProposedMeetingStart,
 } from '../../../../../lib/emailScheduling';
+import { ensureProjectForMeetingEmail } from '../../../../../lib/emailMeetingProject';
 import { hasFeature } from '../../../../../lib/features';
 import { isEmailSendConfigured, sendEmail } from '../../../../../lib/outbound';
 
@@ -42,6 +43,43 @@ function json(body: unknown, status = 200): Response {
 
 function schedulingEnabled(): boolean {
   return hasFeature('scheduling');
+}
+
+async function attachMeetingProject(
+  id: string,
+  event: EmailInboxRecord,
+  bookingUid: string,
+  bookingStart: string,
+): Promise<EmailInboxRecord> {
+  if (event.jobSlug) return event;
+
+  const project = await ensureProjectForMeetingEmail({
+    emailId: id,
+    from: event.from,
+    subject: event.subject,
+    summary: event.summary,
+    bodyText: event.bodySnippet || event.bodyText,
+    bodySnippet: event.bodySnippet,
+    receivedAt: event.receivedAt,
+    contactUid: event.contactUid,
+    contactName: event.contactName,
+    resendEmailId: event.resendEmailId,
+    jobSlug: event.jobSlug,
+    bookingUid,
+    bookingStart,
+  });
+  if (!project.ok) {
+    console.warn('[schedule] meeting project attach failed', project.error);
+    return event;
+  }
+
+  const updated = await storeUpdateEmailInbox(id, {
+    jobSlug: project.slug,
+    jobTitle: project.title,
+    contactUid: project.contactUid,
+    contactName: project.contactName,
+  });
+  return updated ?? event;
 }
 
 type LoadedEmail = {
@@ -166,7 +204,13 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!event.bookingUid) {
       return json({ ok: false, error: 'No booking on this message' }, 400);
     }
-    const whenLabel = formatWhenLabel(event.bookingStart || proposedStart);
+    const withProject = await attachMeetingProject(
+      id,
+      event,
+      event.bookingUid,
+      event.bookingStart || proposedStart,
+    );
+    const whenLabel = formatWhenLabel(withProject.bookingStart || proposedStart);
     const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel,
@@ -175,7 +219,7 @@ export async function POST(context: APIContext): Promise<Response> {
       locationLabel: await resolveBookingLocation(event.bookingUid),
       bookingUid: event.bookingUid,
     });
-    const sent = await sendSchedulingReply(event, mail);
+    const sent = await sendSchedulingReply(withProject, mail);
     if (!sent.ok) {
       return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
     }
@@ -189,13 +233,15 @@ export async function POST(context: APIContext): Promise<Response> {
       confirmed: true,
       notified: true,
       action: 'confirm',
-      bookingUid: event.bookingUid,
-      bookingStart: event.bookingStart,
+      bookingUid: withProject.bookingUid,
+      bookingStart: withProject.bookingStart,
+      jobSlug: withProject.jobSlug,
+      jobTitle: withProject.jobTitle,
       whenLabel,
       attendeeName: attendee.name,
       attendeeEmail: sent.to,
       notifyEmailId: sent.emailId ?? null,
-      event: updated ?? event,
+      event: updated ?? withProject,
     });
   }
 
@@ -242,12 +288,20 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (event.bookingUid && action !== 'accept-notify' && action !== 'confirm') {
+    const withProject = await attachMeetingProject(
+      id,
+      event,
+      event.bookingUid,
+      event.bookingStart || proposedStart,
+    );
     return json({
       ok: true,
       alreadyBooked: true,
-      bookingUid: event.bookingUid,
-      bookingStart: event.bookingStart,
-      event,
+      bookingUid: withProject.bookingUid,
+      bookingStart: withProject.bookingStart,
+      jobSlug: withProject.jobSlug,
+      jobTitle: withProject.jobTitle,
+      event: withProject,
     });
   }
 
@@ -274,15 +328,21 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   if (action === 'accept-notify' && event.bookingUid) {
+    const withProject = await attachMeetingProject(
+      id,
+      event,
+      event.bookingUid,
+      event.bookingStart || start.toISOString(),
+    );
     const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
-      whenLabel: formatWhenLabel(event.bookingStart || start.toISOString()),
+      whenLabel: formatWhenLabel(withProject.bookingStart || start.toISOString()),
       companyName: company.name,
-      manageUrl: bookingManageUrl(event.bookingUid),
-      locationLabel: await resolveBookingLocation(event.bookingUid),
-      bookingUid: event.bookingUid,
+      manageUrl: bookingManageUrl(withProject.bookingUid!),
+      locationLabel: await resolveBookingLocation(withProject.bookingUid),
+      bookingUid: withProject.bookingUid!,
     });
-    const sent = await sendSchedulingReply(event, mail);
+    const sent = await sendSchedulingReply(withProject, mail);
     if (!sent.ok) return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
@@ -294,9 +354,11 @@ export async function POST(context: APIContext): Promise<Response> {
       alreadyBooked: true,
       notified: true,
       action: 'accept-notify',
-      bookingUid: event.bookingUid,
-      bookingStart: event.bookingStart,
-      event: updated ?? event,
+      bookingUid: withProject.bookingUid,
+      bookingStart: withProject.bookingStart,
+      jobSlug: withProject.jobSlug,
+      jobTitle: withProject.jobTitle,
+      event: updated ?? withProject,
     });
   }
 
@@ -346,12 +408,14 @@ export async function POST(context: APIContext): Promise<Response> {
     return json({ ok: false, error: 'Booking API did not return a booking id' }, 502);
   }
 
-  const updated = await storeUpdateEmailInbox(id, {
+  let updated = await storeUpdateEmailInbox(id, {
     action: 'booked',
     bookingUid,
     bookingStart,
   });
   if (!updated) return json({ ok: false, error: 'Booked but failed to update inbox record' }, 500);
+
+  updated = await attachMeetingProject(id, updated, bookingUid, bookingStart);
 
   if (action === 'accept-notify') {
     const mail = await buildMeetingAcceptNotifyEmail({

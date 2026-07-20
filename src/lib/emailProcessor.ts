@@ -8,6 +8,7 @@ import { classifyEmail, isUptimeRobotEmail, type InboundEmail } from './emailRul
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
+import { ensureProjectForMeetingEmail } from './emailMeetingProject';
 import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
 import type { WorkJobSummary } from './workStore';
@@ -496,6 +497,39 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   });
 
   let inboxRecord = record;
+
+  if (inboxRecord?.id && bookingUid && !jobSlug) {
+    const meetingProject = await ensureProjectForMeetingEmail({
+      emailId: inboxRecord.id,
+      from,
+      subject: email.subject ?? '',
+      summary,
+      bodyText,
+      bodySnippet: snippet(bodyText),
+      receivedAt: inboxRecord.receivedAt,
+      contactUid,
+      contactName,
+      resendEmailId: email.resendEmailId,
+      jobSlug,
+      bookingUid,
+      bookingStart,
+    });
+    if (meetingProject.ok) {
+      jobSlug = meetingProject.slug;
+      jobTitle = meetingProject.title;
+      contactUid = meetingProject.contactUid;
+      contactName = meetingProject.contactName;
+      const updated = await storeUpdateEmailInbox(inboxRecord.id, {
+        jobSlug,
+        jobTitle,
+        contactUid,
+        contactName,
+      });
+      if (updated) inboxRecord = updated;
+    } else {
+      console.warn('[email] meeting project attach failed', meetingProject.error);
+    }
+  }
 
   if (inboxRecord?.id && jobSlug) {
     linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
