@@ -44,6 +44,7 @@ import {
   createCenteredListEmpty,
   listSearchSubheader,
   listSearchAddNew,
+  syncSearchFieldAdornment,
   createSlidingPillSelect,
   createPanelBackBtn,
   createEditableHeaderTitleInput,
@@ -5118,9 +5119,7 @@ function openSearchOverlay() {
 function syncSearchOverlayClearBtn() {
   const input = document.getElementById('search-overlay-input');
   const clearBtn = document.getElementById('search-overlay-clear');
-  if (!input || !clearBtn) return;
-  const hasText = input.value.length > 0;
-  clearBtn.hidden = !hasText;
+  syncSearchFieldAdornment(input, clearBtn);
 }
 
 function closeSearchOverlay() {
@@ -5251,12 +5250,18 @@ function initSearchOverlay() {
   }
 
   clearBtn?.addEventListener('click', () => {
-    if (!input) return;
-    input.value = '';
-    syncSearchOverlayClearBtn();
-    renderSearchResults('');
-    input.focus();
+    if (!(input instanceof HTMLInputElement) || !(clearBtn instanceof HTMLButtonElement)) return;
+    if (clearBtn.dataset.mode === 'clear') {
+      input.value = '';
+      syncSearchFieldAdornment(input, clearBtn);
+      renderSearchResults('');
+      input.focus();
+    } else {
+      input.focus();
+    }
   });
+
+  syncSearchOverlayClearBtn();
 
   if (!document.documentElement.dataset.searchOverlayBound) {
     document.documentElement.dataset.searchOverlayBound = '1';
@@ -11615,7 +11620,7 @@ function refreshClientsSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const total = clientState.total;
-    const clientLabel = total === 1 ? 'client' : 'clients';
+    const clientLabel = total === 1 ? 'Client' : 'Clients';
     searchInput.placeholder = `Search ${total} ${clientLabel}`;
   }
   fillClientsSidebarList(list);
@@ -11630,7 +11635,7 @@ function renderClientsEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const clientLabel = total === 1 ? 'client' : 'clients';
+  const clientLabel = total === 1 ? 'Client' : 'Clients';
   const subheader = listSearchSubheader({
     itemCount: total,
     search: {

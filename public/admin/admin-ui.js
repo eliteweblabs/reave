@@ -235,28 +235,47 @@ export function matchesListSearch(query, ...parts) {
   return hay.includes(q);
 }
 
-const SEARCH_CLEAR_ICON =
+const SEARCH_FIELD_CLEAR_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 
-function syncSearchClearBtn(input, clearBtn) {
-  if (!input || !clearBtn) return;
-  clearBtn.hidden = !input.value.length;
+const SEARCH_FIELD_SEARCH_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+
+/** Toggle the right-side search adornment between magnifying glass (empty) and clear (has text). */
+export function syncSearchFieldAdornment(input, btn) {
+  if (!input || !btn) return;
+  const hasText = input.value.length > 0;
+  if (hasText) {
+    btn.dataset.mode = 'clear';
+    btn.classList.add('is-clear');
+    btn.classList.remove('is-search');
+    btn.setAttribute('aria-label', 'Clear search');
+    btn.innerHTML = SEARCH_FIELD_CLEAR_ICON;
+  } else {
+    btn.dataset.mode = 'search';
+    btn.classList.add('is-search');
+    btn.classList.remove('is-clear');
+    btn.setAttribute('aria-label', 'Search');
+    btn.innerHTML = SEARCH_FIELD_SEARCH_ICON;
+  }
 }
 
-function createSearchClearBtn(input, onClear) {
+function createSearchFieldAdornment(input, onClear) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'panel-list-search-clear search-overlay-clear';
-  btn.setAttribute('aria-label', 'Clear search');
-  btn.innerHTML = SEARCH_CLEAR_ICON;
-  btn.hidden = !input.value.length;
+  btn.className = 'panel-list-search-clear search-overlay-clear panel-list-search-adornment';
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    input.value = '';
-    syncSearchClearBtn(input, btn);
-    onClear?.('');
-    input.focus();
+    if (btn.dataset.mode === 'clear') {
+      input.value = '';
+      syncSearchFieldAdornment(input, btn);
+      onClear?.('');
+      input.focus();
+    } else {
+      input.focus();
+    }
   });
+  syncSearchFieldAdornment(input, btn);
   return btn;
 }
 
@@ -465,9 +484,9 @@ export function listSearchAddNew(opts = {}) {
     input.placeholder = opts.search.placeholder || 'Search…';
     input.value = opts.search.value ?? '';
     input.setAttribute('aria-label', opts.search.ariaLabel || opts.search.placeholder || 'Search');
-    const clearBtn = createSearchClearBtn(input, (value) => opts.search.onInput?.(value));
+    const clearBtn = createSearchFieldAdornment(input, (value) => opts.search.onInput?.(value));
     input.addEventListener('input', (e) => {
-      syncSearchClearBtn(input, clearBtn);
+      syncSearchFieldAdornment(input, clearBtn);
       opts.search.onInput?.(e.target.value, e);
     });
     field.appendChild(input);
