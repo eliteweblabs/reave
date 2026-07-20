@@ -2677,6 +2677,20 @@ function renderHomeDashboard(data) {
     syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms());
     syncLi.appendChild(syncBtn);
     list.appendChild(syncLi);
+
+    if (isDeploymentOwnerClient && uptimeConfigured) {
+      const pullLi = document.createElement('li');
+      const pullBtn = document.createElement('button');
+      pullBtn.type = 'button';
+      pullBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync';
+      pullBtn.innerHTML =
+        `<span class="dash-uptime-add-icon" aria-hidden="true">⟳</span>` +
+        `<div class="dash-uptime-name">Sync status</div>`;
+      pullBtn.addEventListener('click', () => syncUptimeMonitorsFromApi());
+      pullLi.appendChild(pullBtn);
+      list.appendChild(pullLi);
+    }
+
     scroll.appendChild(list);
 
     const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
@@ -2879,6 +2893,42 @@ async function syncUptimeSitesFromPlatforms() {
     closeBtn.addEventListener('click', async () => {
       closeOsDialogBackdrop();
       if (data.created > 0) await loadHomeDashboard();
+    });
+    actionsEl.appendChild(closeBtn);
+    closeBtn.focus();
+  } catch (e) {
+    closeOsDialogBackdrop();
+    await osAlert({ title: 'Sync failed', bodyHtml: escHtml(e.message || String(e)) });
+  }
+}
+
+async function syncUptimeMonitorsFromApi() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  titleEl.textContent = 'Sync monitor status';
+  bodyEl.innerHTML = '<p class="em-book-dialog-lead">Syncing monitor status from UptimeRobot API…</p>';
+  actionsEl.innerHTML = '';
+  openOsDialogBackdrop();
+
+  try {
+    const res = await fetch('/api/admin/uptimerobot', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    bodyEl.innerHTML = `<p>Synced <strong>${data.synced}</strong> monitor${data.synced === 1 ? '' : 's'} from UptimeRobot.</p>`;
+
+    actionsEl.innerHTML = '';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'os-dialog-btn os-dialog-btn--primary';
+    closeBtn.textContent = 'Done';
+    closeBtn.addEventListener('click', async () => {
+      closeOsDialogBackdrop();
+      if (data.synced > 0) await loadHomeDashboard();
     });
     actionsEl.appendChild(closeBtn);
     closeBtn.focus();
