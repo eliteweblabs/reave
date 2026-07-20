@@ -459,6 +459,11 @@ export async function syncPlatformUrlsToUptime(
   const createContext = await urResolveCreateContext({
     accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
   });
+  console.info('[uptime-sync] create context', {
+    emailContacts: createContext.emailContacts ?? null,
+    clonedAlertContacts: createContext.clonedAlertContacts ?? null,
+    alertContactTypes: createContext.alertContactTypes ?? [],
+  });
 
   emitProgress(onProgress, {
     phase: 'listing',
@@ -550,7 +555,6 @@ export async function syncPlatformUrlsToUptime(
   let attempts = 0;
   let pending = 0;
   let monitorLimited = false;
-  let planSettingsBlocked = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
 
@@ -583,7 +587,7 @@ export async function syncPlatformUrlsToUptime(
     while (retrySame) {
       retrySame = false;
 
-      if (attempts >= maxAttempts || monitorLimited || planSettingsBlocked) {
+      if (attempts >= maxAttempts || monitorLimited) {
         pending += 1;
         reportCreating();
         break;
@@ -650,11 +654,6 @@ export async function syncPlatformUrlsToUptime(
 
       if (classified.kind === 'plan_feature') {
         errors.push(`${item.friendlyName}: ${classified.raw}`);
-        if (/not allowed to use some settings/i.test(classified.raw)) {
-          planSettingsBlocked = true;
-          pending += 1;
-          noteError(`${classified.summary} — ${classified.raw}`);
-        }
         reportCreating();
         break;
       }
