@@ -26,7 +26,7 @@ export type EmailMetaRow = [string, string, string?];
  *
  * @param firstName  - Recipient's first name for the greeting
  * @param paragraphs - Body paragraphs (plain text, auto-escaped)
- * @param cta        - Optional primary call-to-action button + link
+ * @param cta        - Optional primary call-to-action button
  * @param metaRows   - Optional metadata table rows (e.g. "Signed by", "Date")
  * @param note       - Optional small gray footnote (plain text, auto-escaped)
  */
@@ -57,16 +57,11 @@ export async function brandedEmailHtml(opts: {
   const ctaHtml = opts.cta
     ? `
       <tr>
-        <td style="padding:8px 0 4px" align="center">
+        <td style="padding:8px 0 20px" align="center">
           <a href="${esc(opts.cta.url)}"
              style="display:inline-block;background:#a855f7;color:#ffffff;font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:15px;font-weight:600;text-decoration:none;padding:13px 30px;border-radius:8px;letter-spacing:0.01em;mso-padding-alt:0;text-align:center">
             ${esc(opts.cta.label)}
           </a>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0 20px" align="center">
-          <a href="${esc(opts.cta.url)}" class="email-link" style="color:#a855f7;font-size:12px;word-break:break-all;text-decoration:none">${esc(opts.cta.url)}</a>
         </td>
       </tr>`
     : '';
@@ -166,7 +161,7 @@ export async function brandedEmailHtml(opts: {
                 <!-- Body paragraphs -->
                 ${bodyRows}
 
-                <!-- CTA button + link -->
+                <!-- CTA button -->
                 ${ctaHtml}
 
                 <!-- Metadata table -->

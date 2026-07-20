@@ -4,9 +4,13 @@
  * Usage:
  *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts
  *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts --dry-run
+ *   CALCOM_DATABASE_URL="postgresql://..." npx tsx scripts/seed-bookings.ts --fresh
  *
  * Uses the public Railway proxy URL from .env.railway.postgres when unset.
  * Generates ~2 months of events: 2–3 on weekdays, 1–2 on weekends.
+ *
+ * Cal.com stores startTime/endTime as UTC in timestamp-without-tz columns. Pass
+ * --fresh to delete prior seeded rows before inserting (needed after fixing TZ).
  */
 
 import crypto from 'node:crypto';
@@ -15,6 +19,7 @@ import pg from 'pg';
 const { Pool } = pg;
 
 const DRY_RUN = process.argv.includes('--dry-run');
+const FRESH = process.argv.includes('--fresh');
 
 const DATABASE_URL =
   process.env.CALCOM_DATABASE_URL?.trim() ||
@@ -255,12 +260,19 @@ async function main() {
     const { id: userId, event_type_id: eventTypeId, length, title } = user;
     console.log(`Seeding ${DEMO_BOOKINGS.length} demo bookings for @${CALCOM_USERNAME} (${title}, ${length}m)`);
 
+    if (FRESH && !DRY_RUN) {
+      const del = await pool.query(
+        `DELETE FROM "Booking" WHERE metadata->>'seeded' = 'true' RETURNING id`,
+      );
+      console.log(`Removed ${del.rowCount ?? 0} prior seeded booking(s).`);
+    }
+
     let created = 0;
     let skipped = 0;
 
     for (const demo of DEMO_BOOKINGS) {
-      const startDate = demo.startLocal;
-      const endDate = addMinutesLocal(startDate, length);
+      const startDate = localWallClockToUtcTimestamp(demo.startLocal, TIMEZONE);
+      const endDate = addMinutesUtc(startDate, length);
 
       const conflict = await pool.query(
         `SELECT id FROM "Booking"
@@ -285,6 +297,7 @@ async function main() {
       };
 
       if (DRY_RUN) {
+        console.log(`  ${demo.startLocal} ${TIMEZONE} -> ${startDate} UTC`);
         created++;
         continue;
       }
@@ -323,14 +336,50 @@ async function main() {
   }
 }
 
-/** Add minutes to a local "YYYY-MM-DD HH:mm:ss" timestamp string. */
-function addMinutesLocal(local: string, minutes: number): string {
+/**
+ * Convert BOOKING_TIMEZONE wall clock to the UTC timestamp string Cal.com expects
+ * in its timestamp-without-tz columns (read back as UTC by node-pg / the booking API).
+ */
+function localWallClockToUtcTimestamp(local: string, timeZone: string): string {
   const [datePart, timePart] = local.split(' ');
-  const [y, m, d] = datePart.split('-').map(Number);
-  const [hh, mm, ss] = timePart.split(':').map(Number);
-  const dt = new Date(y, m - 1, d, hh, mm, ss || 0);
-  dt.setMinutes(dt.getMinutes() + minutes);
-  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+  const [y, mo, d] = datePart.split('-').map(Number);
+  const [h, mi, se = 0] = timePart.split(':').map(Number);
+
+  let utcMs = Date.UTC(y, mo - 1, d, h, mi, se);
+  for (let i = 0; i < 4; i++) {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    const parts = Object.fromEntries(
+      fmt.formatToParts(new Date(utcMs)).map((p) => [p.type, p.value]),
+    );
+    const shown = Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day),
+      Number(parts.hour),
+      Number(parts.minute),
+      Number(parts.second),
+    );
+    utcMs += Date.UTC(y, mo - 1, d, h, mi, se) - shown;
+  }
+
+  const dt = new Date(utcMs);
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}:${pad(dt.getUTCSeconds())}`;
+}
+
+/** Add minutes to a UTC "YYYY-MM-DD HH:mm:ss" timestamp string. */
+function addMinutesUtc(utcLocal: string, minutes: number): string {
+  const dt = new Date(`${utcLocal.replace(' ', 'T')}Z`);
+  dt.setUTCMinutes(dt.getUTCMinutes() + minutes);
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())} ${pad(dt.getUTCHours())}:${pad(dt.getUTCMinutes())}:${pad(dt.getUTCSeconds())}`;
 }
 
 main().catch((e) => {
