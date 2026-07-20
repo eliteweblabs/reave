@@ -4803,45 +4803,28 @@ function footerNavShowsSave(nav) {
 }
 
 function footerNavShowsCreate(nav) {
-  if (footerNavShowsSave(nav)) return false;
-  if (footerNavCollapsed) return false;
-  const activeNav = footerNavActiveKey();
-  if (nav === 'chat') {
-    return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
-  }
-  if (nav === 'inbox') {
-    return activeKey === 'email' && activeNav === 'inbox' && !emailState.composing;
-  }
-  if (nav === 'schedule') {
-    return activeKey === 'schedule' && activeNav === 'schedule';
-  }
-  if (nav === 'work') return activeKey === 'work' && activeNav === 'work';
-  if (nav === 'todo') return activeKey === 'todo' && activeNav === 'todo';
-  if (nav === 'clients') {
-    return activeKey === 'clients' && activeNav === 'clients' && clientState.activeUid !== '__new__';
-  }
-  return false;
+  if (footerNavCollapsed || nav === 'home') return false;
+  return footerNavActiveKey() === nav;
 }
 
 function applyFooterNavBtnMode(btn, iconEl, opts) {
-  const { save, create, icon, label, title } = opts;
-  btn.classList.toggle('footer-nav-btn--create', save || create);
-  btn.classList.toggle('footer-nav-btn--save', save);
-  if (save) {
-    iconEl.innerHTML = '<span class="footer-nav-save-label">Save</span>';
-    btn.setAttribute('aria-label', 'Save');
-    btn.title = 'Save';
+  const { create, icon, label, title } = opts;
+  btn.classList.toggle('footer-nav-btn--create', create);
+  btn.classList.toggle('footer-nav-btn--save', false);
+  if (create) {
+    iconEl.innerHTML = navIcon('plus', 20);
+    btn.setAttribute('aria-label', title);
+    btn.title = title;
     return;
   }
-  iconEl.innerHTML = navIcon(create ? 'plus' : icon, 20);
-  btn.setAttribute('aria-label', create ? title : label);
-  btn.title = create ? title : label;
+  iconEl.innerHTML = navIcon(icon, 20);
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
 }
 
 function syncFooterChatNav() {
   const btn = document.getElementById('footer-nav-chat');
   if (!btn) return;
-  const save = footerNavShowsSave('chat');
   const create = footerNavShowsCreate('chat');
   let iconEl = btn.querySelector('.footer-nav-chat-icon');
   if (!iconEl) {
@@ -4849,10 +4832,9 @@ function syncFooterChatNav() {
     iconEl.className = 'footer-nav-chat-icon';
     iconEl.setAttribute('aria-hidden', 'true');
     btn.insertBefore(iconEl, btn.firstChild);
-    btn.querySelector(':scope > svg')?.remove();
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save,
     create,
     icon: 'agent',
     label: 'Chats',
@@ -4863,7 +4845,6 @@ function syncFooterChatNav() {
 function syncFooterWorkNav() {
   const btn = document.getElementById('footer-nav-work');
   if (!btn) return;
-  const save = footerNavShowsSave('work');
   const create = footerNavShowsCreate('work');
   let iconEl = btn.querySelector('.footer-nav-work-icon');
   if (!iconEl) {
@@ -4871,10 +4852,9 @@ function syncFooterWorkNav() {
     iconEl.className = 'footer-nav-work-icon';
     iconEl.setAttribute('aria-hidden', 'true');
     btn.insertBefore(iconEl, btn.firstChild);
-    btn.querySelector(':scope > svg')?.remove();
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save,
     create,
     icon: 'briefcase',
     label: 'Projects',
@@ -4892,10 +4872,9 @@ function syncFooterTodoNav() {
     iconEl.className = 'footer-nav-todo-icon';
     iconEl.setAttribute('aria-hidden', 'true');
     btn.insertBefore(iconEl, btn.firstChild);
-    btn.querySelector(':scope > svg')?.remove();
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save: false,
     create,
     icon: 'check-square',
     label: 'To‑dos',
@@ -4913,10 +4892,9 @@ function syncFooterInboxNav() {
     iconEl.className = 'footer-nav-inbox-icon';
     iconEl.setAttribute('aria-hidden', 'true');
     btn.insertBefore(iconEl, btn.firstChild);
-    btn.querySelector(':scope > svg')?.remove();
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save: false,
     create,
     icon: 'mail',
     label: 'Inbox',
@@ -4934,10 +4912,9 @@ function syncFooterScheduleNav() {
     iconEl.className = 'footer-nav-schedule-icon';
     iconEl.setAttribute('aria-hidden', 'true');
     btn.insertBefore(iconEl, btn.firstChild);
-    btn.querySelector(':scope > svg')?.remove();
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save: false,
     create,
     icon: 'calendar',
     label: 'Schedule',
@@ -4948,18 +4925,16 @@ function syncFooterScheduleNav() {
 function syncFooterClientsNav() {
   const btn = document.getElementById('footer-nav-clients');
   if (!btn) return;
-  const save = footerNavShowsSave('clients');
   const create = footerNavShowsCreate('clients');
   let iconEl = btn.querySelector('.footer-nav-clients-icon');
   if (!iconEl) {
     iconEl = document.createElement('span');
     iconEl.className = 'footer-nav-clients-icon';
     iconEl.setAttribute('aria-hidden', 'true');
-    btn.insertBefore(iconEl, null);
-    btn.querySelector(':scope > svg')?.remove();
+    btn.insertBefore(iconEl, btn.firstChild);
   }
+  btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
-    save,
     create,
     icon: 'users',
     label: 'Clients',
@@ -5065,13 +5040,8 @@ const FOOTER_NAV_DRAG_THRESHOLD = 8;
 function footerNavIndicatorHidden() {
   const indicator = document.getElementById('footer-nav-indicator');
   if (!indicator || indicator.hidden) return true;
-  return (
-    (activeKey === 'chats' && footerNavCreateModeActive('chat')) ||
-    (activeKey === 'email' && footerNavCreateModeActive('inbox')) ||
-    (activeKey === 'schedule' && footerNavCreateModeActive('schedule')) ||
-    (activeKey === 'work' && footerNavCreateModeActive('work')) ||
-    (activeKey === 'todo' && footerNavCreateModeActive('todo'))
-  );
+  const activeNav = footerNavActiveKey();
+  return activeNav != null && activeNav !== 'home' && footerNavCreateModeActive(activeNav);
 }
 
 function getVisibleFooterNavButtons() {
@@ -5148,11 +5118,7 @@ function activateFooterChatNav() {
     return;
   }
   if (activeKey === 'chats') {
-    if (footerNavShowsCreate('chat')) {
-      void startNewChat();
-    } else if (chatState.activeId) {
-      closeActiveChat();
-    }
+    void startNewChat();
     return;
   }
   setActiveMap('chats', { force: activeKey === 'chats' });
@@ -5316,12 +5282,7 @@ function syncFooterNavIndicator() {
   if (!indicator || !pill) return;
 
   const activeNav = footerNavActiveKey();
-  const hideForCreate =
-    (activeNav === 'chat' && (footerNavCreateModeActive('chat') || footerNavShowsSave('chat'))) ||
-    (activeNav === 'inbox' && footerNavCreateModeActive('inbox')) ||
-    (activeNav === 'schedule' && footerNavCreateModeActive('schedule')) ||
-    (activeNav === 'work' && (footerNavCreateModeActive('work') || footerNavShowsSave('work'))) ||
-    (activeNav === 'todo' && footerNavCreateModeActive('todo'));
+  const hideForCreate = activeNav != null && activeNav !== 'home' && footerNavCreateModeActive(activeNav);
 
   let targetBtn = activeNav
     ? document.querySelector(`.footer-nav-btn[data-nav="${activeNav}"]`)
