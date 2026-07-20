@@ -283,6 +283,8 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
 export async function createUptimeMonitor(opts: {
   url: string;
   friendlyName?: string;
+  /** UptimeRobot check interval in seconds (defaults to account minimum or 300). */
+  intervalSeconds?: number;
   /**
    * Fetch full monitor details from UptimeRobot after creating (extra API call).
    * Set false for bulk sync to stay under the 10 req/min free-plan rate limit —
@@ -303,7 +305,11 @@ export async function createUptimeMonitor(opts: {
   const url = normalizeUptimeMonitorUrl(opts.url);
   if (!url) return { ok: false, error: 'url is required' };
 
-  const created = await urNewMonitor({ url, friendlyName: opts.friendlyName });
+  const created = await urNewMonitor({
+    url,
+    friendlyName: opts.friendlyName,
+    intervalSeconds: opts.intervalSeconds,
+  });
   if (!created.ok) return { ok: false, error: created.error };
 
   if (opts.fetchDetails !== false) {
@@ -465,12 +471,16 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
   }
 
   const maxAttempts = platformSyncMaxPerRun();
+  const accountInterval = account?.monitorIntervalSeconds;
+  const intervalSeconds =
+    accountInterval != null && accountInterval >= 30 ? accountInterval : 300;
   let created = 0;
   let skipped = 0;
   let attempts = 0;
   let pending = 0;
   let rateLimited = false;
   let monitorLimited = false;
+  let planSettingsBlocked = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
 
@@ -488,7 +498,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     // Once the cap or an UptimeRobot account limit is hit, stop attempting —
     // further calls in this run would just fail. The remainder is picked up by
     // the next (scheduled or manual) run.
-    if (attempts >= maxAttempts || rateLimited || monitorLimited) {
+    if (attempts >= maxAttempts || rateLimited || monitorLimited || planSettingsBlocked) {
       pending += 1;
       continue;
     }
@@ -497,6 +507,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     const result = await createUptimeMonitor({
       url: item.url,
       friendlyName: item.friendlyName,
+      intervalSeconds,
       fetchDetails: false,
     });
     if (result.ok) {
@@ -525,6 +536,13 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
         skipped += 1;
         if (key) existing.add(key);
         warnings.push(`${item.friendlyName}: ${classified.raw}`);
+      } else if (classified.kind === 'plan_feature') {
+        errors.push(`${item.friendlyName}: ${classified.raw}`);
+        if (/not allowed to use some settings/i.test(classified.raw)) {
+          planSettingsBlocked = true;
+          pending += 1;
+          noteError(`${classified.summary} — ${classified.raw} (using ${intervalSeconds}s interval)`);
+        }
       } else {
         errors.push(`${item.friendlyName}: ${classified.raw}`);
       }

@@ -41,7 +41,8 @@ export type UptimeRobotAccountDetails = {
   upMonitors: number;
   downMonitors: number;
   pausedMonitors: number;
-  monitorIntervalMinutes: number | null;
+  /** Minimum check interval allowed for this account (seconds, from getAccountDetails). */
+  monitorIntervalSeconds: number | null;
 };
 
 export type UptimeRobotErrorKind =
@@ -86,10 +87,14 @@ export function classifyUptimeRobotError(raw: string): {
       raw: msg,
     };
   }
-  if (/current plan|not allowed on|subscription|not available.*plan|upgrade.*plan|plan does not/i.test(lower)) {
+  if (/current plan|not allowed|subscription|not available.*plan|upgrade.*plan|plan does not/i.test(lower)) {
+    const settings =
+      /not allowed to use some settings/i.test(lower)
+        ? 'Monitor settings not allowed on your UptimeRobot plan (usually check interval — free plan requires 5-minute checks)'
+        : 'Not allowed on your UptimeRobot plan';
     return {
       kind: 'plan_feature',
-      summary: 'Not allowed on your UptimeRobot plan',
+      summary: settings,
       raw: msg,
     };
   }
@@ -267,7 +272,7 @@ export async function urGetAccountDetails(): Promise<
         upMonitors: up,
         downMonitors: down,
         pausedMonitors: paused,
-        monitorIntervalMinutes: Number.isFinite(intervalRaw) ? intervalRaw : null,
+        monitorIntervalSeconds: Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : null,
       },
     };
   } catch (e) {
@@ -298,6 +303,8 @@ export async function urNewMonitor(opts: {
   url: string;
   friendlyName?: string;
   type?: number;
+  /** Check interval in seconds. Free plan requires 300 (5 min) or higher. */
+  intervalSeconds?: number;
 }): Promise<UptimeRobotNewMonitorResult> {
   const key = apiKey();
   if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
@@ -306,6 +313,7 @@ export async function urNewMonitor(opts: {
   if (!url) return { ok: false, error: 'url is required' };
 
   const friendlyName = opts.friendlyName?.trim() || defaultUptimeFriendlyName(url);
+  const interval = opts.intervalSeconds ?? 300;
 
   const body = new URLSearchParams({
     api_key: key,
@@ -313,6 +321,7 @@ export async function urNewMonitor(opts: {
     type: String(opts.type ?? UPTIME_MONITOR_TYPE_HTTP),
     url,
     friendly_name: friendlyName,
+    interval: String(interval),
   });
 
   try {
