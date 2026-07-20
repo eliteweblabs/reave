@@ -1,7 +1,7 @@
 /**
  * GET  /api/email/inbox/[id]/schedule — check proposed slot vs Cal.com
  * POST /api/email/inbox/[id]/schedule — book meeting and mark inbox item
- *   action: "book" (default) | "accept-notify" | "notify-conflict" | "prepare-project" | "attach-project" | "confirm"
+ *   action: "book" (default) | "accept-notify" | "notify-conflict" | "notify-schedule-link" | "prepare-project" | "attach-project" | "confirm"
  */
 
 import type { APIContext } from 'astro';
@@ -19,10 +19,11 @@ import {
   type EmailInboxRecord,
 } from '../../../../../lib/emailInboxStore';
 import { ensureContactForMeetingEmail } from '../../../../../lib/emailContactExtract';
-import { buildReplyEmailHeaders, buildReplySubject, resolveReplyRecipient } from '../../../../../lib/emailReply';
+import { sendInboundThreadReply } from '../../../../../lib/inboundEmailReply';
 import {
   attendeeFromEmail,
   buildMeetingAcceptNotifyEmail,
+  buildMeetingScheduleInviteEmail,
   buildMeetingSlotBookedEmail,
   checkEmailMeetingSlot,
   DEFAULT_MEETING_MINUTES,
@@ -33,8 +34,10 @@ import {
   previewMeetingProjectTitle,
 } from '../../../../../lib/emailMeetingProject';
 import { hasFeature } from '../../../../../lib/features';
+import { siteBaseUrl } from '../../../../../lib/contactApi';
+import { scheduleFormUrl } from '../../../../../lib/inboundEmailReply';
 import { storeListWork } from '../../../../../lib/workStore';
-import { isEmailSendConfigured, sendEmail } from '../../../../../lib/outbound';
+import { isEmailSendConfigured } from '../../../../../lib/outbound';
 
 export const prerender = false;
 
@@ -127,23 +130,47 @@ async function openProjectSuggestions(contactUid: string | null | undefined) {
 async function sendSchedulingReply(
   event: EmailInboxRecord,
   message: { subject: string; text: string; html?: string },
+  source = 'schedule_reply',
 ): Promise<{ ok: true; to: string; emailId?: string } | { ok: false; error: string }> {
   if (!isEmailSendConfigured()) {
     return { ok: false, error: 'Outbound email is not configured (RESEND_API_KEY)' };
   }
-  const to = resolveReplyRecipient(event);
-  if (!to.includes('@')) {
-    return { ok: false, error: 'Could not determine reply recipient' };
-  }
-  const result = await sendEmail({
-    to,
-    subject: buildReplySubject(event.subject || message.subject),
-    text: message.text,
-    ...(message.html ? { html: message.html } : {}),
-    headers: buildReplyEmailHeaders(event),
+  return sendInboundThreadReply(event, message, {
+    jobSlug: event.jobSlug,
+    contactUid: event.contactUid,
+    source,
   });
-  if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true, to, emailId: result.id };
+}
+
+async function handleNotifyScheduleLink(
+  id: string,
+  event: EmailInboxRecord,
+): Promise<Response> {
+  const company = await getCompanyConfig();
+  const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
+  const scheduleUrl = hasFeature('scheduling') ? scheduleFormUrl(siteBaseUrl()) : null;
+  const mail = await buildMeetingScheduleInviteEmail({
+    attendeeName: attendee.name,
+    companyName: company.name,
+    scheduleUrl,
+  });
+  const sent = await sendSchedulingReply(event, mail, 'notify_schedule_link');
+  if (!sent.ok) {
+    return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
+  }
+  const updated = await storeUpdateEmailInbox(id, {
+    action: 'filed',
+    status: 'FILED',
+    markAutomationAck: true,
+  });
+  return json({
+    ok: true,
+    notified: true,
+    action: 'notify-schedule-link',
+    attendeeEmail: sent.to,
+    notifyEmailId: sent.emailId ?? null,
+    event: updated ?? event,
+  });
 }
 
 /** Best-effort meeting location for the confirmation email's "Where" row. */
@@ -201,10 +228,8 @@ export async function POST(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing id' }, 400);
 
-  const loaded = await loadEmail(id);
-  if ('error' in loaded) return json({ ok: false, error: loaded.error }, loaded.status);
-
-  const { event, proposedStart } = loaded;
+  const event = await storeGetEmailInbox(id);
+  if (!event) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: unknown;
   try {
@@ -214,6 +239,26 @@ export async function POST(context: APIContext): Promise<Response> {
   }
   const rec = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const action = String(rec.action ?? 'book').trim().toLowerCase();
+
+  if (action === 'notify-schedule-link') {
+    return handleNotifyScheduleLink(id, event);
+  }
+
+  let proposedStart =
+    resolveProposedMeetingStart({
+      proposedMeetingStart: event.proposedMeetingStart,
+      schedulingNote: event.schedulingNote,
+      summary: event.summary,
+      bodyText: event.bodySnippet || event.bodyText,
+      receivedAt: event.receivedAt,
+    }) ?? null;
+  if (!proposedStart && event.bookingStart) {
+    proposedStart = event.bookingStart;
+  }
+
+  if (action === 'accept-notify' && !proposedStart) {
+    return handleNotifyScheduleLink(id, event);
+  }
 
   const company = await getCompanyConfig();
   const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
@@ -259,6 +304,9 @@ export async function POST(context: APIContext): Promise<Response> {
       return json({ ok: false, error: 'No booking on this message' }, 400);
     }
     const bookingStart = event.bookingStart || proposedStart;
+    if (!bookingStart) {
+      return json({ ok: false, error: 'No booking time on this message' }, 400);
+    }
     const withProject = await attachMeetingProject(id, event, event.bookingUid, bookingStart);
     if (!withProject.jobSlug) {
       return json({ ok: false, error: 'Could not create or link a project' }, 502);
@@ -286,7 +334,11 @@ export async function POST(context: APIContext): Promise<Response> {
         400,
       );
     }
-    const whenLabel = formatWhenLabel(event.bookingStart || proposedStart);
+    const whenIso = event.bookingStart || proposedStart;
+    if (!whenIso) {
+      return json({ ok: false, error: 'No booking time on this message' }, 400);
+    }
+    const whenLabel = formatWhenLabel(whenIso);
     const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel,
@@ -319,6 +371,10 @@ export async function POST(context: APIContext): Promise<Response> {
       notifyEmailId: sent.emailId ?? null,
       event: updated ?? event,
     });
+  }
+
+  if (!proposedStart) {
+    return json({ ok: false, error: 'No proposed meeting time on this message' }, 400);
   }
 
   const startRaw = rec.start != null ? String(rec.start).trim() : proposedStart;

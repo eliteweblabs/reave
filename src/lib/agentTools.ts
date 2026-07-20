@@ -129,6 +129,7 @@ import {
 } from './emailInboxStore';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { buildReplyEmailHeaders } from './emailReply';
+import { brandedPlainTextEmail } from './inboundEmailReply';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
 import { markInboxEmailAsProject } from './emailProjectCategory';
 import { importEmailAttachmentsToProject } from './emailProjectAttachments';
@@ -2946,11 +2947,28 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
 
       const looksHtml = /<[a-z][\s\S]*>/i.test(body);
+      let text = body;
+      let html: string | undefined;
+      if (looksHtml) {
+        text = plainTextFromHtml(body) || body;
+        html = body;
+      } else {
+        let firstName = to.split('@')[0] || 'there';
+        if (inReplyToEmailId) {
+          const inbound = await storeGetEmailInbox(inReplyToEmailId);
+          if (inbound?.contactName) {
+            firstName = inbound.contactName.trim().split(/\s+/)[0] || firstName;
+          }
+        }
+        const wrapped = await brandedPlainTextEmail({ firstName, body });
+        text = wrapped.text;
+        html = wrapped.html;
+      }
       const result = await sendEmail({
         to,
         subject,
-        text: looksHtml ? plainTextFromHtml(body) || body : body,
-        html: looksHtml ? body : undefined,
+        text,
+        html,
         cc,
         bcc,
         from,

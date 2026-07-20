@@ -2798,6 +2798,10 @@ function buildReviewAlertBanner(item) {
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
+    copy.querySelector('p')?.insertAdjacentText(
+      'afterbegin',
+      'Client sent a branded acknowledgment · ',
+    );
   } else if (isMeetingFollowup) {
     appendReviewAlertAction(actions, {
       label: 'View email',
@@ -2805,13 +2809,22 @@ function buildReviewAlertBanner(item) {
       onClick: () => openReviewNotificationTarget(item),
     });
   } else if (isMeetingRequest) {
+    const scheduleOnly = !item.proposedMeetingStart;
     appendReviewAlertAction(actions, {
-      label: item.type === 'meeting_conflict' ? 'Notify conflict' : 'Accept & notify',
+      label: scheduleOnly
+        ? 'Send scheduling link'
+        : item.type === 'meeting_conflict'
+          ? 'Notify conflict'
+          : 'Accept & notify',
       primary: true,
       onClick: (btn) =>
         void runReviewScheduleAction(
           item,
-          item.type === 'meeting_conflict' ? 'notify-conflict' : 'accept-notify',
+          scheduleOnly
+            ? 'notify-schedule-link'
+            : item.type === 'meeting_conflict'
+              ? 'notify-conflict'
+              : 'accept-notify',
           btn,
         ),
     });

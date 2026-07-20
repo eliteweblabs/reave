@@ -16,9 +16,12 @@ import { storeRecordEmailInbox, storeUpdateEmailInbox, type EmailInboxRecord } f
 import { linkProjectItem } from './projectLinks';
 import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
-import { parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
+import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
-import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
+import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfEmailAutomation, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
+import { getCompanyConfig } from './companyConfig';
+import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
+import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
@@ -208,6 +211,41 @@ export function shouldSendInboxPush(opts: {
   if (action === 'booked') return true;
 
   return true;
+}
+
+/** Branded acknowledgment to the client after auto-creating a project from their email. */
+async function sendAutoProjectAckEmail(opts: {
+  inboxRecord: EmailInboxRecord;
+  jobSlug: string;
+  jobTitle: string;
+  contactName: string | null;
+  summary: string;
+  subject: string;
+  from: string;
+}): Promise<void> {
+  try {
+    const company = await getCompanyConfig();
+    const attendee = attendeeFromEmail({ from: opts.from, contactName: opts.contactName });
+    const scheduleUrl = hasFeature('scheduling') ? scheduleFormUrl(siteBaseUrl()) : null;
+    const mail = await buildNewProjectAckEmail({
+      attendeeName: attendee.name,
+      jobTitle: opts.jobTitle,
+      summary: opts.summary,
+      subject: opts.subject,
+      companyName: company.name,
+      scheduleUrl,
+    });
+    const sent = await sendInboundThreadReply(opts.inboxRecord, mail, {
+      jobSlug: opts.jobSlug,
+      contactUid: opts.inboxRecord.contactUid,
+      source: 'auto_project_ack',
+    });
+    if (!sent.ok) {
+      console.warn('[email] auto project ack failed', sent.error);
+    }
+  } catch (e) {
+    console.warn('[email] auto project ack failed', e);
+  }
 }
 
 export async function processInboundEmail(email: InboundEmail): Promise<ProcessedEmailResult> {
@@ -605,6 +643,16 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
         console.warn('[email] project link failed', e),
       );
+
+      void sendAutoProjectAckEmail({
+        inboxRecord,
+        jobSlug,
+        jobTitle,
+        contactName,
+        summary,
+        subject: email.subject ?? '',
+        from,
+      });
     } else if (autoProject.reason !== 'not_applicable') {
       console.warn('[email] auto project create failed', autoProject.error);
     }
@@ -654,6 +702,24 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       tag: inboxRecord.id,
       emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] push failed', e));
+  }
+
+  if (inboxRecord && automationKind) {
+    const whenLabel =
+      bookingStart || proposedMeetingStart
+        ? formatMeetingWhenLabel(bookingStart || proposedMeetingStart!)
+        : schedulingNote || null;
+    notifyAdminAgentOfEmailAutomation({
+      automationKind,
+      contactName,
+      jobTitle,
+      jobSlug,
+      whenLabel,
+      summary,
+      subject: email.subject ?? '',
+      from,
+      emailId: inboxRecord.id,
+    }).catch((e) => console.warn('[email] automation alert failed', e));
   }
 
   if (inboxRecord && isProjectReply) {

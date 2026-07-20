@@ -5,6 +5,7 @@
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../lib/emailInboxStore';
 import { buildReplyEmailHeaders } from '../../../lib/emailReply';
+import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
 
@@ -58,9 +59,10 @@ export async function POST(context: APIContext): Promise<Response> {
   let jobSlug = String(body.jobSlug ?? body.job_slug ?? '').trim() || null;
   let contactUid = String(body.contactUid ?? body.contact_uid ?? '').trim() || null;
   let replyHeaders: Record<string, string> | undefined;
+  let inbound: Awaited<ReturnType<typeof storeGetEmailInbox>> = null;
 
   if (inReplyToEmailId) {
-    const inbound = await storeGetEmailInbox(inReplyToEmailId);
+    inbound = await storeGetEmailInbox(inReplyToEmailId);
     if (!inbound) {
       return json({ ok: false, success: false, error: 'Original message not found' }, 404);
     }
@@ -69,11 +71,25 @@ export async function POST(context: APIContext): Promise<Response> {
     contactUid = contactUid || inbound.contactUid || null;
   }
 
+  let sendText = text || html || '';
+  let sendHtml = html;
+
+  if (!sendHtml && sendText && !/<[a-z][\s\S]*>/i.test(sendText)) {
+    const primaryTo = to[0] || '';
+    let firstName =
+      inbound?.contactName?.trim().split(/\s+/)[0] ||
+      primaryTo.split('@')[0] ||
+      'there';
+    const wrapped = await brandedPlainTextEmail({ firstName, body: sendText });
+    sendText = wrapped.text;
+    sendHtml = wrapped.html;
+  }
+
   const result = await sendEmail({
     to,
     subject,
-    text: text || html || '',
-    html,
+    text: sendText,
+    html: sendHtml,
     cc: typeof cc === 'string' || Array.isArray(cc) ? cc : undefined,
     bcc: typeof bcc === 'string' || Array.isArray(bcc) ? bcc : undefined,
     from,

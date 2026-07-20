@@ -12,7 +12,9 @@ import {
   type AvailabilitySlot,
   type BookingSummary,
 } from './bookingClient';
+import { siteBaseUrl } from './contactApi';
 import { bookingCalendarUrl, mapsDirectionsUrl } from './calendarLinks';
+import { scheduleFormUrl } from './inboundEmailReply';
 
 export const DEFAULT_MEETING_MINUTES = 30;
 const SLOT_MATCH_MS = 5 * 60 * 1000;
@@ -435,6 +437,121 @@ export async function buildMeetingSlotBookedEmail(input: {
   });
 
   return { subject: 'Re: Meeting time', text, html };
+}
+
+function extractDomainFromText(text: string): string | null {
+  const m = text.match(
+    /\b([a-z0-9][-a-z0-9]*\.(?:com|org|net|io|app|co|dev|us|uk|edu|gov|biz|info))\b/i,
+  );
+  return m?.[1]?.toLowerCase() ?? null;
+}
+
+function projectContextPhrase(input: {
+  jobTitle?: string | null;
+  summary?: string | null;
+  subject?: string | null;
+}): string {
+  const blob = [input.summary, input.subject, input.jobTitle].filter(Boolean).join(' ');
+  const domain = extractDomainFromText(blob);
+  if (domain) {
+    return `the project files for the ${domain} rebuild`;
+  }
+  const title = input.jobTitle?.trim();
+  if (title && !/^new project$/i.test(title)) {
+    return `your request about "${title}"`;
+  }
+  return 'your project request';
+}
+
+/**
+ * Branded acknowledgment sent when a new project is auto-created from inbound email.
+ */
+export async function buildNewProjectAckEmail(input: {
+  attendeeName: string;
+  jobTitle?: string | null;
+  summary?: string | null;
+  subject?: string | null;
+  companyName?: string | null;
+  scheduleUrl?: string | null;
+}): Promise<MeetingEmail> {
+  const name = input.attendeeName.trim() || 'there';
+  const signOff = input.companyName?.trim() || 'Thanks';
+  const context = projectContextPhrase(input);
+  const scheduleUrl = input.scheduleUrl?.trim() || scheduleFormUrl(siteBaseUrl());
+
+  const paragraphs = [
+    `Thanks for sending over ${context}. I've reviewed your request and I'm excited to discuss your vision for this project.`,
+    scheduleUrl
+      ? 'You can schedule a time that works for you using the link below — or reply with your availability and I can suggest some specific times.'
+      : 'Reply with your availability and I can suggest some times to connect.',
+    'Looking forward to connecting!',
+  ];
+
+  const text = [
+    `Hi ${name},`,
+    '',
+    paragraphs[0],
+    '',
+    scheduleUrl ? `Schedule a time: ${scheduleUrl}` : '',
+    scheduleUrl ? '' : '',
+    paragraphs[1],
+    '',
+    signOff,
+  ]
+    .filter((line, i, arr) => !(line === '' && arr[i - 1] === ''))
+    .join('\n');
+
+  const { brandedEmailHtml } = await import('./emailTemplates');
+  const html = await brandedEmailHtml({
+    firstName: firstNameFrom(name),
+    paragraphs,
+    cta: scheduleUrl ? { label: 'Schedule a meeting', url: scheduleUrl } : undefined,
+  });
+
+  const subjectBase = input.subject?.trim() || input.jobTitle?.trim() || 'your project';
+  return { subject: `Re: ${subjectBase} — Let's schedule a meeting`, text, html };
+}
+
+/**
+ * Branded reply when a client wants to meet but did not propose a specific time.
+ */
+export async function buildMeetingScheduleInviteEmail(input: {
+  attendeeName: string;
+  companyName?: string | null;
+  scheduleUrl?: string | null;
+  bookingUrl?: string | null;
+}): Promise<MeetingEmail> {
+  const name = input.attendeeName.trim() || 'there';
+  const signOff = input.companyName?.trim() || 'Thanks';
+  const scheduleUrl =
+    input.scheduleUrl?.trim() ||
+    input.bookingUrl?.trim() ||
+    scheduleFormUrl(siteBaseUrl());
+
+  const paragraphs = [
+    "Thanks for reaching out — I'd love to connect.",
+    'Pick a time that works for you using the link below, or reply with your availability.',
+  ];
+
+  const text = [
+    `Hi ${name},`,
+    '',
+    paragraphs[0],
+    paragraphs[1],
+    '',
+    scheduleUrl,
+    '',
+    signOff,
+  ].join('\n');
+
+  const { brandedEmailHtml } = await import('./emailTemplates');
+  const html = await brandedEmailHtml({
+    firstName: firstNameFrom(name),
+    paragraphs,
+    cta: { label: 'Schedule a meeting', url: scheduleUrl },
+  });
+
+  return { subject: "Re: Let's schedule a meeting", text, html };
 }
 
 export async function checkEmailMeetingSlot(input: {
