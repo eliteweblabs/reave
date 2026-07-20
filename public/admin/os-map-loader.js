@@ -11256,7 +11256,7 @@ function openScheduleCreateDialog(initial = {}) {
     bindOsDialogDismiss(backdrop, finish, true);
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
-    nameInput.focus();
+    scheduleOsDialogFieldFocus(nameInput);
   });
 }
 
@@ -12863,6 +12863,20 @@ function osDialog(opts) {
 let osDialogKeyboardBound = false;
 let osDialogKeyboardSync = null;
 
+function scrollOsDialogFieldIntoView(field) {
+  if (!(field instanceof HTMLElement)) return;
+  const body = document.getElementById('os-dialog-body');
+  if (body?.contains(field)) {
+    const bodyRect = body.getBoundingClientRect();
+    const fieldRect = field.getBoundingClientRect();
+    const margin = 16;
+    if (fieldRect.bottom > bodyRect.bottom - margin || fieldRect.top < bodyRect.top + margin) {
+      body.scrollTop += fieldRect.top - bodyRect.top - margin;
+    }
+  }
+  field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+}
+
 function syncOsDialogKeyboardLayout() {
   const backdrop = document.getElementById('os-dialog-backdrop');
   if (!backdrop?.classList.contains('open')) return;
@@ -12882,9 +12896,23 @@ function syncOsDialogKeyboardLayout() {
   const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   backdrop.classList.add('os-dialog-keyboard');
   document.documentElement.style.setProperty('--os-dialog-keyboard-inset', `${inset}px`);
-  requestAnimationFrame(() => {
-    active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
+  const runScroll = () => scrollOsDialogFieldIntoView(active);
+  requestAnimationFrame(runScroll);
+  window.setTimeout(runScroll, 120);
+  window.setTimeout(runScroll, 360);
+}
+
+function scheduleOsDialogFieldFocus(field) {
+  if (!(field instanceof HTMLElement)) return;
+  const focus = () => {
+    try {
+      field.focus({ preventScroll: true });
+    } catch {
+      /* ignore */
+    }
+    syncOsDialogKeyboardLayout();
+  };
+  requestAnimationFrame(() => requestAnimationFrame(focus));
 }
 
 function bindOsDialogKeyboardLayout() {
