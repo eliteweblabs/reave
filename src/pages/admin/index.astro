@@ -4934,6 +4934,26 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-weight: 600;
         color: var(--muted);
       }
+      .reave-share-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .reave-share-picked {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.6rem 0.7rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--surface);
+      }
+      .reave-share-picked-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--fg);
+      }
       .reave-share-optional {
         font-weight: 500;
         opacity: 0.75;

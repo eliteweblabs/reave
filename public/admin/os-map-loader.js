@@ -7807,6 +7807,10 @@ function renderEditForm(pane) {
         title: tpl?.title ?? slug,
         afterTitle: modeTabs,
         icons: [
+          paneShareIcon({
+            label: 'Send to a client',
+            onClick: () => openDocumentShareSheet({ slug, title: tpl?.title ?? slug }),
+          }),
           paneDeleteIcon({
             label: 'Delete document',
             onClick: () => deleteDocument(slug),
@@ -13196,6 +13200,173 @@ async function openReaveShareSheet(opts = {}) {
   window.IosSheet?.open('reave-share-backdrop', {
     onClose: () => { _reaveShareState = null; },
   });
+}
+
+/**
+ * Document share sheet: a client-only recipient picker on top of the branded
+ * share sheet. Sends the client their personalised signing link for `slug`.
+ */
+async function openDocumentShareSheet(opts = {}) {
+  const backdrop = document.getElementById('reave-share-backdrop');
+  if (!backdrop) return;
+  const slug = opts.slug;
+  if (!slug) return;
+
+  const brandName = window.__companyBrand?.name || 'Reave';
+  const docTitle = opts.title || slug;
+
+  const state = {
+    kind: 'document',
+    recipient: {},
+    template: slug,
+    docTitle,
+    url: undefined,
+  };
+  _reaveShareState = state;
+
+  const titleEl = document.getElementById('reave-share-title');
+  const subEl = document.getElementById('reave-share-sub');
+  const noteEl = document.getElementById('reave-share-note');
+  const actionsEl = document.getElementById('reave-share-actions');
+  if (titleEl) titleEl.textContent = `Send ${docTitle}`;
+  if (subEl) {
+    subEl.textContent = `Choose a client to send "${docTitle}" to. They'll get a branded ${brandName} link to review and sign — no one else.`;
+  }
+  if (noteEl) noteEl.value = '';
+  setReaveShareStatus('', null);
+  if (actionsEl) actionsEl.innerHTML = '';
+
+  // ── Inject a clients-only recipient picker above the note field ──
+  removeDocSharePicker();
+  const picker = document.createElement('div');
+  picker.id = 'reave-share-doc-picker';
+  picker.className = 'reave-share-picker';
+
+  const selectedRow = document.createElement('div');
+  selectedRow.className = 'reave-share-picked';
+  selectedRow.style.display = 'none';
+  const selectedName = document.createElement('span');
+  selectedName.className = 'reave-share-picked-name';
+  const changeBtn = document.createElement('button');
+  changeBtn.type = 'button';
+  changeBtn.className = 'de-btn de-btn-ghost';
+  changeBtn.textContent = 'Change';
+  selectedRow.appendChild(selectedName);
+  selectedRow.appendChild(changeBtn);
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'wk-client-search-wrap';
+  const searchInput = document.createElement('input');
+  searchInput.className = 'de-input';
+  searchInput.type = 'search';
+  searchInput.placeholder = 'Search clients…';
+  searchInput.autocomplete = 'off';
+  const dropdown = document.createElement('div');
+  dropdown.className = 'wk-client-dropdown';
+  dropdown.style.display = 'none';
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(dropdown);
+
+  picker.appendChild(selectedRow);
+  picker.appendChild(searchWrap);
+
+  const noteLabel = backdrop.querySelector('.reave-share-note-label');
+  const body = backdrop.querySelector('.reave-share-body');
+  if (noteLabel && noteLabel.parentNode) noteLabel.parentNode.insertBefore(picker, noteLabel);
+  else if (body) body.appendChild(picker);
+
+  const setNoteVisible = (visible) => {
+    const disp = visible ? '' : 'none';
+    if (noteLabel) noteLabel.style.display = disp;
+    if (noteEl) noteEl.style.display = disp;
+  };
+
+  function showSearch() {
+    state.recipient = {};
+    state.url = undefined;
+    selectedRow.style.display = 'none';
+    searchWrap.style.display = 'block';
+    if (actionsEl) actionsEl.innerHTML = '';
+    setNoteVisible(false);
+    setReaveShareStatus('', null);
+    searchInput.value = '';
+    dropdown.style.display = 'none';
+    searchInput.focus();
+    scheduleDocClientSearch();
+  }
+
+  function pick(client) {
+    state.recipient = {
+      contactUid: client.uid,
+      name: client.name || 'Client',
+      email: client.email || undefined,
+      phone: client.phone || undefined,
+    };
+    state.url = `${window.location.origin}/doc/${encodeURIComponent(client.uid)}/${encodeURIComponent(slug)}`;
+    selectedName.textContent = client.name || 'Client';
+    selectedRow.style.display = 'flex';
+    searchWrap.style.display = 'none';
+    dropdown.style.display = 'none';
+    setNoteVisible(true);
+    buildReaveShareActions(state, {
+      shareTitle: docTitle,
+      shareText: `Please review and sign: ${docTitle}`,
+    });
+  }
+
+  function renderDropdown(clients) {
+    dropdown.innerHTML = '';
+    if (!clients.length) {
+      dropdown.innerHTML = '<div class="de-empty">No clients found</div>';
+      dropdown.style.display = 'block';
+      return;
+    }
+    for (const c of clients) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'wk-client-option';
+      btn.innerHTML = `${escHtml(c.name)}<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+      btn.addEventListener('click', () => pick(c));
+      dropdown.appendChild(btn);
+    }
+    dropdown.style.display = 'block';
+  }
+
+  let docClientSearchTimer = null;
+  function scheduleDocClientSearch() {
+    clearTimeout(docClientSearchTimer);
+    docClientSearchTimer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams();
+        if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+        params.set('limit', '20');
+        const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        renderDropdown(data.clients || []);
+      } catch (e) {
+        dropdown.innerHTML = `<div class="de-empty">${escHtml(e.message)}</div>`;
+        dropdown.style.display = 'block';
+      }
+    }, 250);
+  }
+
+  changeBtn.addEventListener('click', showSearch);
+  searchInput.addEventListener('focus', () => scheduleDocClientSearch());
+  searchInput.addEventListener('input', () => scheduleDocClientSearch());
+
+  setNoteVisible(false);
+
+  window.IosSheet?.open('reave-share-backdrop', {
+    onClose: () => {
+      _reaveShareState = null;
+      clearTimeout(docClientSearchTimer);
+      removeDocSharePicker();
+      setNoteVisible(true);
+    },
+  });
+
+  scheduleDocClientSearch();
 }
 
 function createPortalShareBtn(uid, opts = {}) {
