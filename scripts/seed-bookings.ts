@@ -269,6 +269,7 @@ async function main() {
 
     let created = 0;
     let skipped = 0;
+    let dryRunSamples = 0;
 
     for (const demo of DEMO_BOOKINGS) {
       const startDate = localWallClockToUtcTimestamp(demo.startLocal, TIMEZONE);
@@ -297,7 +298,10 @@ async function main() {
       };
 
       if (DRY_RUN) {
-        console.log(`  ${demo.startLocal} ${TIMEZONE} -> ${startDate} UTC`);
+        if (dryRunSamples < 3) {
+          console.log(`  ${demo.startLocal} ${TIMEZONE} -> ${startDate} UTC`);
+          dryRunSamples++;
+        }
         created++;
         continue;
       }
