@@ -14896,26 +14896,9 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     return new URL(file.url, window.location.origin).href;
   }
 
-  async function downloadProjectFile(file, btn) {
-    if (btn) btn.disabled = true;
-    try {
-      const res = await fetch(file.url, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = file.filename || 'download';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (e) {
-      alert(`Download failed: ${e.message}`);
-    } finally {
-      if (btn) btn.disabled = false;
-    }
+  async function shareProjectFile(file) {
+    const url = projectFileAbsoluteUrl(file);
+    await sharePortalLink(url, file.filename || 'Project file');
   }
 
   function renderFiles(files) {
@@ -14959,48 +14942,31 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       const actions = document.createElement('div');
       actions.className = 'wk-file-actions';
 
-      const copyLinkBtn = createIosIconBtn({
-        iconKey: 'link',
-        label: 'Copy link',
-        className: 'ios-icon-btn wk-file-icon-btn',
-        onClick: (btn) => {
-          const url = projectFileAbsoluteUrl(file);
-          navigator.clipboard.writeText(url).then(
-            () => showChatToast('Link copied', btn),
-            () => osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
-          );
-        },
-      });
-
-      const downloadBtn = createIosIconBtn({
-        iconKey: 'download',
-        label: `Download ${file.filename || 'file'}`,
-        className: 'ios-icon-btn wk-file-icon-btn',
-        onClick: (btn) => downloadProjectFile(file, btn),
-      });
-
-      const delBtn = createIosIconBtn({
-        iconKey: 'trash',
-        label: `Delete ${file.filename || 'file'}`,
-        className: 'ios-icon-btn wk-file-icon-btn wk-file-delete-btn',
-        confirmDelete: true,
-        onClick: async () => {
-          try {
-            const res = await fetch(file.url, { method: 'DELETE' });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-            const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, { cache: 'no-store' });
-            const listData = await listRes.json();
-            renderFiles(listData.files || []);
-          } catch (e) {
-            alert(`Failed to delete: ${e.message}`);
-          }
-        },
-      });
-
-      actions.appendChild(copyLinkBtn);
-      actions.appendChild(downloadBtn);
-      actions.appendChild(delBtn);
+      actions.appendChild(
+        paneShareIcon({
+          label: `Share ${file.filename || 'file'}`,
+          onClick: () => shareProjectFile(file),
+        }),
+      );
+      actions.appendChild(
+        paneDeleteIcon({
+          label: `Delete ${file.filename || 'file'}`,
+          onClick: async () => {
+            try {
+              const res = await fetch(file.url, { method: 'DELETE' });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+              const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, {
+                cache: 'no-store',
+              });
+              const listData = await listRes.json();
+              renderFiles(listData.files || []);
+            } catch (e) {
+              alert(`Failed to delete: ${e.message}`);
+            }
+          },
+        }),
+      );
       card.appendChild(actions);
       grid.appendChild(card);
     }

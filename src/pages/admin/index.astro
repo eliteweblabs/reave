@@ -4476,27 +4476,28 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .wk-file-actions {
         display: flex;
-        gap: 0.15rem;
+        gap: 0.25rem;
         align-items: center;
-        justify-content: flex-start;
-        flex-wrap: wrap;
+        justify-content: flex-end;
+        margin-top: 0.15rem;
       }
-      .wk-file-icon-btn {
-        width: 2rem;
-        height: 2rem;
-        color: var(--accent);
+      .wk-file-actions .ios-icon-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        flex-shrink: 0;
       }
-      .wk-file-icon-btn svg {
-        width: 1rem;
-        height: 1rem;
+      .wk-file-actions .ios-icon-btn svg {
+        width: 1.125rem;
+        height: 1.125rem;
       }
-      .wk-file-delete-btn {
+      .wk-file-actions .de-share-btn {
+        color: #0a84ff;
+      }
+      .wk-file-actions .ch-delete-btn {
         color: var(--muted);
       }
-      .wk-file-delete-btn:hover {
-        color: #e55;
-      }
-      .wk-file-delete-btn.delete-confirm-btn[data-state='confirm'] {
+      .wk-file-actions .ch-delete-btn:hover,
+      .wk-file-actions .ch-delete-btn.delete-confirm-btn[data-state='confirm'] {
         color: #e55;
       }
       .wk-files-upload {
@@ -7506,6 +7507,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260720f"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260720g"></script>
   </body>
 </html>
