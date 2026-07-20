@@ -8,6 +8,7 @@ import { classifyEmail, isUptimeRobotEmail, type InboundEmail } from './emailRul
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
+import { importEmailAttachmentsToProject } from './emailProjectAttachments';
 import { ensureProjectForMeetingEmail } from './emailMeetingProject';
 import { resolveContact } from './contactApi';
 import { storeListWork, storeAppendWorkNote } from './workStore';
@@ -586,6 +587,34 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     linkProjectItem(jobSlug, 'email', inboxRecord.id).catch((e) =>
       console.warn('[email] project link failed', e),
     );
+
+    if (email.resendEmailId) {
+      void importEmailAttachmentsToProject({
+        emailId: inboxRecord.id,
+        resendEmailId: email.resendEmailId,
+        jobSlug,
+      })
+        .then(async (attachments) => {
+          if (!attachments.imported.length && !attachments.errors.length) return;
+          if (attachments.imported.length) {
+            const names = attachments.imported.map((f) => f.filename).join(', ');
+            const note = `${attachments.imported.length} file(s) imported from email: ${names}`;
+            if (isProjectReply) {
+              await storeUpdateEmailInbox(inboxRecord!.id, {
+                routeNote: `${routeNote} · ${note}`,
+              }).catch(() => undefined);
+            }
+          }
+          if (attachments.errors.length) {
+            console.warn('[email] attachment import errors', {
+              jobSlug,
+              emailId: inboxRecord!.id,
+              errors: attachments.errors,
+            });
+          }
+        })
+        .catch((e) => console.warn('[email] attachment import failed', e));
+    }
   }
 
   const paymentNotification = looksLikePaymentNotification({

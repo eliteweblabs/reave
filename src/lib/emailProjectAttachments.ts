@@ -51,26 +51,14 @@ async function listResendAttachments(
   resend: Resend,
   resendEmailId: string,
 ): Promise<ResendInboundAttachment[]> {
-  const receiving = resend.emails.receiving as {
-    attachments?: {
-      list?: (input: { emailId: string }) => Promise<{
-        data?: ResendInboundAttachment[] | { data?: ResendInboundAttachment[] };
-        error?: { message?: string };
-      }>;
-    };
-  };
-
-  const listFn = receiving.attachments?.list;
-  if (!listFn) return [];
-
-  const { data, error } = await listFn({ emailId: resendEmailId });
+  const { data, error } = await resend.emails.receiving.attachments.list({
+    emailId: resendEmailId,
+  });
   if (error) {
     console.warn('[email-attachments] list failed', { resendEmailId, error: error.message });
     return [];
   }
-  if (Array.isArray(data)) return data;
-  if (data && Array.isArray(data.data)) return data.data;
-  return [];
+  return data?.data ?? [];
 }
 
 async function getResendAttachmentDownloadUrl(
@@ -78,19 +66,10 @@ async function getResendAttachmentDownloadUrl(
   resendEmailId: string,
   attachmentId: string,
 ): Promise<string> {
-  const receiving = resend.emails.receiving as {
-    attachments?: {
-      get?: (input: { emailId: string; attachmentId: string }) => Promise<{
-        data?: ResendInboundAttachment;
-        error?: { message?: string };
-      }>;
-    };
-  };
-
-  const getFn = receiving.attachments?.get;
-  if (!getFn) return '';
-
-  const { data, error } = await getFn({ emailId: resendEmailId, attachmentId });
+  const { data, error } = await resend.emails.receiving.attachments.get({
+    emailId: resendEmailId,
+    id: attachmentId,
+  });
   if (error) {
     console.warn('[email-attachments] get failed', { resendEmailId, attachmentId, error: error.message });
     return '';
