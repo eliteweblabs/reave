@@ -2090,16 +2090,29 @@ function formatUptimeAccountHint(uptimeAccount) {
 }
 
 let uptimePlatformSyncPollTimer = null;
+let uptimePlatformSyncActive = false;
 
-function setUptimeSyncButtonLabel(syncBtn, status) {
-  const nameEl = syncBtn?.querySelector('.dash-uptime-name');
+const UPTIME_SYNC_SITES_BTN_SELECTOR = '.dash-uptime-sync-sites-btn';
+
+function getUptimeSyncSitesButton() {
+  return document.querySelector(UPTIME_SYNC_SITES_BTN_SELECTOR);
+}
+
+function setUptimeSyncButtonBusy(busy, status) {
+  const syncBtn = getUptimeSyncSitesButton();
+  if (!syncBtn) return;
+  syncBtn.classList.toggle('dash-uptime-tile--syncing', busy);
+  syncBtn.setAttribute('aria-busy', busy ? 'true' : 'false');
+  const nameEl = syncBtn.querySelector('.dash-uptime-name');
   if (!nameEl) return;
-  if (!status?.running) {
+  if (!busy) {
     nameEl.textContent = 'Sync sites';
     return;
   }
-  if (status.created > 0) {
+  if (status?.created > 0) {
     nameEl.textContent = `Syncing… ${status.created} added`;
+  } else if (status?.phase === 'discovering') {
+    nameEl.textContent = 'Finding sites…';
   } else {
     nameEl.textContent = 'Syncing sites…';
   }
@@ -2112,7 +2125,7 @@ function stopUptimePlatformSyncPolling() {
   }
 }
 
-function ensureUptimePlatformSyncPolling(syncBtn) {
+function ensureUptimePlatformSyncPolling() {
   if (uptimePlatformSyncPollTimer != null) return;
 
   const poll = async () => {
@@ -2121,35 +2134,37 @@ function ensureUptimePlatformSyncPolling(syncBtn) {
       const data = await res.json().catch(() => null);
       if (!data?.ok) return;
 
-      setUptimeSyncButtonLabel(syncBtn, data);
-
-      if (!data.running) {
-        stopUptimePlatformSyncPolling();
-        if (syncBtn) {
-          syncBtn.disabled = false;
-          setUptimeSyncButtonLabel(syncBtn, null);
-        }
-        await loadHomeDashboard();
+      if (data.running) {
+        uptimePlatformSyncActive = true;
+        setUptimeSyncButtonBusy(true, data);
+        return;
       }
+
+      stopUptimePlatformSyncPolling();
+      uptimePlatformSyncActive = false;
+      setUptimeSyncButtonBusy(false);
+      await loadHomeDashboard();
     } catch {
       /* ignore transient poll errors while job runs */
     }
   };
 
   void poll();
-  uptimePlatformSyncPollTimer = setInterval(poll, 4000);
+  uptimePlatformSyncPollTimer = setInterval(poll, 3000);
 }
 
-async function refreshUptimeSyncButtonState(syncBtn) {
-  if (!syncBtn) return;
+async function refreshUptimeSyncButtonState() {
   try {
     const res = await fetch('/api/uptime/sync/status');
     const data = await res.json().catch(() => null);
     if (!data?.ok) return;
     if (data.running) {
-      syncBtn.disabled = true;
-      setUptimeSyncButtonLabel(syncBtn, data);
-      ensureUptimePlatformSyncPolling(syncBtn);
+      uptimePlatformSyncActive = true;
+      setUptimeSyncButtonBusy(true, data);
+      ensureUptimePlatformSyncPolling();
+    } else {
+      uptimePlatformSyncActive = false;
+      setUptimeSyncButtonBusy(false);
     }
   } catch {
     /* ignore */
@@ -3070,14 +3085,19 @@ function renderHomeDashboard(data) {
     const syncLi = document.createElement('li');
     const syncBtn = document.createElement('button');
     syncBtn.type = 'button';
-    syncBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync';
+    syncBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync dash-uptime-sync-sites-btn';
     syncBtn.innerHTML =
       `<span class="dash-uptime-add-icon" aria-hidden="true">↻</span>` +
       `<div class="dash-uptime-name">Sync sites</div>`;
-    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms(syncBtn));
+    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms());
     syncLi.appendChild(syncBtn);
     list.appendChild(syncLi);
-    void refreshUptimeSyncButtonState(syncBtn);
+    if (uptimePlatformSyncActive) {
+      setUptimeSyncButtonBusy(true, { running: true, phase: 'creating' });
+      ensureUptimePlatformSyncPolling();
+    } else {
+      void refreshUptimeSyncButtonState();
+    }
 
     if (isDeploymentOwnerClient && uptimeConfigured) {
       const pullLi = document.createElement('li');
@@ -3250,8 +3270,15 @@ function showAddUptimeSiteDialog() {
   });
 }
 
-async function syncUptimeSitesFromPlatforms(syncBtn) {
-  if (syncBtn?.disabled) return;
+async function syncUptimeSitesFromPlatforms() {
+  if (uptimePlatformSyncActive) {
+    setUptimeSyncButtonBusy(true, { running: true, phase: 'creating' });
+    ensureUptimePlatformSyncPolling();
+    return;
+  }
+
+  uptimePlatformSyncActive = true;
+  setUptimeSyncButtonBusy(true, { running: true, phase: 'starting' });
 
   try {
     const res = await fetch('/api/uptime/sync', {
@@ -3262,11 +3289,7 @@ async function syncUptimeSitesFromPlatforms(syncBtn) {
     if (!data) throw new Error(`HTTP ${res.status}`);
 
     if (data.alreadyRunning) {
-      if (syncBtn) {
-        syncBtn.disabled = true;
-        setUptimeSyncButtonLabel(syncBtn, { running: true, phase: 'creating' });
-        ensureUptimePlatformSyncPolling(syncBtn);
-      }
+      ensureUptimePlatformSyncPolling();
       return;
     }
 
@@ -3274,16 +3297,11 @@ async function syncUptimeSitesFromPlatforms(syncBtn) {
       throw new Error(data.error || `HTTP ${res.status}`);
     }
 
-    if (syncBtn) {
-      syncBtn.disabled = true;
-      setUptimeSyncButtonLabel(syncBtn, { running: true, phase: 'starting' });
-      ensureUptimePlatformSyncPolling(syncBtn);
-    }
+    ensureUptimePlatformSyncPolling();
   } catch (e) {
-    if (syncBtn) {
-      syncBtn.disabled = false;
-      setUptimeSyncButtonLabel(syncBtn, null);
-    }
+    uptimePlatformSyncActive = false;
+    stopUptimePlatformSyncPolling();
+    setUptimeSyncButtonBusy(false);
     await osAlert({ title: 'Sync failed', bodyHtml: escHtml(e.message || String(e)) });
   }
 }

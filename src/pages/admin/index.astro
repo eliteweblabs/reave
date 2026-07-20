@@ -5645,6 +5645,18 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .dash-uptime-tile--sync .dash-uptime-add-icon {
         font-size: 1rem;
       }
+      .dash-uptime-tile--syncing {
+        opacity: 0.92;
+        cursor: progress;
+      }
+      .dash-uptime-tile--syncing .dash-uptime-add-icon {
+        display: inline-block;
+        animation: dash-uptime-spin 0.9s linear infinite;
+      }
+      @keyframes dash-uptime-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
       .dash-muted-inline {
         color: var(--muted);
         font-weight: 400;
@@ -7490,6 +7502,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260720d"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260720e"></script>
   </body>
 </html>
