@@ -48,25 +48,28 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
    - Variable Name: `ClientName`
    - Value: `Provided Input`
 
-3. **Text** (this builds the JSON)
-   ```json
+3. **Text** (build JSON — insert the variable as a **pill**, not typed text)
+   - Type the opening JSON, then **tap `ClientName` in the variable bar** below the keyboard to insert it as a blue pill inside the quotes:
+   ```
    {
      "action": "get_client",
-     "name": "ClientName",
+     "name": 
+   ```
+   *(tap ClientName variable here — it must appear as a blue chip, not the word "ClientName" typed out)*
+   ```
+   ,
      "format": "text"
    }
    ```
-   *(Shortcuts will auto-replace "ClientName" with the variable)*
+   If `"name"` shows plain text `ClientName` instead of a blue variable pill, the API gets an empty name and returns **"name is required"**.
 
 4. **Get Contents of URL**
    - URL: `https://reave.app/api/siri`
-   - Method: POST
+   - Method: **POST** (tap the action → expand → change from GET)
    - Headers:
-     - Name: `X-Siri-Key`
-     - Value: `[your key]`
-     - Name: `Content-Type`
-     - Value: `application/json`
-   - Request Body: `Text` (from step 3)
+     - `X-Siri-Key` → your key
+     - `Content-Type` → `application/json`
+   - Request Body: **Text** → select the **Text** output from step 3 (not JSON fields with typed placeholders)
 
 5. **Show Result**
 

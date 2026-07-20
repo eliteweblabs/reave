@@ -110,6 +110,47 @@ export function formatClientCandidate(
   };
 }
 
+/** Whole-word / exact match for Siri voice lookup — no prefix fuzzy hits (Tony ≠ Tom). */
+export function contactMatchesSiriQuery(contact: ContactRecord, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+
+  const name = contact.name.trim().toLowerCase();
+  if (name === q) return true;
+  if (name.split(/\s+/).includes(q)) return true;
+
+  const company = contact.company?.trim().toLowerCase();
+  if (company) {
+    if (company === q) return true;
+    if (company.split(/\s+/).includes(q)) return true;
+  }
+
+  return false;
+}
+
+export async function findClientStrictForSiri(
+  query: string,
+): Promise<
+  | { ok: true; found: true; contact: ContactRecord; match_count: number }
+  | { ok: true; found: false; ambiguous?: ContactRecord[] }
+  | { ok: false; error: string; status?: number }
+> {
+  const q = query.trim();
+  if (!q) return { ok: true, found: false };
+
+  const result = await searchClientsEnhanced(q, 20);
+  if (!result.ok) return result;
+
+  const matches = result.data.contacts.filter(
+    (c) => !c.archived && contactMatchesSiriQuery(c, q),
+  );
+  if (matches.length === 0) return { ok: true, found: false };
+  if (matches.length === 1) {
+    return { ok: true, found: true, contact: matches[0]!, match_count: 1 };
+  }
+  return { ok: true, found: false, ambiguous: matches };
+}
+
 export type WorkClientResolution =
   | { status: 'resolved'; uid: string; name: string; match: string }
   | {

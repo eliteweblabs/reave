@@ -94,17 +94,22 @@ Acme Corp · [email protected]
 ```
 
 **Parameters**:
-- `name` (required): Client name to search for
+- `name` (required): Client name to search for (exact or whole-word match — "Tony" will not match "Tom")
 
 **Example response** (format=text):
 
 ```
-📇 Tony Vello
-🏢 Solid Builders
-📧 [email protected]
-📱 +1234567890
+Tony Vello
+Company: Solid Builders
+Email: [email protected]
+Phone: +1234567890
+Notes: VIP client - hosting + monthly retainer
+```
 
-📝 VIP client - hosting + monthly retainer
+**Not found**:
+
+```
+Client not found: Tony. Would you like to add a new client?
 ```
 
 **Siri phrase**: "get client Tony Vello"

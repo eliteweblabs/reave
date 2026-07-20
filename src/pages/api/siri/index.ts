@@ -19,7 +19,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { searchClientsEnhanced } from '../../../lib/clientSearch';
+import { findClientStrictForSiri, searchClientsEnhanced } from '../../../lib/clientSearch';
 import {
   contactSummary,
   createContact,
@@ -223,23 +223,28 @@ async function handleGetClient(params: Record<string, unknown>): Promise<SiriRes
   const name = String(params.name ?? '').trim();
   if (!name) return { ok: false, error: 'name is required' };
 
-  const result = await searchClientsEnhanced(name, 5);
+  const result = await findClientStrictForSiri(name);
   if (!result.ok) return { ok: false, error: result.error };
 
-  const clients = result.data.contacts.filter((c) => !c.archived);
-  if (clients.length === 0) {
-    return { ok: false, error: `No client found matching "${name}"`, text: `Client not found: ${name}` };
+  if (!result.found) {
+    if (result.ambiguous?.length) {
+      const names = result.ambiguous.map((c) => c.name).join(', ');
+      const msg = `Multiple clients match "${name}": ${names}. Please be more specific.`;
+      return { ok: false, error: msg, text: msg };
+    }
+    const msg = `Client not found: ${name}. Would you like to add a new client?`;
+    return { ok: false, error: msg, text: msg };
   }
 
-  const client = clients[0];
+  const client = result.contact;
   const summary = contactSummary(client);
 
   const lines = [
-    `📇 ${summary.name}`,
-    summary.company ? `🏢 ${summary.company}` : null,
-    summary.email ? `📧 ${summary.email}` : null,
-    summary.phone ? `📱 ${summary.phone}` : null,
-    client.notes ? `\n📝 ${client.notes}` : null,
+    summary.name,
+    summary.company ? `Company: ${summary.company}` : null,
+    summary.email ? `Email: ${summary.email}` : null,
+    summary.phone ? `Phone: ${summary.phone}` : null,
+    client.notes ? `Notes: ${client.notes}` : null,
   ].filter(Boolean);
 
   return {
@@ -332,16 +337,22 @@ async function resolveClientForProject(
   const phone = String(params.phone ?? '').trim() || undefined;
 
   if (clientQuery) {
-    const result = await searchClientsEnhanced(clientQuery, 5);
-    if (!result.ok) return { ok: false, error: result.error };
+    const lookup = await findClientStrictForSiri(clientQuery);
+    if (!lookup.ok) return { ok: false, error: lookup.error };
 
-    const matches = result.data.contacts.filter((c) => !c.archived);
-    if (matches.length > 0) {
-      const exact = matches.find(
-        (c) => c.name.trim().toLowerCase() === clientQuery.toLowerCase(),
-      );
-      const client = exact ?? matches[0];
-      return { ok: true, uid: client.uid, name: client.name.trim(), created: false };
+    if (lookup.found) {
+      return {
+        ok: true,
+        uid: lookup.contact.uid,
+        name: lookup.contact.name.trim(),
+        created: false,
+      };
+    }
+
+    if (lookup.ambiguous?.length) {
+      const names = lookup.ambiguous.map((c) => c.name).join(', ');
+      const msg = `Multiple clients match "${clientQuery}": ${names}. Please be more specific.`;
+      return { ok: false, error: msg, text: msg };
     }
   }
 
@@ -382,28 +393,29 @@ async function handleFindClient(params: Record<string, unknown>): Promise<SiriRe
   const query = String(params.query ?? params.client ?? params.name ?? '').trim();
   if (!query) return { ok: false, error: 'client or query is required' };
 
-  const result = await searchClientsEnhanced(query, 5);
+  const result = await findClientStrictForSiri(query);
   if (!result.ok) return { ok: false, error: result.error };
 
-  const matches = result.data.contacts.filter((c) => !c.archived).map(contactSummary);
-  if (matches.length === 0) {
+  if (!result.found) {
+    if (result.ambiguous?.length) {
+      const names = result.ambiguous.map((c) => c.name).join(', ');
+      const msg = `Multiple clients match "${query}": ${names}. Please be more specific.`;
+      return { ok: true, text: msg, data: { found: false, query, ambiguous: true } };
+    }
     return {
       ok: true,
-      text: `No client found for ${query}`,
+      text: `Client not found: ${query}. Would you like to add a new client?`,
       data: { found: false, query },
     };
   }
 
-  const client = matches[0];
-  const text =
-    matches.length === 1
-      ? `Found ${client.name}${client.company ? ` at ${client.company}` : ''}`
-      : `Found ${client.name}${client.company ? ` at ${client.company}` : ''} (${matches.length} matches)`;
+  const client = contactSummary(result.contact);
+  const text = `Found ${client.name}${client.company ? ` at ${client.company}` : ''}`;
 
   return {
     ok: true,
     text,
-    data: { found: true, client, match_count: matches.length },
+    data: { found: true, client, match_count: result.match_count },
   };
 }
 
