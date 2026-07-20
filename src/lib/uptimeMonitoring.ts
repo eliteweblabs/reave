@@ -33,11 +33,13 @@ import {
   urGetAllMonitors,
   urGetMonitors,
   urNewMonitor,
+  urResolveCreateContext,
   normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
   uptimeStatusLabel,
   UPTIME_MONITOR_STATUS,
   type UptimeRobotAccountDetails,
+  type UptimeRobotCreateContext,
   type UptimeRobotMonitor,
 } from './uptimerobotClient';
 
@@ -289,6 +291,8 @@ export async function createUptimeMonitor(opts: {
    * the poll scheduler backfills status/ratios shortly after.
    */
   fetchDetails?: boolean;
+  /** Reuse across a sync run to avoid redundant API calls and lock a working create strategy. */
+  createContext?: UptimeRobotCreateContext;
 }): Promise<{ ok: true; monitor: UptimeMonitorRow } | { ok: false; error: string }> {
   if (!hasFeature('uptime_monitoring')) {
     return { ok: false, error: 'uptime_monitoring not enabled' };
@@ -306,6 +310,7 @@ export async function createUptimeMonitor(opts: {
   const created = await urNewMonitor({
     url,
     friendlyName: opts.friendlyName,
+    createContext: opts.createContext,
   });
   if (!created.ok) return { ok: false, error: created.error };
 
@@ -363,8 +368,8 @@ export type UptimePlatformSyncResult = {
  */
 function platformSyncMaxPerRun(): number {
   const raw = serverEnv('UPTIMEROBOT_SYNC_MAX_PER_RUN');
-  const n = raw == null || raw === '' ? 20 : Number(raw);
-  if (!Number.isFinite(n) || n <= 0) return 20;
+  const n = raw == null || raw === '' ? 5 : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 5;
   return Math.min(Math.max(1, Math.round(n)), 200);
 }
 
@@ -398,6 +403,10 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
   if (!accountRes.ok) {
     warnings.push(`UptimeRobot account details: ${accountRes.error}`);
   }
+
+  const createContext = await urResolveCreateContext({
+    accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
+  });
 
   const existing = new Set<string>();
   const api = await urGetAllMonitors({ customUptimeRatios: '7-30' });
@@ -502,6 +511,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       url: item.url,
       friendlyName: item.friendlyName,
       fetchDetails: false,
+      createContext,
     });
     if (result.ok) {
       created += 1;
@@ -520,7 +530,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       if (classified.kind === 'rate_limit') {
         rateLimited = true;
         pending += 1;
-        noteError(`${classified.summary} — ${classified.raw}`);
+        warnings.push(`${classified.summary} — ${classified.raw}`);
       } else if (classified.kind === 'monitor_limit') {
         monitorLimited = true;
         pending += 1;
@@ -555,7 +565,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     );
   }
 
-  const ok = created > 0 || errors.length === 0;
+  const ok = created > 0 || errors.length === 0 || (rateLimited && pending > 0);
   return {
     ok,
     discovered: unique.length,

@@ -372,6 +372,71 @@ export function urFreePlanEmailAlertContacts(
   return urFormatFreePlanAlertContacts(email.map((c) => c.id));
 }
 
+export type UptimeRobotCreateStrategy = {
+  name: string;
+  intervalSeconds?: number;
+  alertContacts?: string;
+  disableDomainExpireNotifications?: boolean;
+};
+
+/** Shared per sync run — avoids refetching contacts/account for every newMonitor. */
+export type UptimeRobotCreateContext = {
+  emailContacts?: string;
+  cloneInterval?: number;
+  alertContactTypes?: number[];
+  /** Set after the first successful create in a run; subsequent creates use one API call. */
+  knownStrategy?: UptimeRobotCreateStrategy;
+};
+
+export async function urResolveCreateContext(opts?: {
+  accountIntervalSeconds?: number | null;
+}): Promise<UptimeRobotCreateContext> {
+  const [contactsRes, sample] = await Promise.all([
+    urGetAlertContacts(),
+    urGetMonitors({ limit: 1, customUptimeRatios: '7-30' }),
+  ]);
+
+  const emailContacts = contactsRes.ok
+    ? urFreePlanEmailAlertContacts(contactsRes.contacts)
+    : undefined;
+
+  const sampleInterval = sample.ok ? Number(sample.monitors[0]?.interval) : NaN;
+  const accountInterval = opts?.accountIntervalSeconds ?? null;
+  const cloneInterval =
+    (Number.isFinite(sampleInterval) && sampleInterval >= 300 ? sampleInterval : null) ??
+    (accountInterval != null && accountInterval >= 300 ? accountInterval : undefined);
+
+  return {
+    emailContacts,
+    cloneInterval: cloneInterval ?? undefined,
+    alertContactTypes: contactsRes.ok
+      ? [...new Set(contactsRes.contacts.map((c) => c.type))].sort()
+      : undefined,
+  };
+}
+
+function urBuildCreateStrategies(ctx: UptimeRobotCreateContext): UptimeRobotCreateStrategy[] {
+  if (ctx.knownStrategy) return [ctx.knownStrategy];
+
+  const strategies: UptimeRobotCreateStrategy[] = [
+    { name: 'minimal' },
+    { name: 'no-domain-notify', disableDomainExpireNotifications: true },
+  ];
+
+  if (ctx.emailContacts) {
+    strategies.push({ name: 'email-contacts', alertContacts: ctx.emailContacts });
+  }
+
+  return strategies;
+}
+
+export function parseUptimeRobotRetrySeconds(raw: string): number | null {
+  const match = raw.match(/retry in (\d+)\s*seconds?/i);
+  if (!match) return null;
+  const seconds = Number(match[1]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
 async function urNewMonitorOnce(opts: {
   url: string;
   friendlyName?: string;
@@ -438,51 +503,11 @@ export async function urNewMonitor(opts: {
   type?: number;
   intervalSeconds?: number;
   alertContacts?: string;
+  createContext?: UptimeRobotCreateContext;
 }): Promise<UptimeRobotNewMonitorResult> {
-  const [contactsRes, sample, accountRes] = await Promise.all([
-    urGetAlertContacts(),
-    urGetMonitors({ limit: 1, customUptimeRatios: '7-30' }),
-    urGetAccountDetails(),
-  ]);
+  const ctx = opts.createContext ?? (await urResolveCreateContext());
 
-  const emailContacts = contactsRes.ok
-    ? urFreePlanEmailAlertContacts(contactsRes.contacts)
-    : undefined;
-
-  const sampleInterval = sample.ok ? Number(sample.monitors[0]?.interval) : NaN;
-  const accountInterval = accountRes.ok ? accountRes.account.monitorIntervalSeconds : null;
-  const cloneInterval =
-    (Number.isFinite(sampleInterval) && sampleInterval >= 300 ? sampleInterval : null) ??
-    (accountInterval != null && accountInterval >= 300 ? accountInterval : undefined);
-
-  type Strategy = {
-    name: string;
-    intervalSeconds?: number;
-    alertContacts?: string;
-    disableDomainExpireNotifications?: boolean;
-  };
-
-  const strategies: Strategy[] = [
-    { name: 'minimal' },
-    { name: 'no-domain-notify', disableDomainExpireNotifications: true },
-  ];
-
-  if (emailContacts) {
-    strategies.push({ name: 'email-contacts', alertContacts: emailContacts });
-    strategies.push({
-      name: 'no-domain-notify+email',
-      disableDomainExpireNotifications: true,
-      alertContacts: emailContacts,
-    });
-  }
-  if (cloneInterval) strategies.push({ name: 'clone-interval', intervalSeconds: cloneInterval });
-  if (cloneInterval && emailContacts) {
-    strategies.push({
-      name: 'clone-interval+email',
-      intervalSeconds: cloneInterval,
-      alertContacts: emailContacts,
-    });
-  }
+  const strategies = urBuildCreateStrategies(ctx);
 
   if (opts.intervalSeconds != null || opts.alertContacts) {
     strategies.unshift({
@@ -503,6 +528,9 @@ export async function urNewMonitor(opts: {
       disableDomainExpireNotifications: strategy.disableDomainExpireNotifications,
     });
     if (result.ok) {
+      if (opts.createContext) {
+        opts.createContext.knownStrategy = strategy;
+      }
       console.info('[uptimerobot] newMonitor ok', { strategy: strategy.name, url: opts.url });
       return result;
     }
@@ -514,12 +542,10 @@ export async function urNewMonitor(opts: {
     });
   }
 
-  if (contactsRes.ok && contactsRes.contacts.length) {
-    const types = [...new Set(contactsRes.contacts.map((c) => c.type))].sort();
+  if (ctx.alertContactTypes?.length) {
     console.warn('[uptimerobot] newMonitor exhausted strategies', {
       url: opts.url,
-      alertContactTypes: types,
-      emailContactCount: contactsRes.contacts.filter((c) => c.type === UPTIME_ALERT_CONTACT_EMAIL).length,
+      alertContactTypes: ctx.alertContactTypes,
     });
   }
 

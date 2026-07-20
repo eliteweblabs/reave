@@ -2113,8 +2113,11 @@ function renderUptimeSyncResultHtml(data, httpOk) {
       `</p>`
     : '';
 
-  const failLead = !httpOk || data.ok === false
+  const partial = (data.created ?? 0) > 0 || (data.pending ?? 0) > 0;
+  const failLead = (!httpOk || data.ok === false) && !partial
     ? '<p class="dash-empty">Sync did not complete successfully.</p>'
+    : partial && data.ok === false
+      ? '<p class="dash-muted-inline">Partial sync — run again in about a minute to continue.</p>'
     : '';
 
   return (
