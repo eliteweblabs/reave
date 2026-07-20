@@ -29,6 +29,7 @@ import {
   classifyUptimeRobotError,
   isUptimeRobotConfigured,
   parseCustomUptimeRatios,
+  getCachedUptimeRobotAccount,
   urGetAccountDetails,
   urGetAllMonitors,
   urGetMonitors,
@@ -43,6 +44,16 @@ import {
   type UptimeRobotCreateContext,
   type UptimeRobotMonitor,
 } from './uptimerobotClient';
+
+let _platformSyncRunning = false;
+
+export function setUptimePlatformSyncRunning(running: boolean): void {
+  _platformSyncRunning = running;
+}
+
+export function isUptimePlatformSyncRunning(): boolean {
+  return _platformSyncRunning;
+}
 
 export type UptimeWebhookPayload = {
   monitorID?: string | number;
@@ -800,8 +811,20 @@ export async function getUptimeAccountView(): Promise<{
 
   const local = await dbListUptimeMonitors();
   const localTotal = local?.length ?? 0;
+
+  if (isUptimePlatformSyncRunning()) {
+    const cached = getCachedUptimeRobotAccount();
+    if (cached) return { configured: true, localTotal, account: cached };
+    return { configured: true, localTotal, account: null };
+  }
+
   const api = await urGetAccountDetails();
   if (!api.ok) {
+    const cached = getCachedUptimeRobotAccount();
+    if (cached) return { configured: true, localTotal, account: cached };
+    if (/rate limit|cooldown|retry in/i.test(api.error)) {
+      return { configured: true, localTotal, account: null };
+    }
     return { configured: true, localTotal, account: null, error: api.error };
   }
   return { configured: true, localTotal, account: api.account };

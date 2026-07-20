@@ -116,6 +116,26 @@ function apiKey(): string | null {
   return serverEnv('UPTIMEROBOT_API_KEY')?.trim() || null;
 }
 
+let _rateLimitUntil = 0;
+let _cachedAccount: UptimeRobotAccountDetails | null = null;
+
+export function noteUptimeRobotRateLimit(raw: string): void {
+  const sec = parseUptimeRobotRetrySeconds(raw) ?? 60;
+  _rateLimitUntil = Date.now() + sec * 1000;
+}
+
+function isUptimeRobotRateLimited(): boolean {
+  return Date.now() < _rateLimitUntil;
+}
+
+export function getCachedUptimeRobotAccount(): UptimeRobotAccountDetails | null {
+  return _cachedAccount;
+}
+
+function cacheUptimeRobotAccount(account: UptimeRobotAccountDetails): void {
+  _cachedAccount = account;
+}
+
 export function isUptimeRobotConfigured(): boolean {
   return Boolean(apiKey());
 }
@@ -194,6 +214,7 @@ export async function urGetMonitors(opts?: {
 
     if (!res.ok || data.stat !== 'ok') {
       const msg = data.error?.message || `HTTP ${res.status}`;
+      if (/rate limit/i.test(msg)) noteUptimeRobotRateLimit(msg);
       return { ok: false, error: msg };
     }
 
@@ -235,6 +256,11 @@ export async function urGetAccountDetails(): Promise<
   const key = apiKey();
   if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
 
+  if (isUptimeRobotRateLimited()) {
+    if (_cachedAccount) return { ok: true, account: _cachedAccount };
+    return { ok: false, error: 'UptimeRobot rate limit cooldown' };
+  }
+
   const body = new URLSearchParams({
     api_key: key,
     format: 'json',
@@ -260,6 +286,8 @@ export async function urGetAccountDetails(): Promise<
 
     if (!res.ok || data.stat !== 'ok' || !data.account) {
       const msg = data.error?.message || `HTTP ${res.status}`;
+      if (/rate limit/i.test(msg)) noteUptimeRobotRateLimit(msg);
+      if (_cachedAccount) return { ok: true, account: _cachedAccount };
       return { ok: false, error: msg };
     }
 
@@ -268,19 +296,19 @@ export async function urGetAccountDetails(): Promise<
     const down = Number(a.down_monitors ?? 0);
     const paused = Number(a.paused_monitors ?? 0);
     const intervalRaw = Number(a.monitor_interval);
-    return {
-      ok: true,
-      account: {
-        monitorLimit: Number(a.monitor_limit ?? 0),
-        monitorCount: up + down + paused,
-        upMonitors: up,
-        downMonitors: down,
-        pausedMonitors: paused,
-        monitorIntervalSeconds: Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : null,
-      },
+    const account: UptimeRobotAccountDetails = {
+      monitorLimit: Number(a.monitor_limit ?? 0),
+      monitorCount: up + down + paused,
+      upMonitors: up,
+      downMonitors: down,
+      pausedMonitors: paused,
+      monitorIntervalSeconds: Number.isFinite(intervalRaw) && intervalRaw > 0 ? intervalRaw : null,
     };
+    cacheUptimeRobotAccount(account);
+    return { ok: true, account };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    if (_cachedAccount) return { ok: true, account: _cachedAccount };
     return { ok: false, error: msg };
   }
 }
@@ -337,6 +365,7 @@ export async function urGetAlertContacts(): Promise<
 
     if (!res.ok || data.stat !== 'ok') {
       const msg = data.error?.message || `HTTP ${res.status}`;
+      if (/rate limit/i.test(msg)) noteUptimeRobotRateLimit(msg);
       return { ok: false, error: msg };
     }
 
@@ -484,6 +513,7 @@ async function urNewMonitorOnce(opts: {
 
     if (!res.ok || data.stat !== 'ok' || !data.monitor?.id) {
       const msg = data.error?.message || `HTTP ${res.status}`;
+      if (/rate limit/i.test(msg)) noteUptimeRobotRateLimit(msg);
       return { ok: false, error: msg };
     }
 

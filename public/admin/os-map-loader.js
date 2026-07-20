@@ -2084,8 +2084,13 @@ function formatUptimeAccountHint(uptimeAccount) {
     }
     return remote;
   }
-  if (uptimeAccount.error) return `UptimeRobot account: ${uptimeAccount.error}`;
-  if (uptimeAccount.localTotal != null) return `${uptimeAccount.localTotal} monitors cached locally`;
+  const local = uptimeAccount.localTotal;
+  if (local != null) {
+    return `${local} monitors cached locally`;
+  }
+  if (uptimeAccount.error && !/rate limit|cooldown|retry in/i.test(uptimeAccount.error)) {
+    return `UptimeRobot: ${uptimeAccount.error}`;
+  }
   return null;
 }
 
@@ -2143,7 +2148,10 @@ function ensureUptimePlatformSyncPolling() {
       stopUptimePlatformSyncPolling();
       uptimePlatformSyncActive = false;
       setUptimeSyncButtonBusy(false);
-      await loadHomeDashboard();
+      const created = data.created ?? data.result?.created ?? 0;
+      window.setTimeout(() => {
+        void loadHomeDashboard();
+      }, created > 0 ? 6000 : 2500);
     } catch {
       /* ignore transient poll errors while job runs */
     }

@@ -4,6 +4,7 @@
  */
 import {
   syncPlatformUrlsToUptime,
+  setUptimePlatformSyncRunning,
   type UptimePlatformSyncProgress,
   type UptimePlatformSyncResult,
 } from './uptimeMonitoring';
@@ -76,6 +77,7 @@ export async function runUptimePlatformSyncJob(): Promise<UptimePlatformSyncResu
 
 async function executeUptimePlatformSyncJob(): Promise<UptimePlatformSyncResult> {
   _running = true;
+  setUptimePlatformSyncRunning(true);
   _job = {
     ...idleJobStatus(),
     running: true,
@@ -122,5 +124,6 @@ async function executeUptimePlatformSyncJob(): Promise<UptimePlatformSyncResult>
     _job.running = false;
     _job.finishedAt = new Date().toISOString();
     _running = false;
+    setUptimePlatformSyncRunning(false);
   }
 }
