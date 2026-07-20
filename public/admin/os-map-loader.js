@@ -8861,18 +8861,22 @@ async function loadWorkTab(opts = {}) {
   const root = getWorkEditor();
   if (!root) return;
   root.innerHTML = '<div class="de-loading">Loading work…</div>';
+  const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
   try {
-    const res = await fetch('/api/work', { cache: 'no-store' });
-    const data = await res.json();
+    const res = await adminFetch('/api/work');
+    const data = await readAdminJson(res, 'Projects');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     workState.jobs = data.jobs || [];
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
   } catch (e) {
-    root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
-    return;
+    if (e.message === 'Session expired') return;
+    if (!deepSlug) {
+      root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
+      return;
+    }
+    console.warn('[work] project list unavailable', e);
   }
-  const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
   pendingWorkDeepLinkSlug = null;
   workState.activeSlug = deepSlug || null;
   workState.dirty = false;
@@ -9600,9 +9604,8 @@ function renderEditWorkForm(pane) {
   pane.innerHTML = '<div class="de-loading">Loading…</div>';
 
   fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
-    .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
-    .then(({ ok, data }) => {
-      if (!ok) throw new Error(data.error || 'Failed to load');
+    .then((r) => readApiJson(r))
+    .then((data) => {
       workState.draft = {
         title: data.title,
         status: data.status || 'inquiry',
@@ -15262,7 +15265,19 @@ async function postEmailProject(ev, payload) {
   const data = await readApiJson(res);
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   applyEmailEventUpdate(data.event);
-  if (data.slug) navigateToWork(data.slug, { fromEmailId: ev.id });
+  if (data.slug) {
+    if (data.title && !workState.jobs.some((j) => j.slug === data.slug)) {
+      workState.jobs.unshift({
+        slug: data.slug,
+        title: data.title,
+        status: 'inquiry',
+        client: data.event?.contactName || '',
+        contact_name: data.event?.contactName || '',
+        contact_uid: data.event?.contactUid || '',
+      });
+    }
+    navigateToWork(data.slug, { fromEmailId: ev.id });
+  }
   return data;
 }
 
