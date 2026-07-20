@@ -7583,7 +7583,15 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
       btn.addEventListener('click', () => pickJob(job));
       dropdown.appendChild(btn);
     }
-    if (query.length >= 1) {
+    const q = query.trim();
+    const createBtn = document.createElement('button');
+    createBtn.type = 'button';
+    createBtn.className = 'wk-client-option wk-client-add';
+    createBtn.textContent = q ? `+ Create "${q}" as new project` : '+ Create new project…';
+    createBtn.addEventListener('mousedown', (e) => e.preventDefault());
+    createBtn.addEventListener('click', () => beginCreateProject(q));
+    dropdown.appendChild(createBtn);
+    if (q.length >= 1 && draft.job_slug?.trim()) {
       const clearBtn = document.createElement('button');
       clearBtn.type = 'button';
       clearBtn.className = 'wk-client-option wk-client-add';
@@ -7592,7 +7600,15 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
       clearBtn.addEventListener('click', () => pickJob(null));
       dropdown.appendChild(clearBtn);
     }
-    dropdown.style.display = matches.length || query.length >= 1 ? 'block' : 'none';
+    dropdown.style.display = 'block';
+  }
+
+  async function beginCreateProject(suggestedTitle) {
+    dropdown.style.display = 'none';
+    searchInput.value = '';
+    changing = false;
+    syncView();
+    await navigateToNewWorkFromTodo({ suggestedTitle });
   }
 
   function filterJobs(query) {
@@ -7607,12 +7623,8 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
 
   async function scheduleSearch() {
     const q = searchInput.value.trim();
-    if (q.length < 1) {
-      dropdown.style.display = 'none';
-      return;
-    }
     await ensureTodoJobsLoaded();
-    const matches = filterJobs(q) || [];
+    const matches = q.length >= 1 ? filterJobs(q) || [] : [];
     renderDropdown(matches, q);
   }
 
@@ -9303,8 +9315,14 @@ function slugifyTitle(title) {
 async function loadWorkTab(opts = {}) {
   const root = getWorkEditor();
   if (!root) return;
-  root.innerHTML = '<div class="de-loading">Loading work…</div>';
   const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
+  const preserveNew =
+    workState.activeSlug === '__new__' &&
+    workState.draft &&
+    (opts.workSlug === '__new__' || pendingWorkDeepLinkSlug === '__new__');
+  if (!preserveNew) {
+    root.innerHTML = '<div class="de-loading">Loading work…</div>';
+  }
   try {
     const res = await adminFetch('/api/work');
     const data = await readAdminJson(res, 'Projects');
@@ -9323,7 +9341,7 @@ async function loadWorkTab(opts = {}) {
   pendingWorkDeepLinkSlug = null;
   workState.activeSlug = deepSlug || null;
   workState.dirty = false;
-  workState.draft = null;
+  if (!preserveNew) workState.draft = null;
   clearEditorFooterSave();
   if (!workState.activeSlug) getWorkEditor()?.classList.remove('de-pane-active');
   renderWorkEditor();
@@ -9331,6 +9349,7 @@ async function loadWorkTab(opts = {}) {
 
 function startNewProject() {
   workState.returnToEmailId = null;
+  workState.returnToTodoId = null;
   workState.activeSlug = '__new__';
   workState.dirty = false;
   workState.draft = {
@@ -9883,10 +9902,19 @@ function createWorkFormScroll(pane) {
 
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
+  const returnTodoId = workState.returnToTodoId;
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: 'Back to jobs',
-      onClick: () => {
+      label: returnTodoId ? 'Back to to‑do' : 'Back to jobs',
+      onClick: async () => {
+        if (returnTodoId) {
+          workState.returnToTodoId = null;
+          workState.activeSlug = null;
+          workState.draft = null;
+          getWorkEditor()?.classList.remove('de-pane-active');
+          navigateToTodo(returnTodoId);
+          return;
+        }
         workState.activeSlug = null;
         workState.draft = null;
         getWorkEditor()?.classList.remove('de-pane-active');
@@ -10253,6 +10281,7 @@ async function createWork(slug, payload) {
   if (!payload.title) { alert('Enter a title.'); return; }
   if (!payload.contact_uid) { alert('Select a client.'); return; }
   if (!slug) { alert('Could not derive a slug from the title.'); return; }
+  const returnTodoId = workState.returnToTodoId;
   try {
     const res = await fetch('/api/work', {
       method: 'POST',
@@ -10263,6 +10292,25 @@ async function createWork(slug, payload) {
     if (res.status === 409) { alert('A job with that slug already exists.'); return; }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     await loadWorkTab();
+    if (returnTodoId) {
+      try {
+        const linkRes = await fetch(`/api/todos/${encodeURIComponent(returnTodoId)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ job_slug: slug }),
+        });
+        const linkData = await readApiJson(linkRes);
+        if (!linkRes.ok) throw new Error(linkData.error || `HTTP ${linkRes.status}`);
+      } catch (e) {
+        alert(`Project created, but could not link to-do: ${e.message}`);
+      }
+      workState.returnToTodoId = null;
+      workState.activeSlug = null;
+      workState.draft = null;
+      getWorkEditor()?.classList.remove('de-pane-active');
+      navigateToTodo(returnTodoId, { fromWorkSlug: slug });
+      return;
+    }
     workState.activeSlug = slug;
     renderWorkEditor();
   } catch (e) {
@@ -14504,6 +14552,47 @@ function navigateToNewTodoForProject(jobSlug) {
   };
   pendingTodoDeepLinkId = '__new__';
   setActiveMap('todo', { force: true, todoId: '__new__' });
+}
+
+async function navigateToNewWorkFromTodo(opts = {}) {
+  await flushTodoAutosave();
+  let todoId = typeof todoState.activeId === 'number' ? todoState.activeId : null;
+  if (!todoId) {
+    if (!todoState.draft?.title?.trim()) {
+      await osAlert({
+        title: 'Enter a to‑do title',
+        bodyHtml: 'Save the to‑do title before creating a project.',
+      });
+      return;
+    }
+    const saved = await saveActiveTodoDraft(true);
+    if (!saved || typeof todoState.activeId !== 'number') {
+      await osAlert({
+        title: 'Could not save to‑do',
+        bodyHtml: 'Save the to‑do before creating a project.',
+      });
+      return;
+    }
+    todoId = todoState.activeId;
+  }
+  workState.returnToEmailId = null;
+  workState.returnToTodoId = todoId;
+  workState.activeSlug = '__new__';
+  workState.dirty = false;
+  workState.draft = {
+    title: opts.suggestedTitle?.trim() || '',
+    contact_uid: '',
+    contact_name: '',
+    status: 'inquiry',
+    priority: 'normal',
+    due_date: '',
+    value: '',
+    tags: '',
+    source: '',
+    body: '',
+  };
+  pendingWorkDeepLinkSlug = '__new__';
+  setActiveMap('work', { force: true, workSlug: '__new__' });
 }
 
 function navigateToClient(uid) {
