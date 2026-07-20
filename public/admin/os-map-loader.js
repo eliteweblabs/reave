@@ -13012,6 +13012,7 @@ function setReaveShareStatus(msg, kind) {
 function reaveShareKindLabel(kind) {
   if (kind === 'work') return 'Project link';
   if (kind === 'booking') return 'Meeting details';
+  if (kind === 'document') return 'Document to sign';
   return 'Client portal link';
 }
 
@@ -13032,7 +13033,9 @@ async function sendViaReaveShare(channel, state) {
   const noteEl = document.getElementById('reave-share-note');
   const message = noteEl?.value?.trim() || undefined;
   let url;
-  if (state.kind === 'booking') {
+  if (state.kind === 'document') {
+    url = state.url;
+  } else if (state.kind === 'booking') {
     url = state.url || scheduleShareBookingUrl();
   } else if (!state.jobSlug && state.recipient?.contactUid) {
     url = clientPortalShareUrl(state.recipient.contactUid, state.tab);
@@ -13048,6 +13051,8 @@ async function sendViaReaveShare(channel, state) {
     jobSlug: state.jobSlug || undefined,
     tab: state.tab || undefined,
     booking: state.booking || undefined,
+    template: state.template || undefined,
+    docTitle: state.docTitle || undefined,
   };
 
   const buttons = document.querySelectorAll('#reave-share-actions .reave-share-btn--primary');
@@ -13146,10 +13151,15 @@ function buildReaveShareActions(state, opts = {}) {
   }
 }
 
+function removeDocSharePicker() {
+  document.getElementById('reave-share-doc-picker')?.remove();
+}
+
 async function openReaveShareSheet(opts = {}) {
   const backdrop = document.getElementById('reave-share-backdrop');
   if (!backdrop) return;
 
+  removeDocSharePicker();
   const recipient = { ...(opts.recipient || {}) };
   if (opts.contactUid && !recipient.contactUid) recipient.contactUid = opts.contactUid;
   const name = recipient.name?.trim() || 'Guest';
