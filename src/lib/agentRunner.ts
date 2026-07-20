@@ -7,6 +7,7 @@ import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
 import { isVapiAdminConfigured } from './vapiPlugin';
+import { isUptimeRobotConfigured } from './uptimerobotClient';
 import { hasFeature } from './features';
 import { isGithubConfigured } from './githubClient';
 import { prependDeployBanner } from './deployStatus';
@@ -290,6 +291,13 @@ async function runKnowledgeAgentInner(opts: {
       isVapiAdminConfigured()
         ? `Vapi admin plugin: use sync_vapi_assistant to push Company details (${brand.name}) to the Vapi assistant (name, first message, system prompt). Requires owner/deployment credentials. The public homepage voice widget is separate from this plugin.`
         : `Vapi admin plugin is enabled but not fully configured — set VAPI_API_KEY and assistant id on the server, then sync_vapi_assistant or POST /api/admin/vapi.`,
+    );
+  }
+  if (hasFeature('uptime_monitoring')) {
+    sysParts.push(
+      isUptimeRobotConfigured()
+        ? `UptimeRobot monitoring: use sync_uptimerobot to pull monitor status from UptimeRobot API and update the local database. Requires owner/deployment credentials. Syncs all monitors with current status and uptime ratios.`
+        : `UptimeRobot monitoring is enabled but not fully configured — set UPTIMEROBOT_API_KEY on the server, then sync_uptimerobot or POST /api/admin/uptimerobot.`,
     );
   }
   if (isBraveConfigured()) {

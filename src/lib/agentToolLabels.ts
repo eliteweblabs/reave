@@ -59,6 +59,7 @@ const TOOL_LABELS: Record<string, string> = {
   get_booking: 'Reading booking',
   get_booking_link: 'Getting booking link',
   sync_vapi_assistant: 'Syncing Vapi assistant',
+  sync_uptimerobot: 'Syncing UptimeRobot monitors',
   set_client_portal: 'Configuring client portal',
   get_client_portal: 'Reading client portal',
   get_client_submit_link: 'Getting submit link',

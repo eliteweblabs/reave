@@ -358,6 +358,15 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     feature: 'vapi',
   },
 
+  // UptimeRobot admin (plugin)
+  {
+    slash: '/uptimerobot-sync',
+    summary: 'Sync UptimeRobot monitors',
+    template: 'Sync monitors from UptimeRobot API.',
+    example: 'Sync monitors from UptimeRobot API.',
+    feature: 'uptime_monitoring',
+  },
+
   // CardDAV (plugin)
   {
     slash: '/carddav',
