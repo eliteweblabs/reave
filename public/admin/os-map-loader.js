@@ -5565,7 +5565,10 @@ function initChatComposeFocusLayout() {
     (ev) => {
       if (!isMobileTabs()) return;
       const related = ev.relatedTarget;
-      if (related instanceof HTMLElement && related.closest('.aui-compose, .ch-compose')) {
+      if (
+        related instanceof HTMLElement &&
+        related.closest('.aui-compose, .aui-compose-footer, .aui-composer-shell, .aui-composer-card, .ch-compose')
+      ) {
         return;
       }
       requestAnimationFrame(() => {
@@ -6472,6 +6475,7 @@ function createRuleSwipeRow(rule, activeId) {
 function renderRulesEditor() {
   const root = getRuleEditor();
   if (!root) return;
+  const savedSidebarScroll = captureSidebarListScroll(root);
   const { rules, activeId, notifyOnUnmatched, storage } = ruleState;
   root.innerHTML = '';
 
@@ -6565,6 +6569,7 @@ function renderRulesEditor() {
     });
   }
   root.appendChild(pane);
+  finishSidebarListScroll(root, savedSidebarScroll);
 }
 
 async function openRuleEditor(id) {
@@ -8802,6 +8807,20 @@ function scrollSidebarListItemIntoView(list, itemEl) {
   } else if (rowRect.bottom > listRect.bottom) {
     list.scrollTop += rowRect.bottom - listRect.bottom + padding;
   }
+}
+
+function captureSidebarListScroll(root) {
+  return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
+}
+
+function finishSidebarListScroll(root, savedScrollTop = 0) {
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) return;
+  if (savedScrollTop > 0) list.scrollTop = savedScrollTop;
+  requestAnimationFrame(() => {
+    const activeEl = list.querySelector('.ch-list-item.active');
+    if (activeEl) scrollSidebarListItemIntoView(list, activeEl);
+  });
 }
 
 function syncKnowledgeSidebarActiveState(opts = {}) {

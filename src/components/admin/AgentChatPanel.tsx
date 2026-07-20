@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, RefObject } from 'react';
+import type { CSSProperties, FocusEvent, KeyboardEvent, RefObject } from 'react';
 import {
   AssistantRuntimeProvider,
   AuiIf,
@@ -363,6 +363,12 @@ function HelperCommandsPanel({
   );
 }
 
+const COMPOSER_FOCUS_SELECTOR = '.aui-composer-shell, .aui-composer-card, .aui-helper-panel';
+
+function isComposerFocusTarget(el: Element | null | undefined): boolean {
+  return el instanceof HTMLElement && Boolean(el.closest(COMPOSER_FOCUS_SELECTOR));
+}
+
 function useSlashHelpers(
   propsRef: RefObject<AgentChatPanelProps>,
   commands: AgentHelperCommand[],
@@ -394,9 +400,14 @@ function useSlashHelpers(
     setHelpersOpen(true);
   };
 
-  const scheduleCloseHelpers = () => {
+  const scheduleBlurSideEffects = () => {
     clearBlurTimer();
-    blurTimer.current = setTimeout(() => setHelpersOpen(false), 120);
+    blurTimer.current = setTimeout(() => {
+      blurTimer.current = null;
+      if (isComposerFocusTarget(document.activeElement)) return;
+      setHelpersOpen(false);
+      propsRef.current?.onComposeFocus?.(false);
+    }, 120);
   };
 
   const focusInput = useCallback(() => {
@@ -439,9 +450,9 @@ function useSlashHelpers(
     propsRef.current?.onComposeFocus?.(true);
   };
 
-  const onBlur = () => {
-    scheduleCloseHelpers();
-    propsRef.current?.onComposeFocus?.(false);
+  const onBlur = (e: FocusEvent<HTMLTextAreaElement>) => {
+    if (isComposerFocusTarget(e.relatedTarget)) return;
+    scheduleBlurSideEffects();
   };
 
   const onInput = (value: string) => {
@@ -578,7 +589,11 @@ function ClaudeComposer({
         />
         <div className="aui-composer-toolbar">
           <span className="aui-composer-hint">Type / for commands</span>
-          <ComposerPrimitive.Send className="aui-composer-send" aria-label="Send message">
+          <ComposerPrimitive.Send
+            className="aui-composer-send"
+            aria-label="Send message"
+            onPointerDown={(e) => e.preventDefault()}
+          >
             <SendIcon />
           </ComposerPrimitive.Send>
         </div>
