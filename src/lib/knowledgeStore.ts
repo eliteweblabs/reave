@@ -17,6 +17,7 @@ import {
   readKnowledgeMarkdown,
   summarizeKnowledgeIndex,
 } from './localKnowledge';
+import { isKnowledgeSlugAvailable } from './knowledgePlugins';
 import {
   isKnowledgeDbConfigured,
   dbListKnowledge,
@@ -88,7 +89,9 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   const bundled = summarizeKnowledgeIndex();
 
   if (!dbRows) {
-    return bundled.map((b) => ({
+    return bundled
+      .filter((b) => isKnowledgeSlugAvailable(b.slug))
+      .map((b) => ({
       slug: b.slug,
       title: b.preview,
       preview: b.preview,
@@ -98,7 +101,9 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   }
 
   const dbSlugs = new Set(dbRows.map((r) => r.slug));
-  const dbPreviews: KnowledgePreview[] = dbRows.map((r) => ({
+  const dbPreviews: KnowledgePreview[] = dbRows
+    .filter((r) => isKnowledgeSlugAvailable(r.slug))
+    .map((r) => ({
     slug: r.slug,
     title: r.title,
     preview: r.preview,
@@ -109,7 +114,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
   }));
 
   const bundledOnly = bundled
-    .filter((b) => !dbSlugs.has(b.slug))
+    .filter((b) => !dbSlugs.has(b.slug) && isKnowledgeSlugAvailable(b.slug))
     .map((b) => ({
       slug: b.slug,
       title: b.preview,
@@ -123,6 +128,7 @@ export async function storeListKnowledge(): Promise<KnowledgePreview[]> {
 
 /** Read one knowledge entry: DB first, then bundled fallback. */
 export async function storeReadKnowledge(slug: string): Promise<KnowledgeDoc | null> {
+  if (!isKnowledgeSlugAvailable(slug)) return null;
   const dbEntry = await dbReadKnowledge(slug);
   if (dbEntry) {
     return {
@@ -168,6 +174,7 @@ export async function storeSearchKnowledge(
   const dbResults = await dbSearchKnowledge(query);
   const bundled = summarizeKnowledgeIndex();
   const bundledMatches = bundled
+    .filter((b) => isKnowledgeSlugAvailable(b.slug))
     .filter((b) => b.slug.includes(q) || b.preview.toLowerCase().includes(q))
     .map((b) => ({ slug: b.slug, title: b.preview, preview: b.preview, source: 'bundled' as const }));
 
@@ -176,7 +183,9 @@ export async function storeSearchKnowledge(
   }
 
   const dbSlugs = new Set(dbResults.map((r) => r.slug));
-  const dbMapped = dbResults.map((r) => ({ ...r, source: 'db' as const }));
+  const dbMapped = dbResults
+    .filter((r) => isKnowledgeSlugAvailable(r.slug))
+    .map((r) => ({ ...r, source: 'db' as const }));
 
   return [...dbMapped, ...bundledMatches.filter((b) => !dbSlugs.has(b.slug))];
 }

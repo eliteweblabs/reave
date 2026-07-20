@@ -10,6 +10,7 @@
  */
 
 import { installConfigSlug } from './installConfig';
+import { isKnowledgeSlugAvailable } from './knowledgePlugins';
 
 const rawByPath = import.meta.glob<string>('../knowledge/*.md', {
   query: '?raw',
@@ -47,10 +48,13 @@ function installScopedEntries(): { slug: string; content: string }[] {
 export function listKnowledgeSlugs(): string[] {
   const global = Object.keys(rawByPath).map(pathToSlug);
   const install = installScopedEntries().map((e) => e.slug);
-  return [...new Set([...global, ...install])].sort((a, b) => a.localeCompare(b));
+  return [...new Set([...global, ...install])]
+    .filter((slug) => isKnowledgeSlugAvailable(slug))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export function readKnowledgeMarkdown(slug: string): { slug: string; content: string } | null {
+  if (!isKnowledgeSlugAvailable(slug)) return null;
   const key = Object.keys(rawByPath).find((p) => pathToSlug(p) === slug) ?? null;
   if (key) return { slug, content: rawByPath[key] ?? '' };
 
