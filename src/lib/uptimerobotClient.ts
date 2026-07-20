@@ -90,7 +90,7 @@ export function classifyUptimeRobotError(raw: string): {
   if (/current plan|not allowed|subscription|not available.*plan|upgrade.*plan|plan does not/i.test(lower)) {
     const settings =
       /not allowed to use some settings/i.test(lower)
-        ? 'Monitor settings not allowed on your UptimeRobot plan (usually check interval — free plan requires 5-minute checks)'
+        ? 'Monitor settings not allowed on your UptimeRobot plan (often alert-contact threshold/recurrence or an explicit interval — free plan needs defaults only)'
         : 'Not allowed on your UptimeRobot plan';
     return {
       kind: 'plan_feature',
@@ -299,12 +299,65 @@ export function defaultUptimeFriendlyName(url: string): string {
   }
 }
 
+export async function urGetAlertContacts(): Promise<
+  | { ok: true; contacts: Array<{ id: number; friendly_name: string }> }
+  | { ok: false; error: string }
+> {
+  const key = apiKey();
+  if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
+
+  const body = new URLSearchParams({
+    api_key: key,
+    format: 'json',
+  });
+
+  try {
+    const res = await fetch('https://api.uptimerobot.com/v2/getAlertContacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const data = (await res.json()) as {
+      stat?: string;
+      error?: { message?: string };
+      alert_contacts?: Array<{ id?: number | string; friendly_name?: string }>;
+    };
+
+    if (!res.ok || data.stat !== 'ok') {
+      const msg = data.error?.message || `HTTP ${res.status}`;
+      return { ok: false, error: msg };
+    }
+
+    const contacts = (data.alert_contacts ?? [])
+      .map((c) => ({
+        id: Number(c.id),
+        friendly_name: String(c.friendly_name ?? ''),
+      }))
+      .filter((c) => Number.isFinite(c.id) && c.id > 0);
+
+    return { ok: true, contacts };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+/** Free-plan alert_contacts value — threshold and recurrence must be 0. */
+export function urFormatFreePlanAlertContacts(contactIds: number[]): string {
+  return contactIds.map((id) => `${id}_0_0`).join('-');
+}
+
 export async function urNewMonitor(opts: {
   url: string;
   friendlyName?: string;
   type?: number;
-  /** Check interval in seconds. Free plan requires 300 (5 min) or higher. */
+  /**
+   * Check interval in seconds. Omit on free plans — UptimeRobot applies the
+   * account default (300s) and some accounts reject an explicit interval field.
+   */
   intervalSeconds?: number;
+  /** Preformatted alert_contacts e.g. "123_0_0" (free plan requires _0_0 suffix). */
+  alertContacts?: string;
 }): Promise<UptimeRobotNewMonitorResult> {
   const key = apiKey();
   if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
@@ -313,7 +366,6 @@ export async function urNewMonitor(opts: {
   if (!url) return { ok: false, error: 'url is required' };
 
   const friendlyName = opts.friendlyName?.trim() || defaultUptimeFriendlyName(url);
-  const interval = opts.intervalSeconds ?? 300;
 
   const body = new URLSearchParams({
     api_key: key,
@@ -321,8 +373,13 @@ export async function urNewMonitor(opts: {
     type: String(opts.type ?? UPTIME_MONITOR_TYPE_HTTP),
     url,
     friendly_name: friendlyName,
-    interval: String(interval),
   });
+  if (opts.intervalSeconds != null) {
+    body.set('interval', String(opts.intervalSeconds));
+  }
+  if (opts.alertContacts) {
+    body.set('alert_contacts', opts.alertContacts);
+  }
 
   try {
     const res = await fetch('https://api.uptimerobot.com/v2/newMonitor', {

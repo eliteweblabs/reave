@@ -23,9 +23,7 @@ export const POST: APIRoute = async ({ locals }) => {
   }
 
   const result = await syncPlatformUrlsToUptime();
-  if (!result.ok && result.created === 0) {
-    return json({ ok: false, ...result }, 502);
-  }
-
-  return json({ ok: true, ...result });
+  // Always return JSON with ok flag — 502 made the UI show a bare "HTTP 502" even
+  // when the body contained structured errors.
+  return json({ ok: result.ok, ...result }, result.ok ? 200 : 422);
 };
