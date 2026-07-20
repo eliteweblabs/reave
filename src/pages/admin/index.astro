@@ -5275,6 +5275,97 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         line-height: 1.35;
         color: var(--muted);
       }
+      .meeting-confirm-project {
+        margin-top: 0.55rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .meeting-confirm-project-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.35;
+        color: var(--text);
+      }
+      .meeting-confirm-project-meta {
+        font-size: 0.76rem;
+        line-height: 1.35;
+        color: var(--muted);
+      }
+      .meeting-confirm-project-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+      }
+      .meeting-confirm-project-actions .os-dialog-btn {
+        font-size: 0.78rem;
+        padding: 0.38rem 0.65rem;
+      }
+      .meeting-confirm-project-picker-label,
+      .meeting-confirm-project-create-label {
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
+      }
+      .meeting-confirm-project-picker-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        max-height: 9rem;
+        overflow: auto;
+      }
+      .meeting-confirm-project-picker-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+        text-align: left;
+        padding: 0.45rem 0.55rem;
+        border-radius: 8px;
+        border: 1px solid var(--panel-border);
+        background: var(--surface-muted);
+        color: var(--text);
+        cursor: pointer;
+      }
+      .meeting-confirm-project-picker-item:hover {
+        border-color: rgba(45, 212, 191, 0.45);
+      }
+      .meeting-confirm-project-picker-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .meeting-confirm-project-picker-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .meeting-confirm-project-picker-empty {
+        font-size: 0.76rem;
+        color: var(--muted);
+        padding: 0.35rem 0;
+      }
+      .meeting-confirm-project-create {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .meeting-confirm-project-create-input {
+        width: 100%;
+        padding: 0.45rem 0.55rem;
+        border-radius: 8px;
+        border: 1px solid var(--panel-border);
+        background: var(--card);
+        color: var(--text);
+        font-size: 0.82rem;
+      }
+      .meeting-confirm-project-error {
+        margin: 0;
+        font-size: 0.76rem;
+        line-height: 1.35;
+        color: #f87171;
+      }
 
       .dash-panel {
         margin-bottom: 1.35rem;

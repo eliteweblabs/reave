@@ -30,6 +30,15 @@ function displayFirstName(input: {
   return raw.split(/\s+/)[0] || 'Client';
 }
 
+export function previewMeetingProjectTitle(input: {
+  subject: string;
+  contactName?: string | null;
+  from: string;
+  bookingStart?: string | null;
+}): string {
+  return meetingProjectTitle(input);
+}
+
 function meetingProjectTitle(input: {
   subject: string;
   contactName?: string | null;

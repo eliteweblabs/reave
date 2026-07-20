@@ -1,7 +1,7 @@
 /**
  * GET  /api/email/inbox/[id]/schedule — check proposed slot vs Cal.com
  * POST /api/email/inbox/[id]/schedule — book meeting and mark inbox item
- *   action: "book" (default) | "accept-notify" | "notify-conflict"
+ *   action: "book" (default) | "accept-notify" | "notify-conflict" | "prepare-project" | "attach-project" | "confirm"
  */
 
 import type { APIContext } from 'astro';
@@ -28,8 +28,12 @@ import {
   DEFAULT_MEETING_MINUTES,
   resolveProposedMeetingStart,
 } from '../../../../../lib/emailScheduling';
-import { ensureProjectForMeetingEmail } from '../../../../../lib/emailMeetingProject';
+import {
+  ensureProjectForMeetingEmail,
+  previewMeetingProjectTitle,
+} from '../../../../../lib/emailMeetingProject';
 import { hasFeature } from '../../../../../lib/features';
+import { storeListWork } from '../../../../../lib/workStore';
 import { isEmailSendConfigured, sendEmail } from '../../../../../lib/outbound';
 
 export const prerender = false;
@@ -100,10 +104,23 @@ async function loadEmail(id: string): Promise<
     bodyText: event.bodySnippet || event.bodyText,
     receivedAt: event.receivedAt,
   });
+  if (!proposedStart && event.bookingStart) {
+    proposedStart = event.bookingStart;
+  }
   if (!proposedStart) {
     return { error: 'No proposed meeting time on this message', status: 400 };
   }
   return { event, proposedStart };
+}
+
+async function openProjectSuggestions(contactUid: string | null | undefined) {
+  const jobs = await storeListWork({
+    contact_uid: contactUid?.trim() || undefined,
+  });
+  return jobs
+    .filter((j) => j.status === 'inquiry' || j.status === 'active')
+    .slice(0, 12)
+    .map((j) => ({ slug: j.slug, title: j.title, status: j.status }));
 }
 
 async function sendSchedulingReply(
@@ -200,17 +217,75 @@ export async function POST(context: APIContext): Promise<Response> {
   const company = await getCompanyConfig();
   const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
 
+  if (action === 'prepare-project') {
+    if (!event.bookingUid) {
+      return json({ ok: false, error: 'No booking on this message' }, 400);
+    }
+    const bookingStart = event.bookingStart || proposedStart;
+    const suggestions = await openProjectSuggestions(event.contactUid);
+    if (event.jobSlug) {
+      return json({
+        ok: true,
+        action: 'prepare-project',
+        linked: true,
+        jobSlug: event.jobSlug,
+        jobTitle: event.jobTitle || event.jobSlug,
+        proposedTitle: null,
+        suggestions,
+        bookingStart,
+      });
+    }
+    const proposedTitle = previewMeetingProjectTitle({
+      subject: event.subject,
+      contactName: event.contactName,
+      from: event.from,
+      bookingStart,
+    });
+    return json({
+      ok: true,
+      action: 'prepare-project',
+      linked: false,
+      jobSlug: null,
+      jobTitle: null,
+      proposedTitle,
+      suggestions,
+      bookingStart,
+    });
+  }
+
+  if (action === 'attach-project') {
+    if (!event.bookingUid) {
+      return json({ ok: false, error: 'No booking on this message' }, 400);
+    }
+    const bookingStart = event.bookingStart || proposedStart;
+    const withProject = await attachMeetingProject(id, event, event.bookingUid, bookingStart);
+    if (!withProject.jobSlug) {
+      return json({ ok: false, error: 'Could not create or link a project' }, 502);
+    }
+    return json({
+      ok: true,
+      action: 'attach-project',
+      jobSlug: withProject.jobSlug,
+      jobTitle: withProject.jobTitle,
+      event: withProject,
+    });
+  }
+
   if (action === 'confirm') {
     if (!event.bookingUid) {
       return json({ ok: false, error: 'No booking on this message' }, 400);
     }
-    const withProject = await attachMeetingProject(
-      id,
-      event,
-      event.bookingUid,
-      event.bookingStart || proposedStart,
-    );
-    const whenLabel = formatWhenLabel(withProject.bookingStart || proposedStart);
+    if (!event.jobSlug) {
+      return json(
+        {
+          ok: false,
+          error: 'Confirm the project link before sending the meeting confirmation',
+          code: 'project_required',
+        },
+        400,
+      );
+    }
+    const whenLabel = formatWhenLabel(event.bookingStart || proposedStart);
     const mail = await buildMeetingAcceptNotifyEmail({
       attendeeName: attendee.name,
       whenLabel,
@@ -219,7 +294,7 @@ export async function POST(context: APIContext): Promise<Response> {
       locationLabel: await resolveBookingLocation(event.bookingUid),
       bookingUid: event.bookingUid,
     });
-    const sent = await sendSchedulingReply(withProject, mail);
+    const sent = await sendSchedulingReply(event, mail);
     if (!sent.ok) {
       return json({ ok: false, error: sent.error }, sent.error.includes('configured') ? 503 : 502);
     }
@@ -233,15 +308,15 @@ export async function POST(context: APIContext): Promise<Response> {
       confirmed: true,
       notified: true,
       action: 'confirm',
-      bookingUid: withProject.bookingUid,
-      bookingStart: withProject.bookingStart,
-      jobSlug: withProject.jobSlug,
-      jobTitle: withProject.jobTitle,
+      bookingUid: event.bookingUid,
+      bookingStart: event.bookingStart,
+      jobSlug: event.jobSlug,
+      jobTitle: event.jobTitle,
       whenLabel,
       attendeeName: attendee.name,
       attendeeEmail: sent.to,
       notifyEmailId: sent.emailId ?? null,
-      event: updated ?? withProject,
+      event: updated ?? event,
     });
   }
 
