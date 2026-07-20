@@ -7672,9 +7672,56 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   parent.appendChild(wrap);
 }
 
+function sidebarListRowHost(list) {
+  return pullRefreshContentRoot(list) || list;
+}
+
+function sidebarRowKey(row) {
+  return (
+    row.dataset.id ||
+    row.dataset.slug ||
+    row.querySelector('.ch-list-item')?.dataset.id ||
+    row.querySelector('.ch-list-item')?.dataset.slug ||
+    ''
+  );
+}
+
+function sidebarListRowKeys(list) {
+  return [...sidebarListRowHost(list).querySelectorAll(':scope > .swipe-row')]
+    .map(sidebarRowKey)
+    .filter(Boolean);
+}
+
+function clearSidebarDropTargets(list) {
+  sidebarListRowHost(list).querySelectorAll('.swipe-row').forEach((el) => {
+    el.classList.remove('td-drop-target');
+  });
+}
+
+function repositionSidebarRowByPointer(list, dragEl, pointerY) {
+  const host = sidebarListRowHost(list);
+  clearSidebarDropTargets(list);
+  const siblings = [...host.querySelectorAll(':scope > .swipe-row')].filter((node) => node !== dragEl);
+  if (!siblings.length) return;
+
+  for (const sib of siblings) {
+    const rect = sib.getBoundingClientRect();
+    const mid = rect.top + rect.height / 2;
+    if (pointerY < mid) {
+      host.insertBefore(dragEl, sib);
+      sib.classList.add('td-drop-target');
+      return;
+    }
+  }
+
+  host.appendChild(dragEl);
+  siblings[siblings.length - 1]?.classList.add('td-drop-target');
+}
+
 function attachSidebarListReorder(list, orderedKeys, persistFn) {
-  let dragKey = null;
   let dragEl = null;
+  let dragStartKeys = null;
+  let moved = false;
 
   list.querySelectorAll('.td-list-grip').forEach((grip) => {
     grip.addEventListener('pointerdown', (ev) => {
@@ -7683,15 +7730,16 @@ function attachSidebarListReorder(list, orderedKeys, persistFn) {
       const item = grip.closest('.ch-list-item');
       const row = grip.closest('.swipe-row');
       if (!item || !row) return;
-      dragKey = row.dataset.id || row.dataset.slug || item.dataset.id || item.dataset.slug || '';
       dragEl = row;
+      dragStartKeys = sidebarListRowKeys(list);
+      moved = false;
       row.classList.add('td-dragging');
       grip.setPointerCapture(ev.pointerId);
 
       function onMove(moveEv) {
-        list.querySelectorAll('.swipe-row').forEach((el) => el.classList.remove('td-drop-target'));
-        const target = document.elementFromPoint(moveEv.clientX, moveEv.clientY)?.closest('.swipe-row');
-        if (target && target !== dragEl) target.classList.add('td-drop-target');
+        if (!dragEl) return;
+        moved = true;
+        repositionSidebarRowByPointer(list, dragEl, moveEv.clientY);
       }
 
       function onUp(upEv) {
@@ -7699,23 +7747,17 @@ function attachSidebarListReorder(list, orderedKeys, persistFn) {
         document.removeEventListener('pointermove', onMove);
         document.removeEventListener('pointerup', onUp);
         dragEl?.classList.remove('td-dragging');
-        list.querySelectorAll('.swipe-row').forEach((el) => el.classList.remove('td-drop-target'));
-        const target = document.elementFromPoint(upEv.clientX, upEv.clientY)?.closest('.swipe-row');
-        if (dragEl && target && target !== dragEl && dragKey) {
-          const targetKey =
-            target.dataset.id || target.dataset.slug || target.querySelector('.ch-list-item')?.dataset.id ||
-            target.querySelector('.ch-list-item')?.dataset.slug || '';
-          const keys = [...orderedKeys];
-          const fromIdx = keys.indexOf(dragKey);
-          const toIdx = keys.indexOf(targetKey);
-          if (fromIdx !== -1 && toIdx !== -1) {
-            keys.splice(fromIdx, 1);
-            keys.splice(toIdx, 0, dragKey);
-            void persistFn(keys);
-          }
+        clearSidebarDropTargets(list);
+        if (dragEl && moved) {
+          const keys = sidebarListRowKeys(list);
+          const changed =
+            keys.length !== dragStartKeys.length ||
+            keys.some((key, idx) => key !== dragStartKeys[idx]);
+          if (changed) void persistFn(keys);
         }
-        dragKey = null;
         dragEl = null;
+        dragStartKeys = null;
+        moved = false;
       }
 
       document.addEventListener('pointermove', onMove);
