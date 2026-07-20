@@ -151,12 +151,22 @@ function listWorkFiles(): string[] {
     .map((f) => f.replace(/\.md$/i, ''));
 }
 
+/** Coerce created/updated to ISO strings (Postgres pg driver may return Date objects). */
+export function workSortTimestamp(value: unknown, fallback = ''): string {
+  if (value instanceof Date) return value.toISOString();
+  if (value == null) return fallback;
+  const s = String(value);
+  return s || fallback;
+}
+
+export function compareWorkByRecency(a: WorkJobSummary, b: WorkJobSummary): number {
+  const bT = workSortTimestamp(b.updated, workSortTimestamp(b.created, b.slug));
+  const aT = workSortTimestamp(a.updated, workSortTimestamp(a.created, a.slug));
+  return bT.localeCompare(aT);
+}
+
 function sortWorkSummaries(jobs: WorkJobSummary[]): WorkJobSummary[] {
-  return jobs.sort((a, b) => {
-    const aT = a.updated || a.created || a.slug;
-    const bT = b.updated || b.created || b.slug;
-    return bT.localeCompare(aT);
-  });
+  return jobs.sort(compareWorkByRecency);
 }
 
 function yamlLine(key: string, value: string): string {

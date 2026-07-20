@@ -3,7 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeListWork } from '../../../lib/workStore';
+import { compareWorkByRecency, storeListWork } from '../../../lib/workStore';
 import { storeGetSidebarOrder, storeReorderSidebarList, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 
 export const prerender = false;
@@ -37,12 +37,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const jobs = await storeListWork();
   const orderMap = await storeGetSidebarOrder('work');
-  const sorted = sortBySidebarOrder(
-    jobs,
-    orderMap,
-    (j) => j.slug,
-    (a, b) => (b.updated || b.created || '').localeCompare(a.updated || a.created || ''),
-  );
+  const sorted = sortBySidebarOrder(jobs, orderMap, (j) => j.slug, compareWorkByRecency);
 
   return json({ ok: true, jobs: sorted });
 }

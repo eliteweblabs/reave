@@ -12,6 +12,7 @@ import {
   storeWriteWork,
   WORK_PRIORITIES,
   WORK_STATUSES,
+  compareWorkByRecency,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
@@ -26,33 +27,34 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  try {
+    const { userId } = context.locals.auth();
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const contactUid = context.url.searchParams.get('contact_uid')?.trim();
-  const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
-  const status = WORK_STATUSES.includes(statusRaw as (typeof WORK_STATUSES)[number])
-    ? (statusRaw as (typeof WORK_STATUSES)[number])
-    : undefined;
+    const contactUid = context.url.searchParams.get('contact_uid')?.trim();
+    const statusRaw = context.url.searchParams.get('status')?.trim().toLowerCase();
+    const status = WORK_STATUSES.includes(statusRaw as (typeof WORK_STATUSES)[number])
+      ? (statusRaw as (typeof WORK_STATUSES)[number])
+      : undefined;
 
-  const jobs = await storeListWork({
-    contact_uid: contactUid || undefined,
-    status,
-  });
-  const orderMap = await storeGetSidebarOrder('work');
-  const sorted = sortBySidebarOrder(
-    jobs,
-    orderMap,
-    (j) => j.slug,
-    (a, b) => (b.updated || b.created || '').localeCompare(a.updated || a.created || ''),
-  );
+    const jobs = await storeListWork({
+      contact_uid: contactUid || undefined,
+      status,
+    });
+    const orderMap = await storeGetSidebarOrder('work');
+    const sorted = sortBySidebarOrder(jobs, orderMap, (j) => j.slug, compareWorkByRecency);
 
-  return json({
-    ok: true,
-    jobs: sorted,
-    statuses: WORK_STATUSES,
-    priorities: WORK_PRIORITIES,
-  });
+    return json({
+      ok: true,
+      jobs: sorted,
+      statuses: WORK_STATUSES,
+      priorities: WORK_PRIORITIES,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[work] GET list error:', e);
+    return json({ ok: false, error: msg }, 500);
+  }
 }
 
 export async function POST(context: APIContext): Promise<Response> {

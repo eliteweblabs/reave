@@ -30,8 +30,14 @@ export interface JobRow {
   source: string;
   source_chat_id: string | null;
   body: string;
-  created_at: string;
-  updated_at: string;
+  created_at: string | Date;
+  updated_at: string | Date;
+}
+
+function pgTimestamp(value: unknown): string {
+  if (value == null) return '';
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
 }
 
 const JOB_COLUMNS = `
@@ -126,8 +132,8 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     source: row.source ?? '',
     record_origin: 'db',
     source_chat_id: row.source_chat_id?.trim() || undefined,
-    created: row.created_at,
-    updated: row.updated_at,
+    created: pgTimestamp(row.created_at),
+    updated: pgTimestamp(row.updated_at),
   };
 }
 
