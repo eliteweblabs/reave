@@ -19,6 +19,7 @@ import {
 } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { getUptimeSummaryView, getUptimeMonitorsView } from '../../../lib/uptimeMonitoring';
+import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 
@@ -123,6 +124,7 @@ export async function GET(context: APIContext): Promise<Response> {
   let uptime: Awaited<ReturnType<typeof getUptimeSummaryView>> | null = null;
   let uptimeMonitors: Awaited<ReturnType<typeof getUptimeMonitorsView>>['monitors'] = [];
   if (hasFeature('uptime_monitoring')) {
+    ensureUptimePollScheduler();
     uptime = await getUptimeSummaryView();
     const monitorsView = await getUptimeMonitorsView();
     uptimeMonitors = monitorsView.monitors;

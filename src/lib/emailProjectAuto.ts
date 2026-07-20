@@ -9,6 +9,7 @@ import {
   mergeEmailIntoProjectBody,
   pickMergedProjectValue,
 } from './emailProjectMerge';
+import { importEmailAttachmentsToProject } from './emailProjectAttachments';
 import { assignEmailToJob } from './projectLinks';
 import {
   ensureWorkContact,
@@ -80,6 +81,7 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
   contactUid?: string | null;
   contactName?: string | null;
   emailId: string;
+  resendEmailId?: string | null;
 }): Promise<
   | {
       ok: true;
@@ -155,6 +157,11 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
   }
 
   await assignEmailToJob(input.emailId, slug, result.doc.title);
+  await importEmailAttachmentsToProject({
+    emailId: input.emailId,
+    resendEmailId: input.resendEmailId,
+    jobSlug: slug,
+  });
 
   const notificationTitle = buildAutoProjectNotificationTitle({
     contactName: contact.name,

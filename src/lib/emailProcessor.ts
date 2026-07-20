@@ -22,7 +22,7 @@ import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 
-export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt';
+export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
 
 export interface ProcessedEmailResult {
   ok: boolean;
@@ -532,6 +532,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       contactUid,
       contactName,
       emailId: inboxRecord.id,
+      resendEmailId: email.resendEmailId,
     });
     if (autoProject.ok) {
       jobSlug = autoProject.slug;
@@ -539,12 +540,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       contactUid = autoProject.contactUid;
       contactName = autoProject.contactName;
       action = 'matched';
-      category = 'client';
+      category = 'project';
       automationKind = 'project_created';
       routeNote = autoProject.routeNote;
       const updated = await storeUpdateEmailInbox(inboxRecord.id, {
         action,
-        category: 'client',
+        category: 'project',
         status: 'MATCHED',
         jobSlug,
         jobTitle,

@@ -264,7 +264,15 @@ type InboxRow = {
 
 function normalizeCategory(raw: string | undefined): EmailCategory {
   const c = String(raw ?? 'review').toLowerCase();
-  if (c === 'junk' || c === 'client' || c === 'alert' || c === 'internal' || c === 'review' || c === 'receipt') {
+  if (
+    c === 'junk' ||
+    c === 'client' ||
+    c === 'alert' ||
+    c === 'internal' ||
+    c === 'review' ||
+    c === 'receipt' ||
+    c === 'project'
+  ) {
     return c;
   }
   return 'review';

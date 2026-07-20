@@ -1066,7 +1066,11 @@ export function showContextMenu(x, y, items) {
         return;
       }
       closeContextMenu();
-      await item.run();
+      try {
+        await item.run();
+      } catch (err) {
+        console.error('[context-menu]', item.label, err);
+      }
     });
     menu.appendChild(btn);
   }

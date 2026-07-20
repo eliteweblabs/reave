@@ -9,6 +9,8 @@
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
 import { emailToMergeSource, mergeEmailIntoProjectBody, pickMergedProjectValue } from '../../../../../lib/emailProjectMerge';
+import { importEmailAttachmentsToProject } from '../../../../../lib/emailProjectAttachments';
+import { markInboxEmailAsProject } from '../../../../../lib/emailProjectCategory';
 import { assignEmailToJob } from '../../../../../lib/projectLinks';
 import {
   ensureWorkContact,
@@ -33,14 +35,9 @@ async function markEmailLinked(
   jobTitle: string,
   contact?: { uid: string; name: string },
 ) {
-  return storeUpdateEmailInbox(id, {
-    category: 'client',
-    action: 'matched',
-    status: 'MATCHED',
-    routeNote: `Linked to project "${jobTitle}"`,
-    ...(contact
-      ? { contactUid: contact.uid, contactName: contact.name }
-      : {}),
+  return markInboxEmailAsProject(id, jobTitle, {
+    contactUid: contact?.uid,
+    contactName: contact?.name,
   });
 }
 
@@ -107,6 +104,12 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, job.title);
+    const attachments = await importEmailAttachmentsToProject({
+      emailId: id,
+      resendEmailId: emailRecord.resendEmailId,
+      jobSlug: slug,
+      uploadedBy: userId,
+    });
     const event = await markEmailLinked(id, job.title);
     if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
 
@@ -116,6 +119,8 @@ export async function POST(context: APIContext): Promise<Response> {
       slug: job.slug,
       title: job.title,
       usedAi,
+      attachmentsImported: attachments.imported.length,
+      attachmentsSkipped: attachments.skipped,
       event,
     });
   }
@@ -167,6 +172,12 @@ export async function POST(context: APIContext): Promise<Response> {
     if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
     await assignEmailToJob(id, slug, result.doc.title);
+    const attachments = await importEmailAttachmentsToProject({
+      emailId: id,
+      resendEmailId: emailRecord.resendEmailId,
+      jobSlug: slug,
+      uploadedBy: userId,
+    });
     const event = await markEmailLinked(id, result.doc.title, {
       uid: contact.uid,
       name: contact.name,
@@ -180,6 +191,8 @@ export async function POST(context: APIContext): Promise<Response> {
       title: result.doc.title,
       usedAi,
       contactCreated: contact.created,
+      attachmentsImported: attachments.imported.length,
+      attachmentsSkipped: attachments.skipped,
       event,
     });
   }

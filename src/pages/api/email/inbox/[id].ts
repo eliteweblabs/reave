@@ -23,7 +23,15 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-const CATEGORIES = new Set<EmailCategory>(['junk', 'client', 'alert', 'internal', 'review', 'receipt']);
+const CATEGORIES = new Set<EmailCategory>([
+  'junk',
+  'client',
+  'alert',
+  'internal',
+  'review',
+  'receipt',
+  'project',
+]);
 
 function parsePatch(body: unknown): EmailInboxPatch | null {
   if (!body || typeof body !== 'object') return null;

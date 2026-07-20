@@ -4,6 +4,7 @@
 
 import { serverEnv } from './serverEnv';
 import {
+  githubGetCommit,
   githubGetDefaultBranch,
   githubListCommits,
   isGithubConfigured,
@@ -16,6 +17,8 @@ export type DeployStatusSnapshot = {
   on_railway: boolean;
   deployed_sha: string | null;
   deployed_short: string | null;
+  /** ISO timestamp for the deployed Git commit (GitHub author date). */
+  deployed_at: string | null;
   latest_commit: GithubCommit | null;
   up_to_date: boolean | null;
   state: DeployState;
@@ -59,6 +62,40 @@ function minutesSince(iso: string | null | undefined): number | null {
   const ms = Date.now() - new Date(iso).getTime();
   if (Number.isNaN(ms)) return null;
   return Math.max(0, Math.floor(ms / 60_000));
+}
+
+const EASTERN_TZ = 'America/New_York';
+
+/** Deploy/commit time in US Eastern (EST/EDT via IANA timezone). */
+export function formatDeployDateEastern(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(d);
+}
+
+function appendEasternDateLine(text: string, iso: string | null | undefined): string {
+  const when = formatDeployDateEastern(iso);
+  return when ? `${text}\n${when}` : text;
+}
+
+async function resolveDeployedAt(
+  deployed: string | null,
+  latest: GithubCommit | null,
+): Promise<string | null> {
+  if (!deployed) return null;
+  if (latest && deployed === latest.sha && latest.date) return latest.date;
+  if (!isGithubConfigured()) return null;
+  const commit = await githubGetCommit(deployed);
+  return commit.ok && commit.data.date ? commit.data.date : null;
 }
 
 function noteStateTransition(state: DeployState): void {
@@ -111,6 +148,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       on_railway: false,
       deployed_sha: null,
       deployed_short: null,
+      deployed_at: null,
       latest_commit: null,
       up_to_date: null,
       state: 'unknown',
@@ -120,10 +158,12 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
   }
 
   if (failedOverride) {
+    const deployedAt = await resolveDeployedAt(deployed, null);
     const snap: DeployStatusSnapshot = {
       on_railway: true,
       deployed_sha: deployed,
       deployed_short: deployed?.slice(0, 7) ?? null,
+      deployed_at: deployedAt,
       latest_commit: null,
       up_to_date: false,
       state: 'failed',
@@ -139,6 +179,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       on_railway: true,
       deployed_sha: deployed,
       deployed_short: deployed?.slice(0, 7) ?? null,
+      deployed_at: null,
       latest_commit: null,
       up_to_date: null,
       state: 'unknown',
@@ -155,6 +196,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       on_railway: true,
       deployed_sha: deployed,
       deployed_short: deployed?.slice(0, 7) ?? null,
+      deployed_at: null,
       latest_commit: null,
       up_to_date: null,
       state: 'unknown',
@@ -183,10 +225,13 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
     state = stale ? 'stale' : 'deploying';
   }
 
+  const deployedAt = await resolveDeployedAt(deployed, latest);
+
   const snap: DeployStatusSnapshot = {
     on_railway: true,
     deployed_sha: deployed,
     deployed_short: deployed?.slice(0, 7) ?? null,
+    deployed_at: deployedAt,
     latest_commit: latest,
     up_to_date: upToDate,
     state,
@@ -230,7 +275,10 @@ export function deployBanner(
   }
 
   if (snapshot.state === 'live' && opts?.includeLive && snapshot.deployed_short) {
-    return `🟢 Live: ${snapshot.deployed_short} — up to date`;
+    return appendEasternDateLine(
+      `🟢 Live: ${snapshot.deployed_short} — up to date`,
+      snapshot.deployed_at,
+    );
   }
 
   return null;
@@ -248,22 +296,34 @@ export function deployIndicatorTone(state: DeployState): DeployIndicatorTone {
 /** Plain-text tooltip for the admin deploy indicator (no emoji). */
 export function deployTooltip(snapshot: DeployStatusSnapshot): string {
   if (snapshot.state === 'failed') {
-    return snapshot.failed_reason ?? 'Deploy failed — check Railway logs';
+    return appendEasternDateLine(
+      snapshot.failed_reason ?? 'Deploy failed — check Railway logs',
+      snapshot.deployed_at,
+    );
   }
 
   if (snapshot.state === 'stale' && snapshot.latest_commit) {
     const min = snapshot.minutes_since_push ?? minutesSince(snapshot.latest_commit.date) ?? '?';
-    return `Deploy stale — ${snapshot.latest_commit.short_sha} pushed ${min} min ago, not live yet. Check Railway logs.`;
+    return appendEasternDateLine(
+      `Deploy stale — ${snapshot.latest_commit.short_sha} pushed ${min} min ago, not live yet. Check Railway logs.`,
+      snapshot.deployed_at,
+    );
   }
 
   if (snapshot.state === 'deploying' && snapshot.latest_commit) {
     const msg = truncateMessage(snapshot.latest_commit.message, 48);
     const bit = msg ? `: ${msg}` : '';
-    return `Deploying ${snapshot.latest_commit.short_sha}${bit} — not live yet`;
+    return appendEasternDateLine(
+      `Deploying ${snapshot.latest_commit.short_sha}${bit} — not live yet`,
+      snapshot.latest_commit.date,
+    );
   }
 
   if (snapshot.state === 'live' && snapshot.deployed_short) {
-    return `Live — ${snapshot.deployed_short} up to date`;
+    return appendEasternDateLine(
+      `Live — ${snapshot.deployed_short} up to date`,
+      snapshot.deployed_at,
+    );
   }
 
   if (snapshot.state === 'unknown') {

@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import {
   deployIndicatorTone,
   deployTooltip,
+  formatDeployDateEastern,
   getDeployStatus,
 } from '../../../lib/deployStatus';
 
@@ -34,6 +35,8 @@ export async function GET(context: APIContext): Promise<Response> {
       tone: deployIndicatorTone(deploy.state),
       tooltip: deployTooltip(deploy),
       deployedShort: deploy.deployed_short,
+      deployedAt: deploy.deployed_at,
+      deployedAtEastern: formatDeployDateEastern(deploy.deployed_at),
       upToDate: deploy.up_to_date,
     },
   });

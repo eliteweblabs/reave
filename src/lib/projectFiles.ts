@@ -44,6 +44,61 @@ export const PROJECT_UPLOAD_MEDIA_TYPES = new Set([
   'application/pdf',
 ]);
 
+/** Additional types allowed when importing from inbound email attachments. */
+export const EMAIL_ATTACHMENT_MEDIA_TYPES = new Set([
+  ...PROJECT_UPLOAD_MEDIA_TYPES,
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/octet-stream',
+]);
+
+export function isAllowedProjectFileMediaType(
+  mediaType: string,
+  source?: ProjectFileSource,
+): boolean {
+  const normalized = mediaType.trim().toLowerCase();
+  if (PROJECT_UPLOAD_MEDIA_TYPES.has(normalized)) return true;
+  if (source === 'email' && EMAIL_ATTACHMENT_MEDIA_TYPES.has(normalized)) return true;
+  return false;
+}
+
+const FILENAME_MEDIA_TYPE: Record<string, string> = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  zip: 'application/zip',
+};
+
+export function normalizeEmailAttachmentMediaType(
+  contentType: string,
+  filename: string,
+): string {
+  const fromHeader = contentType.trim().toLowerCase().split(';')[0]?.trim() ?? '';
+  if (fromHeader && fromHeader !== 'application/octet-stream') return fromHeader;
+
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  return FILENAME_MEDIA_TYPE[ext] ?? fromHeader ?? 'application/octet-stream';
+}
+
 const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS project_files (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -226,7 +281,7 @@ function fileAddProjectFile(
 ): { ok: true; file: ProjectFileSummary } | { ok: false; error: string } {
   if (!isSafeWorkSlug(slug)) return { ok: false, error: 'Invalid slug' };
   const mediaType = input.mediaType.trim().toLowerCase();
-  if (!PROJECT_UPLOAD_MEDIA_TYPES.has(mediaType)) {
+  if (!isAllowedProjectFileMediaType(mediaType, input.source)) {
     return { ok: false, error: 'Unsupported file type' };
   }
   const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();
@@ -358,7 +413,7 @@ async function dbAddProjectFile(
   },
 ): Promise<{ ok: true; file: ProjectFileSummary } | { ok: false; error: string } | null> {
   const mediaType = input.mediaType.trim().toLowerCase();
-  if (!PROJECT_UPLOAD_MEDIA_TYPES.has(mediaType)) {
+  if (!isAllowedProjectFileMediaType(mediaType, input.source)) {
     return { ok: false, error: 'Unsupported file type' };
   }
   const dataBase64 = input.dataBase64.replace(/^data:[^;]+;base64,/, '').trim();

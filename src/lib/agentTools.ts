@@ -130,6 +130,8 @@ import {
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from './emailMoney';
 import { buildReplyEmailHeaders } from './emailReply';
 import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from './projectLinks';
+import { markInboxEmailAsProject } from './emailProjectCategory';
+import { importEmailAttachmentsToProject } from './emailProjectAttachments';
 import {
   storeAddChatImagesToProject,
   storeListProjectFiles,
@@ -2357,7 +2359,24 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       const threadId = ctx.threadId?.trim() || '';
 
       if (threadId) await linkProjectItem(slug, 'chat', threadId);
-      if (emailId) await assignEmailToJob(emailId, slug, doc.title);
+
+      let attachmentsImported = 0;
+      let attachmentsSkipped = 0;
+      if (emailId) {
+        await assignEmailToJob(emailId, slug, doc.title);
+        await markInboxEmailAsProject(emailId, doc.title);
+        const inbound = await storeGetEmailInbox(emailId);
+        if (inbound) {
+          const attachments = await importEmailAttachmentsToProject({
+            emailId,
+            resendEmailId: inbound.resendEmailId,
+            jobSlug: slug,
+            uploadedBy: ctx.userId ?? null,
+          });
+          attachmentsImported = attachments.imported.length;
+          attachmentsSkipped = attachments.skipped;
+        }
+      }
       if (!threadId && !emailId) {
         return JSON.stringify({ error: 'nothing to link — open from a chat or provide email_id' });
       }
@@ -2369,6 +2388,8 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         title: doc.title,
         linked_email: emailId || null,
         linked_chat: threadId || null,
+        attachments_imported: attachmentsImported,
+        attachments_skipped: attachmentsSkipped,
       });
     }
     if (name === 'list_project_files') {

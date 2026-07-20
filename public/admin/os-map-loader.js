@@ -66,7 +66,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260717i';
+} from './admin-ui.js?v=20260719e';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -14275,14 +14275,29 @@ function applyEmailInboxFilterForEvent(ev) {
   else if (ev.category === 'receipt') emailState.inboxFilter = 'receipt';
   else if (ev.category === 'alert') emailState.inboxFilter = 'alert';
   else if (isEmailBookable(ev)) emailState.inboxFilter = 'book';
+  else if (isEmailProject(ev)) emailState.inboxFilter = 'project';
   else if (isEmailRouted(ev)) emailState.inboxFilter = 'routed';
   else if (ev.category === 'review') emailState.inboxFilter = 'review';
   else emailState.inboxFilter = 'all';
 }
 
-function openEmailFromDeepLink(id) {
+async function openEmailFromDeepLink(id) {
   if (!id) return false;
-  const ev = emailState.allEvents.find((e) => e.id === id);
+  let ev = emailState.allEvents.find((e) => e.id === id);
+  if (!ev) {
+    try {
+      const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      if (data.event) {
+        ev = { ...data.event, _fullLoaded: true };
+        const idx = emailState.allEvents.findIndex((e) => e.id === id);
+        if (idx !== -1) emailState.allEvents[idx] = ev;
+        else emailState.allEvents.unshift(ev);
+      }
+    } catch (e) {
+      console.warn('[email] deep link fetch failed', e);
+    }
+  }
   if (!ev) {
     pendingEmailDeepLinkId = id;
     return false;
@@ -14319,7 +14334,15 @@ function handleNotificationOpen(url) {
   } catch {}
 }
 
+function isEmailProject(ev) {
+  const category = String(ev.category || '').toLowerCase();
+  if (category === 'project') return true;
+  // Legacy rows linked before the Projects category existed.
+  return Boolean(ev.jobSlug) && String(ev.action || '').toLowerCase() === 'matched';
+}
+
 function isEmailRouted(ev) {
+  if (isEmailProject(ev)) return false;
   const action = String(ev.action || '').toLowerCase();
   return action === 'filed' || action === 'matched';
 }
@@ -14346,12 +14369,14 @@ function isEmailBooked(ev) {
 
 function inboxTabCounts() {
   const all = emailState.allEvents;
-  const active = (e) => e.category !== 'junk' && e.category !== 'receipt' && !isEmailRouted(e);
+  const active = (e) =>
+    e.category !== 'junk' && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e);
   return {
     all: all.filter(active).length,
     alert: all.filter((e) => e.category === 'alert' && !isEmailRouted(e)).length,
     review: all.filter((e) => e.category === 'review' && !isEmailRouted(e)).length,
     book: all.filter((e) => isEmailBookable(e) && !isEmailRouted(e)).length,
+    project: all.filter(isEmailProject).length,
     routed: all.filter(isEmailRouted).length,
     receipt: all.filter((e) => e.category === 'receipt' && !isEmailRouted(e)).length,
     junk: all.filter((e) => e.category === 'junk').length,
@@ -14366,8 +14391,11 @@ function inboxEventsForFilter() {
   if (f === 'alert') return all.filter((e) => e.category === 'alert' && !isEmailRouted(e));
   if (f === 'review') return all.filter((e) => e.category === 'review' && !isEmailRouted(e));
   if (f === 'book') return all.filter((e) => isEmailBookable(e) && !isEmailRouted(e));
+  if (f === 'project') return all.filter(isEmailProject);
   if (f === 'routed') return all.filter(isEmailRouted);
-  return all.filter((e) => e.category !== 'junk' && e.category !== 'receipt' && !isEmailRouted(e));
+  return all.filter(
+    (e) => e.category !== 'junk' && e.category !== 'receipt' && !isEmailProject(e) && !isEmailRouted(e),
+  );
 }
 
 function filteredInboxEvents() {
@@ -14638,8 +14666,16 @@ function syncInboxBadgePoll() {
 
 function emailCategoryClass(cat) {
   const key = String(cat || 'review').toLowerCase();
-  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt']);
+  const known = new Set(['junk', 'client', 'alert', 'internal', 'review', 'receipt', 'project']);
   return known.has(key) ? `em-cat-${key}` : 'em-cat-review';
+}
+
+function formatEmailCategoryLabel(ev) {
+  if (isProjectReplyEmail(ev)) return 'Client reply';
+  if (isEmailProject(ev)) return 'Projects';
+  const cat = String(ev.category || 'review').toLowerCase();
+  if (cat === 'project') return 'Projects';
+  return ev.category || 'review';
 }
 
 function emailMonetaryAmount(ev) {
@@ -15249,6 +15285,7 @@ function shouldShowEmailProjectActions(ev) {
 function applyEmailEventUpdate(event) {
   const idx = emailState.allEvents.findIndex((e) => e.id === event.id);
   if (idx !== -1) emailState.allEvents[idx] = event;
+  if (isEmailProject(event)) emailState.inboxFilter = 'project';
   if (emailState.activeId === event.id && !filteredInboxEvents().some((e) => e.id === event.id)) {
     emailState.activeId = null;
   }
@@ -15471,6 +15508,38 @@ async function markEmailJunk(ev) {
   }
 }
 
+async function archiveEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const patch = { action: 'filed', status: 'FILED' };
+    if (ev.category === 'review') patch.category = 'internal';
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function unarchiveEmail(ev) {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'review', action: 'review', status: 'UNMATCHED' }),
+    });
+    const data = await readApiJson(res);
+    applyEmailPatchResult(ev.id, data.event);
+  } catch (e) {
+    osAlert({ title: 'Could not unarchive', bodyHtml: escHtml(e.message) });
+  }
+}
+
 function applyEmailPatchResult(id, event) {
   if (!event) return;
   const idx = emailState.allEvents.findIndex((e) => e.id === id);
@@ -15686,7 +15755,7 @@ function createEmailListItem(ev) {
       (showEmailNewDot(ev) ? '<span class="em-unseen-dot" aria-hidden="true"></span>' : '') +
       (isProjectReplyEmail(ev)
         ? '<span class="em-status em-project-reply">Client reply</span>'
-        : `<span class="em-status ${emailCategoryClass(ev.category)}">${escHtml(ev.category || 'review')}</span>`) +
+        : `<span class="em-status ${emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>`) +
       (emailMonetaryAmount(ev) && ev.category !== 'receipt'
         ? `<span class="em-status em-money-hint">${escHtml(formatEmailUsd(emailMonetaryAmount(ev)))}</span>`
         : '') +
@@ -15780,8 +15849,8 @@ async function loadEmailTab(quiet) {
   if (!root) return;
   if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
   try {
-    const res = await fetch('/api/email/inbox?junk=1', { cache: 'no-store' });
-    const data = await res.json();
+    const res = await adminFetch('/api/email/inbox?junk=1');
+    const data = await readAdminJson(res, 'Inbox');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     emailState.allEvents = data.events || [];
     for (const id of pendingSeenIds) {
@@ -15792,6 +15861,7 @@ async function loadEmailTab(quiet) {
     emailState.digest = data.digest || null;
     emailState.pushConfigured = !!data.pushConfigured;
   } catch (e) {
+    if (e.message === 'Session expired') return;
     if (!quiet) root.innerHTML = `<div class="de-loading de-error">${escHtml(e.message)}</div>`;
     return;
   }
@@ -15799,12 +15869,15 @@ async function loadEmailTab(quiet) {
   seedInboxSessionDots();
   const deepLinkId = pendingEmailDeepLinkId || parseEmailDeepLinkFromUrl();
   pendingEmailDeepLinkId = null;
+  let openedFromDeepLink = false;
   if (deepLinkId) {
-    openEmailFromDeepLink(deepLinkId);
+    openedFromDeepLink = await openEmailFromDeepLink(deepLinkId);
   } else if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
     emailState.activeId = null;
   }
-  getEmailPanel()?.classList.remove('em-pane-active');
+  if (!openedFromDeepLink && !emailState.activeId) {
+    getEmailPanel()?.classList.remove('em-pane-active');
+  }
   renderEmailPanel();
   syncInboxAppBadge(emailState.allEvents);
 }
@@ -15821,6 +15894,7 @@ function renderEmailFilterTabs() {
     { id: 'alert', label: 'Alerts', count: counts.alert },
     { id: 'review', label: 'Review', count: counts.review },
     { id: 'book', label: 'Book', count: counts.book },
+    { id: 'project', label: 'Projects', count: counts.project },
     { id: 'routed', label: 'Archive', count: counts.routed },
     { id: 'receipt', label: 'Receipts', count: counts.receipt },
     { id: 'junk', label: 'Junk', count: counts.junk },
@@ -15881,6 +15955,8 @@ function renderEmailSidebar() {
           ? counts.review
           : emailState.inboxFilter === 'book'
             ? counts.book
+            : emailState.inboxFilter === 'project'
+              ? counts.project
             : emailState.inboxFilter === 'routed'
               ? counts.routed
               : counts.all;
@@ -15922,6 +15998,8 @@ function renderEmailSidebar() {
       emptyBody = 'No messages need review.';
     } else if (emailState.inboxFilter === 'book') {
       emptyBody = 'No emails with a proposed meeting time.';
+    } else if (emailState.inboxFilter === 'project') {
+      emptyBody = 'No project emails yet. Create or link a project from an inbound message.';
     } else if (emailState.inboxFilter === 'routed') {
       emptyBody = 'No archived messages yet.';
     } else if (emailState.inboxFilter === 'receipt') {
@@ -16571,7 +16649,7 @@ function renderEmailPanel() {
   detail.className = 'em-detail';
   const summary = ev.summary || ev.bodySnippet || '';
   let detailHtml =
-    `<div class="em-item-row"><span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(ev.category)}">${escHtml(isProjectReplyEmail(ev) ? 'Client reply' : (ev.category || 'review'))}</span>` +
+    `<div class="em-item-row"><span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (isEmailBookable(ev)) {
@@ -16738,7 +16816,7 @@ boot().catch(showBootError);
 window.addEventListener('pageshow', () => {
   const emailId = parseEmailDeepLinkFromUrl();
   if (!emailId || MAP?.type !== 'email' || emailState.activeId === emailId) return;
-  if (emailState.allEvents.length) openEmailFromDeepLink(emailId);
+  if (emailState.allEvents.length) void openEmailFromDeepLink(emailId);
   else pendingEmailDeepLinkId = emailId;
 });
 
