@@ -10699,6 +10699,25 @@ function scheduleToolbarTitle(view, focusKey) {
   });
 }
 
+function scheduleDateInSameMonth(dateKey, focusKey) {
+  const d = scheduleParseDateKey(dateKey);
+  const f = scheduleParseDateKey(focusKey);
+  return d.getFullYear() === f.getFullYear() && d.getMonth() === f.getMonth();
+}
+
+/** Day to show in month-view agenda: explicit selection in this month, else today if visible. */
+function scheduleMonthDisplayDate(focusKey) {
+  if (
+    scheduleState.selectedDate &&
+    scheduleDateInSameMonth(scheduleState.selectedDate, focusKey)
+  ) {
+    return scheduleState.selectedDate;
+  }
+  const today = scheduleTodayKey();
+  if (scheduleDateInSameMonth(today, focusKey)) return today;
+  return null;
+}
+
 function scheduleShiftFocus(delta) {
   scheduleEnsureFocusDate();
   const d = scheduleParseDateKey(scheduleState.focusDate);
@@ -10710,7 +10729,9 @@ function scheduleShiftFocus(delta) {
     d.setDate(d.getDate() + delta);
   }
   scheduleState.focusDate = scheduleDateKey(d);
-  scheduleState.selectedDate = scheduleState.focusDate;
+  if (scheduleState.view !== 'month') {
+    scheduleState.selectedDate = scheduleState.focusDate;
+  }
   loadScheduleTab();
 }
 
@@ -11815,7 +11836,12 @@ function renderCalMonthView(parent) {
                      dayDate.getMonth() === now.getMonth() && 
                      dayDate.getDate() === now.getDate();
     if (isToday) btn.classList.add('cal-day--today');
-    if (key === scheduleState.selectedDate) btn.classList.add('cal-day--selected');
+    if (
+      key === scheduleState.selectedDate &&
+      scheduleDateInSameMonth(key, scheduleState.focusDate)
+    ) {
+      btn.classList.add('cal-day--selected');
+    }
 
     const num = document.createElement('span');
     num.className = 'cal-day-num';
@@ -11886,7 +11912,18 @@ function renderCalMonthView(parent) {
     handleSwipeGesture();
   }, { passive: true });
 
-  renderCalDayAgenda(parent, scheduleState.selectedDate, { showDayViewAction: true });
+  const displayDate = scheduleMonthDisplayDate(scheduleState.focusDate);
+  if (displayDate) {
+    renderCalDayAgenda(parent, displayDate, { showDayViewAction: true });
+  } else {
+    const wrap = document.createElement('div');
+    wrap.className = 'cal-day-agenda';
+    const empty = document.createElement('p');
+    empty.className = 'cal-day-agenda-empty';
+    empty.textContent = 'Select a day to view events.';
+    wrap.appendChild(empty);
+    parent.appendChild(wrap);
+  }
 }
 
 function scheduleBookingEndTime(booking) {
