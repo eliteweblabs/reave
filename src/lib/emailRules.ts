@@ -97,13 +97,13 @@ export const DEFAULT_RULES: EmailRule[] = [
     enabled: true,
   },
   {
-    status: 'DOWN',
-    description: 'UptimeRobot down alert — disabled; use uptime_monitoring + /api/uptime/webhook instead.',
-    phrases: ['UptimeRobot'],
+    status: 'AUTO_ARCHIVED',
+    description: 'UptimeRobot email alerts — silent; use uptime_monitoring + /api/uptime/webhook instead.',
+    phrases: ['UptimeRobot', 'alert@uptimerobot.com'],
     matchMode: 'any',
-    fields: ['subject', 'body'],
+    fields: ['from', 'subject', 'body'],
     notify: false,
-    enabled: false,
+    enabled: true,
   },
   {
     status: 'NEEDS_CHECK',
@@ -140,6 +140,14 @@ function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
   const haystack = rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
   const hits = rule.phrases.map((p) => haystack.includes(p.toLowerCase()));
   return rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
+}
+
+/** Whether inbound mail is a UptimeRobot notification (email path — webhooks are preferred). */
+export function isUptimeRobotEmail(
+  email: Pick<InboundEmail, 'from' | 'subject' | 'text'>,
+): boolean {
+  const hay = `${email.from}\n${email.subject}\n${email.text}`.toLowerCase();
+  return hay.includes('uptimerobot') || hay.includes('alert@uptimerobot.com');
 }
 
 /**

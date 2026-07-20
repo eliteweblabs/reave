@@ -109,6 +109,18 @@ function agentHistoryCap(): number | null {
 }
 
 const MAX_TURN_CHARS = 8_000;
+const MAX_TOOL_RESULT_CHARS = 12_000;
+const MAX_AGENT_TOOL_ROUNDS = 25;
+const MAX_SYSTEM_ALERT_TOOL_ROUNDS = 5;
+
+function truncateToolResult(content: string): string {
+  if (content.length <= MAX_TOOL_RESULT_CHARS) return content;
+  return `${content.slice(0, MAX_TOOL_RESULT_CHARS)}\n…[tool result truncated]`;
+}
+
+function agentMaxToolRounds(): number {
+  return getAgentContext().systemAlert ? MAX_SYSTEM_ALERT_TOOL_ROUNDS : MAX_AGENT_TOOL_ROUNDS;
+}
 
 function trimTurnsForAgent(turns: ChatTurn[]): ChatTurn[] {
   let out = turns.map((turn) => {
@@ -307,7 +319,7 @@ async function runKnowledgeAgentInner(opts: {
     { role: 'user', content: buildUserContentBlocks(userText, images) },
   ];
 
-  const maxRounds = 25;
+  const maxRounds = agentMaxToolRounds();
 
   const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
     const { userId, threadId } = getAgentContext();
@@ -349,7 +361,7 @@ async function runKnowledgeAgentInner(opts: {
             tool: block.name,
             toolLabel: labelForAgentTool(block.name),
           });
-          const out = await runTool(block.name, JSON.stringify(block.input ?? {}));
+          const out = truncateToolResult(await runTool(block.name, JSON.stringify(block.input ?? {})));
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
         }
       }

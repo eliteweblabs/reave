@@ -144,6 +144,7 @@ import { syncVapiAssistantBrand } from './vapiAssistantSync';
 import { isVapiAdminConfigured } from './vapiPlugin';
 import { storeCreateEmailRule, storeListEmailRules } from './emailRuleStore';
 import type { RuleField } from './emailRules';
+import { MAX_AGENT_EMAIL_BODY } from './emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from './lighthouseClient';
 import { sslCheck, formatSslCheckResults } from './sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
@@ -2732,6 +2733,14 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
       }
       const event = await storeGetEmailInbox(emailId);
       if (!event) return JSON.stringify({ error: 'not found', email_id: emailId });
+      const rawBody = event.bodyText?.trim() || event.bodySnippet?.trim() || '';
+      const bodyText =
+        rawBody.length > MAX_AGENT_EMAIL_BODY
+          ? `${rawBody.slice(0, MAX_AGENT_EMAIL_BODY)}\n…[truncated]`
+          : rawBody;
+      const headersJson = event.headers ? JSON.stringify(event.headers) : '';
+      const headers =
+        headersJson && headersJson.length > 4_000 ? undefined : event.headers;
       return JSON.stringify({
         id: event.id,
         from: event.from,
@@ -2743,9 +2752,10 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         subject: event.subject,
         category: event.category,
         summary: event.summary,
-        bodyText: event.bodyText,
+        bodyText,
         bodySnippet: event.bodySnippet,
-        headers: event.headers,
+        ...(headers ? { headers } : {}),
+        ...(headersJson.length > 4_000 ? { headers_note: 'Raw headers omitted (too large)' } : {}),
         routeNote: event.routeNote,
         receivedAt: event.receivedAt,
         jobSlug: event.jobSlug,
@@ -3808,7 +3818,11 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
             : 'both',
       });
       if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
-      return JSON.stringify({ summary: formatLighthouseResults(result), ...result });
+      return JSON.stringify({
+        summary: formatLighthouseResults(result),
+        url: result.url,
+        results: result.results,
+      });
     }
     if (name === 'ssl_check') {
       const url = String(args.url ?? '').trim();

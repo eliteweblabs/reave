@@ -4,7 +4,7 @@
 
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
-import { classifyEmail, type InboundEmail } from './emailRules';
+import { classifyEmail, isUptimeRobotEmail, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
@@ -616,7 +616,10 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       summary,
       emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] project reply agent alert failed', e));
-  } else if (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) {
+  } else if (
+    (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) &&
+    !(hasFeature('uptime_monitoring') && isUptimeRobotEmail(email))
+  ) {
     notifyAdminAgentOfEmailAlert({
       status: ruleResult.status,
       from,
