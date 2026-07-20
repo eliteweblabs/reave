@@ -3,6 +3,8 @@ dist/
 .DS_Store
 .env
 .env.local
+.env.railway
+.env.railway.postgres
 
 # Astro
 .astro/

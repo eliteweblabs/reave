@@ -2648,74 +2648,63 @@ function renderHomeDashboard(data) {
   eventsPanel.appendChild(eventsBody);
   scroll.appendChild(eventsPanel);
 
-  if (uptimeConfigured || uptimeSummary) {
-    const uptimePanel = document.createElement('section');
-    uptimePanel.className = 'dash-panel dash-uptime-panel';
-    uptimePanel.innerHTML =
-      `<div class="dash-panel-head">` +
-        `<h2 class="dash-panel-title">Site uptime</h2>` +
-        (uptimeSummary?.avg_uptime_7d != null
-          ? `<span class="dash-panel-note">${Number(uptimeSummary.avg_uptime_7d).toFixed(2)}% avg (7d)</span>`
-          : '') +
-      `</div>`;
-
-    if (!uptimeConfigured) {
-      const note = document.createElement('p');
-      note.className = 'dash-empty';
-      note.textContent = 'Set UPTIMEROBOT_API_KEY and add uptime_monitoring to FEATURES.';
-      uptimePanel.appendChild(note);
-    } else if (!uptimeSummary?.total) {
-      const note = document.createElement('p');
-      note.className = 'dash-empty';
-      note.textContent = 'No monitors synced yet — webhook or poll will populate this.';
-      uptimePanel.appendChild(note);
-    } else {
-      const list = document.createElement('ul');
-      list.className = 'dash-uptime-list';
-      const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
-      if (!monitors.length) {
-        const empty = document.createElement('p');
-        empty.className = 'dash-empty';
-        empty.textContent = 'Waiting for first sync…';
-        uptimePanel.appendChild(empty);
-      } else {
-        for (const m of monitors) {
-          const li = document.createElement('li');
-          const down = m.is_down || m.status === 8 || m.status === 9;
-          li.className = `dash-uptime-item${down ? ' dash-uptime-item--down' : ''}`;
-          li.innerHTML =
-            `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
-            `<div class="dash-uptime-body">` +
-              `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
-              `<div class="dash-uptime-meta">${escHtml(m.status === 2 ? 'up' : m.status === 8 || m.status === 9 ? 'down' : `status ${m.status}`)}` +
-                (m.uptime_ratio_7d != null ? ` · ${Number(m.uptime_ratio_7d).toFixed(2)}% (7d)` : '') +
-              `</div>` +
-            `</div>`;
-          list.appendChild(li);
-        }
-        uptimePanel.appendChild(list);
-      }
-
-      const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
-      if (recent.length) {
-        const incHead = document.createElement('h3');
-        incHead.className = 'dash-uptime-inc-head';
-        incHead.textContent = 'Recent incidents';
-        uptimePanel.appendChild(incHead);
-        const incList = document.createElement('ul');
-        incList.className = 'dash-uptime-incidents';
-        for (const inc of recent.slice(0, 5)) {
-          const li = document.createElement('li');
-          li.className = 'dash-uptime-incident';
-          li.innerHTML =
-            `<span class="dash-uptime-inc-title">${escHtml(inc.monitor_name || 'Monitor')} — ${escHtml(inc.alert_type || 'incident')}</span>` +
-            `<span class="dash-uptime-inc-when">${escHtml(formatEmailWhen(inc.created_at))}</span>`;
-          incList.appendChild(li);
-        }
-        uptimePanel.appendChild(incList);
-      }
+  if (uptimeConfigured) {
+    const list = document.createElement('ul');
+    list.className = 'dash-uptime-grid';
+    const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
+    for (const m of monitors) {
+      const li = document.createElement('li');
+      const down = m.is_down || m.status === 8 || m.status === 9;
+      const pct = m.uptime_ratio_7d != null ? `${Number(m.uptime_ratio_7d).toFixed(1)}%` : '';
+      li.className = `dash-uptime-tile${down ? ' dash-uptime-tile--down' : ''}`;
+      li.innerHTML =
+        `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
+        `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
+        `<div class="dash-uptime-meta">${escHtml(down ? 'down' : pct || 'up')}</div>`;
+      list.appendChild(li);
     }
-    scroll.appendChild(uptimePanel);
+
+    const addLi = document.createElement('li');
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'dash-uptime-tile dash-uptime-tile--add';
+    addBtn.innerHTML =
+      `<span class="dash-uptime-add-icon" aria-hidden="true">+</span>` +
+      `<div class="dash-uptime-name">Add site</div>`;
+    addBtn.addEventListener('click', () => showAddUptimeSiteDialog());
+    addLi.appendChild(addBtn);
+    list.appendChild(addLi);
+
+    const syncLi = document.createElement('li');
+    const syncBtn = document.createElement('button');
+    syncBtn.type = 'button';
+    syncBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync';
+    syncBtn.innerHTML =
+      `<span class="dash-uptime-add-icon" aria-hidden="true">↻</span>` +
+      `<div class="dash-uptime-name">Sync sites</div>`;
+    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms());
+    syncLi.appendChild(syncBtn);
+    list.appendChild(syncLi);
+    scroll.appendChild(list);
+
+    const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
+    if (recent.length) {
+      const incHead = document.createElement('h3');
+      incHead.className = 'dash-uptime-inc-head';
+      incHead.textContent = 'Recent incidents';
+      scroll.appendChild(incHead);
+      const incList = document.createElement('ul');
+      incList.className = 'dash-uptime-incidents';
+      for (const inc of recent.slice(0, 5)) {
+        const li = document.createElement('li');
+        li.className = 'dash-uptime-incident';
+        li.innerHTML =
+          `<span class="dash-uptime-inc-title">${escHtml(inc.monitor_name || 'Monitor')} — ${escHtml(inc.alert_type || 'incident')}</span>` +
+          `<span class="dash-uptime-inc-when">${escHtml(formatEmailWhen(inc.created_at))}</span>`;
+        incList.appendChild(li);
+      }
+      scroll.appendChild(incList);
+    }
   }
 
   const inboxPanel = document.createElement('section');
@@ -2764,6 +2753,147 @@ function renderHomeDashboard(data) {
   scroll.appendChild(grid);
 
   root.appendChild(scroll);
+}
+
+function showAddUptimeSiteDialog() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'Add site to UptimeRobot';
+    bodyEl.innerHTML =
+      '<p class="em-book-dialog-lead">Create an HTTP monitor with 5-minute checks.</p>' +
+      '<label class="de-label sched-create-field">' +
+        '<span>URL</span>' +
+        '<div class="control-field">' +
+          '<input id="uptime-add-url" type="url" inputmode="url" autocapitalize="none" autocomplete="url" placeholder="https://example.com" required>' +
+        '</div>' +
+      '</label>' +
+      '<label class="de-label sched-create-field">' +
+        '<span>Display name (optional)</span>' +
+        '<div class="control-field">' +
+          '<input id="uptime-add-name" type="text" autocapitalize="words" placeholder="example.com">' +
+        '</div>' +
+      '</label>';
+    actionsEl.innerHTML = '';
+
+    const urlInput = bodyEl.querySelector('#uptime-add-url');
+    const nameInput = bodyEl.querySelector('#uptime-add-name');
+
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
+    const addBtn = mkBtn('Add site', 'os-dialog-btn--primary', async () => {
+      const url = urlInput?.value.trim() || '';
+      if (!url) {
+        urlInput?.focus();
+        return;
+      }
+      addBtn.disabled = true;
+      addBtn.textContent = 'Adding…';
+      try {
+        const res = await fetch('/api/uptime/monitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            friendlyName: nameInput?.value.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        finish(true);
+        await loadHomeDashboard();
+      } catch (e) {
+        addBtn.disabled = false;
+        addBtn.textContent = 'Add site';
+        await osAlert({ title: 'Could not add site', bodyHtml: escHtml(e.message || String(e)) });
+      }
+    });
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, () => finish(false), true);
+    document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
+    urlInput?.focus();
+  });
+}
+
+async function syncUptimeSitesFromPlatforms() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  titleEl.textContent = 'Sync sites';
+  bodyEl.innerHTML = '<p class="em-book-dialog-lead">Checking Kinsta and Railway for URLs not yet in UptimeRobot…</p>';
+  actionsEl.innerHTML = '';
+  openOsDialogBackdrop();
+
+  try {
+    const res = await fetch('/api/uptime/sync', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || data.errors?.[0] || `HTTP ${res.status}`);
+
+    const createdLines = (data.createdItems || [])
+      .slice(0, 12)
+      .map((item) => `<li>${escHtml(item.friendlyName)} <span class="dash-muted-inline">(${escHtml(item.source)})</span></li>`)
+      .join('');
+    const warningLines = (data.warnings || [])
+      .slice(0, 6)
+      .map((msg) => `<li>${escHtml(msg)}</li>`)
+      .join('');
+    const errorLines = (data.errors || [])
+      .slice(0, 6)
+      .map((msg) => `<li>${escHtml(msg)}</li>`)
+      .join('');
+
+    bodyEl.innerHTML =
+      `<p><strong>${data.created}</strong> added · <strong>${data.skipped}</strong> already monitored · <strong>${data.discovered}</strong> found</p>` +
+      (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
+      (warningLines ? `<p class="dash-empty">Warnings</p><ul class="meeting-confirm-steps">${warningLines}</ul>` : '') +
+      (errorLines ? `<p class="dash-empty">Errors</p><ul class="meeting-confirm-steps">${errorLines}</ul>` : '');
+
+    actionsEl.innerHTML = '';
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'os-dialog-btn os-dialog-btn--primary';
+    closeBtn.textContent = 'Done';
+    closeBtn.addEventListener('click', async () => {
+      closeOsDialogBackdrop();
+      if (data.created > 0) await loadHomeDashboard();
+    });
+    actionsEl.appendChild(closeBtn);
+    closeBtn.focus();
+  } catch (e) {
+    closeOsDialogBackdrop();
+    await osAlert({ title: 'Sync failed', bodyHtml: escHtml(e.message || String(e)) });
+  }
 }
 
 async function loadHomeDashboard() {

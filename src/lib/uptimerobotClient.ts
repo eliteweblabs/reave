@@ -30,6 +30,10 @@ export type UptimeRobotMonitorsResult =
   | { ok: true; monitors: UptimeRobotMonitor[] }
   | { ok: false; error: string };
 
+export type UptimeRobotNewMonitorResult =
+  | { ok: true; monitorId: number }
+  | { ok: false; error: string };
+
 function apiKey(): string | null {
   return serverEnv('UPTIMEROBOT_API_KEY')?.trim() || null;
 }
@@ -108,6 +112,69 @@ export async function urGetMonitors(opts?: {
     }
 
     return { ok: true, monitors: data.monitors ?? [] };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+/** HTTP(S) monitor type — UptimeRobot API v2. */
+export const UPTIME_MONITOR_TYPE_HTTP = 1;
+
+export function normalizeUptimeMonitorUrl(raw: string): string {
+  let url = raw.trim();
+  if (!url) return url;
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  return url;
+}
+
+export function defaultUptimeFriendlyName(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+  }
+}
+
+export async function urNewMonitor(opts: {
+  url: string;
+  friendlyName?: string;
+  type?: number;
+}): Promise<UptimeRobotNewMonitorResult> {
+  const key = apiKey();
+  if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
+
+  const url = normalizeUptimeMonitorUrl(opts.url);
+  if (!url) return { ok: false, error: 'url is required' };
+
+  const friendlyName = opts.friendlyName?.trim() || defaultUptimeFriendlyName(url);
+
+  const body = new URLSearchParams({
+    api_key: key,
+    format: 'json',
+    type: String(opts.type ?? UPTIME_MONITOR_TYPE_HTTP),
+    url,
+    friendly_name: friendlyName,
+  });
+
+  try {
+    const res = await fetch('https://api.uptimerobot.com/v2/newMonitor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const data = (await res.json()) as {
+      stat?: string;
+      error?: { message?: string };
+      monitor?: { id?: number };
+    };
+
+    if (!res.ok || data.stat !== 'ok' || !data.monitor?.id) {
+      const msg = data.error?.message || `HTTP ${res.status}`;
+      return { ok: false, error: msg };
+    }
+
+    return { ok: true, monitorId: data.monitor.id };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };

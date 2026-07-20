@@ -437,3 +437,50 @@ export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {
   }
   return lines.join('\n');
 }
+
+function normalizeDomainKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/+$/, '');
+}
+
+/** Public site URLs from Kinsta primary domains (all environments). */
+export async function kinstaCollectMonitorUrls(): Promise<
+  | { ok: true; urls: Array<{ url: string; friendlyName: string }> }
+  | { ok: false; error: string }
+> {
+  if (!isKinstaConfigured()) {
+    return { ok: false, error: 'KINSTA_API_KEY or KINSTA_COMPANY_ID is not set' };
+  }
+
+  const listed = await kinstaListSites({ includeEnvironments: true });
+  if (!listed.ok) return { ok: false, error: listed.error };
+
+  const urls: Array<{ url: string; friendlyName: string }> = [];
+  const seen = new Set<string>();
+
+  for (const site of listed.sites) {
+    const siteLabel = site.display_name || site.name;
+    for (const env of site.environments) {
+      const domain = env.primary_domain?.trim();
+      if (!domain) continue;
+      const key = normalizeDomainKey(domain);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      const envLabel = env.display_name || env.name;
+      const friendlyName =
+        envLabel && envLabel.toLowerCase() !== 'live' && envLabel.toLowerCase() !== siteLabel.toLowerCase()
+          ? `${siteLabel} (${envLabel})`
+          : siteLabel;
+      urls.push({
+        url: domain.startsWith('http') ? domain : `https://${domain}`,
+        friendlyName,
+      });
+    }
+  }
+
+  return { ok: true, urls };
+}

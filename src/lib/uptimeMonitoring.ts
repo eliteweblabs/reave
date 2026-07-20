@@ -4,6 +4,8 @@
 import { postToSystemAlertsThread } from './adminAgentAlert';
 import { listContacts, type ClientPortal } from './contactApi';
 import { hasFeature } from './features';
+import { isKinstaConfigured, kinstaCollectMonitorUrls } from './kinstaClient';
+import { isRailwayConfigured, railwayCollectMonitorUrls } from './railwayClient';
 import {
   dbGetOpenIncident,
   dbGetUptimeMonitor,
@@ -27,6 +29,8 @@ import {
   isUptimeRobotConfigured,
   parseCustomUptimeRatios,
   urGetMonitors,
+  urNewMonitor,
+  normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
   uptimeStatusLabel,
   UPTIME_MONITOR_STATUS,
@@ -270,6 +274,172 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
   }
 
   return { ok: true, synced };
+}
+
+export async function createUptimeMonitor(opts: {
+  url: string;
+  friendlyName?: string;
+}): Promise<{ ok: true; monitor: UptimeMonitorRow } | { ok: false; error: string }> {
+  if (!hasFeature('uptime_monitoring')) {
+    return { ok: false, error: 'uptime_monitoring not enabled' };
+  }
+  if (!isUptimeRobotConfigured()) {
+    return { ok: false, error: 'UPTIMEROBOT_API_KEY not configured' };
+  }
+  if (!isUptimeDbConfigured()) {
+    return { ok: false, error: 'DATABASE_URL not configured' };
+  }
+
+  const url = normalizeUptimeMonitorUrl(opts.url);
+  if (!url) return { ok: false, error: 'url is required' };
+
+  const created = await urNewMonitor({ url, friendlyName: opts.friendlyName });
+  if (!created.ok) return { ok: false, error: created.error };
+
+  const api = await urGetMonitors({ monitorIds: [created.monitorId], customUptimeRatios: '7-30' });
+  if (api.ok && api.monitors[0]) {
+    const row = await upsertMonitorFromApi(api.monitors[0]);
+    if (row) return { ok: true, monitor: row };
+  }
+
+  const clientUid = await resolveClientUidForMonitor(url, created.monitorId);
+  const row = await dbUpsertUptimeMonitor({
+    id: created.monitorId,
+    friendly_name: opts.friendlyName?.trim() || url,
+    url,
+    status: UPTIME_MONITOR_STATUS.NOT_CHECKED,
+    uptime_ratio_7d: null,
+    uptime_ratio_30d: null,
+    client_uid: clientUid,
+  });
+  if (!row) return { ok: false, error: 'Monitor created but failed to save locally' };
+  return { ok: true, monitor: row };
+}
+
+export type UptimePlatformSyncItem = {
+  url: string;
+  friendlyName: string;
+  source: 'kinsta' | 'railway';
+};
+
+export type UptimePlatformSyncResult = {
+  ok: boolean;
+  discovered: number;
+  created: number;
+  skipped: number;
+  warnings: string[];
+  errors: string[];
+  createdItems: UptimePlatformSyncItem[];
+};
+
+export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResult> {
+  const empty: UptimePlatformSyncResult = {
+    ok: false,
+    discovered: 0,
+    created: 0,
+    skipped: 0,
+    warnings: [],
+    errors: [],
+    createdItems: [],
+  };
+
+  if (!hasFeature('uptime_monitoring')) {
+    return { ...empty, errors: ['uptime_monitoring not enabled'] };
+  }
+  if (!isUptimeRobotConfigured()) {
+    return { ...empty, errors: ['UPTIMEROBOT_API_KEY not configured'] };
+  }
+  if (!isUptimeDbConfigured()) {
+    return { ...empty, errors: ['DATABASE_URL not configured'] };
+  }
+
+  const existing = new Set<string>();
+  const api = await urGetMonitors({ customUptimeRatios: '7-30' });
+  if (api.ok) {
+    for (const monitor of api.monitors) {
+      const key = normalizeUrl(monitor.url);
+      if (key) existing.add(key);
+    }
+  } else {
+    return { ...empty, errors: [`UptimeRobot: ${api.error}`] };
+  }
+
+  const candidates: UptimePlatformSyncItem[] = [];
+  const warnings: string[] = [];
+
+  if (isKinstaConfigured()) {
+    const kinsta = await kinstaCollectMonitorUrls();
+    if (kinsta.ok) {
+      for (const item of kinsta.urls) {
+        candidates.push({ ...item, source: 'kinsta' });
+      }
+    } else {
+      warnings.push(`Kinsta: ${kinsta.error}`);
+    }
+  }
+
+  if (isRailwayConfigured()) {
+    const railway = await railwayCollectMonitorUrls();
+    if (railway.ok) {
+      for (const item of railway.urls) {
+        candidates.push({ ...item, source: 'railway' });
+      }
+      warnings.push(...railway.warnings);
+    } else {
+      warnings.push(`Railway: ${railway.error}`);
+    }
+  }
+
+  if (!isKinstaConfigured() && !isRailwayConfigured()) {
+    return {
+      ...empty,
+      errors: ['Neither Kinsta nor Railway is configured on this service'],
+    };
+  }
+
+  const seen = new Set<string>();
+  const unique: UptimePlatformSyncItem[] = [];
+  for (const item of candidates) {
+    const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    unique.push(item);
+  }
+
+  let created = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+  const createdItems: UptimePlatformSyncItem[] = [];
+
+  for (const item of unique) {
+    const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
+    if (key && existing.has(key)) {
+      skipped += 1;
+      continue;
+    }
+
+    const result = await createUptimeMonitor({
+      url: item.url,
+      friendlyName: item.friendlyName,
+    });
+    if (result.ok) {
+      created += 1;
+      if (key) existing.add(key);
+      createdItems.push(item);
+    } else {
+      errors.push(`${item.friendlyName}: ${result.error}`);
+    }
+  }
+
+  return {
+    ok: created > 0 || errors.length === 0,
+    discovered: unique.length,
+    created,
+    skipped,
+    warnings,
+    errors,
+    createdItems,
+  };
 }
 
 export async function handleUptimeWebhook(payload: UptimeWebhookPayload): Promise<{

@@ -5437,7 +5437,73 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-weight: 600;
         cursor: pointer;
       }
-      .dash-uptime-list, .dash-uptime-incidents {
+      .dash-uptime-grid {
+        list-style: none;
+        margin: 0 0 1.35rem;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+      @media (min-width: 640px) {
+        .dash-uptime-grid {
+          grid-template-columns: repeat(16, minmax(0, 1fr));
+          gap: 0.35rem;
+        }
+      }
+      .dash-uptime-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        min-width: 0;
+        padding: 0.45rem 0.4rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--surface-muted);
+      }
+      .dash-uptime-tile--down {
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.35);
+      }
+      #home-dashboard button.dash-uptime-tile {
+        width: 100%;
+        border-radius: 10px;
+        font: inherit;
+        color: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+      .dash-uptime-tile--add {
+        border-style: dashed;
+        background: transparent;
+        color: var(--muted);
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 3.25rem;
+      }
+      .dash-uptime-tile--add:hover {
+        border-color: var(--border-hover);
+        background: var(--surface-hover-strong);
+        color: var(--fg-secondary);
+      }
+      .dash-uptime-tile--add .dash-uptime-name {
+        text-align: center;
+      }
+      .dash-uptime-add-icon {
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 1;
+      }
+      .dash-uptime-tile--sync .dash-uptime-add-icon {
+        font-size: 1rem;
+      }
+      .dash-muted-inline {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .dash-uptime-incidents {
         list-style: none;
         margin: 0;
         padding: 0;
@@ -5445,7 +5511,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         overflow: hidden;
         border: 1px solid var(--border);
       }
-      .dash-uptime-item, .dash-uptime-incident {
+      .dash-uptime-incident {
         display: flex;
         align-items: flex-start;
         gap: 0.55rem;
@@ -5453,22 +5519,45 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         background: var(--card);
         border-top: 1px solid var(--border);
       }
-      .dash-uptime-item:first-child, .dash-uptime-incident:first-child { border-top: none; }
-      .dash-uptime-item--down { background: rgba(248, 113, 113, 0.08); }
+      .dash-uptime-incident:first-child { border-top: none; }
       .dash-uptime-dot {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        margin-top: 0.35rem;
         background: #3fb950;
         flex-shrink: 0;
       }
-      .dash-uptime-item--down .dash-uptime-dot { background: #f85149; }
-      .dash-uptime-body { min-width: 0; }
-      .dash-uptime-name { font-size: 0.82rem; font-weight: 600; }
-      .dash-uptime-meta { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+      .dash-uptime-tile--down .dash-uptime-dot { background: #f85149; }
+      .dash-uptime-name {
+        font-size: 0.68rem;
+        font-weight: 600;
+        line-height: 1.2;
+        min-width: 0;
+        max-width: 100%;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dash-uptime-meta {
+        font-size: 0.62rem;
+        color: var(--muted);
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+      }
+      @media (min-width: 640px) {
+        .dash-uptime-tile {
+          padding: 0.35rem 0.3rem;
+        }
+        .dash-uptime-name {
+          font-size: 0.58rem;
+        }
+        .dash-uptime-meta {
+          font-size: 0.52rem;
+        }
+      }
       .dash-uptime-inc-head {
-        margin: 0.85rem 0 0.35rem;
+        margin: 0 0 0.35rem;
         font-size: 0.68rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;

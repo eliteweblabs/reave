@@ -390,3 +390,57 @@ export function formatRailwayNetworkingSummary(data: RailwayProjectNetworking): 
 
   return lines.join('\n').trim();
 }
+
+function normalizeDomainKey(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/+$/, '');
+}
+
+/** Public URLs from Railway production domains across all projects. */
+export async function railwayCollectMonitorUrls(): Promise<
+  | { ok: true; urls: Array<{ url: string; friendlyName: string }>; warnings: string[] }
+  | { ok: false; error: string }
+> {
+  if (!isRailwayConfigured()) {
+    return { ok: false, error: 'RAILWAY_API_TOKEN is not set' };
+  }
+
+  const listed = await railwayListProjectNames();
+  if (!listed.ok) return { ok: false, error: listed.error };
+
+  const urls: Array<{ url: string; friendlyName: string }> = [];
+  const warnings: string[] = [];
+  const seen = new Set<string>();
+
+  for (const project of listed.projects) {
+    const net = await railwayListProjectNetworking({ project: project.id, environment: 'production' });
+    if (!net.ok) {
+      warnings.push(`${project.name}: ${net.error}`);
+      continue;
+    }
+
+    for (const svc of net.data.services) {
+      const domains = [
+        ...svc.railway_domains.map((d) => d.domain),
+        ...svc.custom_domains.map((d) => d.domain),
+      ];
+      for (const domain of domains) {
+        const trimmed = domain?.trim();
+        if (!trimmed) continue;
+        const key = normalizeDomainKey(trimmed);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        urls.push({
+          url: trimmed.startsWith('http') ? trimmed : `https://${trimmed}`,
+          friendlyName: `${project.name} / ${svc.service_name}`,
+        });
+      }
+    }
+  }
+
+  return { ok: true, urls, warnings };
+}
