@@ -14832,14 +14832,58 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   uploadInput.accept = 'image/jpeg,image/png,image/gif,image/webp,application/pdf';
   uploadInput.multiple = true;
   uploadInput.className = 'wk-files-input';
+  const downloadAllBtn = document.createElement('button');
+  downloadAllBtn.type = 'button';
+  downloadAllBtn.className = 'de-btn de-btn-secondary';
+  downloadAllBtn.textContent = 'Download all';
+  downloadAllBtn.disabled = !(initialFiles?.length);
+  downloadAllBtn.addEventListener('click', async () => {
+    if (!currentFiles.length) return;
+    downloadAllBtn.disabled = true;
+    const label = downloadAllBtn.textContent;
+    downloadAllBtn.textContent = 'Preparing…';
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files/download-all`, {
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const data = await res.json();
+          if (data.error) msg = data.error;
+        } catch {
+          /* binary or empty */
+        }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${slug}-files.zip`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      alert(`Download failed: ${e.message}`);
+    } finally {
+      downloadAllBtn.textContent = label;
+      downloadAllBtn.disabled = !currentFiles.length;
+    }
+  });
   const uploadBtn = document.createElement('button');
   uploadBtn.type = 'button';
   uploadBtn.className = 'de-btn de-btn-secondary';
   uploadBtn.textContent = 'Upload files';
   uploadBtn.addEventListener('click', () => uploadInput.click());
+  uploadRow.appendChild(downloadAllBtn);
   uploadRow.appendChild(uploadInput);
   uploadRow.appendChild(uploadBtn);
   section.appendChild(uploadRow);
+
+  let currentFiles = initialFiles || [];
 
   function formatFileSize(bytes) {
     const n = Number(bytes) || 0;
@@ -14848,7 +14892,35 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     return `${(n / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  function projectFileAbsoluteUrl(file) {
+    return new URL(file.url, window.location.origin).href;
+  }
+
+  async function downloadProjectFile(file, btn) {
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(file.url, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = file.filename || 'download';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      alert(`Download failed: ${e.message}`);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function renderFiles(files) {
+    currentFiles = files || [];
+    downloadAllBtn.disabled = !currentFiles.length;
     grid.innerHTML = '';
     if (!files?.length) {
       const empty = document.createElement('div');
@@ -14886,32 +14958,48 @@ function mountWorkFilesSection(container, slug, initialFiles) {
 
       const actions = document.createElement('div');
       actions.className = 'wk-file-actions';
-      const openBtn = document.createElement('a');
-      openBtn.className = 'wk-file-open';
-      openBtn.href = file.url;
-      openBtn.target = '_blank';
-      openBtn.rel = 'noopener';
-      openBtn.textContent = 'Open';
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.className = 'wk-file-delete';
-      delBtn.textContent = 'Delete';
-      delBtn.addEventListener('click', async () => {
-        if (!confirm(`Delete ${file.filename}?`)) return;
-        delBtn.disabled = true;
-        try {
-          const res = await fetch(file.url, { method: 'DELETE' });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-          const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, { cache: 'no-store' });
-          const listData = await listRes.json();
-          renderFiles(listData.files || []);
-        } catch (e) {
-          alert(`Failed to delete: ${e.message}`);
-          delBtn.disabled = false;
-        }
+
+      const copyLinkBtn = createIosIconBtn({
+        iconKey: 'link',
+        label: 'Copy link',
+        className: 'ios-icon-btn wk-file-icon-btn',
+        onClick: (btn) => {
+          const url = projectFileAbsoluteUrl(file);
+          navigator.clipboard.writeText(url).then(
+            () => showChatToast('Link copied', btn),
+            () => osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
+          );
+        },
       });
-      actions.appendChild(openBtn);
+
+      const downloadBtn = createIosIconBtn({
+        iconKey: 'download',
+        label: `Download ${file.filename || 'file'}`,
+        className: 'ios-icon-btn wk-file-icon-btn',
+        onClick: (btn) => downloadProjectFile(file, btn),
+      });
+
+      const delBtn = createIosIconBtn({
+        iconKey: 'trash',
+        label: `Delete ${file.filename || 'file'}`,
+        className: 'ios-icon-btn wk-file-icon-btn wk-file-delete-btn',
+        confirmDelete: true,
+        onClick: async () => {
+          try {
+            const res = await fetch(file.url, { method: 'DELETE' });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+            const listRes = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, { cache: 'no-store' });
+            const listData = await listRes.json();
+            renderFiles(listData.files || []);
+          } catch (e) {
+            alert(`Failed to delete: ${e.message}`);
+          }
+        },
+      });
+
+      actions.appendChild(copyLinkBtn);
+      actions.appendChild(downloadBtn);
       actions.appendChild(delBtn);
       card.appendChild(actions);
       grid.appendChild(card);
