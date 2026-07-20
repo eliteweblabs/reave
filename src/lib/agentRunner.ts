@@ -16,6 +16,7 @@ import { serverEnv } from './serverEnv';
 import type { ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent } from './chatTypes';
 import type { ChatTurn } from './chatTypes';
+import { userMessageDisplayText } from './chatMessageFormat';
 import {
   ANTHROPIC_PROMPT_CACHE,
   cachedSystemBlocks,
@@ -99,13 +100,45 @@ function runtimeContextLine(model: string): string {
   ].join('\n');
 }
 
+function agentHistoryCap(): number | null {
+  const raw = import.meta.env.AGENT_CHAT_HISTORY_TURNS;
+  if (!raw?.trim()) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+const MAX_TURN_CHARS = 8_000;
+
+function trimTurnsForAgent(turns: ChatTurn[]): ChatTurn[] {
+  let out = turns.map((turn) => {
+    let content = turn.content;
+    if (turn.role === 'user') {
+      const { text } = parseChatMessageContent(content);
+      content = userMessageDisplayText(text);
+    }
+    if (content.length > MAX_TURN_CHARS) {
+      content = `${content.slice(0, MAX_TURN_CHARS)}\n…[turn truncated]`;
+    }
+    return { role: turn.role, content };
+  });
+  const cap = agentHistoryCap();
+  if (cap != null && out.length > cap) out = out.slice(-cap);
+  return out;
+}
+
 async function linkedEmailContextLine(emailId: string): Promise<string | null> {
   const email = await storeGetEmailInbox(emailId.trim());
   if (!email) return null;
-  const lines = [
-    'This chat is linked to an inbox email. The full message (headers + body) is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
-    'The user sent you this email so you have it on hand — they have NOT yet told you what to do with it. Do not decide on your own or take any action (do not archive, junk, label, reply, create projects, or run inbox tools) unless the user explicitly asks. Briefly acknowledge you have the email and wait for their instructions. Do not recap the email body back to the user.',
-  ];
+  const ctx = getAgentContext();
+  const lines = ctx.systemAlert
+    ? [
+        'Automated system alert linked to the inbox email below. Recommend concrete next steps; use inbox tools when appropriate.',
+      ]
+    : [
+        'This chat is linked to an inbox email. The message body is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
+        'The user sent you this email so you have it on hand — they have NOT yet told you what to do with it. Do not decide on your own or take any action (do not archive, junk, label, reply, create projects, or run inbox tools) unless the user explicitly asks. Briefly acknowledge you have the email and wait for their instructions. Do not recap the email body back to the user.',
+      ];
   if (email.contactName) lines.push(`Client: ${email.contactName}`);
   if (email.jobSlug || email.jobTitle) {
     lines.push(
@@ -117,7 +150,11 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
       'No linked project yet. Use resolve_contact / create_work if this should become a new project.',
     );
   }
-  lines.push(formatEmailForAgent(email));
+  if (ctx.systemAlert) {
+    lines.push(`Message ID: ${email.id} (email body is in the alert message above)`);
+  } else {
+    lines.push(formatEmailForAgent(email));
+  }
   return lines.join('\n\n');
 }
 
@@ -263,7 +300,7 @@ async function runKnowledgeAgentInner(opts: {
   const system = cachedSystemBlocks(sysParts.join('\n'), runtimeContextLine(model));
   const cachedTools = withToolPromptCaching(tools);
   const messages: AnthropicMessage[] = [
-    ...priorTurns.map((turn) => ({
+    ...trimTurnsForAgent(priorTurns).map((turn) => ({
       role: turn.role,
       content: anthropicContentFromStored(turn.content, turn.role),
     })),

@@ -6,16 +6,14 @@ import { serverEnv } from './serverEnv';
 import {
   storeAppendChatMessages,
   storeCreateChatThread,
-  storeGetChatThread,
   storeListChatThreads,
   storeUpdateChatTitle,
 } from './chatStore';
 import { runKnowledgeAgent } from './agentRunner';
 import { prependDeployBanner } from './deployStatus';
-import type { ChatTurn } from './chatTypes';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
-import { formatEmailChatReference } from './emailAgentContext';
+import { formatEmailChatReferenceWithBody } from './emailAgentContext';
 
 const ALERT_THREAD_TITLE = 'System alerts';
 
@@ -55,11 +53,8 @@ export async function postToSystemAlertsThread(opts: {
       return;
     }
 
-    const thread = await storeGetChatThread(userId, threadId);
-    const priorTurns: ChatTurn[] = (thread?.messages ?? []).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    const priorTurns: { role: 'user' | 'assistant'; content: string }[] = [];
+    // System alerts are standalone events — replaying the whole thread blows the prompt.
 
     const autoRun = opts.autoRun !== false && serverEnv('AGENT_ALERT_AUTO_RUN') !== '0';
 
@@ -67,7 +62,9 @@ export async function postToSystemAlertsThread(opts: {
       let reply = await runKnowledgeAgent({
         userText: opts.message,
         priorTurns,
-        context: opts.emailId ? { userId, emailId: opts.emailId } : { userId },
+        context: opts.emailId
+          ? { userId, emailId: opts.emailId, systemAlert: true }
+          : { userId, systemAlert: true },
       });
       reply = await prependDeployBanner(reply, { userText: opts.message });
       await storeAppendChatMessages(userId, threadId, [
@@ -111,13 +108,13 @@ async function formatAlertMessage(opts: {
     `Status: ${opts.status}`,
     railway
       ? 'Call check_deployment_status and get_git_status now. Distinguish rollout teardown vs a real crash, summarize what you found, and suggest next steps. You cannot fetch Railway logs via API — only mention dashboard logs if tools leave the cause unclear.'
-      : 'Read the linked email (full content is in context) and suggest concrete next steps.',
+      : 'Read the linked email below and suggest concrete next steps.',
   ];
 
   if (opts.emailId) {
     const stored = await storeGetEmailInbox(opts.emailId);
     if (stored) {
-      lines.push('', formatEmailChatReference(stored));
+      lines.push('', formatEmailChatReferenceWithBody(stored));
       return lines.join('\n');
     }
   }
@@ -147,13 +144,13 @@ export async function notifyAdminAgentOfProjectReply(opts: {
     `Client: ${opts.contactName}`,
     `Project: ${opts.jobTitle}`,
     '',
-    'This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the project if needed, and do not ask what project they mean — the full email is in context.',
+    'This is new work that needs ASAP follow-up. Recommend immediate next steps (reply draft, call, scope update, invoice, schedule), link to the project if needed, and do not ask what project they mean — the email body is below.',
   ];
 
   if (opts.emailId) {
     const stored = await storeGetEmailInbox(opts.emailId);
     if (stored) {
-      messageLines.push('', formatEmailChatReference(stored));
+      messageLines.push('', formatEmailChatReferenceWithBody(stored));
     }
   } else if (opts.summary.trim()) {
     messageLines.push('', opts.summary.trim());

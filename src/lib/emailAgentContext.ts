@@ -1,5 +1,13 @@
 import type { EmailInboxRecord } from './emailInboxStore';
 
+/** Max body chars injected into agent prompts (full mail stays in DB / read_email_inbox). */
+export const MAX_AGENT_EMAIL_BODY = 12_000;
+
+function truncateForAgent(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n…[truncated at ${max} chars — use read_email_inbox for full content]`;
+}
+
 function joinAddrs(addrs: string[] | undefined): string | null {
   if (!addrs?.length) return null;
   return addrs.join(', ');
@@ -32,37 +40,45 @@ export function formatEmailChatReference(
   ].join('\n');
 }
 
-/** Full email + headers formatted for the agent (not a recap prompt). */
-export function formatEmailForAgent(email: EmailInboxRecord): string {
+/** Body (+ optional summary) for agent prompts — skips headers already shown in chat. */
+export function formatEmailBodyForAgent(
+  email: Pick<EmailInboxRecord, 'bodyText' | 'bodySnippet' | 'summary'>,
+  maxBody = MAX_AGENT_EMAIL_BODY,
+): string {
+  const body = email.bodyText?.trim() || email.bodySnippet?.trim() || '';
+  const summary = email.summary?.trim() || '';
+  if (summary && body && summary !== body && !body.startsWith(summary)) {
+    return ['Summary:', summary, '', 'Body:', truncateForAgent(body, maxBody)].join('\n');
+  }
+  if (body) return truncateForAgent(body, maxBody);
+  if (summary) return summary;
+  return '(no body text)';
+}
+
+/** Chat-visible reference with a trimmed body preview. */
+export function formatEmailChatReferenceWithBody(
+  email: Pick<EmailInboxRecord, 'from' | 'subject' | 'receivedAt' | 'bodyText' | 'bodySnippet' | 'summary'>,
+  maxBody = 4_000,
+): string {
+  const lines = [formatEmailChatReference(email), ''];
+  const body = formatEmailBodyForAgent(email, maxBody);
+  lines.push(body);
+  return lines.join('\n');
+}
+
+/** Lean email context for the agent — metadata + trimmed body, no raw header dump. */
+export function formatEmailForAgent(email: EmailInboxRecord, maxBody = MAX_AGENT_EMAIL_BODY): string {
   const lines = [
     `Message ID: ${email.id}`,
     `From: ${email.from || '(unknown)'}`,
   ];
   const to = joinAddrs(email.to);
   if (to) lines.push(`To: ${to}`);
-  const cc = joinAddrs(email.cc);
-  if (cc) lines.push(`Cc: ${cc}`);
-  const bcc = joinAddrs(email.bcc);
-  if (bcc) lines.push(`Bcc: ${bcc}`);
   const replyTo = joinAddrs(email.replyTo);
   if (replyTo) lines.push(`Reply-To: ${replyTo}`);
-  if (email.messageId) lines.push(`Message-ID: ${email.messageId}`);
   lines.push(`Subject: ${email.subject || '(no subject)'}`);
-  lines.push(`Received: ${email.receivedAt}`);
   if (email.category) lines.push(`Category: ${email.category}`);
   if (email.routeNote) lines.push(`Route: ${email.routeNote}`);
-  if (email.summary?.trim()) {
-    lines.push('', 'Summary:', email.summary.trim());
-  }
-  if (email.headers && Object.keys(email.headers).length > 0) {
-    lines.push('', 'Headers:');
-    for (const [key, value] of Object.entries(email.headers)) {
-      lines.push(`${key}: ${value}`);
-    }
-  }
-  const body = email.bodyText?.trim() || email.bodySnippet?.trim();
-  if (body) {
-    lines.push('', 'Body:', body);
-  }
+  lines.push('', formatEmailBodyForAgent(email, maxBody));
   return lines.join('\n');
 }
