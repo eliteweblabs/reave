@@ -333,6 +333,30 @@ function paneShareIcon({ label, onClick }) {
   });
 }
 
+function deBtnIconSvg(iconKey, size = 16) {
+  const svg = IOS_ICONS[iconKey];
+  if (!svg) return '';
+  return svg.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
+}
+
+function setDeBtnLabel(btn, label, iconKey) {
+  const key = iconKey ?? btn.dataset.deBtnIcon ?? '';
+  if (iconKey) btn.dataset.deBtnIcon = iconKey;
+  btn.innerHTML =
+    (key ? `<span class="de-btn-icon" aria-hidden="true">${deBtnIconSvg(key)}</span>` : '') +
+    `<span class="de-btn-label">${label}</span>`;
+}
+
+function getDeBtnLabel(btn) {
+  return btn.querySelector('.de-btn-label')?.textContent?.trim() || '';
+}
+
+function updateDeBtnLabel(btn, label) {
+  const el = btn.querySelector('.de-btn-label');
+  if (el) el.textContent = label;
+  else btn.textContent = label;
+}
+
 function todoChipHtml(checked) {
   return navIcon(checked ? 'check-square' : 'square', 14);
 }
@@ -10204,15 +10228,17 @@ function mountWorkCommentsSection(pane, slug) {
       replyLabel.appendChild(replyTa);
       wrap.appendChild(replyLabel);
 
+      const replyActions = document.createElement('div');
+      replyActions.className = 'wk-reply-actions';
       const replyBtn = document.createElement('button');
       replyBtn.type = 'button';
-      replyBtn.className = 'de-btn de-btn-primary';
-      replyBtn.textContent = 'Post reply';
+      replyBtn.className = 'de-btn de-btn-primary de-btn-with-icon';
+      setDeBtnLabel(replyBtn, 'Post reply', 'send');
       replyBtn.addEventListener('click', async () => {
         const text = replyTa.value.trim();
         if (!text) { replyTa.focus(); return; }
         replyBtn.disabled = true;
-        replyBtn.textContent = 'Posting…';
+        updateDeBtnLabel(replyBtn, 'Posting…');
         try {
           const res = await fetch(`/api/work/${encodeURIComponent(slug)}/comments`, {
             method: 'POST',
@@ -10229,10 +10255,11 @@ function mountWorkCommentsSection(pane, slug) {
           alert(`Failed to post reply: ${e.message}`);
         } finally {
           replyBtn.disabled = false;
-          replyBtn.textContent = 'Post reply';
+          updateDeBtnLabel(replyBtn, 'Post reply');
         }
       });
-      wrap.appendChild(replyBtn);
+      replyActions.appendChild(replyBtn);
+      wrap.appendChild(replyActions);
     })
     .catch(() => {
       wrap.innerHTML = '';
@@ -14834,14 +14861,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
   uploadInput.className = 'wk-files-input';
   const downloadAllBtn = document.createElement('button');
   downloadAllBtn.type = 'button';
-  downloadAllBtn.className = 'de-btn de-btn-secondary';
-  downloadAllBtn.textContent = 'Download all';
+  downloadAllBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+  setDeBtnLabel(downloadAllBtn, 'Download all', 'download');
   downloadAllBtn.disabled = !(initialFiles?.length);
   downloadAllBtn.addEventListener('click', async () => {
     if (!currentFiles.length) return;
     downloadAllBtn.disabled = true;
-    const label = downloadAllBtn.textContent;
-    downloadAllBtn.textContent = 'Preparing…';
+    const label = getDeBtnLabel(downloadAllBtn);
+    updateDeBtnLabel(downloadAllBtn, 'Preparing…');
     try {
       const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files/download-all`, {
         credentials: 'same-origin',
@@ -14869,14 +14896,14 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     } catch (e) {
       alert(`Download failed: ${e.message}`);
     } finally {
-      downloadAllBtn.textContent = label;
+      updateDeBtnLabel(downloadAllBtn, label);
       downloadAllBtn.disabled = !currentFiles.length;
     }
   });
   const uploadBtn = document.createElement('button');
   uploadBtn.type = 'button';
-  uploadBtn.className = 'de-btn de-btn-secondary';
-  uploadBtn.textContent = 'Upload files';
+  uploadBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+  setDeBtnLabel(uploadBtn, 'Upload files', 'share');
   uploadBtn.addEventListener('click', () => uploadInput.click());
   uploadRow.appendChild(downloadAllBtn);
   uploadRow.appendChild(uploadInput);
@@ -14977,7 +15004,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
     uploadInput.value = '';
     if (!files.length) return;
     uploadBtn.disabled = true;
-    uploadBtn.textContent = 'Uploading…';
+    updateDeBtnLabel(uploadBtn, 'Uploading…');
     try {
       for (const file of files) {
         const form = new FormData();
@@ -14996,7 +15023,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
       alert(`Upload failed: ${e.message}`);
     } finally {
       uploadBtn.disabled = false;
-      uploadBtn.textContent = 'Upload files';
+      updateDeBtnLabel(uploadBtn, 'Upload files');
     }
   });
 
