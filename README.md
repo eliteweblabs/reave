@@ -198,7 +198,7 @@ All commands are run from the root of the project, from a terminal:
 
 ## Admin agent (Claude tool loop)
 
-Bundled markdown lives in `src/knowledge/*.md`. The **/admin → Chats** tab runs an Anthropic agent with tools for knowledge, contacts, jobs, billing, email inbox actions, and dev ops. See `src/lib/agentTools.ts`.
+Core bundled markdown lives in `src/knowledge/*.md`; plugin playbooks live in `plugins/{id}/knowledge/`. The **/admin → Chats** tab runs an Anthropic agent with core tools plus feature-gated plugin modules. See `src/lib/agentTools/` and `src/lib/pluginRegistry.ts`.
 
 **Inbound email triage** runs inside this app: mail arrives via a **Resend webhook** at `/api/email/inbound`, is classified by keyword rules + Claude, and surfaces in **/admin → Inbox** (Web Push optional). See `src/knowledge/email-rules.md`.
 

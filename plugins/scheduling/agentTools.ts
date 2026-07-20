@@ -1,11 +1,11 @@
-import { summarizeKnowledgeIndex } from '../../localKnowledge';
+import { summarizeKnowledgeIndex } from '../../src/lib/localKnowledge';
 import {
   storeListKnowledge,
   storeReadKnowledge,
   storeSearchKnowledge,
   storeWriteKnowledge,
   isKnowledgeDbConfigured,
-} from '../../knowledgeStore';
+} from '../../src/lib/knowledgeStore';
 import {
   isSafeWorkSlug,
   slugFromTitle,
@@ -19,13 +19,13 @@ import {
   WORK_STATUSES,
   type WorkPriority,
   type WorkStatus,
-} from '../../workStore';
+} from '../../src/lib/workStore';
 import {
   completedItemsToInvoiceSuggestions,
   groupedInvoiceDescription,
   parseMarkdownCheckboxes,
-} from '../../workChecklist';
-import { findCheckboxByText } from '../../markdownCheckboxes';
+} from '../../src/lib/workChecklist';
+import { findCheckboxByText } from '../../src/lib/markdownCheckboxes';
 import {
   isTodoDbConfigured,
   normalizeTodoPriority,
@@ -39,8 +39,8 @@ import {
   TODO_STATUSES,
   type TodoPriority,
   type TodoStatus,
-} from '../../todoStore';
-import { getContactDeleteBlockers, executeContactDelete } from '../../contactDeleteGuard';
+} from '../../src/lib/todoStore';
+import { getContactDeleteBlockers, executeContactDelete } from '../../src/lib/contactDeleteGuard';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -54,7 +54,7 @@ import {
   type ClientPortal,
   type ClientPortalField,
   type ClientDataEntry,
-} from '../../contactApi';
+} from '../../src/lib/contactApi';
 import {
   extractClientSearchTerms,
   formatClientCandidate,
@@ -62,7 +62,7 @@ import {
   resolveContactEnhanced,
   resolveWorkClientDecision,
   searchClientsEnhanced,
-} from '../../clientSearch';
+} from '../../src/lib/clientSearch';
 import {
   isCraterConfigured,
   craterCreateInvoice,
@@ -79,19 +79,19 @@ import {
   craterRepairInvoiceNumbers,
   craterRepairPaymentNumbers,
   craterResetInvoices,
-} from '../../craterClient';
+} from '../../src/lib/craterClient';
 import {
   isEmailSendConfigured,
   isSmsSendConfigured,
   sendEmail,
   sendSms,
-} from '../../outbound';
-import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../devTaskRunner';
+} from '../../src/lib/outbound';
+import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../src/lib/devTaskRunner';
 import {
   formatRailwayNetworkingSummary,
   isRailwayConfigured,
   railwayListProjectNetworking,
-} from '../../railwayClient';
+} from '../../src/lib/railwayClient';
 import {
   formatKinstaSitesSummary,
   isKinstaConfigured,
@@ -103,63 +103,63 @@ import {
   kinstaGetSite,
   kinstaListBackups,
   kinstaListSites,
-} from '../../kinstaClient';
-import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../devStatus';
-import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from '../../githubClient';
-import { describeSafeShell, runSafeShellCommand } from '../../safeShell';
+} from '../../src/lib/kinstaClient';
+import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../src/lib/devStatus';
+import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from '../../src/lib/githubClient';
+import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
   codeDevListFiles,
   codeDevReadFile,
   codeDevWriteFile,
-} from '../../codeDevTools';
-import { deliverShare } from '../../shareDelivery';
-import { braveSearch, formatBraveResults, isBraveConfigured } from '../../braveClient';
-import { fetchUrl } from '../../fetchUrlClient';
+} from '../../src/lib/codeDevTools';
+import { deliverShare } from '../../src/lib/shareDelivery';
+import { braveSearch, formatBraveResults, isBraveConfigured } from '../../src/lib/braveClient';
+import { fetchUrl } from '../../src/lib/fetchUrlClient';
 import {
   storeDeleteEmailInbox,
   storeListEmailInbox,
   storeUpdateEmailInbox,
   storeGetEmailInbox,
   type EmailInboxPatch,
-} from '../../emailInboxStore';
-import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
-import { buildReplyEmailHeaders } from '../../emailReply';
-import { brandedPlainTextEmail } from '../../inboundEmailReply';
-import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from '../../projectLinks';
-import { markInboxEmailAsProject } from '../../emailProjectCategory';
-import { importEmailAttachmentsToProject } from '../../emailProjectAttachments';
+} from '../../src/lib/emailInboxStore';
+import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../src/lib/emailMoney';
+import { buildReplyEmailHeaders } from '../../src/lib/emailReply';
+import { brandedPlainTextEmail } from '../../src/lib/inboundEmailReply';
+import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from '../../src/lib/projectLinks';
+import { markInboxEmailAsProject } from '../../src/lib/emailProjectCategory';
+import { importEmailAttachmentsToProject } from '../../src/lib/emailProjectAttachments';
 import {
   storeAddChatImagesToProject,
   storeListProjectFiles,
-} from '../../projectFiles';
-import { logOutboundEmailForProject } from '../../logOutboundEmailForProject';
-import { recordProjectOutboundEmail } from '../../projectOutboundEmail';
-import { getAgentContext } from '../../agentContext';
-import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../../companyConfig';
-import { syncVapiAssistantBrand } from '../../vapiAssistantSync';
-import { isVapiAdminConfigured } from '../../vapiPlugin';
-import { storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
-import type { RuleField } from '../../emailRules';
-import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
-import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
-import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
-import { checkLinks, formatCheckLinksResults } from '../../checkLinksClient';
-import { dnsCheck, formatDnsCheckResults } from '../../dnsCheckClient';
-import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../resendDnsSync';
-import { hasFeature } from '../../features';
-import { syncUptimeMonitorsFromApi } from '../../uptimeMonitoring';
-import { isUptimeRobotConfigured } from '../../uptimerobotClient';
-import { isUptimeDbConfigured } from '../../pgUptime';
+} from '../../src/lib/projectFiles';
+import { logOutboundEmailForProject } from '../../src/lib/logOutboundEmailForProject';
+import { recordProjectOutboundEmail } from '../../src/lib/projectOutboundEmail';
+import { getAgentContext } from '../../src/lib/agentContext';
+import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../../src/lib/companyConfig';
+import { syncVapiAssistantBrand } from '../../src/lib/vapiAssistantSync';
+import { isVapiAdminConfigured } from '../../src/lib/vapiPlugin';
+import { storeCreateEmailRule, storeListEmailRules } from '../../src/lib/emailRuleStore';
+import type { RuleField } from '../../src/lib/emailRules';
+import { MAX_AGENT_EMAIL_BODY } from '../../src/lib/emailAgentContext';
+import { formatLighthouseResults, lighthouseAudit } from '../../src/lib/lighthouseClient';
+import { sslCheck, formatSslCheckResults } from '../../src/lib/sslCheckClient';
+import { checkLinks, formatCheckLinksResults } from '../../src/lib/checkLinksClient';
+import { dnsCheck, formatDnsCheckResults } from '../../src/lib/dnsCheckClient';
+import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../src/lib/resendDnsSync';
+import { hasFeature } from '../../src/lib/features';
+import { syncUptimeMonitorsFromApi } from '../../src/lib/uptimeMonitoring';
+import { isUptimeRobotConfigured } from '../../src/lib/uptimerobotClient';
+import { isUptimeDbConfigured } from '../../src/lib/pgUptime';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,
   cdRecheckWatch,
-} from '../../changedetectionClient';
+} from '../../src/lib/changedetectionClient';
 import {
   portalSiteUrl,
   SITE_URL_FIELD_LABEL,
-} from '../../siteMonitoring';
+} from '../../src/lib/siteMonitoring';
 import {
   isBookingConfigured,
   bookingList,
@@ -168,9 +168,9 @@ import {
   publicBookingPageUrl,
   formatBookingLine,
   calcomWebappUrl,
-} from '../../bookingClient';
+} from '../../src/lib/bookingClient';
 
-import type { AgentToolDef, AgentToolModule, ToolContext } from '../types';
+import type { AgentToolDef, AgentToolModule, ToolContext } from '../../src/lib/agentTools/types';
 import {
   parseEmailListArg,
   parseLineItems,
@@ -179,7 +179,7 @@ import {
   plainTextFromHtml,
   resolvePortalTarget,
   workExtrasFromArgs,
-} from '../shared';
+} from '../../src/lib/agentTools/shared';
 
 async function handle_list_bookings(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const upcoming = args.upcoming !== false;

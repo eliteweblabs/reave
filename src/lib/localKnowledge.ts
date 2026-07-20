@@ -1,65 +1,127 @@
 /**
- * Markdown knowledge files shipped with the server bundle (Vite eager ?raw).
+ * Markdown knowledge — core app docs + self-contained plugin docs.
  *
- * - Global: `src/knowledge/*.md` (top-level only)
- * - Install-scoped: `src/knowledge/installs/{slug}/*.md` — only loaded when
- *   `installConfigSlug()` matches (e.g. Reave-only playbooks). Not seeded or
- *   listed on other installs.
+ * - Core: `src/knowledge/*.md` (generic product mechanics)
+ * - Core install-scoped: `src/knowledge/installs/{slug}/*.md`
+ * - Plugin: `plugins/{id}/knowledge/*.md` (only when plugin feature is enabled)
+ * - Plugin install-scoped: `plugins/{id}/knowledge/installs/{slug}/*.md`
  *
- * Job files in `src/knowledge/jobs/` are excluded — loaded on demand via workStore.
+ * Job files in `src/knowledge/jobs/` are excluded — loaded via workStore.
  */
 
 import { installConfigSlug } from './installConfig';
-import { isKnowledgeSlugAvailable } from './knowledgePlugins';
+import { isPluginKnowledgeActive } from './pluginRegistry';
 
-const rawByPath = import.meta.glob<string>('../knowledge/*.md', {
+const coreRawByPath = import.meta.glob<string>('../knowledge/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 });
 
-const installRawByPath = import.meta.glob<string>('../knowledge/installs/*/*.md', {
+const coreInstallRawByPath = import.meta.glob<string>('../knowledge/installs/*/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 });
+
+const pluginRawByPath = import.meta.glob<string>('../../plugins/*/knowledge/*.md', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+
+const pluginInstallRawByPath = import.meta.glob<string>(
+  '../../plugins/*/knowledge/installs/*/*.md',
+  {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  },
+);
 
 function pathToSlug(path: string): string {
   const base = path.split('/').pop() ?? path;
   return base.replace(/\.md$/i, '');
 }
 
-function installSlugFromPath(path: string): string | null {
+function installSlugFromCorePath(path: string): string | null {
   const match = path.match(/knowledge\/installs\/([^/]+)\//);
   return match?.[1] ?? null;
 }
 
-/** Bundled docs for the current install only (empty on other installs). */
-function installScopedEntries(): { slug: string; content: string }[] {
+function pluginIdFromPath(path: string): string | null {
+  const match = path.match(/plugins\/([^/]+)\/knowledge\//);
+  return match?.[1] ?? null;
+}
+
+function installSlugFromPluginPath(path: string): string | null {
+  const match = path.match(/plugins\/[^/]+\/knowledge\/installs\/([^/]+)\//);
+  return match?.[1] ?? null;
+}
+
+function coreInstallScopedEntries(): { slug: string; content: string }[] {
   const slug = installConfigSlug();
   const out: { slug: string; content: string }[] = [];
-  for (const [path, content] of Object.entries(installRawByPath)) {
-    if (installSlugFromPath(path) !== slug) continue;
+  for (const [path, content] of Object.entries(coreInstallRawByPath)) {
+    if (installSlugFromCorePath(path) !== slug) continue;
+    out.push({ slug: pathToSlug(path), content: content ?? '' });
+  }
+  return out;
+}
+
+function pluginGlobalEntries(): { slug: string; content: string }[] {
+  const out: { slug: string; content: string }[] = [];
+  for (const [path, content] of Object.entries(pluginRawByPath)) {
+    const pluginId = pluginIdFromPath(path);
+    if (!pluginId || !isPluginKnowledgeActive(pluginId)) continue;
+    out.push({ slug: pathToSlug(path), content: content ?? '' });
+  }
+  return out;
+}
+
+function pluginInstallScopedEntries(): { slug: string; content: string }[] {
+  const install = installConfigSlug();
+  const out: { slug: string; content: string }[] = [];
+  for (const [path, content] of Object.entries(pluginInstallRawByPath)) {
+    const pluginId = pluginIdFromPath(path);
+    if (!pluginId || !isPluginKnowledgeActive(pluginId)) continue;
+    if (installSlugFromPluginPath(path) !== install) continue;
     out.push({ slug: pathToSlug(path), content: content ?? '' });
   }
   return out;
 }
 
 export function listKnowledgeSlugs(): string[] {
-  const global = Object.keys(rawByPath).map(pathToSlug);
-  const install = installScopedEntries().map((e) => e.slug);
-  return [...new Set([...global, ...install])]
-    .filter((slug) => isKnowledgeSlugAvailable(slug))
-    .sort((a, b) => a.localeCompare(b));
+  const global = Object.keys(coreRawByPath).map(pathToSlug);
+  const install = coreInstallScopedEntries().map((e) => e.slug);
+  const pluginGlobal = pluginGlobalEntries().map((e) => e.slug);
+  const pluginInstall = pluginInstallScopedEntries().map((e) => e.slug);
+  return [...new Set([...global, ...install, ...pluginGlobal, ...pluginInstall])].sort((a, b) =>
+    a.localeCompare(b),
+  );
 }
 
 export function readKnowledgeMarkdown(slug: string): { slug: string; content: string } | null {
-  if (!isKnowledgeSlugAvailable(slug)) return null;
-  const key = Object.keys(rawByPath).find((p) => pathToSlug(p) === slug) ?? null;
-  if (key) return { slug, content: rawByPath[key] ?? '' };
+  const coreKey = Object.keys(coreRawByPath).find((p) => pathToSlug(p) === slug) ?? null;
+  if (coreKey) return { slug, content: coreRawByPath[coreKey] ?? '' };
 
-  const scoped = installScopedEntries().find((e) => e.slug === slug);
-  if (scoped) return { slug: scoped.slug, content: scoped.content };
+  const coreScoped = coreInstallScopedEntries().find((e) => e.slug === slug);
+  if (coreScoped) return { slug: coreScoped.slug, content: coreScoped.content };
+
+  for (const [path, content] of Object.entries(pluginRawByPath)) {
+    if (pathToSlug(path) !== slug) continue;
+    const pluginId = pluginIdFromPath(path);
+    if (!pluginId || !isPluginKnowledgeActive(pluginId)) return null;
+    return { slug, content: content ?? '' };
+  }
+
+  for (const [path, content] of Object.entries(pluginInstallRawByPath)) {
+    if (pathToSlug(path) !== slug) continue;
+    const pluginId = pluginIdFromPath(path);
+    if (!pluginId || !isPluginKnowledgeActive(pluginId)) return null;
+    if (installSlugFromPluginPath(path) !== installConfigSlug()) return null;
+    return { slug, content: content ?? '' };
+  }
 
   return null;
 }

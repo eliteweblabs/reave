@@ -24,6 +24,7 @@ const FEATURE_IDS_LIST = [
   'scheduling',
   'dev_infra',
   'code_dev',
+  'email_marketing',
 ] as const;
 
 export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];

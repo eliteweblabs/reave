@@ -4,12 +4,7 @@
  * Job/work files under src/knowledge/jobs/ are intentionally excluded — they are
  * loaded on demand via workStore (list_work / read_work), not this index.
  *
- * Priority rules:
- *   - If DATABASE_URL is set, DB entries take precedence over bundled docs with the same slug.
- *   - Bundled docs that aren't in the DB are still accessible (read-only).
- *   - If DATABASE_URL is not set, only bundled docs are available.
- *
- * Write operations always target Postgres (bot/admin-created entries).
+ * Bundled plugin playbooks live under plugins/{id}/knowledge/ — not src/knowledge/.
  */
 
 import {
@@ -17,7 +12,11 @@ import {
   readKnowledgeMarkdown,
   summarizeKnowledgeIndex,
 } from './localKnowledge';
-import { isKnowledgeSlugAvailable } from './knowledgePlugins';
+import {
+  isDefaultKnowledgeSlug,
+  isKnowledgeSlugAvailable,
+  DEFAULT_KNOWLEDGE_SLUGS,
+} from './pluginRegistry';
 import {
   isKnowledgeDbConfigured,
   dbListKnowledge,
@@ -29,39 +28,7 @@ import {
   type KnowledgeEntry,
 } from './pgKnowledge';
 
-export { isKnowledgeDbConfigured, type KnowledgeEntry };
-
-/**
- * "Default" knowledge = app-mechanics playbooks that ship with the product and
- * describe how the agent works with the app itself. They are NOT tied to the
- * business or owner of any one installation. Everything else (owner credentials,
- * business overview, admin/bot-authored notes) is treated as "custom".
- *
- * Keyed by slug so it stays correct whether a doc is bundled or has been seeded
- * into the DB (source: 'db').
- */
-export const DEFAULT_KNOWLEDGE_SLUGS: ReadonlySet<string> = new Set([
-  'carddav',
-  'client-portal',
-  'code-dev-tools',
-  'contact-api-reference',
-  'contact-import',
-  'crater-billing',
-  'email-rules',
-  'github-dev-tools',
-  'kinsta-wordpress',
-  'newsletter',
-  'railway-deploy-webhook',
-  'siri-examples',
-  'siri-quick-reference',
-  'siri-shortcuts',
-  'uptime-monitoring',
-]);
-
-/** Whether a slug is one of the built-in app-mechanics playbooks (vs. custom). */
-export function isDefaultKnowledgeSlug(slug: string): boolean {
-  return DEFAULT_KNOWLEDGE_SLUGS.has(slug);
-}
+export { isKnowledgeDbConfigured, type KnowledgeEntry, DEFAULT_KNOWLEDGE_SLUGS, isDefaultKnowledgeSlug };
 
 export interface KnowledgePreview {
   slug: string;

@@ -1,50 +1,77 @@
-# Plugins Directory
+# Reave Plugins
 
-This directory contains custom plugins that are specific to this deployment and not part of the core Reave platform.
+Self-contained feature packages. Each plugin owns its **knowledge**, optional **agent tools**, and (when extracted) its integration client code.
 
-## Why Separate Plugins?
+Reave core (`src/knowledge/`) holds **generic product mechanics only**. Plugin playbooks never live there.
 
-Plugins in this directory are:
-- Specific to particular use cases or clients
-- Not intended for all Reave installations
-- Maintained separately from the core platform
-- Can be excluded from deployments where not needed
+## Layout
 
-## Available Plugins
-
-### svg-operations
-
-Image processing plugin for SVG tracing, OCR, and font recognition.
-
-**Use cases:**
-- Converting raster images to vector SVG
-- Extracting text from images
-- Identifying fonts in designs
-
-**Installation:**
-```bash
-cd plugins/svg-operations
-npm install
-npm run build
+```
+plugins/{id}/
+├── manifest.ts       # feature gate, configured(), agentTools export
+├── knowledge/        # bundled markdown playbooks (?raw glob)
+│   └── installs/     # optional install-scoped docs
+└── agentTools.ts     # optional Admin → Chats tool module
 ```
 
-See [svg-operations/README.md](./svg-operations/README.md) for full documentation.
+## Registered plugins
 
-## Creating New Plugins
+| Directory | Feature | Knowledge | Agent tools |
+|-----------|---------|-----------|-------------|
+| `billing/` | `billing` | `crater-billing.md` | yes |
+| `carddav/` | `carddav` | `carddav.md` | — |
+| `client-portal/` | `client_portal` | `client-portal.md` | yes |
+| `code-dev/` | `code_dev` | install-scoped `code-dev-tools.md` | yes |
+| `dev-infra/` | `dev_infra` | github, kinsta, railway playbooks | yes |
+| `email-marketing/` | `email_marketing` | `newsletter.md` | — |
+| `scheduling/` | `scheduling` | — | yes |
+| `site-audits/` | `site_audits` | — | yes |
+| `site-monitoring/` | `site_monitoring` | — | yes |
+| `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
+| `vapi/` | `vapi` | — | yes |
+| `svg-operations/` | *(utility)* | — | — |
 
-To create a new plugin:
+Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 
-1. Create a new directory under `plugins/`
-2. Initialize with `npm init` or copy the structure from an existing plugin
-3. Add a README.md with usage instructions
-4. Keep dependencies isolated within the plugin directory
-5. Update this file with a brief description
+## How Reave loads plugins
 
-## Integration
+1. **`src/lib/pluginRegistry.ts`** — imports each `plugins/{id}/manifest.ts`
+2. **`src/lib/localKnowledge.ts`** — globs `plugins/*/knowledge/**/*.md` (active plugins only)
+3. **`src/lib/agentTools/registry.ts`** — core modules + `activeAgentToolModules()` from manifests
 
-Plugins can be integrated into the main Reave application by:
-- Importing as local packages
-- Using as API microservices
-- Loading dynamically at runtime
+No duplicate registration in core — add the manifest import once in `pluginRegistry.ts`.
 
-The integration method depends on the specific plugin requirements.
+## Creating a new plugin
+
+1. Create `plugins/my-feature/manifest.ts`:
+
+```typescript
+import type { ReavePlugin } from '../_shared/types';
+import { myFeatureModule } from './agentTools'; // optional
+
+export const myFeaturePlugin: ReavePlugin = {
+  id: 'my-feature',
+  feature: 'my_feature', // add to src/lib/features.ts + install config
+  configured: () => !!process.env.MY_API_KEY, // optional
+  agentTools: myFeatureModule,
+};
+```
+
+2. Add knowledge under `plugins/my-feature/knowledge/my-feature.md`
+3. Register slug in `pluginKnowledgeSlugs()` inside `pluginRegistry.ts`
+4. Import manifest in `REAVE_PLUGINS` array
+5. Enable feature in install config
+
+## External plugin repos
+
+For plugins maintained in separate git repos (e.g. Crater service docs living with Crater):
+
+- Mirror this folder layout in the external repo
+- Publish as an npm package or git submodule under `plugins/{id}/`
+- Register the manifest in `pluginRegistry.ts`
+
+The deployed HTTP client (`src/lib/craterClient.ts`) can move into `plugins/billing/` in a follow-up; the Crater **service** remains a separate Railway deployment.
+
+## Utility plugins
+
+`svg-operations/` is a standalone npm package (no feature gate). Wire it through a manifest when integrated into the admin agent or API.
