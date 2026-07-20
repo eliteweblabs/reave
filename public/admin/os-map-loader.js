@@ -2589,7 +2589,7 @@ function renderHomeDashboard(data) {
     `<div class="dash-panel-head">` +
       `<h2 class="dash-panel-title">Today</h2>` +
       (scheduleLive
-        ? `<button type="button" class="dash-panel-link" data-schedule-all>View schedule</button>`
+        ? `<button type="button" class="dash-panel-btn" data-schedule-all>View Schedule</button>`
         : '') +
     `</div>`;
   eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
@@ -2606,14 +2606,6 @@ function renderHomeDashboard(data) {
       ? 'Nothing scheduled today.'
       : 'Enable scheduling and BOOKING_API_URL to show Cal.com events here.';
     eventsBody.appendChild(empty);
-    if (scheduleLive) {
-      const link = document.createElement('button');
-      link.type = 'button';
-      link.className = 'dash-panel-link dash-empty-link';
-      link.textContent = 'Open full schedule';
-      link.addEventListener('click', () => openScheduleTab());
-      eventsBody.appendChild(link);
-    }
   } else {
     for (const ev of events) {
       const uid = ev.uid || ev.id;
