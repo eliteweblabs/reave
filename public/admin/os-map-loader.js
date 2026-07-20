@@ -2883,8 +2883,11 @@ async function syncUptimeSitesFromPlatforms() {
       .map((msg) => `<li>${escHtml(msg)}</li>`)
       .join('');
 
+    const pendingNote = data.pending > 0
+      ? ` · <strong>${data.pending}</strong> pending (run again to continue)`
+      : '';
     bodyEl.innerHTML =
-      `<p><strong>${data.created}</strong> added · <strong>${data.skipped}</strong> already monitored · <strong>${data.discovered}</strong> found</p>` +
+      `<p><strong>${data.created}</strong> added · <strong>${data.skipped}</strong> already monitored · <strong>${data.discovered}</strong> found${pendingNote}</p>` +
       (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
       (warningLines ? `<p class="dash-empty">Warnings</p><ul class="meeting-confirm-steps">${warningLines}</ul>` : '') +
       (errorLines ? `<p class="dash-empty">Errors</p><ul class="meeting-confirm-steps">${errorLines}</ul>` : '');

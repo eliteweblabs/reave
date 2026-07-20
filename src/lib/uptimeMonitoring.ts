@@ -327,10 +327,25 @@ export type UptimePlatformSyncResult = {
   discovered: number;
   created: number;
   skipped: number;
+  /** Discovered URLs left un-attempted because the per-run cap was hit. */
+  pending: number;
   warnings: string[];
   errors: string[];
   createdItems: UptimePlatformSyncItem[];
 };
+
+/**
+ * Max monitor-creation attempts per sync run. Bounds request time (each attempt
+ * is a sequential UptimeRobot API call) and avoids hammering the API rate limit
+ * when many new domains are discovered. The hourly discovery scheduler chips
+ * away at any remainder over subsequent runs. Override via env; 0/blank = default.
+ */
+function platformSyncMaxPerRun(): number {
+  const raw = serverEnv('UPTIMEROBOT_SYNC_MAX_PER_RUN');
+  const n = raw == null || raw === '' ? 20 : Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 20;
+  return Math.min(Math.max(1, Math.round(n)), 200);
+}
 
 export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResult> {
   const empty: UptimePlatformSyncResult = {
@@ -338,6 +353,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     discovered: 0,
     created: 0,
     skipped: 0,
+    pending: 0,
     warnings: [],
     errors: [],
     createdItems: [],
@@ -406,8 +422,11 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     unique.push(item);
   }
 
+  const maxAttempts = platformSyncMaxPerRun();
   let created = 0;
   let skipped = 0;
+  let attempts = 0;
+  let pending = 0;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
 
@@ -417,6 +436,12 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       skipped += 1;
       continue;
     }
+
+    if (attempts >= maxAttempts) {
+      pending += 1;
+      continue;
+    }
+    attempts += 1;
 
     const result = await createUptimeMonitor({
       url: item.url,
@@ -436,6 +461,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     discovered: unique.length,
     created,
     skipped,
+    pending,
     warnings,
     errors,
     createdItems,
