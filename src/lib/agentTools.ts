@@ -151,6 +151,9 @@ import { checkLinks, formatCheckLinksResults } from './checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from './dnsCheckClient';
 import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from './resendDnsSync';
 import { hasFeature } from './features';
+import { syncUptimeMonitorsFromApi } from './uptimeMonitoring';
+import { isUptimeRobotConfigured } from './uptimerobotClient';
+import { isUptimeDbConfigured } from './pgUptime';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,
@@ -1657,6 +1660,18 @@ export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): 
         name: 'sync_vapi_assistant',
         description:
           `Sync the Vapi voice assistant name, first message, and system prompt from admin Company details (${brand.name}). Requires VAPI_API_KEY on the server. Does not affect the public homepage widget — that is a separate installation setting.`,
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    });
+  }
+
+  if (hasFeature('uptime_monitoring')) {
+    base.push({
+      type: 'function',
+      function: {
+        name: 'sync_uptimerobot',
+        description:
+          'Sync monitor status from UptimeRobot API and update the local database. Pulls all monitors with their current status and uptime ratios. Requires UPTIMEROBOT_API_KEY and DATABASE_URL.',
         parameters: { type: 'object', properties: {}, additionalProperties: false },
       },
     });
@@ -3861,6 +3876,25 @@ export async function runTool(name: string, argsJson: string): Promise<string> {
         assistant_id: result.assistantId,
         company_name: result.companyName,
         first_message: result.firstMessage,
+      });
+    }
+    if (name === 'sync_uptimerobot') {
+      if (!hasFeature('uptime_monitoring')) {
+        return JSON.stringify({ error: 'uptime_monitoring not enabled in install config features' });
+      }
+      if (!isUptimeRobotConfigured()) {
+        return JSON.stringify({
+          error: 'UptimeRobot not configured — set UPTIMEROBOT_API_KEY on the server',
+        });
+      }
+      if (!isUptimeDbConfigured()) {
+        return JSON.stringify({ error: 'DATABASE_URL not configured' });
+      }
+      const result = await syncUptimeMonitorsFromApi();
+      if (!result.ok) return JSON.stringify({ error: result.error });
+      return JSON.stringify({
+        ok: true,
+        synced: result.synced,
       });
     }
     if (name === 'sync_resend_dns') {
