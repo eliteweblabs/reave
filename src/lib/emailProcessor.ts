@@ -26,6 +26,7 @@ import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
+import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
 
@@ -516,6 +517,30 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     if (action !== 'filed' && action !== 'matched') action = 'review';
   }
 
+  let suppressDuplicateMeetingAlert = false;
+  if (
+    automationKind === 'meeting_request' ||
+    automationKind === 'meeting_conflict'
+  ) {
+    const threadPrior = await findPriorInboxInThread({
+      headers: email.headers,
+      subject: email.subject ?? '',
+      from,
+    });
+    if (
+      shouldSuppressDuplicateMeetingAlert({
+        automationKind,
+        prior: threadPrior,
+        proposedMeetingStart,
+      })
+    ) {
+      suppressDuplicateMeetingAlert = true;
+      routeNote = routeNote
+        ? `${routeNote} · Thread reply — meeting request already pending`
+        : 'Thread reply — meeting request already pending on earlier message in this thread';
+    }
+  }
+
   const record = await storeRecordEmailInbox({
     from,
     subject: email.subject ?? '',
@@ -549,6 +574,16 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   });
 
   let inboxRecord = record;
+
+  if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
+    const updated = await storeUpdateEmailInbox(inboxRecord.id, {
+      markAutomationAck: true,
+      automationKind: null,
+      routeNote,
+    });
+    if (updated) inboxRecord = updated;
+    automationKind = null;
+  }
 
   if (inboxRecord?.id && bookingUid && !jobSlug) {
     const meetingProject = await ensureProjectForMeetingEmail({

@@ -10,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
 import type { EmailCategory } from './emailProcessor';
+import { normalizeMessageId } from './emailReply';
 
 export interface EmailInboxRecord {
   id: string;
@@ -532,6 +533,37 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     console.error('[email-inbox] pg append failed', e);
     return null;
   }
+}
+
+/** Most recent inbox row whose stored Message-ID matches any of the given ids. */
+export async function storeFindInboxByMessageIds(messageIds: string[]): Promise<EmailInboxRecord | null> {
+  const normalized = [...new Set(messageIds.map(normalizeMessageId).filter(Boolean))];
+  if (!normalized.length) return null;
+
+  if (databaseUrl()) {
+    try {
+      const pool = await ensureSchema();
+      if (!pool) return null;
+      const { rows } = await pool.query(
+        `SELECT ${INBOX_SELECT} FROM email_inbox
+         WHERE message_id = ANY($1::text[])
+         ORDER BY received_at DESC LIMIT 1`,
+        [normalized],
+      );
+      return rows[0] ? rowToRecord(rows[0]) : null;
+    } catch (e) {
+      console.error('[email-inbox] pg find by message_id failed', e);
+      return null;
+    }
+  }
+
+  const path = inboxFilePath();
+  if (!existsSync(path)) return null;
+  const idSet = new Set(normalized);
+  const hit = parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => idSet.has(normalizeMessageId(e.messageId)))
+    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())[0];
+  return hit ?? null;
 }
 
 export async function storeGetEmailInbox(id: string): Promise<EmailInboxRecord | null> {

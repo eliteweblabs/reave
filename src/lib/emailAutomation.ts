@@ -6,6 +6,7 @@ import type { EmailInboxRecord } from './emailInboxStore';
 import { attendeeFromEmail, formatMeetingWhenLabel, resolveProposedMeetingStart } from './emailScheduling';
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
 import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
+import { meetingThreadDedupKey } from './emailThreadDedup';
 
 export type MeetingReviewNotification = {
   id: string;
@@ -296,6 +297,9 @@ export function listReviewNotifications(
   const out: ReviewNotification[] = [];
   for (const record of pending) {
     if (out.length >= limit) break;
+    if (isMeetingRequestPendingReview(record) && isDuplicateMeetingRequestReview(record, pending)) {
+      continue;
+    }
     if (isAutoBookedMeetingPendingReview(record)) {
       out.push(toMeetingReviewNotification(record));
     } else if (isMeetingFollowupPendingReview(record)) {
@@ -311,6 +315,25 @@ export function listReviewNotifications(
 
 export function countReviewNotifications(events: EmailInboxRecord[]): number {
   return listReviewNotifications(events, { limit: 500, maxAgeDays: 14 }).length;
+}
+
+/** Hide younger duplicates in the same email thread (keeps oldest pending banner). */
+export function isDuplicateMeetingRequestReview(
+  record: EmailInboxRecord,
+  allPending: EmailInboxRecord[],
+): boolean {
+  if (!isMeetingRequestPendingReview(record)) return false;
+
+  const key = meetingThreadDedupKey(record);
+  const sameThread = allPending.filter(
+    (r) => isMeetingRequestPendingReview(r) && meetingThreadDedupKey(r) === key,
+  );
+  if (sameThread.length <= 1) return false;
+
+  const oldest = sameThread.reduce((a, b) =>
+    new Date(a.receivedAt).getTime() <= new Date(b.receivedAt).getTime() ? a : b,
+  );
+  return record.id !== oldest.id;
 }
 
 /** @deprecated use listReviewNotifications */
