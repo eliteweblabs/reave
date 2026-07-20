@@ -30,11 +30,9 @@ import {
   isUptimeRobotConfigured,
   parseCustomUptimeRatios,
   urGetAccountDetails,
-  urGetAlertContacts,
   urGetAllMonitors,
   urGetMonitors,
   urNewMonitor,
-  urFormatFreePlanAlertContacts,
   normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
   uptimeStatusLabel,
@@ -285,13 +283,6 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
 export async function createUptimeMonitor(opts: {
   url: string;
   friendlyName?: string;
-  /** Preformatted alert_contacts (e.g. "123_0_0"). Omit to use account defaults. */
-  alertContacts?: string;
-  /**
-   * Check interval in seconds. Usually omit on free plans — UptimeRobot applies
-   * the account default and some accounts reject an explicit interval field.
-   */
-  intervalSeconds?: number;
   /**
    * Fetch full monitor details from UptimeRobot after creating (extra API call).
    * Set false for bulk sync to stay under the 10 req/min free-plan rate limit —
@@ -312,19 +303,9 @@ export async function createUptimeMonitor(opts: {
   const url = normalizeUptimeMonitorUrl(opts.url);
   if (!url) return { ok: false, error: 'url is required' };
 
-  let alertContacts = opts.alertContacts;
-  if (!alertContacts) {
-    const contacts = await urGetAlertContacts();
-    if (contacts.ok && contacts.contacts.length) {
-      alertContacts = urFormatFreePlanAlertContacts(contacts.contacts.map((c) => c.id));
-    }
-  }
-
   const created = await urNewMonitor({
     url,
     friendlyName: opts.friendlyName,
-    intervalSeconds: opts.intervalSeconds,
-    alertContacts,
   });
   if (!created.ok) return { ok: false, error: created.error };
 
@@ -411,19 +392,11 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
 
   const warnings: string[] = [];
   const accountRes = await urGetAccountDetails();
-  const contactsRes = await urGetAlertContacts();
   const localRows = await dbListUptimeMonitors();
   const localMonitorCount = localRows?.length ?? 0;
   const account = accountRes.ok ? accountRes.account : undefined;
   if (!accountRes.ok) {
     warnings.push(`UptimeRobot account details: ${accountRes.error}`);
-  }
-  const alertContacts =
-    contactsRes.ok && contactsRes.contacts.length
-      ? urFormatFreePlanAlertContacts(contactsRes.contacts.map((c) => c.id))
-      : undefined;
-  if (!contactsRes.ok) {
-    warnings.push(`UptimeRobot alert contacts: ${contactsRes.error}`);
   }
 
   const existing = new Set<string>();
@@ -528,7 +501,6 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     const result = await createUptimeMonitor({
       url: item.url,
       friendlyName: item.friendlyName,
-      alertContacts,
       fetchDetails: false,
     });
     if (result.ok) {

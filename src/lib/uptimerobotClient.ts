@@ -16,11 +16,15 @@ export const UPTIME_MONITOR_STATUS = {
 
 export type UptimeMonitorStatus = (typeof UPTIME_MONITOR_STATUS)[keyof typeof UPTIME_MONITOR_STATUS];
 
+/** UptimeRobot alert contact type — 2 = e-mail (safe for free-plan API creates). */
+export const UPTIME_ALERT_CONTACT_EMAIL = 2;
+
 export type UptimeRobotMonitor = {
   id: number;
   friendly_name: string;
   url: string | null;
   status: UptimeMonitorStatus;
+  interval?: number;
   all_time_uptime_ratio?: string;
   custom_uptime_ratio?: string;
   average_response_time?: string;
@@ -300,7 +304,10 @@ export function defaultUptimeFriendlyName(url: string): string {
 }
 
 export async function urGetAlertContacts(): Promise<
-  | { ok: true; contacts: Array<{ id: number; friendly_name: string }> }
+  | {
+      ok: true;
+      contacts: Array<{ id: number; friendly_name: string; type: number; status: number }>;
+    }
   | { ok: false; error: string }
 > {
   const key = apiKey();
@@ -320,7 +327,12 @@ export async function urGetAlertContacts(): Promise<
     const data = (await res.json()) as {
       stat?: string;
       error?: { message?: string };
-      alert_contacts?: Array<{ id?: number | string; friendly_name?: string }>;
+      alert_contacts?: Array<{
+        id?: number | string;
+        friendly_name?: string;
+        type?: number | string;
+        status?: number | string;
+      }>;
     };
 
     if (!res.ok || data.stat !== 'ok') {
@@ -332,6 +344,8 @@ export async function urGetAlertContacts(): Promise<
       .map((c) => ({
         id: Number(c.id),
         friendly_name: String(c.friendly_name ?? ''),
+        type: Number(c.type ?? 0),
+        status: Number(c.status ?? 0),
       }))
       .filter((c) => Number.isFinite(c.id) && c.id > 0);
 
@@ -347,17 +361,24 @@ export function urFormatFreePlanAlertContacts(contactIds: number[]): string {
   return contactIds.map((id) => `${id}_0_0`).join('-');
 }
 
-export async function urNewMonitor(opts: {
+/** Only e-mail contacts are reliably assignable via API on the free plan. */
+export function urFreePlanEmailAlertContacts(
+  contacts: Array<{ id: number; type: number; status: number }>,
+): string | undefined {
+  const email = contacts.filter(
+    (c) => c.type === UPTIME_ALERT_CONTACT_EMAIL && c.status === 1,
+  );
+  if (!email.length) return undefined;
+  return urFormatFreePlanAlertContacts(email.map((c) => c.id));
+}
+
+async function urNewMonitorOnce(opts: {
   url: string;
   friendlyName?: string;
   type?: number;
-  /**
-   * Check interval in seconds. Omit on free plans — UptimeRobot applies the
-   * account default (300s) and some accounts reject an explicit interval field.
-   */
   intervalSeconds?: number;
-  /** Preformatted alert_contacts e.g. "123_0_0" (free plan requires _0_0 suffix). */
   alertContacts?: string;
+  disableDomainExpireNotifications?: boolean;
 }): Promise<UptimeRobotNewMonitorResult> {
   const key = apiKey();
   if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
@@ -379,6 +400,9 @@ export async function urNewMonitor(opts: {
   }
   if (opts.alertContacts) {
     body.set('alert_contacts', opts.alertContacts);
+  }
+  if (opts.disableDomainExpireNotifications) {
+    body.set('disable_domain_expire_notifications', '1');
   }
 
   try {
@@ -403,4 +427,101 @@ export async function urNewMonitor(opts: {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
   }
+}
+
+const PLAN_SETTINGS_RE = /not allowed to use some settings/i;
+
+/** Try progressively richer payloads; stop on first success or non-plan error. */
+export async function urNewMonitor(opts: {
+  url: string;
+  friendlyName?: string;
+  type?: number;
+  intervalSeconds?: number;
+  alertContacts?: string;
+}): Promise<UptimeRobotNewMonitorResult> {
+  const [contactsRes, sample, accountRes] = await Promise.all([
+    urGetAlertContacts(),
+    urGetMonitors({ limit: 1, customUptimeRatios: '7-30' }),
+    urGetAccountDetails(),
+  ]);
+
+  const emailContacts = contactsRes.ok
+    ? urFreePlanEmailAlertContacts(contactsRes.contacts)
+    : undefined;
+
+  const sampleInterval = sample.ok ? Number(sample.monitors[0]?.interval) : NaN;
+  const accountInterval = accountRes.ok ? accountRes.account.monitorIntervalSeconds : null;
+  const cloneInterval =
+    (Number.isFinite(sampleInterval) && sampleInterval >= 300 ? sampleInterval : null) ??
+    (accountInterval != null && accountInterval >= 300 ? accountInterval : undefined);
+
+  type Strategy = {
+    name: string;
+    intervalSeconds?: number;
+    alertContacts?: string;
+    disableDomainExpireNotifications?: boolean;
+  };
+
+  const strategies: Strategy[] = [
+    { name: 'minimal' },
+    { name: 'no-domain-notify', disableDomainExpireNotifications: true },
+  ];
+
+  if (emailContacts) {
+    strategies.push({ name: 'email-contacts', alertContacts: emailContacts });
+    strategies.push({
+      name: 'no-domain-notify+email',
+      disableDomainExpireNotifications: true,
+      alertContacts: emailContacts,
+    });
+  }
+  if (cloneInterval) strategies.push({ name: 'clone-interval', intervalSeconds: cloneInterval });
+  if (cloneInterval && emailContacts) {
+    strategies.push({
+      name: 'clone-interval+email',
+      intervalSeconds: cloneInterval,
+      alertContacts: emailContacts,
+    });
+  }
+
+  if (opts.intervalSeconds != null || opts.alertContacts) {
+    strategies.unshift({
+      name: 'explicit',
+      intervalSeconds: opts.intervalSeconds,
+      alertContacts: opts.alertContacts,
+    });
+  }
+
+  let lastError = 'unknown error';
+  for (const strategy of strategies) {
+    const result = await urNewMonitorOnce({
+      url: opts.url,
+      friendlyName: opts.friendlyName,
+      type: opts.type,
+      intervalSeconds: strategy.intervalSeconds,
+      alertContacts: strategy.alertContacts,
+      disableDomainExpireNotifications: strategy.disableDomainExpireNotifications,
+    });
+    if (result.ok) {
+      console.info('[uptimerobot] newMonitor ok', { strategy: strategy.name, url: opts.url });
+      return result;
+    }
+    lastError = result.error;
+    if (!PLAN_SETTINGS_RE.test(result.error)) return result;
+    console.warn('[uptimerobot] newMonitor plan settings rejected', {
+      strategy: strategy.name,
+      error: result.error,
+    });
+  }
+
+  if (contactsRes.ok && contactsRes.contacts.length) {
+    const types = [...new Set(contactsRes.contacts.map((c) => c.type))].sort();
+    console.warn('[uptimerobot] newMonitor exhausted strategies', {
+      url: opts.url,
+      alertContactTypes: types,
+      emailContactCount: contactsRes.contacts.filter((c) => c.type === UPTIME_ALERT_CONTACT_EMAIL).length,
+    });
+  }
+
+  return { ok: false, error: lastError };
 }
