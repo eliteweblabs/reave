@@ -58,6 +58,13 @@ export async function runUptimeDiscovery(): Promise<{ ok: boolean; created?: num
     if (result.errors.length) {
       console.warn('[uptime-poll] discovery errors', result.errors);
     }
+    if (result.account) {
+      console.info('[uptime-poll] UptimeRobot account', {
+        used: result.account.monitorCount,
+        limit: result.account.monitorLimit,
+        local: result.localMonitorCount,
+      });
+    }
     return { ok: result.ok, created: result.created };
   } finally {
     _discovering = false;

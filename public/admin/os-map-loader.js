@@ -2073,6 +2073,60 @@ function formatEmailWhen(iso) {
   }
 }
 
+function formatUptimeAccountHint(uptimeAccount) {
+  if (!uptimeAccount) return null;
+  if (uptimeAccount.account) {
+    const a = uptimeAccount.account;
+    const remote = `${a.monitorCount}/${a.monitorLimit} monitors in UptimeRobot`;
+    const local = uptimeAccount.localTotal;
+    if (local != null && local !== a.monitorCount) {
+      return `${remote} · ${local} cached locally`;
+    }
+    return remote;
+  }
+  if (uptimeAccount.error) return `UptimeRobot account: ${uptimeAccount.error}`;
+  if (uptimeAccount.localTotal != null) return `${uptimeAccount.localTotal} monitors cached locally`;
+  return null;
+}
+
+function renderUptimeSyncResultHtml(data, httpOk) {
+  const createdLines = (data.createdItems || [])
+    .slice(0, 12)
+    .map((item) => `<li>${escHtml(item.friendlyName)} <span class="dash-muted-inline">(${escHtml(item.source)})</span></li>`)
+    .join('');
+  const warningLines = (data.warnings || [])
+    .slice(0, 8)
+    .map((msg) => `<li>${escHtml(msg)}</li>`)
+    .join('');
+  const errorLines = (data.errors || [])
+    .slice(0, 8)
+    .map((msg) => `<li>${escHtml(msg)}</li>`)
+    .join('');
+
+  const pendingNote = data.pending > 0
+    ? ` · <strong>${data.pending}</strong> pending (run again to continue)`
+    : '';
+
+  const accountLine = data.account
+    ? `<p class="dash-muted-inline">UptimeRobot account: <strong>${data.account.monitorCount}/${data.account.monitorLimit}</strong> monitors used` +
+      (data.localMonitorCount != null ? ` · ${data.localMonitorCount} cached locally` : '') +
+      `</p>`
+    : '';
+
+  const failLead = !httpOk || data.ok === false
+    ? '<p class="dash-empty">Sync did not complete successfully.</p>'
+    : '';
+
+  return (
+    failLead +
+    accountLine +
+    `<p><strong>${data.created ?? 0}</strong> added · <strong>${data.skipped ?? 0}</strong> already monitored · <strong>${data.discovered ?? 0}</strong> found${pendingNote}</p>` +
+    (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
+    (warningLines ? `<p class="dash-empty">Warnings</p><ul class="meeting-confirm-steps">${warningLines}</ul>` : '') +
+    (errorLines ? `<p class="dash-empty">Errors</p><ul class="meeting-confirm-steps">${errorLines}</ul>` : '')
+  );
+}
+
 async function runReviewScheduleAction(item, action, btn) {
   const ev = emailState.allEvents.find((e) => e.id === item.emailId) || {
     id: item.emailId,
@@ -2820,16 +2874,19 @@ function renderHomeDashboard(data) {
 
   const uptimeSummary = data?.uptime?.summary;
   const uptimeConfigured = data?.uptime?.configured === true;
+  const uptimeAccountHint = formatUptimeAccountHint(data?.uptimeAccount);
   if (uptimeConfigured || uptimeSummary) {
     const downCount = uptimeSummary?.down ?? stats.uptimeDown ?? 0;
     statsEl.appendChild(buildDashStat({
       value: downCount,
       label: 'Sites down',
-      hint: uptimeSummary
-        ? `${uptimeSummary.up}/${uptimeSummary.total} up · ${uptimeSummary.open_incidents ?? 0} open incidents`
-        : uptimeConfigured
-          ? 'sync pending'
-          : 'not configured',
+      hint: uptimeAccountHint
+        ? `${uptimeAccountHint}${uptimeSummary ? ` · ${uptimeSummary.open_incidents ?? 0} open incidents` : ''}`
+        : uptimeSummary
+          ? `${uptimeSummary.up}/${uptimeSummary.total} up locally · ${uptimeSummary.open_incidents ?? 0} open incidents`
+          : uptimeConfigured
+            ? 'sync pending'
+            : 'not configured',
       tone: downCount > 0 ? 'failed' : uptimeSummary?.total ? 'live' : 'muted',
       muted: !uptimeConfigured,
     }));
@@ -2895,6 +2952,13 @@ function renderHomeDashboard(data) {
   scroll.appendChild(statsEl);
 
   if (uptimeConfigured) {
+    if (uptimeAccountHint) {
+      const uptimeHead = document.createElement('p');
+      uptimeHead.className = 'dash-muted-inline dash-uptime-account';
+      uptimeHead.textContent = uptimeAccountHint;
+      scroll.appendChild(uptimeHead);
+    }
+
     const list = document.createElement('ul');
     list.className = 'dash-uptime-grid';
     const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
@@ -3122,29 +3186,8 @@ async function syncUptimeSitesFromPlatforms() {
     });
     const data = await res.json().catch(() => null);
     if (!data) throw new Error(`HTTP ${res.status}`);
-    if (!res.ok || !data.ok) throw new Error(data.error || data.errors?.[0] || `HTTP ${res.status}`);
 
-    const createdLines = (data.createdItems || [])
-      .slice(0, 12)
-      .map((item) => `<li>${escHtml(item.friendlyName)} <span class="dash-muted-inline">(${escHtml(item.source)})</span></li>`)
-      .join('');
-    const warningLines = (data.warnings || [])
-      .slice(0, 6)
-      .map((msg) => `<li>${escHtml(msg)}</li>`)
-      .join('');
-    const errorLines = (data.errors || [])
-      .slice(0, 6)
-      .map((msg) => `<li>${escHtml(msg)}</li>`)
-      .join('');
-
-    const pendingNote = data.pending > 0
-      ? ` · <strong>${data.pending}</strong> pending (run again to continue)`
-      : '';
-    bodyEl.innerHTML =
-      `<p><strong>${data.created}</strong> added · <strong>${data.skipped}</strong> already monitored · <strong>${data.discovered}</strong> found${pendingNote}</p>` +
-      (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
-      (warningLines ? `<p class="dash-empty">Warnings</p><ul class="meeting-confirm-steps">${warningLines}</ul>` : '') +
-      (errorLines ? `<p class="dash-empty">Errors</p><ul class="meeting-confirm-steps">${errorLines}</ul>` : '');
+    bodyEl.innerHTML = renderUptimeSyncResultHtml(data, res.ok);
 
     actionsEl.innerHTML = '';
     const closeBtn = document.createElement('button');
@@ -3153,7 +3196,7 @@ async function syncUptimeSitesFromPlatforms() {
     closeBtn.textContent = 'Done';
     closeBtn.addEventListener('click', async () => {
       closeOsDialogBackdrop();
-      if (data.created > 0) await loadHomeDashboard();
+      if (data.created > 0 || data.account) await loadHomeDashboard();
     });
     actionsEl.appendChild(closeBtn);
     closeBtn.focus();

@@ -34,6 +34,75 @@ export type UptimeRobotNewMonitorResult =
   | { ok: true; monitorId: number }
   | { ok: false; error: string };
 
+export type UptimeRobotAccountDetails = {
+  monitorLimit: number;
+  /** up + down + paused (from getAccountDetails). */
+  monitorCount: number;
+  upMonitors: number;
+  downMonitors: number;
+  pausedMonitors: number;
+  monitorIntervalMinutes: number | null;
+};
+
+export type UptimeRobotErrorKind =
+  | 'rate_limit'
+  | 'monitor_limit'
+  | 'duplicate'
+  | 'plan_feature'
+  | 'invalid'
+  | 'other';
+
+/** Map raw UptimeRobot API error text to a stable category + user-facing summary. */
+export function classifyUptimeRobotError(raw: string): {
+  kind: UptimeRobotErrorKind;
+  summary: string;
+  raw: string;
+} {
+  const msg = raw.trim() || 'unknown error';
+  const lower = msg.toLowerCase();
+
+  if (/rate limit|too many request|\b429\b|retry.?after|req\/min/i.test(lower)) {
+    return {
+      kind: 'rate_limit',
+      summary: 'UptimeRobot rate limit (10 requests/min on the free plan)',
+      raw: msg,
+    };
+  }
+  if (
+    /monitor limit|maximum.*monitors?|max.*monitors?|monitor_limit|monitors?.*limit|limit.*monitors?|too many monitors?|reached.*monitor/i.test(
+      lower,
+    )
+  ) {
+    return {
+      kind: 'monitor_limit',
+      summary: 'UptimeRobot monitor count limit reached for your plan',
+      raw: msg,
+    };
+  }
+  if (/already exist|duplicate|already used|same url|must be unique|unique.*url|url.*unique/i.test(lower)) {
+    return {
+      kind: 'duplicate',
+      summary: 'This URL is already monitored in UptimeRobot',
+      raw: msg,
+    };
+  }
+  if (/current plan|not allowed on|subscription|not available.*plan|upgrade.*plan|plan does not/i.test(lower)) {
+    return {
+      kind: 'plan_feature',
+      summary: 'Not allowed on your UptimeRobot plan',
+      raw: msg,
+    };
+  }
+  if (/invalid|blacklist|forbidden|bad request|required field|malformed/i.test(lower)) {
+    return {
+      kind: 'invalid',
+      summary: 'Invalid monitor configuration',
+      raw: msg,
+    };
+  }
+  return { kind: 'other', summary: msg, raw: msg };
+}
+
 function apiKey(): string | null {
   return serverEnv('UPTIMEROBOT_API_KEY')?.trim() || null;
 }
@@ -79,6 +148,8 @@ export function parseCustomUptimeRatios(raw: string | undefined): { d7: number |
 export async function urGetMonitors(opts?: {
   monitorIds?: number[];
   customUptimeRatios?: string;
+  offset?: number;
+  limit?: number;
 }): Promise<UptimeRobotMonitorsResult> {
   const key = apiKey();
   if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
@@ -92,6 +163,12 @@ export async function urGetMonitors(opts?: {
   });
   if (opts?.monitorIds?.length) {
     body.set('monitors', opts.monitorIds.join('-'));
+  }
+  if (opts?.offset != null && opts.offset > 0) {
+    body.set('offset', String(opts.offset));
+  }
+  if (opts?.limit != null && opts.limit > 0) {
+    body.set('limit', String(Math.min(opts.limit, 50)));
   }
 
   try {
@@ -112,6 +189,87 @@ export async function urGetMonitors(opts?: {
     }
 
     return { ok: true, monitors: data.monitors ?? [] };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+/** Paginate getMonitors — the API returns at most 50 records per page. */
+export async function urGetAllMonitors(opts?: {
+  customUptimeRatios?: string;
+}): Promise<UptimeRobotMonitorsResult> {
+  const all: UptimeRobotMonitor[] = [];
+  const pageSize = 50;
+  let offset = 0;
+
+  for (;;) {
+    const page = await urGetMonitors({
+      customUptimeRatios: opts?.customUptimeRatios,
+      offset,
+      limit: pageSize,
+    });
+    if (!page.ok) return page;
+    all.push(...page.monitors);
+    if (page.monitors.length < pageSize) break;
+    offset += pageSize;
+    if (offset > 10_000) break;
+  }
+
+  return { ok: true, monitors: all };
+}
+
+export async function urGetAccountDetails(): Promise<
+  | { ok: true; account: UptimeRobotAccountDetails }
+  | { ok: false; error: string }
+> {
+  const key = apiKey();
+  if (!key) return { ok: false, error: 'UPTIMEROBOT_API_KEY is not set' };
+
+  const body = new URLSearchParams({
+    api_key: key,
+    format: 'json',
+  });
+
+  try {
+    const res = await fetch('https://api.uptimerobot.com/v2/getAccountDetails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+    const data = (await res.json()) as {
+      stat?: string;
+      error?: { message?: string };
+      account?: {
+        monitor_limit?: number | string;
+        monitor_interval?: number | string;
+        up_monitors?: number | string;
+        down_monitors?: number | string;
+        paused_monitors?: number | string;
+      };
+    };
+
+    if (!res.ok || data.stat !== 'ok' || !data.account) {
+      const msg = data.error?.message || `HTTP ${res.status}`;
+      return { ok: false, error: msg };
+    }
+
+    const a = data.account;
+    const up = Number(a.up_monitors ?? 0);
+    const down = Number(a.down_monitors ?? 0);
+    const paused = Number(a.paused_monitors ?? 0);
+    const intervalRaw = Number(a.monitor_interval);
+    return {
+      ok: true,
+      account: {
+        monitorLimit: Number(a.monitor_limit ?? 0),
+        monitorCount: up + down + paused,
+        upMonitors: up,
+        downMonitors: down,
+        pausedMonitors: paused,
+        monitorIntervalMinutes: Number.isFinite(intervalRaw) ? intervalRaw : null,
+      },
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };

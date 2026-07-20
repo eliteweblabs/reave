@@ -26,14 +26,18 @@ import {
 import { portalSiteUrl } from './siteMonitoring';
 import { serverEnv } from './serverEnv';
 import {
+  classifyUptimeRobotError,
   isUptimeRobotConfigured,
   parseCustomUptimeRatios,
+  urGetAccountDetails,
+  urGetAllMonitors,
   urGetMonitors,
   urNewMonitor,
   normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
   uptimeStatusLabel,
   UPTIME_MONITOR_STATUS,
+  type UptimeRobotAccountDetails,
   type UptimeRobotMonitor,
 } from './uptimerobotClient';
 
@@ -340,6 +344,12 @@ export type UptimePlatformSyncResult = {
   warnings: string[];
   errors: string[];
   createdItems: UptimePlatformSyncItem[];
+  /** Live UptimeRobot account usage when the API key can read account details. */
+  account?: UptimeRobotAccountDetails;
+  /** Monitors cached locally in Postgres (may lag behind UptimeRobot). */
+  localMonitorCount?: number;
+  /** Primary failure reason for API consumers / UI alerts. */
+  error?: string;
 };
 
 /**
@@ -377,20 +387,35 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     return { ...empty, errors: ['DATABASE_URL not configured'] };
   }
 
+  const warnings: string[] = [];
+  const accountRes = await urGetAccountDetails();
+  const localRows = await dbListUptimeMonitors();
+  const localMonitorCount = localRows?.length ?? 0;
+  const account = accountRes.ok ? accountRes.account : undefined;
+  if (!accountRes.ok) {
+    warnings.push(`UptimeRobot account details: ${accountRes.error}`);
+  }
+
   const existing = new Set<string>();
-  const api = await urGetMonitors({ customUptimeRatios: '7-30' });
+  const api = await urGetAllMonitors({ customUptimeRatios: '7-30' });
   if (api.ok) {
     for (const monitor of api.monitors) {
       const key = normalizeUrl(monitor.url);
       if (key) existing.add(key);
     }
   } else {
-    return { ...empty, errors: [`UptimeRobot: ${api.error}`] };
+    return {
+      ...empty,
+      errors: [`UptimeRobot: ${api.error}`],
+      warnings,
+      account,
+      localMonitorCount,
+      error: `UptimeRobot: ${api.error}`,
+    };
   }
 
   const kinstaItems: UptimePlatformSyncItem[] = [];
   const railwayItems: UptimePlatformSyncItem[] = [];
-  const warnings: string[] = [];
 
   if (isKinstaConfigured()) {
     const kinsta = await kinstaCollectMonitorUrls();
@@ -445,9 +470,13 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
   let attempts = 0;
   let pending = 0;
   let rateLimited = false;
-  let planLimited = false;
+  let monitorLimited = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
+
+  const noteError = (line: string) => {
+    if (!errors.includes(line)) errors.push(line);
+  };
 
   for (const item of unique) {
     const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
@@ -459,7 +488,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     // Once the cap or an UptimeRobot account limit is hit, stop attempting —
     // further calls in this run would just fail. The remainder is picked up by
     // the next (scheduled or manual) run.
-    if (attempts >= maxAttempts || rateLimited || planLimited) {
+    if (attempts >= maxAttempts || rateLimited || monitorLimited) {
       pending += 1;
       continue;
     }
@@ -476,31 +505,46 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       createdItems.push(item);
     } else {
       const err = result.error || 'unknown error';
-      if (/rate limit/i.test(err)) {
+      const classified = classifyUptimeRobotError(err);
+      console.warn('[uptime-sync] create failed', {
+        site: item.friendlyName,
+        url: item.url,
+        kind: classified.kind,
+        raw: classified.raw,
+      });
+
+      if (classified.kind === 'rate_limit') {
         rateLimited = true;
         pending += 1;
-      } else if (/current plan|not allowed/i.test(err)) {
-        planLimited = true;
+        noteError(`${classified.summary} — ${classified.raw}`);
+      } else if (classified.kind === 'monitor_limit') {
+        monitorLimited = true;
         pending += 1;
+        noteError(`${classified.summary} — ${classified.raw}`);
+      } else if (classified.kind === 'duplicate') {
+        skipped += 1;
+        if (key) existing.add(key);
+        warnings.push(`${item.friendlyName}: ${classified.raw}`);
       } else {
-        errors.push(`${item.friendlyName}: ${err}`);
+        errors.push(`${item.friendlyName}: ${classified.raw}`);
       }
     }
   }
 
-  if (planLimited) {
-    errors.push(
-      'UptimeRobot monitor limit reached for your current plan — upgrade the plan or remove monitors to add more.',
+  if (rateLimited && pending > 0) {
+    warnings.push(
+      `${pending} site${pending === 1 ? '' : 's'} queued — UptimeRobot allows 10 API requests/min on the free plan. Run sync again in a minute to continue.`,
     );
   }
-  if (rateLimited) {
+  if (monitorLimited && pending > 0 && account) {
     warnings.push(
-      'UptimeRobot rate limit hit (10 requests/min on the free plan) — remaining sites are queued and will be added automatically over the next runs.',
+      `${pending} site${pending === 1 ? '' : 's'} queued — account is at ${account.monitorCount}/${account.monitorLimit} monitors in UptimeRobot.`,
     );
   }
 
+  const ok = created > 0 || errors.length === 0;
   return {
-    ok: created > 0 || errors.length === 0,
+    ok,
     discovered: unique.length,
     created,
     skipped,
@@ -508,6 +552,9 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     warnings,
     errors,
     createdItems,
+    account,
+    localMonitorCount,
+    error: errors[0],
   };
 }
 
@@ -604,6 +651,28 @@ export async function getUptimeMonitorsView(): Promise<{
     return { configured: false, monitors: [] };
   }
   return { configured: isUptimeRobotConfigured(), monitors: (await dbListUptimeMonitors()) ?? [] };
+}
+
+export async function getUptimeAccountView(): Promise<{
+  configured: boolean;
+  localTotal: number;
+  account: UptimeRobotAccountDetails | null;
+  error?: string;
+}> {
+  if (!hasFeature('uptime_monitoring')) {
+    return { configured: false, localTotal: 0, account: null };
+  }
+  if (!isUptimeRobotConfigured()) {
+    return { configured: false, localTotal: 0, account: null };
+  }
+
+  const local = await dbListUptimeMonitors();
+  const localTotal = local?.length ?? 0;
+  const api = await urGetAccountDetails();
+  if (!api.ok) {
+    return { configured: true, localTotal, account: null, error: api.error };
+  }
+  return { configured: true, localTotal, account: api.account };
 }
 
 export async function getUptimeIncidentsView(
