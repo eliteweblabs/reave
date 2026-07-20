@@ -97,13 +97,14 @@ async function loadEmail(id: string): Promise<
 > {
   const event = await storeGetEmailInbox(id);
   if (!event) return { error: 'Not found', status: 404 };
-  const proposedStart = resolveProposedMeetingStart({
-    proposedMeetingStart: event.proposedMeetingStart,
-    schedulingNote: event.schedulingNote,
-    summary: event.summary,
-    bodyText: event.bodySnippet || event.bodyText,
-    receivedAt: event.receivedAt,
-  });
+  let proposedStart =
+    resolveProposedMeetingStart({
+      proposedMeetingStart: event.proposedMeetingStart,
+      schedulingNote: event.schedulingNote,
+      summary: event.summary,
+      bodyText: event.bodySnippet || event.bodyText,
+      receivedAt: event.receivedAt,
+    }) ?? null;
   if (!proposedStart && event.bookingStart) {
     proposedStart = event.bookingStart;
   }

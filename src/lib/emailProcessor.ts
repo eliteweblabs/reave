@@ -87,7 +87,7 @@ Respond with ONLY valid JSON (no markdown fences):
   "job_slug": "slug from the job list below, or null",
   "note_to_append": "project-relevant facts to append to the job file, or null",
   "reason": "short routing explanation",
-  "proposed_meeting_start": "ISO 8601 UTC datetime ONLY when the email proposes a concrete meeting date AND time (e.g. Tuesday at 2pm), otherwise null",
+  "proposed_meeting_start": "ISO 8601 datetime with offset when the email proposes a concrete meeting date AND time, otherwise null",
   "scheduling_note": "short human phrase for the proposed meeting time, or null when not scheduling"
 }
 Categories:
@@ -97,10 +97,12 @@ Categories:
 - internal: personal/admin not tied to a client job
 - review: ambiguous — needs human decision
 Pick job_slug only when confident; prefer active/inquiry jobs.
-For proposed_meeting_start: require BOTH a specific date and time. Vague availability requests ("let's find a time", "next week") must be null. Deadlines and launch dates are NOT meetings.`;
+For proposed_meeting_start: require BOTH a specific date and time. Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Deadlines and launch dates are NOT meetings.`;
 
   const triageBody = normalizeEmailBody(email.text, email.html);
+  const receivedAt = new Date().toISOString();
   const user = [
+    `Received: ${receivedAt}`,
     `From: ${email.from ?? ''}`,
     `Subject: ${email.subject ?? ''}`,
     contactName ? `Known contact: ${contactName}` : '',
@@ -228,6 +230,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   let bookingUid: string | null = null;
   let bookingStart: string | null = null;
   let automationKind: string | null = null;
+  const receivedAt = new Date().toISOString();
 
   const contactRes = senderEmail.includes('@')
     ? await resolveContact({ email: senderEmail })
@@ -258,14 +261,24 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       routeNote = ai.reason ?? '';
       proposedMeetingStart = ai.proposed_meeting_start;
       schedulingNote = ai.scheduling_note ?? '';
-      if (!proposedMeetingStart && (schedulingNote || /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary))) {
-        proposedMeetingStart = resolveProposedMeetingStart({
-          proposedMeetingStart: null,
-          schedulingNote,
-          summary,
-          bodyText: snippet(bodyText, 2000),
-          receivedAt: new Date().toISOString(),
-        });
+      const bodySnippet = snippet(bodyText, 2000);
+      const schedulingContext = `${schedulingNote} ${summary} ${bodySnippet}`;
+      const mentionsNextWeek = /\bnext\s+week\b/i.test(schedulingContext);
+      const mentionsScheduling =
+        schedulingNote ||
+        mentionsNextWeek ||
+        /\b(meet|meeting|schedule|appointment|get together)\b/i.test(summary);
+      if (!proposedMeetingStart || mentionsNextWeek) {
+        if (mentionsScheduling) {
+          const resolved = resolveProposedMeetingStart({
+            proposedMeetingStart: mentionsNextWeek ? null : proposedMeetingStart,
+            schedulingNote,
+            summary,
+            bodyText: bodySnippet,
+            receivedAt,
+          });
+          if (resolved) proposedMeetingStart = resolved;
+        }
       }
       const job = pickJobSlug(ai.job_slug, jobs, email.subject ?? '');
       if (job && category === 'client' && ai.note_to_append?.trim()) {

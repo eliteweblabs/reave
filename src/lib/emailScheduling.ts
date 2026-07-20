@@ -157,11 +157,23 @@ function parseTimeFromSchedulingText(text: string): { hour: number; minute: numb
   return { hour, minute };
 }
 
-function parseWeekdayFromSchedulingText(text: string): { day: number; next: boolean } | null {
+function daysToStartOfNextCalendarWeek(refDay: number): number {
+  // Calendar weeks start Monday; refDay is JS getDay() (0=Sun … 6=Sat).
+  if (refDay === 0) return 1;
+  return (8 - refDay) % 7 || 7;
+}
+
+function parseWeekdayFromSchedulingText(
+  text: string,
+): { day: number; modifier: 'next_week' | 'next' | null } | null {
   const lower = text.toLowerCase();
-  const next = /\bnext\b/.test(lower);
+  const nextWeek = /\bnext\s+week\b/.test(lower);
   for (let i = 0; i < WEEKDAYS.length; i++) {
-    if (new RegExp(`\\b${WEEKDAYS[i]}\\b`, 'i').test(lower)) return { day: i, next };
+    if (!new RegExp(`\\b${WEEKDAYS[i]}\\b`, 'i').test(lower)) continue;
+    const nextDay =
+      !nextWeek && new RegExp(`\\bnext\\s+${WEEKDAYS[i]}\\b`, 'i').test(lower);
+    const modifier = nextWeek ? 'next_week' : nextDay ? 'next' : null;
+    return { day: i, modifier };
   }
   return null;
 }
@@ -178,11 +190,19 @@ export function parseRelativeMeetingTime(text: string, ref: Date): string | null
 
   if (weekday) {
     const refDay = ref.getDay();
-    let daysAhead = (weekday.day - refDay + 7) % 7;
-    if (weekday.next && daysAhead === 0) daysAhead = 7;
-    else if (!weekday.next && daysAhead === 0) {
-      target.setHours(time.hour, time.minute, 0, 0);
-      if (target.getTime() <= ref.getTime()) daysAhead = 7;
+    let daysAhead: number;
+
+    if (weekday.modifier === 'next_week') {
+      const daysFromMonday = (weekday.day - 1 + 7) % 7;
+      daysAhead = daysToStartOfNextCalendarWeek(refDay) + daysFromMonday;
+    } else {
+      daysAhead = (weekday.day - refDay + 7) % 7;
+      if (weekday.modifier === 'next') {
+        daysAhead = daysAhead === 0 ? 7 : daysAhead + 7;
+      } else if (daysAhead === 0) {
+        target.setHours(time.hour, time.minute, 0, 0);
+        if (target.getTime() <= ref.getTime()) daysAhead = 7;
+      }
     }
     target.setDate(ref.getDate() + daysAhead);
   }
