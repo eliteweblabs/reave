@@ -4810,14 +4810,16 @@ function footerNavShowsCreate(nav) {
     return activeKey === 'chats' && activeNav === 'chat' && !chatState.activeId;
   }
   if (nav === 'inbox') {
-    return activeKey === 'email' && activeNav === 'inbox' && !emailState.activeId && !emailState.composing;
+    return activeKey === 'email' && activeNav === 'inbox' && !emailState.composing;
   }
   if (nav === 'schedule') {
-    return activeKey === 'schedule' && activeNav === 'schedule' && !scheduleState.activeUid;
+    return activeKey === 'schedule' && activeNav === 'schedule';
   }
-  if (nav === 'work') return activeKey === 'work' && activeNav === 'work' && !workState.activeSlug;
+  if (nav === 'work') return activeKey === 'work' && activeNav === 'work';
   if (nav === 'todo') return activeKey === 'todo' && activeNav === 'todo';
-  if (nav === 'clients') return activeKey === 'clients' && activeNav === 'clients' && !clientState.activeUid;
+  if (nav === 'clients') {
+    return activeKey === 'clients' && activeNav === 'clients' && clientState.activeUid !== '__new__';
+  }
   return false;
 }
 
