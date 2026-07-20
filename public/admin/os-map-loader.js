@@ -2481,15 +2481,6 @@ function renderHomeDashboard(data) {
   statsEl.className = 'dash-stats';
 
   statsEl.appendChild(buildDashStat({
-    value: stats.eventsToday ?? 0,
-    label: 'Events today',
-    hint: scheduleLive
-      ? (stats.eventsToday ? 'on your calendar' : 'open schedule')
-      : 'scheduling not configured',
-    onClick: () => openScheduleTab(),
-  }));
-
-  statsEl.appendChild(buildDashStat({
     value: stats.projectsPending ?? 0,
     label: 'Projects pending',
     hint: stats.projectsActive ? `${stats.projectsActive} active` : 'none active',
@@ -2581,8 +2572,6 @@ function renderHomeDashboard(data) {
     }));
   }
 
-  scroll.appendChild(statsEl);
-
   const eventsPanel = document.createElement('section');
   eventsPanel.className = 'dash-panel dash-panel-today' + (events.length ? '' : ' dash-panel-today--empty');
   eventsPanel.innerHTML =
@@ -2639,6 +2628,8 @@ function renderHomeDashboard(data) {
   }
   eventsPanel.appendChild(eventsBody);
   scroll.appendChild(eventsPanel);
+
+  scroll.appendChild(statsEl);
 
   if (uptimeConfigured) {
     const list = document.createElement('ul');
