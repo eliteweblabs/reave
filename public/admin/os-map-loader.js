@@ -14818,7 +14818,7 @@ function mountWorkFilesSection(container, slug, initialFiles) {
 
   const hint = document.createElement('div');
   hint.className = 'wk-files-hint';
-  hint.textContent = 'Images from linked chats are saved here automatically.';
+  hint.textContent = 'Images from matching emails and linked chats are saved here automatically.';
   section.appendChild(hint);
 
   const grid = document.createElement('div');
