@@ -1,0 +1,553 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 768" width="1024" height="768">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Arial:wght@400;700&amp;display=swap');
+      
+      text {
+        font-family: Arial, Helvetica, sans-serif;
+      }
+      
+      .title {
+        font-size: 18px;
+        font-weight: bold;
+        fill: white;
+      }
+      
+      .subtitle {
+        font-size: 9px;
+        fill: #ffcc00;
+      }
+      
+      .heading {
+        font-size: 11px;
+        font-weight: bold;
+      }
+      
+      .body-text {
+        font-size: 8px;
+      }
+      
+      .small-text {
+        font-size: 7px;
+      }
+      
+      .legend-text {
+        font-size: 7px;
+        font-weight: bold;
+      }
+      
+      .blue-box {
+        fill: #1e3a8a;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .red-box {
+        fill: #991b1b;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .green-box {
+        fill: #065f46;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .purple-box {
+        fill: #5b21b6;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .gray-box {
+        fill: #374151;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .yellow-box {
+        fill: #78350f;
+        stroke: white;
+        stroke-width: 1;
+      }
+      
+      .black-bg {
+        fill: #000000;
+      }
+      
+      .white-text {
+        fill: white;
+      }
+      
+      .yellow-text {
+        fill: #ffcc00;
+      }
+      
+      .arrow {
+        stroke: #dc2626;
+        stroke-width: 2;
+        fill: none;
+        marker-end: url(#arrowhead);
+      }
+      
+      .email-icon {
+        fill: #dc2626;
+      }
+    </style>
+    
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+    </marker>
+  </defs>
+  
+  <!-- Background -->
+  <rect class="black-bg" width="1024" height="768"/>
+  
+  <!-- Main Title -->
+  <text class="title" x="512" y="20" text-anchor="middle">JASON KAHAN BITCOIN MATTER: RELATIONSHIP, COMMUNICATION, AND TRANSACTION FLOW CHART</text>
+  <text class="subtitle" x="512" y="32" text-anchor="middle">Summary of Documented Relationships, Communications, Transactions, and Court Proceedings Relevant to the Investigation</text>
+  
+  <!-- Legend Section (Top Left) -->
+  <g id="legend">
+    <rect class="gray-box" x="10" y="40" width="150" height="60"/>
+    <text class="legend-text white-text" x="15" y="52">LEGEND:</text>
+    <line x1="15" y1="58" x2="25" y2="58" stroke="#4169e1" stroke-width="2"/>
+    <text class="small-text white-text" x="30" y="61">DOCUMENTED FACTS</text>
+    <text class="small-text white-text" x="30" y="68">(Email, Documents, Filings)</text>
+    
+    <line x1="15" y1="72" x2="25" y2="72" stroke="#dc2626" stroke-width="2"/>
+    <text class="small-text white-text" x="30" y="75">DOCUMENTED</text>
+    <text class="small-text white-text" x="30" y="82">COMMUNICATION</text>
+    <text class="small-text white-text" x="30" y="89">(Email, Text, Call)</text>
+  </g>
+  
+  <!-- Color Key -->
+  <g id="color-key">
+    <rect class="blue-box" x="170" y="40" width="15" height="8"/>
+    <text class="small-text white-text" x="188" y="47">BUSINESS / COMPANY</text>
+    
+    <rect class="purple-box" x="280" y="40" width="15" height="8"/>
+    <text class="small-text white-text" x="298" y="47">INDIVIDUAL</text>
+    
+    <rect class="red-box" x="350" y="40" width="15" height="8"/>
+    <text class="small-text white-text" x="368" y="47">BANKRUPTCY / LEGAL</text>
+    
+    <rect class="green-box" x="460" y="40" width="15" height="8"/>
+    <text class="small-text white-text" x="478" y="47">LOCATION / RELATIONSHIP REQUIRING</text>
+    <text class="small-text white-text" x="478" y="54">FURTHER REVIEW</text>
+  </g>
+  
+  <!-- Investigative Issues Box (Top Right) -->
+  <g id="investigative-issues">
+    <rect class="gray-box" x="850" y="40" width="165" height="110"/>
+    <text class="legend-text yellow-text" x="855" y="52">INVESTIGATIVE ISSUES PRESENTED</text>
+    <text class="small-text white-text" x="855" y="62">A summary of investigative questions and</text>
+    <text class="small-text white-text" x="855" y="69">transactions depicted in this exhibit organized</text>
+    <text class="small-text white-text" x="855" y="76">documented facts, communications, and</text>
+    <text class="small-text white-text" x="855" y="83">relationships to identify issues that may warrant</text>
+    <text class="small-text white-text" x="855" y="90">further investigation in connection with the</text>
+    <text class="small-text white-text" x="855" y="97">bankruptcy proceeding.  Clarifies the nature and</text>
+    <text class="small-text white-text" x="855" y="104">extent and scope of roles transferred through</text>
+    <text class="small-text white-text" x="855" y="111">the bankruptcy via comparative analysis</text>
+    <text class="small-text white-text" x="855" y="118">of documented communications, business</text>
+    <text class="small-text white-text" x="855" y="125">transactions, and corporate structures.</text>
+  </g>
+  
+  <!-- Origins of Key Relationships -->
+  <text class="heading yellow-text" x="85" y="170" text-anchor="middle">ORIGINS OF KEY RELATIONSHIPS</text>
+  
+  <!-- Chris Green -->
+  <g id="chris-green">
+    <circle fill="#065f46" cx="30" cy="200" r="12"/>
+    <text class="small-text white-text" x="30" y="203" text-anchor="middle" font-weight="bold">CG</text>
+    <text class="body-text white-text" x="45" y="198" font-weight="bold">CHRIS GREEN</text>
+    <text class="small-text white-text" x="45" y="206">Business Associate</text>
+  </g>
+  
+  <!-- Arrow and connector -->
+  <path class="arrow" d="M 60 200 L 90 200"/>
+  
+  <!-- Nils Trostheim -->
+  <g id="nils-trostheim">
+    <circle fill="#991b1b" cx="110" cy="200" r="12"/>
+    <text class="small-text white-text" x="110" y="203" text-anchor="middle" font-weight="bold">NT</text>
+    <text class="body-text white-text" x="125" y="198" font-weight="bold">NILS TROSTHEIM</text>
+    <text class="small-text white-text" x="125" y="206">Business Associate</text>
+  </g>
+  
+  <!-- Arrow to Tall Ships -->
+  <path class="arrow" d="M 180 200 L 210 200"/>
+  
+  <!-- Tall Ships Development LLC -->
+  <g id="tall-ships">
+    <rect class="blue-box" x="220" y="185" width="80" height="30"/>
+    <text class="body-text white-text" x="260" y="197" text-anchor="middle" font-weight="bold">TALL SHIPS</text>
+    <text class="body-text white-text" x="260" y="205" text-anchor="middle" font-weight="bold">DEVELOPMENT LLC</text>
+    <text class="small-text white-text" x="260" y="212" text-anchor="middle">Business Entity</text>
+  </g>
+  
+  <!-- Arrow to Lumas Esq -->
+  <path class="arrow" d="M 300 200 L 330 200"/>
+  
+  <!-- W. K. Lumas, Esq. -->
+  <g id="lumas">
+    <rect class="red-box" x="340" y="185" width="80" height="30"/>
+    <text class="body-text white-text" x="380" y="197" text-anchor="middle" font-weight="bold">W. K. LUMAS, ESQ.</text>
+    <text class="small-text white-text" x="380" y="205" text-anchor="middle">Attorney for</text>
+    <text class="small-text white-text" x="380" y="212" text-anchor="middle">Tall Ships Development LLC</text>
+  </g>
+  
+  <!-- Bradley Hoffman -->
+  <g id="bradley-hoffman">
+    <circle fill="#5b21b6" cx="510" cy="200" r="12"/>
+    <text class="small-text white-text" x="510" y="203" text-anchor="middle" font-weight="bold">BH</text>
+    <text class="body-text white-text" x="525" y="198" font-weight="bold">BRADLEY HOFFMAN</text>
+    <text class="small-text white-text" x="525" y="206">Business Associate /</text>
+    <text class="small-text white-text" x="525" y="213">Strategic Partner</text>
+  </g>
+  
+  <!-- Email communication arrow -->
+  <g id="email-communication">
+    <rect class="email-icon" x="580" y="190" width="30" height="20" rx="3"/>
+    <path d="M 580 195 L 595 205 L 610 195" fill="none" stroke="white" stroke-width="1"/>
+    <text class="small-text white-text" x="615" y="197">DOCUMENTED</text>
+    <text class="small-text white-text" x="615" y="204">INTRODUCTION EMAIL</text>
+    <text class="small-text white-text" x="615" y="211">from Chris Green to</text>
+    <text class="small-text white-text" x="615" y="218">and Howard Jahre</text>
+  </g>
+  
+  <!-- Arrow to Jason Kahan -->
+  <line class="arrow" x1="680" y1="200" x2="730" y2="200"/>
+  
+  <!-- Jason Kahan (right side) -->
+  <g id="jason-kahan-right">
+    <circle fill="#000000" stroke="white" stroke-width="2" cx="750" cy="200" r="15"/>
+    <text class="small-text white-text" x="750" y="203" text-anchor="middle" font-weight="bold">JK</text>
+    <text class="body-text white-text" x="770" y="195" font-weight="bold">JASON KAHAN</text>
+  </g>
+  
+  <!-- Arrow to Howard Jahre -->
+  <line class="arrow" x1="800" y1="200" x2="825" y2="200"/>
+  
+  <!-- Howard Jahre, Esq. (right) -->
+  <g id="howard-jahre-top">
+    <circle fill="#000000" stroke="white" stroke-width="2" cx="845" cy="200" r="15"/>
+    <text class="small-text white-text" x="845" y="203" text-anchor="middle" font-weight="bold">HJ</text>
+    <text class="body-text white-text" x="865" y="195" font-weight="bold">HOWARD JAHRE, ESQ.</text>
+    <text class="small-text white-text" x="865" y="202">Attorney</text>
+  </g>
+  
+  <!-- Jason Kahan (bottom left section) -->
+  <g id="jason-kahan-main">
+    <circle fill="#000000" stroke="white" stroke-width="2" cx="30" cy="280" r="15"/>
+    <text class="small-text white-text" x="30" y="283" text-anchor="middle" font-weight="bold">JK</text>
+    <text class="body-text white-text" x="50" y="272" font-weight="bold">JASON KAHAN</text>
+    <text class="small-text white-text" x="50" y="280">" Owner of 1,854 BTC</text>
+    <text class="small-text white-text" x="50" y="287">" Victim of alleged unauthorized transfer</text>
+    <text class="small-text white-text" x="50" y="294">  and liquidation of Bitcoin assets</text>
+    <text class="small-text white-text" x="50" y="301">" Legal owner, transferred Bitcoin to</text>
+    <text class="small-text white-text" x="50" y="308">  Howard Jahre for safekeeping</text>
+    <text class="small-text white-text" x="50" y="315">" Responded to FBI, Local Police &amp;</text>
+    <text class="small-text white-text" x="50" y="322">  Secret Service  active victim</text>
+  </g>
+  
+  <!-- Central Howard Jahre Section -->
+  <g id="howard-jahre-central">
+    <rect class="gray-box" x="180" y="250" width="200" height="280"/>
+    <rect fill="#991b1b" x="185" y="255" width="190" height="20"/>
+    <text class="heading white-text" x="280" y="268" text-anchor="middle">THE CONDUCT - CENTRAL FIGURE</text>
+    
+    <!-- Howard Jahre Icon -->
+    <circle fill="#000000" stroke="white" stroke-width="2" cx="220" cy="295" r="18"/>
+    <text class="body-text white-text" x="220" y="298" text-anchor="middle" font-weight="bold">HJ</text>
+    
+    <text class="body-text white-text" x="245" y="290" font-weight="bold">HOWARD JAHRE, ESQ.</text>
+    <text class="small-text white-text" x="245" y="298">Attorney  "  Central Figure in Bitcoin Matter  "  Key Legal Representative</text>
+    
+    <!-- Serving Jason Kahan Section -->
+    <text class="small-text yellow-text" x="190" y="315" font-weight="bold">SERVING JASON KAHAN</text>
+    <text class="small-text white-text" x="190" y="323">(Advisory / Fiduciary Role?)</text>
+    <text class="small-text white-text" x="190" y="332"> Capital raising advisor &amp; broker</text>
+    <text class="small-text white-text" x="190" y="340"> Participant based in an undefined</text>
+    <text class="small-text white-text" x="192" y="348">   (unregistered on loan sharing or</text>
+    <text class="small-text white-text" x="192" y="356">   BTC network)</text>
+    <text class="small-text white-text" x="190" y="364"> Acting as signatory</text>
+    <text class="small-text white-text" x="190" y="372"> Signator details</text>
+    <text class="small-text white-text" x="190" y="380"> Control &amp; asset management</text>
+    <text class="small-text white-text" x="190" y="388"> Worked with Ken Cicconelli</text>
+    <text class="small-text white-text" x="192" y="396">   (general counsel / lawyer)</text>
+    <text class="small-text white-text" x="190" y="404"> Worked with Jesse Riedler</text>
+    <text class="small-text white-text" x="190" y="412"> Worked with Barry Levine</text>
+    <text class="small-text white-text" x="190" y="420"> Advisory services</text>
+    <text class="small-text white-text" x="190" y="428"> Coordination with Bankruptcy Trustee</text>
+    <text class="small-text white-text" x="190" y="436"> Trustee's counsel on Jason's behalf</text>
+    
+    <!-- Conflicts Section -->
+    <text class="small-text yellow-text" x="190" y="455" font-weight="bold">BUSINESS/ORDER ISSUES</text>
+    <text class="small-text white-text" x="190" y="463">Simultaneously represented conflicting interests</text>
+    <text class="small-text white-text" x="192" y="471">without a waiver</text>
+    
+    <!-- Evolution Section -->
+    <text class="small-text yellow-text" x="190" y="488" font-weight="bold">EVOLUTION OF ROLES &amp; ACTIVITIES</text>
+    <rect fill="#8b0000" x="190" y="492" width="12" height="10" rx="2"/>
+    <text class="small-text white-text" x="205" y="500">Jun 26, 2024  Bitcoin Transferred to Pioneer</text>
+    <text class="small-text white-text" x="205" y="507">    Funding Group</text>
+    
+    <rect fill="#8b0000" x="190" y="510" width="12" height="10" rx="2"/>
+    <text class="small-text white-text" x="205" y="518">Uncertain timeframe</text>
+  </g>
+  
+  <!-- Jason's Legal &amp; Professional Team -->
+  <g id="legal-team">
+    <rect class="blue-box" x="10" y="360" width="150" height="85"/>
+    <text class="small-text yellow-text" x="15" y="372" font-weight="bold">JASON'S LEGAL &amp; PROFESSIONAL TEAM</text>
+    
+    <circle fill="#5b21b6" cx="25" cy="390" r="8"/>
+    <text class="small-text white-text" x="36" y="393" font-weight="bold">KEN CICCONELLI, ESQ.</text>
+    <text class="small-text white-text" x="36" y="400">Former Special Counsel for Trustee</text>
+    
+    <circle fill="#5b21b6" cx="25" cy="410" r="8"/>
+    <text class="small-text white-text" x="36" y="413" font-weight="bold">JESSE RIEDLER, ESQ.</text>
+    <text class="small-text white-text" x="36" y="420">Bankruptcy Attorney</text>
+    
+    <circle fill="#5b21b6" cx="25" cy="430" r="8"/>
+    <text class="small-text white-text" x="36" y="433" font-weight="bold">BARRY LEVINE, ESQ.</text>
+    <text class="small-text white-text" x="36" y="440">Bankruptcy Counsel</text>
+  </g>
+  
+  <!-- HDK's Recovery Efforts -->
+  <g id="hdk-recovery">
+    <rect class="gray-box" x="10" y="455" width="150" height="70"/>
+    <text class="small-text yellow-text" x="15" y="467" font-weight="bold">HDK'S RECOVERY EFFORTS AT TIME OF TERMINATION</text>
+    <text class="small-text white-text" x="15" y="476" font-weight="bold">and Nils Trostheim Actions</text>
+    
+    <text class="small-text white-text" x="15" y="486"> Investigations and pursuit initiated into</text>
+    <text class="small-text white-text" x="17" y="493">  affairs under the Hague Convention</text>
+    <text class="small-text white-text" x="15" y="500"> Incorporation of unauthorized control into the unauthorized</text>
+    <text class="small-text white-text" x="17" y="507">  Bitcoin transaction analysis for criminal prosecution</text>
+    <text class="small-text white-text" x="15" y="514"> A civil RICO action invoking the U.S. Trustee and Jason</text>
+    <text class="small-text white-text" x="17" y="521">  as plaintiff</text>
+  </g>
+  
+  <!-- Hunter Penn / Alex J Column -->
+  <g id="hunter-penn">
+    <rect class="red-box" x="10" y="540" width="150" height="65"/>
+    <text class="small-text yellow-text" x="15" y="552" font-weight="bold">HUNTER PENN / ALEX J. COLUMN</text>
+    <text class="small-text white-text" x="15" y="562"> Counsel for the U.S. Trustee in the investigation</text>
+    <text class="small-text white-text" x="15" y="570"> Solely private legal representation of J-864 BTC</text>
+    <text class="small-text white-text" x="15" y="578"> Limited engagement to adversary matter</text>
+    <text class="small-text white-text" x="15" y="586"> No documented business relationships</text>
+    <text class="small-text white-text" x="17" y="594">  known to the author</text>
+  </g>
+  
+  <!-- Nils Trostheim &amp; Entities Controlled -->
+  <g id="nils-entities">
+    <rect class="gray-box" x="400" y="250" width="210" height="280"/>
+    <rect fill="#8b0000" x="405" y="255" width="200" height="20"/>
+    <text class="heading white-text" x="505" y="268" text-anchor="middle">NILS TROSTHEIM &amp; ENTITIES CONTROLLED</text>
+    
+    <text class="body-text white-text" x="410" y="285" font-weight="bold">NILS TROSTHEIM</text>
+    <text class="small-text white-text" x="410" y="293">Founder - NowCap Advisors</text>
+    <text class="small-text white-text" x="410" y="302"> Represented as a Dec 11, 2024 deadline between the</text>
+    <text class="small-text white-text" x="412" y="309">  private crypto controlling the wallet with 1,800+ BTC</text>
+    <text class="small-text white-text" x="410" y="316"> Controlled (currently until stolen) the wallet</text>
+    <text class="small-text white-text" x="410" y="323"> He and his wife are in possession of the wallet keys.</text>
+    
+    <text class="small-text yellow-text" x="410" y="340" font-weight="bold">TROSTHEIM ENTITIES &amp; NETWORK</text>
+    
+    <text class="body-text white-text" x="410" y="355" font-weight="bold">NOWCAP</text>
+    <text class="body-text white-text" x="410" y="363" font-weight="bold">ADVISORS AS</text>
+    <rect class="blue-box" x="480" y="348" width="120" height="20"/>
+    <text class="small-text white-text" x="490" y="360">1ST SHIP DEVELOPMENT GROUP</text>
+    <text class="small-text white-text" x="490" y="367">(DK) Investment Firm</text>
+    <text class="small-text white-text" x="490" y="375">1st Ship Development LLC (Danish)</text>
+    
+    <text class="small-text white-text" x="410" y="390">1 ON DIGITAL CORP</text>
+    <text class="small-text white-text" x="410" y="397">(Biogas / Strategic Partner</text>
+    
+    <text class="small-text white-text" x="410" y="415">QUANTUM RESOURCE GROUP (QRG)</text>
+    <text class="small-text white-text" x="410" y="422"> Trostheim is connected to this company directly; their</text>
+    <text class="small-text white-text" x="412" y="429">  CEO middle name "Lockwood" Bonds- used by pre-Bitcoin</text>
+    <text class="small-text white-text" x="412" y="436">  seeking group [Brian]</text>
+    
+    <text class="small-text white-text" x="410" y="450">GREEN BOND PROGRAMS</text>
+    <rect class="blue-box" x="410" y="454" width="180" height="20"/>
+    <text class="small-text white-text" x="415" y="466">" LOOM is crypto-blockchain facility</text>
+    <text class="small-text white-text" x="417" y="473">  through Medivale Advisory / Golem Ventures</text>
+    
+    <text class="small-text yellow-text" x="410" y="490" font-weight="bold">INVESTIGATIVE QUESTIONS</text>
+    
+    <rect fill="#ff6600" x="415" y="495" width="12" height="10" rx="2"/>
+    <text class="small-text white-text" x="430" y="503">Is there a direct personal or business relationship between Aulden</text>
+    
+    <rect fill="#ff6600" x="415" y="508" width="12" height="10" rx="2"/>
+    <text class="small-text white-text" x="430" y="516">Trostheim and the Trustee(s) or companies that managing Jason's</text>
+  </g>
+  
+  <!-- Pioneer Trading / Adam Stern-Safir -->
+  <g id="pioneer-trading">
+    <rect class="gray-box" x="620" y="250" width="190" height="150"/>
+    <rect fill="#5b21b6" x="625" y="255" width="180" height="20"/>
+    <text class="heading white-text" x="715" y="268" text-anchor="middle">PIONEER / ADAM STERN-SAFIR CONNECTION</text>
+    
+    <text class="body-text white-text" x="630" y="285" font-weight="bold">PIONEER FUNDING GROUP, LLC</text>
+    <text class="small-text white-text" x="630" y="293">(Connected to Howard Jahre)</text>
+    
+    <circle fill="#5b21b6" cx="640" cy="310" r="10"/>
+    <text class="small-text white-text" x="655" y="313" font-weight="bold">ADAM STERN-SAFIR</text>
+    <text class="small-text white-text" x="655" y="321">Stablinu Horse Stable</text>
+    <text class="small-text white-text" x="655" y="328">" Former Executive associated with</text>
+    <text class="small-text white-text" x="657" y="335">  Pioneer Funding Group</text>
+    <text class="small-text white-text" x="655" y="342">  Consultant (through</text>
+    <text class="small-text white-text" x="655" y="349">  Stern-Safir Family Office?) in trading license</text>
+    <text class="small-text white-text" x="655" y="356">" Worked at Fortress Investment Group</text>
+    <text class="small-text white-text" x="655" y="363">  as Managing Director in NY from 1998-2013</text>
+    <text class="small-text white-text" x="655" y="370">" Director, Executive of Ladnar Brands</text>
+    
+    <text class="small-text yellow-text" x="630" y="388" font-weight="bold">STABLINU HORSE SPORT LICENSE AGREEMENT (APA)</text>
+    <text class="small-text white-text" x="630" y="396">" Grants successful bidder option rights &amp; interests</text>
+  </g>
+  
+  <!-- Bankruptcy Process Section -->
+  <g id="bankruptcy-process">
+    <rect class="red-box" x="620" y="410" width="190" height="110"/>
+    <text class="heading white-text" x="715" y="423" text-anchor="middle">BANKRUPTCY PROCESS &amp; COURT FLOW</text>
+    
+    <circle fill="#5b21b6" cx="640" cy="440" r="10"/>
+    <text class="small-text white-text" x="655" y="443" font-weight="bold">TRUSTEE</text>
+    <text class="small-text white-text" x="655" y="450">DONALD LASSMAN</text>
+    
+    <text class="small-text white-text" x="630" y="465">§ 341 SALE PROCESS</text>
+    <text class="small-text white-text" x="630" y="472">" Trustee files Authority to Sell</text>
+    <text class="small-text white-text" x="630" y="479">" Stakeholder conflict</text>
+    
+    <text class="small-text yellow-text" x="630" y="495" font-weight="bold">SALE APPROVED</text>
+    <text class="small-text white-text" x="630" y="503"> Bankruptcy Court</text>
+    
+    <text class="small-text yellow-text" x="630" y="515" font-weight="bold">CUSTODIAL OWNERSHIP</text>
+    <text class="small-text white-text" x="630" y="523">Stable Horse Sport Stable</text>
+    <text class="small-text white-text" x="630" y="530">Title and chain of liens</text>
+  </g>
+  
+  <!-- Notes Section -->
+  <g id="notes">
+    <rect class="gray-box" x="10" y="615" width="600" height="140"/>
+    <text class="heading yellow-text" x="15" y="628" font-weight="bold">NOTES</text>
+    
+    <text class="small-text white-text" x="15" y="640">All relationships, communications, dates and document references</text>
+    <text class="small-text white-text" x="15" y="647">presented herein are substantiated within Jason M.</text>
+    <text class="small-text white-text" x="15" y="654">Kahan's possession.</text>
+    
+    <text class="small-text white-text" x="15" y="668">* This diagram is designed for use by counsel and investigators in</text>
+    <text class="small-text white-text" x="17" y="675">  connection with the bankruptcy case and related proceedings.</text>
+    
+    <text class="small-text white-text" x="15" y="689">** = Stablinu Horse Stable</text>
+    
+    <text class="small-text white-text" x="320" y="640">Prepared from documents, communications, court filings,</text>
+    <text class="small-text white-text" x="320" y="647">based info evidence identified in this accompanying exhibit index.</text>
+    
+    <text class="small-text white-text" x="320" y="668">For:  Bankruptcy Counsel</text>
+    <text class="small-text white-text" x="340" y="675">   to: Mssrs.</text>
+    
+    <text class="body-text white-text" x="320" y="700" font-weight="bold">VERSION 4.0</text>
+    <text class="small-text white-text" x="320" y="710">REVISED:  MAY 20, 2026</text>
+    
+    <text class="body-text white-text" x="450" y="700" font-weight="bold">ATTORNEY WORK PRODUCT</text>
+    <text class="small-text white-text" x="450" y="710">PRIVILEGED &amp; CONFIDENTIAL</text>
+  </g>
+  
+  <!-- Documentation Chronology -->
+  <g id="documentation-chronology">
+    <rect class="gray-box" x="620" y="530" width="190" height="85"/>
+    <text class="small-text yellow-text" x="625" y="542" font-weight="bold">DOCUMENTED CHRONOLOGY - HOWARD JAHRE'S DUAL REPRESENTATION &amp; BROKERAGE</text>
+    
+    <rect fill="#4169e1" x="625" y="550" width="15" height="8"/>
+    <text class="small-text white-text" x="642" y="556">DEC 5,</text>
+    <text class="small-text white-text" x="642" y="563">2024</text>
+    <text class="small-text white-text" x="665" y="556">Introduced</text>
+    <text class="small-text white-text" x="665" y="563">Jason to</text>
+    <text class="small-text white-text" x="665" y="570">Pioneer</text>
+    
+    <rect fill="#4169e1" x="625" y="575" width="15" height="8"/>
+    <text class="small-text white-text" x="642" y="581">DEC 18,</text>
+    <text class="small-text white-text" x="642" y="588">2024</text>
+    <text class="small-text white-text" x="665" y="581">Private calls</text>
+    <text class="small-text white-text" x="665" y="588">with Pioneer</text>
+    
+    <rect fill="#4169e1" x="625" y="593" width="15" height="8"/>
+    <text class="small-text white-text" x="642" y="599">JAN 6,</text>
+    <text class="small-text white-text" x="642" y="606">2025</text>
+    <text class="small-text white-text" x="665" y="599">Controlled</text>
+    <text class="small-text white-text" x="665" y="606">cash Bitcoin</text>
+  </g>
+  
+  <!-- Evidence Summary -->
+  <g id="evidence-summary">
+    <rect class="gray-box" x="620" y="620" width="190" height="135"/>
+    <text class="small-text yellow-text" x="625" y="632" font-weight="bold">EVIDENCE SUMMARY (Key Docs)</text>
+    
+    <text class="small-text white-text" x="625" y="643">=Ä Tax agreements, Bitcoin Wallet Documentation</text>
+    <text class="small-text white-text" x="625" y="650">=Ä Email introducing Jason to Pioneer and coordinating Trustee's channel (Dec 2024)</text>
+    <text class="small-text white-text" x="625" y="657">=Ä Private call & calendar entries Dec  Jan with NowCap/Pioneer</text>
+    <text class="small-text white-text" x="625" y="664">=Ä Email coordinating directly with Pioneer while advising Jason (Dec 2526, 2024)</text>
+    <text class="small-text white-text" x="625" y="671">=Ä Communications mentioning the Trustee&amp;#39;s possession of wallet keys</text>
+    <text class="small-text white-text" x="625" y="678">=Ä Communications and documents regarding wallet keys</text>
+    <text class="small-text white-text" x="625" y="685">=Ä Text of executed Bankruptcy-related documents (schedules, proceedings)</text>
+    <text class="small-text white-text" x="625" y="692">=Ä Network diagram showing all connections December 2024  January 2026</text>
+  </g>
+  
+  <!-- Public Regulatory History -->
+  <g id="regulatory-history">
+    <rect class="gray-box" x="180" y="540" width="200" height="100"/>
+    <text class="small-text yellow-text" x="185" y="552" font-weight="bold">PUBLIC REGULATORY HISTORY (FINRA)</text>
+    
+    <text class="small-text white-text" x="185" y="563">" Permanently barred from FINRA Aug 27, 2018 Docket 2015044636602</text>
+    <text class="small-text white-text" x="185" y="570">" Disciplinary Proceeding No. 2004001124002</text>
+    <text class="small-text white-text" x="185" y="577">" Regulatory findings can be verified on BrokerCheck; included:</text>
+    <text class="small-text white-text" x="187" y="584">    Failure to supervise registered representatives</text>
+    <text class="small-text white-text" x="187" y="591">    Dissemination of misleading communications to prospective investors</text>
+    <text class="small-text white-text" x="187" y="598">    Conduct dismissed as found insufficient to prove statutory violations</text>
+    <text class="small-text white-text" x="187" y="605">    but underlying conduct not found to be unfounded or "exonerated in substance"</text>
+  </g>
+  
+  <!-- Key Relationship Origins Summary -->
+  <g id="relationship-origins-summary">
+    <rect class="gray-box" x="10" y="240" width="150" height="115"/>
+    <text class="small-text yellow-text" x="15" y="252" font-weight="bold">KEY RELATIONSHIP ORIGINS (Summary)</text>
+    
+    <text class="small-text white-text" x="15" y="263"> Whitney Hoffman introduced Jason and Howard Jahre</text>
+    <text class="small-text white-text" x="15" y="270"> Ken Lumas served as attorney for Tall Ships Development LLC</text>
+    <text class="small-text white-text" x="15" y="277"> Tall Ships Development was affiliated with Pioneer &amp; Tristhuam</text>
+    <text class="small-text white-text" x="15" y="284"> Nils Trostheim</text>
+    <text class="small-text white-text" x="15" y="292"> NowCap(currently represented Jason</text>
+  </g>
+  
+  <!-- Bottom Timeline Numbers -->
+  <g id="timeline">
+    <text class="small-text white-text" x="185" y="660" font-weight="bold">DEC 5,</text>
+    <text class="small-text white-text" x="185" y="667" font-weight="bold">2024</text>
+    
+    <text class="small-text white-text" x="235" y="660" font-weight="bold">DEC 18</text>
+    <text class="small-text white-text" x="235" y="667" font-weight="bold">2024</text>
+    
+    <text class="small-text white-text" x="280" y="660" font-weight="bold">JAN 6,</text>
+    <text class="small-text white-text" x="280" y="667" font-weight="bold">2025</text>
+    
+    <text class="small-text white-text" x="320" y="660" font-weight="bold">JAN 9</text>
+    <text class="small-text white-text" x="320" y="667" font-weight="bold">2025</text>
+    
+    <text class="small-text white-text" x="355" y="660" font-weight="bold">JAN 30</text>
+    <text class="small-text white-text" x="355" y="667" font-weight="bold">2025</text>
+    
+    <text class="small-text white-text" x="185" y="690" font-weight="bold">JAN-FEB</text>
+    <text class="small-text white-text" x="185" y="697" font-weight="bold">2025</text>
+    
+    <text class="small-text white-text" x="235" y="690" font-weight="bold">JUL 8, 2025</text>
+    
+    <text class="small-text white-text" x="300" y="690" font-weight="bold">Concluded</text>
+    <text class="small-text white-text" x="300" y="697" font-weight="bold">Oct 19, 2025</text>
+  </g>
+  
+</svg>
