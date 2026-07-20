@@ -279,6 +279,12 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
 export async function createUptimeMonitor(opts: {
   url: string;
   friendlyName?: string;
+  /**
+   * Fetch full monitor details from UptimeRobot after creating (extra API call).
+   * Set false for bulk sync to stay under the 10 req/min free-plan rate limit —
+   * the poll scheduler backfills status/ratios shortly after.
+   */
+  fetchDetails?: boolean;
 }): Promise<{ ok: true; monitor: UptimeMonitorRow } | { ok: false; error: string }> {
   if (!hasFeature('uptime_monitoring')) {
     return { ok: false, error: 'uptime_monitoring not enabled' };
@@ -296,10 +302,12 @@ export async function createUptimeMonitor(opts: {
   const created = await urNewMonitor({ url, friendlyName: opts.friendlyName });
   if (!created.ok) return { ok: false, error: created.error };
 
-  const api = await urGetMonitors({ monitorIds: [created.monitorId], customUptimeRatios: '7-30' });
-  if (api.ok && api.monitors[0]) {
-    const row = await upsertMonitorFromApi(api.monitors[0]);
-    if (row) return { ok: true, monitor: row };
+  if (opts.fetchDetails !== false) {
+    const api = await urGetMonitors({ monitorIds: [created.monitorId], customUptimeRatios: '7-30' });
+    if (api.ok && api.monitors[0]) {
+      const row = await upsertMonitorFromApi(api.monitors[0]);
+      if (row) return { ok: true, monitor: row };
+    }
   }
 
   const clientUid = await resolveClientUidForMonitor(url, created.monitorId);
@@ -380,14 +388,15 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     return { ...empty, errors: [`UptimeRobot: ${api.error}`] };
   }
 
-  const candidates: UptimePlatformSyncItem[] = [];
+  const kinstaItems: UptimePlatformSyncItem[] = [];
+  const railwayItems: UptimePlatformSyncItem[] = [];
   const warnings: string[] = [];
 
   if (isKinstaConfigured()) {
     const kinsta = await kinstaCollectMonitorUrls();
     if (kinsta.ok) {
       for (const item of kinsta.urls) {
-        candidates.push({ ...item, source: 'kinsta' });
+        kinstaItems.push({ ...item, source: 'kinsta' });
       }
     } else {
       warnings.push(`Kinsta: ${kinsta.error}`);
@@ -398,7 +407,7 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     const railway = await railwayCollectMonitorUrls();
     if (railway.ok) {
       for (const item of railway.urls) {
-        candidates.push({ ...item, source: 'railway' });
+        railwayItems.push({ ...item, source: 'railway' });
       }
       warnings.push(...railway.warnings);
     } else {
@@ -411,6 +420,14 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       ...empty,
       errors: ['Neither Kinsta nor Railway is configured on this service'],
     };
+  }
+
+  // Interleave sources (Railway first) so the per-run cap doesn't starve one
+  // platform — otherwise all Kinsta sites get attempted before any Railway one.
+  const candidates: UptimePlatformSyncItem[] = [];
+  for (let i = 0; i < Math.max(kinstaItems.length, railwayItems.length); i += 1) {
+    if (i < railwayItems.length) candidates.push(railwayItems[i]!);
+    if (i < kinstaItems.length) candidates.push(kinstaItems[i]!);
   }
 
   const seen = new Set<string>();
@@ -427,6 +444,8 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
   let skipped = 0;
   let attempts = 0;
   let pending = 0;
+  let rateLimited = false;
+  let planLimited = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
 
@@ -437,7 +456,10 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
       continue;
     }
 
-    if (attempts >= maxAttempts) {
+    // Once the cap or an UptimeRobot account limit is hit, stop attempting —
+    // further calls in this run would just fail. The remainder is picked up by
+    // the next (scheduled or manual) run.
+    if (attempts >= maxAttempts || rateLimited || planLimited) {
       pending += 1;
       continue;
     }
@@ -446,14 +468,35 @@ export async function syncPlatformUrlsToUptime(): Promise<UptimePlatformSyncResu
     const result = await createUptimeMonitor({
       url: item.url,
       friendlyName: item.friendlyName,
+      fetchDetails: false,
     });
     if (result.ok) {
       created += 1;
       if (key) existing.add(key);
       createdItems.push(item);
     } else {
-      errors.push(`${item.friendlyName}: ${result.error}`);
+      const err = result.error || 'unknown error';
+      if (/rate limit/i.test(err)) {
+        rateLimited = true;
+        pending += 1;
+      } else if (/current plan|not allowed/i.test(err)) {
+        planLimited = true;
+        pending += 1;
+      } else {
+        errors.push(`${item.friendlyName}: ${err}`);
+      }
     }
+  }
+
+  if (planLimited) {
+    errors.push(
+      'UptimeRobot monitor limit reached for your current plan — upgrade the plan or remove monitors to add more.',
+    );
+  }
+  if (rateLimited) {
+    warnings.push(
+      'UptimeRobot rate limit hit (10 requests/min on the free plan) — remaining sites are queued and will be added automatically over the next runs.',
+    );
   }
 
   return {
