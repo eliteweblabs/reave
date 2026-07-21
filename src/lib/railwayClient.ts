@@ -3,7 +3,7 @@
  * @see https://docs.railway.com/integrations/api
  */
 import { cachedCompanyBrandName } from './companyConfig';
-import { isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
+import { isInternalInfraService, isNonProductionLabel, isPublicWebsiteHost, normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -437,13 +437,16 @@ export async function railwayCollectMonitorUrls(): Promise<
     }
 
     for (const svc of net.data.services) {
-      const domains = [
-        ...svc.custom_domains.map((d) => d.domain),
-        ...svc.railway_domains.map((d) => d.domain),
-      ];
-      for (const domain of domains) {
+      if (isNonProductionLabel(svc.service_name)) continue;
+      if (isInternalInfraService(svc.service_name)) continue;
+
+      // Public websites only — custom domains on user-facing services (not *.up.railway.app).
+      const customDomains = svc.custom_domains.map((d) => d.domain).filter(Boolean);
+      if (!customDomains.length) continue;
+
+      for (const domain of customDomains) {
         const trimmed = domain?.trim();
-        if (!trimmed) continue;
+        if (!trimmed || !isPublicWebsiteHost(trimmed)) continue;
         const key = normalizeMonitorHost(trimmed);
         if (!key || seen.has(key)) continue;
         seen.add(key);

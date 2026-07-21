@@ -50,6 +50,48 @@ export function isNonProductionLabel(label: string | null | undefined): boolean 
   );
 }
 
+/**
+ * Railway/Kinsta services that are backends, databases, or ops — not public
+ * website frontends. Skip these for uptime monitoring.
+ */
+export function isInternalInfraService(label: string | null | undefined): boolean {
+  if (!label) return false;
+  const n = label.trim().toLowerCase();
+  if (!n) return false;
+
+  if (/(^|[\-_])(postgres|postgresql|mysql|mariadb|redis|mongo|memcached|database)([\-_]|$)/.test(n)) {
+    return true;
+  }
+  if (/^(postgres|mysql|redis|mongo|mariadb|memcached)/.test(n)) return true;
+
+  if (
+    /^crater(-|$)/.test(n) ||
+    n === 'contact-api' ||
+    n === 'contact-postgres' ||
+    n === 'reave-postgres' ||
+    n === 'crater-mysql' ||
+    n === 'calcom-booking-api' ||
+    n === 'calcom-web-app' ||
+    n === 'booking-api' ||
+    /-booking-api$/.test(n)
+  ) {
+    return true;
+  }
+
+  if (/^plausible(-|$)/.test(n)) return true;
+
+  return false;
+}
+
+/** True when a hostname is a public custom domain (not Railway's internal *.railway.app). */
+export function isPublicWebsiteHost(host: string | null | undefined): boolean {
+  const key = normalizeMonitorHost(host);
+  if (!key) return false;
+  if (isPrivateHost(key.split(':')[0] ?? key)) return false;
+  if (key.endsWith('.up.railway.app') || key.endsWith('.railway.app')) return false;
+  return true;
+}
+
 /** Hostname key for comparing monitor URLs across Kinsta, Railway, and UptimeRobot. */
 export function normalizeMonitorHost(raw: string | null | undefined): string | null {
   if (!raw?.trim()) return null;

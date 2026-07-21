@@ -2,7 +2,7 @@
  * Kinsta REST API v2 client for the admin agent.
  * @see https://kinsta.com/docs/kinsta-api/
  */
-import { isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
+import { isInternalInfraService, isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
@@ -468,6 +468,7 @@ function collectKinstaEnvUrls(
   const siteLabel = site.display_name || site.name;
   for (const env of site.environments) {
     if (isNonProductionLabel(env.name) || isNonProductionLabel(env.display_name)) continue;
+    if (isInternalInfraService(env.name) || isInternalInfraService(env.display_name)) continue;
     const domain = env.primary_domain?.trim();
     if (!domain) continue;
     const key = normalizeMonitorHost(domain);
