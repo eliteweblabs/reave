@@ -27,6 +27,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 |--------|------|-----------|
 | POST | `/api/custom/create-invoice` | `create_invoice` |
 | GET | `/api/custom/invoices` | `list_recent_invoices` |
+| GET | `/api/custom/payments` | _(client portal payment history)_ |
 | GET | `/api/custom/invoice/{id}` | `get_invoice` |
 | PUT | `/api/custom/invoice/{id}` | `update_invoice` |
 | DELETE | `/api/custom/invoice/{id}` | `delete_invoice` |

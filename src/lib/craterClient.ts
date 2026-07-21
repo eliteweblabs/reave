@@ -637,6 +637,22 @@ export type ClientBilling = {
   upcoming: UpcomingInvoice[];
 };
 
+export type CraterPaymentSummary = {
+  id: number;
+  paymentNumber: string;
+  date: string | null;
+  amount: number;
+  method: string;
+  invoiceId: number | null;
+  invoiceNumber: string | null;
+};
+
+export type ClientPayments = {
+  customerId: number;
+  customerName: string;
+  payments: CraterPaymentSummary[];
+};
+
 /**
  * Resolve a Crater customer for a contact (prefer email match, else name) and
  * return their full billing picture: outstanding (unpaid) + previous (paid)
@@ -706,6 +722,81 @@ export async function craterGetClientBilling(input: {
   return {
     ok: true,
     data: { customerId: customer.id, customerName: customer.name, totalDue, outstanding, previous, upcoming },
+  };
+}
+
+type CraterPaymentRow = {
+  id: number;
+  payment_number: string;
+  payment_date?: string | null;
+  amount: number;
+  invoice_id?: number | null;
+  invoice_number?: string | null;
+  payment_method?: string | null;
+};
+
+export async function craterListPayments(input?: {
+  customerId?: number;
+  q?: string;
+  companyId?: number;
+}): Promise<CraterResult<{ count: number; payments: CraterPaymentSummary[] }>> {
+  const res = await craterFetch<{ count: number; payments: CraterPaymentRow[] }>('/api/custom/payments', {
+    method: 'GET',
+    query: {
+      company_id: input?.companyId,
+      customer_id: input?.customerId,
+      q: input?.q?.trim() || undefined,
+    },
+  });
+  if (!res.ok) return res;
+  const payments = (res.data?.payments ?? []).map((p) => ({
+    id: p.id,
+    paymentNumber: p.payment_number,
+    date: p.payment_date ?? null,
+    amount: Number(p.amount),
+    method: p.payment_method?.trim() || 'Other',
+    invoiceId: p.invoice_id ?? null,
+    invoiceNumber: p.invoice_number ?? null,
+  }));
+  return { ok: true, data: { count: payments.length, payments } };
+}
+
+/**
+ * Payment history for a contact-matched Crater customer.
+ * Returns ok:true with data:null when no matching customer is found.
+ */
+export async function craterGetClientPayments(input: {
+  email?: string;
+  name?: string;
+}): Promise<CraterResult<ClientPayments | null>> {
+  const email = input.email?.trim().toLowerCase() || '';
+  const name = input.name?.trim() || '';
+  if (!email && !name) return { ok: false, error: 'email or name is required' };
+
+  const search = await craterSearchCustomers(email || name);
+  if (!search.ok) return { ok: false, error: search.error, status: search.status };
+
+  const customers = search.data?.customers ?? [];
+  let customer: CraterCustomer | undefined;
+  if (email) {
+    customer = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
+  }
+  if (!customer && name) {
+    customer = customers.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+  }
+  if (!customer) customer = customers[0];
+  if (!customer) return { ok: true, data: null };
+
+  const list = await craterListPayments({ customerId: customer.id });
+  if (!list.ok) return { ok: false, error: list.error, status: list.status };
+
+  return {
+    ok: true,
+    data: {
+      customerId: customer.id,
+      customerName: customer.name,
+      payments: list.data.payments,
+    },
   };
 }
 
