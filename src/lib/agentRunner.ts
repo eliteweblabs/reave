@@ -112,8 +112,8 @@ function agentHistoryCap(): number | null {
 }
 
 const MAX_TURN_CHARS = 8_000;
-const MAX_TOOL_RESULT_CHARS = 12_000;
-const MAX_AGENT_TOOL_ROUNDS = 25;
+const MAX_TOOL_RESULT_CHARS = 50_000;
+const MAX_AGENT_TOOL_ROUNDS = 40;
 const MAX_SYSTEM_ALERT_TOOL_ROUNDS = 5;
 
 function truncateToolResult(content: string): string {
