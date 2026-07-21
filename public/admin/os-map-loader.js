@@ -16233,7 +16233,7 @@ function createWorkListItem(job) {
     `<span class="ch-list-content">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
     `<span class="wk-meta-row">` +
-    `<span class="wk-contact wk-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
+    `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
     `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
     `</span></span>`;
   item.addEventListener('click', () => openWork(job.slug));
