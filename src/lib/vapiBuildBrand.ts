@@ -5,7 +5,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
 
 export type BuildBrandContext = {
   name: string;
@@ -112,7 +111,8 @@ async function readPostgresBrand(): Promise<BuildBrandContext | null> {
   const url = trim(process.env.DATABASE_URL);
   if (!url) return null;
 
-  const pool = new pg.Pool({
+  const pg = await import('pg');
+  const pool = new pg.default.Pool({
     connectionString: url,
     ssl: /sslmode=(require|verify-full|verify-ca)/i.test(url)
       ? { rejectUnauthorized: false }
@@ -146,7 +146,8 @@ async function readPostgresVapiTemplates(): Promise<BuildVapiTemplates | null> {
   const url = trim(process.env.DATABASE_URL);
   if (!url) return null;
 
-  const pool = new pg.Pool({
+  const pg = await import('pg');
+  const pool = new pg.default.Pool({
     connectionString: url,
     ssl: /sslmode=(require|verify-full|verify-ca)/i.test(url)
       ? { rejectUnauthorized: false }
