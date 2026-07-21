@@ -62,8 +62,7 @@ async function main() {
   console.log('  alertContactTypes:', ctx.alertContactTypes ?? []);
 
   if (!ctx.emailContacts && !ctx.clonedAlertContacts) {
-    console.error('\nNo usable email alert contact — activate an email contact in UptimeRobot first.');
-    process.exit(1);
+    console.warn('\nNo usable email alert contact — creating a contactless (bare) monitor (alerts via webhook).');
   }
 
   console.log(`\n=== newMonitor: ${url} ===`);

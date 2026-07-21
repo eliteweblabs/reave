@@ -546,16 +546,12 @@ export async function syncPlatformUrlsToUptime(
   });
 
   if (!createContext.clonedAlertContacts && !createContext.emailContacts) {
-    return {
-      ...empty,
-      warnings,
-      errors: [
-        'UptimeRobot: no active email alert contact — activate an email contact in UptimeRobot (Integrations → Alert contacts) and run sync again',
-      ],
-      account,
-      localMonitorCount,
-      error: 'No UptimeRobot alert contacts available for monitor create',
-    };
+    // Not fatal: monitors are still created without alert contacts (the free-plan
+    // "bare" create path) and alerting is delivered via webhooks, not UptimeRobot
+    // contacts. Surface a hint so an email contact can be attached later if desired.
+    warnings.push(
+      'UptimeRobot: no active email alert contact — monitors will be created without one (alerts arrive via webhook). Activate an email contact in UptimeRobot (Integrations → Alert contacts) to attach one.',
+    );
   }
 
   // Interleave sources (Railway first) so the per-run cap doesn't starve one

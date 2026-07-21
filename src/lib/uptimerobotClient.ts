@@ -532,7 +532,16 @@ function urBuildCreateStrategies(ctx: UptimeRobotCreateContext): UptimeRobotCrea
 
   const strategies: UptimeRobotCreateStrategy[] = [];
 
-  // Email first — free-plan API rejects Teams/webhook contacts (type 12, etc.).
+  // Bare create first — no alert_contacts / interval. This is the only variant
+  // the UptimeRobot free plan accepts via newMonitor; attaching alert contacts or
+  // a custom interval triggers "not allowed to use some settings with your current
+  // plan". Alerting is delivered through webhooks (see uptime-monitoring knowledge),
+  // not UptimeRobot alert contacts, so a contactless monitor is fully functional.
+  strategies.push({ name: 'bare' });
+
+  // Richer fallbacks for paid plans that do allow API-assigned contacts. These are
+  // only reached if a bare create somehow fails; on the free plan the bare create
+  // succeeds first and locks in as the known strategy for the rest of the run.
   if (ctx.emailContacts) {
     strategies.push({ name: 'email-contact', alertContacts: ctx.emailContacts });
   }
@@ -632,7 +641,7 @@ export async function urNewMonitor(opts: {
   }
 
   if (!strategies.length) {
-    return { ok: false, error: 'No alert contacts available for UptimeRobot monitor create' };
+    return { ok: false, error: 'No UptimeRobot monitor create strategy available' };
   }
 
   let lastError = 'unknown error';
