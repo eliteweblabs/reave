@@ -475,7 +475,7 @@ export async function bookingReschedule(
 
 const DEFAULT_TZ = 'America/New_York';
 
-function bookingTimezone(): string {
+export function bookingTimezone(): string {
   return serverEnv('BOOKING_TIMEZONE')?.trim() || DEFAULT_TZ;
 }
 
