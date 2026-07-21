@@ -9240,6 +9240,7 @@ let workState = {
   statuses: ['inquiry', 'active', 'done', 'archived'],
   priorities: ['low', 'normal', 'high', 'urgent'],
   search: '',
+  statusFilter: 'all',
   activeSlug: null,
   dirty: false,
   draft: null,
@@ -9389,7 +9390,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
 }
 
 function filterWorkJobs(jobs, query) {
-  return jobs.filter((job) =>
+  return workJobsForStatusFilter(jobs).filter((job) =>
     matchesListSearch(
       query,
       job.title,
@@ -9401,6 +9402,77 @@ function filterWorkJobs(jobs, query) {
       job.tags,
     ),
   );
+}
+
+function workStatusTabCounts() {
+  const jobs = workState.jobs;
+  return {
+    all: jobs.length,
+    inquiry: jobs.filter((j) => j.status === 'inquiry').length,
+    active: jobs.filter((j) => j.status === 'active').length,
+    done: jobs.filter((j) => j.status === 'done').length,
+    archived: jobs.filter((j) => j.status === 'archived').length,
+  };
+}
+
+function workJobsForStatusFilter(jobs) {
+  const f = workState.statusFilter;
+  if (f === 'all') return jobs;
+  return jobs.filter((j) => (j.status || 'inquiry') === f);
+}
+
+function workCountForActiveStatusFilter() {
+  const counts = workStatusTabCounts();
+  return counts[workState.statusFilter] ?? counts.all;
+}
+
+function workSearchPlaceholder(count) {
+  const n = Number.isFinite(count) ? count : workCountForActiveStatusFilter();
+  return `Search ${n} ${n === 1 ? 'Project' : 'Projects'}`;
+}
+
+function renderWorkFilterTabs() {
+  const counts = workStatusTabCounts();
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Project status filters');
+
+  const tabs = [
+    { id: 'all', label: 'All', count: counts.all },
+    { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
+    { id: 'active', label: 'Active', count: counts.active },
+    { id: 'done', label: 'Done', count: counts.done },
+    { id: 'archived', label: 'Archived', count: counts.archived },
+  ];
+
+  for (const tab of tabs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = workState.statusFilter === tab.id;
+    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
+    btn.addEventListener('click', () => {
+      if (workState.statusFilter === tab.id) return;
+      workState.statusFilter = tab.id;
+      const visible = filterWorkJobs(workState.jobs, workState.search);
+      if (workState.activeSlug && !visible.some((j) => j.slug === workState.activeSlug)) {
+        workState.activeSlug = null;
+        workState.draft = null;
+        workState.dirty = false;
+        getWorkEditor()?.classList.remove('de-pane-active');
+      }
+      renderWorkEditor();
+    });
+    nav.appendChild(btn);
+  }
+
+  requestAnimationFrame(() => {
+    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  return nav;
 }
 
 function getWorkEditor() { return document.getElementById('work-editor'); }
@@ -9776,9 +9848,7 @@ function refreshWorkSidebarList() {
   }
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
-    const count = workState.jobs.length;
-    const jobLabel = count === 1 ? 'project' : 'projects';
-    searchInput.placeholder = `Search ${count} ${jobLabel}`;
+    searchInput.placeholder = workSearchPlaceholder(filterWorkJobs(workState.jobs, workState.search).length);
   }
   fillWorkSidebarList(list);
 }
@@ -9793,17 +9863,18 @@ function renderWorkEditor() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const jobLabel = jobs.length === 1 ? 'project' : 'projects';
+  const countForTab = filterWorkJobs(jobs, search).length;
   const subheader = listSearchSubheader({
-    itemCount: jobs.length,
+    itemCount: countForTab,
     search: {
       value: search,
-      placeholder: `Search ${jobs.length} ${jobLabel}`,
+      placeholder: workSearchPlaceholder(countForTab),
       onInput: (value) => {
         workState.search = value;
         refreshWorkSidebarList();
       },
     },
+    below: renderWorkFilterTabs(),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
