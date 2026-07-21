@@ -10710,7 +10710,15 @@ function renderEditWorkForm(pane) {
       linkTrackEl.className = 'wk-link-track';
       linkTrackEl.hidden = true;
 
+      const agentBtn = createIosIconBtn({
+        iconKey: 'agent',
+        label: 'Send to Agent',
+        className: 'ios-icon-btn de-agent-btn',
+        onClick: () => askAgentAboutWork({ slug, title: data.title, ...data }),
+      });
+
       const icons = [];
+      icons.push(agentBtn);
       const shareBtn = data.contact_uid
         ? createPortalShareBtn(data.contact_uid, {
             tab: 'work',
