@@ -10530,6 +10530,14 @@ function renderEditWorkForm(pane) {
         : null;
       if (shareBtn) icons.push(shareBtn);
       icons.push(
+        createIosIconBtn({
+          iconKey: 'archive',
+          label: data.status === 'archived' ? 'Unarchive project' : 'Archive project',
+          className: 'ios-icon-btn wk-archive-btn',
+          onClick: () => void archiveWork(slug),
+        }),
+      );
+      icons.push(
         paneDeleteIcon({
           label: 'Delete project',
           onClick: () => deleteWork(slug),
@@ -10768,6 +10776,104 @@ async function deleteWork(slug) {
     await loadWorkTab();
   } catch (e) {
     alert(`Failed to delete: ${e.message}`);
+  }
+}
+
+async function archiveWork(jobOrSlug) {
+  closeOpenSwipeRow();
+  const slug = typeof jobOrSlug === 'string' ? jobOrSlug : jobOrSlug?.slug;
+  if (!slug) return;
+
+  const listJob = workState.jobs.find((j) => j.slug === slug);
+  const currentStatus =
+    workState.activeSlug === slug ? workState.draft?.status : listJob?.status;
+  const unarchive = currentStatus === 'archived';
+  const newStatus = unarchive ? 'inquiry' : 'archived';
+
+  try {
+    await flushWorkAutosave();
+
+    let payload;
+    if (workState.activeSlug === slug && workState.draft) {
+      payload = {
+        title: workState.draft.title,
+        contact_uid: workState.draft.contact_uid,
+        contact_name: workState.draft.contact_name,
+        status: newStatus,
+        priority: workState.draft.priority || 'normal',
+        due_date: workState.draft.due_date || '',
+        value: workState.draft.value ?? '',
+        tags: workState.draft.tags || [],
+        source: workState.draft.source || '',
+        body: workState.draft.body || '',
+      };
+    } else {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      payload = {
+        title: data.title,
+        contact_uid: data.contact_uid,
+        contact_name: data.contact_name || data.client,
+        status: newStatus,
+        priority: data.priority || 'normal',
+        due_date: data.due_date || '',
+        value: data.value ?? '',
+        tags: data.tags || [],
+        source: data.source || '',
+        body: data.body || '',
+      };
+    }
+
+    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    const idx = workState.jobs.findIndex((j) => j.slug === slug);
+    if (idx !== -1) {
+      workState.jobs[idx] = {
+        ...workState.jobs[idx],
+        status: newStatus,
+        title: data.title || payload.title,
+        contact_name: data.contact_name || payload.contact_name,
+        client: data.client,
+        updated_at: data.updated_at,
+      };
+    }
+
+    if (workState.activeSlug === slug) {
+      if (newStatus === 'archived') {
+        workState.activeSlug = null;
+        workState.draft = null;
+        workState.dirty = false;
+        getWorkEditor()?.classList.remove('de-pane-active');
+      } else {
+        Object.assign(workState.draft, {
+          status: newStatus,
+          title: payload.title,
+          contact_uid: payload.contact_uid,
+          contact_name: payload.contact_name,
+          priority: payload.priority,
+          due_date: payload.due_date,
+          value: payload.value,
+          tags: payload.tags,
+          source: payload.source,
+          body: payload.body,
+        });
+        workState.dirty = false;
+      }
+    }
+
+    renderWorkEditor();
+  } catch (e) {
+    osAlert({
+      title: unarchive ? 'Could not restore project' : 'Could not archive project',
+      bodyHtml: escHtml(e.message),
+    });
   }
 }
 
@@ -16226,7 +16332,10 @@ function createKnowledgeSwipeRow(entry) {
 function createWorkListItem(job) {
   const item = document.createElement('button');
   item.type = 'button';
-  item.className = 'ch-list-item' + (job.slug === workState.activeSlug ? ' active' : '');
+  item.className =
+    'ch-list-item' +
+    (job.slug === workState.activeSlug ? ' active' : '') +
+    (job.status === 'archived' ? ' ch-list-item--archived' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
     SIDEBAR_LIST_GRIP +
@@ -16243,6 +16352,10 @@ function createWorkListItem(job) {
 function createWorkSwipeRow(job) {
   return createSwipeRow(createWorkListItem(job), [
     swipeAgentAction(() => askAgentAboutWork(job)),
+    swipeArchiveAction({
+      label: job.status === 'archived' ? 'Unarchive' : 'Archive',
+      onClick: () => archiveWork(job),
+    }),
     swipeDeleteAction({
       onClick: () => deleteWork(job.slug),
     }),
