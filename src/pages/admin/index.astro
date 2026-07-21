@@ -2299,6 +2299,10 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .wk-client-name {
+        font-weight: 700;
+        font-style: italic;
+      }
       .wk-client-picker { position: relative; margin-bottom: 0.5rem; }
       .wk-client-selected {
         display: flex;
@@ -2761,7 +2765,11 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .td-list-grip {
         flex: none;
+        align-self: stretch;
         width: 1.1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: var(--muted);
         font-size: 0.85rem;
         line-height: 1;
@@ -2771,6 +2779,18 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         user-select: none;
       }
       .td-list-grip:active { cursor: grabbing; }
+      .ch-list-item:has(.td-list-grip) {
+        flex-direction: row;
+        align-items: stretch;
+        gap: 0.45rem;
+      }
+      .ch-list-content {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
       .td-list-row {
         display: flex;
         align-items: flex-start;
@@ -2972,9 +2992,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         color: var(--muted);
         width: 100%;
         text-align: left;
-      }
-      .ch-list-item:has(.td-list-grip) > .ch-item-sub {
-        padding-left: calc(1.1rem + 0.4rem);
       }
       .ch-item-slug {
         font-family: ui-monospace, monospace;
@@ -7594,6 +7611,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260720i"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260721b"></script>
   </body>
 </html>

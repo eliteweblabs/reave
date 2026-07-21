@@ -7418,12 +7418,14 @@ function createTodoListItem(todo) {
       ? SIDEBAR_LIST_GRIP
       : '';
   item.innerHTML =
-    `<span class="td-list-row">${grip}` +
+    grip +
+    `<span class="ch-list-content">` +
+    `<span class="td-list-row">` +
     `<span class="${todoPriorityDotClass(todo.priority)}" aria-hidden="true"></span>` +
     `<span class="td-list-body">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(todo.title)}</span></span>` +
     `<span class="de-item-slug">${escHtml(todoSubline(todo) || 'No project')}</span>` +
-    `</span></span>`;
+    `</span></span></span>`;
   item.addEventListener('click', () => openTodo(todo.id));
   return item;
 }
@@ -14594,13 +14596,15 @@ function createChatListItem(t) {
     ? `<span class="ch-item-sub project-link-sub">${escHtml(linkedSub)}</span>`
     : '';
   item.innerHTML =
-    `<span class="ch-item-row">` +
-      SIDEBAR_LIST_GRIP +
-      archivedIcon +
-      `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
-      `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
-    `</span>` +
-    subLine;
+    SIDEBAR_LIST_GRIP +
+    `<span class="ch-list-content">` +
+      `<span class="ch-item-row">` +
+        archivedIcon +
+        `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
+        `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
+      `</span>` +
+      subLine +
+    `</span>`;
   item.addEventListener('click', () => {
     if (t.id === chatState.activeId) return;
     void openChat(t.id);
@@ -16201,8 +16205,11 @@ function createKnowledgeListItem(entry) {
     ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
     : '';
   item.innerHTML =
-    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
-    `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>`;
+    SIDEBAR_LIST_GRIP +
+    `<span class="ch-list-content">` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
+    `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>` +
+    `</span>`;
   item.addEventListener('click', () => openKnowledge(entry.slug));
   return item;
 }
@@ -16222,11 +16229,13 @@ function createWorkListItem(job) {
   item.className = 'ch-list-item' + (job.slug === workState.activeSlug ? ' active' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
-    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(job.title)}</span></span>` +
+    SIDEBAR_LIST_GRIP +
+    `<span class="ch-list-content">` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
     `<span class="wk-meta-row">` +
-    `<span class="wk-contact">${escHtml(job.contact_name || job.client || '—')}</span>` +
+    `<span class="wk-contact wk-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
     `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
-    `</span>`;
+    `</span></span>`;
   item.addEventListener('click', () => openWork(job.slug));
   return item;
 }
@@ -16246,11 +16255,13 @@ function createClientListItem(c) {
   item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
   item.dataset.id = c.uid;
   item.innerHTML =
-    `<span class="ch-item-row">${SIDEBAR_LIST_GRIP}<span class="ch-item-title">${escHtml(c.name)}</span></span>` +
+    SIDEBAR_LIST_GRIP +
+    `<span class="ch-list-content">` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(c.name)}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
-    `</span>`;
+    `</span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
   return item;
 }
