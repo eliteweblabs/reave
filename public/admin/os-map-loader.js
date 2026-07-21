@@ -4994,9 +4994,20 @@ function footerNavShowsCreate(nav) {
 }
 
 function applyFooterNavBtnMode(btn, iconEl, opts) {
-  const { create, icon, label, title } = opts;
-  btn.classList.toggle('footer-nav-btn--create', create);
-  btn.classList.toggle('footer-nav-btn--save', false);
+  const { create, save, icon, label, title, saveLabel = 'Save' } = opts;
+  btn.classList.toggle('footer-nav-btn--create', !!create);
+  btn.classList.toggle('footer-nav-btn--save', !!save);
+  btn.querySelector('.footer-nav-save-label')?.remove();
+  if (save) {
+    iconEl.innerHTML = navIcon('check-square', 20);
+    const saveText = document.createElement('span');
+    saveText.className = 'footer-nav-save-label';
+    saveText.textContent = saveLabel;
+    btn.appendChild(saveText);
+    btn.setAttribute('aria-label', saveLabel);
+    btn.title = saveLabel;
+    return;
+  }
   if (create) {
     iconEl.innerHTML = navIcon('plus', 20);
     btn.setAttribute('aria-label', title);
@@ -5031,7 +5042,8 @@ function syncFooterChatNav() {
 function syncFooterWorkNav() {
   const btn = document.getElementById('footer-nav-work');
   if (!btn) return;
-  const create = footerNavShowsCreate('work');
+  const save = footerNavShowsSave('work');
+  const create = !save && footerNavShowsCreate('work');
   let iconEl = btn.querySelector('.footer-nav-work-icon');
   if (!iconEl) {
     iconEl = document.createElement('span');
@@ -5042,9 +5054,11 @@ function syncFooterWorkNav() {
   btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
     create,
+    save,
     icon: 'briefcase',
     label: 'Projects',
     title: 'New project',
+    saveLabel: 'Save project',
   });
 }
 
@@ -5111,7 +5125,8 @@ function syncFooterScheduleNav() {
 function syncFooterClientsNav() {
   const btn = document.getElementById('footer-nav-clients');
   if (!btn) return;
-  const create = footerNavShowsCreate('clients');
+  const save = footerNavShowsSave('clients');
+  const create = !save && footerNavShowsCreate('clients');
   let iconEl = btn.querySelector('.footer-nav-clients-icon');
   if (!iconEl) {
     iconEl = document.createElement('span');
@@ -5122,9 +5137,11 @@ function syncFooterClientsNav() {
   btn.querySelector(':scope > svg')?.remove();
   applyFooterNavBtnMode(btn, iconEl, {
     create,
+    save,
     icon: 'users',
     label: 'Clients',
     title: 'New client',
+    saveLabel: 'Save client',
   });
 }
 
@@ -9169,11 +9186,11 @@ function workPayloadUnchanged(payload, draft) {
   );
 }
 
-function scheduleWorkAutosave(slug, getPayload, activeEl) {
+function scheduleWorkAutosave(getPayload, activeEl) {
   clearTimeout(workAutosaveTimer);
   workAutosaveTimer = setTimeout(() => {
     workAutosaveTimer = null;
-    void autosaveWorkQuiet(slug, getPayload, activeEl);
+    void autosaveWorkQuiet(getPayload, activeEl);
   }, AUTOSAVE_DEBOUNCE_MS);
 }
 
@@ -9188,26 +9205,76 @@ async function flushWorkAutosave() {
   }
 }
 
-async function autosaveWorkQuiet(slug, getPayload, activeEl) {
+async function linkWorkToReturnTodoIfNeeded(slug) {
+  const returnTodoId = workState.returnToTodoId;
+  if (!returnTodoId) return;
+  try {
+    const linkRes = await fetch(`/api/todos/${encodeURIComponent(returnTodoId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_slug: slug }),
+    });
+    const linkData = await readApiJson(linkRes);
+    if (!linkRes.ok) throw new Error(linkData.error || `HTTP ${linkRes.status}`);
+  } catch (e) {
+    console.warn('[work] todo link failed', e);
+  }
+}
+
+async function autosaveWorkQuiet(getPayload, activeEl) {
   const payload = getPayload();
-  if (!payload.title || !payload.contact_uid) {
+  if (!payload?.title || !payload?.contact_uid) {
+    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    return false;
+  }
+  const isNew = workState.activeSlug === '__new__';
+  const slug = isNew ? slugifyTitle(payload.title) : workState.activeSlug;
+  if (!slug) {
     if (activeEl) setFormFieldState(activeEl, 'invalid');
     return false;
   }
   const draft = workState.draft;
-  if (workPayloadUnchanged(payload, draft)) {
+  if (!isNew && workPayloadUnchanged(payload, draft)) {
     workState.dirty = false;
     return true;
   }
   if (activeEl) setFormFieldState(activeEl, 'saving');
   try {
-    const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    let data;
+    if (isNew) {
+      const res = await fetch('/api/work', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, ...payload }),
+      });
+      data = await res.json();
+      if (res.status === 409) throw new Error('A project with that title already exists.');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      workState.activeSlug = slug;
+      const jobEntry = {
+        slug,
+        title: data.title || payload.title,
+        contact_uid: data.contact_uid || payload.contact_uid,
+        contact_name: data.contact_name || payload.contact_name,
+        client: data.client,
+        status: data.status || payload.status || 'inquiry',
+        updated_at: data.updated_at,
+      };
+      if (!workState.jobs.some((j) => j.slug === slug)) {
+        workState.jobs.unshift(jobEntry);
+      }
+      clearEditorFooterSave();
+      refreshWorkSidebarList();
+      void linkWorkToReturnTodoIfNeeded(slug);
+    } else {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    }
     Object.assign(workState.draft, {
       title: payload.title,
       contact_uid: payload.contact_uid,
@@ -10120,6 +10187,8 @@ function renderNewWorkForm(pane) {
     back: {
       label: returnTodoId ? 'Back to to‑do' : 'Back to jobs',
       onClick: async () => {
+        await flushWorkAutosave();
+        if (workState.dirty && !(await confirmDiscardChanges())) return;
         if (returnTodoId) {
           workState.returnToTodoId = null;
           workState.activeSlug = null;
@@ -10147,52 +10216,91 @@ function renderNewWorkForm(pane) {
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
+  const ta = document.createElement('textarea');
+  ta.className = 'de-textarea';
+  ta.spellcheck = false;
+  ta.placeholder = '# Job details\n\nScope, notes, links…';
+  ta.value = workState.draft?.body || '';
+
   let clientPicker;
-  clientPicker = mountWorkClientPicker(fields, workState.draft, () => { workState.dirty = true; });
+  let metaFields;
+  let statusPill;
+  let workActiveEl = titleInput;
+  const markDirty = () => {
+    const client = clientPicker.getPayload();
+    const meta = metaFields.getPayload();
+    workState.dirty =
+      titleInput.value !== (workState.draft?.title || '') ||
+      (client?.contact_uid || '') !== (workState.draft?.contact_uid || '') ||
+      statusPill.getValue() !== (workState.draft?.status || 'inquiry') ||
+      meta.priority !== (workState.draft?.priority || 'normal') ||
+      (meta.due_date || '') !== (workState.draft?.due_date || '') ||
+      String(meta.value ?? '') !== String(workState.draft?.value ?? '') ||
+      meta.tags.join(', ') !== (Array.isArray(workState.draft?.tags) ? workState.draft.tags.join(', ') : (workState.draft?.tags || '')) ||
+      meta.source !== (workState.draft?.source || '') ||
+      ta.value !== (workState.draft?.body || '');
+  };
+  const getWorkPayload = () => {
+    const client = clientPicker.getPayload();
+    if (!client) return null;
+    return {
+      title: titleInput.value.trim(),
+      ...client,
+      status: statusPill.getValue(),
+      ...metaFields.getPayload(),
+      body: ta.value,
+    };
+  };
+  const queueWorkAutosave = (el) => {
+    if (el) workActiveEl = el;
+    markDirty();
+    const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
+    workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
+    scheduleWorkAutosave(payloadFn, workActiveEl);
+  };
+  const flushWorkField = () => {
+    const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
+    workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
+    return autosaveWorkQuiet(payloadFn, workActiveEl);
+  };
+
+  clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl));
 
   let titleHintTimer = null;
   titleInput.addEventListener('input', () => {
+    queueWorkAutosave(titleInput);
     clearTimeout(titleHintTimer);
     titleHintTimer = setTimeout(() => {
       const hint = extractClientHintFromTitle(titleInput.value);
       if (hint) clientPicker.searchWithHint(hint);
     }, 400);
   });
+  titleInput.addEventListener('blur', () => { workActiveEl = titleInput; void flushWorkField(); });
   const initialHint = extractClientHintFromTitle(workState.draft?.title || titleInput.value);
   if (initialHint) clientPicker.searchWithHint(initialHint);
 
-  const statusPill = createSlidingPillSelect({
+  statusPill = createSlidingPillSelect({
     label: 'Status',
     value: workState.draft?.status || 'inquiry',
     options: workStatusPillOptions(),
     ariaLabel: 'Status',
+    onChange: () => queueWorkAutosave(statusPill.el),
   });
   fields.appendChild(statusPill.el);
 
-  const metaFields = appendWorkMetaFields(fields, workState.draft, null);
+  metaFields = appendWorkMetaFields(fields, workState.draft, queueWorkAutosave);
+
+  ta.addEventListener('input', () => queueWorkAutosave(ta));
+  ta.addEventListener('blur', () => { workActiveEl = ta; void flushWorkField(); });
+
+  for (const el of fields.querySelectorAll('.de-input')) {
+    el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
+  }
 
   scroll.appendChild(fields);
-
-  const ta = document.createElement('textarea');
-  ta.className = 'de-textarea';
-  ta.spellcheck = false;
-  ta.placeholder = '# Job details\n\nScope, notes, links…';
-  ta.value = workState.draft?.body || '';
   scroll.appendChild(ta);
 
-  setEditorFooterSave(() => {
-    const title = titleInput.value.trim();
-    const slug = slugifyTitle(title);
-    const client = clientPicker.getPayload();
-    if (!client) { alert('Select a client, or add a new one.'); return; }
-    return createWork(slug, {
-      title,
-      ...client,
-      status: statusPill.getValue(),
-      ...metaFields.getPayload(),
-      body: ta.value,
-    });
-  });
+  clearEditorFooterSave();
   getWorkEditor()?.classList.add('de-pane-active');
 }
 
@@ -10417,13 +10525,13 @@ function renderEditWorkForm(pane) {
         if (el) workActiveEl = el;
         markDirty();
         const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
-        workAutosaveFlush = () => autosaveWorkQuiet(slug, payloadFn, workActiveEl);
-        scheduleWorkAutosave(slug, payloadFn, workActiveEl);
+        workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
+        scheduleWorkAutosave(payloadFn, workActiveEl);
       };
       const flushWorkField = () => {
         const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
-        workAutosaveFlush = () => autosaveWorkQuiet(slug, payloadFn, workActiveEl);
-        return autosaveWorkQuiet(slug, payloadFn, workActiveEl);
+        workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
+        return autosaveWorkQuiet(payloadFn, workActiveEl);
       };
       clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
