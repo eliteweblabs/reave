@@ -2,7 +2,7 @@
  * Kinsta REST API v2 client for the admin agent.
  * @see https://kinsta.com/docs/kinsta-api/
  */
-import { normalizeMonitorHost } from './publicUrl';
+import { isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
@@ -62,7 +62,9 @@ type KinstaApiEnvironment = {
   id?: string;
   name?: string;
   display_name?: string;
-  primaryDomain?: { name?: string } | null;
+  primaryDomain?: { name?: string; type?: string } | null;
+  primary_domain?: { name?: string; type?: string } | string | null;
+  domains?: Array<{ name?: string; type?: string; is_primary?: boolean }> | null;
   container_info?: { php_engine_version?: string } | null;
   environments?: KinstaApiEnvironment[];
 };
@@ -75,12 +77,31 @@ type KinstaApiSite = {
   environments?: KinstaApiEnvironment[];
 };
 
+function primaryDomainFromEnv(env: KinstaApiEnvironment): string | null {
+  const fromPrimary = env.primaryDomain?.name?.trim();
+  if (fromPrimary) return fromPrimary;
+
+  const rawPrimary = env.primary_domain;
+  if (typeof rawPrimary === 'string' && rawPrimary.trim()) return rawPrimary.trim();
+  if (rawPrimary && typeof rawPrimary === 'object' && rawPrimary.name?.trim()) {
+    return rawPrimary.name.trim();
+  }
+
+  for (const domain of env.domains ?? []) {
+    const name = domain.name?.trim();
+    if (!name) continue;
+    if (domain.is_primary || domain.type === 'live' || domain.type === 'primary') return name;
+  }
+
+  return env.domains?.[0]?.name?.trim() || null;
+}
+
 function mapEnvironment(env: KinstaApiEnvironment): KinstaEnvironmentSummary {
   return {
     id: String(env.id ?? ''),
     name: String(env.name ?? ''),
     display_name: String(env.display_name ?? env.name ?? ''),
-    primary_domain: env.primaryDomain?.name?.trim() || null,
+    primary_domain: primaryDomainFromEnv(env),
     php_version: env.container_info?.php_engine_version?.trim() || null,
   };
 }
@@ -439,12 +460,32 @@ export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {
   return lines.join('\n');
 }
 
-function isKinstaProductionEnv(env: KinstaEnvironmentSummary): boolean {
-  const name = env.name.trim().toLowerCase();
-  return name === 'live' || name === 'production';
+function collectKinstaEnvUrls(
+  site: KinstaSiteSummary,
+  urls: Array<{ url: string; friendlyName: string }>,
+  seen: Set<string>,
+): void {
+  const siteLabel = site.display_name || site.name;
+  for (const env of site.environments) {
+    if (isNonProductionLabel(env.name) || isNonProductionLabel(env.display_name)) continue;
+    const domain = env.primary_domain?.trim();
+    if (!domain) continue;
+    const key = normalizeMonitorHost(domain);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const envLabel = env.display_name || env.name;
+    const friendlyName =
+      envLabel && envLabel.toLowerCase() !== 'live' && envLabel.toLowerCase() !== siteLabel.toLowerCase()
+        ? `${siteLabel} (${envLabel})`
+        : siteLabel;
+    urls.push({
+      url: domain.startsWith('http') ? domain : `https://${domain}`,
+      friendlyName,
+    });
+  }
 }
 
-/** Public site URLs from Kinsta live/production primary domains. */
+/** Public site URLs from Kinsta production primary domains. */
 export async function kinstaCollectMonitorUrls(): Promise<
   | { ok: true; urls: Array<{ url: string; friendlyName: string }> }
   | { ok: false; error: string }
@@ -460,25 +501,22 @@ export async function kinstaCollectMonitorUrls(): Promise<
   const seen = new Set<string>();
 
   for (const site of listed.sites) {
-    const siteLabel = site.display_name || site.name;
-    for (const env of site.environments) {
-      if (!isKinstaProductionEnv(env)) continue;
-      const domain = env.primary_domain?.trim();
-      if (!domain) continue;
-      const key = normalizeMonitorHost(domain);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      const envLabel = env.display_name || env.name;
-      const friendlyName =
-        envLabel && envLabel.toLowerCase() !== 'live' && envLabel.toLowerCase() !== siteLabel.toLowerCase()
-          ? `${siteLabel} (${envLabel})`
-          : siteLabel;
-      urls.push({
-        url: domain.startsWith('http') ? domain : `https://${domain}`,
-        friendlyName,
-      });
+    collectKinstaEnvUrls(site, urls, seen);
+  }
+
+  // List endpoint sometimes omits nested domain details — fetch each site if needed.
+  if (!urls.length && listed.sites.length > 0) {
+    for (const site of listed.sites) {
+      const detail = await kinstaGetSite(site.id);
+      if (!detail.ok) continue;
+      collectKinstaEnvUrls(detail.site, urls, seen);
     }
   }
+
+  console.info('[kinsta-sync] monitor urls', {
+    sites: listed.sites.length,
+    urls: urls.length,
+  });
 
   return { ok: true, urls };
 }

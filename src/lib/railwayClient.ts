@@ -282,6 +282,24 @@ async function railwayGetServiceDomains(opts: {
   };
 }
 
+function pickRailwayEnvironment(
+  environments: RailwayEnvironment[],
+  preferredName = 'production',
+): RailwayEnvironment | null {
+  if (!environments.length) return null;
+  const needle = preferredName.trim().toLowerCase();
+  const exact =
+    environments.find((e) => e.name.toLowerCase() === needle) ??
+    environments.find((e) => e.name.toLowerCase() === 'prod') ??
+    environments.find((e) => e.name.toLowerCase().includes(needle));
+  if (exact) return exact;
+  if (environments.length === 1) return environments[0]!;
+  const nonStaging = environments.find(
+    (e) => !isNonProductionLabel(e.name),
+  );
+  return nonStaging ?? environments[0]!;
+}
+
 /** List Railway *.up.railway.app domains + custom domains / CNAME targets for a project. */
 export async function railwayListProjectNetworking(opts: {
   project?: string;
@@ -297,12 +315,9 @@ export async function railwayListProjectNetworking(opts: {
   if (!resolved.ok) return resolved;
 
   const envName = (opts.environment?.trim() || 'production').toLowerCase();
-  const environment =
-    resolved.environments.find((e) => e.name.toLowerCase() === envName) ??
-    resolved.environments.find((e) => e.name.toLowerCase().includes(envName));
+  const environment = pickRailwayEnvironment(resolved.environments, envName);
   if (!environment) {
-    const names = resolved.environments.map((e) => e.name).join(', ') || '(none)';
-    return { ok: false, error: `Environment "${opts.environment ?? 'production'}" not found. Available: ${names}` };
+    return { ok: false, error: `No environments found for project ${resolved.project.name}` };
   }
 
   const serviceFilter = opts.service?.trim().toLowerCase();
@@ -317,13 +332,19 @@ export async function railwayListProjectNetworking(opts: {
 
   const networking: RailwayServiceNetworking[] = [];
   for (const svc of services) {
+    if (isNonProductionLabel(svc.name)) continue;
     const domains = await railwayGetServiceDomains({
       projectId: resolved.project.id,
       environmentId: environment.id,
       serviceId: svc.id,
     });
     if (!domains.ok) {
-      return { ok: false, error: `${svc.name}: ${domains.error}` };
+      console.warn('[railway-sync] service domains skipped', {
+        project: resolved.project.name,
+        service: svc.name,
+        error: domains.error,
+      });
+      continue;
     }
     networking.push({
       service_id: svc.id,
@@ -416,14 +437,10 @@ export async function railwayCollectMonitorUrls(): Promise<
     }
 
     for (const svc of net.data.services) {
-      // Skip non-production / non-site services (staging, preview, templates, etc.).
-      if (isNonProductionLabel(svc.service_name)) continue;
-
-      // Prefer the primary custom domain; fall back to the Railway subdomain only
-      // when no custom domain is configured (avoids monitoring both for one site).
-      const customDomains = svc.custom_domains.map((d) => d.domain).filter(Boolean);
-      const domains =
-        customDomains.length > 0 ? customDomains : svc.railway_domains.map((d) => d.domain);
+      const domains = [
+        ...svc.custom_domains.map((d) => d.domain),
+        ...svc.railway_domains.map((d) => d.domain),
+      ];
       for (const domain of domains) {
         const trimmed = domain?.trim();
         if (!trimmed) continue;
@@ -437,6 +454,12 @@ export async function railwayCollectMonitorUrls(): Promise<
       }
     }
   }
+
+  console.info('[railway-sync] monitor urls', {
+    projects: listed.projects.length,
+    urls: urls.length,
+    warnings: warnings.length,
+  });
 
   return { ok: true, urls, warnings };
 }

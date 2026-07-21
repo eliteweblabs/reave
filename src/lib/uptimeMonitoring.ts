@@ -562,6 +562,25 @@ export async function syncPlatformUrlsToUptime(
     unique.push(item);
   }
 
+  if (!unique.length) {
+    if (isKinstaConfigured() && !kinstaItems.length) {
+      warnings.push('Kinsta: no production domains discovered (check API key scope and live environment primary domains)');
+    }
+    if (isRailwayConfigured() && !railwayItems.length) {
+      warnings.push('Railway: no production domains discovered across accessible projects');
+    }
+    if (!unique.length && (kinstaItems.length || railwayItems.length)) {
+      warnings.push('All discovered platform URLs were duplicates or invalid');
+    }
+  }
+
+  console.info('[uptime-sync] discovered platform urls', {
+    kinsta: kinstaItems.length,
+    railway: railwayItems.length,
+    unique: unique.length,
+    existingMonitors: existing.size,
+  });
+
   const maxAttempts = background ? Number.POSITIVE_INFINITY : platformSyncMaxPerRun();
   let created = 0;
   let skipped = 0;
