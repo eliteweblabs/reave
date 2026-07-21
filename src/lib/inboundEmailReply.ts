@@ -10,8 +10,16 @@ import { isEmailSendConfigured, sendEmail } from './outbound';
 
 export type OutboundMail = { subject: string; text: string; html?: string };
 
-export function scheduleFormUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/$/, '')}/form/schedule`;
+export function scheduleFormUrl(
+  baseUrl: string,
+  prefill?: { name?: string | null; email?: string | null },
+): string {
+  const url = new URL(`${baseUrl.replace(/\/$/, '')}/form/schedule`);
+  const name = prefill?.name?.trim();
+  const email = prefill?.email?.trim();
+  if (name) url.searchParams.set('name', name);
+  if (email) url.searchParams.set('email', email);
+  return url.toString();
 }
 
 /** Split plain-text body into paragraphs; skip greeting/sign-off lines the template adds. */

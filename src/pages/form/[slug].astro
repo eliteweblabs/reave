@@ -252,6 +252,7 @@ const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || '';
   let isRecording = false;
   let availabilityDays = [];
   let typewriterInProgress = false;
+  let urlPrefill = {};
 
   const container = () => document.getElementById("questions-container");
   const inputArea = () => document.getElementById("input-area");
@@ -305,12 +306,51 @@ const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || '';
     }
   }
 
+  function getPrefillFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const prefill = {};
+    for (const [key, value] of params) {
+      const trimmed = value.trim();
+      if (trimmed) prefill[key] = trimmed;
+    }
+    return prefill;
+  }
+
+  function firstNameFrom(fullName) {
+    const trimmed = String(fullName || "").trim();
+    if (!trimmed) return "";
+    return trimmed.split(/\s+/)[0] || "";
+  }
+
+  function applyPrefill() {
+    if (!formDef) return 0;
+    let skipped = 0;
+    while (currentFieldIndex < formDef.fields.length) {
+      const field = formDef.fields[currentFieldIndex];
+      const value = urlPrefill[field.name];
+      if (!value) break;
+      formData[field.name] = value;
+      currentFieldIndex++;
+      skipped++;
+    }
+    return skipped;
+  }
+
   async function loadForm() {
     const slug = window.location.pathname.split("/").pop();
+    urlPrefill = getPrefillFromUrl();
     try {
       const res = await fetch(`/forms/${slug}.json`);
       if (!res.ok) throw new Error("Form not found");
       formDef = await res.json();
+      const skipped = applyPrefill();
+      if (skipped > 0 && urlPrefill.name) {
+        const firstName = firstNameFrom(urlPrefill.name);
+        if (firstName) {
+          await appendTypewriter(`Hi ${firstName}!`);
+          await delay(300);
+        }
+      }
       await showQuestion();
     } catch (err) {
       console.error(err);
@@ -413,7 +453,13 @@ const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || '';
     }
 
     const field = formDef.fields[currentFieldIndex];
-    const questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    let questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    if (field.name === "email" && formData.name) {
+      const firstName = firstNameFrom(formData.name);
+      questionText = firstName
+        ? `Nice to meet you, ${firstName}! What's your email address?`
+        : "What's your email address?";
+    }
     const parts = questionText.split("&&").map((s) => s.trim());
 
     if (field.type === "availability" || (field.type === "select" && field.options)) {

@@ -228,9 +228,12 @@ async function sendAutoProjectAckEmail(opts: {
   try {
     const company = await getCompanyConfig();
     const attendee = attendeeFromEmail({ from: opts.from, contactName: opts.contactName });
-    const scheduleUrl = hasFeature('scheduling') ? scheduleFormUrl(siteBaseUrl()) : null;
+    const scheduleUrl = hasFeature('scheduling')
+      ? scheduleFormUrl(siteBaseUrl(), { name: attendee.name, email: attendee.email })
+      : null;
     const mail = await buildNewProjectAckEmail({
       attendeeName: attendee.name,
+      attendeeEmail: attendee.email,
       jobTitle: opts.jobTitle,
       summary: opts.summary,
       subject: opts.subject,

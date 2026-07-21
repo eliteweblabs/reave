@@ -148,9 +148,12 @@ async function handleNotifyScheduleLink(
 ): Promise<Response> {
   const company = await getCompanyConfig();
   const attendee = attendeeFromEmail({ from: event.from, contactName: event.contactName });
-  const scheduleUrl = hasFeature('scheduling') ? scheduleFormUrl(siteBaseUrl()) : null;
+  const scheduleUrl = hasFeature('scheduling')
+    ? scheduleFormUrl(siteBaseUrl(), { name: attendee.name, email: attendee.email })
+    : null;
   const mail = await buildMeetingScheduleInviteEmail({
     attendeeName: attendee.name,
+    attendeeEmail: attendee.email,
     companyName: company.name,
     scheduleUrl,
   });

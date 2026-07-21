@@ -468,6 +468,7 @@ function projectContextPhrase(input: {
  */
 export async function buildNewProjectAckEmail(input: {
   attendeeName: string;
+  attendeeEmail?: string | null;
   jobTitle?: string | null;
   summary?: string | null;
   subject?: string | null;
@@ -477,7 +478,9 @@ export async function buildNewProjectAckEmail(input: {
   const name = input.attendeeName.trim() || 'there';
   const signOff = input.companyName?.trim() || 'Thanks';
   const context = projectContextPhrase(input);
-  const scheduleUrl = input.scheduleUrl?.trim() || scheduleFormUrl(siteBaseUrl());
+  const scheduleUrl =
+    input.scheduleUrl?.trim() ||
+    scheduleFormUrl(siteBaseUrl(), { name, email: input.attendeeEmail });
 
   const paragraphs = [
     `Thanks for sending over ${context}. I've reviewed your request and I'm excited to discuss your vision for this project.`,
@@ -517,6 +520,7 @@ export async function buildNewProjectAckEmail(input: {
  */
 export async function buildMeetingScheduleInviteEmail(input: {
   attendeeName: string;
+  attendeeEmail?: string | null;
   companyName?: string | null;
   scheduleUrl?: string | null;
   bookingUrl?: string | null;
@@ -526,7 +530,7 @@ export async function buildMeetingScheduleInviteEmail(input: {
   const scheduleUrl =
     input.scheduleUrl?.trim() ||
     input.bookingUrl?.trim() ||
-    scheduleFormUrl(siteBaseUrl());
+    scheduleFormUrl(siteBaseUrl(), { name, email: input.attendeeEmail });
 
   const paragraphs = [
     "Thanks for reaching out — I'd love to connect.",
