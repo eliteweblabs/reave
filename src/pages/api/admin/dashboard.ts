@@ -18,6 +18,7 @@ import {
   type DashboardEvent,
 } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
+import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
 import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { hasFeature } from '../../../lib/features';
@@ -68,6 +69,34 @@ async function loadEventsToday(): Promise<DashboardEvent[]> {
   return out.data.events;
 }
 
+export type DashboardUpcomingTodo = {
+  id: number;
+  title: string;
+  due_date: string;
+  priority: string;
+  section: string | null;
+  job_slug: string | null;
+  assignee: string | null;
+};
+
+async function loadUpcomingTodos(limit = 4): Promise<DashboardUpcomingTodo[]> {
+  if (!isTodoDbConfigured()) return [];
+  const todos = await storeListTodos({ status: 'open' });
+  return todos
+    .filter((t): t is typeof t & { due_date: string } => Boolean(t.due_date))
+    .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
+    .slice(0, limit)
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      due_date: t.due_date,
+      priority: t.priority,
+      section: t.section,
+      job_slug: t.job_slug,
+      assignee: t.assignee,
+    }));
+}
+
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -104,6 +133,7 @@ export async function GET(context: APIContext): Promise<Response> {
   }));
 
   const eventsToday = await loadEventsToday();
+  const upcomingTodos = await loadUpcomingTodos(4);
   const schedulingConfigured = isBookingConfigured();
 
   let meetingsTotal: number | null = null;
@@ -174,6 +204,7 @@ export async function GET(context: APIContext): Promise<Response> {
     recentEmails,
     automationNotifications,
     eventsToday,
+    upcomingTodos,
     schedulingConfigured,
     billingConfigured,
     billingError,

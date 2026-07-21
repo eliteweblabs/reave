@@ -2082,6 +2082,48 @@ function formatEventTime(iso) {
   }
 }
 
+function formatDashTodoWhen(raw) {
+  const d = parseTodoDueInstant(raw);
+  if (!d) return '';
+  const now = new Date();
+  const dueDay = isUtcDateOnlyInstant(raw, d)
+    ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toDateString()
+    : d.toDateString();
+  if (d.getTime() < now.getTime() && dueDay !== now.toDateString()) return 'Overdue';
+  if (dueDay === now.toDateString()) {
+    const time = formatTodoDueTime(d);
+    return time || 'Today';
+  }
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dueDay === tomorrow.toDateString()) return 'Tomorrow';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function dashTodoSubline(todo) {
+  const bits = ['To-do'];
+  if (todo.section) bits.push(todo.section);
+  if (todo.assignee) bits.push(todo.assignee);
+  if (todo.priority && todo.priority !== 'normal') {
+    bits.push(TODO_PRIORITY_LABELS[todo.priority] || todo.priority);
+  }
+  return bits.join(' · ');
+}
+
+function buildDashTodayItems(events, todos) {
+  const items = [];
+  for (const ev of events) {
+    if (!ev?.time) continue;
+    items.push({ kind: 'event', at: ev.time, event: ev });
+  }
+  for (const todo of todos) {
+    if (!todo?.due_date) continue;
+    items.push({ kind: 'todo', at: todo.due_date, todo });
+  }
+  items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+  return items;
+}
+
 function formatEmailWhen(iso) {
   try {
     const d = new Date(iso);
@@ -2949,6 +2991,8 @@ function renderHomeDashboard(data) {
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
   const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
+  const upcomingTodos = Array.isArray(data?.upcomingTodos) ? data.upcomingTodos : [];
+  const todayItems = buildDashTodayItems(events, upcomingTodos);
   const automationNotifications = Array.isArray(data?.automationNotifications)
     ? data.automationNotifications
     : [];
@@ -3056,7 +3100,7 @@ function renderHomeDashboard(data) {
   }
 
   const eventsPanel = document.createElement('section');
-  eventsPanel.className = 'dash-panel dash-panel-today' + (events.length ? '' : ' dash-panel-today--empty');
+  eventsPanel.className = 'dash-panel dash-panel-today' + (todayItems.length ? '' : ' dash-panel-today--empty');
   eventsPanel.innerHTML =
     `<div class="dash-panel-head">` +
       `<h2 class="dash-panel-title">Today</h2>` +
@@ -3071,39 +3115,60 @@ function renderHomeDashboard(data) {
   eventsBody.className = 'dash-panel-body';
   const eventsList = document.createElement('ul');
   eventsList.className = 'dash-events';
-  if (!events.length) {
+  if (!todayItems.length) {
     const empty = document.createElement('p');
     empty.className = 'dash-empty';
     empty.textContent = scheduleLive
       ? 'Nothing scheduled today.'
-      : 'Enable scheduling and BOOKING_API_URL to show Cal.com events here.';
+      : 'No meetings or due to-dos right now.';
     eventsBody.appendChild(empty);
   } else {
-    for (const ev of events) {
-      const uid = ev.uid || ev.id;
-      const canOpen = scheduleLive && uid;
+    for (const item of todayItems) {
       const li = document.createElement('li');
-      if (canOpen) {
+      if (item.kind === 'event') {
+        const ev = item.event;
+        const uid = ev.uid || ev.id;
+        const canOpen = scheduleLive && uid;
+        if (canOpen) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'dash-event dash-event-btn';
+          btn.innerHTML =
+            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+            `<div class="dash-event-body">` +
+              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+              (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
+            `</div>`;
+          btn.addEventListener('click', () => openScheduleTab({ uid }));
+          li.appendChild(btn);
+        } else {
+          li.className = 'dash-event';
+          li.innerHTML =
+            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+            `<div class="dash-event-body">` +
+              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+            `</div>`;
+        }
+      } else {
+        const todo = item.todo;
+        const when = formatDashTodoWhen(todo.due_date);
+        const whenClass =
+          when === 'Overdue'
+            ? 'dash-event-time dash-event-time--overdue'
+            : 'dash-event-time dash-event-time--todo';
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'dash-event dash-event-btn';
         btn.innerHTML =
-          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<span class="${whenClass}">${escHtml(when)}</span>` +
           `<div class="dash-event-body">` +
-            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-            (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
+            `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
+            `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
           `</div>`;
-        btn.addEventListener('click', () => openScheduleTab({ uid }));
+        btn.addEventListener('click', () => navigateToTodo(todo.id));
         li.appendChild(btn);
-      } else {
-        li.className = 'dash-event';
-        li.innerHTML =
-          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-          `<div class="dash-event-body">` +
-            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-          `</div>`;
       }
       eventsList.appendChild(li);
     }
