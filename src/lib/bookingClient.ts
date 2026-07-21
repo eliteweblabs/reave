@@ -490,9 +490,14 @@ export function todayKeyInTimezone(tz = bookingTimezone()): string {
 
 export function bookingToDashboardEvent(b: BookingSummary): DashboardEvent {
   const attendee = b.attendee?.trim();
-  const title =
-    b.title?.trim() ||
-    (attendee && attendee !== 'Unknown' ? `Meeting with ${attendee}` : 'Meeting');
+  const status = b.status?.toLowerCase();
+  
+  // Build a descriptive title that includes status if not accepted
+  let title = b.title?.trim() || (attendee && attendee !== 'Unknown' ? `Meeting with ${attendee}` : 'Meeting');
+  if (status && status !== 'accepted') {
+    title = `${title} (${status})`;
+  }
+  
   return {
     id: b.uid,
     uid: b.uid,
@@ -513,9 +518,11 @@ export async function bookingsToday(): Promise<
   }
 
   const limit = 50;
+  // Fetch all bookings regardless of status to show all events for today
+  // Cal.com statuses: accepted, pending, cancelled, rejected, etc.
   const [upcomingRes, pastRes] = await Promise.all([
-    bookingList({ upcoming: true, status: 'accepted', limit }),
-    bookingList({ upcoming: false, status: 'accepted', limit }),
+    bookingList({ upcoming: true, limit }),
+    bookingList({ upcoming: false, limit }),
   ]);
   if (!upcomingRes.ok) {
     console.error('[bookingsToday] upcoming bookings failed:', upcomingRes.error);
