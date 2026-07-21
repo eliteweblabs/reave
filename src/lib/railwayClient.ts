@@ -3,7 +3,7 @@
  * @see https://docs.railway.com/integrations/api
  */
 import { cachedCompanyBrandName } from './companyConfig';
-import { isNonProductionLabel } from './publicUrl';
+import { isNonProductionLabel, normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
 
 const RAILWAY_GRAPHQL = 'https://backboard.railway.com/graphql/v2';
@@ -392,15 +392,6 @@ export function formatRailwayNetworkingSummary(data: RailwayProjectNetworking): 
   return lines.join('\n').trim();
 }
 
-function normalizeDomainKey(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .replace(/\/+$/, '');
-}
-
 /** Public URLs from Railway production domains across all projects. */
 export async function railwayCollectMonitorUrls(): Promise<
   | { ok: true; urls: Array<{ url: string; friendlyName: string }>; warnings: string[] }
@@ -436,7 +427,7 @@ export async function railwayCollectMonitorUrls(): Promise<
       for (const domain of domains) {
         const trimmed = domain?.trim();
         if (!trimmed) continue;
-        const key = normalizeDomainKey(trimmed);
+        const key = normalizeMonitorHost(trimmed);
         if (!key || seen.has(key)) continue;
         seen.add(key);
         urls.push({

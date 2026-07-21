@@ -2,10 +2,8 @@
  * Kinsta REST API v2 client for the admin agent.
  * @see https://kinsta.com/docs/kinsta-api/
  */
-import { isNonProductionLabel } from './publicUrl';
-import { serverEnv } from './serverEnv';
-
-const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
+import { normalizeMonitorHost } from './publicUrl';
+import { serverEnv } from './serverEnv'; = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
 
 export function isKinstaConfigured(): boolean {
   return Boolean(serverEnv('KINSTA_API_KEY')?.trim() && serverEnv('KINSTA_COMPANY_ID')?.trim());
@@ -439,16 +437,12 @@ export function formatKinstaSitesSummary(sites: KinstaSiteSummary[]): string {
   return lines.join('\n');
 }
 
-function normalizeDomainKey(raw: string): string {
-  return raw
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, '')
-    .replace(/^www\./, '')
-    .replace(/\/+$/, '');
+function isKinstaProductionEnv(env: KinstaEnvironmentSummary): boolean {
+  const name = env.name.trim().toLowerCase();
+  return name === 'live' || name === 'production';
 }
 
-/** Public site URLs from Kinsta primary domains (all environments). */
+/** Public site URLs from Kinsta live/production primary domains. */
 export async function kinstaCollectMonitorUrls(): Promise<
   | { ok: true; urls: Array<{ url: string; friendlyName: string }> }
   | { ok: false; error: string }
@@ -466,11 +460,10 @@ export async function kinstaCollectMonitorUrls(): Promise<
   for (const site of listed.sites) {
     const siteLabel = site.display_name || site.name;
     for (const env of site.environments) {
+      if (!isKinstaProductionEnv(env)) continue;
       const domain = env.primary_domain?.trim();
       if (!domain) continue;
-      // Only monitor production environments — skip staging/dev.
-      if (isNonProductionLabel(env.name) || isNonProductionLabel(env.display_name)) continue;
-      const key = normalizeDomainKey(domain);
+      const key = normalizeMonitorHost(domain);
       if (!key || seen.has(key)) continue;
       seen.add(key);
       const envLabel = env.display_name || env.name;

@@ -2170,7 +2170,9 @@ function ensureUptimePlatformSyncPolling() {
       stopUptimePlatformSyncPolling();
       uptimePlatformSyncActive = false;
       setUptimeSyncButtonBusy(false);
-      const created = data.created ?? data.result?.created ?? 0;
+      const result = data.result ?? data;
+      const created = data.created ?? result?.created ?? 0;
+      void showUptimeSyncResultDialog(result);
       window.setTimeout(() => {
         void loadHomeDashboard();
       }, created > 0 ? 6000 : 2500);
@@ -2181,6 +2183,27 @@ function ensureUptimePlatformSyncPolling() {
 
   void poll();
   uptimePlatformSyncPollTimer = setInterval(poll, 3000);
+}
+
+async function showUptimeSyncResultDialog(result) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  const httpOk = result?.ok !== false || (result?.created ?? 0) > 0 || (result?.skipped ?? 0) > 0;
+  titleEl.textContent = 'Site sync complete';
+  bodyEl.innerHTML = renderUptimeSyncResultHtml(result, httpOk);
+  actionsEl.innerHTML = '';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'os-dialog-btn os-dialog-btn--primary';
+  closeBtn.textContent = 'Done';
+  closeBtn.addEventListener('click', () => closeOsDialogBackdrop());
+  actionsEl.appendChild(closeBtn);
+  openOsDialogBackdrop();
+  closeBtn.focus();
 }
 
 async function refreshUptimeSyncButtonState() {

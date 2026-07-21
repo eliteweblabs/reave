@@ -50,6 +50,16 @@ export function isNonProductionLabel(label: string | null | undefined): boolean 
   );
 }
 
+/** Hostname key for comparing monitor URLs across Kinsta, Railway, and UptimeRobot. */
+export function normalizeMonitorHost(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  let host = raw.trim().toLowerCase();
+  host = host.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+  const slash = host.indexOf('/');
+  if (slash >= 0) host = host.slice(0, slash);
+  return host || null;
+}
+
 export function normalizeDomain(raw: string): string | null {
   const trimmed = raw.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/:\d+$/, '');
   if (!trimmed || trimmed.includes('/') || isPrivateHost(trimmed.split(':')[0] ?? trimmed)) return null;

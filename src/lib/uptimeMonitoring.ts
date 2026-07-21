@@ -24,6 +24,7 @@ import {
   type UptimeSummaryStats,
 } from './pgUptime';
 import { portalSiteUrl } from './siteMonitoring';
+import { normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
 import {
   classifyUptimeRobotError,
@@ -32,6 +33,7 @@ import {
   getCachedUptimeRobotAccount,
   urGetAccountDetails,
   urGetAllMonitors,
+  urGetAllMonitorsWithRetry,
   urGetMonitors,
   urNewMonitor,
   urResolveCreateContext,
@@ -83,11 +85,8 @@ function monitorClientMap(): Record<string, string> {
   }
 }
 
-function normalizeUrl(url: string | null | undefined): string | null {
-  if (!url?.trim()) return null;
-  let t = url.trim().toLowerCase();
-  t = t.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  return t || null;
+function monitorHostKey(url: string | null | undefined): string | null {
+  return normalizeMonitorHost(url);
 }
 
 function portalUrls(portal: ClientPortal | null | undefined): string[] {
@@ -96,14 +95,14 @@ function portalUrls(portal: ClientPortal | null | undefined): string[] {
   if (site) out.push(site);
   const website = portal?.website?.trim();
   if (website) out.push(website);
-  return out.map((u) => normalizeUrl(u)).filter(Boolean) as string[];
+  return out.map((u) => monitorHostKey(u)).filter(Boolean) as string[];
 }
 
 async function resolveClientUidForMonitor(monitorUrl: string | null, monitorId: number): Promise<string | null> {
   const manual = monitorClientMap()[String(monitorId)];
   if (manual) return manual;
 
-  const norm = normalizeUrl(monitorUrl);
+  const norm = monitorHostKey(monitorUrl);
   if (!norm) return null;
 
   const listed = await listContacts({ limit: 500 });
@@ -269,7 +268,7 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
     return { ok: false, synced: 0, error: 'DATABASE_URL not configured' };
   }
 
-  const api = await urGetMonitors({ customUptimeRatios: '7-30' });
+  const api = await urGetAllMonitors({ customUptimeRatios: '7-30' });
   if (!api.ok) return { ok: false, synced: 0, error: api.error };
 
   let synced = 0;
@@ -448,48 +447,8 @@ export async function syncPlatformUrlsToUptime(
   });
 
   const warnings: string[] = [];
-  const accountRes = await urGetAccountDetails();
   const localRows = await dbListUptimeMonitors();
   const localMonitorCount = localRows?.length ?? 0;
-  const account = accountRes.ok ? accountRes.account : undefined;
-  if (!accountRes.ok) {
-    warnings.push(`UptimeRobot account details: ${accountRes.error}`);
-  }
-
-  const createContext = await urResolveCreateContext({
-    accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
-  });
-  console.info('[uptime-sync] create context', {
-    emailContacts: createContext.emailContacts ?? null,
-    clonedAlertContacts: createContext.clonedAlertContacts ?? null,
-    alertContactTypes: createContext.alertContactTypes ?? [],
-  });
-
-  emitProgress(onProgress, {
-    phase: 'listing',
-    discovered: 0,
-    created: 0,
-    skipped: 0,
-    pending: 0,
-  });
-
-  const existing = new Set<string>();
-  const api = await urGetAllMonitors({ customUptimeRatios: '7-30' });
-  if (api.ok) {
-    for (const monitor of api.monitors) {
-      const key = normalizeUrl(monitor.url);
-      if (key) existing.add(key);
-    }
-  } else {
-    return {
-      ...empty,
-      errors: [`UptimeRobot: ${api.error}`],
-      warnings,
-      account,
-      localMonitorCount,
-      error: `UptimeRobot: ${api.error}`,
-    };
-  }
 
   const kinstaItems: UptimePlatformSyncItem[] = [];
   const railwayItems: UptimePlatformSyncItem[] = [];
@@ -532,6 +491,60 @@ export async function syncPlatformUrlsToUptime(
     };
   }
 
+  emitProgress(onProgress, {
+    phase: 'listing',
+    discovered: 0,
+    created: 0,
+    skipped: 0,
+    pending: 0,
+  });
+
+  const existing = new Set<string>();
+  for (const row of localRows ?? []) {
+    const key = monitorHostKey(row.url);
+    if (key) existing.add(key);
+  }
+
+  const api = await urGetAllMonitorsWithRetry({
+    customUptimeRatios: '7-30',
+    includeAlertContacts: true,
+  });
+  if (api.ok) {
+    for (const monitor of api.monitors) {
+      const key = monitorHostKey(monitor.url);
+      if (key) existing.add(key);
+    }
+  } else {
+    warnings.push(`UptimeRobot monitor list: ${api.error} — using ${existing.size} cached URL(s) from Postgres`);
+    if (!existing.size && !kinstaItems.length && !railwayItems.length) {
+      return {
+        ...empty,
+        errors: [`UptimeRobot: ${api.error}`],
+        warnings,
+        localMonitorCount,
+        error: `UptimeRobot: ${api.error}`,
+      };
+    }
+  }
+
+  const accountRes = await urGetAccountDetails();
+  const account = accountRes.ok ? accountRes.account : undefined;
+  if (!accountRes.ok) {
+    warnings.push(`UptimeRobot account details: ${accountRes.error}`);
+  }
+
+  const createContext = await urResolveCreateContext({
+    accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
+    monitors: api.ok ? api.monitors : undefined,
+  });
+  console.info('[uptime-sync] create context', {
+    emailContacts: createContext.emailContacts ?? null,
+    clonedAlertContacts: createContext.clonedAlertContacts ?? null,
+    alertContactTypes: createContext.alertContactTypes ?? [],
+    platformSites: kinstaItems.length + railwayItems.length,
+    uptimeMonitors: api.ok ? api.monitors.length : existing.size,
+  });
+
   // Interleave sources (Railway first) so the per-run cap doesn't starve one
   // platform — otherwise all Kinsta sites get attempted before any Railway one.
   const candidates: UptimePlatformSyncItem[] = [];
@@ -543,7 +556,7 @@ export async function syncPlatformUrlsToUptime(
   const seen = new Set<string>();
   const unique: UptimePlatformSyncItem[] = [];
   for (const item of candidates) {
-    const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
+    const key = monitorHostKey(normalizeUptimeMonitorUrl(item.url));
     if (!key || seen.has(key)) continue;
     seen.add(key);
     unique.push(item);
@@ -576,7 +589,7 @@ export async function syncPlatformUrlsToUptime(
   reportCreating();
 
   for (const item of unique) {
-    const key = normalizeUrl(normalizeUptimeMonitorUrl(item.url));
+    const key = monitorHostKey(normalizeUptimeMonitorUrl(item.url));
     if (key && existing.has(key)) {
       skipped += 1;
       reportCreating();

@@ -239,6 +239,7 @@ export async function urGetMonitors(opts?: {
 /** Paginate getMonitors — the API returns at most 50 records per page. */
 export async function urGetAllMonitors(opts?: {
   customUptimeRatios?: string;
+  includeAlertContacts?: boolean;
 }): Promise<UptimeRobotMonitorsResult> {
   const all: UptimeRobotMonitor[] = [];
   const pageSize = 50;
@@ -247,6 +248,7 @@ export async function urGetAllMonitors(opts?: {
   for (;;) {
     const page = await urGetMonitors({
       customUptimeRatios: opts?.customUptimeRatios,
+      includeAlertContacts: offset === 0 ? opts?.includeAlertContacts : undefined,
       offset,
       limit: pageSize,
     });
@@ -258,6 +260,35 @@ export async function urGetAllMonitors(opts?: {
   }
 
   return { ok: true, monitors: all };
+}
+
+function urSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Retry getMonitors/getAllMonitors when UptimeRobot returns rate-limit errors. */
+export async function urGetAllMonitorsWithRetry(opts?: {
+  customUptimeRatios?: string;
+  includeAlertContacts?: boolean;
+  maxAttempts?: number;
+}): Promise<UptimeRobotMonitorsResult> {
+  const maxAttempts = opts?.maxAttempts ?? 4;
+  let lastError = 'unknown error';
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const result = await urGetAllMonitors({
+      customUptimeRatios: opts?.customUptimeRatios,
+      includeAlertContacts: opts?.includeAlertContacts,
+    });
+    if (result.ok) return result;
+    lastError = result.error;
+    const classified = classifyUptimeRobotError(result.error);
+    if (classified.kind !== 'rate_limit' || attempt >= maxAttempts - 1) return result;
+    const waitSec = parseUptimeRobotRetrySeconds(classified.raw) ?? 60;
+    await urSleep((waitSec + 2) * 1000);
+  }
+
+  return { ok: false, error: lastError };
 }
 
 export async function urGetAccountDetails(): Promise<
@@ -450,8 +481,16 @@ export type UptimeRobotCreateContext = {
 
 export async function urResolveCreateContext(opts?: {
   accountIntervalSeconds?: number | null;
+  /** Reuse monitors from sync listing to avoid extra getMonitors calls. */
+  monitors?: UptimeRobotMonitor[];
 }): Promise<UptimeRobotCreateContext> {
-  const contactsRes = await urGetAlertContacts();
+  let contactsRes = await urGetAlertContacts();
+  if (!contactsRes.ok && classifyUptimeRobotError(contactsRes.error).kind === 'rate_limit') {
+    const waitSec = parseUptimeRobotRetrySeconds(contactsRes.error) ?? 60;
+    await urSleep((waitSec + 2) * 1000);
+    contactsRes = await urGetAlertContacts();
+  }
+
   const contactTypeById = new Map<number, number>();
   if (contactsRes.ok) {
     for (const c of contactsRes.contacts) {
@@ -459,27 +498,26 @@ export async function urResolveCreateContext(opts?: {
     }
   }
 
-  const [sample, withContacts] = await Promise.all([
-    urGetMonitors({ limit: 1, customUptimeRatios: '7-30' }),
-    urGetMonitors({ limit: 50, includeAlertContacts: true, customUptimeRatios: '7-30' }),
-  ]);
+  let monitors = opts?.monitors ?? [];
+  if (!monitors.length) {
+    const listed = await urGetMonitors({ limit: 50, includeAlertContacts: true, customUptimeRatios: '7-30' });
+    if (listed.ok) monitors = listed.monitors;
+  }
 
   const emailContacts = contactsRes.ok
     ? urFreePlanEmailAlertContacts(contactsRes.contacts)
     : undefined;
 
   let clonedAlertContacts: string | undefined;
-  if (withContacts.ok) {
-    for (const monitor of withContacts.monitors) {
-      clonedAlertContacts = urEmailAlertContactsFromMonitorAssignments(
-        monitor.alert_contacts,
-        contactTypeById,
-      );
-      if (clonedAlertContacts) break;
-    }
+  for (const monitor of monitors) {
+    clonedAlertContacts = urEmailAlertContactsFromMonitorAssignments(
+      monitor.alert_contacts,
+      contactTypeById,
+    );
+    if (clonedAlertContacts) break;
   }
 
-  const sampleInterval = sample.ok ? Number(sample.monitors[0]?.interval) : NaN;
+  const sampleInterval = monitors.length ? Number(monitors[0]?.interval) : NaN;
   const accountInterval = opts?.accountIntervalSeconds ?? null;
   const cloneInterval =
     (Number.isFinite(sampleInterval) && sampleInterval >= 300 ? sampleInterval : null) ??

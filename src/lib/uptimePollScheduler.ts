@@ -79,10 +79,18 @@ export function ensureUptimePollScheduler(): void {
 
   const discoverMs = discoverIntervalMs();
   if (discoverMs && (isKinstaConfigured() || isRailwayConfigured())) {
-    void runUptimeDiscovery().catch((e) => console.warn('[uptime-poll] initial discovery failed', e));
+    // Wait before the first discovery run so boot-time status sync does not
+    // exhaust the UptimeRobot free-plan rate limit before site listing can finish.
+    const initialDiscoverDelayMs = Math.min(120_000, Math.max(60_000, ms));
+    setTimeout(() => {
+      void runUptimeDiscovery().catch((e) => console.warn('[uptime-poll] initial discovery failed', e));
+    }, initialDiscoverDelayMs);
     _discoverTimer = setInterval(() => {
       void runUptimeDiscovery().catch((e) => console.warn('[uptime-poll] discovery failed', e));
     }, discoverMs);
-    console.info('[uptime-poll] discovery scheduler started', { intervalMinutes: discoverMs / 60_000 });
+    console.info('[uptime-poll] discovery scheduler started', {
+      intervalMinutes: discoverMs / 60_000,
+      initialDelayMinutes: initialDiscoverDelayMs / 60_000,
+    });
   }
 }
