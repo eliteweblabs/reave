@@ -14069,6 +14069,33 @@ let chatState = {
   composeDirty: false,
 };
 
+const CHAT_LAST_ACTIVE_KEY = 'chat:lastActiveId-v1';
+
+function readChatLastActiveId() {
+  try {
+    return localStorage.getItem(CHAT_LAST_ACTIVE_KEY)?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberChatActiveId(id) {
+  if (!id) return;
+  try {
+    localStorage.setItem(CHAT_LAST_ACTIVE_KEY, id);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function clearChatLastActiveId() {
+  try {
+    localStorage.removeItem(CHAT_LAST_ACTIVE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 function isDisposableChat(id) {
   if (!id || chatState.disposableChatId !== id) return false;
   if (chatState.messages.length > 0 || chatState.sending || chatState.composeDirty) return false;
@@ -14174,6 +14201,31 @@ async function loadChatsTab(opts = {}) {
     return;
   }
 
+  const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
+  pendingChatDeepLinkId = null;
+  const restoreId = deepChatId || chatState.activeId || readChatLastActiveId();
+
+  if (restoreId) {
+    if (chatState.activeId && chatState.activeId !== restoreId) {
+      await abandonDisposableChat(chatState.activeId);
+    }
+    if (!chatState.threads.some((t) => t.id === restoreId)) {
+      clearChatLastActiveId();
+      chatState.activeId = null;
+      chatState.messages = [];
+      chatState.title = '';
+      chatState.pendingAutoSend = false;
+      chatState.composeDirty = false;
+      chatState.disposableChatId = null;
+      getChatPanel()?.classList.remove('ch-pane-active');
+      renderChatPanel();
+      return;
+    }
+    renderChatPanel();
+    openChat(restoreId).catch(() => {});
+    return;
+  }
+
   if (chatState.activeId) await abandonDisposableChat(chatState.activeId);
   chatState.activeId = null;
   chatState.messages = [];
@@ -14182,15 +14234,6 @@ async function loadChatsTab(opts = {}) {
   chatState.composeDirty = false;
   chatState.disposableChatId = null;
   getChatPanel()?.classList.remove('ch-pane-active');
-
-  const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
-  pendingChatDeepLinkId = null;
-  if (deepChatId) {
-    renderChatPanel();
-    openChat(deepChatId).catch(() => {});
-    return;
-  }
-
   renderChatPanel();
 }
 
@@ -14666,6 +14709,7 @@ async function startNewChat(opts = {}) {
     chatState.linkedJobs = thread.linked_jobs || [];
     chatState.composeDirty = false;
     chatState.disposableChatId = opts.disposable === false ? null : thread.id;
+    rememberChatActiveId(thread.id);
     renderChatPanel();
   } catch (e) {
     alert(`Could not create chat: ${e.message}`);
@@ -14688,6 +14732,7 @@ async function openChat(id) {
     chatState.linkedJobs = data.thread.linked_jobs || [];
     chatState.composeDirty = false;
     chatState.disposableChatId = null;
+    rememberChatActiveId(id);
     const idx = chatState.threads.findIndex((t) => t.id === id);
     if (idx !== -1) {
       chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
@@ -14713,6 +14758,7 @@ async function deleteChat(id) {
       chatState.messages = [];
       chatState.title = '';
       if (chatState.disposableChatId === id) chatState.disposableChatId = null;
+      clearChatLastActiveId();
       getChatPanel()?.classList.remove('ch-pane-active');
     }
     renderChatPanel();
@@ -14740,6 +14786,7 @@ async function archiveChat(t) {
       chatState.activeId = null;
       chatState.messages = [];
       chatState.title = '';
+      clearChatLastActiveId();
       getChatPanel()?.classList.remove('ch-pane-active');
     }
     renderChatPanel();
@@ -15510,6 +15557,7 @@ function closeActiveChat() {
   const id = chatState.activeId;
   void abandonDisposableChat(id).then(async () => {
     chatState.activeId = null;
+    clearChatLastActiveId();
     setChatComposeFocused(false);
     getChatPanel()?.classList.remove('ch-pane-active');
     renderChatPanel();
