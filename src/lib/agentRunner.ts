@@ -521,7 +521,14 @@ async function runKnowledgeAgentInner(
     return finalizeAgentReply(text || '(no text)', userText);
   }
 
-  return finalizeAgentReply('Stopped after max tool rounds. Try a narrower question.', userText);
+  return finalizeAgentReply(
+    'I ran out of tool calls trying to solve this. This usually means:\n\n' +
+    '1. The question requires reading very large files that get truncated\n' +
+    '2. The task is too complex for a single conversation\n' +
+    '3. I\'m stuck in a loop trying different approaches\n\n' +
+    'Try breaking this down into smaller, more specific questions, or ask me to focus on one aspect at a time.',
+    userText
+  );
 }
 
 async function finalizeAgentReply(text: string, userText: string): Promise<string> {
