@@ -127,10 +127,89 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         --sidebar-w: 260px;
         --sidebar-min-w: 200px;
         --sidebar-max-w: 520px;
+        /* Dashboard tile grids — sm (<640px) */
+        --dash-stat-cols: 2;
+        --dash-stat-gap: 0.55rem;
+        --dash-stat-pad-y: 0.85rem;
+        --dash-stat-pad-x: 0.75rem;
+        --dash-stat-min-h: 5rem;
+        --dash-stat-value-size: 1.95rem;
+        --dash-uptime-cols: 3;
+        --dash-uptime-gap: 0.45rem;
+        --dash-uptime-pad-y: 0.45rem;
+        --dash-uptime-pad-x: 0.4rem;
+        --dash-uptime-name-size: 0.68rem;
+        --dash-uptime-meta-size: 0.62rem;
+        --dash-uptime-dot-size: 6px;
+        --dash-uptime-add-min-h: 3.25rem;
+        --dash-nav-cols: 2;
+        --dash-nav-gap: 0.55rem;
+        --dash-nav-pad-y: 0.85rem;
+        --dash-nav-pad-x: 0.8rem;
+        --dash-nav-icon-size: 2rem;
+        --dash-nav-icon-svg: 1.25rem;
+        --dash-nav-label-size: 0.78rem;
       }
       @media (min-width: 640px) {
         :root {
           --footer-nav-bottom-gap: 1.25rem;
+          /* md */
+          --dash-stat-cols: 3;
+          --dash-stat-gap: 0.65rem;
+          --dash-stat-pad-y: 0.9rem;
+          --dash-stat-pad-x: 0.85rem;
+          --dash-stat-min-h: 5.5rem;
+          --dash-stat-value-size: 1.85rem;
+          --dash-uptime-cols: 6;
+          --dash-uptime-gap: 0.4rem;
+          --dash-uptime-pad-y: 0.5rem;
+          --dash-uptime-pad-x: 0.45rem;
+          --dash-uptime-name-size: 0.72rem;
+          --dash-uptime-meta-size: 0.64rem;
+          --dash-nav-cols: 3;
+          --dash-nav-gap: 0.6rem;
+          --dash-nav-pad-y: 0.9rem;
+          --dash-nav-pad-x: 0.85rem;
+          --dash-nav-icon-size: 2.15rem;
+          --dash-nav-icon-svg: 1.3rem;
+          --dash-nav-label-size: 0.8rem;
+        }
+      }
+      @media (min-width: 1024px) {
+        :root {
+          /* lg */
+          --dash-stat-cols: 4;
+          --dash-uptime-cols: 10;
+          --dash-uptime-gap: 0.38rem;
+          --dash-uptime-pad-y: 0.42rem;
+          --dash-uptime-pad-x: 0.38rem;
+          --dash-uptime-name-size: 0.65rem;
+          --dash-uptime-meta-size: 0.58rem;
+          --dash-nav-cols: 4;
+          --dash-nav-gap: 0.65rem;
+          --dash-nav-pad-y: 0.95rem;
+          --dash-nav-pad-x: 0.9rem;
+          --dash-nav-icon-size: 2.25rem;
+          --dash-nav-icon-svg: 1.35rem;
+          --dash-nav-label-size: 0.82rem;
+        }
+      }
+      @media (min-width: 1280px) {
+        :root {
+          /* xl */
+          --dash-uptime-cols: 16;
+          --dash-uptime-gap: 0.35rem;
+          --dash-uptime-pad-y: 0.35rem;
+          --dash-uptime-pad-x: 0.3rem;
+          --dash-uptime-name-size: 0.58rem;
+          --dash-uptime-meta-size: 0.52rem;
+          --dash-nav-cols: 6;
+          --dash-nav-gap: 0.7rem;
+          --dash-nav-pad-y: 1rem;
+          --dash-nav-pad-x: 0.95rem;
+          --dash-nav-icon-size: 2.35rem;
+          --dash-nav-icon-svg: 1.4rem;
+          --dash-nav-label-size: 0.84rem;
         }
       }
       @media (prefers-color-scheme: dark) {
@@ -5134,14 +5213,9 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
       .dash-stats {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.65rem;
+        grid-template-columns: repeat(var(--dash-stat-cols), minmax(0, 1fr));
+        gap: var(--dash-stat-gap);
         margin-bottom: 1.35rem;
-      }
-      @media (min-width: 640px) {
-        .dash-stats {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
       }
 
       .dash-stat {
@@ -5149,7 +5223,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         flex-direction: column;
         align-items: flex-start;
         gap: 0.15rem;
-        padding: 0.9rem 0.85rem;
+        padding: var(--dash-stat-pad-y) var(--dash-stat-pad-x);
         border-radius: 14px;
         border: 1px solid var(--panel-border);
         background: var(--surface-muted);
@@ -5158,7 +5232,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         text-align: left;
         font: inherit;
         transition: border-color 0.15s, background 0.15s, transform 0.12s;
-        min-height: 5.5rem;
+        min-height: var(--dash-stat-min-h);
       }
       /* Override global pill buttons — dashboard cards stay rounded-rect. */
       #home-dashboard button.dash-stat {
@@ -5178,7 +5252,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         transform: scale(0.98);
       }
       .dash-stat-value {
-        font-size: 1.85rem;
+        font-size: var(--dash-stat-value-size);
         font-weight: 700;
         letter-spacing: -0.03em;
         line-height: 1.1;
@@ -5444,15 +5518,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
           gap: 0.85rem;
         }
         .dash-stats {
-          gap: 0.55rem;
           margin-bottom: 0;
-        }
-        .dash-stat {
-          padding: 0.85rem 0.75rem;
-          min-height: 5rem;
-        }
-        .dash-stat-value {
-          font-size: 1.95rem;
         }
         .dash-panel-today {
           flex: 1 1 auto;
@@ -5621,14 +5687,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         margin: 0 0 1.35rem;
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.45rem;
-      }
-      @media (min-width: 640px) {
-        .dash-uptime-grid {
-          grid-template-columns: repeat(16, minmax(0, 1fr));
-          gap: 0.35rem;
-        }
+        grid-template-columns: repeat(var(--dash-uptime-cols), minmax(0, 1fr));
+        gap: var(--dash-uptime-gap);
       }
       .dash-uptime-tile {
         display: flex;
@@ -5636,7 +5696,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         align-items: flex-start;
         gap: 0.2rem;
         min-width: 0;
-        padding: 0.45rem 0.4rem;
+        padding: var(--dash-uptime-pad-y) var(--dash-uptime-pad-x);
         border-radius: 10px;
         border: 1px solid var(--panel-border);
         background: var(--surface-muted);
@@ -5660,7 +5720,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         align-items: center;
         justify-content: center;
         text-align: center;
-        min-height: 3.25rem;
+        min-height: var(--dash-uptime-add-min-h);
       }
       .dash-uptime-tile--add:hover {
         border-color: var(--border-hover);
@@ -5712,15 +5772,15 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .dash-uptime-incident:first-child { border-top: none; }
       .dash-uptime-dot {
-        width: 6px;
-        height: 6px;
+        width: var(--dash-uptime-dot-size);
+        height: var(--dash-uptime-dot-size);
         border-radius: 50%;
         background: #3fb950;
         flex-shrink: 0;
       }
       .dash-uptime-tile--down .dash-uptime-dot { background: #f85149; }
       .dash-uptime-name {
-        font-size: 0.68rem;
+        font-size: var(--dash-uptime-name-size);
         font-weight: 600;
         line-height: 1.2;
         min-width: 0;
@@ -5731,21 +5791,10 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         white-space: nowrap;
       }
       .dash-uptime-meta {
-        font-size: 0.62rem;
+        font-size: var(--dash-uptime-meta-size);
         color: var(--muted);
         line-height: 1.2;
         font-variant-numeric: tabular-nums;
-      }
-      @media (min-width: 640px) {
-        .dash-uptime-tile {
-          padding: 0.35rem 0.3rem;
-        }
-        .dash-uptime-name {
-          font-size: 0.58rem;
-        }
-        .dash-uptime-meta {
-          font-size: 0.52rem;
-        }
       }
       .dash-uptime-inc-head {
         margin: 0 0 0.35rem;
@@ -6311,16 +6360,16 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
       .home-dashboard-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-        gap: 0.65rem;
+        grid-template-columns: repeat(var(--dash-nav-cols), minmax(0, 1fr));
+        gap: var(--dash-nav-gap);
         margin-top: 0.35rem;
       }
       .home-dashboard-tile {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.55rem;
-        padding: 0.85rem 0.8rem;
+        gap: var(--dash-nav-gap);
+        padding: var(--dash-nav-pad-y) var(--dash-nav-pad-x);
         border-radius: 12px;
         border: 1px solid var(--panel-border);
         background: var(--surface-muted);
@@ -6338,17 +6387,17 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 2rem;
-        height: 2rem;
+        width: var(--dash-nav-icon-size);
+        height: var(--dash-nav-icon-size);
         color: var(--fg-secondary);
       }
       .home-dashboard-tile-icon svg {
-        width: 1.25rem;
-        height: 1.25rem;
+        width: var(--dash-nav-icon-svg);
+        height: var(--dash-nav-icon-svg);
         display: block;
       }
       .home-dashboard-tile-label {
-        font-size: 0.78rem;
+        font-size: var(--dash-nav-label-size);
         font-weight: 600;
         line-height: 1.25;
       }
