@@ -67,74 +67,71 @@ function useAgentRunStatus(
   threadId: string,
   externalProgress: AgentProgress | null,
   useExternalProgress: boolean,
+  streamedProgress: AgentProgress | null,
 ) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
-  const [progress, setProgress] = useState<AgentProgress | null>(null);
+  const [polledProgress, setPolledProgress] = useState<AgentProgress | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (useExternalProgress) {
-      setProgress(externalProgress);
-      if (externalProgress) {
-        startedAtRef.current = externalProgress.startedAt;
-      }
-    }
-  }, [externalProgress, useExternalProgress]);
+  const activeProgress = useExternalProgress
+    ? externalProgress
+    : streamedProgress ?? polledProgress;
 
   useEffect(() => {
     if (!isRunning || useExternalProgress) {
       if (!useExternalProgress) {
         startedAtRef.current = null;
-        setProgress(null);
+        setPolledProgress(null);
         setElapsedMs(0);
       }
       return;
     }
 
-    startedAtRef.current = Date.now();
+    if (!streamedProgress && !startedAtRef.current) {
+      startedAtRef.current = Date.now();
+    }
+
     let cancelled = false;
 
     const poll = async () => {
+      if (streamedProgress) return;
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
           cache: 'no-store',
         });
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { progress?: AgentProgress | null };
-        if (!cancelled) setProgress(data.progress ?? null);
+        if (!cancelled && !streamedProgress) setPolledProgress(data.progress ?? null);
       } catch {
         /* ignore transient poll errors */
       }
     };
 
     void poll();
-    const pollTimer = window.setInterval(() => void poll(), 900);
-    const elapsedTimer = window.setInterval(() => {
-      const started = startedAtRef.current;
-      if (!started) return;
-      setElapsedMs(Date.now() - started);
-    }, 1000);
-
+    const pollTimer = window.setInterval(() => void poll(), 3000);
     return () => {
       cancelled = true;
       window.clearInterval(pollTimer);
-      window.clearInterval(elapsedTimer);
     };
-  }, [isRunning, threadId, useExternalProgress]);
+  }, [isRunning, threadId, useExternalProgress, streamedProgress]);
 
   useEffect(() => {
-    if (!useExternalProgress || !externalProgress) return;
-    const started = externalProgress.startedAt;
-    startedAtRef.current = started;
+    const started =
+      activeProgress?.startedAt ??
+      (isRunning && !useExternalProgress ? startedAtRef.current : null);
+    if (started) startedAtRef.current = started;
+    if (!started) {
+      setElapsedMs(0);
+      return;
+    }
     setElapsedMs(Date.now() - started);
     const elapsedTimer = window.setInterval(() => {
       setElapsedMs(Date.now() - started);
     }, 1000);
     return () => window.clearInterval(elapsedTimer);
-  }, [externalProgress, useExternalProgress]);
+  }, [activeProgress, isRunning, useExternalProgress]);
 
-  const activeProgress = useExternalProgress ? externalProgress : progress;
   const showRunning = isRunning || useExternalProgress;
   const label = statusLabelFromProgress(activeProgress);
   const elapsed = formatElapsed(elapsedMs);
@@ -148,36 +145,82 @@ function useAgentRunStatus(
   return { isRunning: showRunning, label, elapsed, detailText, progress: activeProgress };
 }
 
+function AgentRunStatusCopy({
+  label,
+  elapsed,
+  detailText,
+}: {
+  label: string;
+  elapsed: string;
+  detailText: string;
+}) {
+  return (
+    <span className="aui-run-status-copy">
+      <span className="aui-run-status-primary">
+        {label}
+        <span className="aui-run-status-ellipsis" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        {' · '}
+        {elapsed}
+      </span>
+      <span className="aui-run-status-detail">{detailText}</span>
+    </span>
+  );
+}
+
 function AgentRunStatus({
   threadId,
   externalProgress,
   useExternalProgress,
+  streamedProgress,
 }: {
   threadId: string;
   externalProgress: AgentProgress | null;
   useExternalProgress: boolean;
+  streamedProgress: AgentProgress | null;
 }) {
   const { label, elapsed, detailText } = useAgentRunStatus(
     threadId,
     externalProgress,
     useExternalProgress,
+    streamedProgress,
   );
 
   return (
     <div className="aui-run-status">
-      <span className="aui-run-status-copy">
-        <span className="aui-run-status-primary">
-          {label}
-          <span className="aui-run-status-ellipsis" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          {' · '}
-          {elapsed}
-        </span>
-        <span className="aui-run-status-detail">{detailText}</span>
-      </span>
+      <AgentRunStatusCopy label={label} elapsed={elapsed} detailText={detailText} />
+    </div>
+  );
+}
+
+function InThreadRunStatus({
+  threadId,
+  externalProgress,
+  useExternalProgress,
+  streamedProgress,
+}: {
+  threadId: string;
+  externalProgress: AgentProgress | null;
+  useExternalProgress: boolean;
+  streamedProgress: AgentProgress | null;
+}) {
+  const { label, elapsed, detailText } = useAgentRunStatus(
+    threadId,
+    externalProgress,
+    useExternalProgress,
+    streamedProgress,
+  );
+
+  return (
+    <div className="aui-msg-row aui-msg-row-assistant aui-msg-row-thinking" aria-live="polite">
+      <div className="aui-msg-wrap aui-msg-wrap-assistant">
+        <div className="aui-msg aui-msg-assistant aui-msg-thinking">
+          <AgentRunStatusCopy label={label} elapsed={elapsed} detailText={detailText} />
+        </div>
+      </div>
     </div>
   );
 }
@@ -264,6 +307,7 @@ function extractImagesFromUserMessage(message: ThreadMessage): StoredChatImage[]
 function createChatAdapter(
   threadId: string,
   propsRef: RefObject<AgentChatPanelProps>,
+  onStreamedProgress: (progress: AgentProgress | null) => void,
 ): ChatModelAdapter {
   return {
     async *run(options) {
@@ -278,9 +322,20 @@ function createChatAdapter(
 
       const images = extractImagesFromUserMessage(lastUser);
       const model = propsRef.current?.getModel?.();
+      const runStartedAt = Date.now();
+
+      const emitProgress = (update: Omit<AgentProgress, 'startedAt' | 'updatedAt'>) => {
+        const progress: AgentProgress = {
+          ...update,
+          startedAt: runStartedAt,
+          updatedAt: Date.now(),
+        };
+        onStreamedProgress(progress);
+        propsRef.current?.onAgentProgress?.(progress);
+      };
 
       propsRef.current?.onAgentRunChange?.(true);
-      propsRef.current?.onAgentProgress?.(null);
+      emitProgress({ phase: 'thinking', round: 1 });
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
           method: 'POST',
@@ -302,13 +357,11 @@ function createChatAdapter(
           let streamedText = '';
           for await (const { event, data } of readSseStream(res.body, options.abortSignal)) {
             if (event === 'progress') {
-              propsRef.current?.onAgentProgress?.({
+              emitProgress({
                 phase: data.phase === 'tool' ? 'tool' : 'thinking',
                 tool: typeof data.tool === 'string' ? data.tool : undefined,
                 toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
                 round: typeof data.round === 'number' ? data.round : undefined,
-                startedAt: Date.now(),
-                updatedAt: Date.now(),
               });
             } else if (event === 'text' && typeof data.text === 'string') {
               streamedText = data.text;
@@ -357,6 +410,7 @@ function createChatAdapter(
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
         yield { content: [{ type: 'text', text: assistantText }] };
       } finally {
+        onStreamedProgress(null);
         propsRef.current?.onAgentProgress?.(null);
         propsRef.current?.onAgentRunChange?.(false);
       }
@@ -630,6 +684,7 @@ function ClaudeComposer({
   threadId,
   externalProgress,
   useExternalProgress,
+  streamedProgress,
   onStopExternal,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
@@ -639,6 +694,7 @@ function ClaudeComposer({
   threadId: string;
   externalProgress?: AgentProgress | null;
   useExternalProgress?: boolean;
+  streamedProgress?: AgentProgress | null;
   onStopExternal?: () => void;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
@@ -658,6 +714,7 @@ function ClaudeComposer({
               threadId={threadId}
               externalProgress={externalProgress ?? null}
               useExternalProgress={Boolean(useExternalProgress)}
+              streamedProgress={streamedProgress ?? null}
             />
             {useExternalProgress ? (
               <button
@@ -848,16 +905,20 @@ function InFlightRecoveryMessage({ text }: { text: string }) {
 function AgentChatThreadBody({
   propsRef,
   threadId,
+  streamedProgress,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   threadId: string;
+  streamedProgress: AgentProgress | null;
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
     threadId,
     propsRef,
   );
+  const showThreadStatus = isRunning || recovering;
 
   useThreadViewportAutoScroll({ autoScroll: true });
 
@@ -899,6 +960,7 @@ function AgentChatThreadBody({
             commands={commands}
             externalProgress={recoveryProgress}
             useExternalProgress={recovering}
+            streamedProgress={streamedProgress}
             onStopExternal={() => void stopRecovery()}
             onFocusInputReady={(focus) => {
               focusComposerRef.current = focus;
@@ -912,7 +974,17 @@ function AgentChatThreadBody({
           <ThreadPrimitive.Viewport className="aui-viewport">
             <div className="aui-thread-column">
               <ChatMessages />
-              {recovering ? <InFlightRecoveryMessage text={recoveryText} /> : null}
+              {showThreadStatus && !recoveryText.trim() ? (
+                <InThreadRunStatus
+                  threadId={threadId}
+                  externalProgress={recoveryProgress}
+                  useExternalProgress={recovering}
+                  streamedProgress={streamedProgress}
+                />
+              ) : null}
+              {recovering && recoveryText.trim() ? (
+                <InFlightRecoveryMessage text={recoveryText} />
+              ) : null}
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">
@@ -923,6 +995,7 @@ function AgentChatThreadBody({
                 commands={commands}
                 externalProgress={recoveryProgress}
                 useExternalProgress={recovering}
+                streamedProgress={streamedProgress}
                 onStopExternal={() => void stopRecovery()}
                 onFocusInputReady={(focus) => {
                   focusComposerRef.current = focus;
@@ -948,7 +1021,11 @@ function AgentChatThread({
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
 }) {
-  const adapter = useMemo(() => createChatAdapter(threadId, propsRef), [threadId, propsRef]);
+  const [streamedProgress, setStreamedProgress] = useState<AgentProgress | null>(null);
+  const adapter = useMemo(
+    () => createChatAdapter(threadId, propsRef, setStreamedProgress),
+    [threadId, propsRef],
+  );
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
@@ -957,7 +1034,11 @@ function AgentChatThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <PendingDraftBoot draft={pendingDraft} autoSend={pendingAutoSend} />
-      <AgentChatThreadBody propsRef={propsRef} threadId={threadId} />
+      <AgentChatThreadBody
+        propsRef={propsRef}
+        threadId={threadId}
+        streamedProgress={streamedProgress}
+      />
     </AssistantRuntimeProvider>
   );
 }
