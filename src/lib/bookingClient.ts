@@ -260,8 +260,15 @@ export async function bookingList(input?: {
       },
     },
   );
-  if (!out.ok) return out;
-  return { ok: true, data: { bookings: out.data.bookings ?? [] } };
+  if (!out.ok) {
+    console.error('[bookingList] API call failed:', out.error, 'status:', out.status);
+    return out;
+  }
+  const bookings = out.data.bookings ?? [];
+  console.log(
+    `[bookingList] returned ${bookings.length} bookings (upcoming: ${input?.upcoming}, status: ${input?.status}, limit: ${input?.limit})`
+  );
+  return { ok: true, data: { bookings } };
 }
 
 export async function bookingGet(
@@ -506,22 +513,50 @@ export async function bookingsToday(): Promise<
   }
 
   const limit = 50;
+  // Fetch bookings with 'accepted' status (confirmed meetings)
+  // Note: if bookings are missing, check the booking API and status values
   const [upcomingRes, pastRes] = await Promise.all([
     bookingList({ upcoming: true, status: 'accepted', limit }),
     bookingList({ upcoming: false, status: 'accepted', limit }),
   ]);
-  if (!upcomingRes.ok) return upcomingRes;
-  if (!pastRes.ok) return pastRes;
+  if (!upcomingRes.ok) {
+    console.error('[bookingsToday] upcoming bookings failed:', upcomingRes.error);
+    return upcomingRes;
+  }
+  if (!pastRes.ok) {
+    console.error('[bookingsToday] past bookings failed:', pastRes.error);
+    return pastRes;
+  }
+
+  const upcomingCount = upcomingRes.data.bookings.length;
+  const pastCount = pastRes.data.bookings.length;
+  console.log(`[bookingsToday] fetched ${upcomingCount} upcoming + ${pastCount} past bookings`);
 
   const today = todayKeyInTimezone();
+  console.log(`[bookingsToday] filtering for today: ${today} (timezone: ${bookingTimezone()})`);
+  
   const seen = new Set<string>();
   const events: DashboardEvent[] = [];
+  let filteredByDate = 0;
+  let duplicates = 0;
+  
   for (const b of [...upcomingRes.data.bookings, ...pastRes.data.bookings]) {
-    if (seen.has(b.uid)) continue;
+    if (seen.has(b.uid)) {
+      duplicates++;
+      continue;
+    }
     seen.add(b.uid);
-    if (dateKeyInTimezone(b.startTime) !== today) continue;
+    const bookingDate = dateKeyInTimezone(b.startTime);
+    if (bookingDate !== today) {
+      filteredByDate++;
+      continue;
+    }
     events.push(bookingToDashboardEvent(b));
   }
+  
+  console.log(
+    `[bookingsToday] result: ${events.length} events today (filtered ${filteredByDate} by date, ${duplicates} duplicates)`
+  );
   events.sort((a, b) => a.time.localeCompare(b.time));
 
   return { ok: true, data: { events, configured: true } };
