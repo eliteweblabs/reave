@@ -511,7 +511,9 @@ function setActiveMap(key, opts = {}) {
   }
   if (key !== 'chats') {
     setChatComposeFocused(false);
-    if (prevType === 'chats') void abandonDisposableChat(chatState.activeId);
+    if (prevType === 'chats' && !chatState.sending) {
+      void abandonDisposableChat(chatState.activeId);
+    }
   }
   void refreshInboxBadgeQuiet();
 }
@@ -14170,12 +14172,14 @@ function formatChatDate(iso) {
 async function loadChatsTab(opts = {}) {
   const root = getChatPanel();
   if (!root) return;
+  unmountChatThreadRoot(root);
   const keepSession = opts.keepSession === true && chatState.activeId;
   const savedActiveId = keepSession ? chatState.activeId : null;
   const savedTitle = keepSession ? chatState.title : '';
   const savedMessages = keepSession ? chatState.messages : [];
   const savedDraft = keepSession ? chatState.pendingDraft : null;
   const savedAutoSend = keepSession ? chatState.pendingAutoSend : false;
+  const wasSending = chatState.sending;
 
   root.innerHTML = '<div class="de-loading">Loading chats…</div>';
   try {
@@ -14189,15 +14193,20 @@ async function loadChatsTab(opts = {}) {
     if (!chatState.threads.some((t) => t.id === savedActiveId)) {
       chatState.threads.unshift({ id: savedActiveId, title: savedTitle || 'Chat' });
     }
-    chatState.activeId = savedActiveId;
-    chatState.title = savedTitle;
-    chatState.messages = savedMessages;
     chatState.pendingDraft = savedDraft;
     chatState.pendingAutoSend = savedAutoSend;
-    renderChatPanel();
+    if (wasSending) {
+      chatState.sending = false;
+      await openChat(savedActiveId, { force: true });
+    } else {
+      chatState.activeId = savedActiveId;
+      chatState.title = savedTitle;
+      chatState.messages = savedMessages;
+      renderChatPanel();
+    }
     const deepChatId = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
     pendingChatDeepLinkId = null;
-    if (deepChatId) openChat(deepChatId).catch(() => {});
+    if (deepChatId && deepChatId !== savedActiveId) openChat(deepChatId).catch(() => {});
     return;
   }
 
@@ -14217,12 +14226,13 @@ async function loadChatsTab(opts = {}) {
       chatState.pendingAutoSend = false;
       chatState.composeDirty = false;
       chatState.disposableChatId = null;
+      chatState.sending = false;
       getChatPanel()?.classList.remove('ch-pane-active');
       renderChatPanel();
       return;
     }
-    renderChatPanel();
-    openChat(restoreId).catch(() => {});
+    chatState.sending = false;
+    await openChat(restoreId, { force: true });
     return;
   }
 
@@ -14233,6 +14243,7 @@ async function loadChatsTab(opts = {}) {
   chatState.pendingAutoSend = false;
   chatState.composeDirty = false;
   chatState.disposableChatId = null;
+  chatState.sending = false;
   getChatPanel()?.classList.remove('ch-pane-active');
   renderChatPanel();
 }
@@ -14618,6 +14629,9 @@ function mountChatThreadRoot(threadHost) {
         chatState.disposableChatId = null;
       }
     },
+    onAgentRunChange: (running) => {
+      chatState.sending = running;
+    },
     onTitleUpdate: (title) => {
       chatState.title = title;
       const thread = chatState.threads.find((t) => t.id === chatState.activeId);
@@ -14716,8 +14730,9 @@ async function startNewChat(opts = {}) {
   }
 }
 
-async function openChat(id) {
-  if (id === chatState.activeId) {
+async function openChat(id, opts = {}) {
+  const force = opts.force === true;
+  if (id === chatState.activeId && !force) {
     syncChatSidebarActiveState({ scroll: true });
     return;
   }
@@ -14732,6 +14747,7 @@ async function openChat(id) {
     chatState.linkedJobs = data.thread.linked_jobs || [];
     chatState.composeDirty = false;
     chatState.disposableChatId = null;
+    chatState.sending = false;
     rememberChatActiveId(id);
     const idx = chatState.threads.findIndex((t) => t.id === id);
     if (idx !== -1) {

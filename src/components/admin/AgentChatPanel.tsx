@@ -157,6 +157,7 @@ export type AgentChatPanelProps = {
   getModel?: () => string | undefined;
   onComposeFocus?: (focused: boolean) => void;
   onComposeDirty?: (dirty: boolean) => void;
+  onAgentRunChange?: (running: boolean) => void;
   onMessagesPersist?: (userContent: string, assistantContent: string) => void;
   onTitleUpdate?: (title: string) => void;
   onLinkedJobsRefresh?: () => void;
@@ -234,38 +235,43 @@ function createChatAdapter(
       const images = extractImagesFromUserMessage(lastUser);
       const model = propsRef.current?.getModel?.();
 
-      const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          images,
-          ...(model ? { model } : {}),
-        }),
-        signal: options.abortSignal,
-      });
-
-      let data: SendResult = {};
+      propsRef.current?.onAgentRunChange?.(true);
       try {
-        data = await res.json();
-      } catch {
-        throw new Error(res.ok ? 'Invalid server response' : `HTTP ${res.status}`);
-      }
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            images,
+            ...(model ? { model } : {}),
+          }),
+          signal: options.abortSignal,
+        });
 
-      if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
-      propsRef.current?.onLinkedJobsRefresh?.();
-      if (data.userMessage?.content && data.assistantMessage?.content) {
-        propsRef.current?.onMessagesPersist?.(
-          data.userMessage.content,
-          data.assistantMessage.content,
-        );
-      }
+        let data: SendResult = {};
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(res.ok ? 'Invalid server response' : `HTTP ${res.status}`);
+        }
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
-      const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
-      return {
-        content: [{ type: 'text', text: assistantText }],
-      };
+        if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
+        propsRef.current?.onLinkedJobsRefresh?.();
+        if (data.userMessage?.content && data.assistantMessage?.content) {
+          propsRef.current?.onMessagesPersist?.(
+            data.userMessage.content,
+            data.assistantMessage.content,
+          );
+        }
+
+        const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
+        return {
+          content: [{ type: 'text', text: assistantText }],
+        };
+      } finally {
+        propsRef.current?.onAgentRunChange?.(false);
+      }
     },
   };
 }
