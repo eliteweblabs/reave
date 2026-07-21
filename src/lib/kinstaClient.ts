@@ -3,7 +3,9 @@
  * @see https://kinsta.com/docs/kinsta-api/
  */
 import { normalizeMonitorHost } from './publicUrl';
-import { serverEnv } from './serverEnv'; = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
+import { serverEnv } from './serverEnv';
+
+const KINSTA_API_BASE = serverEnv('KINSTA_API_BASE_URL')?.trim().replace(/\/+$/, '') || 'https://api.kinsta.com/v2';
 
 export function isKinstaConfigured(): boolean {
   return Boolean(serverEnv('KINSTA_API_KEY')?.trim() && serverEnv('KINSTA_COMPANY_ID')?.trim());
