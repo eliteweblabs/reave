@@ -535,7 +535,7 @@ export async function syncPlatformUrlsToUptime(
 
   const createContext = await urResolveCreateContext({
     accountIntervalSeconds: account?.monitorIntervalSeconds ?? null,
-    monitors: api.ok ? api.monitors : undefined,
+    monitors: api.ok ? api.monitors : [],
   });
   console.info('[uptime-sync] create context', {
     emailContacts: createContext.emailContacts ?? null,

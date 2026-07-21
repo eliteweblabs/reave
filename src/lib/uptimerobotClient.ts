@@ -498,10 +498,10 @@ export async function urResolveCreateContext(opts?: {
     }
   }
 
-  let monitors = opts?.monitors ?? [];
-  if (!monitors.length) {
+  let monitors = opts?.monitors;
+  if (monitors == null) {
     const listed = await urGetMonitors({ limit: 50, includeAlertContacts: true, customUptimeRatios: '7-30' });
-    if (listed.ok) monitors = listed.monitors;
+    monitors = listed.ok ? listed.monitors : [];
   }
 
   const emailContacts = contactsRes.ok
