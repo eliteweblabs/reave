@@ -4198,8 +4198,28 @@ function companyLogoPreviewUrl(company) {
   return `${path.startsWith('/') ? path : `/${path}`}${v}`;
 }
 
+function companyIconPreviewUrl(company) {
+  if (!company?.iconPath || company.iconSource !== 'admin') return '';
+  const path = String(company.iconPath);
+  const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
+  if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
+  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+}
+
+function companyStaffAvatarPreviewUrl(company) {
+  if (!company?.iconPath) return window.__companyStaffAvatarUrl || '';
+  const path = String(company.iconPath);
+  const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
+  if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
+  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+}
+
 function hasCustomCompanyLogo(company) {
   return company?.logoSource === 'admin' && !!companyLogoPreviewUrl(company);
+}
+
+function hasCustomCompanyIcon(company) {
+  return company?.iconSource === 'admin' && !!companyIconPreviewUrl(company);
 }
 
 function bindCompanyLogoUpload(root, companyAlert) {
@@ -4260,6 +4280,76 @@ function bindCompanyLogoUpload(root, companyAlert) {
         showProfileAlert(companyAlert, 'Logo removed — using site default.', 'success');
       } else {
         showProfileAlert(companyAlert, json.error || 'Could not remove logo.', 'error');
+      }
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      removeBtn.disabled = false;
+    }
+  });
+}
+
+function bindCompanyIconUpload(root, companyAlert) {
+  const fileInput = root.querySelector('#company-icon-file');
+  const fileWrap = root.querySelector('#company-icon-file-wrap');
+  const previewWrap = root.querySelector('#company-icon-preview-wrap');
+  const preview = root.querySelector('#company-icon-preview');
+  const removeBtn = root.querySelector('#company-icon-remove');
+
+  const refreshPreview = (company) => {
+    const hasIcon = hasCustomCompanyIcon(company);
+    const url = hasIcon ? companyIconPreviewUrl(company) : '';
+
+    if (preview instanceof HTMLImageElement) {
+      preview.src = url;
+    }
+    if (previewWrap instanceof HTMLElement) {
+      previewWrap.hidden = !hasIcon;
+    }
+    if (fileWrap instanceof HTMLElement) {
+      fileWrap.hidden = hasIcon;
+    }
+    window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(company);
+  };
+
+  fileInput?.addEventListener('change', async () => {
+    if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
+    const file = fileInput.files[0];
+    const fd = new FormData();
+    fd.append('icon', file);
+    if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = true;
+    fileInput.disabled = true;
+    try {
+      const res = await fetch('/api/admin/company/icon', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(json.company);
+        showProfileAlert(companyAlert, 'Icon updated.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Icon upload failed.', 'error');
+      }
+    } catch {
+      showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
+    } finally {
+      fileInput.value = '';
+      fileInput.disabled = false;
+      if (removeBtn instanceof HTMLButtonElement) removeBtn.disabled = false;
+    }
+  });
+
+  removeBtn?.addEventListener('click', async () => {
+    if (!(removeBtn instanceof HTMLButtonElement)) return;
+    removeBtn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/company/icon', { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok && json.company) {
+        refreshPreview(json.company);
+        window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(json.company);
+        showProfileAlert(companyAlert, 'Icon removed — using site default.', 'success');
+      } else {
+        showProfileAlert(companyAlert, json.error || 'Could not remove icon.', 'error');
       }
     } catch {
       showProfileAlert(companyAlert, 'Network error — please try again.', 'error');
@@ -4377,6 +4467,7 @@ function bindCompanyForm(root, company) {
   });
 
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
+  bindCompanyIconUpload(root, root.querySelector('#company-alert'));
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -4626,6 +4717,8 @@ function renderCompanyPanel(company) {
   const c = company || {};
   const logoUrl = companyLogoPreviewUrl(c);
   const hasLogo = hasCustomCompanyLogo(c);
+  const iconUrl = companyIconPreviewUrl(c);
+  const hasIcon = hasCustomCompanyIcon(c);
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
@@ -4644,17 +4737,35 @@ function renderCompanyPanel(company) {
           `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="123 Main St, Boston, MA 02108" autocomplete="street-address" autocapitalize="words" />` +
           `<span class="prof-hint prof-hint--block">Office location for the map below, driving directions, and address autocomplete defaults.</span></div>` +
           `<div id="company-map-host" class="cl-map-section"></div>` +
-          `<div class="prof-field"><label for="company-logo-file">Logo</label>` +
-          `<div class="prof-logo-upload">` +
-            `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
-              `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
-              `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
+          `<div class="prof-field">` +
+          `<label>Branding</label>` +
+          `<div class="prof-branding-uploads">` +
+            `<div class="prof-branding-upload-item">` +
+              `<label for="company-logo-file">Logo</label>` +
+              `<div class="prof-logo-upload">` +
+                `<div id="company-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
+                  `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
+                  `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
+                `</div>` +
+                `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
+                  `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
+                `</div>` +
+              `</div>` +
             `</div>` +
-            `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
-              `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
+            `<div class="prof-branding-upload-item">` +
+              `<label for="company-icon-file">Icon</label>` +
+              `<div class="prof-logo-upload">` +
+                `<div id="company-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
+                  `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
+                  `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon">×</button>` +
+                `</div>` +
+                `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon ? ' hidden' : ''}>` +
+                  `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
+                `</div>` +
+              `</div>` +
             `</div>` +
           `</div>` +
-          `<span class="prof-hint prof-hint--block">PNG, JPEG, or WebP — max 2 MB. Updates the header and homepage immediately.</span>` +
+          `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
           (c.domain
             ? `<span class="prof-hint prof-hint--block">Website domain: <code>${escHtml(c.domain)}</code> (from this deployment)</span>`
             : '') +
@@ -10471,6 +10582,16 @@ function mountWorkCommentsSection(pane, slug) {
   wrap.innerHTML = '<div class="de-loading">Loading comments…</div>';
   pane.appendChild(wrap);
 
+  const workCommentAvatarHtml = (author, authorName) => {
+    const label = authorName || (author === 'staff' ? 'Team' : 'Client');
+    const url = author === 'staff' ? (window.__companyStaffAvatarUrl || '') : '';
+    if (url) {
+      return `<div class="wk-comment-avatar" aria-hidden="true"><img src="${escHtml(url)}" alt="" loading="lazy" /></div>`;
+    }
+    const initial = label.trim().charAt(0).toUpperCase() || '?';
+    return `<div class="wk-comment-avatar" aria-hidden="true"><span class="wk-comment-avatar-fallback">${escHtml(initial)}</span></div>`;
+  };
+
   fetch(`/api/work/${encodeURIComponent(slug)}/comments`, { cache: 'no-store' })
     .then((r) => r.json())
     .then((data) => {
@@ -10496,11 +10617,16 @@ function mountWorkCommentsSection(pane, slug) {
           row.className = `wk-comment wk-comment-${c.author}`;
           const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
           row.innerHTML =
+            `<div class="wk-comment-inner">` +
+            workCommentAvatarHtml(c.author, c.authorName) +
+            `<div class="wk-comment-main">` +
             `<div class="wk-comment-head">` +
             `<span class="wk-comment-author">${escHtml(c.authorName || (c.author === 'staff' ? 'Team' : 'Client'))}</span>` +
             `<span class="wk-comment-time">${escHtml(when)}</span>` +
             `</div>` +
-            `<div class="wk-comment-text">${escHtml(c.text)}</div>`;
+            `<div class="wk-comment-text">${escHtml(c.text)}</div>` +
+            `</div>` +
+            `</div>`;
           list.appendChild(row);
         }
       }

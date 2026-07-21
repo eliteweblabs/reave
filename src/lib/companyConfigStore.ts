@@ -36,6 +36,10 @@ export type StoredCompanyConfig = {
   logoPath?: string | null;
   logoData?: string | null;
   logoMediaType?: string | null;
+  /** Legacy external/path override for square brand icon. */
+  iconPath?: string | null;
+  iconData?: string | null;
+  iconMediaType?: string | null;
   vapiAssistantId?: string | null;
   vapiFirstMessage?: string | null;
   vapiSystemPrompt?: string | null;
@@ -68,6 +72,9 @@ INSERT INTO company_config (id) VALUES (1)
 const SCHEMA_MIGRATE_SQL = `
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_data TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS logo_media_type TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_path TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_data TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS icon_media_type TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS support_phone TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_assistant_id TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS vapi_first_message TEXT;
@@ -194,6 +201,9 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     logoPath: typeof o.logoPath === 'string' ? o.logoPath.trim() : null,
     logoData: typeof o.logoData === 'string' && o.logoData ? o.logoData : null,
     logoMediaType: typeof o.logoMediaType === 'string' && o.logoMediaType ? o.logoMediaType.trim() : null,
+    iconPath: typeof o.iconPath === 'string' ? o.iconPath.trim() : null,
+    iconData: typeof o.iconData === 'string' && o.iconData ? o.iconData : null,
+    iconMediaType: typeof o.iconMediaType === 'string' && o.iconMediaType ? o.iconMediaType.trim() : null,
     vapiAssistantId: str('vapiAssistantId') || null,
     vapiFirstMessage: typeof o.vapiFirstMessage === 'string' ? o.vapiFirstMessage : null,
     vapiSystemPrompt: typeof o.vapiSystemPrompt === 'string' ? o.vapiSystemPrompt : null,
@@ -244,6 +254,9 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     logo_path: string | null;
     logo_data: string | null;
     logo_media_type: string | null;
+    icon_path: string | null;
+    icon_data: string | null;
+    icon_media_type: string | null;
     vapi_assistant_id: string | null;
     vapi_first_message: string | null;
     vapi_system_prompt: string | null;
@@ -262,6 +275,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
             logo_path, logo_data, logo_media_type,
+            icon_path, icon_data, icon_media_type,
             vapi_assistant_id, vapi_first_message, vapi_system_prompt,
             social_twitter, social_instagram, social_linkedin, social_facebook,
             social_youtube, social_tiktok, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
@@ -281,6 +295,9 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     logoPath: row.logo_path,
     logoData: row.logo_data,
     logoMediaType: row.logo_media_type,
+    iconPath: row.icon_path,
+    iconData: row.icon_data,
+    iconMediaType: row.icon_media_type,
     vapiAssistantId: row.vapi_assistant_id,
     vapiFirstMessage: row.vapi_first_message,
     vapiSystemPrompt: row.vapi_system_prompt,
@@ -319,20 +336,23 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        logo_path = $8,
        logo_data = $9,
        logo_media_type = $10,
-       vapi_assistant_id = $11,
-       vapi_first_message = $12,
-       vapi_system_prompt = $13,
-       social_twitter = $14,
-       social_instagram = $15,
-       social_linkedin = $16,
-       social_facebook = $17,
-       social_youtube = $18,
-       social_tiktok = $19,
-       address = $20,
-       geo_lat = $21,
-       geo_lng = $22,
-       geo_place_id = $23,
-       geo_geocoded_at = $24,
+       icon_path = $11,
+       icon_data = $12,
+       icon_media_type = $13,
+       vapi_assistant_id = $14,
+       vapi_first_message = $15,
+       vapi_system_prompt = $16,
+       social_twitter = $17,
+       social_instagram = $18,
+       social_linkedin = $19,
+       social_facebook = $20,
+       social_youtube = $21,
+       social_tiktok = $22,
+       address = $23,
+       geo_lat = $24,
+       geo_lng = $25,
+       geo_place_id = $26,
+       geo_geocoded_at = $27,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -346,6 +366,9 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.logoPath ?? null,
       config.logoData ?? null,
       config.logoMediaType ?? null,
+      config.iconPath ?? null,
+      config.iconData ?? null,
+      config.iconMediaType ?? null,
       config.vapiAssistantId ?? null,
       config.vapiFirstMessage ?? null,
       config.vapiSystemPrompt ?? null,
@@ -440,6 +463,34 @@ export async function clearStoredCompanyLogo(): Promise<boolean> {
     logoData: null,
     logoMediaType: null,
     logoPath: null,
+  });
+}
+
+export async function getStoredCompanyIcon(): Promise<
+  (StoredCompanyLogo & { updatedAt: string | null }) | null
+> {
+  const stored = await getStoredCompanyConfig();
+  if (!stored?.iconData || !stored.iconMediaType) return null;
+  return {
+    dataBase64: stored.iconData,
+    mediaType: stored.iconMediaType,
+    updatedAt: stored.updatedAt ?? null,
+  };
+}
+
+export async function setStoredCompanyIcon(icon: StoredCompanyLogo): Promise<boolean> {
+  return setStoredCompanyConfig({
+    iconData: icon.dataBase64,
+    iconMediaType: icon.mediaType,
+    iconPath: null,
+  });
+}
+
+export async function clearStoredCompanyIcon(): Promise<boolean> {
+  return setStoredCompanyConfig({
+    iconData: null,
+    iconMediaType: null,
+    iconPath: null,
   });
 }
 

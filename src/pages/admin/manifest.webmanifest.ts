@@ -2,14 +2,14 @@
  * Admin PWA manifest — install /admin to home screen.
  */
 import type { APIRoute } from 'astro';
-import { SITE } from '../../config/site';
-import { getCompanyConfig } from '../../lib/companyConfig';
+import { getCompanyConfig, companyFaviconUrls } from '../../lib/companyConfig';
 
 export const prerender = false;
 
 export const GET: APIRoute = async ({ request }) => {
   const company = await getCompanyConfig(request);
   const shortName = company.name || 'Business OS';
+  const favicons = companyFaviconUrls(company);
   const manifest = {
     id: '/admin',
     name: company.name ? `${company.name} Business OS` : 'Business OS',
@@ -24,10 +24,10 @@ export const GET: APIRoute = async ({ request }) => {
     theme_color: '#ffffff',
     categories: ['business', 'productivity'],
     icons: [
-      { src: SITE.favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: SITE.favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: SITE.favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-      { src: SITE.favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   };
 

@@ -6,10 +6,13 @@
  * image and embedded-image SVG favicons render inconsistently across browsers.
  * Include inside any page's <head>.
  */
-import { SITE } from "../config/site";
+import { getCompanyConfig, companyFaviconUrls } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const favicons = companyFaviconUrls(company);
 ---
 
-<link rel="icon" href={SITE.favicons.ico} sizes="48x48" />
-<link rel="icon" type="image/png" sizes="32x32" href={SITE.favicons.png32} />
-<link rel="icon" type="image/png" sizes="16x16" href={SITE.favicons.png16} />
-<link rel="apple-touch-icon" sizes="180x180" href={SITE.favicons.appleTouchIcon} />
+<link rel="icon" href={favicons.ico} sizes="48x48" />
+<link rel="icon" type="image/png" sizes="32x32" href={favicons.png32} />
+<link rel="icon" type="image/png" sizes="16x16" href={favicons.png16} />
+<link rel="apple-touch-icon" sizes="180x180" href={favicons.appleTouchIcon} />

@@ -1,6 +1,9 @@
 /** Public URL for uploaded company logos (served from Postgres / local config). */
 export const BRANDING_LOGO_PATH = '/api/branding/logo';
 
+/** Public URL for uploaded square brand icons (favicons, avatars, PWA). */
+export const BRANDING_ICON_PATH = '/api/branding/icon';
+
 export const LOGO_UPLOAD_MAX_BYTES = 2 * 1024 * 1024;
 
 export const LOGO_UPLOAD_MEDIA_TYPES = new Set([

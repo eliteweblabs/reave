@@ -4,7 +4,7 @@
  */
 import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
-import { BRANDING_LOGO_PATH } from './companyLogo';
+import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
 
@@ -125,6 +125,12 @@ export type CompanyConfig = {
   logoSource: 'admin' | 'default' | 'hidden';
   /** Bust browser cache after admin logo changes. */
   logoVersion: string;
+  /** Square brand icon — favicons, PWA, staff comment avatars. */
+  iconPath: string;
+  /** Where iconPath came from. */
+  iconSource: 'admin' | 'default';
+  /** Bust browser cache after admin icon changes. */
+  iconVersion: string;
   /** Vapi assistant UUID — admin setting, env fallback. */
   vapiAssistantId: string;
   /** Spoken greeting template (supports {{companyName}}). */
@@ -193,6 +199,22 @@ function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'l
   };
 }
 
+function resolveIcon(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'iconPath' | 'iconSource' | 'iconVersion'> {
+  const version = trim(stored?.updatedAt) || '';
+  if (stored?.iconData && stored?.iconMediaType) {
+    return { iconPath: BRANDING_ICON_PATH, iconSource: 'admin', iconVersion: version };
+  }
+  const storedIcon = stored?.iconPath;
+  if (storedIcon) {
+    return { iconPath: storedIcon, iconSource: 'admin', iconVersion: version };
+  }
+  return {
+    iconPath: pick(serverEnv('COMPANY_ICON_PATH'), SITE.favicons.png192),
+    iconSource: 'default',
+    iconVersion: version,
+  };
+}
+
 /** Cache-safe logo URL for img/mask tags. */
 export function companyLogoUrl(path: string, version?: string | null): string {
   const p = trim(path);
@@ -202,6 +224,27 @@ export function companyLogoUrl(path: string, version?: string | null): string {
   if (!v) return p.startsWith('/') ? p : `/${p}`;
   const base = p.startsWith('/') ? p : `/${p}`;
   return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(v)}`;
+}
+
+/** Resolved favicon / PWA icon URLs — custom admin icon or SITE defaults. */
+export function companyFaviconUrls(company: CompanyConfig): typeof SITE.favicons {
+  if (company.iconSource === 'admin') {
+    const url = companyLogoUrl(company.iconPath, company.iconVersion);
+    return {
+      ico: url,
+      png32: url,
+      png16: url,
+      appleTouchIcon: url,
+      png192: url,
+      png512: url,
+    };
+  }
+  return SITE.favicons;
+}
+
+/** Staff / team avatar for comments — custom icon or default favicon. */
+export function companyStaffAvatarUrl(company: CompanyConfig): string {
+  return companyLogoUrl(company.iconPath, company.iconVersion);
 }
 
 /** Homepage quantum mask — custom admin logo, default silhouette, or hidden. */
@@ -233,6 +276,7 @@ function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | und
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
   const domain = domainFromEnvOrRequest(request);
   const logo = resolveLogo(stored);
+  const icon = resolveIcon(stored);
 
   const name = pick(stored?.name, serverEnv('COMPANY_NAME'), SITE.name);
   const legalName = pick(stored?.legalName, serverEnv('COMPANY_LEGAL_NAME'), name);
@@ -280,6 +324,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialYoutube: trim(stored?.socialYoutube),
     socialTiktok: trim(stored?.socialTiktok),
     ...logo,
+    ...icon,
   };
   _cachedName = name;
   _cachedDomain = domain;

@@ -21,7 +21,7 @@ import {
   type ClientPortal,
   type PortalDocument,
 } from '../../lib/contactApi';
-import { getCompanyConfig, poweredByLabel, companyLogoUrl } from '../../lib/companyConfig';
+import { getCompanyConfig, poweredByLabel, companyStaffAvatarUrl } from '../../lib/companyConfig';
 import { hasFeature } from '../../lib/features';
 import { isCraterConfigured, craterGetClientBilling, type ClientBilling } from '../../lib/craterClient';
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
@@ -137,7 +137,7 @@ const portalDocs = hasFeature('documents')
       })
   : [];
 
-const staffAvatarUrl = companyLogoUrl(org.logoPath, org.logoVersion);
+const staffAvatarUrl = companyStaffAvatarUrl(org);
 const providerTelHref = contactTelHref(org.supportPhone);
 const providerName = org.name?.trim() || 'us';
 const showClientContact = Boolean(company && displayName !== company && displayName !== brandTitle);
