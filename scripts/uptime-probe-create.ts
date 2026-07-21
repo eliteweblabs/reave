@@ -30,7 +30,7 @@ async function probe() {
   if (variant === 1 || variant === 3) body.set('alert_contacts', '143381_0_0');
   if (variant === 2 || variant === 3) body.set('interval', '300');
 
-  console.log('variant', variant, 'body', Object.fromEntries(body.entries()));
+  console.log('variant', variant, 'body', Object.fromEntries([...body.entries()].map(([k, v]) => [k, k === 'api_key' ? '***' : v])));
 
   const res = await fetch('https://api.uptimerobot.com/v2/newMonitor', {
     method: 'POST',
