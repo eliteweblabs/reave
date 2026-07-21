@@ -1951,13 +1951,10 @@ function updateTabs() {
     }
   });
 
-  document.querySelectorAll('#topbar-tools-menu .topbar-dropdown-item[data-map]').forEach((item) => {
-    item.classList.toggle('active', item.dataset.map === activeKey);
-  });
 }
 
-/** Flat tab keys for the mobile wrench menu (all sections, no collapsed slots). */
-function wrenchMenuTabKeys(order) {
+/** Flat tab keys for the home dashboard grid (all sections, no collapsed slots). */
+function dashboardTabKeys(order) {
   const out = [];
   for (const key of normalizeTabOrderKeys(order)) {
     if (key === SYSTEM_TAB_SLOT) {
@@ -1976,7 +1973,6 @@ function closeTopbarMenus(exceptMenu) {
     if (exceptMenu && menu === exceptMenu) continue;
     menu.classList.remove('open');
   }
-  document.getElementById('topbar-tools-toggle')?.setAttribute('aria-expanded', 'false');
   document.getElementById('topbar-profile-toggle')?.setAttribute('aria-expanded', 'false');
   syncFooterNav();
 }
@@ -1994,7 +1990,7 @@ function toggleTopbarMenu(menuEl, toggleEl) {
 
 function dashboardSectionItems(order) {
   const items = [];
-  for (const key of wrenchMenuTabKeys(order || cachedTabOrder || defaultTabKeys())) {
+  for (const key of dashboardTabKeys(order || cachedTabOrder || defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     items.push({
@@ -3211,7 +3207,7 @@ function renderHomeDashboard(data) {
 
   const grid = document.createElement('div');
   grid.className = 'home-dashboard-grid';
-  for (const key of wrenchMenuTabKeys(cachedTabOrder || defaultTabKeys())) {
+  for (const key of dashboardTabKeys(cachedTabOrder || defaultTabKeys())) {
     const m = MAPS[key];
     if (!m) continue;
     if (m.link) {
@@ -5864,11 +5860,6 @@ function initSearchOverlay() {
       if (ev.key === 'Escape' && searchOverlayOpen) closeSearchOverlay();
     });
   }
-}
-
-async function buildMobileToolsMenu(order) {
-  cachedTabOrder = order || cachedTabOrder;
-  if (activeKey === 'home') loadHomeDashboard();
 }
 
 let reviewsPendingCount = 0;

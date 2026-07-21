@@ -3,22 +3,12 @@ import { getCompanyConfig, companyLogoUrl } from "../lib/companyConfig";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import {
-  HatGlasses,
-  BookOpen,
-  Mail,
-  Briefcase,
-  Users,
-  CheckSquare,
-  FileText,
-  Zap,
-  Monitor,
-  Wrench,
-  LayoutDashboard,
   Shield,
+  LayoutDashboard,
 } from "lucide-astro";
 
 interface Props {
-  /** Admin SPA shell — tools menu filled by os-map-loader.js */
+  /** Admin SPA shell — profile menu; tab nav lives in footer */
   adminShell?: boolean;
   /** Hide logo link (homepage — logo lives in page content) */
   hideLogo?: boolean;
@@ -43,19 +33,6 @@ const {
 
 const company = await getCompanyConfig(Astro.request);
 const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
-
-const adminSpaTabs = [
-  { tab: "chats", label: "Chats", Icon: HatGlasses },
-  { tab: "knowledge", label: "Knowledge", Icon: BookOpen },
-  { tab: "email", label: "Inbox", Icon: Mail },
-  { tab: "work", label: "Work", Icon: Briefcase },
-  { tab: "clients", label: "Clients", Icon: Users },
-  { tab: "todo", label: "To-do", Icon: CheckSquare },
-  { tab: "documents", label: "Documents", Icon: FileText },
-  { tab: "rules", label: "Rules", Icon: Zap },
-  { tab: "system", label: "System", Icon: Monitor },
-  { tab: "tooling", label: "MCP & CLI", Icon: Wrench },
-] as const;
 
 const auth = Astro.locals.auth?.();
 const userId = auth?.userId ?? null;
@@ -166,75 +143,47 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
           <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
         </a>
       ) : (
-        <>
-          <div class="app-header-menu topbar-menu topbar-tools-menu">
-            <button
-              type="button"
-              id="topbar-tools-toggle"
-              class="app-header-icon-btn topbar-icon-btn topbar-tools-btn"
-              aria-label="Tools"
-              aria-expanded="false"
-              aria-haspopup="true"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <div class="app-header-menu topbar-menu topbar-profile-menu">
+          <button
+            type="button"
+            id="topbar-profile-toggle"
+            class:list={[
+              "app-header-profile-btn",
+              "topbar-profile-btn",
+              { "topbar-profile-btn--admin": staffPreview },
+            ]}
+            aria-label={staffPreview ? "Admin account (signed in)" : "Account menu"}
+            title={staffPreview ? "Signed in as admin" : "Account menu"}
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            {staffPreview ? (
+              <>
+                <Shield size={16} strokeWidth={2} aria-hidden="true" />
+                <span class="topbar-admin-label">Admin</span>
+              </>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            )}
+            <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
+          </button>
+          <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
+            {staffPreview && (
+              <div class="topbar-dropdown-admin-note" role="presentation">
+                Viewing as admin
+              </div>
+            )}
+            <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
+            <a href="/admin/" class="topbar-dropdown-item" role="menuitem">
+              <span class="topbar-dropdown-icon" aria-hidden="true"><LayoutDashboard size={16} strokeWidth={1.75} /></span>
+              <span>Administration</span>
+            </a>
+            <div class="topbar-dropdown-divider"></div>
+            <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
+              Sign out
             </button>
-            <div id="topbar-tools-menu" class="app-header-dropdown topbar-dropdown" role="menu" aria-label="Tools">
-              <a href="/admin/" class="topbar-dropdown-item" role="menuitem">
-                <span class="topbar-dropdown-icon" aria-hidden="true"><LayoutDashboard size={16} strokeWidth={1.75} /></span>
-                <span>Administration</span>
-              </a>
-              <div class="topbar-dropdown-divider"></div>
-              {adminSpaTabs.map(({ tab, label, Icon }) => (
-                <a href={`/admin/?tab=${tab}`} class="topbar-dropdown-item" role="menuitem">
-                  <span class="topbar-dropdown-icon" aria-hidden="true"><Icon size={16} strokeWidth={1.75} /></span>
-                  <span>{label}</span>
-                </a>
-              ))}
-            </div>
           </div>
-
-          <div class="app-header-menu topbar-menu topbar-profile-menu">
-            <button
-              type="button"
-              id="topbar-profile-toggle"
-              class:list={[
-                "app-header-profile-btn",
-                "topbar-profile-btn",
-                { "topbar-profile-btn--admin": staffPreview },
-              ]}
-              aria-label={staffPreview ? "Admin account (signed in)" : "Account menu"}
-              title={staffPreview ? "Signed in as admin" : "Account menu"}
-              aria-expanded="false"
-              aria-haspopup="true"
-            >
-              {staffPreview ? (
-                <>
-                  <Shield size={16} strokeWidth={2} aria-hidden="true" />
-                  <span class="topbar-admin-label">Admin</span>
-                </>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-              )}
-              <span id="topbar-review-badge" class="topbar-badge" hidden>0</span>
-            </button>
-            <div id="topbar-profile-menu" class="app-header-dropdown topbar-dropdown" role="menu">
-              {staffPreview && (
-                <div class="topbar-dropdown-admin-note" role="presentation">
-                  Viewing as admin
-                </div>
-              )}
-              <a href="/admin/profile" class="topbar-dropdown-item" role="menuitem">Profile</a>
-              <a href="/admin/" class="topbar-dropdown-item" role="menuitem">
-                <span class="topbar-dropdown-icon" aria-hidden="true"><LayoutDashboard size={16} strokeWidth={1.75} /></span>
-                <span>Administration</span>
-              </a>
-              <div class="topbar-dropdown-divider"></div>
-              <button type="button" id="topbar-sign-out" class="topbar-dropdown-item topbar-dropdown-item--danger" role="menuitem">
-                Sign out
-              </button>
-            </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   )}
@@ -539,16 +488,20 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     transition: border-color 0.15s, background 0.15s, color 0.15s;
   }
 
-  .topbar-tools-btn {
-    position: relative;
-    border-color: rgba(148, 163, 184, 0.35);
-    background: rgba(148, 163, 184, 0.08);
-    color: rgba(148, 163, 184, 0.95);
+  .app-header-icon-btn:hover,
+  .topbar-icon-btn:hover {
+    color: var(--fg, #e9eef6);
+    border-color: #4b5563;
   }
 
-  .topbar-tools-btn.has-badge {
-    border-color: rgba(251, 191, 36, 0.55);
-    background: rgba(251, 191, 36, 0.08);
+  .app-header:not(.app-header--admin) .topbar-profile-btn {
+    color: rgba(255, 255, 255, 0.58);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .app-header:not(.app-header--admin) .topbar-profile-btn:hover,
+  .app-header:not(.app-header--admin) .topbar-profile-menu:has(.topbar-dropdown.open) .topbar-profile-btn {
+    color: rgba(255, 255, 255, 0.88);
   }
 
   .topbar-push-btn {
@@ -573,12 +526,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     width: var(--app-header-icon-btn-icon-h);
     height: var(--app-header-icon-btn-icon-h);
     pointer-events: none;
-  }
-
-  .app-header-icon-btn:hover,
-  .topbar-icon-btn:hover {
-    color: var(--fg, #e9eef6);
-    border-color: #4b5563;
   }
 
   .app-header-profile-btn,
@@ -840,7 +787,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
         if (exceptMenu && menu === exceptMenu) continue;
         menu.classList.remove("open");
       }
-      document.getElementById("topbar-tools-toggle")?.setAttribute("aria-expanded", "false");
       document.getElementById("topbar-profile-toggle")?.setAttribute("aria-expanded", "false");
     }
 
@@ -853,13 +799,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
         toggleEl.setAttribute("aria-expanded", "true");
       }
     }
-
-    const toolsToggle = document.getElementById("topbar-tools-toggle");
-    const toolsMenu = document.getElementById("topbar-tools-menu");
-    toolsToggle?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      toggleHeaderMenu(toolsMenu, toolsToggle);
-    });
 
     const profileToggle = document.getElementById("topbar-profile-toggle");
     const profileMenu = document.getElementById("topbar-profile-menu");
