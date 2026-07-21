@@ -22,10 +22,12 @@ import {
   ANTHROPIC_PROMPT_CACHE,
   cachedSystemBlocks,
   createAnthropicMessage,
+  streamAnthropicMessage,
   withToolPromptCaching,
 } from './anthropicMessages';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
-import { setAgentProgress } from './agentProgress';
+import { appendAgentPartialText, setAgentProgress } from './agentProgress';
+import { throwIfAborted } from './agentRunControl';
 import { labelForAgentTool } from './agentToolLabels';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
@@ -182,16 +184,124 @@ export async function runKnowledgeAgent(opts: {
   priorTurns?: ChatTurn[];
   model?: string | null;
   context?: AgentRunContext;
+  signal?: AbortSignal;
 }): Promise<string> {
-  return runWithAgentContext(opts.context ?? {}, () => runKnowledgeAgentInner(opts));
+  return runWithAgentContext(opts.context ?? {}, () =>
+    runKnowledgeAgentInner(
+      {
+        userText: opts.userText,
+        images: opts.images,
+        priorTurns: opts.priorTurns,
+        model: opts.model,
+      },
+      opts.signal ? { signal: opts.signal } : undefined,
+    ),
+  );
 }
 
-async function runKnowledgeAgentInner(opts: {
+export type AgentStreamEvent =
+  | {
+      type: 'progress';
+      phase: 'thinking' | 'tool';
+      round?: number;
+      tool?: string;
+      toolLabel?: string;
+    }
+  | { type: 'text'; text: string };
+
+type AgentStreamCallbacks = {
+  signal?: AbortSignal;
+  onText?: (text: string) => void;
+  onProgress?: (update: {
+    phase: 'thinking' | 'tool';
+    round?: number;
+    tool?: string;
+    toolLabel?: string;
+  }) => void;
+};
+
+/** Stream agent progress + cumulative assistant text (for SSE chat UI). */
+export function runKnowledgeAgentStreaming(opts: {
   userText: string;
   images?: ChatImageAttachment[];
   priorTurns?: ChatTurn[];
   model?: string | null;
-}): Promise<string> {
+  context?: AgentRunContext;
+  signal?: AbortSignal;
+}): AsyncGenerator<AgentStreamEvent, string> {
+  return runKnowledgeAgentStreamingBridge(opts);
+}
+
+async function* runKnowledgeAgentStreamingBridge(opts: {
+  userText: string;
+  images?: ChatImageAttachment[];
+  priorTurns?: ChatTurn[];
+  model?: string | null;
+  context?: AgentRunContext;
+  signal?: AbortSignal;
+}): AsyncGenerator<AgentStreamEvent, string> {
+  const events: AgentStreamEvent[] = [];
+  let resolveWait: (() => void) | null = null;
+  const emit = (event: AgentStreamEvent) => {
+    events.push(event);
+    resolveWait?.();
+    resolveWait = null;
+  };
+  const waitForEvent = () =>
+    new Promise<void>((resolve) => {
+      if (events.length) resolve();
+      else resolveWait = resolve;
+    });
+
+  let finalText = '';
+  let runError: unknown;
+  const runPromise = runWithAgentContext(opts.context ?? {}, () =>
+    runKnowledgeAgentInner(
+      {
+        userText: opts.userText,
+        images: opts.images,
+        priorTurns: opts.priorTurns,
+        model: opts.model,
+      },
+      {
+        signal: opts.signal,
+        onText: (text) => emit({ type: 'text', text }),
+        onProgress: (update) => emit({ type: 'progress', ...update }),
+      },
+    ),
+  )
+    .then((text) => {
+      finalText = text;
+    })
+    .catch((err) => {
+      runError = err;
+    });
+
+  while (true) {
+    while (events.length) {
+      yield events.shift()!;
+    }
+    if (runError) throw runError;
+    const settled = await Promise.race([
+      runPromise.then(() => 'done' as const),
+      waitForEvent().then(() => 'event' as const),
+    ]);
+    if (settled === 'done') {
+      while (events.length) yield events.shift()!;
+      return finalText;
+    }
+  }
+}
+
+async function runKnowledgeAgentInner(
+  opts: {
+    userText: string;
+    images?: ChatImageAttachment[];
+    priorTurns?: ChatTurn[];
+    model?: string | null;
+  },
+  stream?: AgentStreamCallbacks,
+): Promise<string> {
   const { userText, images = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
@@ -331,38 +441,64 @@ async function runKnowledgeAgentInner(opts: {
 
   const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
     const { userId, threadId } = getAgentContext();
-    if (!userId || !threadId) return;
-    setAgentProgress(userId, threadId, update);
+    if (userId && threadId) setAgentProgress(userId, threadId, update);
+    stream?.onProgress?.({
+      phase: update.phase === 'tool' ? 'tool' : 'thinking',
+      round: update.round,
+      tool: update.tool,
+      toolLabel: update.toolLabel,
+    });
   };
 
   for (let round = 0; round < maxRounds; round++) {
+    throwIfAborted(stream?.signal);
     emitProgress({ phase: 'thinking', round: round + 1 });
 
-    const result = await createAnthropicMessage({
+    const apiBody = {
       model,
       max_tokens: 1024,
       cache_control: ANTHROPIC_PROMPT_CACHE,
       system,
       messages,
       tools: cachedTools,
-    });
-
-    if (!result.ok) {
-      return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
-    }
-
-    const data = result.data as {
-      stop_reason?: string;
-      content?: AnthropicContentBlock[];
     };
 
-    const content = data.content ?? [];
+    let stopReason: string | undefined;
+    let content: AnthropicContentBlock[] = [];
 
-    if (data.stop_reason === 'tool_use') {
+    if (stream) {
+      const { userId, threadId } = getAgentContext();
+      const result = await streamAnthropicMessage(apiBody, {
+        signal: stream.signal,
+        onText: (text) => {
+          stream.onText?.(text);
+          if (userId && threadId) appendAgentPartialText(userId, threadId, text);
+        },
+      });
+      if (!result.ok) {
+        return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
+      }
+      stopReason = result.data.stop_reason;
+      content = result.data.content as AnthropicContentBlock[];
+    } else {
+      const result = await createAnthropicMessage(apiBody, stream?.signal);
+      if (!result.ok) {
+        return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
+      }
+      const data = result.data as {
+        stop_reason?: string;
+        content?: AnthropicContentBlock[];
+      };
+      stopReason = data.stop_reason;
+      content = data.content ?? [];
+    }
+
+    if (stopReason === 'tool_use') {
       messages.push({ role: 'assistant', content });
       const toolResults: AnthropicContentBlock[] = [];
       for (const block of content) {
         if (block.type === 'tool_use') {
+          throwIfAborted(stream?.signal);
           emitProgress({
             phase: 'tool',
             round: round + 1,

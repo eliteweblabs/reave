@@ -7,6 +7,7 @@ export type AgentProgress = {
   round?: number;
   startedAt: number;
   updatedAt: number;
+  partialText?: string;
 };
 
 const store = new Map<string, AgentProgress>();
@@ -28,6 +29,17 @@ export function setAgentProgress(
     updatedAt: now,
     ...existing,
     ...update,
+  });
+}
+
+export function appendAgentPartialText(userId: string, threadId: string, text: string): void {
+  const key = progressKey(userId, threadId);
+  const existing = store.get(key);
+  if (!existing) return;
+  store.set(key, {
+    ...existing,
+    partialText: text,
+    updatedAt: Date.now(),
   });
 }
 

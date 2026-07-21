@@ -1,6 +1,6 @@
 import type { APIContext } from 'astro';
-import { getAgentProgress } from '../../../../lib/agentProgress';
-import { isAgentRunActive } from '../../../../lib/agentRunControl';
+import { cancelAgentRun, isAgentRunActive } from '../../../../lib/agentRunControl';
+import { clearAgentProgress } from '../../../../lib/agentProgress';
 
 export const prerender = false;
 
@@ -11,14 +11,15 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function GET(context: APIContext): Promise<Response> {
+/** POST /api/chats/:id/cancel — stop an in-flight agent run for this thread. */
+export async function POST(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
-  const progress = getAgentProgress(userId, id);
-  const running = isAgentRunActive(userId, id);
-  return json({ ok: true, progress, running });
+  const cancelled = cancelAgentRun(userId, id);
+  clearAgentProgress(userId, id);
+  return json({ ok: true, cancelled, running: isAgentRunActive(userId, id) });
 }

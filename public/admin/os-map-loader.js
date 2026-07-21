@@ -14632,6 +14632,20 @@ function mountChatThreadRoot(threadHost) {
     onAgentRunChange: (running) => {
       chatState.sending = running;
     },
+    onRefreshMessages: async () => {
+      if (!chatState.activeId) return;
+      try {
+        const res = await fetch(`/api/chats/${encodeURIComponent(chatState.activeId)}`, {
+          cache: 'no-store',
+        });
+        const data = await readApiJson(res);
+        chatState.messages = data.thread.messages || [];
+        chatState.title = data.thread.title;
+        renderChatPanel();
+      } catch {
+        /* keep current messages on refresh failure */
+      }
+    },
     onTitleUpdate: (title) => {
       chatState.title = title;
       const thread = chatState.threads.find((t) => t.id === chatState.activeId);

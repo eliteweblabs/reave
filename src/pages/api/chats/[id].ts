@@ -18,8 +18,13 @@ import {
   storeSetChatArchived,
   storeUpdateChatTitle,
 } from '../../../lib/chatStore';
-import { runKnowledgeAgent } from '../../../lib/agentRunner';
+import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
+import {
+  clearAgentRun,
+  registerAgentRun,
+} from '../../../lib/agentRunControl';
+import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
 import { promoteChatImagesToLinkedProjects } from '../../../lib/projectFiles';
@@ -75,6 +80,45 @@ function priorTurns(messages: { role: string; content: string }[]): ChatTurn[] {
   const cap = historyCap();
   if (cap == null) return turns;
   return turns.length <= cap ? turns : turns.slice(-cap);
+}
+
+function wantsEventStream(context: APIContext, body: Record<string, unknown>): boolean {
+  if (body.stream === true) return true;
+  const accept = context.request.headers.get('Accept') ?? '';
+  return accept.includes('text/event-stream');
+}
+
+async function persistAgentReply(
+  userId: string,
+  id: string,
+  thread: NonNullable<Awaited<ReturnType<typeof storeGetChatThread>>>,
+  message: string,
+  images: ChatImageAttachment[],
+  userContent: string,
+  reply: string,
+  isFirstMessage: boolean,
+): Promise<{
+  title: string;
+  userMessage: { role: 'user'; content: string };
+  assistantMessage: { role: 'assistant'; content: string };
+}> {
+  const saved = await storeAppendChatMessages(userId, id, [
+    { role: 'user', content: userContent },
+    { role: 'assistant', content: reply },
+  ]);
+  if (!saved) throw new Error('Failed to save messages');
+
+  let title = thread.title;
+  if (isFirstMessage || title === 'New chat') {
+    title = titleFromMessage(message, images.length);
+    await storeUpdateChatTitle(userId, id, title);
+  }
+
+  return {
+    title,
+    userMessage: { role: 'user', content: userContent },
+    assistantMessage: { role: 'assistant', content: reply },
+  };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -138,6 +182,78 @@ export async function POST(context: APIContext): Promise<Response> {
   clearAgentProgress(userId, id);
   setAgentProgress(userId, id, { phase: 'thinking', round: 0 });
 
+  const agentContext = {
+    userId,
+    threadId: id,
+    emailId: thread.source_email_id ?? undefined,
+    messageImages: images.length ? images : undefined,
+  };
+
+  if (wantsEventStream(context, body)) {
+    return createChatAgentSseResponse(async (emit, streamSignal) => {
+      const runSignal = registerAgentRun(userId, id, streamSignal);
+      let reply = '';
+      try {
+        const stream = runKnowledgeAgentStreaming({
+          userText: message,
+          images,
+          priorTurns: priorTurns(thread.messages),
+          model: modelOverride,
+          context: agentContext,
+          signal: runSignal,
+        });
+        while (true) {
+          const next = await stream.next();
+          if (next.done) {
+            reply = next.value;
+            break;
+          }
+          const event = next.value;
+          if (event.type === 'progress') {
+            emit({
+              type: 'progress',
+              phase: event.phase,
+              round: event.round,
+              tool: event.tool,
+              toolLabel: event.toolLabel,
+            });
+          } else if (event.type === 'text') {
+            emit({ type: 'text', text: event.text });
+          }
+        }
+
+        const persisted = await persistAgentReply(
+          userId,
+          id,
+          thread,
+          message,
+          images,
+          userContent,
+          reply,
+          isFirstMessage,
+        );
+        emit({
+          type: 'done',
+          ok: true,
+          title: persisted.title,
+          userMessage: persisted.userMessage,
+          assistantMessage: persisted.assistantMessage,
+        });
+      } catch (err) {
+        if (runSignal.aborted) {
+          emit({ type: 'error', error: 'Stopped' });
+          return;
+        }
+        const msg = err instanceof Error ? err.message : 'Agent run failed';
+        emit({ type: 'error', error: msg });
+      } finally {
+        clearAgentProgress(userId, id);
+        clearAgentRun(userId, id);
+      }
+    }, context.request.signal);
+  }
+
+  const runSignal = registerAgentRun(userId, id, context.request.signal);
   let reply: string;
   try {
     reply = await runKnowledgeAgent({
@@ -145,34 +261,41 @@ export async function POST(context: APIContext): Promise<Response> {
       images,
       priorTurns: priorTurns(thread.messages),
       model: modelOverride,
-      context: {
-        userId,
-        threadId: id,
-        emailId: thread.source_email_id ?? undefined,
-        messageImages: images.length ? images : undefined,
-      },
+      context: agentContext,
+      signal: runSignal,
     });
   } finally {
     clearAgentProgress(userId, id);
+    clearAgentRun(userId, id);
   }
 
-  const saved = await storeAppendChatMessages(userId, id, [
-    { role: 'user', content: userContent },
-    { role: 'assistant', content: reply },
-  ]);
-  if (!saved) return json({ ok: false, error: 'Failed to save messages' }, 500);
-
   let title = thread.title;
-  if (isFirstMessage || title === 'New chat') {
-    title = titleFromMessage(message, images.length);
-    await storeUpdateChatTitle(userId, id, title);
+  let userMessage = { role: 'user' as const, content: userContent };
+  let assistantMessage = { role: 'assistant' as const, content: reply };
+  try {
+    const persisted = await persistAgentReply(
+      userId,
+      id,
+      thread,
+      message,
+      images,
+      userContent,
+      reply,
+      isFirstMessage,
+    );
+    title = persisted.title;
+    userMessage = persisted.userMessage;
+    assistantMessage = persisted.assistantMessage;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to save messages';
+    return json({ ok: false, error: msg }, 500);
   }
 
   return json({
     ok: true,
     title,
-    userMessage: { role: 'user', content: userContent },
-    assistantMessage: { role: 'assistant', content: reply },
+    userMessage,
+    assistantMessage,
     promoted_files: Object.keys(promoted_files).length ? promoted_files : undefined,
   });
 }

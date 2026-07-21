@@ -478,6 +478,20 @@
   color: var(--fg);
 }
 
+.aui-msg-recovering {
+  opacity: 0.92;
+}
+
+.aui-recovery-text {
+  display: block;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.aui-text-muted {
+  color: var(--muted);
+}
+
 .aui-helper-panel {
   width: 100%;
   flex-shrink: 0;

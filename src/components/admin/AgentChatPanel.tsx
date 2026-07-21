@@ -28,6 +28,7 @@ import {
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
+import { readSseStream } from '../../lib/chatAgentSse';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -41,6 +42,7 @@ type AgentProgress = {
   round?: number;
   startedAt: number;
   updatedAt: number;
+  partialText?: string;
 };
 
 function formatElapsed(ms: number): string {
@@ -61,17 +63,32 @@ function statusLabelFromProgress(progress: AgentProgress | null): string {
   return 'Thinking';
 }
 
-function useAgentRunStatus(threadId: string) {
+function useAgentRunStatus(
+  threadId: string,
+  externalProgress: AgentProgress | null,
+  useExternalProgress: boolean,
+) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const [progress, setProgress] = useState<AgentProgress | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const startedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!isRunning) {
-      startedAtRef.current = null;
-      setProgress(null);
-      setElapsedMs(0);
+    if (useExternalProgress) {
+      setProgress(externalProgress);
+      if (externalProgress) {
+        startedAtRef.current = externalProgress.startedAt;
+      }
+    }
+  }, [externalProgress, useExternalProgress]);
+
+  useEffect(() => {
+    if (!isRunning || useExternalProgress) {
+      if (!useExternalProgress) {
+        startedAtRef.current = null;
+        setProgress(null);
+        setElapsedMs(0);
+      }
       return;
     }
 
@@ -104,22 +121,47 @@ function useAgentRunStatus(threadId: string) {
       window.clearInterval(pollTimer);
       window.clearInterval(elapsedTimer);
     };
-  }, [isRunning, threadId]);
+  }, [isRunning, threadId, useExternalProgress]);
 
-  const label = statusLabelFromProgress(progress);
+  useEffect(() => {
+    if (!useExternalProgress || !externalProgress) return;
+    const started = externalProgress.startedAt;
+    startedAtRef.current = started;
+    setElapsedMs(Date.now() - started);
+    const elapsedTimer = window.setInterval(() => {
+      setElapsedMs(Date.now() - started);
+    }, 1000);
+    return () => window.clearInterval(elapsedTimer);
+  }, [externalProgress, useExternalProgress]);
+
+  const activeProgress = useExternalProgress ? externalProgress : progress;
+  const showRunning = isRunning || useExternalProgress;
+  const label = statusLabelFromProgress(activeProgress);
   const elapsed = formatElapsed(elapsedMs);
   const detailText =
-    progress?.phase === 'tool' && progress.tool
-      ? `Running ${progress.tool.replace(/_/g, ' ')}`
-      : progress?.round && progress.round > 1
-        ? `Step ${progress.round}`
+    activeProgress?.phase === 'tool' && activeProgress.tool
+      ? `Running ${activeProgress.tool.replace(/_/g, ' ')}`
+      : activeProgress?.round && activeProgress.round > 1
+        ? `Step ${activeProgress.round}`
         : 'Working on your request';
 
-  return { isRunning, label, elapsed, detailText };
+  return { isRunning: showRunning, label, elapsed, detailText, progress: activeProgress };
 }
 
-function AgentRunStatus({ threadId }: { threadId: string }) {
-  const { label, elapsed, detailText } = useAgentRunStatus(threadId);
+function AgentRunStatus({
+  threadId,
+  externalProgress,
+  useExternalProgress,
+}: {
+  threadId: string;
+  externalProgress: AgentProgress | null;
+  useExternalProgress: boolean;
+}) {
+  const { label, elapsed, detailText } = useAgentRunStatus(
+    threadId,
+    externalProgress,
+    useExternalProgress,
+  );
 
   return (
     <div className="aui-run-status">
@@ -158,6 +200,8 @@ export type AgentChatPanelProps = {
   onComposeFocus?: (focused: boolean) => void;
   onComposeDirty?: (dirty: boolean) => void;
   onAgentRunChange?: (running: boolean) => void;
+  onAgentProgress?: (progress: AgentProgress | null) => void;
+  onRefreshMessages?: () => void | Promise<void>;
   onMessagesPersist?: (userContent: string, assistantContent: string) => void;
   onTitleUpdate?: (title: string) => void;
   onLinkedJobsRefresh?: () => void;
@@ -222,7 +266,7 @@ function createChatAdapter(
   propsRef: RefObject<AgentChatPanelProps>,
 ): ChatModelAdapter {
   return {
-    async run(options) {
+    async *run(options) {
       const lastUser = [...options.messages].reverse().find((m) => m.role === 'user');
       if (!lastUser) throw new Error('No user message');
 
@@ -236,17 +280,62 @@ function createChatAdapter(
       const model = propsRef.current?.getModel?.();
 
       propsRef.current?.onAgentRunChange?.(true);
+      propsRef.current?.onAgentProgress?.(null);
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+          },
           body: JSON.stringify({
             message: text,
             images,
+            stream: true,
             ...(model ? { model } : {}),
           }),
           signal: options.abortSignal,
         });
+
+        const contentType = res.headers.get('Content-Type') ?? '';
+        if (contentType.includes('text/event-stream') && res.body) {
+          let streamedText = '';
+          for await (const { event, data } of readSseStream(res.body, options.abortSignal)) {
+            if (event === 'progress') {
+              propsRef.current?.onAgentProgress?.({
+                phase: data.phase === 'tool' ? 'tool' : 'thinking',
+                tool: typeof data.tool === 'string' ? data.tool : undefined,
+                toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
+                round: typeof data.round === 'number' ? data.round : undefined,
+                startedAt: Date.now(),
+                updatedAt: Date.now(),
+              });
+            } else if (event === 'text' && typeof data.text === 'string') {
+              streamedText = data.text;
+              yield { content: [{ type: 'text', text: streamedText }] };
+            } else if (event === 'done') {
+              if (data.ok === false) {
+                throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
+              }
+              if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
+              propsRef.current?.onLinkedJobsRefresh?.();
+              const userMsg = data.userMessage as { content?: string } | undefined;
+              const assistantMsg = data.assistantMessage as { content?: string } | undefined;
+              if (userMsg?.content && assistantMsg?.content) {
+                propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
+              }
+              const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
+              yield { content: [{ type: 'text', text: assistantText }] };
+              return;
+            } else if (event === 'error') {
+              throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
+            }
+          }
+          if (streamedText) {
+            yield { content: [{ type: 'text', text: streamedText }] };
+          }
+          return;
+        }
 
         let data: SendResult = {};
         try {
@@ -266,10 +355,9 @@ function createChatAdapter(
         }
 
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
-        return {
-          content: [{ type: 'text', text: assistantText }],
-        };
+        yield { content: [{ type: 'text', text: assistantText }] };
       } finally {
+        propsRef.current?.onAgentProgress?.(null);
         propsRef.current?.onAgentRunChange?.(false);
       }
     },
@@ -540,29 +628,51 @@ function ClaudeComposer({
   onFocusInputReady,
   centered = false,
   threadId,
+  externalProgress,
+  useExternalProgress,
+  onStopExternal,
 }: {
   propsRef: RefObject<AgentChatPanelProps>;
   commands: AgentHelperCommand[];
   onFocusInputReady?: (focus: () => void) => void;
   centered?: boolean;
   threadId: string;
+  externalProgress?: AgentProgress | null;
+  useExternalProgress?: boolean;
+  onStopExternal?: () => void;
 }) {
   const helpers = useSlashHelpers(propsRef, commands);
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const showRunning = isRunning || useExternalProgress;
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
   }, [helpers.focusInput, onFocusInputReady]);
 
-  if (isRunning) {
+  if (showRunning) {
     return (
       <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
         <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
           <div className="aui-composer-toolbar aui-composer-toolbar-running">
-            <AgentRunStatus threadId={threadId} />
-            <ComposerPrimitive.Cancel className="aui-composer-stop" aria-label="Stop generating">
-              Stop
-            </ComposerPrimitive.Cancel>
+            <AgentRunStatus
+              threadId={threadId}
+              externalProgress={externalProgress ?? null}
+              useExternalProgress={Boolean(useExternalProgress)}
+            />
+            {useExternalProgress ? (
+              <button
+                type="button"
+                className="aui-composer-stop"
+                aria-label="Stop generating"
+                onClick={() => onStopExternal?.()}
+              >
+                Stop
+              </button>
+            ) : (
+              <ComposerPrimitive.Cancel className="aui-composer-stop" aria-label="Stop generating">
+                Stop
+              </ComposerPrimitive.Cancel>
+            )}
           </div>
         </ComposerPrimitive.Root>
       </div>
@@ -650,6 +760,91 @@ function ChatMessages() {
   );
 }
 
+function useRecoverInFlightRun(threadId: string, propsRef: RefObject<AgentChatPanelProps>) {
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryProgress, setRecoveryProgress] = useState<AgentProgress | null>(null);
+  const [recoveryText, setRecoveryText] = useState('');
+  const recoveringRef = useRef(false);
+
+  const stopRecovery = useCallback(async () => {
+    try {
+      await fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, { method: 'POST' });
+    } catch {
+      /* ignore */
+    }
+    recoveringRef.current = false;
+    setRecovering(false);
+    setRecoveryProgress(null);
+    setRecoveryText('');
+    propsRef.current?.onAgentRunChange?.(false);
+  }, [propsRef, threadId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
+          cache: 'no-store',
+        });
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { running?: boolean; progress?: AgentProgress | null };
+        const active = Boolean(data.running || data.progress);
+        if (!active) {
+          if (recoveringRef.current) {
+            recoveringRef.current = false;
+            setRecovering(false);
+            setRecoveryProgress(null);
+            setRecoveryText('');
+            propsRef.current?.onAgentRunChange?.(false);
+            await propsRef.current?.onRefreshMessages?.();
+          }
+          if (timer) {
+            window.clearInterval(timer);
+            timer = null;
+          }
+          return;
+        }
+        recoveringRef.current = true;
+        setRecovering(true);
+        propsRef.current?.onAgentRunChange?.(true);
+        if (data.progress) {
+          setRecoveryProgress(data.progress);
+          if (data.progress.partialText) setRecoveryText(data.progress.partialText);
+        }
+        if (!timer) timer = window.setInterval(() => void poll(), 900);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [propsRef, threadId]);
+
+  return { recovering, recoveryProgress, recoveryText, stopRecovery };
+}
+
+function InFlightRecoveryMessage({ text }: { text: string }) {
+  return (
+    <div className="aui-msg-row aui-msg-row-assistant">
+      <div className="aui-msg-wrap aui-msg-wrap-assistant">
+        <div className="aui-msg aui-msg-assistant aui-msg-recovering">
+          {text.trim() ? (
+            <span className="aui-text aui-recovery-text">{text}</span>
+          ) : (
+            <span className="aui-text aui-text-muted">Waiting for response…</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AgentChatThreadBody({
   propsRef,
   threadId,
@@ -659,6 +854,10 @@ function AgentChatThreadBody({
 }) {
   const [commands, setCommands] = useState<AgentHelperCommand[]>([]);
   const focusComposerRef = useRef<(() => void) | null>(null);
+  const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
+    threadId,
+    propsRef,
+  );
 
   useThreadViewportAutoScroll({ autoScroll: true });
 
@@ -698,6 +897,9 @@ function AgentChatThreadBody({
             threadId={threadId}
             propsRef={propsRef}
             commands={commands}
+            externalProgress={recoveryProgress}
+            useExternalProgress={recovering}
+            onStopExternal={() => void stopRecovery()}
             onFocusInputReady={(focus) => {
               focusComposerRef.current = focus;
             }}
@@ -710,6 +912,7 @@ function AgentChatThreadBody({
           <ThreadPrimitive.Viewport className="aui-viewport">
             <div className="aui-thread-column">
               <ChatMessages />
+              {recovering ? <InFlightRecoveryMessage text={recoveryText} /> : null}
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">
@@ -718,6 +921,9 @@ function AgentChatThreadBody({
                 threadId={threadId}
                 propsRef={propsRef}
                 commands={commands}
+                externalProgress={recoveryProgress}
+                useExternalProgress={recovering}
+                onStopExternal={() => void stopRecovery()}
                 onFocusInputReady={(focus) => {
                   focusComposerRef.current = focus;
                 }}
