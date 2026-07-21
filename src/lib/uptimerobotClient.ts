@@ -432,33 +432,35 @@ export function urFormatFreePlanAlertContacts(contactIds: number[]): string {
   return contactIds.map((id) => `${id}_0_0`).join('-');
 }
 
-/** Only active e-mail contacts are assignable via API on the free plan. */
+/** Single contact string for free-plan creates (one id_0_0). */
+export function urSingleFreePlanAlertContact(contactId: number): string {
+  return `${contactId}_0_0`;
+}
+
+/** Only active e-mail contacts are assignable via API on the free plan (one contact). */
 export function urFreePlanEmailAlertContacts(
   contacts: Array<{ id: number; type: number; status: number }>,
 ): string | undefined {
   const active = contacts.filter(
     (c) => c.type === UPTIME_ALERT_CONTACT_EMAIL && c.status === UPTIME_ALERT_CONTACT_ACTIVE,
   );
-  const fallback = active.length
-    ? active
-    : contacts.filter((c) => c.type === UPTIME_ALERT_CONTACT_EMAIL && c.status !== 0);
-  if (!fallback.length) return undefined;
-  return urFormatFreePlanAlertContacts(fallback.map((c) => c.id));
+  if (!active.length) return undefined;
+  return urSingleFreePlanAlertContact(active[0]!.id);
 }
 
+/** Email alert contact from a monitor's assignments (skips Teams/webhook/etc.). */
 function urEmailAlertContactsFromMonitorAssignments(
   assigned: UptimeRobotMonitor['alert_contacts'],
   contactTypeById: Map<number, number>,
 ): string | undefined {
   if (!assigned?.length) return undefined;
-  const emailIds: number[] = [];
   for (const ac of assigned) {
     const id = Number(ac.id);
     if (!Number.isFinite(id) || id <= 0) continue;
-    if (contactTypeById.get(id) === UPTIME_ALERT_CONTACT_EMAIL) emailIds.push(id);
+    if (contactTypeById.get(id) !== UPTIME_ALERT_CONTACT_EMAIL) continue;
+    return urSingleFreePlanAlertContact(id);
   }
-  if (!emailIds.length) return undefined;
-  return urFormatFreePlanAlertContacts(emailIds);
+  return undefined;
 }
 
 export type UptimeRobotCreateStrategy = {
@@ -473,7 +475,6 @@ export type UptimeRobotCreateContext = {
   emailContacts?: string;
   /** alert_contacts copied from an existing working monitor (email-only). */
   clonedAlertContacts?: string;
-  cloneInterval?: number;
   alertContactTypes?: number[];
   /** Set after the first successful create in a run; subsequent creates use one API call. */
   knownStrategy?: UptimeRobotCreateStrategy;
@@ -517,16 +518,9 @@ export async function urResolveCreateContext(opts?: {
     if (clonedAlertContacts) break;
   }
 
-  const sampleInterval = monitors.length ? Number(monitors[0]?.interval) : NaN;
-  const accountInterval = opts?.accountIntervalSeconds ?? null;
-  const cloneInterval =
-    (Number.isFinite(sampleInterval) && sampleInterval >= 300 ? sampleInterval : null) ??
-    (accountInterval != null && accountInterval >= 300 ? accountInterval : undefined);
-
   return {
     emailContacts,
     clonedAlertContacts,
-    cloneInterval: cloneInterval ?? undefined,
     alertContactTypes: contactsRes.ok
       ? [...new Set(contactsRes.contacts.map((c) => c.type))].sort()
       : undefined,
@@ -538,14 +532,13 @@ function urBuildCreateStrategies(ctx: UptimeRobotCreateContext): UptimeRobotCrea
 
   const strategies: UptimeRobotCreateStrategy[] = [];
 
-  // Copy from a monitor that already exists — same settings that worked manually.
-  if (ctx.clonedAlertContacts) {
-    strategies.push({ name: 'clone-existing-contacts', alertContacts: ctx.clonedAlertContacts });
+  // Email first — free-plan API rejects Teams/webhook contacts (type 12, etc.).
+  if (ctx.emailContacts) {
+    strategies.push({ name: 'email-contact', alertContacts: ctx.emailContacts });
   }
-  if (ctx.emailContacts && ctx.emailContacts !== ctx.clonedAlertContacts) {
-    strategies.push({ name: 'email-contacts', alertContacts: ctx.emailContacts });
+  if (ctx.clonedAlertContacts && ctx.clonedAlertContacts !== ctx.emailContacts) {
+    strategies.push({ name: 'clone-monitor-email', alertContacts: ctx.clonedAlertContacts });
   }
-  strategies.push({ name: 'minimal' });
 
   return strategies;
 }
@@ -638,8 +631,15 @@ export async function urNewMonitor(opts: {
     });
   }
 
+  if (!strategies.length) {
+    return { ok: false, error: 'No alert contacts available for UptimeRobot monitor create' };
+  }
+
   let lastError = 'unknown error';
-  for (const strategy of strategies) {
+  for (let i = 0; i < strategies.length; i += 1) {
+    const strategy = strategies[i]!;
+    if (i > 0) await urSleep(7000);
+
     const result = await urNewMonitorOnce({
       url: opts.url,
       friendlyName: opts.friendlyName,
@@ -656,6 +656,14 @@ export async function urNewMonitor(opts: {
       return result;
     }
     lastError = result.error;
+
+    if (classifyUptimeRobotError(result.error).kind === 'rate_limit') {
+      const waitSec = parseUptimeRobotRetrySeconds(result.error) ?? 60;
+      await urSleep((waitSec + 2) * 1000);
+      i -= 1;
+      continue;
+    }
+
     if (!PLAN_SETTINGS_RE.test(result.error)) return result;
     console.warn('[uptimerobot] newMonitor plan settings rejected', {
       strategy: strategy.name,

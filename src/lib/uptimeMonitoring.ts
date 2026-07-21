@@ -390,8 +390,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** ~9 creates/min — stays under UptimeRobot free-plan 10 req/min. */
-const BACKGROUND_CREATE_GAP_MS = 6500;
+/** ~8 creates/min — stays under UptimeRobot free-plan 10 req/min. */
+const BACKGROUND_CREATE_GAP_MS = 7500;
 
 function emitProgress(
   onProgress: SyncPlatformUrlsOptions['onProgress'],
@@ -545,6 +545,19 @@ export async function syncPlatformUrlsToUptime(
     uptimeMonitors: api.ok ? api.monitors.length : existing.size,
   });
 
+  if (!createContext.clonedAlertContacts && !createContext.emailContacts) {
+    return {
+      ...empty,
+      warnings,
+      errors: [
+        'UptimeRobot: no active email alert contact — activate an email contact in UptimeRobot (Integrations → Alert contacts) and run sync again',
+      ],
+      account,
+      localMonitorCount,
+      error: 'No UptimeRobot alert contacts available for monitor create',
+    };
+  }
+
   // Interleave sources (Railway first) so the per-run cap doesn't starve one
   // platform — otherwise all Kinsta sites get attempted before any Railway one.
   const candidates: UptimePlatformSyncItem[] = [];
@@ -685,6 +698,12 @@ export async function syncPlatformUrlsToUptime(
       }
 
       if (classified.kind === 'plan_feature') {
+        if (createContext.knownStrategy) {
+          createContext.knownStrategy = undefined;
+          attempts -= 1;
+          retrySame = true;
+          continue;
+        }
         errors.push(`${item.friendlyName}: ${classified.raw}`);
         reportCreating();
         break;
