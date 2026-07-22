@@ -10,6 +10,10 @@ import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
 import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
+import {
+  countProjectCommentNotifications,
+  listProjectCommentNotifications,
+} from '../../../lib/workCommentNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
 import {
   bookingList,
@@ -112,8 +116,16 @@ export async function GET(context: APIContext): Promise<Response> {
   const digest = computeInboxDigest(events, true);
   const emailsTotal = computeInboxDigest(inboxForCount, true).visible;
   const projectsTotal = jobs.length;
-  const automationNotifications = listReviewNotifications(events);
-  const reviewsPending = countReviewNotifications(events);
+  const [emailNotifications, commentNotifications, commentReviewsPending] = await Promise.all([
+    Promise.resolve(listReviewNotifications(events)),
+    listProjectCommentNotifications(),
+    countProjectCommentNotifications(),
+  ]);
+  const automationNotifications = [...emailNotifications, ...commentNotifications].sort(
+    (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
+  );
+  const emailReviewsPending = countReviewNotifications(events);
+  const reviewsPending = emailReviewsPending + commentReviewsPending;
 
   const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;

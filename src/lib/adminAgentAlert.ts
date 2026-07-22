@@ -248,6 +248,38 @@ export async function notifyAdminAgentOfProjectReply(opts: {
   });
 }
 
+/** Fire-and-forget — logs failures, never throws to comment POST handler. */
+export async function notifyAdminAgentOfProjectComment(opts: {
+  contactName: string;
+  jobTitle: string;
+  jobSlug: string;
+  commentText: string;
+  commentId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const message = [
+    '💬 Client commented on a project',
+    '',
+    `Client: ${opts.contactName}`,
+    `Project: ${opts.jobTitle}`,
+    '',
+    opts.commentText.trim(),
+    '',
+    'Reply from the project comments thread in admin when you follow up.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `💬 Comment on ${opts.jobTitle}`,
+      body: `${opts.contactName}: ${opts.commentText.slice(0, 120)}`,
+      tag: `project-comment-${opts.commentId}`,
+      url: `/admin?tab=work&slug=${encodeURIComponent(opts.jobSlug)}`,
+    },
+  });
+}
+
 /** Fire-and-forget — logs failures, never throws to inbound email handler. */
 export async function notifyAdminAgentOfEmailAlert(opts: {
   status: string;

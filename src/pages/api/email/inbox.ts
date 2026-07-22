@@ -11,6 +11,7 @@ import {
   type EmailInboxListRecord,
 } from '../../../lib/emailInboxStore';
 import { countReviewNotifications } from '../../../lib/emailAutomation';
+import { countProjectCommentNotifications } from '../../../lib/workCommentNotifications';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
@@ -47,13 +48,17 @@ export async function GET(context: APIContext): Promise<Response> {
     : await storeListEmailInbox(limit, { hideJunk: true });
 
   const brand = await getCompanyBrandContext(context.request);
+  const [emailReviewsPending, commentReviewsPending] = await Promise.all([
+    Promise.resolve(countReviewNotifications(allForDigest)),
+    countProjectCommentNotifications(),
+  ]);
 
   return json({
     ok: true,
     events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
     digest: {
       ...computeInboxDigest(allForDigest, !showJunk),
-      reviewsPending: countReviewNotifications(allForDigest),
+      reviewsPending: emailReviewsPending + commentReviewsPending,
     },
     storage: emailInboxStorageBackend(),
     pushConfigured: isPushConfigured(),

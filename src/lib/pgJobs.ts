@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS job_comments (
 );
 CREATE INDEX IF NOT EXISTS idx_job_comments_slug ON job_comments(job_slug);
 CREATE INDEX IF NOT EXISTS idx_job_comments_created ON job_comments(job_slug, created_at);
+ALTER TABLE job_comments ADD COLUMN IF NOT EXISTS staff_ack_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_job_comments_pending ON job_comments(staff_ack_at) WHERE staff_ack_at IS NULL;
 `;
 
 const MIGRATE_SQL = `
@@ -438,6 +440,7 @@ export interface JobCommentRow {
   author_name: string;
   body: string;
   created_at: string;
+  staff_ack_at: string | null;
 }
 
 function rowToComment(row: JobCommentRow) {
@@ -448,6 +451,7 @@ function rowToComment(row: JobCommentRow) {
     authorName: row.author_name || (row.author === 'client' ? 'Client' : 'Team'),
     text: row.body,
     createdAt: row.created_at,
+    staffAckAt: row.staff_ack_at,
   };
 }
 
@@ -456,7 +460,7 @@ export async function dbListJobComments(slug: string) {
     const pool = await ensureSchema();
     if (!pool) return null;
     const { rows } = await pool.query<JobCommentRow>(
-      `SELECT id, job_slug, author, author_name, body, created_at
+      `SELECT id, job_slug, author, author_name, body, created_at, staff_ack_at
        FROM job_comments
        WHERE job_slug = $1
        ORDER BY created_at ASC`,
@@ -476,7 +480,7 @@ export async function dbListJobCommentsForSlugs(slugs: string[]) {
     if (!slugs.length) return {};
 
     const { rows } = await pool.query<JobCommentRow>(
-      `SELECT id, job_slug, author, author_name, body, created_at
+      `SELECT id, job_slug, author, author_name, body, created_at, staff_ack_at
        FROM job_comments
        WHERE job_slug = ANY($1::text[])
        ORDER BY created_at ASC`,
@@ -509,14 +513,75 @@ export async function dbAddJobComment(
     if (!text) return { ok: false, error: 'Comment is required' };
 
     const { rows } = await pool.query<JobCommentRow>(
-      `INSERT INTO job_comments (job_slug, author, author_name, body)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, job_slug, author, author_name, body, created_at`,
+      `INSERT INTO job_comments (job_slug, author, author_name, body, staff_ack_at)
+       VALUES ($1, $2, $3, $4, CASE WHEN $2 = 'staff' THEN NOW() ELSE NULL END)
+       RETURNING id, job_slug, author, author_name, body, created_at, staff_ack_at`,
       [slug, input.author, input.authorName.trim(), text],
     );
     const row = rows[0];
     if (!row) return { ok: false, error: 'Insert failed' };
     return { ok: true, comment: rowToComment(row) };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+export async function dbListPendingJobComments() {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<
+      JobCommentRow & { job_title: string }
+    >(
+      `SELECT c.id, c.job_slug, c.author, c.author_name, c.body, c.created_at, c.staff_ack_at,
+              COALESCE(j.title, c.job_slug) AS job_title
+       FROM job_comments c
+       LEFT JOIN jobs j ON j.slug = c.job_slug
+       WHERE c.author = 'client' AND c.staff_ack_at IS NULL
+       ORDER BY c.created_at DESC`,
+    );
+    return rows.map((row) => ({
+      ...rowToComment(row),
+      jobTitle: row.job_title,
+    }));
+  } catch (e) {
+    console.error('[jobs:pg] list pending comments error:', e);
+    return null;
+  }
+}
+
+export async function dbAckJobComment(
+  commentId: string,
+): Promise<{ ok: true } | { ok: false; error: string } | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rowCount } = await pool.query(
+      `UPDATE job_comments SET staff_ack_at = NOW()
+       WHERE id = $1::uuid AND staff_ack_at IS NULL`,
+      [commentId],
+    );
+    if (!rowCount) return { ok: false, error: 'Not found' };
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: msg };
+  }
+}
+
+export async function dbAckJobCommentsForSlug(
+  slug: string,
+): Promise<{ ok: true; acked: number } | { ok: false; error: string } | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rowCount } = await pool.query(
+      `UPDATE job_comments SET staff_ack_at = NOW()
+       WHERE job_slug = $1 AND author = 'client' AND staff_ack_at IS NULL`,
+      [slug],
+    );
+    return { ok: true, acked: rowCount ?? 0 };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };

@@ -2331,6 +2331,32 @@ async function runReviewScheduleAction(item, action, btn) {
 }
 
 async function dismissReviewNotification(item, btn) {
+  if (item?.commentId) {
+    const prevLabel = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      if (prevLabel) btn.textContent = 'Dismissing…';
+    }
+    try {
+      const res = await fetch(`/api/work/comments/${encodeURIComponent(item.commentId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await readApiJson(res);
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      removeReviewAlertBanner(null, item.commentId);
+      syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+      if (MAP.type === 'home') await loadHomeDashboard();
+    } catch (e) {
+      await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        if (prevLabel) btn.textContent = prevLabel;
+      }
+    }
+    return;
+  }
   if (!item?.emailId) return;
   const prevLabel = btn?.textContent;
   if (btn) {
@@ -2809,7 +2835,7 @@ function rescheduleScheduledMeeting(item) {
 
 function reviewAlertVariant(type) {
   if (type === 'meeting_conflict') return 'confirm';
-  if (type === 'project') return 'pwa';
+  if (type === 'project' || type === 'project_comment') return 'pwa';
   return 'push';
 }
 
@@ -2825,6 +2851,8 @@ function reviewAlertIconName(type) {
       return 'mail';
     case 'project':
       return 'briefcase';
+    case 'project_comment':
+      return 'message-circle';
     default:
       return 'bell';
   }
@@ -2844,8 +2872,8 @@ function appendReviewAlertAction(actions, { label, primary, onClick }) {
 }
 
 function openReviewNotificationTarget(item) {
-  if (item.type === 'project' && item.jobSlug) {
-    navigateToWork(item.jobSlug, { fromEmailId: item.emailId });
+  if ((item.type === 'project' || item.type === 'project_comment') && item.jobSlug) {
+    navigateToWork(item.jobSlug, { fromEmailId: item.emailId || null });
     return;
   }
   if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
@@ -2856,6 +2884,7 @@ function buildReviewAlertBanner(item) {
   alert.className = `admin-setup-alert admin-setup-alert--${reviewAlertVariant(item.type)}`;
   alert.setAttribute('role', 'status');
   if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
+  if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
 
   const iconWrap = document.createElement('div');
   iconWrap.className = 'admin-setup-alert-icon';
@@ -2875,11 +2904,18 @@ function buildReviewAlertBanner(item) {
   actions.className = 'admin-setup-alert-actions';
 
   const isProject = item.type === 'project';
+  const isProjectComment = item.type === 'project_comment';
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
 
-  if (isProject) {
+  if (isProjectComment) {
+    appendReviewAlertAction(actions, {
+      label: 'View project',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isProject) {
     appendReviewAlertAction(actions, {
       label: 'View project',
       primary: true,
@@ -2968,12 +3004,19 @@ function buildReviewAlertBanners(notifications) {
 }
 
 /** Drop a resolved review alert from the home dashboard immediately (no poll / reload wait). */
-function removeReviewAlertBanner(emailId) {
-  const id = String(emailId || '').trim();
-  if (!id) return;
-  const banner = document.querySelector(
-    `.dash-review-alerts [data-review-email-id="${CSS.escape(id)}"]`,
-  );
+function removeReviewAlertBanner(emailId, commentId) {
+  const emailKey = String(emailId || '').trim();
+  const commentKey = String(commentId || '').trim();
+  let banner = null;
+  if (commentKey) {
+    banner = document.querySelector(
+      `.dash-review-alerts [data-review-comment-id="${CSS.escape(commentKey)}"]`,
+    );
+  } else if (emailKey) {
+    banner = document.querySelector(
+      `.dash-review-alerts [data-review-email-id="${CSS.escape(emailKey)}"]`,
+    );
+  }
   if (!banner) return;
   const wrap = banner.closest('.dash-review-alerts');
   banner.remove();
@@ -10825,6 +10868,11 @@ function mountWorkCommentsSection(pane, slug) {
   fetch(`/api/work/${encodeURIComponent(slug)}/comments`, { cache: 'no-store' })
     .then((r) => r.json())
     .then((data) => {
+      void fetch(`/api/work/${encodeURIComponent(slug)}/comments/ack`, { method: 'POST' })
+        .then(() => {
+          if (reviewsPendingCount > 0) void loadHomeDashboard();
+        })
+        .catch(() => undefined);
       wrap.innerHTML = '';
       const label = document.createElement('div');
       label.className = 'de-label';
