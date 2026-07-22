@@ -116,6 +116,63 @@ const MAX_TOOL_RESULT_CHARS = 50_000;
 const MAX_AGENT_TOOL_ROUNDS = 40;
 const MAX_SYSTEM_ALERT_TOOL_ROUNDS = 5;
 
+/**
+ * Output-token budget per LLM turn. This must be large: when the agent writes a
+ * file/page, the whole file body is embedded in the tool-call arguments, which
+ * count as OUTPUT tokens. The old value (1024) truncated write_file/write_github_file
+ * calls mid-argument → stop_reason "max_tokens" → the loop returned the preamble
+ * ("Now writing all three pages…") with nothing actually written. Overridable via
+ * AGENT_MAX_OUTPUT_TOKENS.
+ */
+const DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
+/** How many times we re-prompt the model when it stalls (truncated turn or an
+ * unfulfilled future-tense promise with no tool call) before giving up. */
+const MAX_STALL_NUDGES = 2;
+
+function agentMaxOutputTokens(): number {
+  const raw = import.meta.env.AGENT_MAX_OUTPUT_TOKENS;
+  if (raw?.trim()) {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n >= 1024) return Math.floor(n);
+  }
+  return DEFAULT_MAX_OUTPUT_TOKENS;
+}
+
+/**
+ * Detects the failure the user kept hitting: the model announces an action in
+ * future tense ("Let me…", "I'll write…", "Now writing all three pages right
+ * now:") but ends its turn without calling any tool, so nothing happens.
+ */
+function looksLikeUnfulfilledPromise(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  const promise =
+    /\b(let me\b|i['’]?ll\b|i will\b|i['’]?m going to\b|i am going to\b|i['’]?m about to\b|here['’]?s what i['’]?ll do|now\s+(i['’]?m\s+)?(writing|creating|building|editing|updating|committing|pushing|deploying|sending|generating)\b|going to\s+(write|create|build|edit|update|commit|push|deploy|send|generate)\b)/i;
+  if (!promise.test(t)) return false;
+  // Real failures are short and/or trail off into a colon ("…right now:"). Long,
+  // substantive replies that merely mention "I'll" in passing are left alone.
+  return t.length < 600 || /[:：]\s*$/.test(t);
+}
+
+/**
+ * Build a valid assistant message to re-anchor a stall nudge. We keep only text
+ * blocks: a truncated turn can contain a partial tool_use block with no matching
+ * tool_result, which the API rejects. Falls back to a placeholder so the
+ * assistant message is never empty (also rejected).
+ */
+function assistantTextMessageFor(
+  content: AnthropicContentBlock[],
+  fallback: string,
+): AnthropicMessage {
+  const textBlocks = content.filter(
+    (b): b is { type: 'text'; text: string } => b.type === 'text' && !!b.text?.trim(),
+  );
+  return {
+    role: 'assistant',
+    content: textBlocks.length ? textBlocks : [{ type: 'text', text: fallback }],
+  };
+}
+
 function truncateToolResult(content: string): string {
   if (content.length <= MAX_TOOL_RESULT_CHARS) return content;
   return `${content.slice(0, MAX_TOOL_RESULT_CHARS)}\n…[tool result truncated]`;
@@ -440,6 +497,8 @@ async function runKnowledgeAgentInner(
   ];
 
   const maxRounds = agentMaxToolRounds();
+  const maxOutputTokens = agentMaxOutputTokens();
+  let stallNudges = 0;
 
   const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
     const { userId, threadId } = getAgentContext();
@@ -458,7 +517,7 @@ async function runKnowledgeAgentInner(
 
     const apiBody = {
       model,
-      max_tokens: 1024,
+      max_tokens: maxOutputTokens,
       cache_control: ANTHROPIC_PROMPT_CACHE,
       system,
       messages,
@@ -520,6 +579,31 @@ async function runKnowledgeAgentInner(
       .map((b) => b.text)
       .join('\n')
       .trim();
+
+    // Anti-stall: the model either got cut off mid-turn (max_tokens) or ended
+    // its turn with a future-tense promise but never called a tool. Both leave
+    // the user staring at "Now writing all three pages…" while nothing happens.
+    // Re-prompt it to actually execute, up to MAX_STALL_NUDGES times, instead of
+    // silently returning the dead-end preamble.
+    const truncated = stopReason === 'max_tokens';
+    if ((truncated || looksLikeUnfulfilledPromise(text)) && stallNudges < MAX_STALL_NUDGES) {
+      stallNudges++;
+      messages.push(assistantTextMessageFor(content, '(interrupted)'));
+      messages.push({
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: truncated
+              ? 'Your previous response was cut off before the action completed. Continue now and finish the task by calling the required tools in this turn — do not restate the plan, just execute it.'
+              : 'You described what you were going to do but did not call any tools, so nothing actually happened. Execute it now by invoking the tools in this same turn. Do not reply with another plan or a future-tense promise ("I\'ll…", "Let me…"). If you genuinely cannot proceed, say exactly why instead.',
+          },
+        ],
+      });
+      emitProgress({ phase: 'thinking', round: round + 1 });
+      continue;
+    }
+
     return finalizeAgentReply(text || '(no text)', userText);
   }
 
