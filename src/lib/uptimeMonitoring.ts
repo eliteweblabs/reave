@@ -37,6 +37,7 @@ import {
   urGetMonitors,
   urNewMonitor,
   urResolveCreateContext,
+  uptimeQuickStartUrl,
   parseUptimeRobotRetrySeconds,
   normalizeUptimeMonitorUrl,
   uptimeStatusIsDown,
@@ -385,6 +386,12 @@ export type UptimePlatformSyncItem = {
   url: string;
   friendlyName: string;
   source: 'kinsta' | 'railway';
+  /**
+   * One-click UptimeRobot "quick-start" link. Set on manual items when API creation
+   * is blocked (free plan) so the UI can offer a single click per site instead of a
+   * dashboard walkthrough.
+   */
+  quickStartUrl?: string;
 };
 
 export type UptimePlatformSyncResult = {
@@ -634,7 +641,18 @@ export async function syncPlatformUrlsToUptime(
   let pending = 0;
   let monitorLimited = false;
   let planFeatureNoticed = false;
+  // Set once UptimeRobot rejects an API create as a plan restriction (free plan no
+  // longer allows /v2/newMonitor). After that, skip the doomed API calls entirely
+  // and route every remaining site to the one-click quick-start list instead — no
+  // point burning the 10 req/min rate-limit budget on creates that always fail.
+  let apiCreateDisabled = false;
   const errors: string[] = [];
+
+  const addManualItem = (item: UptimePlatformSyncItem) => {
+    const key = monitorHostKey(item.url);
+    if (manualItems.some((m) => monitorHostKey(m.url) === key)) return;
+    manualItems.push({ ...item, quickStartUrl: uptimeQuickStartUrl(item.url) });
+  };
   const createdItems: UptimePlatformSyncItem[] = [];
   const manualItems: UptimePlatformSyncItem[] = [];
 
@@ -659,6 +677,15 @@ export async function syncPlatformUrlsToUptime(
     const key = monitorHostKey(normalizeUptimeMonitorUrl(item.url));
     if (key && existing.has(key)) {
       skipped += 1;
+      reportCreating();
+      continue;
+    }
+
+    // Once we know API creates are blocked (free plan), don't attempt them again —
+    // just collect the site for the one-click quick-start flow. These are tracked
+    // via manualItems (not `pending`, which implies "run again to continue").
+    if (apiCreateDisabled) {
+      addManualItem(item);
       reportCreating();
       continue;
     }
@@ -740,14 +767,16 @@ export async function syncPlatformUrlsToUptime(
           continue;
         }
         // Free-plan API creates are no longer possible (see classifyUptimeRobotError).
-        // Route these to "manual setup" instead of the errors list so the dialog
-        // shows one clear explanation rather than the same scary line per site.
-        if (!manualItems.some((m) => monitorHostKey(m.url) === key)) {
-          manualItems.push(item);
-        }
+        // Route these to the one-click quick-start list instead of the errors list,
+        // and stop attempting API creates for the rest of this run.
+        apiCreateDisabled = true;
+        attempts -= 1;
+        addManualItem(item);
         if (!planFeatureNoticed) {
           planFeatureNoticed = true;
-          warnings.push(classified.summary);
+          warnings.push(
+            "UptimeRobot's free plan blocks API monitor creation — use the one-click links below to add each site, then Sync status to import them.",
+          );
         }
         reportCreating();
         break;

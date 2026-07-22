@@ -2243,6 +2243,15 @@ function ensureUptimePlatformSyncPolling() {
   uptimePlatformSyncPollTimer = setInterval(poll, 3000);
 }
 
+// Mirror of uptimeQuickStartUrl() in src/lib/uptimerobotClient.ts — used as a
+// fallback if the server payload predates the quickStartUrl field.
+function uptimeQuickStartUrlClient(rawUrl) {
+  let url = String(rawUrl || '').trim();
+  if (!url) return 'https://uptimerobot.com/quick-start/';
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  return `https://uptimerobot.com/quick-start/?url=${encodeURIComponent(url)}`;
+}
+
 async function showUptimeSyncResultDialog(result) {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -2342,19 +2351,26 @@ function renderUptimeSyncResultHtml(data, httpOk) {
 
   const manualItems = Array.isArray(data.manualItems) ? data.manualItems : [];
   const manualLines = manualItems
-    .slice(0, 20)
-    .map(
-      (item) =>
-        `<li><strong>${escHtml(item.friendlyName)}</strong> — ` +
-        `<a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.url)}</a></li>`,
-    )
+    .slice(0, 30)
+    .map((item) => {
+      const quickStart = item.quickStartUrl || uptimeQuickStartUrlClient(item.url);
+      return (
+        '<li class="dash-uptime-manual-item">' +
+        `<span class="dash-uptime-manual-name"><strong>${escHtml(item.friendlyName)}</strong>` +
+        `<span class="dash-muted-inline"> ${escHtml(item.url)}</span></span>` +
+        `<a class="os-dialog-btn os-dialog-btn--primary os-dialog-btn--sm" href="${escHtml(quickStart)}" ` +
+        'target="_blank" rel="noopener noreferrer">Add to UptimeRobot ↗</a>' +
+        '</li>'
+      );
+    })
     .join('');
   const manualBlock = manualItems.length
     ? '<div class="dash-uptime-manual">' +
-      '<p class="em-book-dialog-lead">UptimeRobot rejected API creates on your plan. Add these in the ' +
-      '<a href="https://uptimerobot.com/dashboard" target="_blank" rel="noopener noreferrer">UptimeRobot dashboard</a>, ' +
-      'then click <strong>Sync status</strong> on the home dashboard (or link by monitor ID).</p>' +
-      `<ul class="meeting-confirm-steps">${manualLines}</ul>` +
+      '<p class="em-book-dialog-lead">UptimeRobot\u2019s free plan blocks creating monitors through the API, so these can\u2019t be added automatically. ' +
+      'Click <strong>Add to UptimeRobot</strong> on each site \u2014 it opens UptimeRobot\u2019s one-click quick-start ' +
+      '(solves the challenge in your browser). Confirm via the email UptimeRobot sends, then click ' +
+      '<strong>Sync status</strong> here to import them.</p>' +
+      `<ul class="meeting-confirm-steps dash-uptime-manual-list">${manualLines}</ul>` +
       '</div>'
     : '';
 

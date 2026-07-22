@@ -5142,6 +5142,36 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         opacity: 0.7;
         cursor: wait;
       }
+      .os-dialog-btn--sm {
+        padding: 0.3rem 0.6rem;
+        font-size: 0.78rem;
+        border-radius: 8px;
+        white-space: nowrap;
+        text-decoration: none;
+        flex: 0 0 auto;
+      }
+      .dash-uptime-manual-list .dash-uptime-manual-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.5rem 0.6rem;
+        border-radius: 10px;
+        border: 1px solid var(--panel-border);
+        background: var(--card);
+      }
+      .dash-uptime-manual-name {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .dash-uptime-manual-name .dash-muted-inline {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
       @media (max-width: 767px) {
         #os-dialog-backdrop.open.os-dialog-keyboard {

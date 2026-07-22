@@ -365,6 +365,17 @@ export function normalizeUptimeMonitorUrl(raw: string): string {
   return url;
 }
 
+/**
+ * Browser "quick-start" URL that lets a free-plan user add a monitor in one click.
+ * UptimeRobot's free plan no longer accepts API creates (`/v2/newMonitor`), but this
+ * page runs the proof-of-work challenge client-side, so opening it and following the
+ * prompt (+ confirming the email UptimeRobot sends) creates the monitor for free.
+ */
+export function uptimeQuickStartUrl(rawUrl: string): string {
+  const url = normalizeUptimeMonitorUrl(rawUrl);
+  return `https://uptimerobot.com/quick-start/?url=${encodeURIComponent(url)}`;
+}
+
 export function defaultUptimeFriendlyName(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
