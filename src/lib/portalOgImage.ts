@@ -6,6 +6,13 @@ import {
   type ClientPortal,
   type ContactRecord,
 } from './contactApi';
+import {
+  getClientPortalIconBlob,
+  getClientPortalLogoBlob,
+  resolveClientIconUrl,
+  resolveClientLogoUrl,
+} from './clientBranding';
+import { enrichClientPortalBrand } from './clientBrand';
 
 export const PORTAL_OG_WIDTH = 1200;
 export const PORTAL_OG_HEIGHT = 630;
@@ -21,6 +28,7 @@ export type PortalShareMeta = {
   brandTitle: string;
   description: string;
   logoUrl: string;
+  iconUrl: string;
 };
 
 function escapeXml(value: string): string {
@@ -58,7 +66,8 @@ export function portalShareMetaFromContact(uid: string, contact: ContactRecord, 
     pageTitle,
     brandTitle,
     description,
-    logoUrl: contactStringField(portal.logoUrl),
+    logoUrl: resolveClientLogoUrl(portal, uid),
+    iconUrl: resolveClientIconUrl(portal, uid),
   };
 }
 
@@ -69,10 +78,22 @@ export async function loadPortalShareMeta(uid: string): Promise<PortalShareMeta 
   const res = await getContact(id);
   if (!res.ok || res.data.archived) return null;
 
-  const portal = extractPortal(res.data);
+  let contact = res.data;
+  let portal = extractPortal(contact) ?? {};
   if (portal?.enabled === false) return null;
 
-  return portalShareMetaFromContact(id, res.data, portal ?? {});
+  let logoUrl = resolveClientLogoUrl(portal, id);
+  if (!logoUrl && portal.logoSource !== 'upload') {
+    await enrichClientPortalBrand(id);
+    const refreshed = await getContact(id);
+    if (refreshed.ok) {
+      contact = refreshed.data;
+      portal = extractPortal(contact) ?? portal;
+      logoUrl = resolveClientLogoUrl(portal, id);
+    }
+  }
+
+  return portalShareMetaFromContact(id, contact, portal);
 }
 
 function buildPortalOgTextSvg(title: string): string {
@@ -110,12 +131,29 @@ async function fetchRemoteLogoBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
+function parseClientBrandingApiPath(source: string): { uid: string; kind: 'logo' | 'icon' } | null {
+  const path = source.trim().split('?')[0] ?? '';
+  const m = path.match(/^\/api\/clients\/([^/]+)\/(logo|icon)$/);
+  if (!m) return null;
+  return { uid: decodeURIComponent(m[1]), kind: m[2] as 'logo' | 'icon' };
+}
+
 async function loadLogoBuffer(source: string): Promise<Buffer | null> {
+  const brandingPath = parseClientBrandingApiPath(source);
+  if (brandingPath) {
+    const blob =
+      brandingPath.kind === 'icon'
+        ? await getClientPortalIconBlob(brandingPath.uid)
+        : await getClientPortalLogoBlob(brandingPath.uid);
+    if (blob?.dataBase64) return Buffer.from(blob.dataBase64, 'base64');
+    return null;
+  }
+
   if (source.startsWith('/')) {
     try {
       const { readFile } = await import('node:fs/promises');
       const { join } = await import('node:path');
-      return await readFile(join(process.cwd(), 'public', source));
+      return await readFile(join(process.cwd(), 'public', source.split('?')[0] ?? source));
     } catch {
       return null;
     }
@@ -158,14 +196,16 @@ async function composeLogoPng(logoBuf: Buffer): Promise<Buffer | null> {
   }
 }
 
-/** Render a 1200×630 PNG — client logo first, then the project default logo. */
+/** Render a 1200×630 PNG — client logo/icon first, then the project default logo. */
 export async function buildPortalOgPng(
   meta: PortalShareMeta,
   opts?: { fallbackLogoPath?: string },
 ): Promise<Buffer> {
   const sources: string[] = [];
-  const clientLogo = safeRemoteImageUrl(meta.logoUrl);
-  if (clientLogo) sources.push(clientLogo);
+  const logo = meta.logoUrl.trim();
+  const icon = meta.iconUrl.trim();
+  if (logo) sources.push(logo);
+  if (icon && icon !== logo) sources.push(icon);
 
   const fallbackLogo = normalizePublicLogoPath(opts?.fallbackLogoPath ?? '');
   if (fallbackLogo && !sources.includes(fallbackLogo)) sources.push(fallbackLogo);
