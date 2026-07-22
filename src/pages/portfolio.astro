@@ -7,41 +7,99 @@ const company = await getCompanyConfig(Astro.request);
 
 <MarketingLayout
   title="Portfolio"
-  description={`Selected work and project highlights from ${company.name}.`}
-  label="Work"
+  description="Selected work including WordPress builds, custom web apps, brand design and more. 20+ years, nearly 100 brand portfolios."
+  label="Recent Work"
   active="portfolio"
 >
   <section>
-    <h2>Selected projects</h2>
+    <h2>Selected Projects</h2>
     <p>
-      A sample of the kind of work we deliver. Full case studies and references are
-      available on request — <a href="/contact">get in touch</a> to learn more.
+      Much of the work from the last ten years is under copyright but available for private viewing.
+      Full case studies and references are available on request —{" "}
+      <a href="/contact">get in touch</a> to learn more.
     </p>
   </section>
 
   <section>
     <div class="card-grid">
       <article class="card">
-        <h3>Client experience platform</h3>
+        <h3>Overlook CARE</h3>
         <p>
-          Unified portal with scheduling, messaging, and document delivery for a
-          multi-location service business.
+          The Overlook — longtime experts in elder hospitality — needed a redesign for their dated
+          CARE division website. We produced a clean, mobile-friendly WordPress site with a focus on
+          simplicity and accessibility. Hosted on Google Cloud servers, it loads lightning fast with
+          99.99% uptime. A contact form with anti-spam CAPTCHA sends branded HTML emails for all
+          inquiries.
         </p>
+        <ul>
+          <li>WordPress</li>
+          <li>Google Cloud Hosting</li>
+          <li>Mobile Optimized</li>
+          <li>Accessibility Widget</li>
+          <li>97/100 Lighthouse Index</li>
+        </ul>
       </article>
       <article class="card">
-        <h3>Voice-first homepage</h3>
+        <h3>Squarer App</h3>
         <p>
-          Interactive brand site with an AI assistant that answers questions and
-          captures leads in real time.
+          A startup for square-footage-based events — a turnkey solution to onboard clients for
+          displaying at exhibitions, tradeshows, conferences &amp; more. Modular upgrades include
+          digital contract &amp; signature, administrative curation of show items, shipping load
+          in/out, and a drag-and-drop client-facing space builder. Successfully deployed for over a
+          dozen massive events.
         </p>
+        <ul>
+          <li>WordPress REST API</li>
+          <li>Logo / Branding</li>
+          <li>Single Page App</li>
+          <li>Analytics</li>
+          <li>Frontend Admin Page</li>
+          <li>Stripe eCommerce</li>
+        </ul>
       </article>
       <article class="card">
-        <h3>Operations dashboard</h3>
+        <h3>Tyler Associates</h3>
         <p>
-          Internal tools for inbox triage, project tracking, and client communication
-          in one place.
+          Longtime client Tyler Associates needed an overhaul of their pre-mobile-era website. We
+          developed a clean and quick online presence in short order. Content was refreshed for 2024
+          and Google Site Kit was added for SEO local ranking.
         </p>
+        <ul>
+          <li>WordPress</li>
+          <li>Mobile Optimized</li>
+          <li>Accessibility Widget</li>
+          <li>97/100 Lighthouse Index</li>
+          <li>Google Site Kit</li>
+        </ul>
+      </article>
+      <article class="card">
+        <h3>Paradigm Hydroseed</h3>
+        <p>
+          A truly hands-off build. Paradigm Hydroseed provided some photos and we took it from
+          there. Clean layout with GDPR cookie notice, optional geolocation autofill address form,
+          and quick call &amp; SMS buttons sticky at the bottom of the viewport. This site ranks
+          extraordinarily well with zero advertising spend.
+        </p>
+        <ul>
+          <li>WordPress REST API</li>
+          <li>Logo Design</li>
+          <li>Sticky Call / SMS</li>
+          <li>Analytics</li>
+          <li>95/100 Lighthouse Score</li>
+        </ul>
       </article>
     </div>
+  </section>
+
+  <section>
+    <h2>There's More</h2>
+    <p>
+      I have developed dozens of scripts, training videos, and concepts not displayed here —
+      including a Drag &amp; Drop Floorplan Builder, Custom Admin Dashboard, Proposal System, QR
+      Code Shipping Manager, Digital Contract Module, and much more.
+    </p>
+    <p>
+      <a href="/contact">Wanna see? Get in touch.</a>
+    </p>
   </section>
 </MarketingLayout>
