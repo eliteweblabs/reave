@@ -2137,6 +2137,22 @@ function formatEmailWhen(iso) {
   }
 }
 
+function formatReviewAlertWhen(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
 function formatUptimeAccountHint(uptimeAccount) {
   if (!uptimeAccount) return null;
   if (uptimeAccount.account) {
@@ -2945,10 +2961,13 @@ function buildReviewAlertBanner(item) {
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
-  const meta = formatEmailWhen(item.receivedAt);
+  const when = formatReviewAlertWhen(item.receivedAt);
+  const titleLine = when
+    ? `${escHtml(when)} - ${escHtml(item.title)}`
+    : escHtml(item.title);
   copy.innerHTML =
-    `<strong>${escHtml(item.title)}</strong>` +
-    `<p>${escHtml(item.detail)}${meta ? ` · ${escHtml(meta)}` : ''}</p>`;
+    `<strong>${titleLine}</strong>` +
+    `<p>${escHtml(item.detail)}</p>`;
   copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');
