@@ -13338,12 +13338,24 @@ function clientBrandingPreviewUrl(url) {
 function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   const disabled = !uid || !!opts.disabled;
   const onUpdate = typeof opts.onUpdate === 'function' ? opts.onUpdate : () => {};
+  const getWebsite = typeof opts.getWebsite === 'function' ? opts.getWebsite : () => draft?.website || '';
 
   const wrap = document.createElement('div');
   wrap.className = 'de-label cl-branding-label';
   const title = document.createElement('span');
   title.textContent = 'Branding';
   wrap.appendChild(title);
+
+  const scrapeBtn = document.createElement('button');
+  scrapeBtn.type = 'button';
+  scrapeBtn.className = 'de-btn de-btn-secondary cl-branding-scrape-btn';
+  scrapeBtn.textContent = 'Fetch from website';
+  scrapeBtn.hidden = true;
+  wrap.appendChild(scrapeBtn);
+
+  const syncScrapeBtn = () => {
+    scrapeBtn.hidden = disabled || !getWebsite().trim();
+  };
 
   const uploads = document.createElement('div');
   uploads.className = 'prof-branding-uploads cl-branding-uploads';
@@ -13383,15 +13395,18 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   hint.className = 'prof-hint prof-hint--block cl-branding-hint';
   hint.textContent = disabled
     ? 'Save the client first to upload logo and icon.'
-    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a site URL is set.';
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Use Fetch from website when a site URL is set.';
 
   wrap.appendChild(uploads);
   wrap.appendChild(hint);
   parent.appendChild(wrap);
+  syncScrapeBtn();
 
   if (disabled || !uid) return wrap;
 
-  bindClientBrandingUploads(wrap, uid, onUpdate);
+  const refreshers = bindClientBrandingUploads(wrap, uid, onUpdate);
+  bindClientBrandingScrape(scrapeBtn, uid, getWebsite, onUpdate, refreshers);
+  wrap.syncScrapeBtn = syncScrapeBtn;
   return wrap;
 }
 
@@ -13505,6 +13520,46 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
       alert('Network error — please try again.');
     } finally {
       iconRemove.disabled = false;
+    }
+  });
+
+  return { refreshLogo, refreshIcon };
+}
+
+function bindClientBrandingScrape(btn, uid, getWebsite, onUpdate, refreshers) {
+  btn.addEventListener('click', async () => {
+    const website = getWebsite().trim();
+    if (!website) return;
+
+    btn.disabled = true;
+    const prevLabel = btn.textContent;
+    btn.textContent = 'Fetching…';
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/scrape-branding`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        alert(json.error || 'Could not fetch branding from website.');
+        return;
+      }
+
+      refreshers.refreshLogo(json.logoUrl || '', json.logoSource);
+      refreshers.refreshIcon(json.iconUrl || '', json.iconSource);
+      onUpdate({
+        logoUrl: json.logoUrl || '',
+        iconUrl: json.iconUrl || '',
+        logoSource: json.logoSource,
+        iconSource: json.iconSource,
+        website: json.website || website,
+      });
+    } catch {
+      alert('Network error — please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = prevLabel;
     }
   });
 }
@@ -13751,12 +13806,15 @@ function renderEditClientForm(pane) {
       const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
-      mountClientBrandingSection(fields, uid, clientState.draft, {
+      const brandingWrap = mountClientBrandingSection(fields, uid, clientState.draft, {
+        getWebsite: () => websiteInput.value,
         onUpdate: (patch) => {
           Object.assign(clientState.draft, patch);
+          if (patch.website != null) websiteInput.value = patch.website;
           syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
         },
       });
+      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
 
       const addressInput = mountClientAddressField(fields, clientState.draft.address || '');
       registerClientField(addressInput, () => true);
