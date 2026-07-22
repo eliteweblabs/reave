@@ -17,10 +17,8 @@ import { enrichClientPortalBrand } from './clientBrand';
 export const PORTAL_OG_WIDTH = 1200;
 export const PORTAL_OG_HEIGHT = 630;
 
-const LOGO_BOX_W = 760;
-const LOGO_BOX_H = 300;
-const LOGO_BOX_TOP = 110;
 const LOGO_FETCH_TIMEOUT_MS = 8_000;
+const OG_BG = { r: 10, g: 10, b: 10 };
 
 export type PortalShareMeta = {
   uid: string;
@@ -165,30 +163,12 @@ async function loadLogoBuffer(source: string): Promise<Buffer | null> {
 
 async function composeLogoPng(logoBuf: Buffer): Promise<Buffer | null> {
   try {
-    const logoPng = await sharp(logoBuf)
-      .resize(LOGO_BOX_W, LOGO_BOX_H, {
-        fit: 'inside',
-        withoutEnlargement: true,
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
+    return sharp(logoBuf)
+      .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT, {
+        fit: 'cover',
+        position: 'centre',
       })
-      .png()
-      .toBuffer();
-
-    const logoMeta = await sharp(logoPng).metadata();
-    const logoW = logoMeta.width ?? LOGO_BOX_W;
-    const logoH = logoMeta.height ?? LOGO_BOX_H;
-    const left = Math.round((PORTAL_OG_WIDTH - logoW) / 2);
-    const top = LOGO_BOX_TOP + Math.round((LOGO_BOX_H - logoH) / 2);
-
-    return sharp({
-      create: {
-        width: PORTAL_OG_WIDTH,
-        height: PORTAL_OG_HEIGHT,
-        channels: 4,
-        background: { r: 10, g: 10, b: 10, alpha: 1 },
-      },
-    })
-      .composite([{ input: logoPng, top, left }])
+      .flatten({ background: OG_BG })
       .png()
       .toBuffer();
   } catch {
