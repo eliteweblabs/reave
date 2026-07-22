@@ -13034,8 +13034,15 @@ function attachPhoneFormatter(input) {
 
 function getClientsEditor() { return document.getElementById('clients-editor'); }
 
-function clientSubline(c) {
-  return c.email || c.company || c.phone || c.uid.slice(0, 8) + '…';
+function clientListTitle(c) {
+  return (c.company || '').trim() || (c.name || '').trim() || 'Client';
+}
+
+function clientListSubline(c) {
+  const company = (c.company || '').trim();
+  const name = (c.name || '').trim();
+  if (company && name && name.toLowerCase() !== company.toLowerCase()) return name;
+  return c.email || c.phone || `${c.uid.slice(0, 8)}…`;
 }
 
 async function fetchClientsList() {
@@ -13915,9 +13922,15 @@ async function createClient(payload) {
   }
 }
 
-function syncClientListRow(uid, name) {
-  const row = getClientsEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(uid)}"] .ch-item-title`);
-  if (row) row.textContent = name;
+function syncClientListRow(uid) {
+  const c = clientState.clients.find((x) => x.uid === uid);
+  if (!c) return;
+  const item = getClientsEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(uid)}"]`);
+  if (!item) return;
+  const titleEl = item.querySelector('.ch-item-title');
+  const subEl = item.querySelector('.wk-contact');
+  if (titleEl) titleEl.textContent = clientListTitle(c);
+  if (subEl) subEl.textContent = clientListSubline(c);
 }
 
 function scheduleClientAutosave(uid, getPayload) {
@@ -14009,7 +14022,7 @@ async function autosaveClient(uid, payload) {
       c.phone = payload.phone;
       c.company = payload.company;
     }
-    syncClientListRow(uid, payload.name);
+    syncClientListRow(uid);
     if (clientActiveField) flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
@@ -17044,9 +17057,9 @@ function createClientListItem(c) {
   item.innerHTML =
     SIDEBAR_LIST_GRIP +
     `<span class="ch-list-content">` +
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(c.name)}</span></span>` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(clientListTitle(c))}</span></span>` +
     `<span class="wk-meta-row">` +
-    `<span class="wk-contact">${escHtml(clientSubline(c))}</span>` +
+    `<span class="wk-contact">${escHtml(clientListSubline(c))}</span>` +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
     `</span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
