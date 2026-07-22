@@ -24,7 +24,7 @@ Paths are sandboxed to the project root. `.env*` writes are blocked. Prefer thes
 
 1. **Read before write** — understand structure, then change. Propose first if uncertain.
 2. **Test locally when possible** — run checks (`npm` scripts, typecheck) via `exec_command`; verify before claiming done.
-3. **Commit and push after every change** — no PRs required for this workflow; keep the repo updated (`git add` / `git commit` / `git push`).
+3. **Commit straight to main after every change — NEVER open a pull request.** Keep the repo updated (`git add` / `git commit` / `git push` to `main`).
 4. **Chat UI work** — find where messages are rendered, add markdown link parsing/sanitization, test in the browser.
 5. **Focused commits** — one feature per commit with a clear message.
 
@@ -35,6 +35,11 @@ Paths are sandboxed to the project root. `.env*` writes are blocked. Prefer thes
 3. Make the change with `read_file` → `write_file`.
 4. `exec_command` to verify, then commit and push.
 
+## Environment matters: local checkout vs deployed Railway container
+
+- **Local checkout (dev):** `exec_command` can run real git. Commit straight to `main` and push (`git add` / `git commit` / `git push`). No branches, no PRs.
+- **Deployed Railway container:** there is **no git binary and no `.git` checkout** — `git` is not in the container PATH, so `exec_command` cannot commit or push. `write_file` edits only touch the ephemeral filesystem and are lost on the next deploy. To persist code changes from the deployed app you **must** use the GitHub REST API: `write_github_file` with `branch: "main"` (one commit per call, directly on `main` — never a branch or PR). Don't try `git push` and then "discover" git is missing; just use `write_github_file`.
+
 ## Related (global / GitHub API)
 
-For remote-only edits without a local checkout, see `github-dev-tools` (`create_github_branch` → `write_github_file` → `create_pull_request`). On the live Railway container, filesystem edits persist until the next deploy — always commit and push so the next deploy includes them.
+See `github-dev-tools` for the GitHub REST API tools. Default workflow everywhere: **commit straight to `main`** (`write_github_file` with `branch: "main"`). Committing to `main` triggers a Railway deploy automatically. Only use `create_github_branch` / `create_pull_request` if the user explicitly asks for a branch or PR.

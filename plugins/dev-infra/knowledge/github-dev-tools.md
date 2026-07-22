@@ -1,6 +1,10 @@
-# GitHub — commit files & open PRs from Admin Agent
+# GitHub — commit files straight to main from Admin Agent
 
-The Claude tool loop can **write files** and **open pull requests** on the Reave repo via the GitHub REST API. Read-only status tools (`get_git_status`, `get_recent_commits`, etc.) work with a read token; writes need extra scopes.
+The Claude tool loop can **write files** on the Reave repo via the GitHub REST API. Read-only status tools (`get_git_status`, `get_recent_commits`, etc.) work with a read token; writes need extra scopes.
+
+> **This project never uses pull requests.** Always commit directly to `main` with `write_github_file` (branch `main`). Do **not** call `create_github_branch` or `create_pull_request` unless the user explicitly asks for a branch or PR. Committing to `main` triggers a Railway deploy automatically.
+>
+> On the deployed Railway container there is no git binary and no `.git` checkout, so `exec_command`/shell `git push` will not work — the GitHub API (`write_github_file`) is the only way to persist code there.
 
 ## Repo & env
 
@@ -13,17 +17,25 @@ The Claude tool loop can **write files** and **open pull requests** on the Reave
 
 - Read status: **Contents** (read) + **Metadata**
 - `write_github_file`: **Contents** (read + write)
-- `create_pull_request`: **Pull requests** (read + write)
+- `create_pull_request` (only if a PR is ever explicitly requested): **Pull requests** (read + write)
 
 Classic PAT alternative: `repo` scope covers both.
 
-## Recommended workflow
+## Recommended workflow (commit straight to main)
 
-1. **`create_github_branch`** — new branch from `main` (or specify `from_branch`). Skip if the branch already exists.
-2. **`write_github_file`** — one or more commits on that branch (each call = one commit).
-3. **`create_pull_request`** — `head` = feature branch, `base` defaults to **`main`** if omitted.
-4. Report **branch URL**, **commit URL**, and **PR link**. Do not claim success unless tools return OK.
-5. Optional: **`get_git_status`** / **`get_recent_commits`** to verify; **`run_dev_task` task=service_status** shows `github_write.can_write_files` for token troubleshooting.
+1. **`write_github_file`** with `branch: "main"` — each call is one commit directly on `main`. Make one focused commit per logical change.
+2. Report the **commit SHA** and **commit URL**. Do not claim success unless tools return OK.
+3. Optional: **`get_git_status`** / **`get_recent_commits`** to verify; **`run_dev_task` task=service_status** shows `github_write.can_write_files` for token troubleshooting.
+
+Committing to `main` triggers a Railway deploy automatically — no merge or PR step.
+
+### Branch/PR flow (only when explicitly requested)
+
+Do not use this unless the user specifically asks for a branch or pull request:
+
+1. **`create_github_branch`** — new branch from `main`.
+2. **`write_github_file`** — commit(s) on that branch.
+3. **`create_pull_request`** — `head` = feature branch, `base` defaults to `main`.
 
 ## Verify token permissions
 
@@ -78,13 +90,13 @@ Returns: PR `number`, `url`, `state`, `head`, `base`.
 
 ## Example owner phrases
 
-- “Add a file `docs/notes.md` on branch `feature/docs-update` with …”
-- “Update `src/lib/foo.ts` on `fix/typo` and open a PR into main”
-- “Commit this change to GitHub and open a pull request”
+- “Add a file `docs/notes.md` with …” → `write_github_file` on `main`
+- “Update `src/lib/foo.ts` and push it” → `write_github_file` on `main`
+- “Commit this change to GitHub” → `write_github_file` on `main`
 
 ## Limits & safety
 
 - Path must not contain `..` (no directory traversal).
 - Large files: GitHub Contents API is for normal source files, not binaries or huge blobs.
-- Merging and deploying are **out of scope** — the bot opens the PR; a human (or CI) merges; Railway deploys from the default branch after merge.
+- Default flow commits straight to `main`; Railway auto-deploys from `main`. Merging/PRs are only used if the user explicitly asks.
 - If `GITHUB_TOKEN` is missing or read-only, tools return an error — tell the owner to fix Railway Variables.

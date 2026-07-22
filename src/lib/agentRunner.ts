@@ -382,6 +382,14 @@ async function runKnowledgeAgentInner(
     'Never end your turn with future-tense promises ("Let me…", "I\'ll…", "I am going to…") without invoking the relevant tools in the same turn first. If you say you will edit, build, commit, push, deploy, send, or run something, call the tools immediately — do not stop and wait for the user to reply. If you cannot proceed (missing permission, ambiguous input, destructive action needing confirmation), say why and ask — do not imply work is in progress.',
     'Email inbox triage: when the user opens a message from the admin Email tab or asks you to mark junk/spam/delete/filter mail, EXECUTE with tools — do not tell them to do it manually. Use mark_email_junk (needs email_id from triage context), create_email_filter_rule (sender/domain so future mail auto-junks), and delete_email when they want it removed. For payment confirmations with dollar amounts the user wants for taxes, use mark_email_receipt instead of junk/delete. For spam/junk workflows, run all three unless they only asked to hide it. When you have finished handling a legitimate message (replied, filed, scheduled, etc.), use mark_email_routed { email_id } to clear it from the review queue — do not junk processed mail. list_email_inbox finds ids when missing; read_email_inbox returns full headers and body (defaults to the linked email in this chat). Project client replies (action project_reply / status PROJECT_REPLY) are URGENT new work — prioritize immediate follow-up, draft a reply, and link to the project. When sending project-related outbound mail via send_email, pass job_slug so replies trigger those alerts. To send a new outbound email from chat (not a portal link), use send_email { to, subject, body }.',
   ];
+  // Deployed Railway containers run from a built dist/ with no git binary and no
+  // .git checkout, so shell git (exec_command) cannot commit/push there. When true,
+  // the agent must use the GitHub REST API (write_github_file) instead of shelling out.
+  const onRailway = Boolean(
+    serverEnv('RAILWAY_GIT_COMMIT_SHA')?.trim() ||
+      serverEnv('RAILWAY_ENVIRONMENT')?.trim() ||
+      serverEnv('RAILWAY_ENVIRONMENT_NAME')?.trim(),
+  );
   if (hasFeature('dev_infra')) {
     sysParts.push('Dev ops: use run_dev_task for service_status or connectivity pings — never ask to run shell commands directly.');
     if (isRailwayConfigured()) {
@@ -410,7 +418,7 @@ async function runKnowledgeAgentInner(
     );
     if (isGithubConfigured()) {
       sysParts.push(
-        'GitHub edits: for file commits and PRs call read_knowledge slug "github-dev-tools" first if unsure of the workflow. Typical flow: create_github_branch → write_github_file (one or more commits) → create_pull_request (base defaults to main). Report branch URL, commit SHA/URL, and PR link. Do not claim code was pushed unless tools succeed. The bot cannot merge PRs or deploy.',
+        'GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Report the commit SHA/URL. Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed. Committing to main triggers a Railway deploy automatically.',
       );
     } else {
       sysParts.push(
@@ -419,9 +427,15 @@ async function runKnowledgeAgentInner(
     }
   }
   if (hasFeature('code_dev')) {
-    sysParts.push(
-      'Local code development (Reave code_dev): you CAN edit this repo on disk. Use list_files / read_file / write_file / exec_command. Read before write. Test with exec_command when possible. After every change: git add, commit, and push (no PRs required) — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
-    );
+    if (onRailway) {
+      sysParts.push(
+        'Code development (Reave code_dev) — DEPLOYED CONTAINER: you are running on Railway from a built dist/ with NO git binary and NO .git checkout, so exec_command CANNOT run "git add/commit/push" (git is not in the container PATH). To persist code changes here you MUST use the GitHub REST API: call write_github_file with branch:"main" to commit each file directly to main (never a branch, never a PR). Do not attempt "git push" via exec_command and do not narrate discovering that git is missing — just use write_github_file. You may still use list_files / read_file / write_file / exec_command for reading, running builds/tests, and inspecting the running app, but they only touch the ephemeral container filesystem and are lost on the next deploy. Do not claim success unless tools succeed.',
+      );
+    } else {
+      sysParts.push(
+        'Local code development (Reave code_dev): you CAN edit this repo on disk. Use list_files / read_file / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add, commit, and push — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
+      );
+    }
   }
   if (hasFeature('billing') && isCraterConfigured()) {
     sysParts.push(
