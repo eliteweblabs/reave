@@ -271,3 +271,67 @@ export async function pgDeleteChatThread(userId: string, threadId: string): Prom
     return false;
   }
 }
+
+export type ChatThreadOwner = {
+  userId: string;
+  threadCount: number;
+  latestUpdatedAt: string | null;
+};
+
+/**
+ * Diagnostic: every distinct user_id that owns chat threads, with counts.
+ * Used by the owner-only recovery tool to spot threads orphaned under a
+ * previous Clerk user id (e.g. after a Clerk instance/key change).
+ */
+export async function pgListChatThreadOwners(): Promise<ChatThreadOwner[] | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{
+      user_id: string;
+      thread_count: string;
+      latest_updated_at: string | null;
+    }>(
+      `SELECT user_id,
+              COUNT(*)          AS thread_count,
+              MAX(updated_at)   AS latest_updated_at
+         FROM chat_threads
+        GROUP BY user_id
+        ORDER BY thread_count DESC, latest_updated_at DESC NULLS LAST`,
+    );
+    return rows.map((row) => ({
+      userId: row.user_id,
+      threadCount: Number(row.thread_count) || 0,
+      latestUpdatedAt: row.latest_updated_at,
+    }));
+  } catch (e) {
+    console.error('[chats:pg] list owners error:', e);
+    return null;
+  }
+}
+
+/**
+ * Recovery: move every thread owned by `fromUserId` to `toUserId`.
+ * Messages cascade via thread_id, so they follow automatically.
+ * Returns the number of threads moved, or null on failure.
+ */
+export async function pgReassignChatThreads(
+  fromUserId: string,
+  toUserId: string,
+): Promise<number | null> {
+  const from = fromUserId.trim();
+  const to = toUserId.trim();
+  if (!from || !to || from === to) return 0;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rowCount } = await pool.query(
+      `UPDATE chat_threads SET user_id = $2 WHERE user_id = $1`,
+      [from, to],
+    );
+    return rowCount ?? 0;
+  } catch (e) {
+    console.error('[chats:pg] reassign error:', e);
+    return null;
+  }
+}

@@ -9,6 +9,10 @@ The deployment owner username defaults to the **company display name** from admi
 
 Owner-only UI today:
 - **Vapi sync** (`POST /api/admin/vapi`, `/vapi-sync` agent command)
+- **Chat recovery** (`GET`/`POST /api/admin/chats`) — lists the distinct
+  `user_id`s that own chat threads and reassigns threads orphaned under a
+  previous Clerk user id (e.g. after a Clerk instance/key change) to the
+  current owner. Postgres backend only.
 
 Match is case-insensitive against the signed-in Clerk user's id (`AGENT_ALERT_USER_ID`), or `username`, `firstName`, `lastName`, full name, or primary email (full or local part).
 

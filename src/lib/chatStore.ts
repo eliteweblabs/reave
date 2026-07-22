@@ -20,14 +20,17 @@ import {
   pgDeleteChatThread,
   pgGetChatSummaryById,
   pgGetChatThread,
+  pgListChatThreadOwners,
   pgListChatThreads,
+  pgReassignChatThreads,
   pgSetChatArchived,
   pgUpdateChatTitle,
+  type ChatThreadOwner,
 } from './pgChats';
 import { titleFromMessage, type ChatThreadDetail, type ChatThreadSummary } from './chatTypes';
 
 export { isPgChatsConfigured, titleFromMessage };
-export type { ChatThreadDetail, ChatThreadSummary };
+export type { ChatThreadDetail, ChatThreadSummary, ChatThreadOwner };
 
 export function chatStorageBackend(): 'postgres' | 'files' {
   if (isPgChatsConfigured()) return 'postgres';
@@ -99,4 +102,21 @@ export async function storeGetChatSummaryById(
   if (!id) return null;
   if (chatStorageBackend() === 'postgres') return pgGetChatSummaryById(id);
   return fileGetChatSummaryById(id);
+}
+
+/**
+ * Owner-only recovery helpers. Only available on the Postgres backend; the
+ * file backend returns null so callers can surface an "unsupported" message.
+ */
+export async function storeListChatThreadOwners(): Promise<ChatThreadOwner[] | null> {
+  if (chatStorageBackend() === 'postgres') return pgListChatThreadOwners();
+  return null;
+}
+
+export async function storeReassignChatThreads(
+  fromUserId: string,
+  toUserId: string,
+): Promise<number | null> {
+  if (chatStorageBackend() === 'postgres') return pgReassignChatThreads(fromUserId, toUserId);
+  return null;
 }
