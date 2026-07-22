@@ -103,6 +103,15 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
+		/*
+		 * Default every page to the dark theme (matches the homepage) so pages
+		 * never fall back to the browser's white default — which otherwise
+		 * causes white text (styled for a dark background) to render invisibly
+		 * on a white page. Pages can still override this per-element as needed.
+		 * TODO: replace with a proper color-mode/theme variable system.
+		 */
+		background: #050505;
+		color: #e5e5e5;
 	}
 
 	/*

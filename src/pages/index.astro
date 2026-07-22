@@ -88,10 +88,10 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
     --quantum-border: rgba(255, 255, 255, 0.1);
   }
 
+  /* Dark background default now lives in Layout.astro; keep min-height here. */
   :global(html),
   :global(body) {
     min-height: 100%;
-    background: #050505;
   }
 
   /* Let drags reach the scene on iOS (otherwise Safari keeps scroll/rubber-band). */

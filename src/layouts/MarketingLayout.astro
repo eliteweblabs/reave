@@ -28,13 +28,14 @@ const { title, description, label = "Explore", active } = Astro.props;
   <SiteFooterNav active={active} />
 </Layout>
 
-<style is:global>
-  :global(html),
-  :global(body) {
-    background: #050505;
-    color: #e5e5e5;
-  }
-</style>
+{/*
+  The dark background/text color is set globally in Layout.astro.
+  (A previous version tried to set it here by wrapping `html`/`body` in
+  `:global(...)` inside an already-global `<style is:global>` block — Astro
+  doesn't strip that syntax there, so it shipped as literal, invalid CSS that
+  browsers silently dropped. That's why these pages rendered white text on a
+  white background.)
+*/}
 
 <style>
   .marketing-page {
