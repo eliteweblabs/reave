@@ -11603,7 +11603,7 @@ const SCHEDULE_VIEWS = [
 ];
 
 const CAL_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const CAL_HOUR_PX = 48;
+const CAL_HOUR_PX = 72;
 const CAL_HOURS = 24;
 
 function getSchedulePanel() { return document.getElementById('schedule-panel'); }
@@ -12943,7 +12943,7 @@ function scheduleEventLayout(booking) {
   const startMin = start.getHours() * 60 + start.getMinutes();
   const endMin = end.getHours() * 60 + end.getMinutes();
   const top = (startMin / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX);
-  const height = Math.max(((endMin - startMin) / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX), 22);
+  const height = Math.max(((endMin - startMin) / (CAL_HOURS * 60)) * (CAL_HOURS * CAL_HOUR_PX), 36);
   return { top, height };
 }
 
@@ -13056,7 +13056,7 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       block.style.height = `${height}px`;
       block.innerHTML =
         `<span class="cal-event-block-title">${escHtml(booking.title || 'Meeting')}</span>` +
-        `<span class="cal-event-block-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>`;
+        `<span class="cal-event-block-sub">${escHtml(scheduleBookingWho(booking))}</span>`;
       block.addEventListener('click', (e) => {
         e.stopPropagation();
         selectScheduleBooking(booking.uid);
@@ -13068,10 +13068,6 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
 
   wrap.appendChild(cols);
   parent.appendChild(wrap);
-
-  if (singleDay) {
-    renderCalDayAgenda(parent, dayKeys[0]);
-  }
 }
 
 function renderCalWeekView(parent) {
