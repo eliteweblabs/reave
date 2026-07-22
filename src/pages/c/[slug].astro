@@ -236,7 +236,7 @@ const hasDocs = portalDocs.length > 0;
 const hasWork = clientJobs.length > 0;
 const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
-if (hasWork) tabs.push({ id: 'work', label: 'Work' });
+if (hasWork) tabs.push({ id: 'work', label: 'Projects' });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
 if (hasPayments) tabs.push({ id: 'payments', label: 'Payments' });
 if (hasData) tabs.push({ id: 'data', label: 'Data' });
@@ -402,7 +402,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               </div>
             )}
             {!hasOverview && !hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Use the tabs above to view your billing and account details.</p>}
-            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Work tab for your active projects.</p>}
+            {!hasOverview && hasWork && !hasUptime && <p class="muted">Welcome{company ? `, ${company}` : ''}. Check the Projects tab for your active projects.</p>}
             {hasUptime && (
               <div class="uptime-block">
                 <h3 class="group-title">Site uptime</h3>

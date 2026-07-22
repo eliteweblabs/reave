@@ -193,15 +193,15 @@
     },
     {
       "id": "work",
-      "title": "Work",
-      "summary": "Jobs, checklists, comments — shared with the client portal when useful.",
+      "title": "Projects",
+      "summary": "Projects, checklists, comments — shared with the client portal when useful.",
       "optional": false,
-      "quoteLabel": "Work / jobs & checklists",
+      "quoteLabel": "Projects & checklists",
       "features": [
         {
           "id": "work-reel",
-          "title": "Jobs & checklists",
-          "body": "Delivery tracked as work jobs. Record as work.gif.",
+          "title": "Projects & checklists",
+          "body": "Delivery tracked as projects. Record as work.gif.",
           "scrollHeight": 120,
           "actions": [
             {
@@ -212,7 +212,7 @@
             },
             {
               "type": "stage.caption",
-              "text": "Work — laptop on the desk"
+              "text": "Projects — laptop on the desk"
             }
           ]
         }

@@ -11,20 +11,16 @@ import {
   type ClientPortal,
   type ContactRecord,
 } from './contactApi';
-import { getCompanyBrandContext } from './companyConfig';
 import { normalizePublicUrl } from './publicUrl';
 import { portalSiteUrl } from './siteMonitoring';
 
-const USER_AGENT_SUFFIX =
-  'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-async function brandUserAgent(): Promise<string> {
-  const brand = await getCompanyBrandContext();
-  return `Mozilla/5.0 (compatible; ${brand.botUserAgent}) ${USER_AGENT_SUFFIX}`;
-}
+/** Browser-like UA — avoids bot-detection redirect loops on some sites (incl. self-fetch). */
+const SCRAPE_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_HTML_BYTES = 1_500_000;
+const MAX_REDIRECTS = 8;
 
 const GENERIC_EMAIL_DOMAINS = new Set([
   'gmail.com',
@@ -46,6 +42,7 @@ const GENERIC_EMAIL_DOMAINS = new Set([
 
 export type ClientBrandInfo = {
   logoUrl?: string;
+  iconUrl?: string;
   website?: string;
   tagline?: string;
 };
@@ -67,33 +64,73 @@ function extractMeta($: cheerio.CheerioAPI, name: string): string {
   return byProp?.trim() ?? '';
 }
 
-/** Parse HTML for logo + short site description. */
+function isFaviconIco(url: string): boolean {
+  return /favicon\.ico(?:\?|$)/i.test(url);
+}
+
+function isAppleTouchIcon(url: string): boolean {
+  return /apple-touch-icon/i.test(url);
+}
+
+function isLikelySocialBanner(url: string): boolean {
+  return /(?:^|[/])(?:og[-_]image|social[-_]?(?:share|banner|card)|share[-_]?image)(?:[/?.]|$)/i.test(url);
+}
+
+/** Parse HTML for logo, icon, and short site description. */
 export function extractBrandFromHtml(html: string, pageUrl: string): ClientBrandInfo {
   const base = normalizePublicUrl(pageUrl, true);
   if (!base) return {};
 
   const $ = cheerio.load(html);
-  const candidates: string[] = [];
+  const iconCandidates: string[] = [];
+  const logoCandidates: string[] = [];
 
-  const push = (raw: string | undefined) => {
+  const pushUnique = (list: string[], raw: string | undefined) => {
     if (!raw?.trim()) return;
     const abs = resolveAbsoluteUrl(raw, base);
-    if (abs) candidates.push(abs);
+    if (abs && !list.includes(abs)) list.push(abs);
   };
 
-  push($('link[rel="apple-touch-icon"]').attr('href'));
-  push($('link[rel="apple-touch-icon-precomposed"]').attr('href'));
+  pushUnique(iconCandidates, $('link[rel="apple-touch-icon"]').attr('href'));
+  pushUnique(iconCandidates, $('link[rel="apple-touch-icon-precomposed"]').attr('href'));
   $('link[rel~="icon"]').each((_, el) => {
-    push($(el).attr('href'));
+    pushUnique(iconCandidates, $(el).attr('href'));
   });
-  push(extractMeta($, 'og:logo'));
+  pushUnique(iconCandidates, $('link[rel="mask-icon"]').attr('href'));
+
+  pushUnique(logoCandidates, extractMeta($, 'og:logo'));
+  $('[data-logo-src]').each((_, el) => {
+    pushUnique(logoCandidates, $(el).attr('data-logo-src'));
+  });
+  $('[data-hero-mask]').each((_, el) => {
+    const raw = $(el).attr('data-hero-mask');
+    if (raw && !/\.gif(?:\?|$)/i.test(raw)) pushUnique(logoCandidates, raw);
+  });
   $('img[class*="logo" i], img[id*="logo" i], img[alt*="logo" i]').each((_, el) => {
-    push($(el).attr('src'));
+    pushUnique(logoCandidates, $(el).attr('src'));
+  });
+  $('header img, .logo img, #logo img, [class*="brand" i] img').each((_, el) => {
+    pushUnique(logoCandidates, $(el).attr('src'));
   });
   // og:image is usually a social banner — keep it last so logos/icons win.
-  push(extractMeta($, 'og:image'));
+  const ogImage = extractMeta($, 'og:image');
+  if (ogImage && !isLikelySocialBanner(ogImage)) {
+    pushUnique(logoCandidates, ogImage);
+  } else if (ogImage) {
+    pushUnique(logoCandidates, ogImage);
+  }
 
-  const logoUrl = candidates.find((u) => !/favicon\.ico(?:\?|$)/i.test(u)) ?? candidates[0];
+  const iconUrl =
+    iconCandidates.find((u) => isAppleTouchIcon(u)) ||
+    iconCandidates.find((u) => !isFaviconIco(u)) ||
+    iconCandidates[0];
+
+  const logoUrl =
+    logoCandidates.find((u) => !isFaviconIco(u) && !isAppleTouchIcon(u) && !isLikelySocialBanner(u)) ||
+    logoCandidates.find((u) => !isFaviconIco(u) && !isAppleTouchIcon(u)) ||
+    logoCandidates.find((u) => !isFaviconIco(u)) ||
+    logoCandidates[0] ||
+    iconUrl;
 
   const tagline =
     extractMeta($, 'description') ||
@@ -102,27 +139,38 @@ export function extractBrandFromHtml(html: string, pageUrl: string): ClientBrand
 
   return {
     logoUrl: logoUrl || undefined,
+    iconUrl: iconUrl || logoUrl || undefined,
     website: base.origin,
     tagline: tagline.slice(0, 280) || undefined,
   };
 }
 
-async function fetchHtml(urlInput: string): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false }> {
-  const url = normalizePublicUrl(urlInput, true);
-  if (!url) return { ok: false };
+async function fetchHtmlOnce(
+  urlInput: string,
+  signal: AbortSignal,
+): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false }> {
+  const start = normalizePublicUrl(urlInput, true);
+  if (!start) return { ok: false };
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const headers = {
+    'User-Agent': SCRAPE_USER_AGENT,
+    Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+  };
 
-  try {
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
-        'User-Agent': await brandUserAgent(),
-        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-      },
+  let current = start.toString();
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const res = await fetch(current, {
+      signal,
+      redirect: 'manual',
+      headers,
     });
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (!location || hop >= MAX_REDIRECTS) return { ok: false };
+      current = new URL(location, current).toString();
+      continue;
+    }
 
     const buf = await res.arrayBuffer();
     if (buf.byteLength > MAX_HTML_BYTES || !res.ok) return { ok: false };
@@ -130,8 +178,21 @@ async function fetchHtml(urlInput: string): Promise<{ ok: true; html: string; fi
     return {
       ok: true,
       html: new TextDecoder('utf-8', { fatal: false }).decode(buf),
-      finalUrl: res.url || url.toString(),
+      finalUrl: current,
     };
+  }
+
+  return { ok: false };
+}
+
+async function fetchHtml(urlInput: string): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const first = await fetchHtmlOnce(urlInput, controller.signal);
+    if (first.ok) return first;
+    return fetchHtmlOnce(urlInput, controller.signal);
   } catch {
     return { ok: false };
   } finally {
@@ -169,7 +230,7 @@ export async function fetchClientBrandFromWebsite(urlInput: string): Promise<Cli
   const fetched = await fetchHtml(urlInput);
   if (!fetched.ok) return null;
   const brand = extractBrandFromHtml(fetched.html, fetched.finalUrl);
-  if (!brand.logoUrl && !brand.tagline) return null;
+  if (!brand.logoUrl && !brand.iconUrl && !brand.tagline) return null;
   return brand;
 }
 
@@ -194,13 +255,15 @@ export async function enrichClientPortalBrand(
     if (!website) return;
 
     const brand = await fetchClientBrandFromWebsite(website);
-    if (!brand?.logoUrl && !brand?.tagline) return;
+    if (!brand?.logoUrl && !brand?.iconUrl && !brand?.tagline) return;
 
     const next: ClientPortal = {
       ...portal,
       website: portal.website || brand.website || website.replace(/\/$/, ''),
       logoUrl: brand.logoUrl || portal.logoUrl,
       logoSource: brand.logoUrl ? 'website' : portal.logoSource,
+      iconUrl: brand.iconUrl || portal.iconUrl,
+      iconSource: brand.iconUrl ? 'website' : portal.iconSource,
       tagline: portal.tagline || brand.tagline,
       updatedAt: new Date().toISOString(),
     };

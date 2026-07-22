@@ -7818,7 +7818,7 @@ function renderTodoEditPane(pane, isNew) {
         tab: 'work',
         jobSlug: linked.slug,
         trackEl: linkTrackEl,
-        title: `${linked.contact_name || linked.client || 'Client'} — Work`,
+        title: `${linked.contact_name || linked.client || 'Client'} — Projects`,
         recipient: {
           contactUid: linked.contact_uid,
           name: linked.contact_name || linked.client || 'Client',
@@ -9907,12 +9907,12 @@ function renderClientWorkSection(jobsWrap, jobs) {
   jobsWrap.innerHTML = '';
   const jobsLabel = document.createElement('div');
   jobsLabel.className = 'de-label cl-jobs-label';
-  jobsLabel.textContent = `Work (${jobs.length})`;
+  jobsLabel.textContent = `Projects (${jobs.length})`;
   jobsWrap.appendChild(jobsLabel);
   if (jobs.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty cl-jobs-empty';
-    empty.textContent = 'No active jobs for this client.';
+    empty.textContent = 'No active projects for this client.';
     jobsWrap.appendChild(empty);
     return;
   }
@@ -9927,7 +9927,7 @@ function renderClientWorkSection(jobsWrap, jobs) {
 function mountClientWorkSection(pane, uid) {
   const jobsWrap = document.createElement('div');
   jobsWrap.className = 'cl-jobs-section';
-  jobsWrap.innerHTML = '<div class="de-loading">Loading jobs…</div>';
+  jobsWrap.innerHTML = '<div class="de-loading">Loading projects…</div>';
   pane.appendChild(jobsWrap);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
@@ -10099,7 +10099,7 @@ function renderWorkEditor() {
     appendEmptyDetailPane(pane, {
       mapKey: 'work',
       iconName: 'briefcase',
-      bodyHtml: '<p>Select a job to edit, or create a new one.</p>',
+      bodyHtml: '<p>Select a project to edit, or create a new one.</p>',
       onCreate: () => startNewProject(),
     });
   }
@@ -10774,7 +10774,7 @@ function renderNewWorkForm(pane) {
   const returnTodoId = workState.returnToTodoId;
   const { header, titleInput } = createPaneSubheader({
     back: {
-      label: returnTodoId ? 'Back to to‑do' : 'Back to jobs',
+      label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
       onClick: async () => {
         await flushWorkAutosave();
         if (workState.dirty && !(await confirmDiscardChanges())) return;
@@ -10794,8 +10794,8 @@ function renderNewWorkForm(pane) {
     },
     editableTitle: {
       value: workState.draft?.title || '',
-      placeholder: 'New job',
-      ariaLabel: 'Job title',
+      placeholder: 'New project',
+      ariaLabel: 'Project title',
     },
   });
   pane.appendChild(header);
@@ -11049,7 +11049,7 @@ function renderEditWorkForm(pane) {
             tab: 'work',
             jobSlug: slug,
             trackEl: linkTrackEl,
-            title: `${data.contact_name || data.client || 'Client'} — Work`,
+            title: `${data.contact_name || data.client || 'Client'} — Projects`,
             recipient: {
               contactUid: data.contact_uid,
               name: data.contact_name || data.client || 'Client',
@@ -11076,7 +11076,7 @@ function renderEditWorkForm(pane) {
 
       const { header, titleInput } = createPaneSubheader({
         back: {
-          label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to jobs',
+          label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
           onClick: async () => {
             await flushWorkAutosave();
             if (workState.dirty && !(await confirmDiscardChanges())) return;
@@ -11103,8 +11103,8 @@ function renderEditWorkForm(pane) {
         },
         editableTitle: {
           value: workState.draft.title,
-          placeholder: 'Job title',
-          ariaLabel: 'Job title',
+          placeholder: 'Project title',
+          ariaLabel: 'Project title',
         },
         icons,
       });
@@ -11242,7 +11242,7 @@ async function createWork(slug, payload) {
       body: JSON.stringify({ slug, ...payload }),
     });
     const data = await res.json();
-    if (res.status === 409) { alert('A job with that slug already exists.'); return; }
+    if (res.status === 409) { alert('A project with that slug already exists.'); return; }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     await loadWorkTab();
     if (returnTodoId) {
@@ -11818,7 +11818,7 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
 
     titleEl.textContent = 'Meeting address';
     bodyEl.innerHTML =
-      '<p class="em-book-dialog-lead">Enter the job site or meeting location so the booking can be placed on the map.</p>' +
+      '<p class="em-book-dialog-lead">Enter the project site or meeting location so the booking can be placed on the map.</p>' +
       '<label class="de-label sched-create-field em-book-address-field">' +
         '<span>Street address</span>' +
         '<div class="control-field">' +
@@ -13619,6 +13619,10 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
   if (disabled || !uid) return wrap;
 
   const refreshers = bindClientBrandingUploads(wrap, uid, onUpdate);
+  wrap.refreshBranding = (patch = {}) => {
+    refreshers.refreshLogo(patch.logoUrl ?? '', patch.logoSource);
+    refreshers.refreshIcon(patch.iconUrl ?? '', patch.iconSource);
+  };
   bindClientBrandingScrape(scrapeBtn, uid, getWebsite, onUpdate, refreshers);
   wrap.syncScrapeBtn = syncScrapeBtn;
   return wrap;
@@ -14041,6 +14045,7 @@ function renderEditClientForm(pane) {
           syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
         },
       });
+      clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
       websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
 
       const addressInput = mountClientAddressField(fields, clientState.draft.address || '');
@@ -14277,6 +14282,12 @@ async function autosaveClient(uid, payload) {
       iconSource: data.iconSource ?? clientState.draft.iconSource,
     });
     syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
+    clientState.brandingRefresh?.({
+      logoUrl: clientState.draft.logoUrl,
+      iconUrl: clientState.draft.iconUrl,
+      logoSource: clientState.draft.logoSource,
+      iconSource: clientState.draft.iconSource,
+    });
     clientPendingGeo = null;
     if (clientMapController) {
       const geo = clientState.draft.geo;
@@ -17235,7 +17246,7 @@ async function askAgentAboutDocument(tpl) {
 async function askAgentAboutWork(job) {
   try {
     const lines = [
-      'Help me work on this job.',
+      'Help me with this project.',
       '',
       `Title: ${job.title}`,
       `Slug: ${job.slug}`,

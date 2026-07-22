@@ -217,7 +217,7 @@ export const MAPS = {
   email:     { id: 'email',     title: 'Inbox',      icon: '📬',  type: 'email',         nodes: [],             edges: [],             groups: [] },
   rules:     { id: 'rules',     title: 'Rules',      icon: '⚡',  type: 'rules',         nodes: [],             edges: [],             groups: [] },
   newsletter:{ id: 'newsletter',title: 'Newsletter', icon: '📰',  type: 'newsletter',    nodes: [],             edges: [],             groups: [] },
-  work:      { id: 'work',      title: 'Work',       icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
+  work:      { id: 'work',      title: 'Projects',   icon: '💼',  type: 'work',          nodes: [],             edges: [],             groups: [] },
   schedule:  { id: 'schedule',  title: 'Schedule',   icon: '📅',  type: 'schedule',      nodes: [],             edges: [],             groups: [] },
   clients:   { id: 'clients',   title: 'Clients',    icon: '👥',  type: 'clients',       nodes: [],             edges: [],             groups: [] },
   social:    { id: 'social',    title: 'Social',     icon: '📣',  type: 'social',        nodes: [],             edges: [],             groups: [] },
