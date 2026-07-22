@@ -84,6 +84,57 @@ const SIDEBAR_LIST_GRIP =
   '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
+/**
+ * Force the user to re-authenticate after the session expires (e.g. signed out
+ * in another tab/browser). Opens the sign-in bottom sheet when available and
+ * otherwise reloads into the auto-opening sign-in flow. Guarded so overlapping
+ * 401s from concurrent requests only trigger a single prompt.
+ */
+let reauthTriggered = false;
+function triggerReauth() {
+  if (reauthTriggered) return;
+  reauthTriggered = true;
+  const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+  if (window.IosSheet?.open) {
+    window.IosSheet.open('sign-in-sheet');
+  } else {
+    window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+  }
+}
+
+/**
+ * Safety net for the many raw `fetch()` admin API calls: any same-origin
+ * `/api/*` response with 401 means the session is gone, so re-auth globally
+ * instead of letting each call surface its own "Unauthorized" error text.
+ */
+(function installGlobalReauthOn401() {
+  if (typeof window === 'undefined' || window.__reaveReauthPatched) return;
+  window.__reaveReauthPatched = true;
+  const origFetch = window.fetch.bind(window);
+  window.fetch = async function patchedFetch(input, init) {
+    const res = await origFetch(input, init);
+    if (res.status === 401) {
+      try {
+        const raw =
+          typeof input === 'string'
+            ? input
+            : input instanceof Request
+              ? input.url
+              : input instanceof URL
+                ? input.href
+                : String(input ?? '');
+        const url = new URL(raw, window.location.origin);
+        if (url.origin === window.location.origin && url.pathname.startsWith('/api/')) {
+          triggerReauth();
+        }
+      } catch {
+        /* ignore URL parse failures */
+      }
+    }
+    return res;
+  };
+})();
+
 /** Dashboard fetch — always send session cookies; re-auth on 401. */
 async function adminFetch(url, opts = {}) {
   const res = await fetch(url, {
@@ -96,12 +147,7 @@ async function adminFetch(url, opts = {}) {
     },
   });
   if (res.status === 401) {
-    const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
-    if (window.IosSheet?.open) {
-      window.IosSheet.open('sign-in-sheet');
-    } else {
-      window.location.assign(`/admin/?auth=sign-in&returnTo=${returnTo}`);
-    }
+    triggerReauth();
     throw new Error('Session expired');
   }
   return res;
