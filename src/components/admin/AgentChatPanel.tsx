@@ -710,12 +710,17 @@ function ClaudeComposer({
       <div className={`aui-composer-shell${centered ? ' aui-composer-shell-centered' : ''}`}>
         <ComposerPrimitive.Root className="aui-composer-card aui-composer-card-running">
           <div className="aui-composer-toolbar aui-composer-toolbar-running">
-            <AgentRunStatus
-              threadId={threadId}
-              externalProgress={externalProgress ?? null}
-              useExternalProgress={Boolean(useExternalProgress)}
-              streamedProgress={streamedProgress ?? null}
-            />
+            {/* The in-thread run status renders the live progress inside the message
+                flow, so only the centered empty-state composer (which has no thread
+                status above it) repeats the copy here. Otherwise show just Stop. */}
+            {centered ? (
+              <AgentRunStatus
+                threadId={threadId}
+                externalProgress={externalProgress ?? null}
+                useExternalProgress={Boolean(useExternalProgress)}
+                streamedProgress={streamedProgress ?? null}
+              />
+            ) : null}
             {useExternalProgress ? (
               <button
                 type="button"
