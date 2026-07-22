@@ -235,9 +235,15 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
 
   /* The voice widget now lives in the footer nav (SiteFooterNav), triggered by
      #footer-nav-voice-btn. Keep the widget mounted for its call logic but hide
-     the floating button itself. */
-  :global(.vapi-widget-container.center-bottom) {
-    display: none;
+     the floating button itself.
+
+     Astro 5 scopes component styles with :where(), which has zero specificity,
+     so the component's own `.vapi-widget-container.center-bottom { display: flex }`
+     ties with this rule and can win on cascade order. Use !important on the base
+     container so the widget stays hidden across every viewport size (desktop +
+     the 768px breakpoint) and both icon states (fingerprint + chat bubble). */
+  :global(.vapi-widget-container) {
+    display: none !important;
   }
 
   /* Keep the text fallback above the site footer nav. */
