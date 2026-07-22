@@ -2701,6 +2701,13 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #clients-editor .de-pane > .cl-notes-label {
         width: 100%;
       }
+      #clients-editor .cl-form-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      #clients-editor .cl-branding-label {
+        gap: 0.65rem;
+      }
       #clients-editor .de-fields .de-input,
       #clients-editor .de-fields .cl-website-field {
         max-width: none;
@@ -7720,6 +7727,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260721g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260722a"></script>
   </body>
 </html>

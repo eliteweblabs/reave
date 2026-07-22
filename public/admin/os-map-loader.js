@@ -13353,7 +13353,9 @@ function mountClientBrandingSection(parent, uid, draft, opts = {}) {
 
   const wrap = document.createElement('div');
   wrap.className = 'de-label cl-branding-label';
-  wrap.textContent = 'Branding';
+  const title = document.createElement('span');
+  title.textContent = 'Branding';
+  wrap.appendChild(title);
 
   const uploads = document.createElement('div');
   uploads.className = 'prof-branding-uploads cl-branding-uploads';
@@ -13519,6 +13521,13 @@ function bindClientBrandingUploads(root, uid, onUpdate) {
   });
 }
 
+function createClientFormScroll(pane) {
+  const scroll = document.createElement('div');
+  scroll.className = 're-form-scroll cl-form-scroll';
+  pane.appendChild(scroll);
+  return scroll;
+}
+
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
@@ -13557,6 +13566,7 @@ function renderNewClientForm(pane) {
     }).header,
   );
 
+  const scroll = createClientFormScroll(pane);
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
@@ -13607,7 +13617,7 @@ function renderNewClientForm(pane) {
   notesLabel.appendChild(notesTa);
   fields.appendChild(notesLabel);
 
-  pane.appendChild(fields);
+  scroll.appendChild(fields);
   registerClientField(companyInput, () => !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value));
   registerClientField(notesTa, () => true);
 
@@ -13716,6 +13726,7 @@ function renderEditClientForm(pane) {
       });
       pane.appendChild(header);
 
+      const scroll = createClientFormScroll(pane);
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
@@ -13792,8 +13803,8 @@ function renderEditClientForm(pane) {
         !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value),
       );
 
-      pane.appendChild(fields);
-      mountClientWorkSection(pane, uid);
+      scroll.appendChild(fields);
+      mountClientWorkSection(scroll, uid);
 
       const getPayload = () => {
         const firstName = firstNameInput.value.trim();
