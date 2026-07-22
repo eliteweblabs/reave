@@ -633,6 +633,7 @@ export async function syncPlatformUrlsToUptime(
   let attempts = 0;
   let pending = 0;
   let monitorLimited = false;
+  let planFeatureNoticed = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
   const manualItems: UptimePlatformSyncItem[] = [];
@@ -738,10 +739,16 @@ export async function syncPlatformUrlsToUptime(
           retrySame = true;
           continue;
         }
+        // Free-plan API creates are no longer possible (see classifyUptimeRobotError).
+        // Route these to "manual setup" instead of the errors list so the dialog
+        // shows one clear explanation rather than the same scary line per site.
         if (!manualItems.some((m) => monitorHostKey(m.url) === key)) {
           manualItems.push(item);
         }
-        errors.push(`${item.friendlyName}: ${classified.raw}`);
+        if (!planFeatureNoticed) {
+          planFeatureNoticed = true;
+          warnings.push(classified.summary);
+        }
         reportCreating();
         break;
       }

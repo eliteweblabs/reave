@@ -101,7 +101,7 @@ export function classifyUptimeRobotError(raw: string): {
   if (/current plan|not allowed|subscription|not available.*plan|upgrade.*plan|plan does not/i.test(lower)) {
     const settings =
       /not allowed to use some settings/i.test(lower)
-        ? 'Monitor settings not allowed on your UptimeRobot plan (often alert-contact threshold/recurrence or an explicit interval — free plan needs defaults only)'
+        ? "UptimeRobot's free plan no longer allows creating monitors through the API (/v2/newMonitor) — no payload works. Add these sites in the UptimeRobot dashboard (or upgrade to a paid plan), then use Sync status / Link monitor to import them."
         : 'Not allowed on your UptimeRobot plan';
     return {
       kind: 'plan_feature',

@@ -20,10 +20,18 @@ function pollIntervalMs(): number {
   return clamped * 60_000;
 }
 
-/** Minutes between automatic Kinsta/Railway → UptimeRobot discovery runs (0 disables). */
+/**
+ * Minutes between automatic Kinsta/Railway → UptimeRobot discovery runs.
+ * Disabled by default (0/blank): auto-discovery attempts to CREATE monitors, and
+ * UptimeRobot's free plan no longer accepts API creates (`/v2/newMonitor` returns
+ * "not allowed to use some settings with your current plan"), so an unattended
+ * schedule just fails on a loop and makes the dashboard look like a sync is
+ * running that nobody started. Set UPTIMEROBOT_DISCOVER_MINUTES to a positive
+ * number to re-enable (only useful on a paid plan where API creates work).
+ */
 function discoverIntervalMs(): number | null {
   const raw = serverEnv('UPTIMEROBOT_DISCOVER_MINUTES');
-  const min = raw == null || raw === '' ? 60 : Number(raw);
+  const min = raw == null || raw === '' ? 0 : Number(raw);
   if (!Number.isFinite(min) || min <= 0) return null;
   return Math.max(5, Math.min(min, 1440)) * 60_000;
 }
