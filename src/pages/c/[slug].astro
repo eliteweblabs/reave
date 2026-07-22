@@ -177,9 +177,9 @@ const showClientContact = Boolean(company && displayName !== company && displayN
 
 const updatedAt = fmtDate(portal?.updatedAt);
 
-const footBeanSvg =
-  '<svg class="foot-bean-icon" viewBox="0 0 10 14" aria-hidden="true" focusable="false"><path d="M5 1.2C2.4 1.2.8 3.8.8 7s1.6 5.8 4.2 5.8S9.2 10.2 9.2 7 7.6 1.2 5 1.2Z" fill="currentColor"/><path d="M5 2.8c0 2.8-.2 5.6-.2 8.4" fill="none" stroke="currentColor" stroke-width=".8" stroke-linecap="round" opacity=".45"/></svg>';
-const bakedInBostonHtml = `Baked in B<span class="foot-bean">${footBeanSvg}</span>st<span class="foot-bean">${footBeanSvg}</span>n`;
+const footBeanSvg = (variant: 'a' | 'b') =>
+  `<span class="foot-bean foot-bean--${variant}" aria-hidden="true"><svg class="foot-bean-icon" viewBox="0 0 10 14" focusable="false"><path d="M5 1.2C2.4 1.2.8 3.8.8 7s1.6 5.8 4.2 5.8S9.2 10.2 9.2 7 7.6 1.2 5 1.2Z" fill="currentColor"/><path d="M5 2.8c0 2.8-.2 5.6-.2 8.4" fill="none" stroke="currentColor" stroke-width=".8" stroke-linecap="round" opacity=".45"/></svg></span>`;
+const bakedInBostonHtml = `Baked in B${footBeanSvg('a')}st${footBeanSvg('b')}n`;
 
 const CLIENT_WORK_STATUS: Record<string, string> = {
   inquiry: 'Submitted',
@@ -980,16 +980,36 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font-size: 12px; color: rgba(255, 255, 255, 0.35);
       }
       .brand { letter-spacing: 0.5px; }
-      .foot-tag { letter-spacing: 0.02em; }
+      .foot-tag {
+        letter-spacing: 0.02em;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0;
+        line-height: 1.2;
+      }
       .foot-tag :global(.foot-bean) {
-        display: inline-block;
-        vertical-align: -0.1em;
-        margin: 0 0.03em;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 10px;
+        height: 10px;
+        margin: 0 0.5px;
+        flex: none;
+        vertical-align: baseline;
+        position: relative;
+        top: 0.06em;
       }
       .foot-tag :global(.foot-bean-icon) {
         display: block;
-        width: 0.72em;
-        height: 1em;
+        width: 10px;
+        height: 13px;
+        flex: none;
+      }
+      .foot-tag :global(.foot-bean--a) {
+        transform: rotate(45deg);
+      }
+      .foot-tag :global(.foot-bean--b) {
+        transform: rotate(-45deg);
       }
 
       .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
