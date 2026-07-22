@@ -1,13 +1,15 @@
 ---
-import { Home, Info, Briefcase, LayoutGrid, Mail } from "lucide-astro";
+import { Home, Info, Briefcase, LayoutGrid, Mail, Mic } from "lucide-astro";
 
 export type SiteNavId = "home" | "about" | "services" | "portfolio" | "contact";
 
 interface Props {
   active?: SiteNavId;
+  /** Render a voice-assistant button in the pill (wired to the hidden VoiceChatButton). */
+  voice?: boolean;
 }
 
-const { active } = Astro.props;
+const { active, voice = false } = Astro.props;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 
@@ -54,6 +56,19 @@ const items: Array<{
           </a>
         ))
       }
+      {
+        voice && (
+          <button
+            type="button"
+            id="footer-nav-voice-btn"
+            class="footer-nav-btn footer-nav-voice"
+            data-nav="voice"
+            aria-label="Talk to our AI assistant"
+          >
+            <Mic size={20} strokeWidth={1.75} />
+          </button>
+        )
+      }
     </div>
   </div>
 </nav>
@@ -77,6 +92,30 @@ const items: Array<{
   positionSiteFooterIndicator();
   window.addEventListener("resize", positionSiteFooterIndicator, { passive: true });
   document.addEventListener("astro:page-load", positionSiteFooterIndicator);
+
+  // Wire the footer voice button to the hidden VoiceChatButton widget and
+  // reflect the call state (active while a call is in progress).
+  function wireFooterVoiceButton() {
+    const voiceBtn = document.getElementById("footer-nav-voice-btn");
+    if (!voiceBtn || voiceBtn.dataset.wired === "1") return;
+    voiceBtn.dataset.wired = "1";
+
+    voiceBtn.addEventListener("click", () => {
+      document.getElementById("vapi-voice-button")?.click();
+    });
+
+    window.addEventListener("vapi-call-start", () => {
+      voiceBtn.classList.add("active");
+      voiceBtn.setAttribute("aria-label", "End voice chat");
+    });
+    window.addEventListener("vapi-call-end", () => {
+      voiceBtn.classList.remove("active");
+      voiceBtn.setAttribute("aria-label", "Talk to our AI assistant");
+    });
+  }
+
+  wireFooterVoiceButton();
+  document.addEventListener("astro:page-load", wireFooterVoiceButton);
 </script>
 
 <style is:global>
@@ -186,6 +225,28 @@ const items: Array<{
   .site-footer-nav .footer-nav-btn svg {
     display: block;
     pointer-events: none;
+  }
+
+  /* Voice-assistant button: active while a Vapi call is in progress. */
+  .site-footer-nav .footer-nav-voice.active {
+    color: #fff;
+    background: var(--brand-gradient);
+  }
+
+  .site-footer-nav .footer-nav-voice.active svg {
+    animation: footer-nav-voice-pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes footer-nav-voice-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.65;
+      transform: scale(0.88);
+    }
   }
 
   @media print {

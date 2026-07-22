@@ -40,7 +40,7 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
   )}
   {showHomepageVoice && <Transcript />}
   {showHomepageVoice && <TextFallback />}
-  <SiteFooterNav active="home" />
+  <SiteFooterNav active="home" voice={showHomepageVoice} />
   <div class="container">
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -233,11 +233,14 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
     }
   }
 
-  /* Keep the voice widget and text fallback above the site footer nav. */
+  /* The voice widget now lives in the footer nav (SiteFooterNav), triggered by
+     #footer-nav-voice-btn. Keep the widget mounted for its call logic but hide
+     the floating button itself. */
   :global(.vapi-widget-container.center-bottom) {
-    bottom: calc(var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
+    display: none;
   }
 
+  /* Keep the text fallback above the site footer nav. */
   :global(#text-fallback) {
     bottom: calc(108px + var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
   }
