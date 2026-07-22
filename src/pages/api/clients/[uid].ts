@@ -9,7 +9,13 @@ import {
   type ContactRecord,
 } from '../../../lib/contactApi';
 import { portalSiteUrl } from '../../../lib/siteMonitoring';
-import { setClientPortalWebsite, websiteFromNotes, setClientPortalAddress, parseClientGeoInput } from '../../../lib/clientBrand';
+import {
+  enrichClientPortalBrand,
+  setClientPortalWebsite,
+  websiteFromNotes,
+  setClientPortalAddress,
+  parseClientGeoInput,
+} from '../../../lib/clientBrand';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
@@ -54,6 +60,13 @@ async function saveClientPortalFields(
   return { ok: true as const, website, address, geo };
 }
 
+async function clientPortalLogoUrl(uid: string): Promise<string> {
+  const res = await getContact(uid);
+  if (!res.ok) return '';
+  const portal = extractPortal(res.data);
+  return contactStringField(portal?.logoUrl) || '';
+}
+
 export const GET: APIRoute = async ({ params, locals, url }) => {
   const { userId } = locals.auth?.() ?? {};
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -73,25 +86,39 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   const res = await getContact(uid);
   if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 404);
 
-  const portal = extractPortal(res.data);
+  let contact = res.data;
+  let portal = extractPortal(contact);
+  let logoUrl = contactStringField(portal?.logoUrl) || '';
+
+  // Match client portal: best-effort logo fetch from website on first open.
+  if (!logoUrl) {
+    await enrichClientPortalBrand(uid);
+    const refreshed = await getContact(uid);
+    if (refreshed.ok) {
+      contact = refreshed.data;
+      portal = extractPortal(contact);
+      logoUrl = contactStringField(portal?.logoUrl) || '';
+    }
+  }
+
   const website =
     portal?.website?.trim() ||
     portalSiteUrl(portal) ||
-    websiteFromNotes(res.data.notes ?? '') ||
+    websiteFromNotes(contact.notes ?? '') ||
     '';
 
   return json({
     ok: true,
-    ...contactSummary(res.data),
-    firstName: contactStringField(res.data.firstName),
-    lastName: contactStringField(res.data.lastName),
-    notes: res.data.notes ?? '',
+    ...contactSummary(contact),
+    firstName: contactStringField(contact.firstName),
+    lastName: contactStringField(contact.lastName),
+    notes: contact.notes ?? '',
     website,
     address: contactStringField(portal?.address) || '',
     geo: portal?.geo ?? null,
-    logoUrl: contactStringField(portal?.logoUrl) || '',
-    archived: !!res.data.archived,
-    createdAt: res.data.createdAt ?? null,
+    logoUrl,
+    archived: !!contact.archived,
+    createdAt: contact.createdAt ?? null,
   });
 };
 
@@ -124,6 +151,8 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   const portalSaved = await saveClientPortalFields(uid, body, res.data);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
+  const logoUrl = await clientPortalLogoUrl(uid);
+
   return json({
     ok: true,
     ...contactSummary(res.data),
@@ -133,6 +162,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
+    logoUrl,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });
@@ -167,6 +197,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   const portalSaved = await saveClientPortalFields(uid, body, res.data);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
+  const logoUrl = await clientPortalLogoUrl(uid);
+
   return json({
     ok: true,
     ...contactSummary(res.data),
@@ -176,6 +208,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
+    logoUrl,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });

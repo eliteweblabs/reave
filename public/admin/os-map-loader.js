@@ -13193,6 +13193,39 @@ function clientDisplayLabel(draft) {
   return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
 }
 
+function appendClientLogo(titleWrap, logoUrl, altText) {
+  const url = (logoUrl || '').trim();
+  if (!url) return null;
+  const logo = document.createElement('img');
+  logo.className = 'cl-logo';
+  logo.src = url;
+  logo.alt = altText || 'Client logo';
+  logo.loading = 'lazy';
+  logo.decoding = 'async';
+  titleWrap.appendChild(logo);
+  return logo;
+}
+
+function syncClientLogoInHeader(logoUrl, altText) {
+  const titleWrap = getClientsEditor()?.querySelector('.cl-title-wrap');
+  if (!titleWrap) return;
+  const url = (logoUrl || '').trim();
+  let logo = titleWrap.querySelector('.cl-logo');
+  if (!url) {
+    logo?.remove();
+    return;
+  }
+  if (!logo) {
+    logo = appendClientLogo(titleWrap, url, altText);
+    if (logo && titleWrap.firstElementChild !== logo) {
+      titleWrap.insertBefore(logo, titleWrap.firstElementChild);
+    }
+    return;
+  }
+  if (logo.getAttribute('src') !== url) logo.setAttribute('src', url);
+  if (altText) logo.alt = altText;
+}
+
 function appendClientField(parent, label, input) {
   const wrap = document.createElement('label');
   wrap.className = 'de-label';
@@ -13437,6 +13470,7 @@ function renderEditClientForm(pane) {
         address: data.address || '',
         geo: data.geo || null,
         notes: contact.notes || '',
+        logoUrl: data.logoUrl || '',
         portal_url: contact.portal_url ?? data.portal_url,
         createdAt: contact.createdAt ?? data.createdAt,
         archived: contact.archived ?? data.archived,
@@ -13447,6 +13481,7 @@ function renderEditClientForm(pane) {
 
       const titleWrap = document.createElement('div');
       titleWrap.className = 'cl-title-wrap';
+      appendClientLogo(titleWrap, clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
       const titleField = document.createElement('div');
       titleField.className = 'cl-title-field';
       const companyInput = document.createElement('input');
@@ -13750,7 +13785,9 @@ async function autosaveClient(uid, payload) {
       address: data.address ?? payload.address,
       geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
       notes: payload.notes,
+      logoUrl: data.logoUrl || clientState.draft.logoUrl || '',
     });
+    syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
     clientPendingGeo = null;
     if (clientMapController) {
       const geo = clientState.draft.geo;
