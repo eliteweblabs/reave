@@ -46,6 +46,51 @@ const GENERIC_EMAIL_DOMAINS = new Set([
   'rogers.com',
 ]);
 
+/**
+ * Role/shared mailbox local-parts (admin@, info@, sales@…). These are not a
+ * person's name, so when we know the company we display that instead of a
+ * meaningless "Admin" contact.
+ */
+const GENERIC_MAILBOX_LOCALPARTS = new Set([
+  'admin',
+  'administrator',
+  'info',
+  'information',
+  'support',
+  'help',
+  'helpdesk',
+  'hello',
+  'hi',
+  'hey',
+  'contact',
+  'contactus',
+  'sales',
+  'office',
+  'team',
+  'billing',
+  'accounts',
+  'accounting',
+  'ar',
+  'ap',
+  'service',
+  'services',
+  'enquiries',
+  'enquiry',
+  'inquiries',
+  'inquiry',
+  'noreply',
+  'donotreply',
+  'mail',
+  'email',
+  'marketing',
+  'webmaster',
+  'postmaster',
+  'general',
+  'main',
+  'reception',
+  'orders',
+]);
+
 /** Common words smashed together in business domain labels (longest first). */
 const DOMAIN_WORD_SPLITS = [
   'fireprotection',
@@ -91,6 +136,30 @@ export function isGenericEmailDomain(domain: string): boolean {
     if (GENERIC_EMAIL_DOMAINS.has(base)) return true;
   }
   return false;
+}
+
+/**
+ * True when an address is a shared/role mailbox (admin@, info@, sales@…) rather
+ * than a specific person. Such addresses shouldn't be shown as a contact name.
+ */
+export function isGenericMailbox(email: string): boolean {
+  const local = email.split('@')[0]?.trim().toLowerCase() ?? '';
+  if (!local) return false;
+  if (GENERIC_MAILBOX_LOCALPARTS.has(local)) return true;
+  const normalized = local.replace(/[._+-]+/g, '');
+  return GENERIC_MAILBOX_LOCALPARTS.has(normalized);
+}
+
+/**
+ * The best human-facing name for an inbound contact: the sender's real name
+ * when we have one, otherwise the company (for role mailboxes like admin@),
+ * falling back to the derived display name.
+ */
+export function preferredContactName(extracted: ExtractedEmailContact): string {
+  if (extracted.company && isGenericMailbox(extracted.email)) {
+    return extracted.company;
+  }
+  return extracted.displayName;
 }
 
 function titleCaseWords(text: string): string {

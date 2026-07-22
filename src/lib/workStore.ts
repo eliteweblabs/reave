@@ -20,6 +20,7 @@ import { findContactByQuery } from './clientSearch';
 import { createContact, getContact, resolveContact } from './contactApi';
 import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
+import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
 import { serverEnv } from './serverEnv';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
@@ -359,18 +360,39 @@ export async function ensureWorkContact(opts: {
   contact_name?: string | null;
   client?: string | null;
   from?: string | null;
+  /** Raw email body — lets us pull the company from a signature block. */
+  bodyText?: string | null;
+  /** AI summary of the email — another company-name source. */
+  summary?: string | null;
 }): Promise<
-  { ok: true; uid: string; name: string; created: boolean } | { ok: false; error: string }
+  | { ok: true; uid: string; name: string; company: string | null; created: boolean }
+  | { ok: false; error: string }
 > {
   const existing = await resolveWorkContact({
     contact_uid: opts.contact_uid ?? undefined,
     contact_name: opts.contact_name ?? undefined,
     client: opts.client ?? undefined,
   });
-  if (existing.ok) return { ...existing, created: false };
+  if (existing.ok) return { ...existing, company: null, created: false };
 
   const from = opts.from?.trim() ?? '';
-  const email = from ? parseSenderEmail(from) : '';
+
+  // Rich extraction pulls the company from the sender's domain / signature and
+  // prefers the company name over role mailboxes (admin@, info@…). Falls back to
+  // the legacy local-part derivation when there's no From header.
+  const extracted = from
+    ? extractContactFromInboundEmail({
+        from,
+        bodyText: opts.bodyText ?? undefined,
+        summary: opts.summary ?? undefined,
+      })
+    : null;
+
+  const email = extracted?.email ?? (from ? parseSenderEmail(from) : '');
+  const derivedName = extracted
+    ? preferredContactName(extracted)
+    : deriveContactName(from, [opts.contact_name, opts.client]);
+  const company = extracted?.company ?? null;
 
   if (email.includes('@')) {
     const byEmail = await resolveContact({ email });
@@ -380,21 +402,22 @@ export async function ensureWorkContact(opts: {
         return {
           ok: true,
           uid: hit.uid,
-          name: hit.name || deriveContactName(from, [opts.contact_name, opts.client]),
+          name: hit.name || derivedName,
+          company,
           created: false,
         };
       }
     }
   }
 
-  const name = deriveContactName(from, [opts.contact_name, opts.client]);
   const created = await createContact({
-    name,
+    name: derivedName,
     email: email.includes('@') ? email : undefined,
+    company: company ?? undefined,
   });
   if (!created.ok) return { ok: false, error: created.error };
 
-  return { ok: true, uid: created.data.uid, name: created.data.name, created: true };
+  return { ok: true, uid: created.data.uid, name: created.data.name, company, created: true };
 }
 
 export function fileListWork(opts?: {

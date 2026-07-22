@@ -102,6 +102,8 @@ export async function tryAutoCreateProjectFromInboundEmail(input: {
     contact_uid: input.contactUid,
     contact_name: input.contactName,
     from: input.from,
+    bodyText: input.bodyText,
+    summary: input.summary,
   });
   if (!contact.ok) {
     return { ok: false, reason: 'contact_failed', error: contact.error };

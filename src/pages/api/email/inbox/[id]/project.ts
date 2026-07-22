@@ -133,6 +133,8 @@ export async function POST(context: APIContext): Promise<Response> {
       contact_name: (body.contact_name as string | undefined) ?? emailRecord.contactName,
       client: (body.client as string | undefined) ?? emailRecord.contactName,
       from: emailRecord.from,
+      bodyText: emailRecord.bodyText,
+      summary: emailRecord.summary,
     });
     if (!contact.ok) return json({ ok: false, error: contact.error }, 400);
 

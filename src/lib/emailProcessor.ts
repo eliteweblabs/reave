@@ -742,7 +742,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_created'
-        ? `New project: ${jobTitle ?? 'from email'}`
+        ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
         : automationKind === 'meeting_followup'
           ? 'Meeting follow-up'
           : automationKind === 'meeting_conflict'

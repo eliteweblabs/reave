@@ -114,6 +114,8 @@ export async function ensureProjectForMeetingEmail(input: {
     contact_uid: input.contactUid,
     contact_name: input.contactName,
     from: input.from,
+    bodyText: input.bodyText,
+    summary: input.summary,
   });
   if (!contact.ok) {
     return { ok: false, error: contact.error };
