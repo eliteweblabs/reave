@@ -3239,7 +3239,7 @@ function renderHomeDashboard(data) {
         : '') +
     `</div>`;
   eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
-    openScheduleTab();
+    openScheduleTab({ view: 'day', date: scheduleTodayKey() });
   });
   const eventsBody = document.createElement('div');
   eventsBody.className = 'dash-panel-body';
