@@ -133,8 +133,20 @@ interface ImportMetaEnv {
   UPTIMEROBOT_POLL_SECRET?: string;
   /** API poll interval in minutes (default 5). */
   UPTIMEROBOT_POLL_MINUTES?: string;
+  /**
+   * Minutes between automatic Kinsta/Railway → UptimeRobot discovery runs.
+   * Disabled by default (0/blank) because free-plan API creates always fail;
+   * only useful on a paid plan where /v2/newMonitor works.
+   */
+  UPTIMEROBOT_DISCOVER_MINUTES?: string;
   /** JSON map of UptimeRobot monitor id → contact-api client uid, e.g. {"798092635":"uuid"}. */
   UPTIMEROBOT_MONITOR_CLIENT_MAP?: string;
+  /**
+   * Notification email prefilled into the free-plan "quick-start" one-click links
+   * (https://uptimerobot.com/quick-start?url=…&email=…). Optional; if unset the
+   * owner types their email in the browser flow once per site.
+   */
+  UPTIMEROBOT_ALERT_EMAIL?: string;
   /** calcom-booking-api base URL — server-side (Railway internal or public). */
   BOOKING_API_URL?: string;
   /** Optional X-API-Key when calcom-booking-api has API_KEY set. */

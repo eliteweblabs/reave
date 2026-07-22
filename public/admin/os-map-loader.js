@@ -2244,12 +2244,13 @@ function ensureUptimePlatformSyncPolling() {
 }
 
 // Mirror of uptimeQuickStartUrl() in src/lib/uptimerobotClient.ts — used as a
-// fallback if the server payload predates the quickStartUrl field.
+// fallback if the server payload predates the quickStartUrl field. (The server
+// version also prefills &email= from UPTIMEROBOT_ALERT_EMAIL when configured.)
 function uptimeQuickStartUrlClient(rawUrl) {
   let url = String(rawUrl || '').trim();
-  if (!url) return 'https://uptimerobot.com/quick-start/';
+  if (!url) return 'https://uptimerobot.com/quick-monitor-setup/';
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-  return `https://uptimerobot.com/quick-start/?url=${encodeURIComponent(url)}`;
+  return `https://uptimerobot.com/quick-start?url=${encodeURIComponent(url)}`;
 }
 
 async function showUptimeSyncResultDialog(result) {

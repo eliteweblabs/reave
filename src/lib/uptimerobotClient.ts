@@ -365,15 +365,25 @@ export function normalizeUptimeMonitorUrl(raw: string): string {
   return url;
 }
 
+/** Notification email prefilled into quick-start links (see UPTIMEROBOT_ALERT_EMAIL). */
+export function uptimeAlertEmail(): string | null {
+  const raw = serverEnv('UPTIMEROBOT_ALERT_EMAIL')?.trim();
+  return raw && /.+@.+\..+/.test(raw) ? raw : null;
+}
+
 /**
  * Browser "quick-start" URL that lets a free-plan user add a monitor in one click.
- * UptimeRobot's free plan no longer accepts API creates (`/v2/newMonitor`), but this
- * page runs the proof-of-work challenge client-side, so opening it and following the
- * prompt (+ confirming the email UptimeRobot sends) creates the monitor for free.
+ * UptimeRobot's free plan no longer accepts API creates (`/v2/newMonitor`); this page
+ * (documented at uptimerobot.com/quick-monitor-setup) runs the proof-of-work challenge
+ * client-side and submits automatically, then the owner confirms via one email.
+ * Official format: https://uptimerobot.com/quick-start?url=…&email=…
  */
-export function uptimeQuickStartUrl(rawUrl: string): string {
+export function uptimeQuickStartUrl(rawUrl: string, email?: string | null): string {
   const url = normalizeUptimeMonitorUrl(rawUrl);
-  return `https://uptimerobot.com/quick-start/?url=${encodeURIComponent(url)}`;
+  const notifyEmail = email === undefined ? uptimeAlertEmail() : email;
+  const params = new URLSearchParams({ url });
+  if (notifyEmail && /.+@.+\..+/.test(notifyEmail)) params.set('email', notifyEmail);
+  return `https://uptimerobot.com/quick-start?${params.toString()}`;
 }
 
 export function defaultUptimeFriendlyName(url: string): string {
