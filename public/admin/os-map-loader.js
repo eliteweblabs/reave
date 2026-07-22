@@ -9808,10 +9808,8 @@ function createClientWorkCard(job) {
 
   card.appendChild(title);
   card.appendChild(meta);
-  card.addEventListener('click', async () => {
-    setActiveMap('work');
-    await loadWorkTab();
-    openWork(job.slug);
+  card.addEventListener('click', () => {
+    navigateToWork(job.slug);
   });
   return card;
 }
