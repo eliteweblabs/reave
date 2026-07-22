@@ -14911,9 +14911,11 @@ function showChatToast(message, nearEl) {
   toast.classList.add('ch-toast-visible');
   if (nearEl) {
     const r = nearEl.getBoundingClientRect();
+    toast.classList.add('ch-toast-anchored');
     toast.style.left = `${Math.min(window.innerWidth - 120, Math.max(12, r.left))}px`;
     toast.style.top = `${Math.max(12, r.top - 36)}px`;
   } else {
+    toast.classList.remove('ch-toast-anchored');
     toast.style.left = '';
     toast.style.top = '';
   }

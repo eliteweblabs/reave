@@ -3736,6 +3736,14 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         opacity: 1;
         transform: translateX(-50%) translateY(0);
       }
+      .ch-toast.ch-toast-anchored {
+        bottom: auto;
+        white-space: nowrap;
+        transform: translateY(0.5rem);
+      }
+      .ch-toast.ch-toast-anchored.ch-toast-visible {
+        transform: translateY(0);
+      }
       .ch-context-menu {
         position: fixed;
         z-index: 10000;
