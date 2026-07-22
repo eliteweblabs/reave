@@ -116,6 +116,33 @@ function richText(s: string): string {
   return linked.replace(/\n/g, '<br />');
 }
 
+function workFileUrlForPortal(url: string, contactUid: string, jobSlug: string): string {
+  const m = url.match(/\/api\/work\/([^/]+)\/files\/([^/?#]+)/);
+  if (!m || m[1] !== jobSlug) return url;
+  return `/api/c/${encodeURIComponent(contactUid)}/work/${encodeURIComponent(jobSlug)}/files/${encodeURIComponent(m[2])}`;
+}
+
+function workBodyHtml(body: string, contactUid: string, jobSlug: string): string {
+  const lines = body.split('\n');
+  const out: string[] = [];
+  const imgRe = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const m = trimmed.match(imgRe);
+    if (m) {
+      const src = workFileUrlForPortal(m[2], contactUid, jobSlug);
+      out.push(
+        `<img class="work-body-img" src="${escapeHtml(src)}" alt="${escapeHtml(m[1])}" loading="lazy" />`,
+      );
+    } else if (trimmed) {
+      out.push(richText(trimmed));
+    } else {
+      out.push('');
+    }
+  }
+  return out.join('<br />');
+}
+
 const displayName = contactStringField(contact?.name) || 'Client';
 const company = contactStringField(contact?.company);
 const logoUrl = contactStringField(portal?.logoUrl);
@@ -182,7 +209,7 @@ const portalWorkJobs: PortalWorkJobItem[] = clientJobs.map((job) => ({
   title: job.title,
   status: job.status,
   statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
-  bodyHtml: jobBodies[job.slug] ? richText(jobBodies[job.slug]) : '',
+  bodyHtml: jobBodies[job.slug] ? workBodyHtml(jobBodies[job.slug], uid, job.slug) : '',
 }));
 
 let clientUptimeMonitors: Awaited<ReturnType<typeof getClientUptimeView>>['monitors'] = [];

@@ -2134,6 +2134,53 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         word-break: break-word;
         tab-size: 2;
       }
+      #work-editor .wk-md-editor {
+        flex: none;
+        margin: 0;
+      }
+      #work-editor .wk-md-surface {
+        flex: none;
+        min-height: 12rem;
+        margin: 0;
+        font-family: inherit;
+        white-space: pre-wrap;
+        overflow-x: hidden;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        cursor: text;
+      }
+      #work-editor .wk-md-surface:empty::before {
+        content: attr(data-placeholder);
+        color: var(--fg-secondary);
+        opacity: 0.65;
+        white-space: pre-wrap;
+        pointer-events: none;
+      }
+      #work-editor .wk-md-surface.wk-md-uploading {
+        opacity: 0.85;
+      }
+      #work-editor .wk-md-surface.wk-md-dragover {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+      }
+      #work-editor .wk-md-line {
+        min-height: 1.45em;
+      }
+      #work-editor .wk-md-figure {
+        margin: 0.65rem 0;
+        line-height: 0;
+      }
+      #work-editor .wk-md-img {
+        display: block;
+        max-width: 100%;
+        max-height: 420px;
+        width: auto;
+        height: auto;
+        border-radius: var(--radius-input);
+        border: 1px solid var(--card-border);
+        background: var(--card);
+        object-fit: contain;
+      }
       #work-editor .re-form-scroll.wk-form-scroll .wk-comments-section {
         margin-top: 0.25rem;
         padding: 0.85rem 0 0;

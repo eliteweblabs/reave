@@ -10445,6 +10445,232 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   };
 }
 
+const WORK_BODY_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
+const WORK_BODY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+function showWorkEditorToast(message) {
+  if (typeof showChatToast === 'function') {
+    showChatToast(message);
+    return;
+  }
+  console.warn('[work]', message);
+}
+
+function workMarkdownToHtml(markdown) {
+  if (!markdown) return '';
+  const parts = [];
+  const imgRe = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
+  for (const line of String(markdown).split('\n')) {
+    const trimmed = line.trim();
+    const m = trimmed.match(imgRe);
+    if (m) {
+      parts.push(
+        `<figure class="wk-md-figure" contenteditable="false">` +
+          `<img class="wk-md-img" src="${escHtml(m[2])}" alt="${escHtml(m[1])}" loading="lazy" />` +
+          `</figure>`,
+      );
+    } else if (trimmed === '') {
+      parts.push('<div class="wk-md-line"><br></div>');
+    } else {
+      parts.push(`<div class="wk-md-line">${linkifyPlainText(trimmed)}</div>`);
+    }
+  }
+  return parts.join('');
+}
+
+function workHtmlToMarkdown(root) {
+  const lines = [];
+  for (const node of root.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = node.textContent.replace(/\u00a0/g, ' ').trimEnd();
+      if (t) lines.push(t);
+      continue;
+    }
+    if (!(node instanceof HTMLElement)) continue;
+    if (node.classList.contains('wk-md-figure') || node.tagName === 'FIGURE') {
+      const img = node.querySelector('img');
+      if (img?.getAttribute('src')) {
+        const alt = img.getAttribute('alt') || '';
+        lines.push(`![${alt}](${img.getAttribute('src')})`);
+      }
+      continue;
+    }
+    if (node.tagName === 'IMG') {
+      const src = node.getAttribute('src');
+      if (src) lines.push(`![](${src})`);
+      continue;
+    }
+    if (node.tagName === 'BR') {
+      lines.push('');
+      continue;
+    }
+    const text = node.innerText.replace(/\u00a0/g, ' ').replace(/\n+$/, '');
+    lines.push(text);
+  }
+  return lines.join('\n');
+}
+
+function insertWorkBodyImage(surface, url, alt) {
+  const img = document.createElement('img');
+  img.className = 'wk-md-img';
+  img.src = url;
+  img.alt = alt || 'Image';
+  img.loading = 'lazy';
+  const figure = document.createElement('figure');
+  figure.className = 'wk-md-figure';
+  figure.contentEditable = 'false';
+  figure.appendChild(img);
+
+  surface.focus();
+  const sel = window.getSelection();
+  if (!sel?.rangeCount || !surface.contains(sel.anchorNode)) {
+    surface.appendChild(figure);
+    surface.appendChild(document.createElement('br'));
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  range.insertNode(figure);
+  const spacer = document.createElement('br');
+  figure.after(spacer);
+  range.setStartAfter(spacer);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+async function uploadWorkBodyImage(slug, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`/api/work/${encodeURIComponent(slug)}/files`, {
+    method: 'POST',
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.file;
+}
+
+/**
+ * Notes-style body editor: contenteditable surface synced to markdown (with ![](url) images).
+ */
+function createWorkBodyEditor(opts = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-md-editor';
+
+  const surface = document.createElement('div');
+  surface.className = 'wk-md-surface de-textarea';
+  surface.contentEditable = 'true';
+  surface.spellcheck = false;
+  surface.setAttribute('role', 'textbox');
+  surface.setAttribute('aria-multiline', 'true');
+  if (opts.placeholder) surface.dataset.placeholder = opts.placeholder;
+
+  const ta = document.createElement('textarea');
+  ta.className = 'wk-md-source';
+  ta.hidden = true;
+  ta.tabIndex = -1;
+  ta.value = opts.value || '';
+  surface.innerHTML = workMarkdownToHtml(ta.value);
+
+  let uploading = 0;
+
+  function syncMarkdown() {
+    ta.value = workHtmlToMarkdown(surface);
+    opts.onInput?.();
+  }
+
+  async function ingestImageFile(file) {
+    if (!file?.type?.startsWith('image/')) return;
+    if (!WORK_BODY_IMAGE_TYPES.has(file.type)) {
+      showWorkEditorToast('Use JPEG, PNG, GIF, or WebP images.');
+      return;
+    }
+    if (file.size > WORK_BODY_IMAGE_MAX_BYTES) {
+      showWorkEditorToast('Image too large (max 10 MB).');
+      return;
+    }
+
+    let slug = opts.slug || null;
+    if (!slug && opts.ensureSlug) slug = await opts.ensureSlug();
+    if (!slug) {
+      showWorkEditorToast('Add a title and client before pasting images.');
+      return;
+    }
+
+    uploading += 1;
+    surface.classList.add('wk-md-uploading');
+    try {
+      const uploaded = await uploadWorkBodyImage(slug, file);
+      insertWorkBodyImage(surface, uploaded.url, uploaded.filename || 'Image');
+      syncMarkdown();
+      opts.onImageUploaded?.(uploaded);
+    } catch (e) {
+      showWorkEditorToast(e.message || 'Image upload failed');
+    } finally {
+      uploading -= 1;
+      if (uploading <= 0) {
+        uploading = 0;
+        surface.classList.remove('wk-md-uploading');
+      }
+    }
+  }
+
+  surface.addEventListener('input', syncMarkdown);
+
+  surface.addEventListener('paste', (e) => {
+    const items = e.clipboardData?.items;
+    if (!items?.length) return;
+    const imageFiles = [];
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) imageFiles.push(f);
+      }
+    }
+    if (!imageFiles.length) return;
+    e.preventDefault();
+    void (async () => {
+      for (const file of imageFiles) await ingestImageFile(file);
+    })();
+  });
+
+  surface.addEventListener('dragover', (e) => {
+    if ([...e.dataTransfer?.types || []].includes('Files')) {
+      e.preventDefault();
+      surface.classList.add('wk-md-dragover');
+    }
+  });
+  surface.addEventListener('dragleave', () => surface.classList.remove('wk-md-dragover'));
+  surface.addEventListener('drop', (e) => {
+    surface.classList.remove('wk-md-dragover');
+    const files = [...e.dataTransfer?.files || []].filter((f) => f.type.startsWith('image/'));
+    if (!files.length) return;
+    e.preventDefault();
+    void (async () => {
+      for (const file of files) await ingestImageFile(file);
+    })();
+  });
+
+  wrap.appendChild(surface);
+  wrap.appendChild(ta);
+
+  return {
+    wrap,
+    el: surface,
+    ta,
+    getValue: () => {
+      ta.value = workHtmlToMarkdown(surface);
+      return ta.value;
+    },
+    setValue: (markdown) => {
+      ta.value = markdown || '';
+      surface.innerHTML = workMarkdownToHtml(ta.value);
+    },
+    focus: () => surface.focus(),
+  };
+}
+
 function createWorkFormScroll(pane) {
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll wk-form-scroll';
@@ -10488,12 +10714,7 @@ function renderNewWorkForm(pane) {
   const fields = document.createElement('div');
   fields.className = 'de-fields';
 
-  const ta = document.createElement('textarea');
-  ta.className = 'de-textarea';
-  ta.spellcheck = false;
-  ta.placeholder = '# Job details\n\nScope, notes, links…';
-  ta.value = workState.draft?.body || '';
-
+  let bodyEditor;
   let clientPicker;
   let metaFields;
   let statusPill;
@@ -10510,7 +10731,7 @@ function renderNewWorkForm(pane) {
       String(meta.value ?? '') !== String(workState.draft?.value ?? '') ||
       meta.tags.join(', ') !== (Array.isArray(workState.draft?.tags) ? workState.draft.tags.join(', ') : (workState.draft?.tags || '')) ||
       meta.source !== (workState.draft?.source || '') ||
-      ta.value !== (workState.draft?.body || '');
+      bodyEditor.getValue() !== (workState.draft?.body || '');
   };
   const getWorkPayload = () => {
     const client = clientPicker.getPayload();
@@ -10520,7 +10741,7 @@ function renderNewWorkForm(pane) {
       ...client,
       status: statusPill.getValue(),
       ...metaFields.getPayload(),
-      body: ta.value,
+      body: bodyEditor.getValue(),
     };
   };
   const queueWorkAutosave = (el) => {
@@ -10535,6 +10756,17 @@ function renderNewWorkForm(pane) {
     workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
     return autosaveWorkQuiet(payloadFn, workActiveEl);
   };
+
+  bodyEditor = createWorkBodyEditor({
+    value: workState.draft?.body || '',
+    placeholder: 'Scope, notes, links…\n\nPaste or drop images here.',
+    ensureSlug: async () => {
+      await flushWorkField();
+      return workState.activeSlug !== '__new__' ? workState.activeSlug : null;
+    },
+    onInput: () => queueWorkAutosave(bodyEditor.el),
+  });
+  bodyEditor.el.addEventListener('blur', () => { workActiveEl = bodyEditor.el; void flushWorkField(); });
 
   clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl));
 
@@ -10562,15 +10794,12 @@ function renderNewWorkForm(pane) {
 
   metaFields = appendWorkMetaFields(fields, workState.draft, queueWorkAutosave);
 
-  ta.addEventListener('input', () => queueWorkAutosave(ta));
-  ta.addEventListener('blur', () => { workActiveEl = ta; void flushWorkField(); });
-
   for (const el of fields.querySelectorAll('.de-input')) {
     el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
   }
 
   scroll.appendChild(fields);
-  scroll.appendChild(ta);
+  scroll.appendChild(bodyEditor.wrap);
 
   clearEditorFooterSave();
   getWorkEditor()?.classList.add('de-pane-active');
@@ -10790,11 +11019,7 @@ function renderEditWorkForm(pane) {
       const fields = document.createElement('div');
       fields.className = 'de-fields';
 
-      const ta = document.createElement('textarea');
-      ta.className = 'de-textarea';
-      ta.spellcheck = false;
-      ta.value = workState.draft.body;
-
+      let bodyEditor;
       let clientPicker;
       let metaFields;
       let statusPill;
@@ -10811,7 +11036,7 @@ function renderEditWorkForm(pane) {
           String(meta.value ?? '') !== String(workState.draft.value ?? '') ||
           meta.tags.join(', ') !== (Array.isArray(workState.draft.tags) ? workState.draft.tags.join(', ') : '') ||
           meta.source !== (workState.draft.source || '') ||
-          ta.value !== workState.draft.body;
+          bodyEditor.getValue() !== workState.draft.body;
       };
       const getWorkPayload = () => {
         const client = clientPicker.getPayload();
@@ -10821,7 +11046,7 @@ function renderEditWorkForm(pane) {
           ...client,
           status: statusPill.getValue(),
           ...metaFields.getPayload(),
-          body: ta.value,
+          body: bodyEditor.getValue(),
         };
       };
       const queueWorkAutosave = (el) => {
@@ -10857,21 +11082,26 @@ function renderEditWorkForm(pane) {
         slug,
         get title() { return titleInput.value.trim() || workState.draft.title; },
         get clientName() { return clientPicker.getPayload()?.contact_name || workState.draft.contact_name; },
-        getBody: () => ta.value,
+        getBody: () => bodyEditor.getValue(),
         setBody: (v) => {
-          ta.value = v;
+          bodyEditor.setValue(v);
           workState.draft.body = v;
-          queueWorkAutosave(ta);
+          queueWorkAutosave(bodyEditor.el);
         },
       };
+      bodyEditor = createWorkBodyEditor({
+        value: workState.draft.body,
+        slug,
+        placeholder: 'Scope, notes, links…\n\nPaste or drop images here.',
+        onInput: () => {
+          queueWorkAutosave(bodyEditor.el);
+          renderWorkChecklistPanel(checklistMount, checklistOpts);
+        },
+      });
 
       titleInput.addEventListener('input', () => queueWorkAutosave(titleInput));
       titleInput.addEventListener('blur', () => { workActiveEl = titleInput; void flushWorkField(); });
-      ta.addEventListener('input', () => {
-        queueWorkAutosave(ta);
-        renderWorkChecklistPanel(checklistMount, checklistOpts);
-      });
-      ta.addEventListener('blur', () => { workActiveEl = ta; void flushWorkField(); });
+      bodyEditor.el.addEventListener('blur', () => { workActiveEl = bodyEditor.el; void flushWorkField(); });
 
       for (const el of fields.querySelectorAll('.de-input')) {
         el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
@@ -10879,7 +11109,7 @@ function renderEditWorkForm(pane) {
 
       scroll.appendChild(fields);
       scroll.appendChild(checklistMount);
-      scroll.appendChild(ta);
+      scroll.appendChild(bodyEditor.wrap);
       renderWorkChecklistPanel(checklistMount, checklistOpts);
       mountWorkCommentsSection(scroll, slug);
       mountWorkFilesSection(scroll, slug, data.files);
