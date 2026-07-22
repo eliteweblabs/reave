@@ -639,7 +639,8 @@ export const workModule: AgentToolModule = {
                   },
                   body: {
                     type: 'string',
-                    description: 'Optional markdown notes (scope, request details, links). Omit for a blank stub.',
+                    description:
+                      'Markdown project notes. For website/inquiry audits: call read_knowledge slug "inquiry-website-audit" first — run site audit tools, then write a full body (Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, Action Items; 1,500+ chars). Do not create short prospect stubs.',
                   },
                   status: {
                     type: 'string',

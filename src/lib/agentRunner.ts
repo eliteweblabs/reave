@@ -419,6 +419,7 @@ async function runKnowledgeAgentInner(
   if (hasFeature('site_audits')) {
     sysParts.push(
       'Website review: use fetch_url to read a client site (content, title, meta description). Use lighthouse_audit for PageSpeed/Lighthouse scores (performance, accessibility, SEO). Use ssl_check for certificate expiry, TLS, and security headers. Use check_links for broken links and redirects. Use dns_check for DNS, SPF/DKIM/DMARC, and WHOIS. For a full client audit, combine these tools. Call them yourself when the user asks to review, audit, or check a URL or domain; do not ask them to paste page content.',
+      'Inquiry projects from website/prospect audits: call read_knowledge slug "inquiry-website-audit" before create_work or update_work. Run the full tool sequence (fetch_url, lighthouse_audit, ssl_check, check_links, dns_check, brave_search for GBP/social) and write a 1,500+ char body with Performance, SEO, Accessibility, SSL, Broken Links, Content, DNS, Online Presence, and Action Items — never a short prospect stub. If a stub project exists, update_work with the full audit. Reference read_work slug "website-redesign-the-barber-s-edge" for depth.',
     );
   }
 

@@ -112,6 +112,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['uptime-monitoring'];
     case 'code-dev':
       return ['code-dev-tools'];
+    case 'siteAudits':
+      return ['inquiry-website-audit'];
     default:
       return [];
   }
