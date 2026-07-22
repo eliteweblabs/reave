@@ -3,7 +3,13 @@
  * fuzzy-match on name/email/phone (not company, notes, website, phone suffix).
  */
 import { websiteFromNotes } from './clientBrand';
-import { getContact, listContacts, resolveContact, type ContactRecord } from './contactApi';
+import {
+  contactIsPersonal,
+  getContact,
+  listContacts,
+  resolveContact,
+  type ContactRecord,
+} from './contactApi';
 
 /** Strip a leading "the " for alphabetical client list ordering. */
 export function clientNameSortKey(name: string): string {
@@ -29,6 +35,24 @@ export function compareClientsForList(
   b: { name: string; company?: string | null },
 ): number {
   return compareClientNames(clientListDisplayName(a), clientListDisplayName(b));
+}
+
+export type ClientKindFilter = 'all' | 'work' | 'personal';
+
+/** Filter contacts by work vs personal (life/services) list. */
+export function filterClientsByKind<T extends ContactRecord>(
+  contacts: T[],
+  kind: ClientKindFilter = 'all',
+): T[] {
+  if (kind === 'work') return contacts.filter((c) => !contactIsPersonal(c));
+  if (kind === 'personal') return contacts.filter((c) => contactIsPersonal(c));
+  return contacts;
+}
+
+export function parseClientKindFilter(raw: string | null | undefined): ClientKindFilter {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (v === 'work' || v === 'personal') return v;
+  return 'all';
 }
 
 /** Split "Reggie / Solid Builders" → ["Reggie / Solid Builders", "Solid Builders", "Reggie"]. */
@@ -168,7 +192,7 @@ export async function findClientStrictForSiri(
   if (!result.ok) return result;
 
   const matches = result.data.contacts.filter(
-    (c) => !c.archived && contactMatchesSiriQuery(c, q),
+    (c) => !c.archived && !contactIsPersonal(c) && contactMatchesSiriQuery(c, q),
   );
   if (matches.length === 0) return { ok: true, found: false };
   if (matches.length === 1) {
@@ -200,6 +224,7 @@ function rankContacts(contacts: ScoredContact[]): ScoredContact[] {
 export async function searchClientsEnhanced(
   q: string,
   limit = 20,
+  opts?: { kind?: ClientKindFilter },
 ): Promise<
   | { ok: true; data: { total: number; contacts: ScoredContact[] } }
   | { ok: false; error: string; status?: number }
@@ -243,7 +268,10 @@ export async function searchClientsEnhanced(
     }
   }
 
-  const contacts = rankContacts([...byUid.values()]).slice(0, limit);
+  const contacts = filterClientsByKind(rankContacts([...byUid.values()]), opts?.kind ?? 'all').slice(
+    0,
+    limit,
+  );
   return { ok: true, data: { total: contacts.length, contacts } };
 }
 
@@ -265,6 +293,7 @@ export async function resolveContactEnhanced(input: {
   name?: string;
   email?: string;
   phone?: string;
+  kind?: ClientKindFilter;
 }): Promise<ResolveEnhancedResult> {
   const name = input.name?.trim() || '';
   const email = input.email?.trim() || undefined;
@@ -283,24 +312,29 @@ export async function resolveContactEnhanced(input: {
   const apiCandidates = (payload.candidates as Array<ContactRecord & { score?: number }>) ?? [];
 
   if ((match === 'exact' || match === 'likely') && contact?.uid) {
+    if (input.kind === 'work' && contactIsPersonal(contact)) {
+      return { ok: true, match: 'none', candidates: [] };
+    }
     return {
       ok: true,
       match: match as 'exact' | 'likely',
       contact,
-      candidates: apiCandidates,
+      candidates: filterClientsByKind(apiCandidates, input.kind ?? 'all'),
       score: typeof payload.score === 'number' ? payload.score : undefined,
     };
   }
 
   if (match === 'possible' && apiCandidates.length) {
-    return { ok: true, match: 'possible', candidates: apiCandidates };
+    const candidates = filterClientsByKind(apiCandidates, input.kind ?? 'all');
+    if (!candidates.length) return { ok: true, match: 'none', candidates: [] };
+    return { ok: true, match: 'possible', candidates };
   }
 
   if (!name) {
     return { ok: true, match: 'none', candidates: [] };
   }
 
-  const enhancedSearch = await searchClientsEnhanced(name, 8);
+  const enhancedSearch = await searchClientsEnhanced(name, 8, { kind: input.kind ?? 'all' });
   if (!enhancedSearch.ok) {
     return { ok: false, error: enhancedSearch.error, status: enhancedSearch.status };
   }
@@ -396,6 +430,7 @@ export async function resolveWorkClientDecision(input: {
     const resolved = await resolveContactEnhanced({
       name: query,
       phone: phoneDigits(query).length >= 4 ? query : undefined,
+      kind: 'work',
     });
     if (!resolved.ok) continue;
 
@@ -414,7 +449,7 @@ export async function resolveWorkClientDecision(input: {
       mergedCandidates.push(c as ScoredContact);
     }
 
-    const searched = await searchClientsEnhanced(query, 8);
+    const searched = await searchClientsEnhanced(query, 8, { kind: 'work' });
     if (searched.ok) {
       for (const c of searched.data.contacts) {
         if (seenUids.has(c.uid)) continue;

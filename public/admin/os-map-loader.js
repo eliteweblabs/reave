@@ -10016,6 +10016,7 @@ function startNewClient() {
     company: '',
     website: '',
     notes: '',
+    personal: false,
   };
   getClientsEditor()?.classList.add('de-pane-active');
   renderClientsEditor();
@@ -10387,7 +10388,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const res = await fetch('/api/clients/resolve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: name.trim(), kind: 'work' }),
     });
     const data = await res.json();
     if (!res.ok) return null;
@@ -10423,7 +10424,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   }
 
   async function fetchClients(q) {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ kind: 'work' });
     if (q?.trim()) params.set('q', q.trim());
     params.set('limit', '20');
     const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
@@ -12994,6 +12995,7 @@ let clientState = {
   clients: [],
   total: 0,
   search: '',
+  contactFilter: 'work',
   activeUid: null,
   dirty: false,
   draft: null,
@@ -13142,6 +13144,61 @@ function clientListSubline(c) {
   return c.email || c.phone || `${c.uid.slice(0, 8)}…`;
 }
 
+function filterClientsForSidebar(clients) {
+  const f = clientState.contactFilter;
+  if (f === 'personal') return clients.filter((c) => c.personal);
+  if (f === 'work') return clients.filter((c) => !c.personal);
+  return clients;
+}
+
+function clientFilterCounts(clients) {
+  const work = clients.filter((c) => !c.personal).length;
+  const personal = clients.filter((c) => c.personal).length;
+  return { all: clients.length, work, personal };
+}
+
+function renderClientFilterTabs() {
+  const counts = clientFilterCounts(clientState.clients);
+  const nav = document.createElement('div');
+  nav.className = 'em-filter-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Client list filters');
+
+  const tabs = [
+    { id: 'work', label: 'Work', count: counts.work },
+    { id: 'personal', label: 'Personal', count: counts.personal },
+    { id: 'all', label: 'All', count: counts.all },
+  ];
+
+  for (const tab of tabs) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = clientState.contactFilter === tab.id;
+    btn.className = 'em-filter-tab' + (isActive ? ' active' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
+    btn.addEventListener('click', () => {
+      if (clientState.contactFilter === tab.id) return;
+      clientState.contactFilter = tab.id;
+      const visible = filterClientsForSidebar(clientState.clients);
+      if (clientState.activeUid && !visible.some((c) => c.uid === clientState.activeUid)) {
+        clientState.activeUid = null;
+        clientState.draft = null;
+        clientState.autosaveGetPayload = null;
+        getClientsEditor()?.classList.remove('de-pane-active');
+      }
+      renderClientsEditor();
+    });
+    nav.appendChild(btn);
+  }
+
+  requestAnimationFrame(() => {
+    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  return nav;
+}
+
 async function fetchClientsList() {
   const params = new URLSearchParams();
   if (clientState.search.trim()) params.set('q', clientState.search.trim());
@@ -13188,14 +13245,25 @@ function scheduleClientSearch() {
 
 function fillClientsSidebarList(list) {
   const { clients } = clientState;
+  const visible = filterClientsForSidebar(clients);
   list.innerHTML = '';
-  for (const c of clients) {
+  for (const c of visible) {
     list.appendChild(createClientSwipeRow(c));
   }
-  if (clients.length === 0) {
+  if (visible.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = clientState.search.trim() ? 'No matches.' : 'No clients yet.';
+    const filterLabel =
+      clientState.contactFilter === 'personal'
+        ? 'No personal contacts yet.'
+        : clientState.contactFilter === 'work'
+          ? 'No work clients yet.'
+          : clientState.search.trim()
+            ? 'No matches.'
+            : 'No clients yet.';
+    empty.textContent = clientState.search.trim() && clientState.contactFilter === 'all'
+      ? 'No matches.'
+      : filterLabel;
     list.appendChild(empty);
   }
 }
@@ -13209,9 +13277,9 @@ function refreshClientsSidebarList() {
   }
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
-    const total = clientState.total;
-    const clientLabel = total === 1 ? 'Client' : 'Clients';
-    searchInput.placeholder = `Search ${total} ${clientLabel}`;
+    const visible = filterClientsForSidebar(clientState.clients);
+    const clientLabel = visible.length === 1 ? 'Client' : 'Clients';
+    searchInput.placeholder = `Search ${visible.length} ${clientLabel}`;
   }
   fillClientsSidebarList(list);
 }
@@ -13220,23 +13288,25 @@ function renderClientsEditor() {
   const root = getClientsEditor();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
-  const { clients, activeUid, total } = clientState;
+  const { clients, activeUid } = clientState;
+  const visibleCount = filterClientsForSidebar(clients).length;
   root.innerHTML = '';
 
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
-  const clientLabel = total === 1 ? 'Client' : 'Clients';
+  const clientLabel = visibleCount === 1 ? 'Client' : 'Clients';
   const subheader = listSearchSubheader({
-    itemCount: total,
+    itemCount: visibleCount,
     search: {
       value: clientState.search,
-      placeholder: `Search ${total} ${clientLabel}`,
+      placeholder: `Search ${visibleCount} ${clientLabel}`,
       onInput: (value) => {
         clientState.search = value;
         scheduleClientSearch();
       },
     },
+    below: renderClientFilterTabs(),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -13334,6 +13404,36 @@ function appendClientField(parent, label, input) {
   wrap.textContent = label;
   wrap.appendChild(input);
   parent.appendChild(wrap);
+}
+
+function mountClientPersonalToggle(parent, initial, onChange) {
+  const row = document.createElement('div');
+  row.className = 'cl-personal-row';
+  const switchLabel = document.createElement('label');
+  switchLabel.className = 'nl-switch cl-personal-switch';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.checked = !!initial;
+  input.setAttribute('aria-label', 'Personal contact');
+  const track = document.createElement('span');
+  track.className = 'nl-switch-track';
+  switchLabel.appendChild(input);
+  switchLabel.appendChild(track);
+  const text = document.createElement('div');
+  text.className = 'cl-personal-text';
+  const title = document.createElement('div');
+  title.className = 'cl-personal-title';
+  title.textContent = 'Personal contact';
+  const desc = document.createElement('div');
+  desc.className = 'cl-personal-desc';
+  desc.textContent = 'Services and people you won\u2019t create projects for.';
+  text.appendChild(title);
+  text.appendChild(desc);
+  row.appendChild(switchLabel);
+  row.appendChild(text);
+  parent.appendChild(row);
+  input.addEventListener('change', () => onChange(input.checked));
+  return input;
 }
 
 async function geocodeClientAddressPreview(address) {
@@ -13761,6 +13861,9 @@ function renderNewClientForm(pane) {
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
 
+  let personalInput = null;
+  personalInput = mountClientPersonalToggle(fields, clientState.draft?.personal, () => {});
+
   mountClientBrandingSection(fields, null, clientState.draft, { disabled: true });
 
   const notesLabel = document.createElement('label');
@@ -13790,6 +13893,7 @@ function renderNewClientForm(pane) {
       company: companyInput.value.trim(),
       website: websiteInput.value.trim(),
       notes: notesTa.value.trim(),
+      personal: personalInput.checked,
     });
   });
   getClientsEditor()?.classList.add('de-pane-active');
@@ -13817,6 +13921,7 @@ function renderEditClientForm(pane) {
         address: data.address || '',
         geo: data.geo || null,
         notes: contact.notes || '',
+        personal: !!(data.personal ?? contact.personal),
         logoUrl: data.logoUrl || '',
         iconUrl: data.iconUrl || '',
         logoSource: data.logoSource,
@@ -13849,7 +13954,9 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
-      const shareBtn = createPortalShareBtn(uid, {
+      const shareBtn = clientState.draft.personal
+        ? null
+        : createPortalShareBtn(uid, {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
         recipient: {
           contactUid: uid,
@@ -13920,6 +14027,12 @@ function renderEditClientForm(pane) {
       const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
+      const personalInput = mountClientPersonalToggle(
+        fields,
+        clientState.draft.personal,
+        () => {},
+      );
+
       const brandingWrap = mountClientBrandingSection(fields, uid, clientState.draft, {
         getWebsite: () => websiteInput.value,
         onUpdate: (patch) => {
@@ -13978,6 +14091,7 @@ function renderEditClientForm(pane) {
           website: websiteInput.value.trim(),
           address: addressInput.value.trim(),
           notes: notesTa.value.trim(),
+          personal: personalInput.checked,
         };
         if (clientPendingGeo) payload.geo = clientPendingGeo;
         return payload;
@@ -13993,12 +14107,14 @@ function renderEditClientForm(pane) {
           phoneToStorage(phoneInput.value) !== clientState.draft.phone ||
           websiteInput.value !== clientState.draft.website ||
           addressInput.value !== clientState.draft.address ||
-          notesTa.value !== clientState.draft.notes;
+          notesTa.value !== clientState.draft.notes ||
+          personalInput.checked !== !!clientState.draft.personal;
       };
       const queueAutosave = () => {
         markDirty();
         scheduleClientAutosave(uid, getPayload);
       };
+      personalInput.addEventListener('change', queueAutosave);
       const saveNow = async () => {
         markDirty();
         await autosaveClient(uid, getPayload());
@@ -14111,6 +14227,7 @@ async function autosaveClient(uid, payload) {
   }
   const draft = clientState.draft;
   if (!draft) return false;
+  const wasPersonal = !!draft.personal;
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -14118,7 +14235,8 @@ async function autosaveClient(uid, payload) {
     payload.company === draft.company &&
     payload.website === draft.website &&
     payload.address === draft.address &&
-    payload.notes === draft.notes;
+    payload.notes === draft.notes &&
+    !!payload.personal === !!draft.personal;
   if (unchanged) {
     clientState.dirty = false;
     return true;
@@ -14152,6 +14270,7 @@ async function autosaveClient(uid, payload) {
       address: data.address ?? payload.address,
       geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
       notes: payload.notes,
+      personal: !!payload.personal,
       logoUrl: data.logoUrl || clientState.draft.logoUrl || '',
       iconUrl: data.iconUrl || clientState.draft.iconUrl || '',
       logoSource: data.logoSource ?? clientState.draft.logoSource,
@@ -14174,8 +14293,15 @@ async function autosaveClient(uid, payload) {
       c.email = payload.email;
       c.phone = payload.phone;
       c.company = payload.company;
+      c.personal = !!payload.personal;
     }
     syncClientListRow(uid);
+    if (wasPersonal !== !!payload.personal) {
+      refreshClientsSidebarList();
+      const root = getClientsEditor();
+      const tabs = root?.querySelector('.em-filter-tabs');
+      if (tabs) tabs.replaceWith(renderClientFilterTabs());
+    }
     if (clientActiveField) flashFormFieldSaved(clientActiveField);
     return true;
   } catch (e) {
@@ -17217,6 +17343,7 @@ function createClientListItem(c) {
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(clientListTitle(c))}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(clientListSubline(c))}</span>` +
+    (c.personal ? '<span class="cl-personal-tag">Personal</span>' : '') +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
     `</span></span>`;
   item.addEventListener('click', () => openClient(c.uid));

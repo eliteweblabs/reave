@@ -14,7 +14,7 @@ import { isEmailSendConfigured, sendEmail } from './outbound';
 import { getCompanyConfig } from './companyConfig';
 import { siteBaseUrl } from './requestOrigin';
 import type { ContactRecord } from './contactApi';
-import { getContact } from './contactApi';
+import { contactIsPersonal, getContact } from './contactApi';
 import { storeListWork } from './workStore';
 import {
   automationsForTrigger,
@@ -119,6 +119,7 @@ async function enqueueForTrigger(
 /** Fire when a brand-new contact is created (welcome + follow-up). */
 export async function onContactCreated(contact: ContactRecord): Promise<void> {
   if (!isNewsletterEnabled()) return;
+  if (contactIsPersonal(contact)) return;
   const email = (contact.email || '').trim();
   if (!email.includes('@')) return;
   if (await isUnsubscribed(email)) return;

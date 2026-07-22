@@ -4,12 +4,18 @@
  */
 
 import type { APIContext } from 'astro';
-import { compareClientsForList, searchClientsEnhanced } from '../../../lib/clientSearch';
+import {
+  compareClientsForList,
+  filterClientsByKind,
+  parseClientKindFilter,
+  searchClientsEnhanced,
+} from '../../../lib/clientSearch';
 import {
   contactSummary,
   createContact,
   isContactApiConfigured,
   listContacts,
+  setContactPersonal,
 } from '../../../lib/contactApi';
 export const prerender = false;
 
@@ -29,24 +35,25 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const url = new URL(context.request.url);
   const q = url.searchParams.get('q')?.trim() || undefined;
+  const kind = parseClientKindFilter(url.searchParams.get('kind'));
   const limitRaw = Number(url.searchParams.get('limit') ?? 200);
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 200;
 
   if (!q) {
     const result = await listContacts({ limit });
     if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-    const clients = result.data.contacts
-      .filter((c) => !c.archived)
-      .map(contactSummary)
-      .sort(compareClientsForList);
+    const clients = filterClientsByKind(
+      result.data.contacts.filter((c) => !c.archived).map(contactSummary),
+      kind,
+    ).sort(compareClientsForList);
     return json({
       ok: true,
-      total: result.data.total,
+      total: clients.length,
       clients,
     });
   }
 
-  const result = await searchClientsEnhanced(q, limit);
+  const result = await searchClientsEnhanced(q, limit, { kind });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
   const clients = result.data.contacts
@@ -90,10 +97,25 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
-  // Fire the welcome/follow-up automations (non-blocking).
-  void import('../../../lib/newsletterEngine')
-    .then((m) => m.onContactCreated(result.data))
-    .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
+  if (body.personal === true) {
+    const flagged = await setContactPersonal(result.data.uid, true);
+    if (!flagged.ok) return json({ ok: false, error: flagged.error }, 502);
+  }
 
-  return json({ ok: true, ...contactSummary(result.data), notes: result.data.notes ?? '' }, 201);
+  // Fire the welcome/follow-up automations (non-blocking; skip personal contacts).
+  if (body.personal !== true) {
+    void import('../../../lib/newsletterEngine')
+      .then((m) => m.onContactCreated(result.data))
+      .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
+  }
+
+  return json(
+    {
+      ok: true,
+      ...contactSummary(result.data),
+      personal: body.personal === true,
+      notes: result.data.notes ?? '',
+    },
+    201,
+  );
 }

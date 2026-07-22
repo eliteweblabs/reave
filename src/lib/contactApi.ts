@@ -268,10 +268,17 @@ export type ClientPortal = {
   documents?: PortalDocument[];
   /** ChangeDetection.io watch metadata (when site_monitoring feature is enabled). */
   siteMonitoring?: SiteMonitoringMeta;
+  /** Life/service contact — not a client you build projects for. */
+  personal?: boolean;
   updatedAt?: string;
 };
 
 const PORTAL_SYSTEM = 'portal';
+
+/** True when marked personal (services, friends, etc. — not project clients). */
+export function contactIsPersonal(contact: ContactRecord): boolean {
+  return extractPortal(contact)?.personal === true;
+}
 
 /** Summary shape for list views — no notes or full metadata. */
 export function contactSummary(c: ContactRecord) {
@@ -282,9 +289,30 @@ export function contactSummary(c: ContactRecord) {
     phone: contactStringField(c.phone),
     company: contactStringField(c.company),
     archived: !!c.archived,
+    personal: contactIsPersonal(c),
     updatedAt: c.updatedAt ?? c.createdAt ?? '',
-    ...(hasFeature('client_portal') ? { portal_url: clientPortalUrl(c.uid) } : {}),
+    ...(hasFeature('client_portal') && !contactIsPersonal(c)
+      ? { portal_url: clientPortalUrl(c.uid) }
+      : {}),
   };
+}
+
+/** Persist the personal/work flag on portal metadata (no contact-api schema change). */
+export async function setContactPersonal(
+  uid: string,
+  personal: boolean,
+): Promise<{ ok: true; personal: boolean } | { ok: false; error: string }> {
+  const res = await getContact(uid);
+  if (!res.ok) return { ok: false, error: res.error };
+
+  const portal = extractPortal(res.data) ?? {};
+  const saved = await setContactPortal(uid, {
+    ...portal,
+    personal,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!saved.ok) return { ok: false, error: saved.error };
+  return { ok: true, personal };
 }
 
 /** Fetch a single contact (with aliases + links) by uid. */

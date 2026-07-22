@@ -5,7 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { contactSummary, isContactApiConfigured } from '../../../lib/contactApi';
-import { resolveContactEnhanced } from '../../../lib/clientSearch';
+import { parseClientKindFilter, resolveContactEnhanced } from '../../../lib/clientSearch';
 
 export const prerender = false;
 
@@ -33,8 +33,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const name = String(body.name ?? '').trim() || undefined;
   const email = String(body.email ?? '').trim() || undefined;
   const phone = String(body.phone ?? '').trim() || undefined;
+  const kind = parseClientKindFilter(typeof body.kind === 'string' ? body.kind : undefined);
 
-  const result = await resolveContactEnhanced({ name, email, phone });
+  const result = await resolveContactEnhanced({ name, email, phone, kind });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
   return json({

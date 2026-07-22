@@ -2,9 +2,11 @@ import type { APIRoute } from 'astro';
 import {
   contactStringField,
   contactSummary,
+  contactIsPersonal,
   extractPortal,
   getContact,
   isContactApiConfigured,
+  setContactPersonal,
   updateContact,
   type ContactRecord,
 } from '../../../lib/contactApi';
@@ -36,6 +38,11 @@ async function saveClientPortalFields(
   body: Record<string, unknown>,
   contactData: ContactRecord,
 ) {
+  if (typeof body.personal === 'boolean') {
+    const saved = await setContactPersonal(uid, body.personal);
+    if (!saved.ok) return { ok: false as const, error: saved.error };
+  }
+
   let website = '';
   if (typeof body.website === 'string') {
     const saved = await setClientPortalWebsite(uid, body.website);
@@ -124,6 +131,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     firstName: contactStringField(contact.firstName),
     lastName: contactStringField(contact.lastName),
     notes: contact.notes ?? '',
+    personal: contactIsPersonal(contact),
     website,
     address: contactStringField(portal?.address) || '',
     geo: portal?.geo ?? null,
@@ -173,6 +181,8 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     firstName: contactStringField(res.data.firstName),
     lastName: contactStringField(res.data.lastName),
     notes: res.data.notes ?? '',
+    personal:
+      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(res.data),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
@@ -222,6 +232,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     firstName: contactStringField(res.data.firstName),
     lastName: contactStringField(res.data.lastName),
     notes: res.data.notes ?? '',
+    personal:
+      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(res.data),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
