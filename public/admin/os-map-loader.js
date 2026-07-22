@@ -5427,6 +5427,7 @@ function collapseFooterNav() {
   syncFooterClientsNav();
   syncFooterChatInlineHome();
   syncFooterNavCountTooltips();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -5444,6 +5445,7 @@ function expandFooterNav() {
   syncFooterClientsNav();
   syncFooterChatInlineHome();
   syncFooterNavCountTooltips();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -5870,6 +5872,7 @@ function syncFooterNav() {
   syncFooterTodoNav();
   syncFooterClientsNav();
   syncFooterNavCountTooltips();
+  renderFooterNavBadges();
   scheduleFooterNavIndicatorSync();
 }
 
@@ -6175,7 +6178,28 @@ function syncFooterNavCountTooltips() {
 
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
-  window.ReviewBadge?.sync(reviewsPendingCount);
+  renderFooterNavBadges();
+}
+
+function renderFooterNavBadges() {
+  const badge = document.getElementById('footer-home-badge');
+  const btn = document.getElementById('footer-nav-home');
+  if (!badge || !btn) return;
+
+  const n = reviewsPendingCount;
+  if (n > 0) {
+    badge.hidden = false;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    const hint = `${n} review${n === 1 ? '' : 's'} pending`;
+    btn.setAttribute(
+      'aria-label',
+      footerNavCollapsed ? `Show navigation (${hint})` : `Home (${hint})`,
+    );
+  } else {
+    badge.hidden = true;
+    badge.textContent = '0';
+    btn.setAttribute('aria-label', footerNavCollapsed ? 'Show navigation' : 'Home');
+  }
 }
 
 function syncDashboardFooterBadges(stats) {
@@ -13119,7 +13143,7 @@ function renderClientFilterTabs() {
   nav.setAttribute('aria-label', 'Client list filters');
 
   const tabs = [
-    { id: 'work', label: 'Work', count: counts.work },
+    { id: 'work', label: 'Projects', count: counts.work },
     { id: 'personal', label: 'Personal', count: counts.personal },
     { id: 'all', label: 'All', count: counts.all },
   ];
@@ -13211,7 +13235,7 @@ function fillClientsSidebarList(list) {
       clientState.contactFilter === 'personal'
         ? 'No personal contacts yet.'
         : clientState.contactFilter === 'work'
-          ? 'No work clients yet.'
+          ? 'No clients yet.'
           : clientState.search.trim()
             ? 'No matches.'
             : 'No clients yet.';

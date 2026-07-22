@@ -23,6 +23,14 @@
     const { badge, toggle, adminEntry } = targets();
     if (!badge) return;
 
+    if (onAdminShell()) {
+      badge.hidden = true;
+      badge.textContent = '0';
+      if (toggle) toggle.setAttribute('aria-label', defaultAriaLabel(toggle));
+      if (adminEntry) adminEntry.setAttribute('aria-label', defaultAriaLabel(adminEntry));
+      return;
+    }
+
     if (count > 0) {
       badge.hidden = false;
       badge.textContent = count > 99 ? '99+' : String(count);

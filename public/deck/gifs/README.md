@@ -12,7 +12,7 @@ Finger movement is not shown — screen recording only.
 | `voice.gif` | phone-hand | Voice & call routing |
 | `clients.gif` | laptop | Clients |
 | `inbox.gif` | laptop | Inbox |
-| `work.gif` | laptop | Work |
+| `work.gif` | laptop | Projects |
 | `documents.gif` | laptop | Documents |
 | `knowledge.gif` | laptop | Knowledge |
 | `monitoring.gif` | laptop | Monitoring |

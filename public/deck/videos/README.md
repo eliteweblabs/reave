@@ -12,7 +12,7 @@ with horizontal or vertical overflow.
 | `voice.mp4` | Voice & call routing |
 | `clients.mp4` | Clients |
 | `inbox.mp4` | Inbox |
-| `work.mp4` | Work |
+| `work.mp4` | Projects |
 | `documents.mp4` | Documents |
 | `knowledge.mp4` | Knowledge |
 | `monitoring.mp4` | Monitoring |
