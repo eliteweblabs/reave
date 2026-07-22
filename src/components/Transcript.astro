@@ -28,37 +28,40 @@
     min-height: 20px; /* Ensure container has minimum height */
   }
 
-  .transcript-line {
+  /* Responsive */
+  @media (max-width: 768px) {
+    .transcript-container {
+      top: 65%; /* Adjust for mobile */
+      width: 95%;
+    }
+  }
+</style>
+
+<!--
+  Lines are created in JS (document.createElement), so Astro's scoped-style
+  attribute never lands on them. Keep these rules global under #transcript-container.
+-->
+<style is:global>
+  #transcript-container .transcript-line {
     font-size: 14px;
     line-height: 1.4;
-    color: #ffffff !important; /* Force white text */
+    color: #fff;
     padding: 4px 12px;
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.6) !important; /* Darker background for better contrast */
+    background: rgba(0, 0, 0, 0.6);
     backdrop-filter: blur(4px);
     max-width: 100%;
     word-wrap: break-word;
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.5s ease-out, transform 0.5s ease-out;
-    animation: slideUpFade 3s ease-out forwards, streaming 2s ease-in-out infinite;
+    animation: transcriptSlideUpFade 3s ease-out forwards, transcriptStreaming 2s ease-in-out infinite;
     overflow: hidden;
     position: relative;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); /* Add text shadow for better visibility */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   }
 
-  /* Streaming/flowing text effect */
-  @keyframes streaming {
-    0%, 100% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-  }
-
-  /* Add a subtle shimmer effect for streaming */
-  .transcript-line::before {
+  #transcript-container .transcript-line::before {
     content: "";
     position: absolute;
     top: 0;
@@ -71,10 +74,25 @@
       rgba(255, 255, 255, 0.1),
       transparent
     );
-    animation: shimmer 2s ease-in-out infinite;
+    animation: transcriptShimmer 2s ease-in-out infinite;
   }
 
-  @keyframes shimmer {
+  #transcript-container .transcript-line.user,
+  #transcript-container .transcript-line.assistant {
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  @keyframes transcriptStreaming {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  @keyframes transcriptShimmer {
     0% {
       left: -100%;
     }
@@ -83,17 +101,7 @@
     }
   }
 
-  .transcript-line.user {
-    color: #ffffff !important; /* Force white text */
-    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
-  }
-
-  .transcript-line.assistant {
-    color: #ffffff !important; /* Force white text */
-    background: rgba(0, 0, 0, 0.6) !important; /* Ensure background is visible */
-  }
-
-  @keyframes slideUpFade {
+  @keyframes transcriptSlideUpFade {
     0% {
       opacity: 1;
       transform: translateY(0);
@@ -108,14 +116,8 @@
     }
   }
 
-  /* Responsive */
   @media (max-width: 768px) {
-    .transcript-container {
-      top: 65%; /* Adjust for mobile */
-      width: 95%;
-    }
-
-    .transcript-line {
+    #transcript-container .transcript-line {
       font-size: 12px;
       padding: 3px 10px;
     }
