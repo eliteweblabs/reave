@@ -348,6 +348,75 @@
   opacity: 0.75;
 }
 
+.aui-composer-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.aui-composer-attachment {
+  position: relative;
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
+}
+
+.aui-composer-attachment-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.55rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-hover);
+}
+
+.aui-composer-attachment-remove {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.aui-composer-attachment-remove:hover {
+  color: var(--fg);
+  background: var(--surface-hover-strong);
+}
+
+.aui-composer-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.aui-composer-attach:hover,
+.aui-composer-attach:focus-visible {
+  color: var(--fg);
+  background: var(--surface-hover);
+  outline: none;
+}
+
 .aui-composer-toolbar {
   display: flex;
   align-items: center;

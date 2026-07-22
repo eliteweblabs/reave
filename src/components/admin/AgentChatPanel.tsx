@@ -1,9 +1,11 @@
 import type { CSSProperties, FocusEvent, KeyboardEvent, RefObject } from 'react';
 import {
   AssistantRuntimeProvider,
+  AttachmentPrimitive,
   AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
+  SimpleImageAttachmentAdapter,
   ThreadPrimitive,
   useComposerRuntime,
   useLocalRuntime,
@@ -676,6 +678,31 @@ function SendIcon() {
   );
 }
 
+function AttachIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M16.5 6.5v9.25a4.25 4.25 0 1 1-8.5 0V7.75a2.75 2.75 0 1 1 5.5 0v8.5a1.25 1.25 0 1 1-2.5 0V8h-1.5v8.25a2.75 2.75 0 1 0 5.5 0V7.75a4.25 4.25 0 1 0-8.5 0v8.25a5.75 5.75 0 1 0 11.5 0V6.5h-1.5Z"
+      />
+    </svg>
+  );
+}
+
+function ComposerAttachmentPreview() {
+  return (
+    <div className="aui-composer-attachment">
+      <AttachmentPrimitive.unstable_Thumb className="aui-composer-attachment-thumb" />
+      <AttachmentPrimitive.Remove
+        className="aui-composer-attachment-remove"
+        aria-label="Remove attachment"
+      >
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
+}
+
 function ClaudeComposer({
   propsRef,
   commands,
@@ -751,6 +778,11 @@ function ClaudeComposer({
         />
       ) : null}
       <ComposerPrimitive.Root className="aui-composer-card">
+        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+          <div className="aui-composer-attachments">
+            <ComposerPrimitive.Attachments components={{ Image: ComposerAttachmentPreview }} />
+          </div>
+        </AuiIf>
         <ComposerPrimitive.Input
           ref={helpers.inputRef}
           className="aui-input"
@@ -760,13 +792,21 @@ function ClaudeComposer({
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
+          addAttachmentOnPaste
           onFocus={helpers.onFocus}
           onBlur={helpers.onBlur}
           onInput={(e) => helpers.onInput(e.currentTarget.value)}
           onKeyDown={helpers.onKeyDown}
         />
         <div className="aui-composer-toolbar">
-          <span className="aui-composer-hint">Type / for commands</span>
+          <ComposerPrimitive.AddAttachment
+            className="aui-composer-attach"
+            aria-label="Attach image"
+            multiple
+          >
+            <AttachIcon />
+          </ComposerPrimitive.AddAttachment>
+          <span className="aui-composer-hint">Type / for commands · paste images</span>
           <ComposerPrimitive.Send
             className="aui-composer-send"
             aria-label="Send message"
@@ -1032,8 +1072,11 @@ function AgentChatThread({
     [threadId, propsRef],
   );
 
+  const imageAttachmentAdapter = useMemo(() => new SimpleImageAttachmentAdapter(), []);
+
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
+    adapters: { attachments: imageAttachmentAdapter },
   });
 
   return (
