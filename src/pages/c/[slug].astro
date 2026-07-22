@@ -177,6 +177,10 @@ const showClientContact = Boolean(company && displayName !== company && displayN
 
 const updatedAt = fmtDate(portal?.updatedAt);
 
+const footBeanSvg =
+  '<svg class="foot-bean-icon" viewBox="0 0 10 14" aria-hidden="true" focusable="false"><path d="M5 1.2C2.4 1.2.8 3.8.8 7s1.6 5.8 4.2 5.8S9.2 10.2 9.2 7 7.6 1.2 5 1.2Z" fill="currentColor"/><path d="M5 2.8c0 2.8-.2 5.6-.2 8.4" fill="none" stroke="currentColor" stroke-width=".8" stroke-linecap="round" opacity=".45"/></svg>';
+const bakedInBostonHtml = `Baked in B<span class="foot-bean">${footBeanSvg}</span>st<span class="foot-bean">${footBeanSvg}</span>n`;
+
 const CLIENT_WORK_STATUS: Record<string, string> = {
   inquiry: 'Submitted',
   active: 'In progress',
@@ -340,6 +344,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
           <footer class="foot">
             <span class="brand">{poweredBy}</span>
+            <span class="foot-tag" aria-label="Baked in Boston" set:html={bakedInBostonHtml} />
           </footer>
         </main>
       ) : (
@@ -353,6 +358,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             ) : (
               <h1>{brandTitle}</h1>
             )}
+            {updatedAt && <p class="hero-updated">Updated {updatedAt}</p>}
           </header>
 
           {providerTelHref && (
@@ -589,8 +595,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           )}
 
           <footer class="foot">
-            {updatedAt && <span>Updated {updatedAt}</span>}
             <span class="brand">{poweredBy}</span>
+            <span class="foot-tag" aria-label="Baked in Boston" set:html={bakedInBostonHtml} />
           </footer>
         </main>
       )
@@ -748,6 +754,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .logo { font-weight: 700; letter-spacing: 2px; font-size: 18px; color: rgba(255, 255, 255, 0.55); }
       .hero { text-align: center; margin-bottom: 24px; }
       .hero h1 { margin: 18px 0 4px; font-size: 30px; font-weight: 700; line-height: 1.15; }
+      .hero-updated {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.35);
+      }
       .client-logo {
         display: block;
         max-width: min(200px, 70vw);
@@ -969,6 +980,17 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font-size: 12px; color: rgba(255, 255, 255, 0.35);
       }
       .brand { letter-spacing: 0.5px; }
+      .foot-tag { letter-spacing: 0.02em; }
+      .foot-tag :global(.foot-bean) {
+        display: inline-block;
+        vertical-align: -0.1em;
+        margin: 0 0.03em;
+      }
+      .foot-tag :global(.foot-bean-icon) {
+        display: block;
+        width: 0.72em;
+        height: 1em;
+      }
 
       .empty { display: flex; min-height: 80vh; align-items: center; justify-content: center; text-align: center; }
       .empty .card h1 { font-size: 22px; margin: 18px 0 10px; }
