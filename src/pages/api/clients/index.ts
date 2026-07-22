@@ -4,15 +4,13 @@
  */
 
 import type { APIContext } from 'astro';
-import { searchClientsEnhanced } from '../../../lib/clientSearch';
+import { compareClientsForList, searchClientsEnhanced } from '../../../lib/clientSearch';
 import {
   contactSummary,
   createContact,
   isContactApiConfigured,
   listContacts,
 } from '../../../lib/contactApi';
-import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
-
 export const prerender = false;
 
 function json(body: unknown, status = 200): Response {
@@ -37,18 +35,14 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!q) {
     const result = await listContacts({ limit });
     if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-    const clients = result.data.contacts.filter((c) => !c.archived).map(contactSummary);
-    const orderMap = await storeGetSidebarOrder('clients');
-    const sorted = sortBySidebarOrder(
-      clients,
-      orderMap,
-      (c) => c.uid,
-      (a, b) => a.name.localeCompare(b.name),
-    );
+    const clients = result.data.contacts
+      .filter((c) => !c.archived)
+      .map(contactSummary)
+      .sort(compareClientsForList);
     return json({
       ok: true,
       total: result.data.total,
-      clients: sorted,
+      clients,
     });
   }
 

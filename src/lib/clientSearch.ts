@@ -5,6 +5,32 @@
 import { websiteFromNotes } from './clientBrand';
 import { getContact, listContacts, resolveContact, type ContactRecord } from './contactApi';
 
+/** Strip a leading "the " for alphabetical client list ordering. */
+export function clientNameSortKey(name: string): string {
+  return name.trim().replace(/^the\s+/i, '');
+}
+
+export function compareClientNames(a: string, b: string): number {
+  return clientNameSortKey(a).localeCompare(clientNameSortKey(b), undefined, {
+    sensitivity: 'base',
+  });
+}
+
+/** Title shown in the clients sidebar — company first, then contact name. */
+export function clientListDisplayName(input: {
+  name: string;
+  company?: string | null;
+}): string {
+  return (input.company || '').trim() || (input.name || '').trim() || 'Client';
+}
+
+export function compareClientsForList(
+  a: { name: string; company?: string | null },
+  b: { name: string; company?: string | null },
+): number {
+  return compareClientNames(clientListDisplayName(a), clientListDisplayName(b));
+}
+
 /** Split "Reggie / Solid Builders" → ["Reggie / Solid Builders", "Solid Builders", "Reggie"]. */
 export function extractClientSearchTerms(raw: string): string[] {
   const trimmed = raw.trim();

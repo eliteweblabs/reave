@@ -8205,23 +8205,6 @@ async function persistKnowledgeOrder(slugs) {
   }
 }
 
-async function persistClientOrder(uids) {
-  try {
-    const res = await fetch('/api/clients/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uids }),
-    });
-    const data = await readApiJson(res);
-    clientState.clients = data.clients || clientState.clients;
-    clientState.total = data.total ?? clientState.clients.length;
-    refreshClientsSidebarList();
-  } catch (e) {
-    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
-    refreshClientsSidebarList();
-  }
-}
-
 async function markTodoDone(id) {
   try {
     const res = await fetch(`/api/todos/${id}`, {
@@ -13100,8 +13083,6 @@ function fillClientsSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = clientState.search.trim() ? 'No matches.' : 'No clients yet.';
     list.appendChild(empty);
-  } else if (!clientState.search.trim()) {
-    attachSidebarListReorder(list, clients.map((c) => c.uid), persistClientOrder);
   }
 }
 
@@ -17060,7 +17041,6 @@ function createClientListItem(c) {
   item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
   item.dataset.id = c.uid;
   item.innerHTML =
-    SIDEBAR_LIST_GRIP +
     `<span class="ch-list-content">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(clientListTitle(c))}</span></span>` +
     `<span class="wk-meta-row">` +
