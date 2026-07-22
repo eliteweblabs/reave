@@ -15621,6 +15621,29 @@ function formatChatDate(iso) {
 async function loadChatsTab(opts = {}) {
   const root = getChatPanel();
   if (!root) return;
+
+  // Fix #1: when returning to the Chats tab and the live React chat tree is
+  // already mounted for the current thread, keep it instead of tearing it down.
+  // Rebuilding the panel unmounts React, which aborts any in-flight streaming
+  // agent run (the SSE fetch) — making chats appear to "die" on tab switch.
+  // Only preserve when we aren't deep-linking to a different chat and there's
+  // no pending draft/auto-send that needs a fresh mount to deliver.
+  const mountedThreadRoot = root.querySelector('#ch-thread-root');
+  const pendingDeepLink = pendingChatDeepLinkId || parseChatDeepLinkFromUrl();
+  const canPreserveMounted =
+    mountedThreadRoot &&
+    chatState.activeId &&
+    !chatState.pendingDraft &&
+    !chatState.pendingAutoSend &&
+    (!pendingDeepLink || pendingDeepLink === chatState.activeId);
+  if (canPreserveMounted) {
+    pendingChatDeepLinkId = null;
+    root.classList.add('ch-pane-active');
+    syncChatSidebarActiveState({ scroll: true });
+    void refreshChatsListQuiet();
+    return;
+  }
+
   unmountChatThreadRoot(root);
   const keepSession = opts.keepSession === true && chatState.activeId;
   const savedActiveId = keepSession ? chatState.activeId : null;

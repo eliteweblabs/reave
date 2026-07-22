@@ -88,25 +88,28 @@ function wantsEventStream(context: APIContext, body: Record<string, unknown>): b
   return accept.includes('text/event-stream');
 }
 
-async function persistAgentReply(
+/**
+ * Persist the user's message immediately (before the agent runs) so that an
+ * interrupted turn — tab close, navigation away from /admin, or a dropped
+ * network connection — still leaves a durable record instead of vanishing.
+ * The assistant reply is appended separately once the run completes.
+ */
+async function persistUserMessage(
   userId: string,
   id: string,
   thread: NonNullable<Awaited<ReturnType<typeof storeGetChatThread>>>,
   message: string,
   images: ChatImageAttachment[],
   userContent: string,
-  reply: string,
   isFirstMessage: boolean,
 ): Promise<{
   title: string;
   userMessage: { role: 'user'; content: string };
-  assistantMessage: { role: 'assistant'; content: string };
 }> {
   const saved = await storeAppendChatMessages(userId, id, [
     { role: 'user', content: userContent },
-    { role: 'assistant', content: reply },
   ]);
-  if (!saved) throw new Error('Failed to save messages');
+  if (!saved) throw new Error('Failed to save message');
 
   let title = thread.title;
   if (isFirstMessage || title === 'New chat') {
@@ -117,6 +120,20 @@ async function persistAgentReply(
   return {
     title,
     userMessage: { role: 'user', content: userContent },
+  };
+}
+
+async function persistAssistantReply(
+  userId: string,
+  id: string,
+  reply: string,
+): Promise<{ assistantMessage: { role: 'assistant'; content: string } }> {
+  const saved = await storeAppendChatMessages(userId, id, [
+    { role: 'assistant', content: reply },
+  ]);
+  if (!saved) throw new Error('Failed to save reply');
+
+  return {
     assistantMessage: { role: 'assistant', content: reply },
   };
 }
@@ -179,6 +196,28 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
 
+  // Save the user's message before running the agent so an interrupted turn
+  // still leaves a record. `thread.messages` (the snapshot used for priorTurns)
+  // is intentionally left untouched so the new message isn't double-counted.
+  let title = thread.title;
+  let userMessage = { role: 'user' as const, content: userContent };
+  try {
+    const persistedUser = await persistUserMessage(
+      userId,
+      id,
+      thread,
+      message,
+      images,
+      userContent,
+      isFirstMessage,
+    );
+    title = persistedUser.title;
+    userMessage = persistedUser.userMessage;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to save message';
+    return json({ ok: false, error: msg }, 500);
+  }
+
   clearAgentProgress(userId, id);
   setAgentProgress(userId, id, { phase: 'thinking', round: 0 });
 
@@ -222,21 +261,12 @@ export async function POST(context: APIContext): Promise<Response> {
           }
         }
 
-        const persisted = await persistAgentReply(
-          userId,
-          id,
-          thread,
-          message,
-          images,
-          userContent,
-          reply,
-          isFirstMessage,
-        );
+        const persisted = await persistAssistantReply(userId, id, reply);
         emit({
           type: 'done',
           ok: true,
-          title: persisted.title,
-          userMessage: persisted.userMessage,
+          title,
+          userMessage,
           assistantMessage: persisted.assistantMessage,
         });
       } catch (err) {
@@ -269,22 +299,9 @@ export async function POST(context: APIContext): Promise<Response> {
     clearAgentRun(userId, id);
   }
 
-  let title = thread.title;
-  let userMessage = { role: 'user' as const, content: userContent };
   let assistantMessage = { role: 'assistant' as const, content: reply };
   try {
-    const persisted = await persistAgentReply(
-      userId,
-      id,
-      thread,
-      message,
-      images,
-      userContent,
-      reply,
-      isFirstMessage,
-    );
-    title = persisted.title;
-    userMessage = persisted.userMessage;
+    const persisted = await persistAssistantReply(userId, id, reply);
     assistantMessage = persisted.assistantMessage;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to save messages';
