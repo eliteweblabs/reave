@@ -13341,6 +13341,184 @@ function mountClientWebsiteField(parent, value) {
   return input;
 }
 
+function clientBrandingPreviewUrl(url) {
+  const v = (url || '').trim();
+  if (!v) return '';
+  return v;
+}
+
+function mountClientBrandingSection(parent, uid, draft, opts = {}) {
+  const disabled = !uid || !!opts.disabled;
+  const onUpdate = typeof opts.onUpdate === 'function' ? opts.onUpdate : () => {};
+
+  const wrap = document.createElement('div');
+  wrap.className = 'de-label cl-branding-label';
+  wrap.textContent = 'Branding';
+
+  const uploads = document.createElement('div');
+  uploads.className = 'prof-branding-uploads cl-branding-uploads';
+
+  const logoUrl = clientBrandingPreviewUrl(draft?.logoUrl);
+  const iconUrl = clientBrandingPreviewUrl(draft?.iconUrl);
+  const hasLogo = !!logoUrl;
+  const hasIcon = !!iconUrl;
+
+  uploads.innerHTML =
+    `<div class="prof-branding-upload-item">` +
+      `<label for="cl-logo-file">Logo</label>` +
+      `<div class="prof-logo-upload">` +
+        `<div id="cl-logo-preview-wrap" class="prof-logo-preview-wrap"${hasLogo ? '' : ' hidden'}>` +
+          `<img id="cl-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
+          `<button type="button" id="cl-logo-remove" class="prof-logo-remove" aria-label="Remove logo"${hasLogo ? '' : ' hidden'}>×</button>` +
+        `</div>` +
+        `<div id="cl-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo && !disabled ? ' hidden' : ''}>` +
+          `<input id="cl-logo-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
+        `</div>` +
+      `</div>` +
+    `</div>` +
+    `<div class="prof-branding-upload-item">` +
+      `<label for="cl-icon-file">Icon</label>` +
+      `<div class="prof-logo-upload">` +
+        `<div id="cl-icon-preview-wrap" class="prof-logo-preview-wrap"${hasIcon ? '' : ' hidden'}>` +
+          `<img id="cl-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
+          `<button type="button" id="cl-icon-remove" class="prof-logo-remove" aria-label="Remove icon"${hasIcon ? '' : ' hidden'}>×</button>` +
+        `</div>` +
+        `<div id="cl-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon && !disabled ? ' hidden' : ''}>` +
+          `<input id="cl-icon-file" type="file" accept="image/png,image/jpeg,image/webp"${disabled ? ' disabled' : ''} />` +
+        `</div>` +
+      `</div>` +
+    `</div>`;
+
+  const hint = document.createElement('span');
+  hint.className = 'prof-hint prof-hint--block cl-branding-hint';
+  hint.textContent = disabled
+    ? 'Save the client first to upload logo and icon.'
+    : 'Logo: client portal header. Icon: install icon and favicons. PNG, JPEG, or WebP — max 2 MB each. Website logos are fetched automatically when a site URL is set.';
+
+  wrap.appendChild(uploads);
+  wrap.appendChild(hint);
+  parent.appendChild(wrap);
+
+  if (disabled || !uid) return wrap;
+
+  bindClientBrandingUploads(wrap, uid, onUpdate);
+  return wrap;
+}
+
+function bindClientBrandingUploads(root, uid, onUpdate) {
+  const logoFile = root.querySelector('#cl-logo-file');
+  const logoFileWrap = root.querySelector('#cl-logo-file-wrap');
+  const logoPreviewWrap = root.querySelector('#cl-logo-preview-wrap');
+  const logoPreview = root.querySelector('#cl-logo-preview');
+  const logoRemove = root.querySelector('#cl-logo-remove');
+
+  const iconFile = root.querySelector('#cl-icon-file');
+  const iconFileWrap = root.querySelector('#cl-icon-file-wrap');
+  const iconPreviewWrap = root.querySelector('#cl-icon-preview-wrap');
+  const iconPreview = root.querySelector('#cl-icon-preview');
+  const iconRemove = root.querySelector('#cl-icon-remove');
+
+  const refreshLogo = (logoUrl, logoSource) => {
+    const url = clientBrandingPreviewUrl(logoUrl);
+    const has = !!url;
+    if (logoPreview instanceof HTMLImageElement) logoPreview.src = url;
+    logoPreviewWrap?.toggleAttribute('hidden', !has);
+    logoFileWrap?.toggleAttribute('hidden', has);
+    logoRemove?.toggleAttribute('hidden', !has);
+  };
+
+  const refreshIcon = (iconUrl, iconSource) => {
+    const url = clientBrandingPreviewUrl(iconUrl);
+    const has = !!url;
+    if (iconPreview instanceof HTMLImageElement) iconPreview.src = url;
+    iconPreviewWrap?.toggleAttribute('hidden', !has);
+    iconFileWrap?.toggleAttribute('hidden', has);
+    iconRemove?.toggleAttribute('hidden', !has);
+  };
+
+  logoFile?.addEventListener('change', async () => {
+    if (!(logoFile instanceof HTMLInputElement) || !logoFile.files?.length) return;
+    const fd = new FormData();
+    fd.append('logo', logoFile.files[0]);
+    logoFile.disabled = true;
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/logo`, { method: 'POST', body: fd });
+      const json = await res.json();
+      if (res.ok && json.logoUrl) {
+        refreshLogo(json.logoUrl, 'upload');
+        onUpdate({ logoUrl: json.logoUrl, logoSource: 'upload' });
+      } else {
+        alert(json.error || 'Logo upload failed.');
+      }
+    } catch {
+      alert('Network error — please try again.');
+    } finally {
+      logoFile.value = '';
+      logoFile.disabled = false;
+    }
+  });
+
+  logoRemove?.addEventListener('click', async () => {
+    if (!(logoRemove instanceof HTMLButtonElement)) return;
+    logoRemove.disabled = true;
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/logo`, { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok) {
+        refreshLogo(json.logoUrl || '', undefined);
+        onUpdate({ logoUrl: json.logoUrl || '', logoSource: undefined });
+      } else {
+        alert(json.error || 'Could not remove logo.');
+      }
+    } catch {
+      alert('Network error — please try again.');
+    } finally {
+      logoRemove.disabled = false;
+    }
+  });
+
+  iconFile?.addEventListener('change', async () => {
+    if (!(iconFile instanceof HTMLInputElement) || !iconFile.files?.length) return;
+    const fd = new FormData();
+    fd.append('icon', iconFile.files[0]);
+    iconFile.disabled = true;
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/icon`, { method: 'POST', body: fd });
+      const json = await res.json();
+      if (res.ok && json.iconUrl) {
+        refreshIcon(json.iconUrl, 'upload');
+        onUpdate({ iconUrl: json.iconUrl, iconSource: 'upload' });
+      } else {
+        alert(json.error || 'Icon upload failed.');
+      }
+    } catch {
+      alert('Network error — please try again.');
+    } finally {
+      iconFile.value = '';
+      iconFile.disabled = false;
+    }
+  });
+
+  iconRemove?.addEventListener('click', async () => {
+    if (!(iconRemove instanceof HTMLButtonElement)) return;
+    iconRemove.disabled = true;
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(uid)}/icon`, { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok) {
+        refreshIcon(json.iconUrl || '', undefined);
+        onUpdate({ iconUrl: json.iconUrl || '', iconSource: undefined });
+      } else {
+        alert(json.error || 'Could not remove icon.');
+      }
+    } catch {
+      alert('Network error — please try again.');
+    } finally {
+      iconRemove.disabled = false;
+    }
+  });
+}
+
 function renderNewClientForm(pane) {
   clearClientFieldRegistry();
   pane.innerHTML = '';
@@ -13416,6 +13594,8 @@ function renderNewClientForm(pane) {
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
 
+  mountClientBrandingSection(fields, null, clientState.draft, { disabled: true });
+
   const notesLabel = document.createElement('label');
   notesLabel.className = 'de-label cl-notes-label';
   notesLabel.textContent = 'Notes (internal)';
@@ -13471,6 +13651,9 @@ function renderEditClientForm(pane) {
         geo: data.geo || null,
         notes: contact.notes || '',
         logoUrl: data.logoUrl || '',
+        iconUrl: data.iconUrl || '',
+        logoSource: data.logoSource,
+        iconSource: data.iconSource,
         portal_url: contact.portal_url ?? data.portal_url,
         createdAt: contact.createdAt ?? data.createdAt,
         archived: contact.archived ?? data.archived,
@@ -13568,6 +13751,13 @@ function renderEditClientForm(pane) {
 
       const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
+
+      mountClientBrandingSection(fields, uid, clientState.draft, {
+        onUpdate: (patch) => {
+          Object.assign(clientState.draft, patch);
+          syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
+        },
+      });
 
       const addressInput = mountClientAddressField(fields, clientState.draft.address || '');
       registerClientField(addressInput, () => true);
@@ -13786,6 +13976,9 @@ async function autosaveClient(uid, payload) {
       geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
       notes: payload.notes,
       logoUrl: data.logoUrl || clientState.draft.logoUrl || '',
+      iconUrl: data.iconUrl || clientState.draft.iconUrl || '',
+      logoSource: data.logoSource ?? clientState.draft.logoSource,
+      iconSource: data.iconSource ?? clientState.draft.iconSource,
     });
     syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
     clientPendingGeo = null;

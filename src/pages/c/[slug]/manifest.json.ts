@@ -4,6 +4,7 @@
  */
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, contactStringField } from '../../../lib/contactApi';
+import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
 
 export const prerender = false;
 
@@ -17,7 +18,8 @@ export const GET: APIRoute = async ({ params }) => {
       const portal = extractPortal(res.data);
       if (!portal || portal.enabled !== false) {
         name = contactStringField(res.data.name) || name;
-        const logoUrl = contactStringField(portal?.logoUrl);
+        const logoUrl = resolveClientLogoUrl(portal, uid);
+        const iconUrl = resolveClientIconUrl(portal, uid);
         const company = contactStringField(res.data.company);
         if (company) name = company;
 
@@ -27,10 +29,10 @@ export const GET: APIRoute = async ({ params }) => {
           { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ];
-        // Custom logo alone is not enough for Chromium (needs 192 + 512); keep defaults as fallback.
-        const icons = logoUrl
+        const pwaIcon = iconUrl || logoUrl;
+        const icons = pwaIcon
           ? [
-              { src: logoUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },
+              { src: pwaIcon, sizes: '192x192', type: 'image/png', purpose: 'any' },
               ...defaultIcons,
             ]
           : defaultIcons;

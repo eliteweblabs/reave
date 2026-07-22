@@ -16,6 +16,10 @@ import {
   setClientPortalAddress,
   parseClientGeoInput,
 } from '../../../lib/clientBrand';
+import {
+  resolveClientIconUrl,
+  resolveClientLogoUrl,
+} from '../../../lib/clientBranding';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 
 export const prerender = false;
@@ -60,11 +64,16 @@ async function saveClientPortalFields(
   return { ok: true as const, website, address, geo };
 }
 
-async function clientPortalLogoUrl(uid: string): Promise<string> {
+async function clientPortalBranding(uid: string) {
   const res = await getContact(uid);
-  if (!res.ok) return '';
+  if (!res.ok) return { logoUrl: '', iconUrl: '' };
   const portal = extractPortal(res.data);
-  return contactStringField(portal?.logoUrl) || '';
+  return {
+    logoUrl: resolveClientLogoUrl(portal, uid),
+    iconUrl: resolveClientIconUrl(portal, uid),
+    logoSource: portal?.logoSource,
+    iconSource: portal?.iconSource,
+  };
 }
 
 export const GET: APIRoute = async ({ params, locals, url }) => {
@@ -88,16 +97,18 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 
   let contact = res.data;
   let portal = extractPortal(contact);
-  let logoUrl = contactStringField(portal?.logoUrl) || '';
+  let logoUrl = resolveClientLogoUrl(portal, uid);
+  let iconUrl = resolveClientIconUrl(portal, uid);
 
   // Match client portal: best-effort logo fetch from website on first open.
-  if (!logoUrl) {
+  if (!logoUrl && portal?.logoSource !== 'upload') {
     await enrichClientPortalBrand(uid);
     const refreshed = await getContact(uid);
     if (refreshed.ok) {
       contact = refreshed.data;
       portal = extractPortal(contact);
-      logoUrl = contactStringField(portal?.logoUrl) || '';
+      logoUrl = resolveClientLogoUrl(portal, uid);
+      iconUrl = resolveClientIconUrl(portal, uid);
     }
   }
 
@@ -117,6 +128,9 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     address: contactStringField(portal?.address) || '',
     geo: portal?.geo ?? null,
     logoUrl,
+    iconUrl,
+    logoSource: portal?.logoSource,
+    iconSource: portal?.iconSource,
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
   });
@@ -151,7 +165,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   const portalSaved = await saveClientPortalFields(uid, body, res.data);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
-  const logoUrl = await clientPortalLogoUrl(uid);
+  const branding = await clientPortalBranding(uid);
 
   return json({
     ok: true,
@@ -162,7 +176,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
-    logoUrl,
+    logoUrl: branding.logoUrl,
+    iconUrl: branding.iconUrl,
+    logoSource: branding.logoSource,
+    iconSource: branding.iconSource,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });
@@ -197,7 +214,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   const portalSaved = await saveClientPortalFields(uid, body, res.data);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
-  const logoUrl = await clientPortalLogoUrl(uid);
+  const branding = await clientPortalBranding(uid);
 
   return json({
     ok: true,
@@ -208,7 +225,10 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
-    logoUrl,
+    logoUrl: branding.logoUrl,
+    iconUrl: branding.iconUrl,
+    logoSource: branding.logoSource,
+    iconSource: branding.iconSource,
     archived: !!res.data.archived,
     createdAt: res.data.createdAt ?? null,
   });

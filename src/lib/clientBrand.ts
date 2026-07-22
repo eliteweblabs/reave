@@ -188,7 +188,7 @@ export async function enrichClientPortalBrand(
     if (!res.ok || res.data.archived) return;
 
     const portal = extractPortal(res.data) ?? {};
-    if (!opts?.force && contactStringField(portal.logoUrl)) return;
+    if (!opts?.force && (portal.logoSource === 'upload' || contactStringField(portal.logoUrl))) return;
 
     const website = guessClientWebsite(res.data, portal);
     if (!website) return;
@@ -200,6 +200,7 @@ export async function enrichClientPortalBrand(
       ...portal,
       website: portal.website || brand.website || website.replace(/\/$/, ''),
       logoUrl: brand.logoUrl || portal.logoUrl,
+      logoSource: brand.logoUrl ? 'website' : portal.logoSource,
       tagline: portal.tagline || brand.tagline,
       updatedAt: new Date().toISOString(),
     };

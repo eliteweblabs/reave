@@ -243,6 +243,16 @@ export type ClientPortal = {
   body?: string;
   /** Client company logo — fetched from their website or set manually. */
   logoUrl?: string;
+  /** Square icon for PWA / favicons (upload or external URL). */
+  iconUrl?: string;
+  /** Uploaded logo bytes (base64) when logoSource is upload. */
+  logoData?: string;
+  logoMediaType?: string;
+  logoSource?: 'upload' | 'website';
+  /** Uploaded icon bytes (base64) when iconSource is upload. */
+  iconData?: string;
+  iconMediaType?: string;
+  iconSource?: 'upload';
   /** Public website URL shown under the logo. */
   website?: string;
   /** Short company blurb (often from site meta description). */
