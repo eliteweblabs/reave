@@ -41,7 +41,7 @@ export async function logOutboundEmailForProject(opts: {
     }
     if (contactUid) {
       const jobs = (await storeListWork({ contact_uid: contactUid })).filter(
-        (j) => j.status !== 'done' && j.status !== 'archived',
+        (j) => j.status !== 'archived',
       );
       if (jobs.length === 1) {
         jobSlug = jobs[0]!.slug;

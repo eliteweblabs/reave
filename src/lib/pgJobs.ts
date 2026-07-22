@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   title VARCHAR(500) NOT NULL,
   client VARCHAR(255) NOT NULL,
   client_uid VARCHAR(255),
-  status VARCHAR(50) DEFAULT 'inquiry' CHECK (status IN ('inquiry', 'active', 'done', 'archived')),
+  status VARCHAR(50) DEFAULT 'inquiry' CHECK (status IN ('inquiry', 'active', 'archived')),
   priority VARCHAR(50) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
   due_date DATE,
   value NUMERIC(12,2),
@@ -89,6 +89,9 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS value NUMERIC(12,2);
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source VARCHAR(100) NOT NULL DEFAULT '';
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS source_chat_id TEXT;
+UPDATE jobs SET status = 'archived' WHERE status = 'done';
+ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('inquiry', 'active', 'archived'));
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -124,7 +127,7 @@ function rowToSummary(row: JobRow): WorkJobSummary {
     client: row.client,
     contact_uid: row.client_uid ?? '',
     contact_name: row.client,
-    status: row.status,
+    status: normalizeWorkStatus(row.status),
     priority: normalizeWorkPriority(row.priority),
     due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
     value: row.value != null ? Number(row.value) : null,

@@ -21,10 +21,17 @@ import { createContact, getContact, resolveContact } from './contactApi';
 import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
+import { sortBySidebarOrder } from './sidebarOrderStore';
 import { serverEnv } from './serverEnv';
 
-export const WORK_STATUSES = ['inquiry', 'active', 'done', 'archived'] as const;
+export const WORK_STATUSES = ['inquiry', 'active', 'archived'] as const;
 export type WorkStatus = (typeof WORK_STATUSES)[number];
+
+/** Legacy markdown/DB rows may still use "done" — treat as archived everywhere. */
+export function isWorkArchived(status: string | undefined | null): boolean {
+  const s = (status ?? 'inquiry').toLowerCase();
+  return s === 'archived' || s === 'done';
+}
 
 export const WORK_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type WorkPriority = (typeof WORK_PRIORITIES)[number];
@@ -166,6 +173,18 @@ export function compareWorkByRecency(a: WorkJobSummary, b: WorkJobSummary): numb
   return bT.localeCompare(aT);
 }
 
+/** Sidebar list: manual order within active/archived groups; archived always last. */
+export function sortWorkJobsForSidebar(
+  jobs: WorkJobSummary[],
+  orderMap: Map<string, number>,
+): WorkJobSummary[] {
+  const active = jobs.filter((j) => !isWorkArchived(j.status));
+  const archived = jobs.filter((j) => isWorkArchived(j.status));
+  const sortGroup = (group: WorkJobSummary[]) =>
+    sortBySidebarOrder(group, orderMap, (j) => j.slug, compareWorkByRecency);
+  return [...sortGroup(active), ...sortGroup(archived)];
+}
+
 function sortWorkSummaries(jobs: WorkJobSummary[]): WorkJobSummary[] {
   return jobs.sort(compareWorkByRecency);
 }
@@ -180,6 +199,7 @@ function yamlLine(key: string, value: string): string {
 
 function normalizeStatus(raw: string | undefined): WorkStatus {
   const s = (raw ?? 'inquiry').toLowerCase();
+  if (s === 'done') return 'archived';
   return WORK_STATUSES.includes(s as WorkStatus) ? (s as WorkStatus) : 'inquiry';
 }
 
@@ -582,8 +602,9 @@ export async function storeWriteWork(
     void enrichClientPortalBrand(contact.uid);
   }
 
-  // Fire project-complete + review automations when a job transitions to done.
-  if (result.ok && result.doc.status === 'done' && existingBefore?.status !== 'done') {
+  // Fire project-complete + review automations when a job is archived (formerly "done").
+  const wasArchived = existingBefore ? isWorkArchived(existingBefore.status) : false;
+  if (result.ok && isWorkArchived(result.doc.status) && !wasArchived) {
     const doc = result.doc;
     void import('./newsletterEngine')
       .then((m) =>

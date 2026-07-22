@@ -290,7 +290,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const jobs =
     contactUid != null
       ? (await storeListWork({ contact_uid: contactUid })).filter(
-          (j) => j.status !== 'done' && j.status !== 'archived',
+          (j) => j.status !== 'archived',
         )
       : [];
 

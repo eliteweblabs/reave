@@ -2457,7 +2457,7 @@ function mountMeetingConfirmProjectPicker(listEl, suggestions, onPick) {
     btn.className = 'meeting-confirm-project-picker-item';
     btn.innerHTML =
       `<span class="meeting-confirm-project-picker-title">${escHtml(job.title)}</span>` +
-      `<span class="meeting-confirm-project-picker-meta">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>`;
+      `<span class="meeting-confirm-project-picker-meta">${escHtml(workStatusLabel(job.status))}</span>`;
     btn.addEventListener('click', () => onPick(job));
     listEl.appendChild(btn);
   }
@@ -8180,7 +8180,7 @@ async function persistWorkOrder(slugs) {
       body: JSON.stringify({ slugs }),
     });
     const data = await readApiJson(res);
-    workState.jobs = data.jobs || workState.jobs;
+    workState.jobs = sortWorkJobsForDisplay(data.jobs || workState.jobs);
     refreshWorkSidebarList();
   } catch (e) {
     osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
@@ -9316,7 +9316,6 @@ async function deleteKnowledge(slug) {
 const WORK_STATUS_LABELS = {
   inquiry: 'Inquiry',
   active: 'Active',
-  done: 'Done',
   archived: 'Archived',
 };
 
@@ -9331,7 +9330,7 @@ const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
 
 let workState = {
   jobs: [],
-  statuses: ['inquiry', 'active', 'done', 'archived'],
+  statuses: ['inquiry', 'active', 'archived'],
   priorities: ['low', 'normal', 'high', 'urgent'],
   search: '',
   statusFilter: 'all',
@@ -9483,6 +9482,19 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
   }
 }
 
+function isWorkArchivedStatus(status) {
+  return status === 'archived' || status === 'done';
+}
+
+function sortWorkJobsForDisplay(jobs) {
+  const active = [];
+  const archived = [];
+  for (const job of jobs) {
+    (isWorkArchivedStatus(job.status) ? archived : active).push(job);
+  }
+  return [...active, ...archived];
+}
+
 function filterWorkJobs(jobs, query) {
   return workJobsForStatusFilter(jobs).filter((job) =>
     matchesListSearch(
@@ -9504,14 +9516,14 @@ function workStatusTabCounts() {
     all: jobs.length,
     inquiry: jobs.filter((j) => j.status === 'inquiry').length,
     active: jobs.filter((j) => j.status === 'active').length,
-    done: jobs.filter((j) => j.status === 'done').length,
-    archived: jobs.filter((j) => j.status === 'archived').length,
+    archived: jobs.filter((j) => isWorkArchivedStatus(j.status)).length,
   };
 }
 
 function workJobsForStatusFilter(jobs) {
   const f = workState.statusFilter;
   if (f === 'all') return jobs;
+  if (f === 'archived') return jobs.filter((j) => isWorkArchivedStatus(j.status));
   return jobs.filter((j) => (j.status || 'inquiry') === f);
 }
 
@@ -9536,7 +9548,6 @@ function renderWorkFilterTabs() {
     { id: 'all', label: 'All', count: counts.all },
     { id: 'inquiry', label: 'Inquiry', count: counts.inquiry },
     { id: 'active', label: 'Active', count: counts.active },
-    { id: 'done', label: 'Done', count: counts.done },
     { id: 'archived', label: 'Archived', count: counts.archived },
   ];
 
@@ -9572,7 +9583,13 @@ function renderWorkFilterTabs() {
 function getWorkEditor() { return document.getElementById('work-editor'); }
 
 function workStatusClass(status) {
-  return `wk-status wk-status-${status || 'inquiry'}`;
+  const key = isWorkArchivedStatus(status) ? 'archived' : status || 'inquiry';
+  return `wk-status wk-status-${key}`;
+}
+
+function workStatusLabel(status) {
+  if (isWorkArchivedStatus(status)) return WORK_STATUS_LABELS.archived;
+  return WORK_STATUS_LABELS[status] || status || 'Inquiry';
 }
 
 function formatWorkCardDate(iso) {
@@ -9750,7 +9767,7 @@ function createClientWorkCard(job) {
 
   const status = document.createElement('span');
   status.className = workStatusClass(job.status);
-  status.textContent = WORK_STATUS_LABELS[job.status] || job.status || 'Inquiry';
+  status.textContent = workStatusLabel(job.status);
   meta.appendChild(status);
 
   if (job.created) {
@@ -9859,9 +9876,10 @@ async function loadWorkTab(opts = {}) {
     const res = await adminFetch('/api/work');
     const data = await readAdminJson(res, 'Projects');
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    workState.jobs = data.jobs || [];
+    workState.jobs = sortWorkJobsForDisplay(data.jobs || []);
     workState.statuses = data.statuses || workState.statuses;
     workState.priorities = data.priorities || workState.priorities;
+    if (workState.statusFilter === 'done') workState.statusFilter = 'archived';
   } catch (e) {
     if (e.message === 'Session expired') return;
     if (!deepSlug) {
@@ -9916,7 +9934,9 @@ function startNewClient() {
 
 function fillWorkSidebarList(list) {
   const { search } = workState;
-  const visibleJobs = filterWorkJobs(workState.jobs, search);
+  const filtered = filterWorkJobs(workState.jobs, search);
+  const visibleJobs =
+    workState.statusFilter === 'archived' ? filtered : sortWorkJobsForDisplay(filtered);
   list.innerHTML = '';
   for (const job of visibleJobs) {
     list.appendChild(createWorkSwipeRow(job));
@@ -17001,7 +17021,7 @@ async function askAgentAboutWork(job) {
       `Slug: ${job.slug}`,
     ];
     if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
-    if (job.status) lines.push(`Status: ${WORK_STATUS_LABELS[job.status] || job.status}`);
+    if (job.status) lines.push(`Status: ${workStatusLabel(job.status)}`);
     lines.push('', 'Use read_work on the slug above if you need the full project notes.');
     await askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
@@ -17066,7 +17086,7 @@ function createWorkListItem(job) {
   item.className =
     'ch-list-item' +
     (job.slug === workState.activeSlug ? ' active' : '') +
-    (job.status === 'archived' ? ' ch-list-item--archived' : '');
+    (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
     SIDEBAR_LIST_GRIP +
@@ -17074,7 +17094,7 @@ function createWorkListItem(job) {
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
-    `<span class="${workStatusClass(job.status)}">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>` +
+    `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status))}</span>` +
     `</span></span>`;
   item.addEventListener('click', () => openWork(job.slug));
   return item;
@@ -17084,7 +17104,7 @@ function createWorkSwipeRow(job) {
   return createSwipeRow(createWorkListItem(job), [
     swipeAgentAction(() => askAgentAboutWork(job)),
     swipeArchiveAction({
-      label: job.status === 'archived' ? 'Unarchive' : 'Archive',
+      label: isWorkArchivedStatus(job.status) ? 'Unarchive' : 'Archive',
       onClick: () => archiveWork(job),
     }),
     swipeDeleteAction({
@@ -17589,7 +17609,7 @@ async function populateEmailProjectMenu(ev, menu) {
       item.className = 'em-project-menu-item';
       item.innerHTML =
         `<span class="em-project-menu-title">${escHtml(job.title)}</span>` +
-        `<span class="em-project-menu-meta">${escHtml(WORK_STATUS_LABELS[job.status] || job.status)}</span>`;
+        `<span class="em-project-menu-meta">${escHtml(workStatusLabel(job.status))}</span>`;
       item.addEventListener('click', async () => {
         item.disabled = true;
         item.querySelector('.em-project-menu-title').textContent = 'Merging…';

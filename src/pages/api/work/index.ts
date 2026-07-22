@@ -12,10 +12,10 @@ import {
   storeWriteWork,
   WORK_PRIORITIES,
   WORK_STATUSES,
-  compareWorkByRecency,
+  sortWorkJobsForSidebar,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
-import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
+import { storeGetSidebarOrder } from '../../../lib/sidebarOrderStore';
 
 export const prerender = false;
 
@@ -42,7 +42,7 @@ export async function GET(context: APIContext): Promise<Response> {
       status,
     });
     const orderMap = await storeGetSidebarOrder('work');
-    const sorted = sortBySidebarOrder(jobs, orderMap, (j) => j.slug, compareWorkByRecency);
+    const sorted = sortWorkJobsForSidebar(jobs, orderMap);
 
     return json({
       ok: true,
