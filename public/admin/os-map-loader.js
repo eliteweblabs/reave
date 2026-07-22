@@ -9602,6 +9602,15 @@ function syncWorkSidebarTitle(slug, title) {
   if (titleEl) titleEl.textContent = title;
 }
 
+function syncWorkSidebarStatus(slug, status) {
+  const job = workState.jobs.find((j) => j.slug === slug);
+  if (!job || job.status === status) return;
+  job.status = status;
+  // Status affects the sidebar label, item grouping/archived styling, and
+  // filter-tab counts, so re-render the list rather than patching one node.
+  refreshWorkSidebarList();
+}
+
 function workPayloadUnchanged(payload, draft) {
   if (!draft) return true;
   const tags = Array.isArray(draft.tags) ? draft.tags.join(', ') : (draft.tags || '');
@@ -9722,6 +9731,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
     });
     workState.dirty = false;
     syncWorkSidebarTitle(slug, payload.title);
+    syncWorkSidebarStatus(slug, payload.status);
     if (activeEl) flashFormFieldSaved(activeEl);
     return true;
   } catch (e) {
