@@ -96,7 +96,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
   const refreshedLogo = !!logoUrl && (foundLogo || !beforeLogo);
   const foundTagline = !!tagline && tagline !== beforeTagline;
 
-  if (!logoUrl && !foundTagline) {
+  if (!logoUrl && !iconUrl && !foundTagline) {
     return json(
       {
         ok: false,

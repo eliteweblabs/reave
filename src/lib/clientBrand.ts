@@ -154,7 +154,8 @@ async function fetchHtmlOnce(
 
   const headers = {
     'User-Agent': SCRAPE_USER_AGENT,
-    Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+    // Avoid Clerk dev-browser handshake redirects (307 → accounts.dev loop) on HTML Accept.
+    Accept: '*/*',
   };
 
   let current = start.toString();
@@ -168,6 +169,7 @@ async function fetchHtmlOnce(
     if (res.status >= 300 && res.status < 400) {
       const location = res.headers.get('location');
       if (!location || hop >= MAX_REDIRECTS) return { ok: false };
+      if (/clerk\.accounts\.dev/i.test(location)) return { ok: false };
       current = new URL(location, current).toString();
       continue;
     }
