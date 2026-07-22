@@ -7,35 +7,77 @@ const company = await getCompanyConfig(Astro.request);
 
 <MarketingLayout
   title="About"
-  description={`Learn about ${company.name} — who we are and how we work with clients.`}
-  label="Company"
+  description="Over 20 years designing logos & graphics to building websites, developing plugins & web apps. Rooted in real world experience."
+  label="Who We Are"
   active="about"
 >
   <section>
-    <h2>Who we are</h2>
+    <h2>Design + Code All of the Things</h2>
     <p>
-      {company.name} is {company.description || "a team focused on delivering thoughtful work for every client we serve."}
-      {company.legalName && company.legalName !== company.name
-        ? ` We operate as ${company.legalName}.`
-        : ""}
+      Over 20 years I went from designing logos &amp; graphics to building websites and — aided by
+      extensive one-on-one training from Toptal — developing plugins &amp; web apps. I'm rooted in
+      real world experience; I've done more debugging than exterminators.
+    </p>
+    <p>
+      From rebuilding the spaghetti code of janky websites to working within the rigid design
+      guidelines of Fortune 500 companies, I can design + code all of the things.
+    </p>
+    <p>
+      For the last 10 years I worked full time in the New York art world. I'm currently available
+      for freelance remote long or short term projects and onsite consulting &amp; development in
+      central Florida.
+    </p>
+    <p>
+      My biggest asset is that I can <strong>save you time &amp; money</strong> by reviewing your
+      operations and providing tools to automate tasks. If you have a small to medium size business,
+      a startup idea, or a critical problem — don't hesitate to reach out.
     </p>
   </section>
 
   <section>
-    <h2>What we believe</h2>
-    <p>
-      Great client experiences start with clear communication, reliable delivery, and
-      technology that stays out of the way. We build relationships that last — not
-      one-off transactions.
-    </p>
+    <h2>Testimonials</h2>
+    <div class="card-grid">
+      <article class="card">
+        <blockquote>
+          "I am extremely pleased with the result of our website. Incredibly professional and tuned
+          in to the needs of his clients. High quality work with a quick turn. He delivered on every
+          level."
+        </blockquote>
+        <p><strong>Torey Champagne</strong>, 13x Emmy Winner — ESPN / Comcast</p>
+      </article>
+      <article class="card">
+        <blockquote>
+          "His assistance was critical in the smooth launch of Worcester Polytechnic Institute's new
+          website. His abilities with CSS, Photoshop and Dreamweaver were crucial in maintaining our
+          strict timeline."
+        </blockquote>
+        <p><strong>L. Salsich</strong>, Web Project Manager — Worcester Polytechnic Institute</p>
+      </article>
+      <article class="card">
+        <blockquote>
+          "He did a fantastic job building our website from scratch. His creativity and cutting edge
+          web designing skills were exactly what we needed to establish a current, fresh and modern
+          presence."
+        </blockquote>
+        <p><strong>Kathy Singh</strong>, Director — Stem &amp; Regenerative Medicine Int.</p>
+      </article>
+      <article class="card">
+        <blockquote>
+          "Being able to trust one company for my marketing needs is a huge asset. Cost effective
+          pricing, prompt service and quality work."
+        </blockquote>
+        <p><strong>Nick Chacharone</strong>, President — Aster Group</p>
+      </article>
+    </div>
   </section>
 
   <section>
-    <h2>How we work</h2>
-    <ul>
-      <li>Listen first — understand your goals before proposing solutions.</li>
-      <li>Stay transparent — you always know where a project stands.</li>
-      <li>Deliver consistently — quality and timelines matter equally.</li>
-    </ul>
+    <h2>A Note on AI</h2>
+    <p>
+      AI is everywhere lately with mixed results. It can spit out code, content and graphics — but
+      in my opinion it isn't polished enough for clients. While I appreciate it for assisting in
+      code, I find little gain in using it extensively to generate entire projects, and it will
+      never have an original concept.
+    </p>
   </section>
 </MarketingLayout>
