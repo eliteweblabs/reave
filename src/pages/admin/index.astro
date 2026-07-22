@@ -5392,8 +5392,9 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         margin: 0;
         box-shadow: none;
         border: 1px solid transparent;
+        color: var(--fg);
         background:
-          linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(var(--card), var(--card)) padding-box,
           var(--brand-gradient) border-box;
       }
       .dash-review-alerts .admin-setup-alert--push,
@@ -5401,7 +5402,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .dash-review-alerts .admin-setup-alert--confirm {
         border-color: transparent;
         background:
-          linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(var(--card), var(--card)) padding-box,
           var(--brand-gradient) border-box;
       }
       .dash-review-alerts .admin-setup-alert-btn--primary {
@@ -5501,7 +5502,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-size: 0.9rem;
         font-weight: 600;
         line-height: 1.35;
-        color: var(--text);
+        color: var(--fg);
       }
       .meeting-confirm-project-meta {
         font-size: 0.76rem;
@@ -5542,7 +5543,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         border-radius: 8px;
         border: 1px solid var(--panel-border);
         background: var(--surface-muted);
-        color: var(--text);
+        color: var(--fg);
         cursor: pointer;
       }
       .meeting-confirm-project-picker-item:hover {
@@ -5573,7 +5574,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         border-radius: 8px;
         border: 1px solid var(--panel-border);
         background: var(--card);
-        color: var(--text);
+        color: var(--fg);
         font-size: 0.82rem;
       }
       .meeting-confirm-project-error {
