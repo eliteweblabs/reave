@@ -69,6 +69,7 @@ export async function runUptimePlatformSyncJob(): Promise<UptimePlatformSyncResu
       warnings: [],
       errors: ['Site sync already running'],
       createdItems: [],
+      manualItems: [],
       error: 'Site sync already running',
     };
   }
@@ -118,6 +119,7 @@ async function executeUptimePlatformSyncJob(): Promise<UptimePlatformSyncResult>
       warnings: [],
       errors: [msg],
       createdItems: [],
+      manualItems: [],
       error: msg,
     };
   } finally {

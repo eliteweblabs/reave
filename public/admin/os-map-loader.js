@@ -2235,9 +2235,41 @@ async function showUptimeSyncResultDialog(result) {
   if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
 
   const httpOk = result?.ok !== false || (result?.created ?? 0) > 0 || (result?.skipped ?? 0) > 0;
-  titleEl.textContent = 'Site sync complete';
+  const manualItems = Array.isArray(result?.manualItems) ? result.manualItems : [];
+  titleEl.textContent = manualItems.length ? 'Site sync — manual setup needed' : 'Site sync complete';
   bodyEl.innerHTML = renderUptimeSyncResultHtml(result, httpOk);
   actionsEl.innerHTML = '';
+
+  if (manualItems.length) {
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+    copyBtn.textContent = 'Copy URLs';
+    copyBtn.addEventListener('click', async () => {
+      const text = manualItems.map((item) => item.url).join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = 'Copied';
+        window.setTimeout(() => {
+          copyBtn.textContent = 'Copy URLs';
+        }, 1800);
+      } catch {
+        await osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' });
+      }
+    });
+    actionsEl.appendChild(copyBtn);
+
+    const linkBtn = document.createElement('button');
+    linkBtn.type = 'button';
+    linkBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+    linkBtn.textContent = 'Link monitor';
+    linkBtn.addEventListener('click', () => {
+      closeOsDialogBackdrop();
+      void showLinkUptimeMonitorDialog();
+    });
+    actionsEl.appendChild(linkBtn);
+  }
+
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.className = 'os-dialog-btn os-dialog-btn--primary';
@@ -2292,6 +2324,24 @@ function renderUptimeSyncResultHtml(data, httpOk) {
     .map((msg) => `<li>${escHtml(msg)}</li>`)
     .join('');
 
+  const manualItems = Array.isArray(data.manualItems) ? data.manualItems : [];
+  const manualLines = manualItems
+    .slice(0, 20)
+    .map(
+      (item) =>
+        `<li><strong>${escHtml(item.friendlyName)}</strong> — ` +
+        `<a href="${escHtml(item.url)}" target="_blank" rel="noopener noreferrer">${escHtml(item.url)}</a></li>`,
+    )
+    .join('');
+  const manualBlock = manualItems.length
+    ? '<div class="dash-uptime-manual">' +
+      '<p class="em-book-dialog-lead">UptimeRobot rejected API creates on your plan. Add these in the ' +
+      '<a href="https://uptimerobot.com/dashboard" target="_blank" rel="noopener noreferrer">UptimeRobot dashboard</a>, ' +
+      'then click <strong>Sync status</strong> on the home dashboard (or link by monitor ID).</p>' +
+      `<ul class="meeting-confirm-steps">${manualLines}</ul>` +
+      '</div>'
+    : '';
+
   const pendingNote = pending > 0
     ? ` · <strong>${pending}</strong> pending (run again to continue)`
     : '';
@@ -2311,6 +2361,7 @@ function renderUptimeSyncResultHtml(data, httpOk) {
 
   return (
     failLead +
+    manualBlock +
     accountLine +
     `<p><strong>${created}</strong> added · <strong>${skipped}</strong> already monitored · <strong>${discovered}</strong> found${pendingNote}</p>` +
     (createdLines ? `<ul class="meeting-confirm-steps">${createdLines}</ul>` : '') +
@@ -3256,6 +3307,17 @@ function renderHomeDashboard(data) {
     addLi.appendChild(addBtn);
     list.appendChild(addLi);
 
+    const linkLi = document.createElement('li');
+    const linkBtn = document.createElement('button');
+    linkBtn.type = 'button';
+    linkBtn.className = 'dash-uptime-tile dash-uptime-tile--add';
+    linkBtn.innerHTML =
+      `<span class="dash-uptime-add-icon" aria-hidden="true">#</span>` +
+      `<div class="dash-uptime-name">Link monitor</div>`;
+    linkBtn.addEventListener('click', () => showLinkUptimeMonitorDialog());
+    linkLi.appendChild(linkBtn);
+    list.appendChild(linkLi);
+
     const syncLi = document.createElement('li');
     const syncBtn = document.createElement('button');
     syncBtn.type = 'button';
@@ -3379,7 +3441,10 @@ function showAddUptimeSiteDialog() {
 
     titleEl.textContent = 'Add site to UptimeRobot';
     bodyEl.innerHTML =
-      '<p class="em-book-dialog-lead">Create an HTTP monitor with 5-minute checks.</p>' +
+      '<p class="em-book-dialog-lead">Create an HTTP monitor via the UptimeRobot API. ' +
+      'If your plan blocks API creates, add the monitor in the ' +
+      '<a href="https://uptimerobot.com/dashboard" target="_blank" rel="noopener noreferrer">UptimeRobot dashboard</a> ' +
+      'and use <strong>Link monitor</strong> or <strong>Sync status</strong> instead.</p>' +
       '<label class="de-label sched-create-field">' +
         '<span>URL</span>' +
         '<div class="control-field">' +
@@ -3441,6 +3506,87 @@ function showAddUptimeSiteDialog() {
     document.addEventListener('keydown', onKey);
     bindOsDialogKeyboardLayout();
     urlInput?.focus();
+  });
+}
+
+function showLinkUptimeMonitorDialog() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'Link UptimeRobot monitor';
+    bodyEl.innerHTML =
+      '<p class="em-book-dialog-lead">After creating a monitor in the ' +
+      '<a href="https://uptimerobot.com/dashboard" target="_blank" rel="noopener noreferrer">UptimeRobot dashboard</a>, ' +
+      'enter its numeric ID here to import it into Reave. You can also use <strong>Sync status</strong> to pull all monitors at once.</p>' +
+      '<label class="de-label sched-create-field">' +
+        '<span>Monitor ID</span>' +
+        '<div class="control-field">' +
+          '<input id="uptime-link-id" type="number" inputmode="numeric" min="1" step="1" placeholder="798092635" required>' +
+        '</div>' +
+      '</label>' +
+      '<p class="dash-muted-inline">Find the ID in the dashboard URL when editing a monitor, or in the monitor list.</p>';
+    actionsEl.innerHTML = '';
+
+    const idInput = bodyEl.querySelector('#uptime-link-id');
+
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
+    const linkBtn = mkBtn('Link monitor', 'os-dialog-btn--primary', async () => {
+      const monitorId = Number(idInput?.value.trim());
+      if (!Number.isFinite(monitorId) || monitorId <= 0) {
+        idInput?.focus();
+        return;
+      }
+      linkBtn.disabled = true;
+      linkBtn.textContent = 'Linking…';
+      try {
+        const res = await fetch('/api/uptime/monitors/link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ monitorId }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        finish(true);
+        await loadHomeDashboard();
+      } catch (e) {
+        linkBtn.disabled = false;
+        linkBtn.textContent = 'Link monitor';
+        await osAlert({ title: 'Could not link monitor', bodyHtml: escHtml(e.message || String(e)) });
+      }
+    });
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, () => finish(false), true);
+    document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
+    idInput?.focus();
   });
 }
 

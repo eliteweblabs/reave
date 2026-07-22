@@ -347,6 +347,40 @@ export async function createUptimeMonitor(opts: {
   return { ok: true, monitor: row };
 }
 
+/** Import a monitor already created in the UptimeRobot dashboard (no newMonitor API call). */
+export async function linkUptimeMonitor(opts: {
+  monitorId: number;
+}): Promise<{ ok: true; monitor: UptimeMonitorRow } | { ok: false; error: string }> {
+  if (!hasFeature('uptime_monitoring')) {
+    return { ok: false, error: 'uptime_monitoring not enabled' };
+  }
+  if (!isUptimeRobotConfigured()) {
+    return { ok: false, error: 'UPTIMEROBOT_API_KEY not configured' };
+  }
+  if (!isUptimeDbConfigured()) {
+    return { ok: false, error: 'DATABASE_URL not configured' };
+  }
+
+  const monitorId = Number(opts.monitorId);
+  if (!Number.isFinite(monitorId) || monitorId <= 0) {
+    return { ok: false, error: 'monitorId must be a positive number' };
+  }
+
+  const api = await urGetMonitors({ monitorIds: [monitorId], customUptimeRatios: '7-30' });
+  if (!api.ok) return { ok: false, error: api.error };
+  const remote = api.monitors[0];
+  if (!remote) {
+    return {
+      ok: false,
+      error: `Monitor ${monitorId} not found in UptimeRobot — check the ID in the dashboard`,
+    };
+  }
+
+  const row = await upsertMonitorFromApi(remote);
+  if (!row) return { ok: false, error: 'Monitor found but failed to save locally' };
+  return { ok: true, monitor: row };
+}
+
 export type UptimePlatformSyncItem = {
   url: string;
   friendlyName: string;
@@ -363,6 +397,8 @@ export type UptimePlatformSyncResult = {
   warnings: string[];
   errors: string[];
   createdItems: UptimePlatformSyncItem[];
+  /** Sites API create rejected (plan limits) — add in UptimeRobot dashboard, then Sync status. */
+  manualItems: UptimePlatformSyncItem[];
   /** Live UptimeRobot account usage when the API key can read account details. */
   account?: UptimeRobotAccountDetails;
   /** Monitors cached locally in Postgres (may lag behind UptimeRobot). */
@@ -426,6 +462,7 @@ export async function syncPlatformUrlsToUptime(
     warnings: [],
     errors: [],
     createdItems: [],
+    manualItems: [],
   };
 
   if (!hasFeature('uptime_monitoring')) {
@@ -598,6 +635,7 @@ export async function syncPlatformUrlsToUptime(
   let monitorLimited = false;
   const errors: string[] = [];
   const createdItems: UptimePlatformSyncItem[] = [];
+  const manualItems: UptimePlatformSyncItem[] = [];
 
   const noteError = (line: string) => {
     if (!errors.includes(line)) errors.push(line);
@@ -700,6 +738,9 @@ export async function syncPlatformUrlsToUptime(
           retrySame = true;
           continue;
         }
+        if (!manualItems.some((m) => monitorHostKey(m.url) === key)) {
+          manualItems.push(item);
+        }
         errors.push(`${item.friendlyName}: ${classified.raw}`);
         reportCreating();
         break;
@@ -741,6 +782,7 @@ export async function syncPlatformUrlsToUptime(
     warnings,
     errors,
     createdItems,
+    manualItems,
     account,
     localMonitorCount,
     error: errors[0],
