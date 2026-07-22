@@ -35,5 +35,5 @@
   background: var(--brand-gradient);
   color: #fff;
   -webkit-text-fill-color: #fff;
-  box-shadow: none;
+  box-shadow: 0 0 0 1.5px var(--bg, #fff);
 }
