@@ -1,0 +1,84 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail =
+  company.supportEmail ||
+  (company.domain ? `hello@${company.domain}` : "");
+const phoneHref = company.supportPhone
+  ? `tel:${company.supportPhone.replace(/[^\d+]/g, "")}`
+  : null;
+---
+
+<MarketingLayout
+  title="Contact"
+  description={`Reach ${company.name} — we'd love to hear about your project.`}
+  label="Get in touch"
+  active="contact"
+>
+  <section>
+    <h2>Start a conversation</h2>
+    <p>
+      Whether you have a detailed brief or just an idea, reach out and we'll respond
+      as soon as we can. You can also press the voice button on the
+      <a href="/">homepage</a> to talk with our assistant.
+    </p>
+  </section>
+
+  <section>
+    <ul class="contact-list">
+      {
+        supportMail ? (
+          <li>
+            <strong>Email</strong>
+            <br />
+            <a href={`mailto:${supportMail}`}>{supportMail}</a>
+          </li>
+        ) : null
+      }
+      {
+        company.supportPhone ? (
+          <li>
+            <strong>Phone</strong>
+            <br />
+            {phoneHref ? (
+              <a href={phoneHref}>{company.supportPhone}</a>
+            ) : (
+              company.supportPhone
+            )}
+          </li>
+        ) : null
+      }
+      {
+        company.address ? (
+          <li>
+            <strong>Address</strong>
+            <br />
+            {company.address}
+          </li>
+        ) : null
+      }
+      {
+        company.domain ? (
+          <li>
+            <strong>Website</strong>
+            <br />
+            <a href={`https://${company.domain}`}>{company.domain}</a>
+          </li>
+        ) : null
+      }
+    </ul>
+  </section>
+
+  {
+    !supportMail && !company.supportPhone && !company.address ? (
+      <section>
+        <p>
+          Contact details haven't been configured yet. Check back soon, or sign in to
+          admin to add your company email and phone.
+        </p>
+      </section>
+    ) : null
+  }
+</MarketingLayout>

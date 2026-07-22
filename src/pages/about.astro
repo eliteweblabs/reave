@@ -1,0 +1,41 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+---
+
+<MarketingLayout
+  title="About"
+  description={`Learn about ${company.name} — who we are and how we work with clients.`}
+  label="Company"
+  active="about"
+>
+  <section>
+    <h2>Who we are</h2>
+    <p>
+      {company.name} is {company.description || "a team focused on delivering thoughtful work for every client we serve."}
+      {company.legalName && company.legalName !== company.name
+        ? ` We operate as ${company.legalName}.`
+        : ""}
+    </p>
+  </section>
+
+  <section>
+    <h2>What we believe</h2>
+    <p>
+      Great client experiences start with clear communication, reliable delivery, and
+      technology that stays out of the way. We build relationships that last — not
+      one-off transactions.
+    </p>
+  </section>
+
+  <section>
+    <h2>How we work</h2>
+    <ul>
+      <li>Listen first — understand your goals before proposing solutions.</li>
+      <li>Stay transparent — you always know where a project stands.</li>
+      <li>Deliver consistently — quality and timelines matter equally.</li>
+    </ul>
+  </section>
+</MarketingLayout>

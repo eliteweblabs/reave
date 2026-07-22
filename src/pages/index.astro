@@ -5,6 +5,7 @@ import QuantumLogo from "../components/QuantumLogo.astro";
 import VoiceChatButton from "../components/VoiceChatButton.astro";
 import Transcript from "../components/Transcript.astro";
 import TextFallback from "../components/TextFallback.astro";
+import SiteFooterNav from "../components/SiteFooterNav.astro";
 import { isHomepageVoiceWidgetEnabled } from "../lib/vapiPlugin";
 
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
@@ -39,6 +40,7 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
   )}
   {showHomepageVoice && <Transcript />}
   {showHomepageVoice && <TextFallback />}
+  <SiteFooterNav active="home" />
   <div class="container">
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -229,5 +231,14 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
         rgba(0, 0, 0, 0.72) 110%
       );
     }
+  }
+
+  /* Keep the voice widget and text fallback above the site footer nav. */
+  :global(.vapi-widget-container.center-bottom) {
+    bottom: calc(var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
+  }
+
+  :global(#text-fallback) {
+    bottom: calc(108px + var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
   }
 </style>

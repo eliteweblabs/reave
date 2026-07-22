@@ -1,0 +1,54 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+---
+
+<MarketingLayout
+  title="Services"
+  description={`Explore the services ${company.name} offers — from strategy through delivery.`}
+  label="What we do"
+  active="services"
+>
+  <section>
+    <h2>How we help</h2>
+    <p>
+      Every engagement is tailored, but most clients come to us for a combination of
+      the areas below. Tell us what you need on the <a href="/contact">contact page</a>
+      or start a conversation from the homepage.
+    </p>
+  </section>
+
+  <section>
+    <div class="card-grid">
+      <article class="card">
+        <h3>Strategy &amp; planning</h3>
+        <p>
+          Clarify goals, map workflows, and define what success looks like before
+          anything gets built.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Design &amp; build</h3>
+        <p>
+          Brand-forward websites, client portals, and tools that feel polished on
+          every device.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Automation</h3>
+        <p>
+          Voice, messaging, scheduling, and inbox workflows that save your team
+          hours every week.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Ongoing support</h3>
+        <p>
+          Monitoring, updates, and a partner who stays available after launch day.
+        </p>
+      </article>
+    </div>
+  </section>
+</MarketingLayout>

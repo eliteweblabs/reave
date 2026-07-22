@@ -1,0 +1,47 @@
+---
+import MarketingLayout from "../layouts/MarketingLayout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+---
+
+<MarketingLayout
+  title="Portfolio"
+  description={`Selected work and project highlights from ${company.name}.`}
+  label="Work"
+  active="portfolio"
+>
+  <section>
+    <h2>Selected projects</h2>
+    <p>
+      A sample of the kind of work we deliver. Full case studies and references are
+      available on request — <a href="/contact">get in touch</a> to learn more.
+    </p>
+  </section>
+
+  <section>
+    <div class="card-grid">
+      <article class="card">
+        <h3>Client experience platform</h3>
+        <p>
+          Unified portal with scheduling, messaging, and document delivery for a
+          multi-location service business.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Voice-first homepage</h3>
+        <p>
+          Interactive brand site with an AI assistant that answers questions and
+          captures leads in real time.
+        </p>
+      </article>
+      <article class="card">
+        <h3>Operations dashboard</h3>
+        <p>
+          Internal tools for inbox triage, project tracking, and client communication
+          in one place.
+        </p>
+      </article>
+    </div>
+  </section>
+</MarketingLayout>

@@ -1,0 +1,196 @@
+---
+import { Home, Info, Briefcase, LayoutGrid, Mail } from "lucide-astro";
+
+export type SiteNavId = "home" | "about" | "services" | "portfolio" | "contact";
+
+interface Props {
+  active?: SiteNavId;
+}
+
+const { active } = Astro.props;
+
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+
+function resolveActive(): SiteNavId {
+  if (active) return active;
+  if (pathNorm === "/") return "home";
+  if (pathNorm === "/about") return "about";
+  if (pathNorm === "/services") return "services";
+  if (pathNorm === "/portfolio") return "portfolio";
+  if (pathNorm === "/contact") return "contact";
+  return "home";
+}
+
+const current = resolveActive();
+
+const items: Array<{
+  id: SiteNavId;
+  href: string;
+  label: string;
+  Icon: typeof Home;
+}> = [
+  { id: "home", href: "/", label: "Home", Icon: Home },
+  { id: "about", href: "/about", label: "About", Icon: Info },
+  { id: "services", href: "/services", label: "Services", Icon: Briefcase },
+  { id: "portfolio", href: "/portfolio", label: "Portfolio", Icon: LayoutGrid },
+  { id: "contact", href: "/contact", label: "Contact", Icon: Mail },
+];
+---
+
+<nav id="site-footer-nav" class="site-footer-nav" aria-label="Site navigation">
+  <div class="site-footer-nav-bar">
+    <div class="site-footer-nav-pill">
+      <div id="site-footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
+      {
+        items.map(({ id, href, label, Icon }) => (
+          <a
+            href={href}
+            class:list={["footer-nav-btn", { active: current === id }]}
+            data-nav={id}
+            aria-label={label}
+            aria-current={current === id ? "page" : undefined}
+          >
+            <Icon size={20} strokeWidth={1.75} />
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</nav>
+
+<script>
+  function positionSiteFooterIndicator() {
+    const pill = document.querySelector(".site-footer-nav-pill");
+    const indicator = document.getElementById("site-footer-nav-indicator");
+    const active = pill?.querySelector(".footer-nav-btn.active");
+    if (!pill || !indicator || !active) {
+      if (indicator) indicator.hidden = true;
+      return;
+    }
+
+    indicator.hidden = false;
+    indicator.classList.add("is-visible");
+    indicator.style.width = `${active.offsetWidth}px`;
+    indicator.style.transform = `translateX(${active.offsetLeft}px)`;
+  }
+
+  positionSiteFooterIndicator();
+  window.addEventListener("resize", positionSiteFooterIndicator, { passive: true });
+  document.addEventListener("astro:page-load", positionSiteFooterIndicator);
+</script>
+
+<style is:global>
+  :root {
+    --site-footer-nav-offset: calc(var(--footer-nav-pill-h, 2.5rem) + 0.85rem);
+  }
+
+  .site-footer-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    padding:
+      0 max(0.5rem, env(safe-area-inset-right, 0px))
+      calc(env(safe-area-inset-bottom, 0px) + 0.35rem)
+      max(0.5rem, env(safe-area-inset-left, 0px));
+    background: transparent;
+    pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .site-footer-nav-bar {
+    display: flex;
+    align-items: center;
+    pointer-events: auto;
+  }
+
+  .site-footer-nav-pill {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 0.15rem;
+    height: var(--footer-nav-pill-h, 2.5rem);
+    padding: 0;
+    border-radius: var(--radius-input, 8px);
+    background: rgba(10, 10, 12, 0.62);
+    backdrop-filter: blur(18px) saturate(1.15);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    overflow: visible;
+  }
+
+  .site-footer-nav .footer-nav-indicator {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    border-radius: var(--radius-input, 8px);
+    background: var(--brand-gradient);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0;
+    transform: translateX(0);
+    transition:
+      transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.18s ease;
+  }
+
+  .site-footer-nav .footer-nav-indicator.is-visible {
+    opacity: 1;
+  }
+
+  .site-footer-nav .footer-nav-indicator[hidden] {
+    display: none !important;
+  }
+
+  .site-footer-nav .footer-nav-btn {
+    position: relative;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--footer-nav-pill-h, 2.5rem);
+    height: 100%;
+    max-width: var(--footer-nav-pill-h, 2.5rem);
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-input, 8px);
+    appearance: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.58);
+    cursor: pointer;
+    flex-shrink: 0;
+    text-decoration: none;
+    transition:
+      color 0.15s,
+      background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .site-footer-nav .footer-nav-btn:hover {
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .site-footer-nav .footer-nav-btn.active {
+    color: #fff;
+    background: transparent;
+  }
+
+  .site-footer-nav .footer-nav-btn svg {
+    display: block;
+    pointer-events: none;
+  }
+
+  @media print {
+    .site-footer-nav {
+      display: none !important;
+    }
+  }
+</style>

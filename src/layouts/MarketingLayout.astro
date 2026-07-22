@@ -1,0 +1,167 @@
+---
+import Layout from "./Layout.astro";
+import SiteFooterNav from "../components/SiteFooterNav.astro";
+
+type SiteNavId = "home" | "about" | "services" | "portfolio" | "contact";
+
+interface Props {
+  title: string;
+  description?: string;
+  label?: string;
+  active?: SiteNavId;
+}
+
+const { title, description, label = "Explore", active } = Astro.props;
+---
+
+<Layout title={title} description={description}>
+  <div class="marketing-page">
+    <header class="marketing-hero">
+      <p class="marketing-label">{label}</p>
+      <h1>{title}</h1>
+      {description ? <p class="marketing-lead">{description}</p> : null}
+    </header>
+    <div class="marketing-body">
+      <slot />
+    </div>
+  </div>
+  <SiteFooterNav active={active} />
+</Layout>
+
+<style is:global>
+  :global(html),
+  :global(body) {
+    background: #050505;
+    color: #e5e5e5;
+  }
+</style>
+
+<style>
+  .marketing-page {
+    min-height: 100vh;
+    padding:
+      calc(var(--app-header-h, 3.25rem) + 48px)
+      24px
+      calc(var(--site-footer-nav-offset, 3.35rem) + 32px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .marketing-hero,
+  .marketing-body {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .marketing-hero {
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .marketing-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 12px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 36px);
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 10px;
+    letter-spacing: -0.02em;
+  }
+
+  .marketing-lead {
+    font-size: 16px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+    margin: 0;
+    max-width: 52ch;
+  }
+
+  .marketing-body :global(section) {
+    margin-bottom: 32px;
+  }
+
+  .marketing-body :global(h2) {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 12px;
+  }
+
+  .marketing-body :global(h3) {
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 16px 0 8px;
+  }
+
+  .marketing-body :global(p),
+  .marketing-body :global(li) {
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0 0 12px;
+  }
+
+  .marketing-body :global(ul) {
+    padding-left: 20px;
+    margin: 0 0 12px;
+  }
+
+  .marketing-body :global(a) {
+    color: #a855f7;
+    text-decoration: none;
+  }
+
+  .marketing-body :global(a:hover) {
+    text-decoration: underline;
+  }
+
+  .marketing-body :global(.card-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .marketing-body :global(.card) {
+    padding: 18px 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .marketing-body :global(.card h3) {
+    margin-top: 0;
+  }
+
+  .marketing-body :global(.contact-list) {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .marketing-body :global(.contact-list li) {
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .marketing-body :global(.contact-list li:last-child) {
+    border-bottom: none;
+  }
+
+  @media (max-width: 768px) {
+    .marketing-page {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+  }
+</style>
