@@ -10,13 +10,23 @@ import {
   parseClientKindFilter,
   searchClientsEnhanced,
 } from '../../../lib/clientSearch';
+import { resolveClientLogoUrl } from '../../../lib/clientBranding';
 import {
   contactSummary,
   createContact,
+  extractPortal,
   isContactApiConfigured,
   listContacts,
   setContactPersonal,
+  type ContactRecord,
 } from '../../../lib/contactApi';
+
+function clientListEntry(c: ContactRecord) {
+  return {
+    ...contactSummary(c),
+    logoUrl: resolveClientLogoUrl(extractPortal(c), c.uid),
+  };
+}
 export const prerender = false;
 
 function json(body: unknown, status = 200): Response {
@@ -43,7 +53,7 @@ export async function GET(context: APIContext): Promise<Response> {
     const result = await listContacts({ limit });
     if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
     const clients = filterClientsByKind(
-      result.data.contacts.filter((c) => !c.archived).map(contactSummary),
+      result.data.contacts.filter((c) => !c.archived).map(clientListEntry),
       kind,
     ).sort(compareClientsForList);
     return json({
@@ -59,7 +69,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const clients = result.data.contacts
     .filter((c) => !c.archived)
     .map((c) => ({
-      ...contactSummary(c),
+      ...clientListEntry(c),
       matchReason: c._matchReason,
     }));
 

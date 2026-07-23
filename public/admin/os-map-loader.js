@@ -14432,6 +14432,25 @@ function clientListSubline(c) {
   return c.email || c.phone || `${c.uid.slice(0, 8)}…`;
 }
 
+const CLIENT_LIST_AVATAR_PLACEHOLDER =
+  '<span class="cl-list-avatar cl-list-avatar--placeholder" aria-hidden="true">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>' +
+  '<circle cx="12" cy="7" r="4"/>' +
+  '</svg></span>';
+
+function clientListAvatarHtml(c) {
+  const url = clientBrandingPreviewUrl(c.logoUrl);
+  if (url) {
+    return (
+      `<span class="cl-list-avatar">` +
+      `<img class="cl-list-avatar-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />` +
+      `</span>`
+    );
+  }
+  return CLIENT_LIST_AVATAR_PLACEHOLDER;
+}
+
 function filterClientsForSidebar(clients) {
   const f = clientState.contactFilter;
   if (f === 'personal') return clients.filter((c) => c.personal);
@@ -14653,37 +14672,14 @@ function clientDisplayLabel(draft) {
   return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
 }
 
-function appendClientLogo(titleWrap, logoUrl, altText) {
-  const url = (logoUrl || '').trim();
-  if (!url) return null;
-  const logo = document.createElement('img');
-  logo.className = 'cl-logo';
-  logo.src = url;
-  logo.alt = altText || 'Client logo';
-  logo.loading = 'lazy';
-  logo.decoding = 'async';
-  titleWrap.appendChild(logo);
-  return logo;
-}
-
-function syncClientLogoInHeader(logoUrl, altText) {
-  const titleWrap = getClientsEditor()?.querySelector('.cl-title-wrap');
-  if (!titleWrap) return;
-  const url = (logoUrl || '').trim();
-  let logo = titleWrap.querySelector('.cl-logo');
-  if (!url) {
-    logo?.remove();
-    return;
-  }
-  if (!logo) {
-    logo = appendClientLogo(titleWrap, url, altText);
-    if (logo && titleWrap.firstElementChild !== logo) {
-      titleWrap.insertBefore(logo, titleWrap.firstElementChild);
-    }
-    return;
-  }
-  if (logo.getAttribute('src') !== url) logo.setAttribute('src', url);
-  if (altText) logo.alt = altText;
+function syncClientListAvatar(uid, logoUrl) {
+  const c = clientState.clients.find((x) => x.uid === uid);
+  if (c) c.logoUrl = logoUrl || '';
+  const item = getClientsEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(uid)}"]`);
+  if (!item) return;
+  const host = item.querySelector('.cl-list-avatar-wrap');
+  if (!host) return;
+  host.innerHTML = clientListAvatarHtml(c || { uid, logoUrl });
 }
 
 function appendClientField(parent, label, input) {
@@ -15229,7 +15225,6 @@ function renderEditClientForm(pane) {
 
       const titleWrap = document.createElement('div');
       titleWrap.className = 'cl-title-wrap';
-      appendClientLogo(titleWrap, clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
       const titleField = document.createElement('div');
       titleField.className = 'cl-title-field';
       const companyInput = document.createElement('input');
@@ -15363,7 +15358,7 @@ function renderEditClientForm(pane) {
         onUpdate: (patch) => {
           Object.assign(clientState.draft, patch);
           if (patch.website != null) websiteInput.value = patch.website;
-          syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
+          syncClientListAvatar(uid, clientState.draft.logoUrl);
         },
       });
       clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
@@ -15519,8 +15514,10 @@ function syncClientListRow(uid) {
   if (!item) return;
   const titleEl = item.querySelector('.ch-item-title');
   const subEl = item.querySelector('.wk-contact');
+  const avatarWrap = item.querySelector('.cl-list-avatar-wrap');
   if (titleEl) titleEl.textContent = clientListTitle(c);
   if (subEl) subEl.textContent = clientListSubline(c);
+  if (avatarWrap) avatarWrap.innerHTML = clientListAvatarHtml(c);
 }
 
 function scheduleClientAutosave(uid, getPayload) {
@@ -15601,7 +15598,7 @@ async function autosaveClient(uid, payload) {
       logoSource: data.logoSource ?? clientState.draft.logoSource,
       iconSource: data.iconSource ?? clientState.draft.iconSource,
     });
-    syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
+    syncClientListAvatar(uid, clientState.draft.logoUrl);
     clientState.brandingRefresh?.({
       logoUrl: clientState.draft.logoUrl,
       iconUrl: clientState.draft.iconUrl,
@@ -15625,6 +15622,7 @@ async function autosaveClient(uid, payload) {
       c.phone = payload.phone;
       c.company = payload.company;
       c.personal = !!payload.personal;
+      c.logoUrl = clientState.draft.logoUrl || c.logoUrl || '';
     }
     syncClientListRow(uid);
     if (wasPersonal !== !!payload.personal) {
@@ -18753,13 +18751,16 @@ function createClientListItem(c) {
   item.className = 'ch-list-item' + (c.uid === clientState.activeUid ? ' active' : '');
   item.dataset.id = c.uid;
   item.innerHTML =
-    `<span class="ch-list-content">` +
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(clientListTitle(c))}</span></span>` +
+    `<span class="ch-list-content ch-list-content--client">` +
+    `<span class="ch-item-row ch-item-row--client">` +
+    `<span class="cl-list-avatar-wrap">${clientListAvatarHtml(c)}</span>` +
+    `<span class="ch-item-copy">` +
+    `<span class="ch-item-title">${escHtml(clientListTitle(c))}</span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(clientListSubline(c))}</span>` +
     (c.personal ? '<span class="cl-personal-tag">Personal</span>' : '') +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
-    `</span></span>`;
+    `</span></span></span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
   return item;
 }
