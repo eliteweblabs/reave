@@ -1,4 +1,7 @@
 ---
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
@@ -7,7 +10,19 @@ import {
   LayoutDashboard,
 } from "lucide-astro";
 
-const HEADER_LOGO_SRC = "/reave-logo.svg";
+const headerLogoMarkup = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), "../../public/reave-logo.svg"),
+  "utf8",
+)
+  .replace(/<\?xml[\s\S]*?\?>\s*/i, "")
+  .replace(
+    /xlink:href="reave-logo-1\.png"/g,
+    'href="/reave-logo-1.png" xlink:href="/reave-logo-1.png"',
+  )
+  .replace(
+    /<svg\b/,
+    '<svg class="app-header-logo-svg brand-img logo-img" aria-hidden="true" focusable="false"',
+  );
 
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
@@ -62,7 +77,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
   {!hideLogo ? (
     <a href={logoHref} class="app-header-logo brand" aria-label={logoAriaLabel}>
-      <img src={HEADER_LOGO_SRC} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+      <Fragment set:html={headerLogoMarkup} />
     </a>
   ) : null}
 
@@ -391,10 +406,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     text-decoration: none;
   }
 
-  .app-header-logo-img {
-    height: var(--app-header-logo-h);
-    width: auto;
+  .app-header-logo-svg {
     display: block;
+    height: var(--app-header-logo-h);
+    width: calc(var(--app-header-logo-h) * (1014 / 329));
+    max-width: none;
     pointer-events: none;
     mix-blend-mode: difference;
   }
