@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1014" height="329" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 1014 329">
+<svg id="Layer_3" xmlns="http://www.w3.org/2000/svg" width="1014" height="329" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 1014 329">
   <!-- Generator: Adobe Illustrator 29.8.2, SVG Export Plug-In . SVG Version: 2.1.1 Build 3)  -->
   <defs>
     <style>
@@ -16,10 +16,6 @@
       }
 
       .st3 {
-        display: none;
-      }
-
-      .st4 {
         clip-path: url(#clippath);
       }
     </style>
@@ -33,16 +29,11 @@
       <rect class="st0" x="-5" y="-5" width="1024" height="339"/>
     </clipPath>
   </defs>
-  <g id="Layer_3">
-    <g class="st4">
-      <g class="st1">
-        <g class="st2">
-          <image width="2134" height="707" transform="translate(-5.32 -5.24) scale(.48)" xlink:href="reave-logo-1.png"/>
-        </g>
+  <g class="st3">
+    <g class="st1">
+      <g class="st2">
+        <image width="2134" height="707" transform="translate(-5.32 -5.24) scale(.48)" xlink:href="reave-logo-1.png"/>
       </g>
     </g>
-  </g>
-  <g id="Layer_1" class="st3">
-    <image width="1014" height="329" xlink:href="../../../Library/Mobile Documents/com~apple~CloudDocs/Clients/reave-logo.png"/>
   </g>
 </svg>

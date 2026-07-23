@@ -10,7 +10,11 @@
 import { getContact, extractPortal } from '../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../lib/companyConfig';
 import { getTemplate, fillTemplate } from '../../../lib/documentTemplates';
+import Header from '../../../components/Header.astro';
+import SiteFooterNav from '../../../components/SiteFooterNav.astro';
+import FootBostonTag from '../../../components/FootBostonTag.astro';
 import Favicon from '../../../components/Favicon.astro';
+import '../../../styles/brand.css';
 
 const company = await getCompanyConfig(Astro.request);
 const poweredBy = poweredByLabel(company);
@@ -73,16 +77,16 @@ const siteBase = Astro.url.origin;
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <Header />
     {error ? (
       <main class="error-wrap">
-        <div class="logo">{company.name}</div>
         <h1>This link isn't available</h1>
         <p>{error}</p>
       </main>
     ) : (
       <main>
         <div class="doc-header">
-          <div class="logo">{company.name}</div>
+          <div class="logo print-only">{company.name}</div>
           <div class="doc-header-text">
             <div class="doc-title">{title}</div>
             <div class="doc-for">Prepared for {contactName}</div>
@@ -148,9 +152,12 @@ const siteBase = Astro.url.origin;
 
         <footer class="doc-foot">
           <span>{poweredBy}</span>
+          <FootBostonTag />
         </footer>
       </main>
     )}
+
+    <SiteFooterNav />
 
     <script define:vars={{ signEndpoint, templateSlug }}>
       const nameInput    = document.getElementById('signer-name');
@@ -236,7 +243,10 @@ const siteBase = Astro.url.origin;
       main {
         max-width: 780px;
         margin: 0 auto;
-        padding: 40px 32px 80px;
+        padding:
+          calc(var(--app-header-h, 3.25rem) + 24px)
+          32px
+          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
       }
 
       /* ── Header ── */
@@ -438,17 +448,25 @@ const siteBase = Astro.url.origin;
         border-top: 1px solid #eee;
         font-size: 12px;
         color: #bbb;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
       }
+
+      .print-only { display: none; }
 
       /* ── Error ── */
       .error-wrap {
         max-width: 400px;
-        margin: 80px auto;
+        margin: 0 auto;
         text-align: center;
-        padding: 0 20px;
+        padding:
+          calc(var(--app-header-h, 3.25rem) + 48px)
+          20px
+          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
       }
-      .error-wrap .logo { font-size: 22px; margin-bottom: 24px; display: block; }
       .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
       .error-wrap p { color: #666; }
 
@@ -458,11 +476,18 @@ const siteBase = Astro.url.origin;
         main { padding: 0; }
         .doc-body { margin-bottom: 0; }
         .success-section .view-btn { display: none; }
+        .print-only { display: block !important; }
       }
 
       @media (max-width: 600px) {
-        main { padding: 24px 20px 60px; }
+        main {
+          padding:
+            calc(var(--app-header-h, 3.25rem) + 16px)
+            20px
+            calc(var(--site-footer-nav-offset, 3.35rem) + 40px);
+        }
         .doc-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+        .doc-foot { justify-content: center; text-align: center; }
       }
     </style>
   </body>

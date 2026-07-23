@@ -13,7 +13,10 @@
 import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import Header from '../../../../components/Header.astro';
+import SiteFooterNav from '../../../../components/SiteFooterNav.astro';
+import FootBostonTag from '../../../../components/FootBostonTag.astro';
 import Favicon from '../../../../components/Favicon.astro';
+import '../../../../styles/brand.css';
 
 const company = await getCompanyConfig(Astro.request);
 const poweredBy = poweredByLabel(company);
@@ -155,10 +158,15 @@ const fmtDate = (iso: string) => {
 
         <footer class="doc-foot">
           <span>Document ID: {docId}</span>
-          <span>{poweredBy}</span>
+          <span class="doc-foot-brand">
+            <span>{poweredBy}</span>
+            <FootBostonTag />
+          </span>
         </footer>
       </main>
     )}
+
+    <SiteFooterNav />
 
     <style is:global>
       *, *::before, *::after { box-sizing: border-box; }
@@ -171,7 +179,14 @@ const fmtDate = (iso: string) => {
         font-size: 16px;
         line-height: 1.7;
       }
-      main { max-width: 780px; margin: 0 auto; padding: calc(64px + 16px) 32px 80px; }
+      main {
+        max-width: 780px;
+        margin: 0 auto;
+        padding:
+          calc(var(--app-header-h, 3.25rem) + 16px)
+          32px
+          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
+      }
 
       /* ── Toolbar ── */
       .toolbar {
@@ -318,11 +333,25 @@ const fmtDate = (iso: string) => {
       .doc-foot {
         margin-top: 48px; padding-top: 16px; border-top: 1px solid #eee;
         font-size: 11px; color: #bbb; display: flex; justify-content: space-between;
+        align-items: center; gap: 12px; flex-wrap: wrap;
+      }
+      .doc-foot-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
       }
 
       /* ── Error ── */
-      .error-wrap { max-width: 400px; margin: 80px auto; text-align: center; padding: 0 20px; }
-      .error-wrap .logo { font-size: 22px; margin-bottom: 24px; display: block; }
+      .error-wrap {
+        max-width: 400px;
+        margin: 0 auto;
+        text-align: center;
+        padding:
+          calc(var(--app-header-h, 3.25rem) + 48px)
+          20px
+          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
+      }
       .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
       .error-wrap p { color: #666; }
 
@@ -339,9 +368,15 @@ const fmtDate = (iso: string) => {
       }
 
       @media (max-width: 600px) {
-        main { padding: 20px 20px 60px; }
+        main {
+          padding:
+            calc(var(--app-header-h, 3.25rem) + 12px)
+            20px
+            calc(var(--site-footer-nav-offset, 3.35rem) + 40px);
+        }
         .sig-row { flex-direction: column; align-items: flex-start; }
         .sig-stamp { transform: none; }
+        .doc-foot { flex-direction: column; align-items: flex-start; }
       }
     </style>
   </body>
