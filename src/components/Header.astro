@@ -1,11 +1,13 @@
 ---
-import { getCompanyConfig, companyLogoUrl, companyStaffAvatarUrl } from "../lib/companyConfig";
+import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import {
   Shield,
   LayoutDashboard,
 } from "lucide-astro";
+
+const HEADER_LOGO_SRC = "/reave-logo.svg";
 
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
@@ -32,7 +34,6 @@ const {
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
-const logoSrc = companyLogoUrl(company.logoPath, company.logoVersion);
 const profileIconSrc = companyStaffAvatarUrl(company);
 
 const auth = Astro.locals.auth?.();
@@ -59,9 +60,9 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
-  {!hideLogo && logoSrc ? (
+  {!hideLogo ? (
     <a href={logoHref} class="app-header-logo brand" aria-label={logoAriaLabel}>
-      <img src={logoSrc} alt={company.name} class="app-header-logo-img brand-img logo-img" />
+      <img src={HEADER_LOGO_SRC} alt={company.name} class="app-header-logo-img brand-img logo-img" />
     </a>
   ) : null}
 
@@ -395,6 +396,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     width: auto;
     display: block;
     pointer-events: none;
+    mix-blend-mode: difference;
   }
 
   .topbar-dash-date {
