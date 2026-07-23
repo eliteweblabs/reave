@@ -1,4 +1,6 @@
 const express = require('express');
+const { readFileSync, existsSync } = require('fs');
+const { join } = require('path');
 const { getProvider, listProviders, withDefaultZip } = require('./providers');
 const cache = require('./lib/cache');
 
@@ -28,7 +30,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   if (!API_KEY) return next();
-  if (req.path === '/health' || req.method === 'OPTIONS') return next();
+  if (req.path === '/health' || req.path === '/knowledge' || req.method === 'OPTIONS') return next();
   const provided = req.headers['x-api-key'] || req.query.apiKey;
   if (provided !== API_KEY) return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
   next();
@@ -65,6 +67,19 @@ app.get('/health', (_req, res) => {
     cache: cache.stats(),
     checkedAt: new Date().toISOString(),
   });
+});
+
+app.get('/knowledge', (_req, res) => {
+  const path = join(__dirname, 'KNOWLEDGE.md');
+  if (!existsSync(path)) {
+    return json(res, 404, { ok: false, error: 'KNOWLEDGE.md not found' });
+  }
+  const content = readFileSync(path, 'utf8');
+  const accept = _req.headers.accept || '';
+  if (accept.includes('application/json')) {
+    return json(res, 200, { ok: true, slug: 'materials-api', content });
+  }
+  res.type('text/markdown; charset=utf-8').send(content);
 });
 
 app.get('/api/providers', (_req, res) => {

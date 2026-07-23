@@ -3,6 +3,7 @@ import { isBraveConfigured } from './braveClient';
 import { buildTools, runTool } from './agentTools';
 import { getCompanyBrandContext } from './companyConfig';
 import { isContactApiConfigured, siteBaseUrl } from './contactApi';
+import { isMaterialsApiConfigured } from './materialsClient';
 import { isCardDavConfigured } from './carddav/auth';
 import { isCraterConfigured } from './craterClient';
 import { isBookingConfigured } from './bookingClient';
@@ -462,6 +463,11 @@ async function runKnowledgeAgentInner(
     }
   } else {
     sysParts.push('Note: resolve_contact and client portals are unavailable (CONTACT_API_BASE_URL not set).');
+  }
+  if (isMaterialsApiConfigured()) {
+    sysParts.push(
+      'Materials pricing: live Home Depot (and future retailer) prices via materials-api. For lumber, drywall, paint, fixtures, or pasted Home Depot URLs, call read_knowledge slug "materials-api-reference" before quoting — do not guess prices. Use POST /api/materials/search, /api/materials/lookup, or /api/materials/quote (or upstream materials-api). Pass zip for store-specific pricing. Map quote line items to Crater invoices via billing tools (whole-dollar prices).',
+    );
   }
   if (hasFeature('scheduling') && isBookingConfigured()) {
     sysParts.push(

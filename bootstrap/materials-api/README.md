@@ -13,6 +13,7 @@ Home Depot has no public product API. Real-time pricing requires third-party dat
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Service health + configured providers |
+| `GET` | `/knowledge` | Agent playbook (`KNOWLEDGE.md`, markdown or JSON) |
 | `GET` | `/api/providers` | List provider adapters and config status |
 | `POST` | `/api/search` | Search products by keyword |
 | `GET` | `/api/products/:provider/:id` | Product details + price by SKU/id |
