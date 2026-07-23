@@ -20,6 +20,8 @@ export interface EmailInboxRecord {
   bodySnippet: string;
   /** Full normalized plain-text body (up to 100k chars). */
   bodyText: string;
+  /** Original HTML body for inbox rendering (scripts stripped, up to 500k chars). */
+  bodyHtml: string;
   to: string[];
   cc: string[];
   bcc: string[];
@@ -56,6 +58,7 @@ export interface EmailInboxInput {
   subject: string;
   bodySnippet: string;
   bodyText?: string;
+  bodyHtml?: string;
   to?: string[];
   cc?: string[];
   bcc?: string[];
@@ -84,12 +87,13 @@ export interface EmailInboxInput {
 /** List API shape — omits full body/headers to keep payloads small. */
 export type EmailInboxListRecord = Omit<
   EmailInboxRecord,
-  'bodyText' | 'headers' | 'to' | 'cc' | 'bcc' | 'replyTo' | 'messageId' | 'resendEmailId'
+  'bodyText' | 'bodyHtml' | 'headers' | 'to' | 'cc' | 'bcc' | 'replyTo' | 'messageId' | 'resendEmailId'
 >;
 
 export function toEmailInboxListRecord(record: EmailInboxRecord): EmailInboxListRecord {
   const {
     bodyText: _bodyText,
+    bodyHtml: _bodyHtml,
     headers: _headers,
     to: _to,
     cc: _cc,
@@ -151,6 +155,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_ack_at TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_kind TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_html TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS to_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS cc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS bcc_addrs JSONB NOT NULL DEFAULT '[]'::jsonb`,
@@ -172,7 +177,7 @@ const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
               automation_ack_at, automation_kind, verification_code`;
 
-const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
+const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -241,6 +246,7 @@ type InboxRow = {
   subject: string;
   body_snippet: string;
   body_text?: string;
+  body_html?: string;
   to_addrs?: string[] | null;
   cc_addrs?: string[] | null;
   bcc_addrs?: string[] | null;
@@ -304,6 +310,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     subject: row.subject,
     bodySnippet: row.body_snippet,
     bodyText: row.body_text ?? row.body_snippet ?? '',
+    bodyHtml: row.body_html ?? '',
     to: parseJsonStringArray(row.to_addrs),
     cc: parseJsonStringArray(row.cc_addrs),
     bcc: parseJsonStringArray(row.bcc_addrs),
@@ -347,6 +354,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       subject: String(e.subject ?? ''),
       bodySnippet: String(e.bodySnippet ?? ''),
       bodyText: String(e.bodyText ?? e.bodySnippet ?? ''),
+      bodyHtml: String(e.bodyHtml ?? ''),
       to: Array.isArray(e.to) ? e.to.map(String) : [],
       cc: Array.isArray(e.cc) ? e.cc.map(String) : [],
       bcc: Array.isArray(e.bcc) ? e.bcc.map(String) : [],
@@ -427,6 +435,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     subject: input.subject,
     bodySnippet: input.bodySnippet,
     bodyText: input.bodyText ?? input.bodySnippet,
+    bodyHtml: input.bodyHtml ?? '',
     to: input.to ?? [],
     cc: input.cc ?? [],
     bcc: input.bcc ?? [],
@@ -499,13 +508,13 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const id = randomUUID();
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
-        (id, from_address, subject, body_snippet, body_text, to_addrs, cc_addrs, bcc_addrs,
+        (id, from_address, subject, body_snippet, body_text, body_html, to_addrs, cc_addrs, bcc_addrs,
          reply_to_addrs, headers_json, message_id, resend_email_id,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
          route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
          verification_code)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12,
-               $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13,
+               $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -513,6 +522,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         input.subject,
         input.bodySnippet,
         input.bodyText ?? input.bodySnippet,
+        input.bodyHtml ?? '',
         JSON.stringify(input.to ?? []),
         JSON.stringify(input.cc ?? []),
         JSON.stringify(input.bcc ?? []),

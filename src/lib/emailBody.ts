@@ -1,6 +1,7 @@
 /** Normalize inbound email body for storage and agent context. */
 
 export const MAX_STORED_EMAIL_BODY = 100_000;
+export const MAX_STORED_EMAIL_HTML = 500_000;
 
 export function htmlToPlainText(html: string): string {
   return html
@@ -48,6 +49,29 @@ export function normalizeEmailBody(text?: string, html?: string, max = MAX_STORE
   if (!body) return '';
   if (body.length > max) return `${body.slice(0, max)}\n…[truncated at ${max} chars]`;
   return body;
+}
+
+function stripScriptTags(html: string): string {
+  return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+}
+
+/** Store inbound HTML for inbox rendering (scripts stripped). */
+export function normalizeEmailHtml(text?: string, html?: string, max = MAX_STORED_EMAIL_HTML): string {
+  let raw = (html ?? '').trim();
+  if (!raw && text?.trim() && looksLikeHtml(text)) raw = text.trim();
+  if (!raw) return '';
+  raw = stripScriptTags(raw);
+  if (raw.length > max) return `${raw.slice(0, max)}\n<!-- truncated -->`;
+  return raw;
+}
+
+/** HTML to render in the inbox detail view (stored html, or legacy html-in-text fallback). */
+export function resolveEmailHtmlForDisplay(bodyHtml?: string, bodyText?: string): string {
+  const html = (bodyHtml ?? '').trim();
+  if (html) return stripScriptTags(html);
+  const text = (bodyText ?? '').trim();
+  if (text && looksLikeHtml(text)) return stripScriptTags(text);
+  return '';
 }
 
 export function inboxPreviewSnippet(text: string, max = 500): string {

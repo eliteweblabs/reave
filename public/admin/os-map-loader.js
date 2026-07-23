@@ -18996,7 +18996,7 @@ function buildEmailAgentPrompt(ev) {
 
 async function fetchFullEmailRecord(ev) {
   if (!ev?.id) return ev;
-  if (ev._fullLoaded && ev.bodyText) return ev;
+  if (ev._fullLoaded && (ev.bodyText || ev.bodyHtml)) return ev;
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, { cache: 'no-store' });
     const data = await readApiJson(res);
@@ -20259,11 +20259,19 @@ function renderEmailPanel() {
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
-    `</div>` +
-    ((ev.bodyText || ev.bodySnippet) && (ev.bodyText || ev.bodySnippet) !== summary
-      ? `<div class="em-detail-body">${linkifyPlainText(ev.bodyText || ev.bodySnippet)}</div>`
-      : '');
+    `</div>`;
+  const bodyHtmlSource = (ev.bodyHtml || '').trim();
+  const plainBody = ev.bodyText || ev.bodySnippet || '';
+  const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summary;
+  if (bodyHtmlSource) {
+    detailHtml +=
+      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="" title="Email message"></iframe></div>`;
+  } else if (showPlainBody) {
+    detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
+  }
   detail.innerHTML = detailHtml;
+  const bodyFrame = detail.querySelector('.em-detail-body-frame');
+  if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
     void copyEmailVerificationCode(ev.verificationCode, e.currentTarget);

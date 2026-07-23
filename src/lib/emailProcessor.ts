@@ -23,7 +23,7 @@ import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfEmailAutomation, notify
 import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { siteBaseUrl } from './contactApi';
-import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
+import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import { extractVerificationCodeFromEmail } from './emailOtpParser';
@@ -258,6 +258,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
+  const bodyHtml = normalizeEmailHtml(email.text, email.html);
   const verificationCode =
     extractVerificationCodeFromEmail({
       subject: email.subject,
@@ -556,6 +557,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     subject: email.subject ?? '',
     bodySnippet: snippet(bodyText),
     bodyText,
+    bodyHtml,
     to: email.to,
     cc: email.cc,
     bcc: email.bcc,
