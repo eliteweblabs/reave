@@ -1,15 +1,23 @@
 ---
 import { Home, Info, Briefcase, LayoutGrid, Mail, Mic } from "lucide-astro";
+import VoiceChatButton from "./VoiceChatButton.astro";
+import Transcript from "./Transcript.astro";
+import TextFallback from "./TextFallback.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { isHomepageVoiceWidgetEnabled } from "../lib/vapiPlugin";
 
 export type SiteNavId = "home" | "about" | "services" | "portfolio" | "contact";
 
 interface Props {
   active?: SiteNavId;
-  /** Render a voice-assistant button in the pill (wired to the hidden VoiceChatButton). */
-  voice?: boolean;
 }
 
-const { active, voice = false } = Astro.props;
+const { active } = Astro.props;
+
+// The voice assistant shows anywhere the footer nav renders (not just the
+// homepage), gated only by whether the install has the voice widget enabled.
+const company = await getCompanyConfig(Astro.request);
+const voice = isHomepageVoiceWidgetEnabled(company);
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 
@@ -72,6 +80,22 @@ const items: Array<{
     </div>
   </div>
 </nav>
+
+{
+  voice && (
+    <>
+      <VoiceChatButton
+        position="center-bottom"
+        assistantId={company.vapiAssistantId || undefined}
+        companyName={company.name}
+        companyDescription={company.description}
+        companyDomain={company.domain}
+      />
+      <Transcript />
+      <TextFallback />
+    </>
+  )
+}
 
 <script>
   function positionSiteFooterIndicator() {
@@ -253,5 +277,21 @@ const items: Array<{
     .site-footer-nav {
       display: none !important;
     }
+  }
+
+  /* The voice widget's own floating button is never shown — the visible control
+     lives in the footer nav pill (#footer-nav-voice-btn) and forwards clicks to
+     the hidden #vapi-voice-button. Keep the widget mounted for its call logic
+     but hide the floating button across every viewport size and icon state.
+     (Astro 5 scopes component styles with :where() — zero specificity — so the
+     component's own `display: flex` can win on cascade order without the
+     !important here.) */
+  .vapi-widget-container {
+    display: none !important;
+  }
+
+  /* Keep the typed-fallback panel above the footer nav wherever it appears. */
+  #text-fallback {
+    bottom: calc(108px + var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
   }
 </style>

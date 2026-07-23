@@ -11806,6 +11806,221 @@ function scheduleBookingWho(b) {
   return b.attendee && b.attendee !== 'Unknown' ? b.attendee : b.email || 'Guest';
 }
 
+/**
+ * Bookings only carry a single Cal.com attendee (name/email). Additional
+ * guests are cosmetic-only: we stash them as a hidden JSON marker at the end
+ * of the booking's notes/description so they survive a reload, without
+ * actually inviting them via Cal.com. Never render the raw marker to users —
+ * always go through scheduleParseExtraGuests() to get the clean notes text.
+ */
+const SCHED_EXTRA_GUESTS_RE = /\n*<!--extra-guests:(.*?)-->\s*$/s;
+
+function scheduleParseExtraGuests(description) {
+  const raw = String(description || '');
+  const m = raw.match(SCHED_EXTRA_GUESTS_RE);
+  if (!m) return { cleanNotes: raw.trim(), extraGuests: [] };
+  let extraGuests = [];
+  try {
+    const parsed = JSON.parse(m[1]);
+    if (Array.isArray(parsed)) extraGuests = parsed.filter((g) => g && (g.name || g.email));
+  } catch {
+    extraGuests = [];
+  }
+  return { cleanNotes: raw.slice(0, m.index).trim(), extraGuests };
+}
+
+function scheduleSerializeNotesWithGuests(cleanNotes, extraGuests) {
+  const base = String(cleanNotes || '').trim();
+  if (!extraGuests?.length) return base;
+  const marker = `<!--extra-guests:${JSON.stringify(extraGuests)}-->`;
+  return base ? `${base}\n\n${marker}` : marker;
+}
+
+function scheduleBookingWhoLabel(booking) {
+  const primary = scheduleBookingWho(booking);
+  const { extraGuests } = scheduleParseExtraGuests(booking.description);
+  return extraGuests.length ? `${primary} +${extraGuests.length}` : primary;
+}
+
+/**
+ * Persists an existing booking's guest list. There's no dedicated "update
+ * notes" endpoint on the booking microservice, so this piggybacks on the
+ * reschedule endpoint with the booking's own start time (i.e. a no-op time
+ * change) just to push updated notes through. NOTE: depending on how the
+ * upstream Cal.com booking works, this *could* trigger a "rescheduled"
+ * notification to the primary attendee even though the time didn't change.
+ */
+async function scheduleSaveBookingGuests(booking, cleanNotes, extraGuests) {
+  const notes = scheduleSerializeNotesWithGuests(cleanNotes, extraGuests);
+  const res = await fetch(`/api/bookings/${encodeURIComponent(booking.uid)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      start: booking.startTime,
+      ...(booking.location ? { address: booking.location } : {}),
+      notes,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  const updatedDescription = data.booking?.description ?? notes;
+  booking.description = updatedDescription;
+  const cached = scheduleState.bookings.find((b) => b.uid === booking.uid);
+  if (cached) cached.description = updatedDescription;
+  return updatedDescription;
+}
+
+const schedClientResolveCache = new Map();
+
+/** Looks up a client by exact email match so guest names can link to their profile. */
+async function scheduleResolveClientByEmail(email) {
+  const key = String(email || '').trim().toLowerCase();
+  if (!key) return null;
+  if (schedClientResolveCache.has(key)) return schedClientResolveCache.get(key);
+  const promise = (async () => {
+    try {
+      const res = await fetch('/api/clients/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: key }),
+      });
+      const data = await res.json();
+      if (!res.ok) return null;
+      if ((data.match === 'exact' || data.match === 'likely') && data.contact?.uid) {
+        return { uid: data.contact.uid, name: data.contact.name || key };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  })();
+  schedClientResolveCache.set(key, promise);
+  return promise;
+}
+
+/** Renders guest name chips into `container`; each chip upgrades into a profile link once resolved. */
+function renderScheduleGuestChips(container, guests, opts = {}) {
+  const { removable = false, onRemove } = opts;
+  container.innerHTML = '';
+  guests.forEach((guest, idx) => {
+    const chip = document.createElement('span');
+    chip.className = 'schedule-guest-chip';
+
+    const label = document.createElement('button');
+    label.type = 'button';
+    label.className = 'schedule-guest-chip-name';
+    label.textContent = guest.name || guest.email || 'Guest';
+    label.disabled = true;
+    chip.appendChild(label);
+
+    if (guest.email) {
+      scheduleResolveClientByEmail(guest.email).then((match) => {
+        if (!match || !chip.isConnected) return;
+        label.disabled = false;
+        label.title = 'View profile';
+        label.classList.add('schedule-guest-chip-name--linked');
+        label.addEventListener('click', () => navigateToClient(match.uid));
+      });
+    }
+
+    const canRemove = typeof removable === 'function' ? removable(idx) : removable;
+    if (canRemove) {
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'schedule-guest-chip-remove';
+      rm.setAttribute('aria-label', `Remove ${guest.name || guest.email || 'guest'}`);
+      rm.textContent = '\u00d7';
+      rm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onRemove?.(idx);
+      });
+      chip.appendChild(rm);
+    }
+
+    container.appendChild(chip);
+  });
+}
+
+/** Small "+ Add guest" toggle that reveals a name/email mini-form; calls onAdd({name,email}). */
+function mountScheduleGuestAdder(container, { onAdd } = {}) {
+  const toggleBtn = document.createElement('button');
+  toggleBtn.type = 'button';
+  toggleBtn.className = 'schedule-guest-add-btn';
+  toggleBtn.textContent = '+ Add guest';
+
+  const form = document.createElement('div');
+  form.className = 'schedule-guest-adder';
+  form.hidden = true;
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'Name';
+  nameInput.className = 'schedule-guest-adder-input';
+  nameInput.autocomplete = 'off';
+
+  const emailInput = document.createElement('input');
+  emailInput.type = 'email';
+  emailInput.placeholder = 'Email (optional)';
+  emailInput.className = 'schedule-guest-adder-input';
+  emailInput.autocomplete = 'off';
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'schedule-guest-adder-add';
+  addBtn.textContent = 'Add';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'schedule-guest-adder-cancel';
+  cancelBtn.setAttribute('aria-label', 'Cancel add guest');
+  cancelBtn.textContent = '\u00d7';
+
+  form.append(nameInput, emailInput, addBtn, cancelBtn);
+  container.append(toggleBtn, form);
+
+  function reset() {
+    nameInput.value = '';
+    emailInput.value = '';
+    form.hidden = true;
+    toggleBtn.hidden = false;
+  }
+
+  toggleBtn.addEventListener('click', () => {
+    toggleBtn.hidden = true;
+    form.hidden = false;
+    nameInput.focus();
+  });
+  cancelBtn.addEventListener('click', reset);
+  const submit = () => {
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    if (!name && !email) {
+      nameInput.focus();
+      return;
+    }
+    onAdd?.({ name: name || email, email: email || undefined });
+    reset();
+  };
+  addBtn.addEventListener('click', submit);
+  for (const input of [nameInput, emailInput]) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      } else if (e.key === 'Escape') {
+        reset();
+      }
+    });
+  }
+
+  return {
+    destroy: () => {
+      toggleBtn.remove();
+      form.remove();
+    },
+  };
+}
+
 function findScheduleBooking(uid) {
   return scheduleState.bookings.find((b) => b.uid === uid) || null;
 }
@@ -12373,11 +12588,13 @@ function openScheduleCreateDialog(initial = {}) {
     let settled = false;
     let destroyGuestAutocomplete = () => {};
     let destroyAddressAutocomplete = () => {};
+    let destroyCreateGuestAdder = () => {};
     const finish = (value) => {
       if (settled) return;
       settled = true;
       destroyGuestAutocomplete();
       destroyAddressAutocomplete();
+      destroyCreateGuestAdder();
       releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
@@ -12643,10 +12860,51 @@ function renderScheduleDetail(pane, booking) {
     fields.appendChild(dt);
     fields.appendChild(dd);
   };
-  addField('Guest', who);
+  const { cleanNotes, extraGuests: parsedExtraGuests } = scheduleParseExtraGuests(booking.description);
+  const extraGuests = parsedExtraGuests.slice();
+
+  const guestDt = document.createElement('dt');
+  const guestDd = document.createElement('dd');
+  guestDd.className = 'schedule-guest-field';
+  const guestChips = document.createElement('div');
+  guestChips.className = 'schedule-guest-list';
+  guestDd.appendChild(guestChips);
+
+  function refreshGuestField() {
+    guestDt.textContent = extraGuests.length ? 'Guests' : 'Guest';
+    renderScheduleGuestChips(guestChips, [{ name: who, email: booking.email }, ...extraGuests], {
+      removable: (idx) => idx > 0,
+      onRemove: (idx) => {
+        const [removed] = extraGuests.splice(idx - 1, 1);
+        refreshGuestField();
+        scheduleSaveBookingGuests(booking, cleanNotes, extraGuests).catch((e) => {
+          extraGuests.splice(idx - 1, 0, removed);
+          refreshGuestField();
+          alert(`Failed to remove guest: ${e.message}`);
+        });
+      },
+    });
+  }
+  refreshGuestField();
+
+  fields.appendChild(guestDt);
+  fields.appendChild(guestDd);
+
+  mountScheduleGuestAdder(guestDd, {
+    onAdd: (guest) => {
+      extraGuests.push(guest);
+      refreshGuestField();
+      scheduleSaveBookingGuests(booking, cleanNotes, extraGuests).catch((e) => {
+        extraGuests.pop();
+        refreshGuestField();
+        alert(`Failed to add guest: ${e.message}`);
+      });
+    },
+  });
+
   addField('Email', booking.email, booking.email ? `mailto:${booking.email}` : null);
   addField('Location', booking.location);
-  if (booking.description?.trim()) addField('Notes', booking.description.trim());
+  if (cleanNotes) addField('Notes', cleanNotes);
   scroll.appendChild(fields);
 
   const actions = document.createElement('div');
@@ -12743,7 +13001,7 @@ function createCalAgendaItem(booking) {
     'cal-agenda-item' +
     (scheduleBookingIsPast(booking) ? ' cal-agenda-item--past' : '') +
     (booking.uid === scheduleState.activeUid ? ' active' : '');
-  const who = scheduleBookingWho(booking);
+  const who = scheduleBookingWhoLabel(booking);
   item.innerHTML =
     `<span class="cal-agenda-time">${escHtml(formatScheduleAgendaTime(booking.startTime))}</span>` +
     `<span class="cal-agenda-main">` +
@@ -13056,7 +13314,7 @@ function renderCalTimeGrid(parent, dayKeys, opts = {}) {
       block.style.height = `${height}px`;
       block.innerHTML =
         `<span class="cal-event-block-title">${escHtml(booking.title || 'Meeting')}</span>` +
-        `<span class="cal-event-block-sub">${escHtml(scheduleBookingWho(booking))}</span>`;
+        `<span class="cal-event-block-sub">${escHtml(scheduleBookingWhoLabel(booking))}</span>`;
       block.addEventListener('click', (e) => {
         e.stopPropagation();
         selectScheduleBooking(booking.uid);

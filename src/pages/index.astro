@@ -2,18 +2,13 @@
 import Layout from "../layouts/Layout.astro";
 // import Logo2 from "../components/Logo2.astro";
 import QuantumLogo from "../components/QuantumLogo.astro";
-import VoiceChatButton from "../components/VoiceChatButton.astro";
-import Transcript from "../components/Transcript.astro";
-import TextFallback from "../components/TextFallback.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
-import { isHomepageVoiceWidgetEnabled } from "../lib/vapiPlugin";
 
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
-const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
 ---
 
 <Layout>
@@ -29,18 +24,7 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
     </div>
   </div>
 
-  {showHomepageVoice && (
-    <VoiceChatButton
-      position="center-bottom"
-      assistantId={company.vapiAssistantId || undefined}
-      companyName={company.name}
-      companyDescription={company.description}
-      companyDomain={company.domain}
-    />
-  )}
-  {showHomepageVoice && <Transcript />}
-  {showHomepageVoice && <TextFallback />}
-  <SiteFooterNav active="home" voice={showHomepageVoice} />
+  <SiteFooterNav active="home" />
   <div class="container">
     <div class="watermark">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
@@ -233,21 +217,4 @@ const showHomepageVoice = isHomepageVoiceWidgetEnabled(company);
     }
   }
 
-  /* The voice widget now lives in the footer nav (SiteFooterNav), triggered by
-     #footer-nav-voice-btn. Keep the widget mounted for its call logic but hide
-     the floating button itself.
-
-     Astro 5 scopes component styles with :where(), which has zero specificity,
-     so the component's own `.vapi-widget-container.center-bottom { display: flex }`
-     ties with this rule and can win on cascade order. Use !important on the base
-     container so the widget stays hidden across every viewport size (desktop +
-     the 768px breakpoint) and both icon states (fingerprint + chat bubble). */
-  :global(.vapi-widget-container) {
-    display: none !important;
-  }
-
-  /* Keep the text fallback above the site footer nav. */
-  :global(#text-fallback) {
-    bottom: calc(108px + var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px));
-  }
 </style>
