@@ -8575,6 +8575,34 @@ function applyDocTextareaFontSize(ta, px) {
   return size;
 }
 
+function refreshDocTextareaLayout(ta) {
+  if (!ta?.isConnected) return;
+  const value = ta.value;
+  const start = ta.selectionStart ?? value.length;
+  const end = ta.selectionEnd ?? start;
+  const scrollTop = ta.scrollTop;
+
+  // WebKit keeps stale wrapped line boxes until the field is nudged.
+  ta.value = `${value}\u200b`;
+  ta.value = value;
+
+  requestAnimationFrame(() => {
+    if (!ta.isConnected) return;
+    const len = ta.value.length;
+    ta.setSelectionRange(Math.min(start, len), Math.min(end, len));
+    ta.scrollTop = Math.min(scrollTop, Math.max(0, ta.scrollHeight - ta.clientHeight));
+  });
+}
+
+let docTextareaRefreshTimer = null;
+function scheduleDocTextareaLayoutRefresh(ta) {
+  clearTimeout(docTextareaRefreshTimer);
+  docTextareaRefreshTimer = setTimeout(() => {
+    docTextareaRefreshTimer = null;
+    refreshDocTextareaLayout(ta);
+  }, 60);
+}
+
 function attachDocTextareaPinchZoom(ta) {
   ta.classList.add('de-textarea--zoomable');
   let fontSize = applyDocTextareaFontSize(ta, readDocTextareaFontSize());
@@ -8597,6 +8625,7 @@ function attachDocTextareaPinchZoom(ta) {
     window.removeEventListener('pointermove', onWindowPointerMove);
     window.removeEventListener('pointerup', onWindowPointerEnd);
     window.removeEventListener('pointercancel', onWindowPointerEnd);
+    requestAnimationFrame(() => refreshDocTextareaLayout(ta));
   };
 
   const onWindowPointerMove = (ev) => {
@@ -8630,6 +8659,7 @@ function attachDocTextareaPinchZoom(ta) {
     ev.preventDefault();
     fontSize = applyDocTextareaFontSize(ta, fontSize + (ev.deltaY < 0 ? 1 : -1));
     localStorage.setItem(DOC_TEXTAREA_FONT_STORE, String(fontSize));
+    scheduleDocTextareaLayoutRefresh(ta);
   }, { passive: false });
 }
 
