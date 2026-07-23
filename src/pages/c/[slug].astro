@@ -41,6 +41,8 @@ import Favicon from '../../components/Favicon.astro';
 
 const org = await getCompanyConfig(Astro.request);
 const poweredBy = poweredByLabel(org);
+const auth = Astro.locals.auth?.();
+const isStaff = Boolean(auth?.userId);
 
 const { slug } = Astro.params;
 const uid = (slug ?? '').trim();
@@ -326,7 +328,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     />
   </head>
   <body>
-    <Header />
+    <Header staffPreview={isStaff} />
     {
       notFound ? (
         <main class="wrap empty">
@@ -336,6 +338,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           </div>
         </main>
       ) : submitMode ? (
+        <>
+          {isStaff && uid && (
+            <section class="portal-staff-wrap">
+              <div class="portal-staff" data-portal-staff-editor data-uid={uid}></div>
+            </section>
+          )}
         <main class="wrap">
           <header class="hero">
             <h1>{displayName}</h1>
@@ -365,7 +373,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <FootBostonTag />
           </footer>
         </main>
+        </>
       ) : (
+        <>
+          {isStaff && uid && (
+            <section class="portal-staff-wrap">
+              <div class="portal-staff" data-portal-staff-editor data-uid={uid}></div>
+            </section>
+          )}
         <main class="wrap">
           <header class="hero">
             {logoUrl ? (
@@ -627,8 +642,13 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <FootBostonTag />
           </footer>
         </main>
+        </>
       )
     }
+
+    {isStaff && uid && !notFound && (
+      <script type="module" src="/c/staff-client-editor.js"></script>
+    )}
 
     <script define:vars={{ submitEndpoint, submitMode }}>
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
@@ -854,6 +874,219 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         color: rgba(255, 255, 255, 0.88);
       }
       .action .ico svg { display: block; }
+
+      .portal-staff-wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: calc(var(--app-header-h, 56px) + 12px) 16px 0;
+      }
+      .portal-staff {
+        border: 1px solid rgba(168, 85, 247, 0.35);
+        border-radius: 18px;
+        background: rgba(10, 10, 10, 0.92);
+        overflow: hidden;
+        margin-bottom: 18px;
+      }
+      .portal-staff-head {
+        padding: 12px 16px 0;
+      }
+      .portal-staff-head-title {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.55);
+      }
+      .portal-staff-tabs {
+        display: flex;
+        gap: 0.25rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding: 10px 12px 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .portal-staff-tabs::-webkit-scrollbar { display: none; }
+      .portal-staff-tab {
+        flex: 0 0 auto;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.55);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0.4rem 0.65rem;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .portal-staff-tab.active {
+        color: #fff;
+        background: rgba(168, 85, 247, 0.22);
+        border-color: rgba(168, 85, 247, 0.45);
+      }
+      .portal-staff-panel[hidden] { display: none !important; }
+      .portal-staff-panel-inner {
+        padding: 14px 16px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .portal-staff-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .portal-staff-field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .portal-staff-input,
+      .portal-staff-textarea {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #fff;
+        font: inherit;
+        font-size: 16px;
+        padding: 10px 12px;
+      }
+      .portal-staff-textarea {
+        min-height: 160px;
+        resize: vertical;
+        line-height: 1.45;
+      }
+      .portal-staff-btn {
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        border-radius: 10px;
+        background: linear-gradient(135deg, #a855f7, #ec4899);
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0.45rem 0.75rem;
+        cursor: pointer;
+      }
+      .portal-staff-btn--secondary {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.12);
+      }
+      .portal-staff-hint,
+      .portal-staff-empty,
+      .portal-staff-loading,
+      .portal-staff-error {
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.55);
+        margin: 0;
+      }
+      .portal-staff-error { color: #fca5a5; }
+      .portal-staff-brand-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .portal-staff-brand-preview {
+        width: 72px;
+        height: 40px;
+        object-fit: contain;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .portal-staff-brand-preview--icon {
+        width: 40px;
+        height: 40px;
+      }
+      .portal-staff-projects {
+        display: grid;
+        gap: 8px;
+      }
+      .portal-staff-project {
+        display: block;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.04);
+        color: #fff;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .portal-staff-vault-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .portal-staff-vault-title {
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .portal-staff-vault-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .portal-staff-vault-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .portal-staff-vault-card {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .portal-staff-vault-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .portal-staff-vault-row {
+        display: grid;
+        grid-template-columns: 5rem minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.5);
+      }
+      .portal-staff-secret {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .portal-staff-secret-masked {
+        -webkit-text-security: disc;
+        text-security: disc;
+      }
+      .portal-staff-toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        transform: translateX(-50%) translateY(12px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s, transform 0.2s;
+        z-index: 9999;
+        padding: 0.55rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(24, 24, 27, 0.96);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .portal-staff-toast.visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
 
       .tabbar {
         display: flex; gap: 6px; padding: 5px;

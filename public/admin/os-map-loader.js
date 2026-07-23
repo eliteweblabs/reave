@@ -14508,7 +14508,7 @@ async function loadClientsTab(opts = {}) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-  const deepUid = opts.clientUid || pendingClientDeepLinkUid;
+  const deepUid = opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
   pendingClientDeepLinkUid = null;
   clientState.activeUid = deepUid || null;
   clientState.dirty = false;
@@ -17541,6 +17541,14 @@ function parseWorkDeepLinkFromUrl() {
 function parseChatDeepLinkFromUrl() {
   try {
     return new URLSearchParams(window.location.search).get('chat')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function parseClientDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('client')?.trim() || null;
   } catch {
     return null;
   }
@@ -20635,7 +20643,8 @@ function loadPositions() {
 }
 function loadActiveKey() {
   try {
-    const tab = new URLSearchParams(window.location.search).get('tab');
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
     if (tab && MAPS[tab]) return tab;
   } catch {}
   let key;
