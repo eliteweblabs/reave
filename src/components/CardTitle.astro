@@ -1,0 +1,12 @@
+---
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+---
+
+<h3 class="text-fit">
+  <span><span>{text}</span></span>
+  <span aria-hidden="true">{text}</span>
+</h3>

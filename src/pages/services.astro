@@ -1,4 +1,5 @@
 ---
+import CardTitle from "../components/CardTitle.astro";
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
@@ -22,42 +23,42 @@ const company = await getCompanyConfig(Astro.request);
   <section>
     <div class="card-grid">
       <article class="card">
-        <h3>Development</h3>
+        <CardTitle text="Development" />
         <p>
           We build websites with a style &amp; quality to match your brand perfectly. No prepackaged
           templates — a bespoke product with all the features you won't get from the $249 warehouses.
         </p>
       </article>
       <article class="card">
-        <h3>SEO / SEM</h3>
+        <CardTitle text="SEO / SEM" />
         <p>
           Our websites rank in search engines out of the box thanks to proper construction, uber fast
           hosting and near-perfect Lighthouse scores.
         </p>
       </article>
       <article class="card">
-        <h3>Workspace Email</h3>
+        <CardTitle text="Workspace Email" />
         <p>
           A successful online presence means having a you@your-domain.com email. We set up Google
           Workspace for its cost-to-value ratio.
         </p>
       </article>
       <article class="card">
-        <h3>Brand Design</h3>
+        <CardTitle text="Brand Design" />
         <p>
           Update your current branding or start from scratch to refresh your look. We know how to
           make your business look professional without agency prices.
         </p>
       </article>
       <article class="card">
-        <h3>Custom Projects</h3>
+        <CardTitle text="Custom Projects" />
         <p>
           Need a touchscreen virtual directory app for your event? A white-label ticketing solution?
           We've done it. If you can think it, we can build it.
         </p>
       </article>
       <article class="card">
-        <h3>Managed Hosting</h3>
+        <CardTitle text="Managed Hosting" />
         <p>
           The most important aspect of search engine visibility is reliable, fast hosting. We resell
           hosting from Kinsta Google Cloud servers.

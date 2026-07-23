@@ -2,6 +2,14 @@
  * Reave brand tokens — gradient, accent stops, and shadows.
  * Import from Layout.astro (public pages) and admin/index.astro (dashboard).
  */
+
+/* Fit-to-width card titles (see CardTitle.astro / kizu.dev/fit-to-width) */
+@property --captured-length {
+  syntax: "<length>";
+  initial-value: 0px;
+  inherits: true;
+}
+
 :root {
   --font-display: "Genos", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "Mozilla Text", Georgia, "Times New Roman", serif;

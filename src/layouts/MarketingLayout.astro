@@ -205,6 +205,48 @@ const { title, description, label = "Explore", active, backgroundImage } = Astro
     margin-top: 0;
   }
 
+  /* Fit-to-width titles — scales Genos to span the card (kizu.dev/fit-to-width) */
+  .marketing-body :global(.card .text-fit) {
+    display: flex;
+    container-type: inline-size;
+    width: 100%;
+    margin: 0 0 10px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    --captured-length: initial;
+    --support-sentinel: var(--captured-length, 9999px);
+    --max-font-size: 2.75rem;
+  }
+
+  .marketing-body :global(.card .text-fit > [aria-hidden]) {
+    visibility: hidden;
+  }
+
+  .marketing-body :global(.card .text-fit > :not([aria-hidden])) {
+    flex-grow: 1;
+    container-type: inline-size;
+    min-width: 0;
+    --captured-length: 100cqi;
+    --available-space: var(--captured-length);
+  }
+
+  .marketing-body :global(.card .text-fit > :not([aria-hidden]) > *) {
+    --support-sentinel: inherit;
+    --captured-length: 100cqi;
+    --ratio: tan(atan2(var(--available-space), var(--available-space) - var(--captured-length)));
+    --font-size: clamp(
+      1em,
+      1em * var(--ratio),
+      var(--max-font-size, infinity * 1px) - var(--support-sentinel)
+    );
+    inline-size: var(--available-space);
+    display: block;
+    font-size: var(--font-size);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
   .marketing-body :global(.contact-list) {
     list-style: none;
     padding: 0;
