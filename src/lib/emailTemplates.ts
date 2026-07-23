@@ -8,6 +8,7 @@
  */
 import { getCompanyConfig } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
+import { qrCodeDataUrl } from './qrCode';
 
 function esc(s: string): string {
   return s
@@ -32,6 +33,8 @@ function emailBostonTagHtml(): string {
 }
 
 export type EmailCta = { label: string; url: string };
+/** Optional QR code linking to the same URL as the CTA (or another share link). */
+export type EmailQr = { url: string; label?: string };
 /** Label, display value, optional link (e.g. calendar download or maps directions). */
 export type EmailMetaRow = [string, string, string?];
 
@@ -48,6 +51,7 @@ export async function brandedEmailHtml(opts: {
   firstName: string;
   paragraphs: string[];
   cta?: EmailCta;
+  qr?: EmailQr;
   metaRows?: EmailMetaRow[];
   note?: string;
   /** Marketing footer: one-click unsubscribe link (adds CAN-SPAM footer row). */
@@ -79,6 +83,22 @@ export async function brandedEmailHtml(opts: {
         </td>
       </tr>`
     : '';
+
+  let qrHtml = '';
+  if (opts.qr?.url?.trim()) {
+    const qrSrc = await qrCodeDataUrl(opts.qr.url.trim(), 168);
+    if (qrSrc) {
+      const qrLabel = opts.qr.label?.trim() || 'Or scan to open on your phone';
+      qrHtml = `
+      <tr>
+        <td style="padding:0 0 20px" align="center">
+          <p class="email-note" style="margin:0 0 10px;color:#999;font-size:12px;line-height:1.5">${esc(qrLabel)}</p>
+          <img src="${qrSrc}" alt="QR code" width="168" height="168"
+               style="display:block;width:168px;height:168px;margin:0 auto;border:1px solid #e5e5e5;border-radius:8px" />
+        </td>
+      </tr>`;
+    }
+  }
 
   const metaHtml =
     opts.metaRows && opts.metaRows.length > 0
@@ -178,6 +198,9 @@ export async function brandedEmailHtml(opts: {
 
                 <!-- CTA button -->
                 ${ctaHtml}
+
+                <!-- QR code -->
+                ${qrHtml}
 
                 <!-- Metadata table -->
                 ${metaHtml}

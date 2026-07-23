@@ -11711,6 +11711,33 @@ function renderEditWorkForm(pane) {
       });
       pane.appendChild(header);
 
+      if (data.qr_data_url && data.portal_url) {
+        const qrWrap = document.createElement('div');
+        qrWrap.className = 'wk-project-qr';
+        const qrImg = document.createElement('img');
+        qrImg.src = data.qr_data_url;
+        qrImg.width = 120;
+        qrImg.height = 120;
+        qrImg.alt = 'Project page QR code';
+        qrWrap.appendChild(qrImg);
+
+        const copy = document.createElement('div');
+        copy.className = 'wk-project-qr-copy';
+        const label = document.createElement('span');
+        label.className = 'wk-project-qr-label';
+        label.textContent = 'Client project page';
+        const link = document.createElement('a');
+        link.className = 'wk-project-qr-link';
+        link.href = data.portal_url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = data.portal_url;
+        copy.appendChild(label);
+        copy.appendChild(link);
+        qrWrap.appendChild(copy);
+        pane.appendChild(qrWrap);
+      }
+
       const scroll = createWorkFormScroll(pane);
 
       const fields = document.createElement('div');

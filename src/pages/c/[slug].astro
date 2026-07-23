@@ -31,6 +31,8 @@ import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
+import { projectPortalUrl } from '../../lib/contactApi';
+import { qrCodeDataUrl } from '../../lib/qrCode';
 import { SITE } from '../../config/site';
 import PortalWorkPanel, { type PortalWorkJobItem } from '../../components/PortalWorkPanel.astro';
 import FootBostonTag from '../../components/FootBostonTag.astro';
@@ -205,13 +207,29 @@ if (contact && uid) {
   }
 }
 
-const portalWorkJobs: PortalWorkJobItem[] = clientJobs.map((job) => ({
-  slug: job.slug,
-  title: job.title,
-  status: job.status,
-  statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
-  bodyHtml: jobBodies[job.slug] ? workBodyHtml(jobBodies[job.slug], uid, job.slug) : '',
-}));
+const origin = requestOrigin(Astro.request);
+
+const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
+  clientJobs.map(async (job) => {
+    const portalUrl = projectPortalUrl(uid, job.slug, { base: origin });
+    return {
+      slug: job.slug,
+      title: job.title,
+      status: job.status,
+      statusLabel: CLIENT_WORK_STATUS[job.status] || job.status,
+      bodyHtml: jobBodies[job.slug] ? workBodyHtml(jobBodies[job.slug], uid, job.slug) : '',
+      dateLabel: fmtDate(job.updated || job.created),
+      portalUrl,
+      qrDataUrl: await qrCodeDataUrl(portalUrl, 128),
+    };
+  }),
+);
+
+const expandProjectSlug = (() => {
+  const raw = Astro.url.searchParams.get('project')?.trim();
+  if (!raw) return '';
+  return clientJobs.some((j) => j.slug === raw) ? raw : '';
+})();
 
 let clientUptimeMonitors: Awaited<ReturnType<typeof getClientUptimeView>>['monitors'] = [];
 let clientUptimeIncidents: Awaited<ReturnType<typeof getClientUptimeView>>['incidents'] = [];
@@ -254,7 +272,6 @@ const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = brandTitle;
 const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0a0a0a';
-const origin = requestOrigin(Astro.request);
 const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
 const ogDescription = clientTagline || `${brandTitle} client portal`;
 const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : SITE.ogImage;
@@ -450,6 +467,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               staffAvatarUrl={staffAvatarUrl}
               active={initialTab === 'work'}
               autoExpand={clientJobs.length === 1}
+              expandSlug={expandProjectSlug}
             />
           )}
 

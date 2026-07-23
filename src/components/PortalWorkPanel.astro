@@ -12,6 +12,12 @@ export interface PortalWorkJobItem {
   statusLabel: string;
   /** Rich HTML from the project description (admin body field). */
   bodyHtml: string;
+  /** Formatted updated/created date for display under the title. */
+  dateLabel: string;
+  /** Shareable portal URL for this project. */
+  portalUrl: string;
+  /** Data URL for the project QR code image. */
+  qrDataUrl: string;
 }
 
 interface Props {
@@ -25,6 +31,8 @@ interface Props {
   active?: boolean;
   /** Auto-expand the first (or only) job on load. */
   autoExpand?: boolean;
+  /** Deep-link slug from ?project= — expands that job on load. */
+  expandSlug?: string;
 }
 
 const {
@@ -35,6 +43,7 @@ const {
   staffAvatarUrl = '',
   active = false,
   autoExpand = false,
+  expandSlug = '',
 } = Astro.props;
 
 function escapeHtml(s: string): string {
@@ -84,16 +93,31 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     <ul class="work-list" id="portal-work-list">
       {jobs.map((job, index) => {
         const comments = commentsBySlug[job.slug] ?? [];
-        const startOpen = autoExpand && index === 0;
+        const startOpen = (expandSlug && job.slug === expandSlug) || (autoExpand && index === 0);
         return (
           <li class="work-item" data-job-slug={job.slug}>
             <button class="work-item-head" type="button" aria-expanded={startOpen ? 'true' : 'false'}>
               <span class="work-main">
                 <span class="work-title">{job.title}</span>
+                {job.dateLabel && <span class="work-meta">Updated {job.dateLabel}</span>}
               </span>
               <span class={`work-status work-status-${job.status}`}>{job.statusLabel}</span>
               <span class="work-chevron" aria-hidden="true">›</span>
             </button>
+
+            {job.qrDataUrl && (
+              <div class="work-qr-wrap">
+                <img
+                  class="work-qr"
+                  src={job.qrDataUrl}
+                  width="128"
+                  height="128"
+                  alt={`QR code to open ${job.title}`}
+                  loading="lazy"
+                />
+                <p class="work-qr-caption">Scan to open this project on another device</p>
+              </div>
+            )}
 
             <div class="work-item-body" hidden={!startOpen || undefined}>
               {job.bodyHtml ? (
@@ -375,6 +399,33 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
   .work-item-body {
     padding: 0 16px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .work-qr-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin: 0 16px 12px;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .work-qr {
+    display: block;
+    width: 128px;
+    height: 128px;
+    border-radius: 8px;
+  }
+
+  .work-qr-caption {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: rgba(0, 0, 0, 0.55);
+    text-align: center;
   }
 
   .work-description {

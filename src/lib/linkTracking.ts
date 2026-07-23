@@ -172,7 +172,10 @@ export async function createTrackedProjectLink(input: {
   const token = generateLinkToken(sentAt);
   const destination =
     input.destination?.trim() ||
-    clientPortalUrl(contactUid, input.tab?.trim() ? { tab: input.tab.trim() } : undefined);
+    clientPortalUrl(contactUid, {
+      tab: input.tab?.trim() || 'work',
+      project: jobSlug,
+    });
   const channel = input.channel ?? 'share';
   const sentBy = input.sentBy?.trim() || null;
 

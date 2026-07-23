@@ -26,11 +26,22 @@ export function isContactApiConfigured(): boolean {
 }
 
 /** Shareable, iOS-friendly portal URL for a contact uid. */
-export function clientPortalUrl(uid: string, opts?: { tab?: string }): string {
-  const base = `${siteBaseUrl()}/c/${encodeURIComponent(uid)}`;
+export function clientPortalUrl(uid: string, opts?: { tab?: string; project?: string; base?: string }): string {
+  const origin = (opts?.base || siteBaseUrl()).replace(/\/+$/, '');
+  const base = `${origin}/c/${encodeURIComponent(uid)}`;
   const tab = opts?.tab?.trim();
-  if (!tab) return base;
-  return `${base}?tab=${encodeURIComponent(tab)}`;
+  const project = opts?.project?.trim();
+  if (!tab && !project) return base;
+  const params = new URLSearchParams();
+  if (tab) params.set('tab', tab);
+  if (project) params.set('project', project);
+  const qs = params.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
+/** Client portal URL for a specific project (Projects tab, deep-linked). */
+export function projectPortalUrl(contactUid: string, jobSlug: string, opts?: { base?: string }): string {
+  return clientPortalUrl(contactUid, { tab: 'work', project: jobSlug, base: opts?.base });
 }
 
 export type ResolveContactInput = {

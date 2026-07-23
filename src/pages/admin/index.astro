@@ -2223,6 +2223,48 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         padding: 0.85rem 0 0;
         border-top: 1px solid var(--panel-border);
       }
+      #work-editor .wk-project-qr {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        margin: 0.65rem 1rem 0;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+      }
+      #work-editor .wk-project-qr img {
+        flex: none;
+        display: block;
+        width: 120px;
+        height: 120px;
+        border-radius: 8px;
+        border: 1px solid var(--panel-border);
+        background: #fff;
+      }
+      #work-editor .wk-project-qr-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+      }
+      #work-editor .wk-project-qr-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      #work-editor .wk-project-qr-link {
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: var(--accent, #a855f7);
+        word-break: break-all;
+        text-decoration: none;
+      }
+      #work-editor .wk-project-qr-link:hover {
+        text-decoration: underline;
+      }
       .wk-checklist-mount:empty,
       .wk-checklist-mount[hidden] {
         display: none;

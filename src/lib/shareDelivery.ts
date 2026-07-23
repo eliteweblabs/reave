@@ -163,10 +163,13 @@ async function resolveShareUrl(
   if (!contactUid) return { url: '' };
 
   const tab = input.tab?.trim() || (input.kind === 'work' ? 'work' : undefined);
-  let url = clientPortalUrl(contactUid, tab ? { tab } : undefined);
+  const jobSlug = input.jobSlug?.trim();
+  let url = clientPortalUrl(
+    contactUid,
+    tab ? { tab, project: jobSlug || undefined } : jobSlug ? { project: jobSlug } : undefined,
+  );
   let tracked: { token: string; job_slug: string } | undefined;
 
-  const jobSlug = input.jobSlug?.trim();
   if (jobSlug && isSafeWorkSlug(jobSlug)) {
     const job = await storeReadWork(jobSlug);
     if (job && (job.contact_uid === contactUid || !job.contact_uid)) {
@@ -252,6 +255,7 @@ async function sendPortalShare(opts: {
         "Here's your personal client page — your details and any outstanding invoices live here:",
       ],
       cta: { label: 'Open your client page', url: shareUrl },
+      qr: { url: shareUrl, label: 'Or scan to open on your phone' },
       note: 'Tip: open it on your iPhone and tap Share → Add to Home Screen for one-tap access.',
     });
     const r = await sendEmail({ to, subject, text, html });
