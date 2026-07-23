@@ -359,16 +359,17 @@
   width: 3.75rem;
   height: 3.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 0.55rem;
+  border: 1px solid var(--card-border);
+  background: var(--surface-hover);
 }
 
 .aui-composer-attachment-thumb {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  border-radius: 0.55rem;
-  border: 1px solid var(--card-border);
-  background: var(--surface-hover);
+  object-fit: contain;
 }
 
 .aui-composer-attachment-remove {

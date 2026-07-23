@@ -477,6 +477,46 @@ function UserImagePart(props: { image?: string; alt?: string }) {
   );
 }
 
+function UserMessageImageAttachment() {
+  const attachment = useAuiState((s) => s.attachment);
+  const imagePart = attachment?.content?.find((part) => part.type === 'image');
+  if (!imagePart || imagePart.type !== 'image') return null;
+  return <UserImagePart image={imagePart.image} alt={attachment?.name} />;
+}
+
+function ComposerAttachmentPreview() {
+  const attachment = useAuiState((s) => s.attachment);
+  const file = attachment?.file;
+  const previewSrc = useMemo(
+    () => (file instanceof File ? URL.createObjectURL(file) : null),
+    [file],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewSrc) URL.revokeObjectURL(previewSrc);
+    };
+  }, [previewSrc]);
+
+  if (!previewSrc) return null;
+
+  return (
+    <div className="aui-composer-attachment">
+      <img
+        className="aui-composer-attachment-thumb"
+        src={previewSrc}
+        alt={attachment?.name || 'Attached image'}
+      />
+      <AttachmentPrimitive.Remove
+        className="aui-composer-attachment-remove"
+        aria-label="Remove attachment"
+      >
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
+}
+
 function HelperCommandsPanel({
   commands,
   onPick,
@@ -689,20 +729,6 @@ function AttachIcon() {
   );
 }
 
-function ComposerAttachmentPreview() {
-  return (
-    <div className="aui-composer-attachment">
-      <AttachmentPrimitive.unstable_Thumb className="aui-composer-attachment-thumb" />
-      <AttachmentPrimitive.Remove
-        className="aui-composer-attachment-remove"
-        aria-label="Remove attachment"
-      >
-        ×
-      </AttachmentPrimitive.Remove>
-    </div>
-  );
-}
-
 function ClaudeComposer({
   propsRef,
   commands,
@@ -834,6 +860,9 @@ function ChatMessages() {
                       Text: UserTextPart,
                       Image: UserImagePart,
                     }}
+                  />
+                  <MessagePrimitive.Attachments
+                    components={{ Image: UserMessageImageAttachment }}
                   />
                 </div>
                 {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
