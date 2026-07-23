@@ -11,9 +11,11 @@ html.ios-sheet-locked {
   align-items: flex-end;
   justify-content: center;
   padding: 0;
-  background: rgba(0, 0, 0, 0.42);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Lighter scrim so the frosted background blur reads as a slight blur
+     rather than a flat dim. saturate() gives the iOS-style frosted look. */
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
   -webkit-tap-highlight-color: transparent;
 }
 
