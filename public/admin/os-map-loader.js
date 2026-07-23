@@ -11205,15 +11205,15 @@ function renderEditWorkForm(pane) {
       linkTrackEl.className = 'wk-link-track';
       linkTrackEl.hidden = true;
 
-      const agentBtn = createIosIconBtn({
-        iconKey: 'agent',
-        label: 'Send to Agent',
-        className: 'ios-icon-btn de-agent-btn',
-        onClick: () => askAgentAboutWork({ slug, title: data.title, ...data }),
-      });
+      const agentBtn = document.createElement('button');
+      agentBtn.type = 'button';
+      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+      agentBtn.setAttribute('aria-label', 'Agent');
+      agentBtn.title = 'Send to Agent';
+      agentBtn.innerHTML = navIcon('agent', 16);
+      agentBtn.addEventListener('click', () => askAgentAboutWork({ slug, title: data.title, ...data }));
 
       const icons = [];
-      icons.push(agentBtn);
       const shareBtn = data.contact_uid
         ? createPortalShareBtn(data.contact_uid, {
             tab: 'work',
@@ -11276,6 +11276,7 @@ function renderEditWorkForm(pane) {
           placeholder: 'Project title',
           ariaLabel: 'Project title',
         },
+        beforeIcons: [agentBtn],
         icons,
       });
       pane.appendChild(header);
