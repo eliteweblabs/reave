@@ -1543,6 +1543,17 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         -webkit-appearance: none;
         appearance: none;
       }
+      /* appearance:none strips date/time inputs of their intrinsic size, so an
+         empty field collapses to a thin line. Pin a min-height (matching a
+         single-line text input) so empty date/time fields stay full-sized. */
+      .de-input[type="date"],
+      .de-input[type="time"] {
+        min-height: 2.15rem;
+      }
+      .de-input[type="date"]::-webkit-datetime-edit,
+      .de-input[type="time"]::-webkit-datetime-edit {
+        line-height: 1.2;
+      }
       .de-input::placeholder {
         font: inherit;
         font-size: inherit;
