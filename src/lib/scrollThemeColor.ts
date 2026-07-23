@@ -53,17 +53,26 @@ function themeColorMeta(): HTMLMetaElement {
 }
 
 function scrollProgress(): number {
-  const maxScroll = Math.max(
-    1,
-    document.documentElement.scrollHeight - window.innerHeight,
-  );
-  return Math.min(1, Math.max(0, window.scrollY / maxScroll));
+  const scrollTop = window.scrollY || document.documentElement.scrollTop;
+  const scrollHeight =
+    document.documentElement.scrollHeight -
+    document.documentElement.clientHeight;
+  if (scrollHeight <= 0) return 0;
+  return Math.min(1, Math.max(0, scrollTop / scrollHeight));
+}
+
+/** Same nudge used on tomsens.com so iOS Safari re-reads theme-color. */
+function refreshIosThemeColorChrome(): void {
+  window.scrollBy(0, -1);
+  window.scrollBy(0, 1);
 }
 
 /**
  * Interpolate `<meta name="theme-color">` between two hex colors as the user
  * scrolls. Useful on iOS Safari / standalone PWAs where theme-color tints the
  * status bar and browser chrome.
+ *
+ * Ported from the inline script on tomsens.com (scroll percentage × primary→secondary).
  */
 export function attachScrollThemeColor(opts: ScrollThemeColorOptions): () => void {
   const primary = parseHex(opts.primary);
@@ -84,11 +93,22 @@ export function attachScrollThemeColor(opts: ScrollThemeColorOptions): () => voi
     });
   }
 
+  function init() {
+    update();
+    refreshIosThemeColorChrome();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
+
   window.addEventListener("scroll", onChange, { passive: true });
   window.addEventListener("resize", onChange);
-  update();
 
   return () => {
+    document.removeEventListener("DOMContentLoaded", init);
     window.removeEventListener("scroll", onChange);
     window.removeEventListener("resize", onChange);
   };
