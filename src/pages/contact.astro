@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import ConversationalForm from "../components/ConversationalForm.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -20,10 +21,15 @@ const phoneHref = company.supportPhone
   <section>
     <h2>Start a conversation</h2>
     <p>
-      Whether you have a detailed brief or just an idea, reach out and we'll respond
-      as soon as we can. You can also press the voice button on the
+      Whether you have a detailed brief or just an idea, tell us below and we'll
+      respond as soon as we can. You can also press the voice button on the
       <a href="/">homepage</a> to talk with our assistant.
     </p>
+    <ConversationalForm
+      slug="contact"
+      embedded
+      recipientEmail={supportMail}
+    />
   </section>
 
   <section>

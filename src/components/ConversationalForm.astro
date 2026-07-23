@@ -1,0 +1,638 @@
+---
+interface Props {
+  slug: string;
+  /** Inline on marketing pages instead of full-screen /form route. */
+  embedded?: boolean;
+  /** Recipient for /api/forms/submit (company support inbox). */
+  recipientEmail?: string;
+}
+
+const { slug, embedded = false, recipientEmail = "" } = Astro.props;
+const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
+const rootClass = embedded
+  ? "conversational-form-root conversational-form-root--embedded"
+  : "conversational-form-root";
+---
+
+<div class={rootClass}>
+  <form id="conversational-form" class="conversation">
+    <div id="questions-container"></div>
+
+    <div class="input-area" id="input-area">
+      <button type="button" id="mic-btn" title="Voice input">🎤</button>
+      <input type="text" id="user-input" placeholder="" autocomplete="off" />
+      <button type="submit">Send</button>
+    </div>
+  </form>
+
+  <div id="success-message" class="hidden">
+    <h2>&#10003; All done!</h2>
+    <p id="success-text"></p>
+  </div>
+
+  <div id="error-message" class="hidden">
+    <p id="error-text"></p>
+    <button id="retry-btn" type="button">Try again</button>
+  </div>
+</div>
+
+<style is:global>
+  .conversational-form-root {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: calc(16vw + 48px) 0 120px;
+    color: #fff;
+    font-family: "Inter", sans-serif;
+  }
+
+  .conversational-form-root--embedded {
+    max-width: none;
+    margin: 16px 0 0;
+    padding: 20px 18px 24px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .conversational-form-root .conversation {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .conversational-form-root .message {
+    max-width: 85%;
+    animation: cfFadeIn 0.3s ease;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  .conversational-form-root .message.robot {
+    background: transparent;
+    border: none;
+    align-self: flex-start;
+    padding: 0;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .conversational-form-root .message.robot .word {
+    display: inline;
+  }
+
+  .conversational-form-root .message.robot .word.just-typed {
+    filter: blur(0);
+    opacity: 1;
+  }
+
+  .conversational-form-root .message.user {
+    align-self: flex-end;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .conversational-form-root .options-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-self: flex-start;
+    max-width: 100%;
+    animation: cfFadeIn 0.3s ease;
+  }
+
+  .conversational-form-root .option-btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    background: rgba(168, 85, 247, 0.12);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    transition:
+      background 0.2s,
+      border-color 0.2s,
+      transform 0.15s;
+  }
+
+  .conversational-form-root .option-btn:hover {
+    background: rgba(168, 85, 247, 0.28);
+    border-color: #a855f7;
+    transform: translateY(-1px);
+  }
+
+  .conversational-form-root .loading-msg {
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+    font-size: 14px;
+    align-self: flex-start;
+    animation: cfFadeIn 0.3s ease;
+  }
+
+  .conversational-form-root .input-area {
+    display: flex;
+    gap: 10px;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 640px;
+    width: 90%;
+  }
+
+  .conversational-form-root--embedded .input-area {
+    position: static;
+    transform: none;
+    width: 100%;
+    max-width: none;
+    margin-top: 8px;
+  }
+
+  .conversational-form-root .input-area input {
+    flex: 1;
+    padding: 14px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+  }
+
+  .conversational-form-root #mic-btn {
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .conversational-form-root #mic-btn:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: #a855f7;
+  }
+
+  .conversational-form-root #mic-btn.recording {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    animation: cfPulse 1s infinite;
+  }
+
+  .conversational-form-root .input-area input:focus {
+    border-color: #a855f7;
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  }
+
+  .conversational-form-root .input-area button[type="submit"] {
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+
+  .conversational-form-root .input-area button[type="submit"]:hover {
+    transform: translateY(-2px);
+  }
+
+  .conversational-form-root #success-message h2 {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+
+  .conversational-form-root #success-message p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .conversational-form-root #error-message {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+  }
+
+  .conversational-form-root #retry-btn {
+    margin-top: 12px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    background: transparent;
+    color: #fca5a5;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+
+  .conversational-form-root #retry-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .conversational-form-root .hidden {
+    display: none !important;
+  }
+
+  @keyframes cfFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes cfPulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+</style>
+
+<script define:vars={{ bookingApiUrl, slug, recipientEmail }}>
+  const BOOKING_API = bookingApiUrl;
+  const FORM_SLUG = slug;
+  const RECIPIENT_EMAIL = recipientEmail;
+
+  let currentFieldIndex = 0;
+  let formData = {};
+  let formDef = null;
+  let recognition = null;
+  let isRecording = false;
+  let availabilityDays = [];
+  let typewriterInProgress = false;
+  let urlPrefill = {};
+
+  const root = () => document.querySelector(".conversational-form-root");
+  const container = () => root()?.querySelector("#questions-container");
+  const inputArea = () => root()?.querySelector("#input-area");
+  const userInput = () => root()?.querySelector("#user-input");
+
+  if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+    const SpeechRecognition =
+      window.webkitSpeechRecognition || window.SpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0].transcript)
+        .join("");
+      if (userInput()) userInput().value = transcript;
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      root()?.querySelector("#mic-btn")?.classList.remove("recording");
+    };
+
+    recognition.onerror = () => {
+      isRecording = false;
+      root()?.querySelector("#mic-btn")?.classList.remove("recording");
+    };
+  }
+
+  function toggleRecording() {
+    if (!recognition) {
+      appendMessage(
+        "Voice input not supported in this browser. Try Chrome.",
+        "robot",
+      );
+      return;
+    }
+    if (isRecording) {
+      recognition.stop();
+    } else {
+      isRecording = true;
+      root()?.querySelector("#mic-btn")?.classList.add("recording");
+      recognition.start();
+    }
+  }
+
+  function getPrefillFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const prefill = {};
+    for (const [key, value] of params) {
+      const trimmed = value.trim();
+      if (trimmed) prefill[key] = trimmed;
+    }
+    return prefill;
+  }
+
+  function firstNameFrom(fullName) {
+    const trimmed = String(fullName || "").trim();
+    if (!trimmed) return "";
+    return trimmed.split(/\s+/)[0] || "";
+  }
+
+  function applyPrefill() {
+    if (!formDef) return 0;
+    let skipped = 0;
+    while (currentFieldIndex < formDef.fields.length) {
+      const field = formDef.fields[currentFieldIndex];
+      const value = urlPrefill[field.name];
+      if (!value) break;
+      formData[field.name] = value;
+      currentFieldIndex++;
+      skipped++;
+    }
+    return skipped;
+  }
+
+  async function loadForm() {
+    urlPrefill = getPrefillFromUrl();
+    try {
+      const res = await fetch(`/forms/${FORM_SLUG}.json`);
+      if (!res.ok) throw new Error("Form not found");
+      formDef = await res.json();
+      const skipped = applyPrefill();
+      if (skipped > 0 && urlPrefill.name) {
+        const firstName = firstNameFrom(urlPrefill.name);
+        if (firstName) {
+          await appendTypewriter(`Hi ${firstName}!`);
+          await delay(300);
+        }
+      }
+      await showQuestion();
+    } catch (err) {
+      console.error(err);
+      showError("This form could not be loaded. Please try again later.");
+    }
+  }
+
+  function appendMessage(text, type) {
+    const msg = document.createElement("div");
+    msg.className = `message ${type}`;
+    msg.textContent = text;
+    container()?.appendChild(msg);
+    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function appendTypewriter(text) {
+    const msg = document.createElement("div");
+    msg.className = "message robot";
+    container()?.appendChild(msg);
+    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    const words = text.split(" ");
+    typewriterInProgress = true;
+
+    for (let i = 0; i < words.length; i++) {
+      const wordSpan = document.createElement("span");
+      wordSpan.className = "word just-typed";
+      wordSpan.textContent = words[i] + (i < words.length - 1 ? " " : "");
+      wordSpan.style.filter = "blur(8px)";
+      wordSpan.style.opacity = "0.3";
+      wordSpan.style.transition = "filter 0.15s ease-out, opacity 0.15s ease-out";
+      msg.appendChild(wordSpan);
+      wordSpan.offsetHeight;
+      wordSpan.style.filter = "blur(0)";
+      wordSpan.style.opacity = "1";
+      await new Promise((r) => setTimeout(r, 60));
+    }
+
+    typewriterInProgress = false;
+  }
+
+  function appendLoading(text) {
+    const el = document.createElement("div");
+    el.className = "loading-msg";
+    el.textContent = text;
+    container()?.appendChild(el);
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return el;
+  }
+
+  function showOptionButtons(options, onPick) {
+    root()?.querySelector("#current-options")?.remove();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "options-wrapper";
+    wrapper.id = "current-options";
+
+    options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "option-btn";
+      btn.textContent = opt.label;
+      btn.type = "button";
+      btn.addEventListener("click", () => {
+        wrapper.remove();
+        onPick(opt.value, opt.label);
+      });
+      wrapper.appendChild(btn);
+    });
+
+    container()?.appendChild(wrapper);
+    wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function setInputVisible(visible) {
+    if (inputArea()) inputArea().style.display = visible ? "flex" : "none";
+  }
+
+  async function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async function showMessages(text) {
+    const parts = text.split("&&").map((s) => s.trim());
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) await delay(500);
+      await appendTypewriter(parts[i]);
+    }
+    await delay(300);
+  }
+
+  async function showQuestion() {
+    if (!formDef || currentFieldIndex >= formDef.fields.length) {
+      await submitForm();
+      return;
+    }
+
+    const field = formDef.fields[currentFieldIndex];
+    let questionText = field["cf-questions"] || `What's your ${field.name}?`;
+    if (field.name === "email" && formData.name) {
+      const firstName = firstNameFrom(formData.name);
+      questionText = firstName
+        ? `Nice to meet you, ${firstName}! What's your email address?`
+        : "What's your email address?";
+    }
+    const parts = questionText.split("&&").map((s) => s.trim());
+
+    if (field.type === "availability" || (field.type === "select" && field.options)) {
+      await showMessages(questionText);
+      if (field.type === "availability") {
+        setInputVisible(false);
+        await handleAvailabilityField(field);
+      } else {
+        setInputVisible(false);
+        showOptionButtons(field.options, (value, label) => {
+          appendMessage(label, "user");
+          formData[field.name] = value;
+          currentFieldIndex++;
+          setTimeout(showQuestion, 500);
+        });
+      }
+    } else {
+      const introLines = parts.slice(0, -1);
+      const promptLine = parts[parts.length - 1];
+      for (let i = 0; i < introLines.length; i++) {
+        if (i > 0) await delay(500);
+        appendMessage(introLines[i], "robot");
+      }
+      if (introLines.length > 0) await delay(300);
+      setInputVisible(true);
+      if (userInput()) {
+        userInput().placeholder = promptLine;
+        userInput().focus();
+      }
+    }
+  }
+
+  async function handleAvailabilityField(field) {
+    const loadingEl = appendLoading("Checking availability...");
+    try {
+      const res = await fetch(`${BOOKING_API}/api/booking/availability`);
+      const data = await res.json();
+      loadingEl.remove();
+
+      if (!res.ok || !data.days || data.days.length === 0) {
+        appendMessage(
+          "No available times found. Please contact us directly.",
+          "robot",
+        );
+        return;
+      }
+
+      availabilityDays = data.days;
+      appendMessage("Pick a day:", "robot");
+      showOptionButtons(
+        availabilityDays.map((d) => ({ value: d.date, label: d.label })),
+        (value, label) => {
+          const pickedDay = availabilityDays.find((d) => d.date === value);
+          appendMessage(label, "user");
+          setTimeout(() => {
+            appendMessage("Pick a time:", "robot");
+            showOptionButtons(
+              (pickedDay?.slots || []).map((s) => ({
+                value: s.iso,
+                label: s.label,
+              })),
+              (slotIso, slotLabel) => {
+                appendMessage(slotLabel, "user");
+                formData[field.name] = slotIso;
+                currentFieldIndex++;
+                setTimeout(showQuestion, 500);
+              },
+            );
+          }, 400);
+        },
+      );
+    } catch (err) {
+      loadingEl.remove();
+      appendMessage("Failed to load availability. Please try again.", "robot");
+      console.error(err);
+    }
+  }
+
+  function buildSubmitPayload() {
+    const payload = { ...formData };
+    if (RECIPIENT_EMAIL) payload.to = RECIPIENT_EMAIL;
+    payload.subject =
+      formDef.submitSubject ||
+      (formDef.title ? `New ${formDef.title} submission` : "New form submission");
+    if (!payload.message && formDef.fields?.length) {
+      payload.message = formDef.fields
+        .map((field) => `${field.name}: ${formData[field.name] || ""}`)
+        .join("\n");
+    }
+    return payload;
+  }
+
+  async function submitForm() {
+    root()?.querySelector("#conversational-form")?.classList.add("hidden");
+
+    if (formDef.submitEndpoint) {
+      const loadingText =
+        formDef.submittingMessage || "Submitting your response...";
+      const loadingEl = appendLoading(loadingText);
+      try {
+        const endpoint = formDef.submitEndpoint.startsWith("/")
+          ? `${BOOKING_API}${formDef.submitEndpoint}`
+          : formDef.submitEndpoint;
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(buildSubmitPayload()),
+        });
+        loadingEl.remove();
+        if (!res.ok) {
+          showError("Something went wrong. Please try again.");
+          return;
+        }
+      } catch (err) {
+        loadingEl.remove();
+        showError("Network error. Please try again.");
+        console.error(err);
+        return;
+      }
+    }
+
+    root()?.querySelector("#success-message")?.classList.remove("hidden");
+    const successText = root()?.querySelector("#success-text");
+    if (successText) {
+      successText.textContent = formDef.onComplete?.message || "Thanks!";
+    }
+
+    if (formDef.onComplete?.redirect) {
+      setTimeout(
+        () => (window.location.href = formDef.onComplete.redirect),
+        2000,
+      );
+    }
+  }
+
+  function showError(msg) {
+    root()?.querySelector("#error-message")?.classList.remove("hidden");
+    const errorText = root()?.querySelector("#error-text");
+    if (errorText) errorText.textContent = msg;
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    const value = userInput()?.value.trim();
+    if (!value) return;
+
+    const field = formDef?.fields[currentFieldIndex];
+    if (!field) return;
+
+    appendMessage(value, "user");
+    formData[field.name] = value;
+    userInput().value = "";
+    setInputVisible(false);
+
+    currentFieldIndex++;
+    setTimeout(showQuestion, 500);
+  }
+
+  root()?.querySelector("#conversational-form")?.addEventListener("submit", handleSubmit);
+  root()?.querySelector("#mic-btn")?.addEventListener("click", toggleRecording);
+  root()?.querySelector("#retry-btn")?.addEventListener("click", () => {
+    window.location.reload();
+  });
+  loadForm();
+</script>

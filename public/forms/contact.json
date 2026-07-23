@@ -1,0 +1,28 @@
+{
+  "title": "Contact",
+  "description": "Send us a message — we'll get back to you soon.",
+  "fields": [
+    {
+      "name": "name",
+      "type": "text",
+      "cf-questions": "Hi there!&&I'd love to hear from you.&&What's your name?"
+    },
+    {
+      "name": "email",
+      "type": "email",
+      "cf-questions": "What's the best email to reach you?"
+    },
+    {
+      "name": "message",
+      "type": "textarea",
+      "cf-questions": "What would you like to talk about?"
+    }
+  ],
+  "submitEndpoint": "/api/forms/submit",
+  "submitSubject": "New contact form message",
+  "submittingMessage": "Sending your message...",
+  "onComplete": {
+    "message": "Thanks for reaching out! We'll respond as soon as we can.",
+    "redirect": null
+  }
+}
