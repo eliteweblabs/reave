@@ -403,7 +403,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     flex-shrink: 0;
     line-height: 0;
     text-decoration: none;
-    color: #fff;
   }
 
   .app-header-logo-svg {
@@ -412,14 +411,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     width: calc(var(--app-header-logo-h) * (1014 / 329));
     max-width: none;
     pointer-events: none;
-    /* Flatten the embedded PNG to white, then invert over scrolling content. */
-    filter: brightness(0) invert(1);
     mix-blend-mode: difference;
   }
 
   @supports not (mix-blend-mode: difference) {
     .app-header-logo-svg {
-      mix-blend-mode: normal;
       filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.35));
     }
   }
