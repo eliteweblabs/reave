@@ -364,6 +364,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #clients-editor,
       #social-panel,
       #analytics-panel,
+      #fleet-panel,
       #rule-editor,
       #home-dashboard,
       #settings-panel,
@@ -7164,6 +7165,156 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         z-index: 10;
         overflow: hidden;
       }
+
+      /* ── Fleet tracking dashboard ── */
+      #fleet-panel {
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        display: none;
+        flex-direction: column;
+        background: var(--bg);
+        z-index: 10;
+        overflow: hidden;
+      }
+      .fl-scroll {
+        gap: 0.75rem;
+      }
+      .fl-header-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .fl-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(260px, 0.9fr);
+        gap: 0.75rem;
+        min-height: min(62vh, 640px);
+      }
+      @media (max-width: 900px) {
+        .fl-layout {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+      }
+      .fl-map-host {
+        min-height: 320px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--panel-border);
+        background: var(--surface-muted);
+      }
+      .fl-map-wrap {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        min-height: 320px;
+      }
+      .fl-map-canvas {
+        position: absolute;
+        inset: 0;
+      }
+      .fl-map-empty {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+      }
+      .fl-map-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+      }
+      .fl-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        padding: 0.85rem;
+        background: var(--surface-muted);
+        max-height: min(62vh, 640px);
+        overflow: auto;
+      }
+      .fl-sidebar-title {
+        margin: 0;
+        font-size: 0.95rem;
+      }
+      .fl-vehicle-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .fl-vehicle-item {
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 0.65rem 0.75rem;
+        background: var(--bg);
+      }
+      .fl-vehicle-main {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+      .fl-vehicle-name {
+        font-weight: 600;
+      }
+      .fl-vehicle-plate {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .fl-status {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.12rem 0.45rem;
+        border-radius: 999px;
+      }
+      .fl-status--active {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .fl-status--offline {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94a3b8;
+      }
+      .fl-status--idle {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+      }
+      .fl-vehicle-meta {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .fl-hint {
+        margin: 0.35rem 0 0;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+      }
+      .fl-add-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
       .ana-header-actions {
         display: flex;
         align-items: center;
@@ -8010,6 +8161,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
     <!-- Analytics dashboard panel (hidden unless analytics tab is active) -->
     <div id="analytics-panel" style="display:none" aria-label="Analytics"></div>
+
+    <div id="fleet-panel" style="display:none" aria-label="Fleet"></div>
 
     <div id="rule-editor" style="display:none"></div>
 

@@ -1,0 +1,17 @@
+{
+  "name": "fleet-api",
+  "version": "1.0.0",
+  "description": "Fleet vehicle registry and live location tracking for Reave App",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.16.0"
+  }
+}

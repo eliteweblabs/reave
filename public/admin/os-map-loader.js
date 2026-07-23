@@ -1,5 +1,6 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js';
+import { createFleetMap } from '/admin/fleet-map.js';
 
 function companyBrand() {
   return (
@@ -153,6 +154,7 @@ const MAP_ICON_KEYS = {
   clients: 'users',
   social: 'trending-up',
   analytics: 'bar-chart-2',
+  fleet: 'truck',
   finance: 'wallet',
   profile: 'user',
   company: 'building-2',
@@ -499,6 +501,13 @@ function setActiveMap(key, opts = {}) {
   syncModelSelectorVisibility();
   if (key !== 'search') closeSearchOverlay();
   if (prevType === 'email' && MAP.type !== 'email') clearInboxSessionDots();
+  if (prevType === 'fleet' && MAP.type !== 'fleet') {
+    stopFleetPoll();
+    if (fleetMapInstance) {
+      fleetMapInstance.destroy();
+      fleetMapInstance = null;
+    }
+  }
   activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
@@ -529,6 +538,7 @@ function isPanelMapKey(key) {
     t === 'clients' ||
     t === 'social' ||
     t === 'analytics' ||
+    t === 'fleet' ||
     t === 'chats' ||
     t === 'email' ||
     t === 'todo' ||
@@ -565,6 +575,8 @@ function activateMapPanel(opts = {}) {
     loadSocialTab();
   } else if (MAP.type === 'analytics') {
     loadAnalyticsTab();
+  } else if (MAP.type === 'fleet') {
+    loadFleetTab();
   } else if (MAP.type === 'chats') {
     if (opts.chatId) pendingChatDeepLinkId = opts.chatId;
     loadChatsTab({ keepSession: opts.keepChatSession === true });
@@ -598,6 +610,7 @@ function isPanelTab() {
     MAP.type === 'clients' ||
     MAP.type === 'social' ||
     MAP.type === 'analytics' ||
+    MAP.type === 'fleet' ||
     MAP.type === 'chats' ||
     MAP.type === 'email' ||
     MAP.type === 'rules' ||
@@ -625,6 +638,7 @@ function syncCanvasVisibility() {
   setPanelDisplay('clients-editor', MAP.type === 'clients' ? 'flex' : 'none');
   setPanelDisplay('social-panel', MAP.type === 'social' ? 'flex' : 'none');
   setPanelDisplay('analytics-panel', MAP.type === 'analytics' ? 'flex' : 'none');
+  setPanelDisplay('fleet-panel', MAP.type === 'fleet' ? 'flex' : 'none');
   setPanelDisplay('chat-panel', MAP.type === 'chats' ? 'flex' : 'none');
   setPanelDisplay('email-panel', MAP.type === 'email' ? 'flex' : 'none');
   setPanelDisplay('rule-editor', MAP.type === 'rules' ? 'flex' : 'none');
@@ -3745,6 +3759,7 @@ async function loadHomeDashboard() {
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     syncDashboardFooterBadges(data.stats);
     renderHomeDashboard(data);
+    void initFleetLocationReporter();
   } catch (e) {
     root.innerHTML =
       `<div class="home-dashboard-scroll">` +
@@ -4223,6 +4238,289 @@ async function loadAnalyticsTab() {
         `<div class="prof-card"><h1 class="prof-title">Analytics</h1>` +
         `<p class="dash-empty">Could not load analytics: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+  }
+}
+
+let fleetMapInstance = null;
+let fleetPollTimer = null;
+let fleetLocationWatchId = null;
+let fleetLocationReporterStarted = false;
+let fleetLastPingAt = 0;
+
+function stopFleetPoll() {
+  if (fleetPollTimer != null) {
+    clearInterval(fleetPollTimer);
+    fleetPollTimer = null;
+  }
+}
+
+function stopFleetLocationWatch() {
+  if (fleetLocationWatchId != null && navigator.geolocation) {
+    navigator.geolocation.clearWatch(fleetLocationWatchId);
+    fleetLocationWatchId = null;
+  }
+}
+
+async function pingFleetLocation(position) {
+  const now = Date.now();
+  if (now - fleetLastPingAt < 15000) return;
+  fleetLastPingAt = now;
+  const body = {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    heading: position.coords.heading,
+    speed: position.coords.speed,
+    accuracy: position.coords.accuracy,
+  };
+  try {
+    await fetch('/api/fleet/location', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    /* ignore transient network errors */
+  }
+}
+
+function startFleetLocationWatch() {
+  if (!navigator.geolocation || fleetLocationWatchId != null) return;
+  fleetLocationWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      void pingFleetLocation(pos);
+    },
+    () => {},
+    { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 },
+  );
+}
+
+async function initFleetLocationReporter() {
+  if (fleetLocationReporterStarted) return;
+  try {
+    const res = await fetch('/api/fleet/vehicles?mine=1', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok || !Array.isArray(data.vehicles) || !data.vehicles.length) return;
+    fleetLocationReporterStarted = true;
+    startFleetLocationWatch();
+  } catch {
+    /* fleet feature off or not configured */
+  }
+}
+
+function fleetStatusLabel(status) {
+  if (status === 'active') return 'Active';
+  if (status === 'offline') return 'Offline';
+  if (status === 'idle') return 'Idle';
+  return status || 'Unknown';
+}
+
+function fleetStatusClass(status) {
+  if (status === 'active') return 'fl-status--active';
+  if (status === 'offline') return 'fl-status--offline';
+  return 'fl-status--idle';
+}
+
+function formatFleetSeen(iso) {
+  if (!iso) return 'Never';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Never';
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return `${hrs}h ago`;
+  return d.toLocaleDateString();
+}
+
+function renderFleetDashboard(root, data) {
+  const summary = data.summary || {};
+  const vehicles = Array.isArray(data.vehicles) ? data.vehicles : [];
+  const listHtml = vehicles.length
+    ? vehicles
+        .map(
+          (v) =>
+            `<li class="fl-vehicle-item" data-vehicle-id="${escHtml(v.id)}">` +
+            `<div class="fl-vehicle-main">` +
+            `<span class="fl-vehicle-name">${escHtml(v.name)}</span>` +
+            (v.plate ? `<span class="fl-vehicle-plate">${escHtml(v.plate)}</span>` : '') +
+            `<span class="fl-status ${fleetStatusClass(v.status)}">${escHtml(fleetStatusLabel(v.status))}</span>` +
+            `</div>` +
+            `<div class="fl-vehicle-meta">` +
+            `<span>${v.lastLat != null ? 'On map' : 'No GPS yet'}</span>` +
+            `<span>${escHtml(formatFleetSeen(v.lastSeenAt))}</span>` +
+            (v.assignedUserId ? `<span class="fl-user-id" title="Assigned Clerk user">${escHtml(v.assignedUserId.slice(0, 12))}…</span>` : '') +
+            `</div>` +
+            `</li>`,
+        )
+        .join('')
+    : '<li class="dash-empty">No vehicles yet — add one below.</li>';
+
+  root.innerHTML =
+    `<div class="social-scroll fl-scroll">` +
+    `<div class="prof-card fl-header">` +
+    `<div class="fl-header-row">` +
+    `<div><h1 class="prof-title">Fleet</h1>` +
+    `<p class="home-dashboard-sub">${summary.active ?? 0} active · ${summary.offline ?? 0} offline · ${summary.located ?? 0} on map</p></div>` +
+    `<button type="button" class="de-btn fl-add-btn">Add vehicle</button>` +
+    `</div></div>` +
+    `<div class="fl-layout">` +
+    `<div class="fl-map-host" id="fleet-map-host" aria-label="Fleet map"></div>` +
+    `<aside class="fl-sidebar">` +
+    `<h2 class="fl-sidebar-title">Vehicles</h2>` +
+    `<ul class="fl-vehicle-list">${listHtml}</ul>` +
+    `<p class="fl-hint">Assign a Clerk user id to each vehicle. When that user is signed into Reave App, their device reports GPS automatically.</p>` +
+    `</aside></div></div>`;
+
+  const mapHost = root.querySelector('#fleet-map-host');
+  if (fleetMapInstance) {
+    fleetMapInstance.destroy();
+    fleetMapInstance = null;
+  }
+  if (mapHost) {
+    fleetMapInstance = createFleetMap(mapHost, {
+      token: window.__mapboxAccessToken,
+      vehicles,
+    });
+  }
+
+  root.querySelector('.fl-add-btn')?.addEventListener('click', () => {
+    void showAddFleetVehicleDialog(() => loadFleetTab());
+  });
+}
+
+async function showAddFleetVehicleDialog(onSaved) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return;
+
+  await new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish(false);
+    };
+
+    titleEl.textContent = 'Add vehicle';
+    bodyEl.innerHTML =
+      `<div class="fl-add-form">` +
+      `<label class="de-label" for="fl-add-name">Name</label>` +
+      `<input id="fl-add-name" class="de-input" type="text" placeholder="Van 3" required />` +
+      `<label class="de-label" for="fl-add-plate">Plate (optional)</label>` +
+      `<input id="fl-add-plate" class="de-input" type="text" placeholder="ABC-1234" />` +
+      `<label class="de-label" for="fl-add-user">Clerk user id (optional)</label>` +
+      `<input id="fl-add-user" class="de-input" type="text" placeholder="user_…" />` +
+      `<p class="fl-hint">Assign a driver so their Reave App session reports GPS for this vehicle.</p>` +
+      `</div>`;
+    actionsEl.innerHTML = '';
+
+    const nameInput = bodyEl.querySelector('#fl-add-name');
+    const plateInput = bodyEl.querySelector('#fl-add-plate');
+    const userInput = bodyEl.querySelector('#fl-add-user');
+
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
+    const addBtn = mkBtn('Add', 'os-dialog-btn--primary', async () => {
+      const name = nameInput instanceof HTMLInputElement ? nameInput.value.trim() : '';
+      if (!name) {
+        nameInput?.focus();
+        return;
+      }
+      addBtn.disabled = true;
+      addBtn.textContent = 'Adding…';
+      try {
+        const res = await fetch('/api/fleet/vehicles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            plate: plateInput instanceof HTMLInputElement ? plateInput.value.trim() || undefined : undefined,
+            assignedUserId: userInput instanceof HTMLInputElement ? userInput.value.trim() || undefined : undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        finish(true);
+        if (typeof onSaved === 'function') await onSaved();
+      } catch (e) {
+        addBtn.disabled = false;
+        addBtn.textContent = 'Add';
+        await osAlert({ title: 'Could not add vehicle', bodyHtml: escHtml(e.message || String(e)) });
+      }
+    });
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, finish, true);
+    document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
+    nameInput?.focus();
+  });
+}
+
+async function loadFleetTab() {
+  const root = document.getElementById('fleet-panel');
+  if (!root) return;
+  stopFleetPoll();
+  root.innerHTML = '<div class="social-scroll"><div class="dash-loading">Loading fleet…</div></div>';
+
+  try {
+    const res = await fetch('/api/fleet/map', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderFleetDashboard(root, data);
+    void initFleetLocationReporter();
+    fleetPollTimer = setInterval(() => {
+      if (MAP.type !== 'fleet') return;
+      void loadFleetTabQuiet();
+    }, 15000);
+  } catch (e) {
+    if (fleetMapInstance) {
+      fleetMapInstance.destroy();
+      fleetMapInstance = null;
+    }
+    root.innerHTML =
+      `<div class="social-scroll">` +
+        `<div class="prof-card"><h1 class="prof-title">Fleet</h1>` +
+        `<p class="dash-empty">Could not load fleet: ${escHtml(e.message)}</p></div>` +
+      `</div>`;
+  }
+}
+
+async function loadFleetTabQuiet() {
+  const root = document.getElementById('fleet-panel');
+  if (!root || MAP.type !== 'fleet') return;
+  try {
+    const res = await fetch('/api/fleet/map', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) return;
+    if (fleetMapInstance && Array.isArray(data.vehicles)) {
+      fleetMapInstance.setVehicles(data.vehicles);
+    }
+    const summary = data.summary || {};
+    const sub = root.querySelector('.home-dashboard-sub');
+    if (sub) {
+      sub.textContent = `${summary.active ?? 0} active · ${summary.offline ?? 0} offline · ${summary.located ?? 0} on map`;
+    }
+  } catch {
+    /* ignore poll errors */
   }
 }
 

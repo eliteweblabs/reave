@@ -13,7 +13,8 @@
     "scheduling",
     "dev_infra",
     "code_dev",
-    "email_marketing"
+    "email_marketing",
+    "fleet_tracking"
   ],
   "footerNav": [
     "__system__",
@@ -30,6 +31,7 @@
     "clients",
     "social",
     "analytics",
+    "fleet",
     "finance"
   ],
   "profileMenu": [

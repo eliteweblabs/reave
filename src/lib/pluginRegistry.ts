@@ -19,6 +19,7 @@ import { siteAuditsPlugin } from '../../plugins/site-audits/manifest';
 import { siteMonitoringPlugin } from '../../plugins/site-monitoring/manifest';
 import { uptimeMonitoringPlugin } from '../../plugins/uptime-monitoring/manifest';
 import { vapiPlugin } from '../../plugins/vapi/manifest';
+import { fleetPlugin } from '../../plugins/fleet/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -32,6 +33,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   siteMonitoringPlugin,
   uptimeMonitoringPlugin,
   vapiPlugin,
+  fleetPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -111,6 +113,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['newsletter'];
     case 'uptime-monitoring':
       return ['uptime-monitoring'];
+    case 'fleet':
+      return ['fleet-tracking'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

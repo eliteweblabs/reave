@@ -25,6 +25,7 @@ const FEATURE_IDS_LIST = [
   'dev_infra',
   'code_dev',
   'email_marketing',
+  'fleet_tracking',
 ] as const;
 
 export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
@@ -57,6 +58,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'socials',
   'industries',
   'vapi',
+  'fleet',
 ] as const;
 
 export type FooterNavMapKey = (typeof FOOTER_NAV_MAP_KEYS)[number];

@@ -28,6 +28,7 @@ plugins/{id}/
 | `site-audits/` | `site_audits` | — | yes |
 | `site-monitoring/` | `site_monitoring` | — | yes |
 | `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
+| `fleet/` | `fleet_tracking` | `fleet-tracking.md` | yes |
 | `vapi/` | `vapi` | — | yes |
 | `svg-operations/` | *(utility)* | — | — |
 
