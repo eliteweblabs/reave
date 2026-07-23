@@ -1063,10 +1063,14 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #doc-editor {
         position: fixed;
         inset: 0;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
         height: 100dvh;
         display: flex;
         flex-direction: row;
         background: var(--bg);
+        overflow: hidden;
         z-index: 10;
       }
 
@@ -1610,9 +1614,16 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         border-radius: var(--radius-input);
         outline: none;
         tab-size: 2;
-        white-space: pre;
-        overflow-wrap: normal;
-        overflow-x: auto;
+        min-height: 0;
+        min-width: 0;
+        align-self: stretch;
+        box-sizing: border-box;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
       .de-textarea:focus { border-color: #3b82f6; }
 
