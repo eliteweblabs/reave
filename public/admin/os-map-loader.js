@@ -7226,6 +7226,7 @@ function createRuleListItem(rule, activeId) {
   btn.innerHTML = `
     <span class="ch-item-row">
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
+      <span class="ch-item-date">${escHtml(formatChatDate(rule.updatedAt || rule.createdAt))}</span>
     </span>
     <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
@@ -7505,11 +7506,20 @@ function serializeRulePayload(payload) {
   return JSON.stringify(payload);
 }
 
-function syncRuleListItem(id, payload) {
+function syncRuleListItem(id, payload, savedRule) {
   const rule = ruleState.rules.find((r) => r.id === id);
-  if (rule) Object.assign(rule, payload);
-  const row = getRuleEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"] .ch-item-title`);
-  if (row) row.textContent = payload.title || payload.status || 'Rule';
+  if (rule) Object.assign(rule, payload, savedRule || {});
+  const item = getRuleEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(id)}"]`);
+  if (!item) return;
+  const titleEl = item.querySelector('.ch-item-title');
+  if (titleEl) titleEl.textContent = payload.title || payload.status || 'Rule';
+  const dateEl = item.querySelector('.ch-item-date');
+  if (dateEl) {
+    const when = (savedRule && (savedRule.updatedAt || savedRule.createdAt)) || (rule && (rule.updatedAt || rule.createdAt));
+    dateEl.textContent = formatChatDate(when);
+  }
+  const subEl = item.querySelector('.de-item-slug');
+  if (subEl && rule) subEl.textContent = ruleSubline(rule);
 }
 
 function bindRuleAutosave(rule, inputs) {
@@ -7562,7 +7572,7 @@ function bindRuleAutosave(rule, inputs) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
       baseline = current;
       ruleState.dirty = false;
-      syncRuleListItem(rule.id, payload);
+      syncRuleListItem(rule.id, payload, data.rule);
       if (activeEl) flashFormFieldSaved(activeEl);
     } catch (e) {
       console.warn('[rules] autosave failed', e);

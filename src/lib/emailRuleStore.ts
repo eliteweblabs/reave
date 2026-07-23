@@ -16,6 +16,8 @@ export interface EmailRuleRecord extends EmailRule {
   /** Display title on the Rules canvas. */
   title: string;
   sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface EmailRulesConfig {
@@ -152,6 +154,8 @@ function rowToRecord(row: {
   fields: unknown;
   notify: boolean;
   enabled: boolean;
+  created_at?: Date | string | null;
+  updated_at?: Date | string | null;
 }): EmailRuleRecord {
   return {
     id: row.id,
@@ -164,6 +168,8 @@ function rowToRecord(row: {
     fields: normalizeFields(row.fields),
     notify: !!row.notify,
     enabled: !!row.enabled,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
   };
 }
 
@@ -188,6 +194,8 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         fields: normalizeFields(r.fields),
         notify: !!r.notify,
         enabled: r.enabled !== false,
+        createdAt: r.createdAt ? String(r.createdAt) : undefined,
+        updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
       })),
     };
   } catch {
@@ -245,7 +253,8 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
       : null;
 
     const { rows } = await pool.query(
-      `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled
+      `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
+              created_at, updated_at
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -282,8 +291,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
     for (const r of config.rules) {
       await pool.query(
         `INSERT INTO email_rules
-          (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())`,
+          (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, COALESCE($11, now()), COALESCE($12, now()))`,
         [
           r.id,
           r.sortOrder,
@@ -295,6 +304,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           JSON.stringify(r.fields),
           r.notify,
           r.enabled,
+          r.createdAt ? new Date(r.createdAt) : null,
+          r.updatedAt ? new Date(r.updatedAt) : null,
         ]
       );
     }
@@ -400,10 +411,13 @@ export async function storeCreateEmailRule(input: RuleInput): Promise<EmailRuleR
   if (!clean) return null;
   const config = await loadEmailRulesConfig();
   const maxOrder = config.rules.reduce((m, r) => Math.max(m, r.sortOrder), -1);
+  const now = new Date().toISOString();
   const record: EmailRuleRecord = {
     id: randomUUID(),
     sortOrder: maxOrder + 1,
     ...clean,
+    createdAt: now,
+    updatedAt: now,
   };
   config.rules.push(record);
   if (!(await persistConfig(config))) return null;
@@ -417,7 +431,7 @@ export async function storeUpdateEmailRule(id: string, input: RuleInput): Promis
   const idx = config.rules.findIndex((r) => r.id === id);
   if (idx < 0) return null;
   const prev = config.rules[idx];
-  config.rules[idx] = { ...prev, ...clean };
+  config.rules[idx] = { ...prev, ...clean, updatedAt: new Date().toISOString() };
   if (!(await persistConfig(config))) return null;
   return config.rules[idx];
 }
