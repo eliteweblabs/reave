@@ -10,7 +10,7 @@ import {
   parseClientKindFilter,
   searchClientsEnhanced,
 } from '../../../lib/clientSearch';
-import { resolveClientLogoUrl } from '../../../lib/clientBranding';
+import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
 import {
   contactSummary,
   createContact,
@@ -22,9 +22,11 @@ import {
 } from '../../../lib/contactApi';
 
 function clientListEntry(c: ContactRecord) {
+  const portal = extractPortal(c);
   return {
     ...contactSummary(c),
-    logoUrl: resolveClientLogoUrl(extractPortal(c), c.uid),
+    logoUrl: resolveClientLogoUrl(portal, c.uid),
+    iconUrl: resolveClientIconUrl(portal, c.uid),
   };
 }
 export const prerender = false;

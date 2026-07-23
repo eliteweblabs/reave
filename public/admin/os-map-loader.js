@@ -14440,7 +14440,8 @@ const CLIENT_LIST_AVATAR_PLACEHOLDER =
   '</svg></span>';
 
 function clientListAvatarHtml(c) {
-  const url = clientBrandingPreviewUrl(c.logoUrl);
+  const url =
+    clientBrandingPreviewUrl(c.logoUrl) || clientBrandingPreviewUrl(c.iconUrl);
   if (url) {
     return (
       `<span class="cl-list-avatar">` +
@@ -14672,14 +14673,17 @@ function clientDisplayLabel(draft) {
   return draft?.company?.trim() || joinClientFullName(draft?.firstName, draft?.lastName) || draft?.name || 'Client';
 }
 
-function syncClientListAvatar(uid, logoUrl) {
+function syncClientListAvatar(uid, patch = {}) {
   const c = clientState.clients.find((x) => x.uid === uid);
-  if (c) c.logoUrl = logoUrl || '';
+  if (c) {
+    if ('logoUrl' in patch) c.logoUrl = patch.logoUrl || '';
+    if ('iconUrl' in patch) c.iconUrl = patch.iconUrl || '';
+  }
   const item = getClientsEditor()?.querySelector(`.ch-list-item[data-id="${CSS.escape(uid)}"]`);
   if (!item) return;
   const host = item.querySelector('.cl-list-avatar-wrap');
   if (!host) return;
-  host.innerHTML = clientListAvatarHtml(c || { uid, logoUrl });
+  host.innerHTML = clientListAvatarHtml(c || { uid, ...patch });
 }
 
 function appendClientField(parent, label, input) {
@@ -15358,7 +15362,10 @@ function renderEditClientForm(pane) {
         onUpdate: (patch) => {
           Object.assign(clientState.draft, patch);
           if (patch.website != null) websiteInput.value = patch.website;
-          syncClientListAvatar(uid, clientState.draft.logoUrl);
+          syncClientListAvatar(uid, {
+            logoUrl: clientState.draft.logoUrl,
+            iconUrl: clientState.draft.iconUrl,
+          });
         },
       });
       clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
@@ -15598,7 +15605,10 @@ async function autosaveClient(uid, payload) {
       logoSource: data.logoSource ?? clientState.draft.logoSource,
       iconSource: data.iconSource ?? clientState.draft.iconSource,
     });
-    syncClientListAvatar(uid, clientState.draft.logoUrl);
+    syncClientListAvatar(uid, {
+      logoUrl: clientState.draft.logoUrl,
+      iconUrl: clientState.draft.iconUrl,
+    });
     clientState.brandingRefresh?.({
       logoUrl: clientState.draft.logoUrl,
       iconUrl: clientState.draft.iconUrl,
@@ -15623,6 +15633,7 @@ async function autosaveClient(uid, payload) {
       c.company = payload.company;
       c.personal = !!payload.personal;
       c.logoUrl = clientState.draft.logoUrl || c.logoUrl || '';
+      c.iconUrl = clientState.draft.iconUrl || c.iconUrl || '';
     }
     syncClientListRow(uid);
     if (wasPersonal !== !!payload.personal) {

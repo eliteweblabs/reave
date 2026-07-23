@@ -2753,14 +2753,17 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .cl-list-avatar-wrap {
         flex: none;
+        display: block;
+        width: 2.25rem;
+        min-width: 2.25rem;
         margin-top: 0.05rem;
       }
       .cl-list-avatar {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 2rem;
-        height: 2rem;
+        width: 2.25rem;
+        height: 2.25rem;
         border-radius: 8px;
         overflow: hidden;
         background: var(--card);
@@ -8475,6 +8478,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260723c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260723d"></script>
   </body>
 </html>
