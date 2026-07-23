@@ -16,6 +16,8 @@ interface Props {
   themeColorPrimary?: string;
   /** Status-bar tint at scroll bottom. */
   themeColorSecondary?: string;
+  /** Hide the label / title / lead block (e.g. contact page). */
+  hideHero?: boolean;
 }
 
 const {
@@ -26,6 +28,7 @@ const {
   backgroundImage,
   themeColorPrimary = "#2a2826",
   themeColorSecondary = "#050505",
+  hideHero = false,
 } = Astro.props;
 ---
 
@@ -47,11 +50,13 @@ const {
     ) : null
   }
   <div class:list={["marketing-page", backgroundImage && "marketing-page--photo"]}>
-    <header class="marketing-hero">
-      <p class="marketing-label">{label}</p>
-      <h1>{title}</h1>
-      {description ? <p class="marketing-lead">{description}</p> : null}
-    </header>
+    {!hideHero ? (
+      <header class="marketing-hero">
+        <p class="marketing-label">{label}</p>
+        <h1>{title}</h1>
+        {description ? <p class="marketing-lead">{description}</p> : null}
+      </header>
+    ) : null}
     <div class="marketing-body">
       <slot />
     </div>

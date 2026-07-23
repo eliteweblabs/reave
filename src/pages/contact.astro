@@ -10,81 +10,123 @@ const supportMail =
 const phoneHref = company.supportPhone
   ? `tel:${company.supportPhone.replace(/[^\d+]/g, "")}`
   : null;
+const vcardHref = "/contact.vcf";
+const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
 ---
 
-<MarketingLayout
-  title="Contact"
-  description={`Reach ${company.name} — we'd love to hear about your project.`}
-  label="Get in touch"
-  active="contact"
->
-  <section>
-    <h2>Start a conversation</h2>
-    <p>
-      Whether you have a detailed brief or just an idea, tell us below and we'll
-      respond as soon as we can. You can also press the voice button on the
-      <a href="/">homepage</a> to talk with our assistant.
-    </p>
-    <ConversationalForm
-      slug="contact"
-      embedded
-      recipientEmail={supportMail}
-    />
-  </section>
+<MarketingLayout title="Contact" active="contact" hideHero>
+  <div class="contact-top">
+    {
+      supportMail ? (
+        <a class="contact-card" href={`mailto:${supportMail}`}>
+          <span class="contact-card-label">Email</span>
+          <span class="contact-card-value">{supportMail}</span>
+        </a>
+      ) : (
+        <div class="contact-card contact-card--static">
+          <span class="contact-card-label">Email</span>
+          <span class="contact-card-value contact-card-value--muted">—</span>
+        </div>
+      )
+    }
+    {
+      company.supportPhone ? (
+        phoneHref ? (
+          <a class="contact-card" href={phoneHref}>
+            <span class="contact-card-label">Phone</span>
+            <span class="contact-card-value">{company.supportPhone}</span>
+          </a>
+        ) : (
+          <div class="contact-card contact-card--static">
+            <span class="contact-card-label">Phone</span>
+            <span class="contact-card-value">{company.supportPhone}</span>
+          </div>
+        )
+      ) : (
+        <div class="contact-card contact-card--static">
+          <span class="contact-card-label">Phone</span>
+          <span class="contact-card-value contact-card-value--muted">—</span>
+        </div>
+      )
+    }
+    <a class="contact-card" href={vcardHref} download>
+      <span class="contact-card-label">vCard</span>
+      <span class="contact-card-value">{vcardLabel}</span>
+    </a>
+  </div>
 
-  <section>
-    <ul class="contact-list">
-      {
-        supportMail ? (
-          <li>
-            <strong>Email</strong>
-            <br />
-            <a href={`mailto:${supportMail}`}>{supportMail}</a>
-          </li>
-        ) : null
-      }
-      {
-        company.supportPhone ? (
-          <li>
-            <strong>Phone</strong>
-            <br />
-            {phoneHref ? (
-              <a href={phoneHref}>{company.supportPhone}</a>
-            ) : (
-              company.supportPhone
-            )}
-          </li>
-        ) : null
-      }
-      {
-        company.address ? (
-          <li>
-            <strong>Address</strong>
-            <br />
-            {company.address}
-          </li>
-        ) : null
-      }
-      {
-        company.domain ? (
-          <li>
-            <strong>Website</strong>
-            <br />
-            <a href={`https://${company.domain}`}>{company.domain}</a>
-          </li>
-        ) : null
-      }
-    </ul>
-  </section>
-
-  {
-    !supportMail && !company.supportPhone && !company.address ? (
-      <section>
-        <p>
-          Contact details haven't been configured yet. Check back soon, or sign in to
-          admin to add your company email and phone.
-        </p>
-      </section>
-    ) : null
-  }
+  <ConversationalForm slug="contact" embedded recipientEmail={supportMail} />
 </MarketingLayout>
+
+<style>
+  .contact-top {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .contact-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    text-decoration: none;
+    min-width: 0;
+    transition:
+      border-color 0.2s,
+      background 0.2s;
+  }
+
+  a.contact-card:hover {
+    border-color: rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .contact-card--static {
+    cursor: default;
+  }
+
+  .contact-card-label {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .contact-card-value {
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 500;
+    color: #a855f7;
+    word-break: break-word;
+  }
+
+  .contact-card--static .contact-card-value {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .contact-card-value--muted {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  @media (max-width: 640px) {
+    .contact-top {
+      gap: 8px;
+    }
+
+    .contact-card {
+      padding: 12px 10px;
+    }
+
+    .contact-card-value {
+      font-size: 12px;
+    }
+  }
+</style>

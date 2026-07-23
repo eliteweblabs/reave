@@ -5,7 +5,7 @@
     {
       "name": "name",
       "type": "text",
-      "cf-questions": "Hi there!&&I'd love to hear from you.&&What's your name?"
+      "cf-questions": "Whether you have a detailed brief or just an idea, tell us below and we'll respond as soon as we can. You can also press the voice button on the homepage to talk with our assistant.&&What's your name?"
     },
     {
       "name": "email",
