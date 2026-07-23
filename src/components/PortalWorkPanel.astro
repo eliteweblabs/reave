@@ -20,9 +20,19 @@ export interface PortalWorkJobItem {
   qrDataUrl: string;
 }
 
+export interface PortalWorkFileItem {
+  id: string;
+  filename: string;
+  mediaType: string;
+  sizeBytes: number;
+  url: string;
+  source?: string;
+}
+
 interface Props {
   jobs: PortalWorkJobItem[];
   commentsBySlug: Record<string, WorkJobComment[]>;
+  filesBySlug?: Record<string, PortalWorkFileItem[]>;
   contactUid: string;
   /** Client company logo for client-authored comments. */
   clientAvatarUrl?: string;
@@ -38,6 +48,7 @@ interface Props {
 const {
   jobs,
   commentsBySlug,
+  filesBySlug = {},
   contactUid,
   clientAvatarUrl = '',
   staffAvatarUrl = '',
@@ -61,6 +72,13 @@ function fmtCommentTime(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function fmtFileSize(bytes: number): string {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function authorInitial(name: string): string {
   const ch = name.trim().charAt(0);
   return ch ? ch.toUpperCase() : '?';
@@ -82,6 +100,7 @@ const panelJobs = jobs.map((job) => ({
 }));
 
 const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
+const filesEndpointBase = commentEndpointBase;
 ---
 
 <section class={`panel portal-work ${active ? 'active' : ''}`} data-tab-panel="work">
@@ -93,6 +112,7 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     <ul class="work-list" id="portal-work-list">
       {jobs.map((job, index) => {
         const comments = commentsBySlug[job.slug] ?? [];
+        const files = filesBySlug[job.slug] ?? [];
         const startOpen = (expandSlug && job.slug === expandSlug) || (autoExpand && index === 0);
         return (
           <li class="work-item" data-job-slug={job.slug}>
@@ -125,6 +145,51 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
               ) : (
                 <p class="work-description-empty">Project details will appear here as work progresses.</p>
               )}
+
+              <div class="work-files" data-files-root>
+                <span class="work-files-label">Files</span>
+                {files.length === 0 ? (
+                  <p class="work-files-empty">No files yet — upload images or PDFs below.</p>
+                ) : (
+                  <div class="work-files-grid">
+                    {files.map((file) => {
+                      const isImage = file.mediaType.startsWith('image/');
+                      return (
+                        <a
+                          class="work-file-card"
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          data-file-id={file.id}
+                        >
+                          {isImage ? (
+                            <img
+                              class="work-file-thumb"
+                              src={file.url}
+                              alt={file.filename}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span class="work-file-doc" aria-hidden="true">PDF</span>
+                          )}
+                          <span class="work-file-name">{escapeHtml(file.filename)}</span>
+                          <span class="work-file-size">{fmtFileSize(file.sizeBytes)}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+                <div class="work-files-upload">
+                  <input
+                    class="work-files-input"
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                    multiple
+                  />
+                  <button class="work-files-upload-btn" type="button">Upload files</button>
+                  <p class="work-files-hint">Images and PDFs up to 10 MB. Shared with our team instantly.</p>
+                </div>
+              </div>
 
               <div class="work-comments" data-comments-root>
                 <span class="work-comments-label">Comments</span>
@@ -174,7 +239,7 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
   )}
 </section>
 
-<script define:vars={{ commentEndpointBase, clientAvatarUrl, staffAvatarUrl }}>
+<script define:vars={{ commentEndpointBase, filesEndpointBase, clientAvatarUrl, staffAvatarUrl }}>
   function escHtml(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -188,6 +253,59 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function fmtFileSize(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function renderFileCard(file) {
+    const isImage = String(file.mediaType || '').startsWith('image/');
+    const card = document.createElement('a');
+    card.className = 'work-file-card';
+    card.href = file.url;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.dataset.fileId = file.id;
+    card.innerHTML =
+      (isImage
+        ? `<img class="work-file-thumb" src="${escHtml(file.url)}" alt="${escHtml(file.filename || 'file')}" loading="lazy" />`
+        : `<span class="work-file-doc" aria-hidden="true">PDF</span>`) +
+      `<span class="work-file-name">${escHtml(file.filename || 'file')}</span>` +
+      `<span class="work-file-size">${escHtml(fmtFileSize(file.sizeBytes))}</span>`;
+    return card;
+  }
+
+  function renderFilesGrid(filesRoot, files) {
+    const empty = filesRoot.querySelector('.work-files-empty');
+    if (empty) empty.remove();
+
+    let grid = filesRoot.querySelector('.work-files-grid');
+    if (!files.length) {
+      if (grid) grid.remove();
+      if (!filesRoot.querySelector('.work-files-empty')) {
+        const p = document.createElement('p');
+        p.className = 'work-files-empty';
+        p.textContent = 'No files yet — upload images or PDFs below.';
+        const uploadWrap = filesRoot.querySelector('.work-files-upload');
+        filesRoot.insertBefore(p, uploadWrap);
+      }
+      return;
+    }
+
+    if (!grid) {
+      grid = document.createElement('div');
+      grid.className = 'work-files-grid';
+      const uploadWrap = filesRoot.querySelector('.work-files-upload');
+      filesRoot.insertBefore(grid, uploadWrap);
+    }
+    grid.innerHTML = '';
+    for (const file of files) {
+      grid.appendChild(renderFileCard(file));
+    }
   }
 
   function authorInitial(name) {
@@ -238,7 +356,50 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     const textarea = item.querySelector('.work-comment-input');
     const submitBtn = item.querySelector('.work-comment-submit');
     const commentsRoot = item.querySelector('[data-comments-root]');
+    const filesRoot = item.querySelector('[data-files-root]');
+    const fileInput = item.querySelector('.work-files-input');
+    const uploadBtn = item.querySelector('.work-files-upload-btn');
     if (!head || !body || !slug || !textarea || !submitBtn || !commentsRoot) return;
+
+    if (filesRoot && fileInput && uploadBtn) {
+      uploadBtn.addEventListener('click', () => fileInput.click());
+
+      fileInput.addEventListener('change', async () => {
+        const picked = [...fileInput.files];
+        fileInput.value = '';
+        if (!picked.length) return;
+
+        uploadBtn.disabled = true;
+        const prev = uploadBtn.textContent;
+        uploadBtn.textContent = 'Uploading…';
+
+        try {
+          for (const file of picked) {
+            const form = new FormData();
+            form.append('file', file);
+            const res = await fetch(
+              `${filesEndpointBase}/${encodeURIComponent(slug)}/files`,
+              { method: 'POST', body: form },
+            );
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error(data.error || 'Upload failed');
+          }
+
+          const listRes = await fetch(
+            `${filesEndpointBase}/${encodeURIComponent(slug)}/files`,
+            { cache: 'no-store' },
+          );
+          const listData = await listRes.json();
+          if (!listRes.ok || !listData.ok) throw new Error(listData.error || 'Could not refresh files');
+          renderFilesGrid(filesRoot, listData.files || []);
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'Upload failed. Please try again.');
+        } finally {
+          uploadBtn.disabled = false;
+          uploadBtn.textContent = prev;
+        }
+      });
+    }
 
     head.addEventListener('click', () => {
       const open = body.hasAttribute('hidden');
@@ -458,6 +619,132 @@ const commentEndpointBase = `/api/c/${encodeURIComponent(contactUid)}/work`;
     margin: 14px 0 16px;
     font-size: 13px;
     color: rgba(255, 255, 255, 0.45);
+  }
+
+  .work-files-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 10px;
+  }
+
+  .work-files {
+    margin: 0 0 16px;
+  }
+
+  .work-files-empty {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .work-files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .work-file-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: inherit;
+    text-decoration: none;
+    min-width: 0;
+  }
+
+  .work-file-card:active {
+    border-color: rgba(168, 85, 247, 0.45);
+  }
+
+  .work-file-thumb {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .work-file-doc {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    background: rgba(168, 85, 247, 0.12);
+    color: #d8b4fe;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .work-file-name {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .work-file-size {
+    display: block;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .work-files-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .work-files-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .work-files-upload-btn {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px dashed rgba(168, 85, 247, 0.45);
+    border-radius: 12px;
+    color: #d8b4fe;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .work-files-upload-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .work-files-upload-btn:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .work-files-hint {
+    margin: 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.38);
+    line-height: 1.4;
   }
 
   .work-comments-label {

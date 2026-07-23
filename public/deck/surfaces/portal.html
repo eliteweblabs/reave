@@ -68,6 +68,100 @@
         text-decoration: none;
       }
       .cta.deck-highlight { box-shadow: 0 0 0 3px #38bdf8; }
+      .work-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      .work-status {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 0.25rem 0.5rem;
+        border-radius: 999px;
+        color: #86efac;
+        background: rgba(134, 239, 172, 0.12);
+      }
+      .files-label {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8b97a8;
+        margin: 0.85rem 0 0.55rem;
+      }
+      .files-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .file-card {
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.25);
+        padding: 0.45rem;
+        min-width: 0;
+      }
+      .file-thumb {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 7px;
+        object-fit: cover;
+        margin-bottom: 0.35rem;
+        background: linear-gradient(145deg, rgba(56, 189, 248, 0.25), rgba(168, 85, 247, 0.25));
+      }
+      .file-doc {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        aspect-ratio: 1;
+        border-radius: 7px;
+        margin-bottom: 0.35rem;
+        background: rgba(168, 85, 247, 0.15);
+        color: #d8b4fe;
+        font-size: 0.65rem;
+        font-weight: 700;
+      }
+      .file-name {
+        display: block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .file-size {
+        display: block;
+        font-size: 0.6rem;
+        color: #8b97a8;
+      }
+      .upload-btn {
+        display: block;
+        width: 100%;
+        padding: 0.55rem 0.75rem;
+        border-radius: 10px;
+        border: 1px dashed rgba(168, 85, 247, 0.45);
+        background: rgba(255, 255, 255, 0.04);
+        color: #d8b4fe;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-align: center;
+      }
+      .upload-btn.deck-highlight {
+        box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35);
+      }
+      .upload-hint {
+        margin-top: 0.45rem;
+        font-size: 0.68rem;
+        color: #8b97a8;
+        line-height: 1.4;
+      }
     </style>
   </head>
   <body>
@@ -90,8 +184,31 @@
         <a class="cta" id="portal-cta" href="#">Message the team</a>
       </div>
       <div class="card" id="portal-work-preview">
-        <h2>Open work</h2>
-        <p>Homepage refresh · In review</p>
+        <div class="work-card-head">
+          <h2>Homepage refresh</h2>
+          <span class="work-status">In progress</span>
+        </div>
+        <p>Share mockups, logos, and PDFs with our team from your project page.</p>
+        <div class="files-label" id="portal-files-label">Files</div>
+        <div class="files-grid" id="portal-files-grid">
+          <div class="file-card">
+            <div class="file-thumb" aria-hidden="true"></div>
+            <span class="file-name">hero-mockup.png</span>
+            <span class="file-size">842 KB</span>
+          </div>
+          <div class="file-card">
+            <div class="file-doc">PDF</div>
+            <span class="file-name">brand-guide.pdf</span>
+            <span class="file-size">1.2 MB</span>
+          </div>
+          <div class="file-card">
+            <div class="file-thumb" aria-hidden="true"></div>
+            <span class="file-name">logo-dark.svg.png</span>
+            <span class="file-size">128 KB</span>
+          </div>
+        </div>
+        <div class="upload-btn" id="portal-upload-btn">Upload files</div>
+        <p class="upload-hint">Images and PDFs up to 10 MB — shared with our team instantly.</p>
       </div>
     </div>
   </body>

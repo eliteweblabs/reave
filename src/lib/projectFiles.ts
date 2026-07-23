@@ -11,7 +11,7 @@ import type { ChatImageAttachment } from './chatTypes';
 import { isSafeWorkSlug, workDir } from './workStore';
 import { serverEnv } from './serverEnv';
 
-export type ProjectFileSource = 'chat' | 'admin' | 'agent' | 'email';
+export type ProjectFileSource = 'chat' | 'admin' | 'agent' | 'email' | 'client';
 
 export interface ProjectFileSummary {
   id: string;
@@ -108,11 +108,14 @@ CREATE TABLE IF NOT EXISTS project_files (
   size_bytes    BIGINT NOT NULL,
   data_base64   TEXT NOT NULL,
   uploaded_by   TEXT,
-  source        TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('chat', 'admin', 'agent', 'email')),
+  source        TEXT NOT NULL DEFAULT 'admin' CHECK (source IN ('chat', 'admin', 'agent', 'email', 'client')),
   source_ref    TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS project_files_job_idx ON project_files (job_slug, created_at DESC);
+ALTER TABLE project_files DROP CONSTRAINT IF EXISTS project_files_source_check;
+ALTER TABLE project_files ADD CONSTRAINT project_files_source_check
+  CHECK (source IN ('chat', 'admin', 'agent', 'email', 'client'));
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -159,6 +162,10 @@ export function isProjectFilesDbConfigured(): boolean {
 
 export function projectFileUrl(jobSlug: string, fileId: string): string {
   return `/api/work/${encodeURIComponent(jobSlug)}/files/${encodeURIComponent(fileId)}`;
+}
+
+export function portalProjectFileUrl(contactUid: string, jobSlug: string, fileId: string): string {
+  return `/api/c/${encodeURIComponent(contactUid)}/work/${encodeURIComponent(jobSlug)}/files/${encodeURIComponent(fileId)}`;
 }
 
 function extensionForMediaType(mediaType: string): string {
@@ -217,7 +224,7 @@ function normalizeSummary(
     filename,
     mediaType,
     sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : 0,
-    source: ['chat', 'admin', 'agent', 'email'].includes(source) ? source : 'admin',
+    source: ['chat', 'admin', 'agent', 'email', 'client'].includes(source) ? source : 'admin',
     sourceRef:
       raw.sourceRef != null
         ? String(raw.sourceRef)

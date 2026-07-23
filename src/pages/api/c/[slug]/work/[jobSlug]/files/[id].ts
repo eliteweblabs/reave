@@ -4,38 +4,10 @@
  */
 
 import type { APIRoute } from 'astro';
-import { getContact, extractPortal, contactStringField } from '../../../../../../../lib/contactApi';
+import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
 import { storeGetProjectFile } from '../../../../../../../lib/projectFiles';
-import { isSafeWorkSlug, storeReadWork } from '../../../../../../../lib/workStore';
 
 export const prerender = false;
-
-async function loadPortalJob(contactUid: string, jobSlug: string) {
-  const contactRes = await getContact(contactUid);
-  if (!contactRes.ok || contactRes.data.archived) {
-    return { ok: false as const, status: 404, error: 'Not found' };
-  }
-
-  const portal = extractPortal(contactRes.data);
-  if (portal?.enabled === false) {
-    return { ok: false as const, status: 404, error: 'Not found' };
-  }
-
-  if (!isSafeWorkSlug(jobSlug)) {
-    return { ok: false as const, status: 400, error: 'Invalid job' };
-  }
-
-  const job = await storeReadWork(jobSlug);
-  if (!job || job.status === 'archived' || job.contact_uid !== contactUid) {
-    return { ok: false as const, status: 404, error: 'Not found' };
-  }
-
-  return {
-    ok: true as const,
-    contactName: contactStringField(contactRes.data.name) || 'Client',
-    job,
-  };
-}
 
 export const GET: APIRoute = async ({ params }) => {
   const contactUid = (params.slug ?? '').trim();

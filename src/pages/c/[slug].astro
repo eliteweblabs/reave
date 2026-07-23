@@ -26,6 +26,7 @@ import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, ty
 import { isBookingConfigured, publicBookingPageUrl } from '../../lib/bookingClient';
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
+import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
 import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
@@ -34,7 +35,7 @@ import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl } from '../../lib/contactApi';
 import { qrCodeDataUrl } from '../../lib/qrCode';
 import { SITE } from '../../config/site';
-import PortalWorkPanel, { type PortalWorkJobItem } from '../../components/PortalWorkPanel.astro';
+import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
 import FootBostonTag from '../../components/FootBostonTag.astro';
 import Header from '../../components/Header.astro';
 import Favicon from '../../components/Favicon.astro';
@@ -194,6 +195,7 @@ const CLIENT_WORK_STATUS: Record<string, string> = {
 // Jobs linked to this client (non-archived only — internal archive stays hidden).
 let clientJobs: WorkJobSummary[] = [];
 let commentsBySlug: Record<string, WorkJobComment[]> = {};
+let filesBySlug: Record<string, PortalWorkFileItem[]> = {};
 const jobBodies: Record<string, string> = {};
 if (contact && uid) {
   try {
@@ -202,8 +204,19 @@ if (contact && uid) {
       commentsBySlug = await storeListWorkCommentsForSlugs(clientJobs.map((j) => j.slug));
       await Promise.all(
         clientJobs.map(async (job) => {
-          const doc = await storeReadWork(job.slug);
+          const [doc, files] = await Promise.all([
+            storeReadWork(job.slug),
+            storeListProjectFiles(job.slug),
+          ]);
           if (doc?.body?.trim()) jobBodies[job.slug] = doc.body.trim();
+          filesBySlug[job.slug] = files.map((file) => ({
+            id: file.id,
+            filename: file.filename,
+            mediaType: file.mediaType,
+            sizeBytes: file.sizeBytes,
+            source: file.source,
+            url: portalProjectFileUrl(uid, job.slug, file.id),
+          }));
         }),
       );
     }
@@ -475,6 +488,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <PortalWorkPanel
               jobs={portalWorkJobs}
               commentsBySlug={commentsBySlug}
+              filesBySlug={filesBySlug}
               contactUid={uid}
               clientAvatarUrl={logoUrl}
               staffAvatarUrl={staffAvatarUrl}
