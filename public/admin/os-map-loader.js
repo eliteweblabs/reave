@@ -12316,29 +12316,51 @@ async function scheduleSaveBookingGuests(booking, cleanNotes, extraGuests) {
 
 const schedClientResolveCache = new Map();
 
-/** Looks up a client by exact email match so guest names can link to their profile. */
-async function scheduleResolveClientByEmail(email) {
-  const key = String(email || '').trim().toLowerCase();
-  if (!key) return null;
-  if (schedClientResolveCache.has(key)) return schedClientResolveCache.get(key);
+function schedulePickResolvedClient(data) {
+  if ((data.match === 'exact' || data.match === 'likely') && data.contact?.uid) {
+    return { uid: data.contact.uid, name: data.contact.name || '' };
+  }
+  if (data.match === 'possible' && Array.isArray(data.candidates) && data.candidates.length === 1) {
+    const candidate = data.candidates[0];
+    if (candidate?.uid && (candidate.score ?? 0) >= 0.85) {
+      return { uid: candidate.uid, name: candidate.name || '' };
+    }
+  }
+  return null;
+}
+
+async function scheduleResolveClientRequest(body) {
+  const res = await fetch('/api/clients/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) return null;
+  return schedulePickResolvedClient(data);
+}
+
+/** Resolve a booking guest to a client profile (email first, then name). */
+async function scheduleResolveClientForGuest(guest) {
+  const email = String(guest?.email || '').trim().toLowerCase();
+  const name = String(guest?.name || '').trim();
+  const cacheKey = email ? `e:${email}` : name ? `n:${name.toLowerCase()}` : '';
+  if (!cacheKey) return null;
+  if (schedClientResolveCache.has(cacheKey)) return schedClientResolveCache.get(cacheKey);
   const promise = (async () => {
     try {
-      const res = await fetch('/api/clients/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: key }),
-      });
-      const data = await res.json();
-      if (!res.ok) return null;
-      if ((data.match === 'exact' || data.match === 'likely') && data.contact?.uid) {
-        return { uid: data.contact.uid, name: data.contact.name || key };
-      }
+      const combined = {};
+      if (email) combined.email = email;
+      if (name) combined.name = name;
+      const match = await scheduleResolveClientRequest(combined);
+      if (match) return match;
+      if (email && name) return scheduleResolveClientRequest({ name });
       return null;
     } catch {
       return null;
     }
   })();
-  schedClientResolveCache.set(key, promise);
+  schedClientResolveCache.set(cacheKey, promise);
   return promise;
 }
 
@@ -12354,16 +12376,18 @@ function renderScheduleGuestChips(container, guests, opts = {}) {
     label.type = 'button';
     label.className = 'schedule-guest-chip-name';
     label.textContent = guest.name || guest.email || 'Guest';
-    label.disabled = true;
     chip.appendChild(label);
 
-    if (guest.email) {
-      scheduleResolveClientByEmail(guest.email).then((match) => {
+    if (guest.email || guest.name) {
+      scheduleResolveClientForGuest(guest).then((match) => {
         if (!match || !chip.isConnected) return;
-        label.disabled = false;
         label.title = 'View profile';
         label.classList.add('schedule-guest-chip-name--linked');
-        label.addEventListener('click', () => navigateToClient(match.uid));
+        label.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          navigateToClient(match.uid);
+        });
       });
     }
 
