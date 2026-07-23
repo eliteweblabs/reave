@@ -1,6 +1,7 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import ClientLogos from "../components/ClientLogos.astro";
+import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -39,40 +40,5 @@ const company = await getCompanyConfig(Astro.request);
     <ClientLogos />
   </section>
 
-  <section>
-    <h2>Testimonials</h2>
-    <div class="card-grid">
-      <article class="card">
-        <blockquote>
-          "I am extremely pleased with the result of our website. Incredibly professional and tuned
-          in to the needs of his clients. High quality work with a quick turn. He delivered on every
-          level."
-        </blockquote>
-        <p><strong>Torey Champagne</strong>, 13x Emmy Winner — ESPN / Comcast</p>
-      </article>
-      <article class="card">
-        <blockquote>
-          "His assistance was critical in the smooth launch of Worcester Polytechnic Institute's new
-          website. His abilities with CSS, Photoshop and Dreamweaver were crucial in maintaining our
-          strict timeline."
-        </blockquote>
-        <p><strong>L. Salsich</strong>, Web Project Manager — Worcester Polytechnic Institute</p>
-      </article>
-      <article class="card">
-        <blockquote>
-          "He did a fantastic job building our website from scratch. His creativity and cutting edge
-          web designing skills were exactly what we needed to establish a current, fresh and modern
-          presence."
-        </blockquote>
-        <p><strong>Kathy Singh</strong>, Director — Stem &amp; Regenerative Medicine Int.</p>
-      </article>
-      <article class="card">
-        <blockquote>
-          "Being able to trust one company for my marketing needs is a huge asset. Cost effective
-          pricing, prompt service and quality work."
-        </blockquote>
-        <p><strong>Nick Chacharone</strong>, President — Aster Group</p>
-      </article>
-    </div>
-  </section>
+  <TestimonialsCarousel />
 </MarketingLayout>
