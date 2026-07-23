@@ -256,6 +256,9 @@ export function createClientMap(container, opts = {}) {
   return {
     setLocation,
     showDirections,
+    resize() {
+      map?.resize();
+    },
     destroy() {
       destroyed = true;
       mapReady = false;

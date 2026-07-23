@@ -10508,6 +10508,275 @@ function createClientWorkCard(job) {
   return card;
 }
 
+const CLIENT_DETAIL_TABS = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'branding', label: 'Branding' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'vault', label: 'Vault' },
+];
+
+function mountClientDetailTabs(pane, activeTab, onSelect) {
+  const nav = document.createElement('div');
+  nav.className = 'cl-detail-tabs';
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-label', 'Client sections');
+
+  for (const tab of CLIENT_DETAIL_TABS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const isActive = activeTab === tab.id;
+    btn.className = 'cl-detail-tab' + (isActive ? ' active' : '');
+    btn.dataset.clientTab = tab.id;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => {
+      if (clientState.detailTab === tab.id) return;
+      onSelect(tab.id);
+    });
+    nav.appendChild(btn);
+  }
+
+  pane.appendChild(nav);
+  return nav;
+}
+
+function showClientDetailPanel(pane, tabId) {
+  pane.querySelectorAll('.cl-detail-tab').forEach((btn) => {
+    const active = btn.dataset.clientTab === tabId;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  pane.querySelectorAll('.cl-detail-panel').forEach((panel) => {
+    panel.hidden = panel.dataset.clientTab !== tabId;
+  });
+  if (tabId === 'profile') {
+    setTimeout(() => clientMapController?.resize?.(), 60);
+  }
+}
+
+function createClientDetailPanel(tabId, activeTab) {
+  const panel = document.createElement('div');
+  panel.className = 'cl-detail-panel';
+  panel.dataset.clientTab = tabId;
+  panel.hidden = activeTab !== tabId;
+  return panel;
+}
+
+let clientVaultSaveTimer = null;
+
+async function saveClientVaultData(uid, data) {
+  const res = await fetch(`/api/clients/${encodeURIComponent(uid)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+  if (clientState.draft) clientState.draft.data = body.data || data;
+  return body.data || data;
+}
+
+function scheduleClientVaultSave(uid, getData) {
+  clearTimeout(clientVaultSaveTimer);
+  clientVaultSaveTimer = setTimeout(async () => {
+    clientVaultSaveTimer = null;
+    try {
+      await saveClientVaultData(uid, getData());
+    } catch (e) {
+      console.warn('[clients] vault save failed', e);
+      showChatToast(e.message || 'Vault save failed');
+    }
+  }, 650);
+}
+
+function mountClientVaultSection(parent, uid, entries, opts = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'cl-vault-section';
+
+  const header = document.createElement('div');
+  header.className = 'cl-vault-header';
+  const title = document.createElement('div');
+  title.className = 'cl-vault-title';
+  title.textContent = 'Credentials & handoff data';
+  header.appendChild(title);
+
+  const actions = document.createElement('div');
+  actions.className = 'cl-vault-actions';
+
+  const portalUrl = (clientState.draft?.portal_url || '').trim();
+  const submitUrl = portalUrl ? `${portalUrl}${portalUrl.includes('?') ? '&' : '?'}submit` : '';
+
+  if (submitUrl) {
+    const copySubmitBtn = document.createElement('button');
+    copySubmitBtn.type = 'button';
+    copySubmitBtn.className = 'de-btn de-btn-secondary';
+    copySubmitBtn.textContent = 'Copy submit link';
+    copySubmitBtn.addEventListener('click', () => {
+      void copyChatText(submitUrl, copySubmitBtn);
+    });
+    actions.appendChild(copySubmitBtn);
+  }
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'de-btn';
+  addBtn.textContent = 'Add entry';
+  actions.appendChild(addBtn);
+  header.appendChild(actions);
+  wrap.appendChild(header);
+
+  const hint = document.createElement('p');
+  hint.className = 'cl-vault-hint';
+  hint.textContent =
+    'Passwords, DNS, hosting, and other account details shown on the client portal Data tab. The submit link lets clients add entries themselves.';
+  wrap.appendChild(hint);
+
+  const list = document.createElement('div');
+  list.className = 'cl-vault-list';
+  wrap.appendChild(list);
+  parent.appendChild(wrap);
+
+  let rows = (entries || []).map((entry) => ({ ...entry }));
+
+  function readRowsFromDom() {
+    return rows.map((row, index) => {
+      const card = list.children[index];
+      if (!card) return row;
+      const getVal = (field) => card.querySelector(`[data-field="${field}"]`)?.value?.trim() || '';
+      const next = { label: getVal('label') };
+      const value = getVal('value');
+      const username = getVal('username');
+      const password = getVal('password');
+      const url = getVal('url');
+      if (value) next.value = value;
+      if (username) next.username = username;
+      if (password) next.password = password;
+      if (url) next.url = url;
+      return next;
+    }).filter((entry) => entry.label && (entry.value || entry.username || entry.password || entry.url));
+  }
+
+  function queueSave() {
+    rows = readRowsFromDom();
+    scheduleClientVaultSave(uid, () => rows);
+  }
+
+  function appendVaultField(card, label, field, value, opts = {}) {
+    const row = document.createElement('div');
+    row.className = 'cl-vault-row';
+    const key = document.createElement('span');
+    key.className = 'cl-vault-row-label';
+    key.textContent = label;
+    const input = document.createElement('input');
+    input.className = 'de-input' + (opts.secret ? ' cl-vault-secret' : '');
+    input.dataset.field = field;
+    input.value = value || '';
+    input.placeholder = opts.placeholder || '';
+    if (opts.type) input.type = opts.type;
+    row.appendChild(key);
+    row.appendChild(input);
+
+    const actions = document.createElement('div');
+    actions.className = 'cl-vault-row-actions';
+    if (opts.secret) {
+      const revealBtn = document.createElement('button');
+      revealBtn.type = 'button';
+      revealBtn.className = 'de-btn de-btn-secondary';
+      revealBtn.textContent = 'Show';
+      revealBtn.addEventListener('click', () => {
+        const masked = input.classList.toggle('cl-vault-secret-masked');
+        revealBtn.textContent = masked ? 'Show' : 'Hide';
+      });
+      input.classList.add('cl-vault-secret-masked');
+      actions.appendChild(revealBtn);
+    }
+    if (opts.copy) {
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'de-btn de-btn-secondary';
+      copyBtn.textContent = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        void copyChatText(input.value, copyBtn);
+      });
+      actions.appendChild(copyBtn);
+    }
+    row.appendChild(actions);
+    input.addEventListener('input', queueSave);
+    input.addEventListener('blur', () => {
+      void saveClientVaultData(uid, readRowsFromDom()).catch((e) => {
+        showChatToast(e.message || 'Vault save failed');
+      });
+    });
+    card.appendChild(row);
+    return input;
+  }
+
+  function renderVaultList() {
+    list.innerHTML = '';
+    if (rows.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'cl-vault-empty';
+      empty.textContent = 'No vault entries yet. Add one or send the client submit link.';
+      list.appendChild(empty);
+      return;
+    }
+
+    rows.forEach((entry, index) => {
+      const card = document.createElement('div');
+      card.className = 'cl-vault-card';
+
+      const head = document.createElement('div');
+      head.className = 'cl-vault-card-head';
+      const cardTitle = document.createElement('div');
+      cardTitle.className = 'cl-vault-card-title';
+      cardTitle.textContent = entry.label || `Entry ${index + 1}`;
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'de-btn de-btn-secondary';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', async () => {
+        rows.splice(index, 1);
+        const payload = rows.filter(
+          (entry) => entry.label && (entry.value || entry.username || entry.password || entry.url),
+        );
+        rows = payload;
+        renderVaultList();
+        try {
+          await saveClientVaultData(uid, payload);
+        } catch (e) {
+          showChatToast(e.message || 'Vault save failed');
+        }
+      });
+      head.appendChild(cardTitle);
+      head.appendChild(deleteBtn);
+      card.appendChild(head);
+
+      const labelInput = appendVaultField(card, 'Label', 'label', entry.label, { placeholder: 'e.g. WordPress admin' });
+      appendVaultField(card, 'URL', 'url', entry.url, { placeholder: 'https://…', type: 'url' });
+      appendVaultField(card, 'Username', 'username', entry.username, { copy: true });
+      appendVaultField(card, 'Password', 'password', entry.password, { secret: true, copy: true });
+      appendVaultField(card, 'Notes', 'value', entry.value, { placeholder: 'Other details' });
+      labelInput.addEventListener('input', () => {
+        cardTitle.textContent = labelInput.value.trim() || `Entry ${index + 1}`;
+      });
+      list.appendChild(card);
+    });
+  }
+
+  addBtn.addEventListener('click', () => {
+    rows.push({ label: '', url: '', username: '', password: '', value: '' });
+    renderVaultList();
+    const firstInput = list.querySelector('[data-field="label"]');
+    firstInput?.focus();
+  });
+
+  renderVaultList();
+  if (typeof opts.onUpdate === 'function') opts.onUpdate(rows);
+  return wrap;
+}
+
 function renderClientWorkSection(jobsWrap, jobs) {
   jobsWrap.innerHTML = '';
   const jobsLabel = document.createElement('div');
@@ -14015,6 +14284,7 @@ let clientState = {
   search: '',
   contactFilter: 'work',
   activeUid: null,
+  detailTab: 'profile',
   dirty: false,
   draft: null,
 };
@@ -14949,6 +15219,7 @@ function renderEditClientForm(pane) {
         logoSource: data.logoSource,
         iconSource: data.iconSource,
         portal_url: contact.portal_url ?? data.portal_url,
+        data: data.data || [],
         createdAt: contact.createdAt ?? data.createdAt,
         archived: contact.archived ?? data.archived,
       };
@@ -15012,16 +15283,24 @@ function renderEditClientForm(pane) {
       });
       pane.appendChild(header);
 
+      mountClientDetailTabs(pane, clientState.detailTab, (tabId) => {
+        clientState.detailTab = tabId;
+        showClientDetailPanel(pane, tabId);
+      });
+
       const scroll = createClientFormScroll(pane);
-      const fields = document.createElement('div');
-      fields.className = 'de-fields';
+      const activeTab = clientState.detailTab;
+
+      const profilePanel = createClientDetailPanel('profile', activeTab);
+      const profileFields = document.createElement('div');
+      profileFields.className = 'de-fields';
 
       const firstNameInput = document.createElement('input');
       firstNameInput.className = 'de-input';
       firstNameInput.placeholder = 'First name';
       firstNameInput.autocomplete = 'given-name';
       firstNameInput.value = clientState.draft.firstName || '';
-      appendClientField(fields, 'First name', firstNameInput);
+      appendClientField(profileFields, 'First name', firstNameInput);
       registerClientField(firstNameInput, () => true);
 
       const lastNameInput = document.createElement('input');
@@ -15029,13 +15308,13 @@ function renderEditClientForm(pane) {
       lastNameInput.placeholder = 'Last name';
       lastNameInput.autocomplete = 'family-name';
       lastNameInput.value = clientState.draft.lastName || '';
-      appendClientField(fields, 'Last name', lastNameInput);
+      appendClientField(profileFields, 'Last name', lastNameInput);
       registerClientField(lastNameInput, () => true);
 
       const phoneInput = document.createElement('input');
       phoneInput.className = 'de-input';
       phoneInput.value = formatPhoneInput(clientState.draft.phone || '');
-      appendClientField(fields, 'Phone', phoneInput);
+      appendClientField(profileFields, 'Phone', phoneInput);
       attachPhoneFormatter(phoneInput);
       registerClientField(phoneInput, () => isValidClientPhone(phoneInput.value));
 
@@ -15043,30 +15322,19 @@ function renderEditClientForm(pane) {
       emailInput.className = 'de-input';
       emailInput.type = 'email';
       emailInput.value = clientState.draft.email || '';
-      appendClientField(fields, 'Email', emailInput);
+      appendClientField(profileFields, 'Email', emailInput);
       registerClientField(emailInput, () => isValidClientEmail(emailInput.value));
 
-      const websiteInput = mountClientWebsiteField(fields, clientState.draft.website || '');
+      const websiteInput = mountClientWebsiteField(profileFields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
       const personalInput = mountClientPersonalToggle(
-        fields,
+        profileFields,
         clientState.draft.personal,
         () => {},
       );
 
-      const brandingWrap = mountClientBrandingSection(fields, uid, clientState.draft, {
-        getWebsite: () => websiteInput.value,
-        onUpdate: (patch) => {
-          Object.assign(clientState.draft, patch);
-          if (patch.website != null) websiteInput.value = patch.website;
-          syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
-        },
-      });
-      clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
-      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
-
-      const addressInput = mountClientAddressField(fields, clientState.draft.address || '');
+      const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
       registerClientField(addressInput, () => true);
       destroyClientAddressAutocomplete = mountAddressAutocomplete(
         addressInput,
@@ -15083,24 +15351,53 @@ function renderEditClientForm(pane) {
         },
       );
 
-      mountClientMapSection(fields, clientState.draft);
+      mountClientMapSection(profileFields, clientState.draft);
+      profilePanel.appendChild(profileFields);
+      scroll.appendChild(profilePanel);
 
+      const brandingPanel = createClientDetailPanel('branding', activeTab);
+      const brandingFields = document.createElement('div');
+      brandingFields.className = 'de-fields';
+      const brandingWrap = mountClientBrandingSection(brandingFields, uid, clientState.draft, {
+        getWebsite: () => websiteInput.value,
+        onUpdate: (patch) => {
+          Object.assign(clientState.draft, patch);
+          if (patch.website != null) websiteInput.value = patch.website;
+          syncClientLogoInHeader(clientState.draft.logoUrl, clientDisplayLabel(clientState.draft));
+        },
+      });
+      clientState.brandingRefresh = (patch) => brandingWrap.refreshBranding?.(patch);
+      websiteInput.addEventListener('input', () => brandingWrap.syncScrapeBtn?.());
+      brandingPanel.appendChild(brandingFields);
+      scroll.appendChild(brandingPanel);
+
+      const notesPanel = createClientDetailPanel('notes', activeTab);
+      const notesFields = document.createElement('div');
+      notesFields.className = 'de-fields';
       const notesLabel = document.createElement('label');
       notesLabel.className = 'de-label cl-notes-label';
       notesLabel.textContent = 'Notes (internal)';
       const notesTa = document.createElement('textarea');
-      notesTa.className = 'de-textarea cl-notes-textarea';
+      notesTa.className = 'de-textarea cl-notes-textarea cl-notes-textarea--tab';
       notesTa.spellcheck = false;
+      notesTa.placeholder = 'Private notes — never shown on client portal';
       notesTa.value = clientState.draft.notes || '';
       notesLabel.appendChild(notesTa);
-      fields.appendChild(notesLabel);
+      notesFields.appendChild(notesLabel);
+      notesPanel.appendChild(notesFields);
+      scroll.appendChild(notesPanel);
       registerClientField(notesTa, () => true);
       registerClientField(companyInput, () =>
         !!joinClientFullName(firstNameInput.value, lastNameInput.value, companyInput.value),
       );
 
-      scroll.appendChild(fields);
-      mountClientWorkSection(scroll, uid);
+      const projectsPanel = createClientDetailPanel('projects', activeTab);
+      mountClientWorkSection(projectsPanel, uid);
+      scroll.appendChild(projectsPanel);
+
+      const vaultPanel = createClientDetailPanel('vault', activeTab);
+      mountClientVaultSection(vaultPanel, uid, clientState.draft.data || []);
+      scroll.appendChild(vaultPanel);
 
       const getPayload = () => {
         const firstName = firstNameInput.value.trim();
@@ -15183,6 +15480,7 @@ async function openClient(uid) {
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
   clientState.activeUid = uid;
+  clientState.detailTab = 'profile';
   clientState.dirty = false;
   clientState.autosaveGetPayload = null;
   renderClientsEditor();
@@ -15234,6 +15532,10 @@ function scheduleClientAutosave(uid, getPayload) {
 }
 
 async function flushClientAutosave() {
+  if (clientVaultSaveTimer) {
+    clearTimeout(clientVaultSaveTimer);
+    clientVaultSaveTimer = null;
+  }
   if (clientAutosaveTimer) {
     clearTimeout(clientAutosaveTimer);
     clientAutosaveTimer = null;

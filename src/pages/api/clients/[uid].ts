@@ -7,7 +7,9 @@ import {
   getContact,
   isContactApiConfigured,
   setContactPersonal,
+  setContactPortal,
   updateContact,
+  type ClientDataEntry,
   type ContactRecord,
 } from '../../../lib/contactApi';
 import { portalSiteUrl } from '../../../lib/siteMonitoring';
@@ -31,6 +33,82 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
+}
+
+function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
+  if (!Array.isArray(raw)) return null;
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+  return raw
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => {
+      const row = e as Record<string, unknown>;
+      const entry: ClientDataEntry = { label: str(row.label) };
+      const value = str(row.value);
+      const username = str(row.username);
+      const password = str(row.password);
+      const url = str(row.url);
+      if (value) entry.value = value;
+      if (username) entry.username = username;
+      if (password) entry.password = password;
+      if (url) entry.url = url;
+      return entry;
+    })
+    .filter((e) => e.label && (e.value || e.username || e.password || e.url));
+}
+
+async function saveClientPortalData(
+  uid: string,
+  raw: unknown,
+  contactData: ContactRecord,
+): Promise<{ ok: true; data: ClientDataEntry[] } | { ok: false; error: string }> {
+  const parsed = parseClientPortalData(raw);
+  if (parsed === null) return { ok: false, error: 'Invalid vault data' };
+  const portal = extractPortal(contactData) ?? {};
+  const saved = await setContactPortal(uid, {
+    ...portal,
+    data: parsed,
+    updatedAt: new Date().toISOString(),
+  });
+  if (!saved.ok) return { ok: false, error: saved.error };
+  return { ok: true, data: parsed };
+}
+
+function hasContactFieldPatch(body: Record<string, unknown>): boolean {
+  return (
+    typeof body.name === 'string' ||
+    typeof body.email === 'string' ||
+    body.email === null ||
+    typeof body.phone === 'string' ||
+    body.phone === null ||
+    typeof body.company === 'string' ||
+    body.company === null ||
+    typeof body.notes === 'string' ||
+    body.notes === null
+  );
+}
+
+async function loadContactForClientPatch(
+  uid: string,
+  body: Record<string, unknown>,
+): Promise<
+  | { ok: true; data: ContactRecord }
+  | { ok: false; error: string; status?: number }
+> {
+  if (!hasContactFieldPatch(body)) {
+    const current = await getContact(uid);
+    if (!current.ok) return { ok: false, error: current.error, status: current.status ?? 404 };
+    return { ok: true, data: current.data };
+  }
+
+  const res = await updateContact(uid, {
+    name: typeof body.name === 'string' ? body.name : undefined,
+    email: typeof body.email === 'string' ? body.email : body.email == null ? '' : undefined,
+    phone: typeof body.phone === 'string' ? body.phone : body.phone == null ? '' : undefined,
+    company: typeof body.company === 'string' ? body.company : body.company == null ? '' : undefined,
+    notes: typeof body.notes === 'string' ? body.notes : body.notes == null ? '' : undefined,
+  });
+  if (!res.ok) return { ok: false, error: res.error, status: res.status ?? 502 };
+  return { ok: true, data: res.data };
 }
 
 async function saveClientPortalFields(
@@ -141,6 +219,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     iconSource: portal?.iconSource,
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
+    data: portal?.data ?? [],
   });
 };
 
@@ -161,28 +240,32 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const res = await updateContact(uid, {
-    name: typeof body.name === 'string' ? body.name : undefined,
-    email: typeof body.email === 'string' ? body.email : body.email == null ? '' : undefined,
-    phone: typeof body.phone === 'string' ? body.phone : body.phone == null ? '' : undefined,
-    company: typeof body.company === 'string' ? body.company : body.company == null ? '' : undefined,
-    notes: typeof body.notes === 'string' ? body.notes : body.notes == null ? '' : undefined,
-  });
-  if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
+  const contactRes = await loadContactForClientPatch(uid, body);
+  if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
+  const contact = contactRes.data;
 
-  const portalSaved = await saveClientPortalFields(uid, body, res.data);
+  const portalSaved = await saveClientPortalFields(uid, body, contact);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
+  let vaultData: ClientDataEntry[] | undefined;
+  if (body.data !== undefined) {
+    const vaultSaved = await saveClientPortalData(uid, body.data, contact);
+    if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
+    vaultData = vaultSaved.data;
+  }
+
   const branding = await clientPortalBranding(uid);
+  const refreshed = await getContact(uid);
+  const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
 
   return json({
     ok: true,
-    ...contactSummary(res.data),
-    firstName: contactStringField(res.data.firstName),
-    lastName: contactStringField(res.data.lastName),
-    notes: res.data.notes ?? '',
+    ...contactSummary(contact),
+    firstName: contactStringField(contact.firstName),
+    lastName: contactStringField(contact.lastName),
+    notes: contact.notes ?? '',
     personal:
-      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(res.data),
+      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(contact),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
@@ -190,8 +273,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     iconUrl: branding.iconUrl,
     logoSource: branding.logoSource,
     iconSource: branding.iconSource,
-    archived: !!res.data.archived,
-    createdAt: res.data.createdAt ?? null,
+    archived: !!contact.archived,
+    createdAt: contact.createdAt ?? null,
+    data: vaultData ?? portal?.data ?? [],
   });
 };
 
@@ -212,28 +296,32 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
-  const res = await updateContact(uid, {
-    name: typeof body.name === 'string' ? body.name : undefined,
-    email: typeof body.email === 'string' ? body.email : body.email == null ? '' : undefined,
-    phone: typeof body.phone === 'string' ? body.phone : body.phone == null ? '' : undefined,
-    company: typeof body.company === 'string' ? body.company : body.company == null ? '' : undefined,
-    notes: typeof body.notes === 'string' ? body.notes : body.notes == null ? '' : undefined,
-  });
-  if (!res.ok) return json({ ok: false, error: res.error }, res.status ?? 502);
+  const contactRes = await loadContactForClientPatch(uid, body);
+  if (!contactRes.ok) return json({ ok: false, error: contactRes.error }, contactRes.status ?? 502);
+  const contact = contactRes.data;
 
-  const portalSaved = await saveClientPortalFields(uid, body, res.data);
+  const portalSaved = await saveClientPortalFields(uid, body, contact);
   if (!portalSaved.ok) return json({ ok: false, error: portalSaved.error }, 502);
 
+  let vaultData: ClientDataEntry[] | undefined;
+  if (body.data !== undefined) {
+    const vaultSaved = await saveClientPortalData(uid, body.data, contact);
+    if (!vaultSaved.ok) return json({ ok: false, error: vaultSaved.error }, 400);
+    vaultData = vaultSaved.data;
+  }
+
   const branding = await clientPortalBranding(uid);
+  const refreshed = await getContact(uid);
+  const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
 
   return json({
     ok: true,
-    ...contactSummary(res.data),
-    firstName: contactStringField(res.data.firstName),
-    lastName: contactStringField(res.data.lastName),
-    notes: res.data.notes ?? '',
+    ...contactSummary(contact),
+    firstName: contactStringField(contact.firstName),
+    lastName: contactStringField(contact.lastName),
+    notes: contact.notes ?? '',
     personal:
-      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(res.data),
+      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(contact),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
@@ -241,8 +329,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
     iconUrl: branding.iconUrl,
     logoSource: branding.logoSource,
     iconSource: branding.iconSource,
-    archived: !!res.data.archived,
-    createdAt: res.data.createdAt ?? null,
+    archived: !!contact.archived,
+    createdAt: contact.createdAt ?? null,
+    data: vaultData ?? portal?.data ?? [],
   });
 };
 

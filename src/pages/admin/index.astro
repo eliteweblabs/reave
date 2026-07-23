@@ -2839,6 +2839,128 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         border-top: 1px solid var(--panel-border);
         margin-top: 0.5rem;
       }
+      #clients-editor .cl-detail-tabs {
+        display: flex;
+        gap: 0.25rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        padding: 0.35rem 1rem 0.55rem;
+        border-bottom: 1px solid var(--panel-border);
+        flex: 0 0 auto;
+        min-width: 0;
+      }
+      #clients-editor .cl-detail-tabs::-webkit-scrollbar { display: none; }
+      #clients-editor .cl-detail-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem 0.65rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      #clients-editor .cl-detail-tab:hover { color: var(--fg); }
+      #clients-editor .cl-detail-tab.active {
+        color: var(--fg);
+        background: var(--mode-tab-active-bg);
+        border-color: var(--card-border);
+      }
+      #clients-editor .cl-detail-panel[hidden] { display: none !important; }
+      #clients-editor .cl-detail-panel .cl-jobs-section {
+        border-top: none;
+        margin-top: 0;
+      }
+      #clients-editor .cl-notes-textarea--tab {
+        min-height: 12rem;
+      }
+      .cl-vault-section {
+        padding: 1rem 1rem var(--footer-scroll-pad);
+      }
+      .cl-vault-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      .cl-vault-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .cl-vault-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .cl-vault-hint {
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin: 0 0 0.85rem;
+        line-height: 1.45;
+      }
+      .cl-vault-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+      .cl-vault-card {
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .cl-vault-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .cl-vault-card-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+      .cl-vault-row {
+        display: grid;
+        grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .cl-vault-row-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .cl-vault-row .de-input {
+        max-width: none;
+        width: 100%;
+      }
+      .cl-vault-secret {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        letter-spacing: 0.02em;
+      }
+      .cl-vault-secret-masked {
+        -webkit-text-security: disc;
+        text-security: disc;
+      }
+      .cl-vault-empty {
+        padding: 1rem 0;
+        color: var(--muted);
+        font-size: 0.8125rem;
+      }
       .cl-jobs-label { margin-bottom: 0; }
       .cl-jobs-empty { padding: 0.5rem 0; }
       .cl-jobs-grid {
