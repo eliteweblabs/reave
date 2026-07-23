@@ -1,0 +1,397 @@
+---
+interface PortfolioItem {
+  title: string;
+  description: string;
+  tags: string[];
+  image: string;
+  imageHeight: number;
+  button?: { label: string; href: string };
+}
+
+const items: PortfolioItem[] = [
+  {
+    title: "Overlook CARE",
+    description:
+      "Clean, mobile-friendly WordPress redesign for elder hospitality — fast on Google Cloud with accessibility built in.",
+    tags: ["WordPress", "Google Cloud", "Accessibility"],
+    image: "https://picsum.photos/seed/overlook/480/640",
+    imageHeight: 640,
+    button: { label: "View case study", href: "/contact" },
+  },
+  {
+    title: "Squarer App",
+    description:
+      "Square-footage event platform with drag-and-drop space builder, Stripe checkout, and admin curation tools.",
+    tags: ["React", "Stripe", "REST API"],
+    image: "https://picsum.photos/seed/squarer/480/360",
+    imageHeight: 360,
+    button: { label: "Learn more", href: "/contact" },
+  },
+  {
+    title: "Tyler Associates",
+    description:
+      "Pre-mobile-era site rebuilt for speed, refreshed content, and Google Site Kit for local SEO ranking.",
+    tags: ["WordPress", "SEO", "Mobile"],
+    image: "https://picsum.photos/seed/tyler/480/520",
+    imageHeight: 520,
+  },
+  {
+    title: "Paradigm Hydroseed",
+    description:
+      "Hands-off build with sticky call & SMS, geolocation form autofill, and strong organic search performance.",
+    tags: ["WordPress", "Analytics", "Lead gen"],
+    image: "https://picsum.photos/seed/paradigm/480/480",
+    imageHeight: 480,
+    button: { label: "See details", href: "/contact" },
+  },
+  {
+    title: "Floorplan Builder",
+    description: "Drag-and-drop exhibitor floorplan tool for tradeshow space planning and load-in logistics.",
+    tags: ["Canvas", "SaaS", "Events"],
+    image: "https://picsum.photos/seed/floorplan/480/720",
+    imageHeight: 720,
+  },
+  {
+    title: "Proposal System",
+    description: "Automated quote generation with digital signatures and branded PDF delivery.",
+    tags: ["Automation", "PDF", "CRM"],
+    image: "https://picsum.photos/seed/proposal/480/400",
+    imageHeight: 400,
+    button: { label: "Request demo", href: "/contact" },
+  },
+  {
+    title: "QR Shipping Manager",
+    description: "Warehouse workflow app tying QR labels to inbound/outbound shipments and client notifications.",
+    tags: ["QR", "Logistics", "Mobile"],
+    image: "https://picsum.photos/seed/shipping/480/560",
+    imageHeight: 560,
+  },
+  {
+    title: "Admin Dashboard",
+    description: "Custom operations hub consolidating jobs, billing, and client comms in one view.",
+    tags: ["Dashboard", "Postgres", "API"],
+    image: "https://picsum.photos/seed/dashboard/480/440",
+    imageHeight: 440,
+  },
+  {
+    title: "Brand Identity — Northwind",
+    description: "Logo suite, color system, and marketing templates for a regional outdoor retailer.",
+    tags: ["Branding", "Print", "Guidelines"],
+    image: "https://picsum.photos/seed/northwind/480/680",
+    imageHeight: 680,
+    button: { label: "View work", href: "/contact" },
+  },
+  {
+    title: "Conference Portal",
+    description: "Attendee registration, session scheduling, and sponsor showcase for a multi-day event.",
+    tags: ["Events", "Registration", "CMS"],
+    image: "https://picsum.photos/seed/conference/480/380",
+    imageHeight: 380,
+  },
+  {
+    title: "Digital Contract Module",
+    description: "Embedded e-sign flow with audit trail and templated clause library for sales teams.",
+    tags: ["eSign", "Legal", "Workflow"],
+    image: "https://picsum.photos/seed/contract/480/600",
+    imageHeight: 600,
+  },
+  {
+    title: "Training Video Library",
+    description: "Searchable onboarding hub with progress tracking and role-based access.",
+    tags: ["Video", "LMS", "Internal"],
+    image: "https://picsum.photos/seed/training/480/460",
+    imageHeight: 460,
+  },
+];
+---
+
+<div class="portfolio-masonry" data-portfolio-masonry>
+  {
+    items.map((item) => (
+      <article class="masonry-item">
+        <button
+          type="button"
+          class="masonry-card"
+          aria-label={`${item.title} — ${item.description}`}
+          data-masonry-card
+        >
+          <img
+            src={item.image}
+            alt=""
+            width="480"
+            height={item.imageHeight}
+            loading="lazy"
+            decoding="async"
+            class="masonry-image"
+          />
+          <div class="masonry-overlay">
+            <div class="masonry-overlay-inner">
+              <h3 class="masonry-title">{item.title}</h3>
+              <p class="masonry-desc">{item.description}</p>
+              <ul class="masonry-tags" aria-label="Tags">
+                {item.tags.map((tag) => (
+                  <li>{tag}</li>
+                ))}
+              </ul>
+              {
+                item.button ? (
+                  <a class="masonry-btn" href={item.button.href} data-masonry-btn>
+                    {item.button.label}
+                  </a>
+                ) : null
+              }
+            </div>
+          </div>
+        </button>
+      </article>
+    ))
+  }
+</div>
+
+<style>
+  .portfolio-masonry {
+    column-count: 6;
+    column-gap: 10px;
+    padding: 0 clamp(12px, 2vw, 28px);
+  }
+
+  .masonry-item {
+    break-inside: avoid;
+    margin-bottom: 10px;
+  }
+
+  .masonry-card {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .masonry-card:focus-visible {
+    outline: 2px solid #a855f7;
+    outline-offset: 2px;
+  }
+
+  .masonry-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    vertical-align: middle;
+    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
+  }
+
+  .masonry-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 14px 12px;
+    background: linear-gradient(
+      180deg,
+      rgba(5, 5, 5, 0) 0%,
+      rgba(5, 5, 5, 0.35) 38%,
+      rgba(5, 5, 5, 0.88) 100%
+    );
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 0.35s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+  }
+
+  .masonry-overlay-inner {
+    transform: translateY(8px);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .masonry-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #fff;
+    margin: 0 0 6px;
+    line-height: 1.2;
+  }
+
+  .masonry-desc {
+    font-family: var(--font-body);
+    font-size: 11px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.78);
+    margin: 0 0 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .masonry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+  }
+
+  .masonry-tags li {
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 3px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    background: rgba(168, 85, 247, 0.18);
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  .masonry-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #fff;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: var(--brand-gradient);
+    box-shadow: 0 2px 12px rgba(168, 85, 247, 0.35);
+    pointer-events: auto;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .masonry-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(168, 85, 247, 0.5);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .masonry-card:hover .masonry-image,
+    .masonry-card:focus-visible .masonry-image {
+      transform: scale(1.04);
+      filter: brightness(0.72);
+    }
+
+    .masonry-card:hover .masonry-overlay,
+    .masonry-card:focus-visible .masonry-overlay {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .masonry-card:hover .masonry-overlay-inner,
+    .masonry-card:focus-visible .masonry-overlay-inner {
+      transform: translateY(0);
+    }
+  }
+
+  .masonry-card.is-active .masonry-image {
+    transform: scale(1.02);
+    filter: brightness(0.72);
+  }
+
+  .masonry-card.is-active .masonry-overlay {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .masonry-card.is-active .masonry-overlay-inner {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 1600px) {
+    .portfolio-masonry {
+      column-count: 5;
+    }
+  }
+
+  @media (max-width: 1280px) {
+    .portfolio-masonry {
+      column-count: 4;
+    }
+  }
+
+  @media (max-width: 960px) {
+    .portfolio-masonry {
+      column-count: 3;
+    }
+
+    .masonry-title {
+      font-size: 14px;
+    }
+
+    .masonry-desc {
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .portfolio-masonry {
+      column-count: 2;
+      column-gap: 8px;
+    }
+
+    .masonry-item {
+      margin-bottom: 8px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .portfolio-masonry {
+      column-count: 1;
+    }
+  }
+</style>
+
+<script>
+  function initPortfolioMasonry(root: HTMLElement) {
+    const cards = root.querySelectorAll<HTMLButtonElement>("[data-masonry-card]");
+
+    const closeAll = (except?: HTMLButtonElement) => {
+      cards.forEach((card) => {
+        if (card !== except) card.classList.remove("is-active");
+      });
+    };
+
+    cards.forEach((card) => {
+      card.addEventListener("click", (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("[data-masonry-btn]")) return;
+
+        const isActive = card.classList.contains("is-active");
+        closeAll();
+        if (!isActive) card.classList.add("is-active");
+      });
+    });
+
+    document.addEventListener("click", (event) => {
+      const target = event.target as Node;
+      if (!root.contains(target)) closeAll();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeAll();
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>("[data-portfolio-masonry]").forEach(initPortfolioMasonry);
+</script>
