@@ -3,167 +3,281 @@ interface PortfolioItem {
   title: string;
   description: string;
   tags: string[];
-  image: string;
-  imageHeight: number;
+  seed: string;
   button?: { label: string; href: string };
 }
 
-const items: PortfolioItem[] = [
+interface PortfolioSection {
+  columns: 2 | 3 | 4;
+  items: PortfolioItem[];
+}
+
+const sections: PortfolioSection[] = [
   {
-    title: "Overlook CARE",
-    description:
-      "Clean, mobile-friendly WordPress redesign for elder hospitality — fast on Google Cloud with accessibility built in.",
-    tags: ["WordPress", "Google Cloud", "Accessibility"],
-    image: "https://picsum.photos/seed/overlook/480/640",
-    imageHeight: 640,
-    button: { label: "View case study", href: "/contact" },
+    columns: 4,
+    items: [
+      {
+        title: "Overlook CARE",
+        description:
+          "Clean, mobile-friendly WordPress redesign for elder hospitality — fast on Google Cloud with accessibility built in.",
+        tags: ["WordPress", "Google Cloud", "Accessibility"],
+        seed: "overlook",
+        button: { label: "View case study", href: "/contact" },
+      },
+      {
+        title: "Squarer App",
+        description:
+          "Square-footage event platform with drag-and-drop space builder, Stripe checkout, and admin curation tools.",
+        tags: ["React", "Stripe", "REST API"],
+        seed: "squarer",
+        button: { label: "Learn more", href: "/contact" },
+      },
+      {
+        title: "Tyler Associates",
+        description:
+          "Pre-mobile-era site rebuilt for speed, refreshed content, and Google Site Kit for local SEO ranking.",
+        tags: ["WordPress", "SEO", "Mobile"],
+        seed: "tyler",
+      },
+      {
+        title: "Paradigm Hydroseed",
+        description:
+          "Hands-off build with sticky call & SMS, geolocation form autofill, and strong organic search performance.",
+        tags: ["WordPress", "Analytics", "Lead gen"],
+        seed: "paradigm",
+        button: { label: "See details", href: "/contact" },
+      },
+      {
+        title: "Floorplan Builder",
+        description: "Drag-and-drop exhibitor floorplan tool for tradeshow space planning and load-in logistics.",
+        tags: ["Canvas", "SaaS", "Events"],
+        seed: "floorplan",
+      },
+      {
+        title: "Proposal System",
+        description: "Automated quote generation with digital signatures and branded PDF delivery.",
+        tags: ["Automation", "PDF", "CRM"],
+        seed: "proposal",
+        button: { label: "Request demo", href: "/contact" },
+      },
+      {
+        title: "QR Shipping Manager",
+        description: "Warehouse workflow app tying QR labels to inbound/outbound shipments and client notifications.",
+        tags: ["QR", "Logistics", "Mobile"],
+        seed: "shipping",
+      },
+      {
+        title: "Admin Dashboard",
+        description: "Custom operations hub consolidating jobs, billing, and client comms in one view.",
+        tags: ["Dashboard", "Postgres", "API"],
+        seed: "dashboard",
+      },
+    ],
   },
   {
-    title: "Squarer App",
-    description:
-      "Square-footage event platform with drag-and-drop space builder, Stripe checkout, and admin curation tools.",
-    tags: ["React", "Stripe", "REST API"],
-    image: "https://picsum.photos/seed/squarer/480/360",
-    imageHeight: 360,
-    button: { label: "Learn more", href: "/contact" },
+    columns: 3,
+    items: [
+      {
+        title: "Brand Identity — Northwind",
+        description: "Logo suite, color system, and marketing templates for a regional outdoor retailer.",
+        tags: ["Branding", "Print", "Guidelines"],
+        seed: "northwind",
+        button: { label: "View work", href: "/contact" },
+      },
+      {
+        title: "Conference Portal",
+        description: "Attendee registration, session scheduling, and sponsor showcase for a multi-day event.",
+        tags: ["Events", "Registration", "CMS"],
+        seed: "conference",
+      },
+      {
+        title: "Digital Contract Module",
+        description: "Embedded e-sign flow with audit trail and templated clause library for sales teams.",
+        tags: ["eSign", "Legal", "Workflow"],
+        seed: "contract",
+      },
+      {
+        title: "Training Video Library",
+        description: "Searchable onboarding hub with progress tracking and role-based access.",
+        tags: ["Video", "LMS", "Internal"],
+        seed: "training",
+      },
+      {
+        title: "Member Portal",
+        description: "Gated content, billing history, and support tickets for a subscription community.",
+        tags: ["Portal", "Auth", "Stripe"],
+        seed: "member-portal",
+        button: { label: "Explore", href: "/contact" },
+      },
+      {
+        title: "Inventory Sync",
+        description: "Two-way stock updates between WooCommerce and a warehouse management system.",
+        tags: ["WooCommerce", "API", "Sync"],
+        seed: "inventory",
+      },
+    ],
   },
   {
-    title: "Tyler Associates",
-    description:
-      "Pre-mobile-era site rebuilt for speed, refreshed content, and Google Site Kit for local SEO ranking.",
-    tags: ["WordPress", "SEO", "Mobile"],
-    image: "https://picsum.photos/seed/tyler/480/520",
-    imageHeight: 520,
+    columns: 2,
+    items: [
+      {
+        title: "Art Fair Microsite",
+        description: "Fast-loading exhibitor directory with map pins, artist bios, and press downloads.",
+        tags: ["Events", "WordPress", "Maps"],
+        seed: "artfair",
+        button: { label: "View project", href: "/contact" },
+      },
+      {
+        title: "Fleet Tracker",
+        description: "Live vehicle map with route history, maintenance alerts, and driver check-ins.",
+        tags: ["Maps", "Mobile", "Realtime"],
+        seed: "fleet",
+      },
+      {
+        title: "Newsletter Engine",
+        description: "Template builder, list segmentation, and open-rate analytics for client campaigns.",
+        tags: ["Email", "Marketing", "Automation"],
+        seed: "newsletter",
+      },
+      {
+        title: "Studio Booking",
+        description: "Calendar-based room rentals with deposits, waivers, and automated reminders.",
+        tags: ["Booking", "Calendar", "Payments"],
+        seed: "studio",
+        button: { label: "See details", href: "/contact" },
+      },
+    ],
   },
   {
-    title: "Paradigm Hydroseed",
-    description:
-      "Hands-off build with sticky call & SMS, geolocation form autofill, and strong organic search performance.",
-    tags: ["WordPress", "Analytics", "Lead gen"],
-    image: "https://picsum.photos/seed/paradigm/480/480",
-    imageHeight: 480,
-    button: { label: "See details", href: "/contact" },
-  },
-  {
-    title: "Floorplan Builder",
-    description: "Drag-and-drop exhibitor floorplan tool for tradeshow space planning and load-in logistics.",
-    tags: ["Canvas", "SaaS", "Events"],
-    image: "https://picsum.photos/seed/floorplan/480/720",
-    imageHeight: 720,
-  },
-  {
-    title: "Proposal System",
-    description: "Automated quote generation with digital signatures and branded PDF delivery.",
-    tags: ["Automation", "PDF", "CRM"],
-    image: "https://picsum.photos/seed/proposal/480/400",
-    imageHeight: 400,
-    button: { label: "Request demo", href: "/contact" },
-  },
-  {
-    title: "QR Shipping Manager",
-    description: "Warehouse workflow app tying QR labels to inbound/outbound shipments and client notifications.",
-    tags: ["QR", "Logistics", "Mobile"],
-    image: "https://picsum.photos/seed/shipping/480/560",
-    imageHeight: 560,
-  },
-  {
-    title: "Admin Dashboard",
-    description: "Custom operations hub consolidating jobs, billing, and client comms in one view.",
-    tags: ["Dashboard", "Postgres", "API"],
-    image: "https://picsum.photos/seed/dashboard/480/440",
-    imageHeight: 440,
-  },
-  {
-    title: "Brand Identity — Northwind",
-    description: "Logo suite, color system, and marketing templates for a regional outdoor retailer.",
-    tags: ["Branding", "Print", "Guidelines"],
-    image: "https://picsum.photos/seed/northwind/480/680",
-    imageHeight: 680,
-    button: { label: "View work", href: "/contact" },
-  },
-  {
-    title: "Conference Portal",
-    description: "Attendee registration, session scheduling, and sponsor showcase for a multi-day event.",
-    tags: ["Events", "Registration", "CMS"],
-    image: "https://picsum.photos/seed/conference/480/380",
-    imageHeight: 380,
-  },
-  {
-    title: "Digital Contract Module",
-    description: "Embedded e-sign flow with audit trail and templated clause library for sales teams.",
-    tags: ["eSign", "Legal", "Workflow"],
-    image: "https://picsum.photos/seed/contract/480/600",
-    imageHeight: 600,
-  },
-  {
-    title: "Training Video Library",
-    description: "Searchable onboarding hub with progress tracking and role-based access.",
-    tags: ["Video", "LMS", "Internal"],
-    image: "https://picsum.photos/seed/training/480/460",
-    imageHeight: 460,
+    columns: 4,
+    items: [
+      {
+        title: "Gallery CMS",
+        description: "Exhibition archive with high-res zoom, provenance fields, and private viewing links.",
+        tags: ["CMS", "Art", "Archive"],
+        seed: "gallery",
+      },
+      {
+        title: "Lead Capture Widget",
+        description: "Embeddable form with CRM handoff, spam scoring, and branded thank-you flows.",
+        tags: ["Forms", "CRM", "Embed"],
+        seed: "leads",
+      },
+      {
+        title: "Pricing Calculator",
+        description: "Interactive estimator with tiered options, PDF export, and sales-team notifications.",
+        tags: ["SaaS", "PDF", "Sales"],
+        seed: "pricing",
+        button: { label: "Try demo", href: "/contact" },
+      },
+      {
+        title: "Status Page",
+        description: "Public uptime dashboard with incident timeline and subscriber alerts.",
+        tags: ["Monitoring", "Alerts", "API"],
+        seed: "status",
+      },
+      {
+        title: "Document Vault",
+        description: "Secure file sharing with expiring links, watermarking, and access logs.",
+        tags: ["Security", "Files", "Portal"],
+        seed: "vault",
+      },
+      {
+        title: "Job Board",
+        description: "Curated listings with application routing, employer dashboards, and SEO landing pages.",
+        tags: ["Jobs", "SEO", "CMS"],
+        seed: "jobs",
+      },
+    ],
   },
 ];
+
+const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/600/600`;
 ---
 
 <div class="portfolio-masonry" data-portfolio-masonry>
   {
-    items.map((item) => (
-      <article class="masonry-item">
-        <button
-          type="button"
-          class="masonry-card"
-          aria-label={`${item.title} — ${item.description}`}
-          data-masonry-card
-        >
-          <img
-            src={item.image}
-            alt=""
-            width="480"
-            height={item.imageHeight}
-            loading="lazy"
-            decoding="async"
-            class="masonry-image"
-          />
-          <div class="masonry-overlay">
-            <div class="masonry-overlay-inner">
-              <h3 class="masonry-title">{item.title}</h3>
-              <p class="masonry-desc">{item.description}</p>
-              <ul class="masonry-tags" aria-label="Tags">
-                {item.tags.map((tag) => (
-                  <li>{tag}</li>
-                ))}
-              </ul>
-              {
-                item.button ? (
-                  <a class="masonry-btn" href={item.button.href} data-masonry-btn>
-                    {item.button.label}
-                  </a>
-                ) : null
-              }
-            </div>
-          </div>
-        </button>
-      </article>
+    sections.map((section) => (
+      <div class:list={["masonry-grid", `masonry-grid--${section.columns}`]}>
+        {
+          section.items.map((item) => (
+            <article class="masonry-item">
+              <button
+                type="button"
+                class="masonry-card"
+                aria-label={`${item.title} — ${item.description}`}
+                data-masonry-card
+              >
+                <img
+                  src={squareImage(item.seed)}
+                  alt=""
+                  width="600"
+                  height="600"
+                  loading="lazy"
+                  decoding="async"
+                  class="masonry-image"
+                />
+                <div class="masonry-overlay">
+                  <div class="masonry-overlay-inner">
+                    <h3 class="masonry-title">{item.title}</h3>
+                    <p class="masonry-desc">{item.description}</p>
+                    <ul class="masonry-tags" aria-label="Tags">
+                      {item.tags.map((tag) => (
+                        <li>{tag}</li>
+                      ))}
+                    </ul>
+                    {
+                      item.button ? (
+                        <a class="masonry-btn" href={item.button.href} data-masonry-btn>
+                          {item.button.label}
+                        </a>
+                      ) : null
+                    }
+                  </div>
+                </div>
+              </button>
+            </article>
+          ))
+        }
+      </div>
     ))
   }
 </div>
 
 <style>
   .portfolio-masonry {
-    column-count: 6;
-    column-gap: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(16px, 2.5vw, 28px);
     padding: 0 clamp(12px, 2vw, 28px);
   }
 
+  .masonry-grid {
+    display: grid;
+    gap: clamp(8px, 1.2vw, 12px);
+  }
+
+  .masonry-grid--4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .masonry-grid--3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .masonry-grid--2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .masonry-item {
-    break-inside: avoid;
-    margin-bottom: 10px;
+    min-width: 0;
   }
 
   .masonry-card {
     position: relative;
     display: block;
     width: 100%;
+    aspect-ratio: 1 / 1;
     padding: 0;
     border: none;
     border-radius: 10px;
@@ -182,8 +296,8 @@ const items: PortfolioItem[] = [
   .masonry-image {
     display: block;
     width: 100%;
-    height: auto;
-    vertical-align: middle;
+    height: 100%;
+    object-fit: cover;
     transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
   }
 
@@ -193,7 +307,7 @@ const items: PortfolioItem[] = [
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    padding: 14px 12px;
+    padding: clamp(10px, 1.5vw, 16px);
     background: linear-gradient(
       180deg,
       rgba(5, 5, 5, 0) 0%,
@@ -215,7 +329,7 @@ const items: PortfolioItem[] = [
 
   .masonry-title {
     font-family: var(--font-display);
-    font-size: 13px;
+    font-size: clamp(12px, 1.1vw, 15px);
     font-weight: 600;
     letter-spacing: -0.01em;
     color: #fff;
@@ -225,7 +339,7 @@ const items: PortfolioItem[] = [
 
   .masonry-desc {
     font-family: var(--font-body);
-    font-size: 11px;
+    font-size: clamp(10px, 0.95vw, 12px);
     line-height: 1.45;
     color: rgba(255, 255, 255, 0.78);
     margin: 0 0 8px;
@@ -246,7 +360,7 @@ const items: PortfolioItem[] = [
 
   .masonry-tags li {
     font-family: var(--font-display);
-    font-size: 9px;
+    font-size: clamp(8px, 0.75vw, 10px);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -264,7 +378,7 @@ const items: PortfolioItem[] = [
     align-items: center;
     justify-content: center;
     font-family: var(--font-display);
-    font-size: 10px;
+    font-size: clamp(9px, 0.8vw, 11px);
     font-weight: 600;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -318,46 +432,24 @@ const items: PortfolioItem[] = [
     transform: translateY(0);
   }
 
-  @media (max-width: 1600px) {
-    .portfolio-masonry {
-      column-count: 5;
-    }
-  }
-
-  @media (max-width: 1280px) {
-    .portfolio-masonry {
-      column-count: 4;
-    }
-  }
-
   @media (max-width: 960px) {
-    .portfolio-masonry {
-      column-count: 3;
-    }
-
-    .masonry-title {
-      font-size: 14px;
-    }
-
-    .masonry-desc {
-      font-size: 12px;
+    .masonry-grid--4 {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 
-  @media (max-width: 640px) {
-    .portfolio-masonry {
-      column-count: 2;
-      column-gap: 8px;
-    }
-
-    .masonry-item {
-      margin-bottom: 8px;
+  @media (max-width: 720px) {
+    .masonry-grid--4,
+    .masonry-grid--3 {
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 
-  @media (max-width: 400px) {
-    .portfolio-masonry {
-      column-count: 1;
+  @media (max-width: 420px) {
+    .masonry-grid--4,
+    .masonry-grid--3,
+    .masonry-grid--2 {
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 </style>
