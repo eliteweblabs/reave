@@ -403,6 +403,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     flex-shrink: 0;
     line-height: 0;
     text-decoration: none;
+    mix-blend-mode: difference;
   }
 
   .app-header-logo-svg {
@@ -411,7 +412,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     width: calc(var(--app-header-logo-h) * (1014 / 329));
     max-width: none;
     pointer-events: none;
-    mix-blend-mode: difference;
   }
 
   .topbar-dash-date {
