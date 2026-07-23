@@ -1,7 +1,6 @@
 ---
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
@@ -11,7 +10,7 @@ import {
 } from "lucide-astro";
 
 const headerLogoMarkup = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), "../../public/reave-logo.svg"),
+  join(process.cwd(), "public/reave-logo.svg"),
   "utf8",
 )
   .replace(/<\?xml[\s\S]*?\?>\s*/i, "")
