@@ -11,7 +11,7 @@ export function escVCard(value: string): string {
 }
 
 /** Fold long vCard lines per RFC 6350 (75 octets). */
-function foldLine(line: string): string {
+export function foldLine(line: string): string {
   if (line.length <= 75) return line;
   const parts: string[] = [line.slice(0, 75)];
   let i = 75;
