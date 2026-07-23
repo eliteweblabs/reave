@@ -30,14 +30,6 @@ async function writeBadgeCount(n) {
   }
 }
 
-async function incrementBadgeCount() {
-  await writeBadgeCount((await readBadgeCount()) + 1);
-}
-
-async function decrementBadgeCount() {
-  await writeBadgeCount(Math.max(0, (await readBadgeCount()) - 1));
-}
-
 async function restoreBadgeFromCache() {
   await writeBadgeCount(await readBadgeCount());
 }
@@ -58,19 +50,22 @@ self.addEventListener('push', (event) => {
     data.body = event.data?.text() ?? '';
   }
 
-  event.waitUntil(
-    Promise.all([
-      self.registration.showNotification(data.title, {
-        body: data.body,
-        tag: data.tag || 'inbox',
-        icon: '/favicon-192.png',
-        badge: '/favicon-192.png',
-        data: { url: data.url || '/admin?tab=email' },
-      }),
-      incrementBadgeCount(),
-      notifyClientsInboxPush(),
-    ]),
-  );
+  const badgeCount =
+    data.badgeCount != null ? Math.max(0, Number(data.badgeCount) || 0) : null;
+
+  const tasks = [
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      tag: data.tag || 'inbox',
+      icon: '/favicon-192.png',
+      badge: '/favicon-192.png',
+      data: { url: data.url || '/admin?tab=email' },
+    }),
+    notifyClientsInboxPush(),
+  ];
+  if (badgeCount != null) tasks.push(writeBadgeCount(badgeCount));
+
+  event.waitUntil(Promise.all(tasks));
 });
 
 self.addEventListener('message', (event) => {
@@ -85,7 +80,7 @@ self.addEventListener('notificationclick', (event) => {
   const absoluteUrl = new URL(url, self.location.origin).href;
   event.waitUntil(
     Promise.all([
-      decrementBadgeCount(),
+      notifyClientsInboxPush(),
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (clients) => {
         for (const client of clients) {
           if ('focus' in client) {

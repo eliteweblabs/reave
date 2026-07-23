@@ -6693,6 +6693,7 @@ function syncFooterNavCountTooltips() {
 function syncReviewBadge(count) {
   reviewsPendingCount = Math.max(0, Number(count) || 0);
   renderFooterNavBadges();
+  void setAppIconBadge(reviewsPendingCount);
 }
 
 function renderFooterNavBadges() {
@@ -18039,9 +18040,7 @@ function pendingReviewCount(events) {
 }
 
 function updateInboxBadgesFromState() {
-  const n = pendingReviewCount(emailState.allEvents);
-  syncReviewBadge(n);
-  void setAppIconBadge(n);
+  syncReviewBadge(pendingReviewCount(emailState.allEvents));
 }
 
 async function clearCachedBadgeCount() {
@@ -18088,7 +18087,6 @@ async function syncInboxAppBadge(events, reviewsPending) {
       ? Math.max(0, Number(reviewsPending) || 0)
       : pendingReviewCount(events);
   syncReviewBadge(n);
-  await setAppIconBadge(n);
 }
 
 async function refreshFooterBadgesQuiet() {

@@ -4,6 +4,7 @@
 
 import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
+import { getReviewsPendingCount } from './reviewsPendingCount';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 
@@ -39,17 +40,25 @@ export async function sendPushNotification(payload: {
   tag?: string;
   /** Deep link when the notification is tapped (default /admin?tab=email). */
   url?: string;
+  /** Absolute pending-review count for the PWA icon badge (defaults to live server count). */
+  badgeCount?: number;
 }): Promise<void> {
   if (!isPushConfigured() || !(await configureWebPush())) return;
 
   const subs = await listPushSubscriptions();
   if (!subs.length) return;
 
+  const badgeCount =
+    payload.badgeCount != null
+      ? Math.max(0, Number(payload.badgeCount) || 0)
+      : await getReviewsPendingCount().catch(() => undefined);
+
   const note = JSON.stringify({
     title: payload.title.slice(0, 120),
     body: payload.body.slice(0, 240),
     tag: payload.tag ?? 'inbox',
     url: payload.url ?? '/admin?tab=email',
+    ...(badgeCount != null ? { badgeCount } : {}),
   });
 
   await Promise.all(
