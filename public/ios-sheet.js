@@ -53,6 +53,10 @@
     if (!el) return;
 
     const sheet = el.querySelector('.ios-sheet');
+    if (sheet) {
+      sheet.style.transform = '';
+      sheet.style.transition = '';
+    }
     sheet?.classList.remove(VISIBLE_CLASS);
     el.classList.remove(OPEN_CLASS);
     el.setAttribute('aria-hidden', 'true');
@@ -75,40 +79,111 @@
 
   function bindDragDismiss(backdrop) {
     const sheet = backdrop.querySelector('.ios-sheet');
-    const handle = backdrop.querySelector('.ios-sheet-grabber') || sheet;
-    if (!sheet || !handle || handle.dataset.dragBound === '1') return;
-    handle.dataset.dragBound = '1';
+    if (!sheet || backdrop.dataset.dragBound === '1') return;
+    backdrop.dataset.dragBound = '1';
+
+    const body = sheet.querySelector('.ios-sheet-body');
+    const header = sheet.querySelector('.ios-sheet-header');
+    const grabber = sheet.querySelector('.ios-sheet-grabber');
 
     let startY = 0;
     let currentY = 0;
     let dragging = false;
+    /** @type {'chrome' | 'body' | null} */
+    let dragMode = null;
+    /** @type {HTMLElement | null} */
+    let scrollRoot = null;
 
-    handle.addEventListener(
+    function resetDrag() {
+      dragging = false;
+      currentY = 0;
+      dragMode = null;
+      scrollRoot = null;
+      sheet.style.transition = '';
+      sheet.style.transform = '';
+    }
+
+    function isInteractiveTarget(el) {
+      return !!el?.closest?.('button, a, input, textarea, select, label');
+    }
+
+    function findScrollContainer(target, root) {
+      let el = target instanceof Element ? target : null;
+      while (el && el !== root) {
+        if (el.scrollHeight > el.clientHeight + 1) {
+          const oy = getComputedStyle(el).overflowY;
+          if (oy === 'auto' || oy === 'scroll' || oy === 'overlay') return el;
+        }
+        el = el.parentElement;
+      }
+      return root;
+    }
+
+    function isChromeTarget(target) {
+      if (!(target instanceof Element)) return false;
+      if (grabber && (target === grabber || grabber.contains(target))) return true;
+      if (header && (target === header || header.contains(target))) {
+        return !isInteractiveTarget(target);
+      }
+      return false;
+    }
+
+    function beginDrag(clientY, mode) {
+      startY = clientY;
+      currentY = 0;
+      dragging = true;
+      dragMode = mode;
+      sheet.style.transition = 'none';
+    }
+
+    sheet.addEventListener(
       'touchstart',
       (ev) => {
         if (!backdrop.classList.contains(OPEN_CLASS)) return;
         const touch = ev.touches[0];
         if (!touch) return;
-        startY = touch.clientY;
-        dragging = true;
-        sheet.style.transition = 'none';
+
+        if (isChromeTarget(ev.target)) {
+          beginDrag(touch.clientY, 'chrome');
+          return;
+        }
+
+        if (body && body.contains(ev.target) && !isInteractiveTarget(ev.target)) {
+          scrollRoot = findScrollContainer(ev.target, body);
+          if (scrollRoot.scrollTop <= 0) {
+            beginDrag(touch.clientY, 'body');
+          }
+          return;
+        }
       },
       { passive: true },
     );
 
-    handle.addEventListener(
+    sheet.addEventListener(
       'touchmove',
       (ev) => {
         if (!dragging) return;
         const touch = ev.touches[0];
         if (!touch) return;
-        currentY = Math.max(0, touch.clientY - startY);
+
+        const deltaY = touch.clientY - startY;
+
+        if (dragMode === 'body') {
+          if (deltaY <= 0) {
+            resetDrag();
+            return;
+          }
+          if (scrollRoot) scrollRoot.scrollTop = 0;
+          ev.preventDefault();
+        }
+
+        currentY = Math.max(0, deltaY);
         sheet.style.transform = `translateY(${currentY}px)`;
       },
-      { passive: true },
+      { passive: false },
     );
 
-    handle.addEventListener(
+    sheet.addEventListener(
       'touchend',
       () => {
         if (!dragging) return;
@@ -120,9 +195,12 @@
         }
         dragging = false;
         currentY = 0;
+        dragMode = null;
       },
       { passive: true },
     );
+
+    sheet.addEventListener('touchcancel', resetDrag, { passive: true });
   }
 
   function initBackdrop(backdrop) {

@@ -50,12 +50,22 @@ html.ios-sheet-locked {
 
 .ios-sheet-grabber {
   flex-shrink: 0;
+  position: relative;
   width: 36px;
   height: 5px;
   margin: 8px auto 4px;
   border-radius: 999px;
   background: var(--ios-sheet-grabber, rgba(0, 0, 0, 0.18));
   touch-action: none;
+}
+
+.ios-sheet-grabber::before {
+  content: '';
+  position: absolute;
+  left: -40vw;
+  right: -40vw;
+  top: -14px;
+  bottom: -10px;
 }
 
 .ios-sheet-header {

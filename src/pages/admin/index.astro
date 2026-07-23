@@ -5237,6 +5237,11 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       #reave-share-backdrop .ios-sheet-header {
         border-bottom-color: var(--panel-border);
+        padding: 0 1rem;
+        touch-action: none;
+      }
+      #reave-share-backdrop .ios-sheet-grabber {
+        touch-action: none;
       }
       .reave-share-body {
         padding: 0 1rem  max(1rem, env(safe-area-inset-bottom));
@@ -7966,9 +7971,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       <div class="ios-sheet reave-share-sheet" role="dialog" aria-modal="true" aria-labelledby="reave-share-title">
         <div class="ios-sheet-grabber" aria-hidden="true"></div>
         <header class="ios-sheet-header">
-          <button type="button" class="ios-sheet-close" data-ios-sheet-close aria-label="Close">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
           <h2 class="ios-sheet-title" id="reave-share-title">Share</h2>
         </header>
         <div class="ios-sheet-body reave-share-body">
