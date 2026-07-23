@@ -16,7 +16,7 @@ import { isRailwayConfigured } from './railwayClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
 import type { ChatImageAttachment } from './chatTypes';
-import { parseChatMessageContent } from './chatTypes';
+import { parseChatMessageContent, serializeChatMessageContent } from './chatTypes';
 import type { ChatTurn } from './chatTypes';
 import { userMessageDisplayText } from './chatMessageFormat';
 import {
@@ -183,18 +183,29 @@ function agentMaxToolRounds(): number {
   return getAgentContext().systemAlert ? MAX_SYSTEM_ALERT_TOOL_ROUNDS : MAX_AGENT_TOOL_ROUNDS;
 }
 
+function turnHasAnthropicContent(turn: ChatTurn): boolean {
+  if (turn.role === 'assistant') return !!turn.content.trim();
+  const { text, images } = parseChatMessageContent(turn.content);
+  return !!userMessageDisplayText(text).trim() || images.length > 0;
+}
+
 function trimTurnsForAgent(turns: ChatTurn[]): ChatTurn[] {
-  let out = turns.map((turn) => {
-    let content = turn.content;
-    if (turn.role === 'user') {
-      const { text } = parseChatMessageContent(content);
-      content = userMessageDisplayText(text);
-    }
-    if (content.length > MAX_TURN_CHARS) {
-      content = `${content.slice(0, MAX_TURN_CHARS)}\n…[turn truncated]`;
-    }
-    return { role: turn.role, content };
-  });
+  let out = turns
+    .map((turn) => {
+      let content = turn.content;
+      if (turn.role === 'user') {
+        const { text, images } = parseChatMessageContent(content);
+        const displayText = userMessageDisplayText(text);
+        content = images.length
+          ? serializeChatMessageContent(displayText, images)
+          : displayText;
+      }
+      if (content.length > MAX_TURN_CHARS) {
+        content = `${content.slice(0, MAX_TURN_CHARS)}\n…[turn truncated]`;
+      }
+      return { role: turn.role, content };
+    })
+    .filter(turnHasAnthropicContent);
   const cap = agentHistoryCap();
   if (cap != null && out.length > cap) out = out.slice(-cap);
   return out;
@@ -589,6 +600,12 @@ async function runKnowledgeAgentInner(
           const out = truncateToolResult(await runTool(block.name, JSON.stringify(block.input ?? {})));
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
         }
+      }
+      if (!toolResults.length) {
+        return finalizeAgentReply(
+          'The model requested a tool call but returned no usable tool blocks. Try sending your message again.',
+          userText,
+        );
       }
       messages.push({ role: 'user', content: toolResults });
       continue;
