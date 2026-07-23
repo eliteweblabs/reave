@@ -6016,6 +6016,17 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-weight: 600;
         line-height: 1.45;
       }
+      .schedule-detail-when-compact {
+        display: none;
+      }
+      @media (max-width: 639px) {
+        .schedule-detail-when-full {
+          display: none;
+        }
+        .schedule-detail-when-compact {
+          display: inline;
+        }
+      }
       .schedule-detail-fields {
         margin: 0.85rem 0 0;
         display: grid;

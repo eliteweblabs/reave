@@ -11775,17 +11775,18 @@ function formatScheduleListWhen(iso) {
   }
 }
 
-function formatScheduleRange(startIso, endIso) {
+function formatScheduleRange(startIso, endIso, opts) {
   if (!startIso) return '';
+  const compact = !!(opts && opts.compact);
   try {
     const start = new Date(startIso);
     const end = endIso ? new Date(endIso) : null;
-    const datePart = start.toLocaleString(undefined, {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    const datePart = start.toLocaleString(
+      undefined,
+      compact
+        ? { weekday: 'short', month: 'short', day: 'numeric' }
+        : { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' },
+    );
     const timeFmt = { hour: 'numeric', minute: '2-digit' };
     const startTime = start.toLocaleTimeString(undefined, timeFmt);
     const endTime = end ? end.toLocaleTimeString(undefined, timeFmt) : '';
@@ -12851,7 +12852,13 @@ function renderScheduleDetail(pane, booking) {
 
   const when = document.createElement('p');
   when.className = 'schedule-detail-when';
-  when.textContent = formatScheduleRange(booking.startTime, booking.endTime);
+  const whenFull = document.createElement('span');
+  whenFull.className = 'schedule-detail-when-full';
+  whenFull.textContent = formatScheduleRange(booking.startTime, booking.endTime);
+  const whenCompact = document.createElement('span');
+  whenCompact.className = 'schedule-detail-when-compact';
+  whenCompact.textContent = formatScheduleRange(booking.startTime, booking.endTime, { compact: true });
+  when.append(whenFull, whenCompact);
   scroll.appendChild(when);
 
   if (booking.status) {
