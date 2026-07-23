@@ -8554,6 +8554,85 @@ let docState = {
 };
 let docAutosaveTimer = null;
 
+const DOC_TEXTAREA_FONT_MIN = 8;
+const DOC_TEXTAREA_FONT_MAX = 18;
+const DOC_TEXTAREA_FONT_DEFAULT = 16;
+const DOC_TEXTAREA_FONT_STORE = 'reave:doc-editor-font-size';
+
+function clampDocTextareaFontSize(px) {
+  return clamp(Math.round(px), DOC_TEXTAREA_FONT_MIN, DOC_TEXTAREA_FONT_MAX);
+}
+
+function readDocTextareaFontSize() {
+  const n = parseFloat(localStorage.getItem(DOC_TEXTAREA_FONT_STORE));
+  return Number.isFinite(n) ? clampDocTextareaFontSize(n) : DOC_TEXTAREA_FONT_DEFAULT;
+}
+
+function applyDocTextareaFontSize(ta, px) {
+  const size = clampDocTextareaFontSize(px);
+  ta.style.setProperty('--de-textarea-font-size', `${size}px`);
+  ta.dataset.docFontSize = String(size);
+  return size;
+}
+
+function attachDocTextareaPinchZoom(ta) {
+  ta.classList.add('de-textarea--zoomable');
+  let fontSize = applyDocTextareaFontSize(ta, readDocTextareaFontSize());
+  const ptrs = new Map();
+  let pinchDist = null;
+  let pinchStartFontSize = fontSize;
+  let pinchActive = false;
+
+  const pointerPos = (ev) => ({ x: ev.clientX, y: ev.clientY });
+  const pointerDistance = () => {
+    const pts = [...ptrs.values()];
+    return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  };
+
+  const finishPinch = () => {
+    if (!pinchActive) return;
+    pinchActive = false;
+    pinchDist = null;
+    localStorage.setItem(DOC_TEXTAREA_FONT_STORE, String(fontSize));
+    window.removeEventListener('pointermove', onWindowPointerMove);
+    window.removeEventListener('pointerup', onWindowPointerEnd);
+    window.removeEventListener('pointercancel', onWindowPointerEnd);
+  };
+
+  const onWindowPointerMove = (ev) => {
+    if (!ptrs.has(ev.pointerId)) return;
+    ptrs.set(ev.pointerId, pointerPos(ev));
+    if (ptrs.size < 2 || !pinchDist) return;
+    const ratio = clamp(pointerDistance() / pinchDist, 0.5, 2);
+    fontSize = applyDocTextareaFontSize(ta, pinchStartFontSize * ratio);
+    ev.preventDefault();
+  };
+
+  const onWindowPointerEnd = (ev) => {
+    ptrs.delete(ev.pointerId);
+    if (ptrs.size < 2) finishPinch();
+  };
+
+  ta.addEventListener('pointerdown', (ev) => {
+    ptrs.set(ev.pointerId, pointerPos(ev));
+    if (ptrs.size === 2) {
+      pinchDist = pointerDistance();
+      pinchStartFontSize = fontSize;
+      pinchActive = true;
+      window.addEventListener('pointermove', onWindowPointerMove, { passive: false });
+      window.addEventListener('pointerup', onWindowPointerEnd);
+      window.addEventListener('pointercancel', onWindowPointerEnd);
+    }
+  });
+
+  ta.addEventListener('wheel', (ev) => {
+    if (!ev.ctrlKey) return;
+    ev.preventDefault();
+    fontSize = applyDocTextareaFontSize(ta, fontSize + (ev.deltaY < 0 ? 1 : -1));
+    localStorage.setItem(DOC_TEXTAREA_FONT_STORE, String(fontSize));
+  }, { passive: false });
+}
+
 function getDocEditor() { return document.getElementById('doc-editor'); }
 
 async function loadDocumentsTab() {
@@ -8716,6 +8795,7 @@ function renderNewForm(pane) {
   ta.spellcheck = false;
   ta.placeholder = '<!-- title: My Document -->\n<h1>Title</h1>\n<p>Content…</p>';
   attachShortcodePopover(ta);
+  attachDocTextareaPinchZoom(ta);
   pane.appendChild(ta);
 
   setEditorFooterSave(() => createDocument(slugInput.value.trim(), ta.value));
@@ -8780,6 +8860,7 @@ function renderEditForm(pane) {
         scheduleDocAutosave(slug);
       });
       attachShortcodePopover(ta);
+      attachDocTextareaPinchZoom(ta);
 
       // ── Preview iframe (view mode, sandboxed — no scripts) ──
       const preview = document.createElement('iframe');

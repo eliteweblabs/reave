@@ -1627,6 +1627,12 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .de-textarea:focus { border-color: #3b82f6; }
 
+      /* Documents HTML editor — pinch to resize type (8px–18px). */
+      #doc-editor textarea.de-textarea.de-textarea--zoomable {
+        font-size: var(--de-textarea-font-size, 16px);
+        touch-action: pan-y;
+      }
+
       .de-actions {
         display: flex;
         align-items: center;
@@ -8083,6 +8089,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260722c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260723a"></script>
   </body>
 </html>
