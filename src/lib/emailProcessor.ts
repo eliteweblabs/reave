@@ -26,6 +26,7 @@ import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
+import { extractVerificationCodeFromEmail } from './emailOtpParser';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
@@ -257,6 +258,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const from = email.from ?? '';
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
+  const verificationCode =
+    extractVerificationCodeFromEmail({
+      subject: email.subject,
+      text: bodyText,
+      html: email.html,
+    })?.code ?? null;
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
@@ -571,6 +578,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     bookingUid,
     bookingStart,
     automationKind,
+    verificationCode,
   }).catch((e) => {
     console.warn('[email] inbox log failed', e);
     return null;
@@ -734,11 +742,18 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     automationKind,
   });
 
-  if (inboxRecord && notify && !inboxRecord.notified) {
+  if (inboxRecord && (notify || verificationCode) && !inboxRecord.notified) {
     await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
   }
 
-  if (inboxRecord && notify) {
+  if (inboxRecord && verificationCode) {
+    sendInboxPushNotification({
+      title: 'Verification code ready',
+      body: 'Tap to copy — then paste in Safari',
+      tag: `otp-${inboxRecord.id}`,
+      emailId: inboxRecord.id,
+    }).catch((e) => console.warn('[email] otp push failed', e));
+  } else if (inboxRecord && notify) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_created'

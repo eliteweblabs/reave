@@ -4888,6 +4888,55 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         cursor: pointer;
       }
       .em-book-card-btn:hover { filter: brightness(1.05); }
+      .em-otp-hint {
+        color: #fcd34d;
+        background: rgba(251, 191, 36, 0.12);
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+      }
+      .em-otp-card {
+        margin: 0 0 1rem;
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.45);
+        background: rgba(251, 191, 36, 0.1);
+      }
+      .em-otp-card-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #fbbf24;
+        margin-bottom: 0.45rem;
+      }
+      .em-otp-code-btn {
+        display: block;
+        width: 100%;
+        margin: 0;
+        padding: 0.65rem 0.85rem;
+        border-radius: 10px;
+        border: 1px solid rgba(251, 191, 36, 0.35);
+        background: rgba(0, 0, 0, 0.25);
+        color: #fef3c7;
+        font-size: 1.75rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.12em;
+        text-align: center;
+        cursor: pointer;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .em-otp-code-btn:hover { filter: brightness(1.08); }
+      .em-otp-card .em-otp-hint {
+        margin: 0.65rem 0 0;
+        padding: 0;
+        background: none;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 400;
+        line-height: 1.45;
+      }
+      .em-otp-card .em-otp-hint strong { color: var(--fg); font-weight: 600; }
       .em-schedule-actions {
         display: flex;
         flex-wrap: wrap;

@@ -16636,6 +16636,7 @@ let emailState = {
   digest: null,
   pushConfigured: false,
 };
+let lastOtpAutoCopyId = null;
 let pendingEmailDeepLinkId = null;
 let pendingWorkDeepLinkSlug = null;
 let pendingTodoDeepLinkId = null;
@@ -18724,6 +18725,9 @@ function createEmailListItem(ev) {
         : isEmailBookable(ev)
           ? '<span class="em-status em-book-pending">Schedule pending</span>'
           : '') +
+      (ev.verificationCode
+        ? `<span class="em-status em-otp-hint">${escHtml(ev.verificationCode)}</span>`
+        : '') +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
     `</span>` +
@@ -19511,12 +19515,34 @@ function renderEmailComposePane(pane) {
   pane.appendChild(form);
 }
 
+async function copyEmailVerificationCode(code, nearEl) {
+  if (!code) return false;
+  try {
+    await navigator.clipboard.writeText(String(code));
+    showChatToast('Copied — paste in Safari', nearEl);
+    return true;
+  } catch {
+    showChatToast('Copy failed — select code manually', nearEl);
+    return false;
+  }
+}
+
+async function maybeAutoCopyVerificationCode(ev) {
+  if (!ev?.verificationCode || !ev.id) return;
+  if (lastOtpAutoCopyId === ev.id) return;
+  lastOtpAutoCopyId = ev.id;
+  const card = getEmailPanel()?.querySelector('[data-otp-card]');
+  await copyEmailVerificationCode(ev.verificationCode, card?.querySelector('[data-otp-code]') || card);
+}
+
 function openEmailEvent(id) {
   queueEmailSeen(id);
   emailState.activeId = id;
   emailState.composing = false;
   emailState.replyToId = null;
   renderEmailPanel();
+  const ev = emailState.allEvents.find((e) => e.id === id);
+  if (ev?.verificationCode) void maybeAutoCopyVerificationCode(ev);
 }
 
 function renderEmailPanel() {
@@ -19615,6 +19641,14 @@ function renderEmailPanel() {
     `<div class="em-item-row"><span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
+  if (ev.verificationCode) {
+    detailHtml +=
+      `<div class="em-otp-card" data-otp-card>` +
+        `<div class="em-otp-card-title">Verification code</div>` +
+        `<button type="button" class="em-otp-code-btn" data-otp-code>${escHtml(ev.verificationCode)}</button>` +
+        `<p class="em-otp-hint">Tap the code to copy again — switch to Safari and tap <strong>Paste</strong> above the keyboard.</p>` +
+      `</div>`;
+  }
   if (isEmailBookable(ev)) {
     const whenLabel =
       ev.bookingStart || ev.proposedMeetingStart
@@ -19666,6 +19700,10 @@ function renderEmailPanel() {
       ? `<div class="em-detail-body">${linkifyPlainText(ev.bodyText || ev.bodySnippet)}</div>`
       : '');
   detail.innerHTML = detailHtml;
+  detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    void copyEmailVerificationCode(ev.verificationCode, e.currentTarget);
+  });
   if (!ev._fullLoaded) {
     void fetchFullEmailRecord(ev).then((full) => {
       if (emailState.activeId === full.id) renderEmailPanel();
