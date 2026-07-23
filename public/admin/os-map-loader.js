@@ -15272,7 +15272,7 @@ function renderEditClientForm(pane) {
           shareBtn,
           paneDeleteIcon({
             label: 'Delete client',
-            onClick: () => deleteClient(uid, clientDisplayLabel(clientState.draft)),
+            onClick: () => deleteClient(uid),
           }),
         ].filter(Boolean),
       });
@@ -15660,13 +15660,6 @@ async function saveClient(uid, payload) {
   }
 }
 
-async function fetchClientDeletePreview(uid) {
-  const res = await fetch(`/api/clients/${encodeURIComponent(uid)}?preview=delete`, { cache: 'no-store' });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
 function openOsDialogBackdrop() {
   const backdrop = document.getElementById('os-dialog-backdrop');
   if (!backdrop) return null;
@@ -15865,34 +15858,6 @@ async function confirmDiscardChanges() {
   });
 }
 
-function buildClientDeleteConfirmHtml(name, preview) {
-  const parts = [];
-  const projectCount = preview.project_count ?? preview.job_count ?? 0;
-  if (projectCount > 0) {
-    const titles = (preview.projects || []).map((p) => escHtml(p.title)).slice(0, 8);
-    const extra = projectCount > titles.length ? ` (+${projectCount - titles.length} more)` : '';
-    parts.push(
-      `<p><strong>${escHtml(name)}</strong> has ${projectCount} attached project${projectCount === 1 ? '' : 's'}${titles.length ? `: ${titles.join(', ')}${extra}` : '.'}</p>`,
-    );
-    parts.push('<p class="os-dialog-warn">Deleting this client will permanently delete all attached projects.</p>');
-  } else {
-    parts.push(`<p>Delete <strong>${escHtml(name)}</strong>? This cannot be undone.</p>`);
-  }
-  const inv = preview.invoice_count ?? 0;
-  const est = preview.estimate_count ?? 0;
-  if (inv > 0) {
-    parts.push(
-      `<p class="os-dialog-note">${inv} linked Crater invoice${inv === 1 ? '' : 's'} — the client will be removed; invoice records stay in billing.</p>`,
-    );
-  }
-  if (est > 0) {
-    parts.push(
-      `<p class="os-dialog-note">${est} linked Crater estimate${est === 1 ? '' : 's'} — the client will be removed; estimate records stay in billing.</p>`,
-    );
-  }
-  return parts.join('');
-}
-
 async function performClientDelete(uid, force) {
   const qs = force ? '?force=true' : '';
   const res = await fetch(`/api/clients/${encodeURIComponent(uid)}${qs}`, {
@@ -15904,42 +15869,10 @@ async function performClientDelete(uid, force) {
   return { res, data };
 }
 
-async function deleteClient(uid, name) {
+async function deleteClient(uid) {
   closeOpenSwipeRow();
-  let preview;
   try {
-    preview = await fetchClientDeletePreview(uid);
-  } catch (e) {
-    await osAlert({ title: 'Could not verify', bodyHtml: `<p>${escHtml(e.message)}</p>` });
-    return;
-  }
-
-  const projectCount = preview.project_count ?? preview.job_count ?? 0;
-
-  const confirmed = await osConfirm({
-    title: projectCount > 0 ? 'Delete client and projects?' : 'Delete client?',
-    bodyHtml: buildClientDeleteConfirmHtml(name, preview),
-    confirmLabel: 'Delete',
-    cancelLabel: 'Cancel',
-    danger: true,
-  });
-  if (!confirmed) return;
-
-  try {
-    let { res, data } = await performClientDelete(uid, true);
-
-    if (res.status === 409) {
-      const retry = await osConfirm({
-        title: 'Confirm delete',
-        bodyHtml: `<p>${escHtml(data.error || data.warning || 'This client has linked records.')}</p>`,
-        confirmLabel: 'Delete anyway',
-        cancelLabel: 'Cancel',
-        danger: true,
-      });
-      if (!retry) return;
-      ({ res, data } = await performClientDelete(uid, true));
-    }
-
+    const { res, data } = await performClientDelete(uid, true);
     if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
 
     clientState.activeUid = null;
@@ -18768,7 +18701,7 @@ function createClientListItem(c) {
 function createClientSwipeRow(c) {
   return createSwipeRow(createClientListItem(c), [
     swipeDeleteAction({
-      onClick: () => deleteClient(c.uid, c.company || c.name),
+      onClick: () => deleteClient(c.uid),
     }),
   ]);
 }
