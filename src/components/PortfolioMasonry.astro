@@ -298,7 +298,10 @@ const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/600/60
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), filter 0.45s ease;
+    filter: grayscale(100%);
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      filter 1.5s ease;
   }
 
   .masonry-overlay {
@@ -401,7 +404,7 @@ const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/600/60
     .masonry-card:hover .masonry-image,
     .masonry-card:focus-visible .masonry-image {
       transform: scale(1.04);
-      filter: brightness(0.72);
+      filter: grayscale(0%);
     }
 
     .masonry-card:hover .masonry-overlay,
@@ -419,7 +422,7 @@ const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/600/60
 
   .masonry-card.is-active .masonry-image {
     transform: scale(1.02);
-    filter: brightness(0.72);
+    filter: grayscale(0%);
   }
 
   .masonry-card.is-active .masonry-overlay {
