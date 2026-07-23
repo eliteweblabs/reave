@@ -12619,6 +12619,10 @@ function openScheduleCreateDialog(initial = {}) {
             `<input name="email" type="email" autocomplete="email" autocapitalize="none" enterkeyhint="next" required>` +
           `</div>` +
         `</label>` +
+        `<label class="de-label sched-create-field sched-create-guests">` +
+          `<span>Additional guests</span>` +
+          `<div class="schedule-guest-list" id="sched-create-guest-list"></div>` +
+        `</label>` +
         `<div class="sched-create-row">` +
           `<label class="de-label sched-create-field">` +
             `<span>Date</span>` +
