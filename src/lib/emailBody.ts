@@ -25,9 +25,26 @@ export function htmlToPlainText(html: string): string {
     .trim();
 }
 
+/** True when a string is likely HTML markup (not accidental `<` in prose). */
+export function looksLikeHtml(text: string): boolean {
+  const t = text.trimStart();
+  if (/^<!DOCTYPE\s/i.test(t) || /^<html[\s>]/i.test(t)) return true;
+  return /^<[a-z!/]/i.test(t) && /<\/[a-z][^>]*>/i.test(t);
+}
+
+export function plainTextForDisplay(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return looksLikeHtml(trimmed) ? htmlToPlainText(trimmed) : trimmed;
+}
+
 export function normalizeEmailBody(text?: string, html?: string, max = MAX_STORED_EMAIL_BODY): string {
   let body = (text ?? '').trim();
-  if (!body && html?.trim()) body = htmlToPlainText(html);
+  if (!body && html?.trim()) {
+    body = htmlToPlainText(html);
+  } else if (body && looksLikeHtml(body)) {
+    body = htmlToPlainText(body);
+  }
   if (!body) return '';
   if (body.length > max) return `${body.slice(0, max)}\n…[truncated at ${max} chars]`;
   return body;

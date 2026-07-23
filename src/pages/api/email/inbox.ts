@@ -12,6 +12,7 @@ import {
 } from '../../../lib/emailInboxStore';
 import { countReviewNotifications } from '../../../lib/emailAutomation';
 import { countProjectCommentNotifications } from '../../../lib/workCommentNotifications';
+import { plainTextForDisplay } from '../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { isPushConfigured } from '../../../lib/webPush';
@@ -22,6 +23,8 @@ function enrichEmailEvent(event: EmailInboxListRecord) {
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   return {
     ...event,
+    bodySnippet: plainTextForDisplay(event.bodySnippet),
+    summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,
     monetaryAmount,
     hasMonetaryValue: monetaryAmount != null,
   };

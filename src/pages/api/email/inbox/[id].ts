@@ -12,6 +12,7 @@ import {
   type EmailInboxPatch,
 } from '../../../../lib/emailInboxStore';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
+import { plainTextForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 
 export const prerender = false;
@@ -67,7 +68,14 @@ export async function GET(context: APIContext): Promise<Response> {
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   return json({
     ok: true,
-    event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+    event: {
+      ...event,
+      bodyText: plainTextForDisplay(event.bodyText),
+      bodySnippet: plainTextForDisplay(event.bodySnippet),
+      summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,
+      monetaryAmount,
+      hasMonetaryValue: monetaryAmount != null,
+    },
   });
 }
 
