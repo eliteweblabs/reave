@@ -645,15 +645,21 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                     <div class="cred">
                       <span class="cred-key">User</span>
                       <code class="cred-val">{e.username}</code>
-                      <button class="mini" data-copy type="button">Copy</button>
+                      <button class="mini mini-icon" data-copy type="button" aria-label="Copy username">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
                     </div>
                   )}
                   {e.password && (
                     <div class="cred">
                       <span class="cred-key">Pass</span>
                       <code class="cred-val secret">{e.password}</code>
-                      <button class="mini" data-reveal type="button">Show</button>
-                      <button class="mini" data-copy type="button">Copy</button>
+                      <button class="mini mini-icon" data-reveal type="button" aria-label="Show password">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                      <button class="mini mini-icon" data-copy type="button" aria-label="Copy password">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
                     </div>
                   )}
                   {e.value && <div class="data-value">{e.value}</div>}
@@ -692,6 +698,15 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
     }
 
     <script define:vars={{ submitEndpoint, submitMode }}>
+      const iconEye =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>';
+      const iconEyeOff =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 13.058-4.076"/><path d="m2 2 20 20"/></svg>';
+      const iconCopy =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+      const iconCheck =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
       document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-tab-btn');
@@ -706,18 +721,23 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
           const code = btn.parentElement?.querySelector('code');
           if (!code) return;
           const revealed = code.classList.toggle('revealed');
-          btn.textContent = revealed ? 'Hide' : 'Show';
+          btn.innerHTML = revealed ? iconEyeOff : iconEye;
+          btn.setAttribute('aria-label', revealed ? 'Hide password' : 'Show password');
         });
       });
       document.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const code = btn.parentElement?.querySelector('code');
           if (!code) return;
+          const label = btn.getAttribute('aria-label') || 'Copy';
           try {
             await navigator.clipboard.writeText(code.textContent || '');
-            const prev = btn.textContent;
-            btn.textContent = 'Copied';
-            setTimeout(() => (btn.textContent = prev), 1200);
+            btn.innerHTML = iconCheck;
+            btn.setAttribute('aria-label', 'Copied');
+            setTimeout(() => {
+              btn.innerHTML = iconCopy;
+              btn.setAttribute('aria-label', label);
+            }, 1200);
           } catch {}
         });
       });
@@ -1093,6 +1113,15 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         flex: none; padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.15);
         background: rgba(255, 255, 255, 0.06); color: #fff; font: inherit; font-size: 12px; cursor: pointer;
       }
+      .mini-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+      }
+      .mini-icon svg { display: block; }
       .mini:active { background: rgba(255, 255, 255, 0.14); }
 
       .foot {
