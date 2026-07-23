@@ -2253,6 +2253,35 @@ function uptimeQuickStartUrlClient(rawUrl) {
   return `https://uptimerobot.com/quick-start?url=${encodeURIComponent(url)}`;
 }
 
+function normalizeUptimeUrlClient(raw) {
+  let url = String(raw || '').trim();
+  if (!url) return url;
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  return url;
+}
+
+/** Actionable error copy for Add site — includes quick-start when API create is blocked. */
+function uptimeAddSiteErrorHtml(url, message) {
+  const msg = String(message || 'Could not add site');
+  const lower = msg.toLowerCase();
+  if (
+    /free plan|not allowed to use some settings|not allowed on your uptimerobot plan|blocks api/i.test(
+      lower,
+    )
+  ) {
+    const quickStart = uptimeQuickStartUrlClient(url);
+    return (
+      `<p>${escHtml(msg)}</p>` +
+      '<p class="em-book-dialog-lead">UptimeRobot\u2019s free plan blocks API monitor creation. ' +
+      'Use the one-click link below, confirm via the email UptimeRobot sends, then tap ' +
+      '<strong>Sync status</strong> on the dashboard to import it.</p>' +
+      `<p><a class="os-dialog-btn os-dialog-btn--primary" href="${escHtml(quickStart)}" ` +
+      'target="_blank" rel="noopener noreferrer">Add to UptimeRobot ↗</a></p>'
+    );
+  }
+  return escHtml(msg);
+}
+
 async function showUptimeSyncResultDialog(result) {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -3510,7 +3539,7 @@ function showAddUptimeSiteDialog() {
 
     mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish(false));
     const addBtn = mkBtn('Add site', 'os-dialog-btn--primary', async () => {
-      const url = urlInput?.value.trim() || '';
+      const url = normalizeUptimeUrlClient(urlInput?.value);
       if (!url) {
         urlInput?.focus();
         return;
@@ -3518,7 +3547,7 @@ function showAddUptimeSiteDialog() {
       addBtn.disabled = true;
       addBtn.textContent = 'Adding…';
       try {
-        const res = await fetch('/api/uptime/monitors', {
+        const res = await adminFetch('/api/uptime/monitors', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -3526,14 +3555,17 @@ function showAddUptimeSiteDialog() {
             friendlyName: nameInput?.value.trim() || undefined,
           }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        const data = await readApiJson(res);
+        if (!data.ok) throw new Error(data.error || 'Could not add site');
         finish(true);
         await loadHomeDashboard();
       } catch (e) {
         addBtn.disabled = false;
         addBtn.textContent = 'Add site';
-        await osAlert({ title: 'Could not add site', bodyHtml: escHtml(e.message || String(e)) });
+        await osAlert({
+          title: 'Could not add site',
+          bodyHtml: uptimeAddSiteErrorHtml(url, e.message || String(e)),
+        });
       }
     });
 
@@ -3602,13 +3634,13 @@ function showLinkUptimeMonitorDialog() {
       linkBtn.disabled = true;
       linkBtn.textContent = 'Linking…';
       try {
-        const res = await fetch('/api/uptime/monitors/link', {
+        const res = await adminFetch('/api/uptime/monitors/link', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ monitorId }),
         });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        const data = await readApiJson(res);
+        if (!data.ok) throw new Error(data.error || 'Could not link monitor');
         finish(true);
         await loadHomeDashboard();
       } catch (e) {
