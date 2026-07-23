@@ -2117,6 +2117,14 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #work-editor .sliding-pill-select {
         min-width: 0;
       }
+      @media (max-width: 639px) {
+        #work-editor .sliding-pill-select {
+          gap: 0;
+        }
+        #work-editor .sliding-pill-select .de-label {
+          display: none;
+        }
+      }
       #work-editor .de-input,
       #work-editor .de-textarea,
       #work-editor .wk-client-selected span {
