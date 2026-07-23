@@ -8,12 +8,14 @@
 import type { APIContext } from 'astro';
 import type { ChatImageAttachment, ChatImageMediaType } from '../../../lib/chatTypes';
 import {
+  isDefaultChatTitle,
   serializeChatMessageContent,
   titleFromMessage,
 } from '../../../lib/chatTypes';
 import {
   storeAppendChatMessages,
   storeDeleteChatThread,
+  storeEnsureChatTitle,
   storeGetChatThread,
   storeSetChatArchived,
   storeUpdateChatTitle,
@@ -112,7 +114,7 @@ async function persistUserMessage(
   if (!saved) throw new Error('Failed to save message');
 
   let title = thread.title;
-  if (isFirstMessage || title === 'New chat') {
+  if (isFirstMessage || isDefaultChatTitle(title)) {
     title = titleFromMessage(message, images.length);
     await storeUpdateChatTitle(userId, id, title);
   }
@@ -262,6 +264,8 @@ export async function POST(context: APIContext): Promise<Response> {
         }
 
         const persisted = await persistAssistantReply(userId, id, reply);
+        const ensuredTitle = await storeEnsureChatTitle(userId, id);
+        if (ensuredTitle) title = ensuredTitle;
         emit({
           type: 'done',
           ok: true,
@@ -303,6 +307,8 @@ export async function POST(context: APIContext): Promise<Response> {
   try {
     const persisted = await persistAssistantReply(userId, id, reply);
     assistantMessage = persisted.assistantMessage;
+    const ensuredTitle = await storeEnsureChatTitle(userId, id);
+    if (ensuredTitle) title = ensuredTitle;
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to save messages';
     return json({ ok: false, error: msg }, 500);
@@ -333,26 +339,35 @@ export async function PATCH(context: APIContext): Promise<Response> {
 
   const title = body.title == null ? '' : String(body.title).trim();
   const hasArchived = typeof body.archived === 'boolean';
+  const hasFinalizeTitle = body.finalizeTitle === true;
 
-  if (!title && !hasArchived) {
-    return json({ ok: false, error: 'title or archived is required' }, 400);
+  if (!title && !hasArchived && !hasFinalizeTitle) {
+    return json({ ok: false, error: 'title, archived, or finalizeTitle is required' }, 400);
   }
 
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
 
+  let currentTitle = thread.title;
+
+  if (hasFinalizeTitle) {
+    const ensured = await storeEnsureChatTitle(userId, id);
+    if (ensured) currentTitle = ensured;
+  }
+
   if (hasArchived) {
     const updated = await storeSetChatArchived(userId, id, body.archived as boolean);
     if (!updated) return json({ ok: false, error: 'Failed to update chat' }, 500);
-    return json({ ok: true, id, archived: body.archived });
+    return json({ ok: true, id, archived: body.archived, title: currentTitle });
   }
 
-  if (!title) return json({ ok: false, error: 'title is required' }, 400);
+  if (title) {
+    const updated = await storeUpdateChatTitle(userId, id, title);
+    if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);
+    return json({ ok: true, id, title });
+  }
 
-  const updated = await storeUpdateChatTitle(userId, id, title);
-  if (!updated) return json({ ok: false, error: 'Failed to update title' }, 500);
-
-  return json({ ok: true, id, title });
+  return json({ ok: true, id, title: currentTitle });
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {

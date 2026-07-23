@@ -27,7 +27,12 @@ import {
   pgUpdateChatTitle,
   type ChatThreadOwner,
 } from './pgChats';
-import { titleFromMessage, type ChatThreadDetail, type ChatThreadSummary } from './chatTypes';
+import {
+  deriveChatTitleFromThread,
+  titleFromMessage,
+  type ChatThreadDetail,
+  type ChatThreadSummary,
+} from './chatTypes';
 
 export { isPgChatsConfigured, titleFromMessage };
 export type { ChatThreadDetail, ChatThreadSummary, ChatThreadOwner };
@@ -79,6 +84,19 @@ export async function storeUpdateChatTitle(
 ): Promise<boolean> {
   if (chatStorageBackend() === 'postgres') return pgUpdateChatTitle(threadId, title);
   return fileUpdateChatTitle(userId, threadId, title);
+}
+
+/** Set a title from the first user (or assistant) message when still untitled. */
+export async function storeEnsureChatTitle(
+  userId: string,
+  threadId: string,
+): Promise<string | null> {
+  const thread = await storeGetChatThread(userId, threadId);
+  if (!thread) return null;
+  const title = deriveChatTitleFromThread(thread);
+  if (!title) return null;
+  const updated = await storeUpdateChatTitle(userId, threadId, title);
+  return updated ? title : null;
 }
 
 export async function storeDeleteChatThread(userId: string, threadId: string): Promise<boolean> {

@@ -99,9 +99,30 @@ export function chatMessagePlainText(content: string): string {
   return text;
 }
 
+export const DEFAULT_CHAT_TITLE = 'New chat';
+
+export function isDefaultChatTitle(title: string): boolean {
+  return title.trim() === DEFAULT_CHAT_TITLE;
+}
+
 export function titleFromMessage(text: string, imageCount = 0): string {
   const oneLine = text.replace(/\s+/g, ' ').trim();
   if (oneLine) return oneLine.length > 60 ? `${oneLine.slice(0, 57)}…` : oneLine;
   if (imageCount > 0) return imageCount === 1 ? 'Image' : `${imageCount} images`;
-  return 'New chat';
+  return DEFAULT_CHAT_TITLE;
+}
+
+/** Derive a display title from thread messages when the thread still has the default title. */
+export function deriveChatTitleFromThread(thread: ChatThreadDetail): string | null {
+  if (!isDefaultChatTitle(thread.title) || !thread.messages.length) return null;
+
+  for (const role of ['user', 'assistant'] as const) {
+    const msg = thread.messages.find((m) => m.role === role);
+    if (!msg) continue;
+    const { text, images } = parseChatMessageContent(msg.content);
+    const title = titleFromMessage(text, images.length);
+    if (!isDefaultChatTitle(title)) return title;
+  }
+
+  return null;
 }

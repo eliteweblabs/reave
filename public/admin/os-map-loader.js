@@ -521,7 +521,9 @@ function setActiveMap(key, opts = {}) {
   if (key !== 'chats') {
     setChatComposeFocused(false);
     if (prevType === 'chats' && !chatState.sending) {
-      void abandonDisposableChat(chatState.activeId);
+      void finalizeChatTitleIfNeeded(chatState.activeId).then(() =>
+        abandonDisposableChat(chatState.activeId),
+      );
     }
   }
   void refreshInboxBadgeQuiet();
@@ -16502,6 +16504,7 @@ async function loadChatsTab(opts = {}) {
 
   if (restoreId) {
     if (chatState.activeId && chatState.activeId !== restoreId) {
+      await finalizeChatTitleIfNeeded(chatState.activeId);
       await abandonDisposableChat(chatState.activeId);
     }
     if (!chatState.threads.some((t) => t.id === restoreId)) {
@@ -16522,7 +16525,10 @@ async function loadChatsTab(opts = {}) {
     return;
   }
 
-  if (chatState.activeId) await abandonDisposableChat(chatState.activeId);
+  if (chatState.activeId) {
+    await finalizeChatTitleIfNeeded(chatState.activeId);
+    await abandonDisposableChat(chatState.activeId);
+  }
   chatState.activeId = null;
   chatState.messages = [];
   chatState.title = '';
@@ -16567,6 +16573,38 @@ async function saveChatTitle(threadId, title) {
   if (thread) thread.title = trimmed;
   syncSidebarChatTitle(threadId, trimmed);
   return true;
+}
+
+function applyFinalizedChatTitle(threadId, title) {
+  if (!threadId || !title || title.trim() === 'New chat') return;
+  if (chatState.activeId === threadId) chatState.title = title;
+  const thread = chatState.threads.find((t) => t.id === threadId);
+  if (thread) thread.title = title;
+  syncSidebarChatTitle(threadId, title);
+  if (chatState.activeId === threadId) syncChatPaneHeaderTitle(title);
+  if (chatState.disposableChatId === threadId) chatState.disposableChatId = null;
+}
+
+/** Auto-title chats still named "New chat" from their first message (best effort). */
+async function finalizeChatTitleIfNeeded(threadId) {
+  if (!threadId) return;
+  const title =
+    chatState.activeId === threadId
+      ? chatState.title
+      : chatState.threads.find((t) => t.id === threadId)?.title;
+  if (title?.trim() && title.trim() !== 'New chat') return;
+  if (chatState.activeId === threadId && !chatState.messages.length) return;
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ finalizeTitle: true }),
+    });
+    const data = await readApiJson(res);
+    if (data.title) applyFinalizedChatTitle(threadId, data.title);
+  } catch {
+    /* best effort */
+  }
 }
 
 function startChatTitleEdit(titleEl, threadId, originalTitle) {
@@ -17009,7 +17047,10 @@ function renderChatPanel() {
 
 async function startNewChat(opts = {}) {
   const prevId = chatState.activeId;
-  if (prevId) await abandonDisposableChat(prevId);
+  if (prevId) {
+    await finalizeChatTitleIfNeeded(prevId);
+    await abandonDisposableChat(prevId);
+  }
   try {
     const res = await fetch('/api/chats', {
       method: 'POST',
@@ -17040,7 +17081,10 @@ async function openChat(id, opts = {}) {
   }
   try {
     const prevId = chatState.activeId;
-    if (prevId && prevId !== id) await abandonDisposableChat(prevId);
+    if (prevId && prevId !== id) {
+      await finalizeChatTitleIfNeeded(prevId);
+      await abandonDisposableChat(prevId);
+    }
     const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, { cache: 'no-store' });
     const data = await readApiJson(res);
     chatState.activeId = id;
@@ -17092,9 +17136,10 @@ async function archiveChat(t) {
     const res = await fetch(`/api/chats/${encodeURIComponent(t.id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archived: !unarchive }),
+      body: JSON.stringify({ archived: !unarchive, finalizeTitle: !unarchive }),
     });
-    await readApiJson(res);
+    const data = await readApiJson(res);
+    if (data.title) applyFinalizedChatTitle(t.id, data.title);
     const idx = chatState.threads.findIndex((e) => e.id === t.id);
     if (idx !== -1) {
       chatState.threads[idx] = { ...chatState.threads[idx], archived: !unarchive };
@@ -17874,7 +17919,7 @@ function shouldShowChatTopbarTitle(title) {
 function closeActiveChat() {
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
   const id = chatState.activeId;
-  void abandonDisposableChat(id).then(async () => {
+  void finalizeChatTitleIfNeeded(id).then(() => abandonDisposableChat(id)).then(async () => {
     chatState.activeId = null;
     clearChatLastActiveId();
     setChatComposeFocused(false);
