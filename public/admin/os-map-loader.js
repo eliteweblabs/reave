@@ -2169,27 +2169,6 @@ function formatReviewAlertWhen(iso) {
   }
 }
 
-function formatUptimeAccountHint(uptimeAccount) {
-  if (!uptimeAccount) return null;
-  if (uptimeAccount.account) {
-    const a = uptimeAccount.account;
-    const remote = `${a.monitorCount}/${a.monitorLimit} monitors in UptimeRobot`;
-    const local = uptimeAccount.localTotal;
-    if (local != null && local !== a.monitorCount) {
-      return `${remote} · ${local} cached locally`;
-    }
-    return remote;
-  }
-  const local = uptimeAccount.localTotal;
-  if (local != null) {
-    return `${local} monitors cached locally`;
-  }
-  if (uptimeAccount.error && !/rate limit|cooldown|retry in/i.test(uptimeAccount.error)) {
-    return `UptimeRobot: ${uptimeAccount.error}`;
-  }
-  return null;
-}
-
 let uptimePlatformSyncPollTimer = null;
 let uptimePlatformSyncActive = false;
 
@@ -3256,19 +3235,16 @@ function renderHomeDashboard(data) {
 
   const uptimeSummary = data?.uptime?.summary;
   const uptimeConfigured = data?.uptime?.configured === true;
-  const uptimeAccountHint = formatUptimeAccountHint(data?.uptimeAccount);
   if (uptimeConfigured || uptimeSummary) {
     const downCount = uptimeSummary?.down ?? stats.uptimeDown ?? 0;
     statsEl.appendChild(buildDashStat({
       value: downCount,
       label: 'Sites down',
-      hint: uptimeAccountHint
-        ? `${uptimeAccountHint}${uptimeSummary ? ` · ${uptimeSummary.open_incidents ?? 0} open incidents` : ''}`
-        : uptimeSummary
-          ? `${uptimeSummary.up}/${uptimeSummary.total} up locally · ${uptimeSummary.open_incidents ?? 0} open incidents`
-          : uptimeConfigured
-            ? 'sync pending'
-            : 'not configured',
+      hint: uptimeSummary
+        ? `${uptimeSummary.up}/${uptimeSummary.total} up locally · ${uptimeSummary.open_incidents ?? 0} open incidents`
+        : uptimeConfigured
+          ? 'sync pending'
+          : 'not configured',
       tone: downCount > 0 ? 'failed' : uptimeSummary?.total ? 'live' : 'muted',
       muted: !uptimeConfigured,
     }));
@@ -3355,13 +3331,6 @@ function renderHomeDashboard(data) {
   scroll.appendChild(statsEl);
 
   if (uptimeConfigured) {
-    if (uptimeAccountHint) {
-      const uptimeHead = document.createElement('p');
-      uptimeHead.className = 'dash-muted-inline dash-uptime-account';
-      uptimeHead.textContent = uptimeAccountHint;
-      scroll.appendChild(uptimeHead);
-    }
-
     const list = document.createElement('ul');
     list.className = 'dash-uptime-grid';
     const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
