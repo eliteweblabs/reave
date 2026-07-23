@@ -12679,6 +12679,25 @@ function openScheduleCreateDialog(initial = {}) {
       destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
     }
 
+    const createExtraGuests = [];
+    const guestListEl = form.querySelector('#sched-create-guest-list');
+    function refreshCreateGuestChips() {
+      renderScheduleGuestChips(guestListEl, createExtraGuests, {
+        removable: true,
+        onRemove: (idx) => {
+          createExtraGuests.splice(idx, 1);
+          refreshCreateGuestChips();
+        },
+      });
+    }
+    refreshCreateGuestChips();
+    destroyCreateGuestAdder = mountScheduleGuestAdder(guestListEl.parentElement, {
+      onAdd: (guest) => {
+        createExtraGuests.push(guest);
+        refreshCreateGuestChips();
+      },
+    }).destroy;
+
     function readStartIso() {
       const [y, m, d] = dateInput.value.split('-').map(Number);
       const [hh, mm] = timeInput.value.split(':').map(Number);
@@ -12739,7 +12758,7 @@ function openScheduleCreateDialog(initial = {}) {
           email: form.email.value.trim(),
           start: readStartIso(),
           ...(address ? { address } : {}),
-          notes: form.notes.value.trim(),
+          notes: scheduleSerializeNotesWithGuests(form.notes.value.trim(), createExtraGuests),
         });
         if (address) rememberScheduleAddress(address);
         finish(true);

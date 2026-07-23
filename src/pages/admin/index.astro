@@ -6036,6 +6036,121 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .schedule-detail-link {
         color: #79c0ff;
       }
+      .schedule-guest-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        align-items: flex-start;
+      }
+      .schedule-guest-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .schedule-guest-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+        padding: 0.15rem 0.15rem 0.15rem 0.5rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 999px;
+        background: var(--surface-hover);
+        font-size: 0.78rem;
+      }
+      .schedule-guest-chip-name {
+        border: none;
+        background: transparent;
+        color: var(--fg);
+        font: inherit;
+        font-size: inherit;
+        padding: 0;
+        cursor: default;
+      }
+      .schedule-guest-chip-name--linked {
+        color: #79c0ff;
+        cursor: pointer;
+      }
+      .schedule-guest-chip-name--linked:hover {
+        text-decoration: underline;
+      }
+      .schedule-guest-chip-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1rem;
+        height: 1.1rem;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .schedule-guest-chip-remove:hover {
+        background: var(--surface-hover-strong);
+        color: var(--fg);
+      }
+      .schedule-guest-add-btn {
+        align-self: flex-start;
+        padding: 0.2rem 0.55rem;
+        border: 1px dashed var(--panel-border);
+        border-radius: 999px;
+        background: transparent;
+        color: #79c0ff;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .schedule-guest-add-btn:hover {
+        background: rgba(121, 192, 255, 0.12);
+      }
+      .schedule-guest-adder {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+        margin-top: 0.35rem;
+      }
+      .schedule-guest-adder-input {
+        min-width: 0;
+        flex: 1 1 7rem;
+        padding: 0.28rem 0.5rem;
+        border: 1px solid var(--panel-border);
+        border-radius: 7px;
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+        font-size: max(16px, 0.78rem);
+      }
+      .schedule-guest-adder-add {
+        padding: 0.28rem 0.6rem;
+        border: none;
+        border-radius: 7px;
+        background: #79c0ff;
+        color: #06202f;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .schedule-guest-adder-cancel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.4rem;
+        height: 1.4rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--surface-hover);
+        color: var(--muted);
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .sched-create-guests {
+        gap: 0.4rem;
+      }
       .schedule-detail-actions {
         margin-top: 1rem;
       }
