@@ -12633,6 +12633,7 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
       if (settled) return;
       settled = true;
       destroyAddressAutocomplete();
+      releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
@@ -12676,8 +12677,9 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
     openOsDialogBackdrop();
     bindOsDialogDismiss(backdrop, () => finish(null), true);
     document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
     destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
-    addressInput?.focus();
+    scheduleOsDialogFieldFocus(addressInput);
   });
 }
 
@@ -12737,6 +12739,106 @@ function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
   return () => input.removeEventListener('keydown', onKeyDown);
 }
 
+const SCHED_DROPDOWN_MAX_HEIGHT = 220;
+const osDialogDropdownRepositioners = new Set();
+
+function getDropdownViewportBounds() {
+  const vv = window.visualViewport;
+  if (!vv) {
+    return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
+  }
+  return {
+    top: vv.offsetTop,
+    bottom: vv.offsetTop + vv.height,
+    left: vv.offsetLeft,
+    right: vv.offsetLeft + vv.width,
+  };
+}
+
+function positionFixedDropdown(dropdown, anchorInput, maxHeight = SCHED_DROPDOWN_MAX_HEIGHT) {
+  const rect = anchorInput.getBoundingClientRect();
+  const vp = getDropdownViewportBounds();
+  const gap = 4;
+  const minHeight = 80;
+
+  dropdown.style.left = `${Math.max(vp.left, Math.min(rect.left, vp.right - rect.width))}px`;
+  dropdown.style.width = `${rect.width}px`;
+
+  const spaceBelow = vp.bottom - rect.bottom - gap;
+  const spaceAbove = rect.top - vp.top - gap;
+
+  if (spaceBelow >= minHeight || spaceBelow >= spaceAbove) {
+    dropdown.style.top = `${rect.bottom + gap}px`;
+    dropdown.style.bottom = '';
+    dropdown.style.maxHeight = `${Math.min(maxHeight, Math.max(minHeight, spaceBelow))}px`;
+  } else {
+    const avail = Math.min(maxHeight, Math.max(minHeight, spaceAbove));
+    dropdown.style.top = `${Math.max(vp.top + gap, rect.top - gap - avail)}px`;
+    dropdown.style.bottom = '';
+    dropdown.style.maxHeight = `${avail}px`;
+  }
+}
+
+function collectDropdownScrollTargets(anchorInput) {
+  const scrollTargets = new Set();
+  let el = anchorInput.parentElement;
+  while (el) {
+    if (el === document.body || el === document.documentElement) break;
+    const style = window.getComputedStyle(el);
+    if (/(auto|scroll|overlay)/.test(style.overflowY) || /(auto|scroll|overlay)/.test(style.overflow)) {
+      scrollTargets.add(el);
+    }
+    el = el.parentElement;
+  }
+  const dialogBody = document.getElementById('os-dialog-body');
+  if (dialogBody?.contains(anchorInput)) scrollTargets.add(dialogBody);
+  return scrollTargets;
+}
+
+function bindDropdownReposition(anchorInput, repositionFn) {
+  const scrollTargets = collectDropdownScrollTargets(anchorInput);
+  const handler = () => repositionFn();
+  window.addEventListener('resize', handler);
+  window.addEventListener('scroll', handler, true);
+  window.visualViewport?.addEventListener('resize', handler);
+  window.visualViewport?.addEventListener('scroll', handler);
+  for (const target of scrollTargets) {
+    target.addEventListener('scroll', handler, { passive: true });
+  }
+
+  let unregisterDialogReposition = null;
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (backdrop?.contains(anchorInput)) {
+    osDialogDropdownRepositioners.add(handler);
+    unregisterDialogReposition = () => osDialogDropdownRepositioners.delete(handler);
+  }
+
+  requestAnimationFrame(handler);
+  window.setTimeout(handler, 120);
+  window.setTimeout(handler, 360);
+
+  return () => {
+    window.removeEventListener('resize', handler);
+    window.removeEventListener('scroll', handler, true);
+    window.visualViewport?.removeEventListener('resize', handler);
+    window.visualViewport?.removeEventListener('scroll', handler);
+    for (const target of scrollTargets) {
+      target.removeEventListener('scroll', handler);
+    }
+    unregisterDialogReposition?.();
+  };
+}
+
+function repositionOpenOsDialogDropdowns() {
+  for (const fn of osDialogDropdownRepositioners) {
+    try {
+      fn();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   if (!dropdownPortal || !addressInput) return () => {};
 
@@ -12745,13 +12847,10 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
   dropdown.style.display = 'none';
   dropdownPortal.appendChild(dropdown);
 
-  let repositionHandler = null;
+  let unbindReposition = null;
 
   function positionDropdown() {
-    const rect = addressInput.getBoundingClientRect();
-    dropdown.style.left = `${rect.left}px`;
-    dropdown.style.top = `${rect.bottom + 4}px`;
-    dropdown.style.width = `${rect.width}px`;
+    positionFixedDropdown(dropdown, addressInput);
   }
 
   function setDropdownOpen(open) {
@@ -12759,23 +12858,16 @@ function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
       positionDropdown();
       dropdown.style.display = 'block';
       addressInput.setAttribute('aria-expanded', 'true');
-      if (!repositionHandler) {
-        repositionHandler = () => positionDropdown();
-        window.addEventListener('resize', repositionHandler);
-        window.addEventListener('scroll', repositionHandler, true);
-        window.visualViewport?.addEventListener('resize', repositionHandler);
-        window.visualViewport?.addEventListener('scroll', repositionHandler);
+      if (!unbindReposition) {
+        unbindReposition = bindDropdownReposition(addressInput, positionDropdown);
       }
       return;
     }
     dropdown.style.display = 'none';
     addressInput.setAttribute('aria-expanded', 'false');
-    if (repositionHandler) {
-      window.removeEventListener('resize', repositionHandler);
-      window.removeEventListener('scroll', repositionHandler, true);
-      window.visualViewport?.removeEventListener('resize', repositionHandler);
-      window.visualViewport?.removeEventListener('scroll', repositionHandler);
-      repositionHandler = null;
+    if (unbindReposition) {
+      unbindReposition();
+      unbindReposition = null;
     }
   }
 
@@ -12875,13 +12967,10 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
   dropdown.style.display = 'none';
   portal.appendChild(dropdown);
 
-  let repositionHandler = null;
+  let unbindReposition = null;
 
   function positionDropdown() {
-    const rect = nameInput.getBoundingClientRect();
-    dropdown.style.left = `${rect.left}px`;
-    dropdown.style.top = `${rect.bottom + 4}px`;
-    dropdown.style.width = `${rect.width}px`;
+    positionFixedDropdown(dropdown, nameInput);
   }
 
   function setDropdownOpen(open) {
@@ -12889,23 +12978,16 @@ function mountScheduleGuestAutocomplete(nameInput, emailInput) {
       positionDropdown();
       dropdown.style.display = 'block';
       nameInput.setAttribute('aria-expanded', 'true');
-      if (!repositionHandler) {
-        repositionHandler = () => positionDropdown();
-        window.addEventListener('resize', repositionHandler);
-        window.addEventListener('scroll', repositionHandler, true);
-        window.visualViewport?.addEventListener('resize', repositionHandler);
-        window.visualViewport?.addEventListener('scroll', repositionHandler);
+      if (!unbindReposition) {
+        unbindReposition = bindDropdownReposition(nameInput, positionDropdown);
       }
       return;
     }
     dropdown.style.display = 'none';
     nameInput.setAttribute('aria-expanded', 'false');
-    if (repositionHandler) {
-      window.removeEventListener('resize', repositionHandler);
-      window.removeEventListener('scroll', repositionHandler, true);
-      window.visualViewport?.removeEventListener('resize', repositionHandler);
-      window.visualViewport?.removeEventListener('scroll', repositionHandler);
-      repositionHandler = null;
+    if (unbindReposition) {
+      unbindReposition();
+      unbindReposition = null;
     }
   }
 
@@ -15377,7 +15459,10 @@ function syncOsDialogKeyboardLayout() {
   const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   backdrop.classList.add('os-dialog-keyboard');
   document.documentElement.style.setProperty('--os-dialog-keyboard-inset', `${inset}px`);
-  const runScroll = () => scrollOsDialogFieldIntoView(active);
+  const runScroll = () => {
+    scrollOsDialogFieldIntoView(active);
+    repositionOpenOsDialogDropdowns();
+  };
   requestAnimationFrame(runScroll);
   window.setTimeout(runScroll, 120);
   window.setTimeout(runScroll, 360);
@@ -18329,6 +18414,7 @@ function showEmailScheduleDialog(ev, check) {
       if (settled) return;
       settled = true;
       destroyAddressAutocomplete();
+      releaseOsDialogKeyboardLayout();
       closeOsDialogBackdrop();
       document.removeEventListener('keydown', onKey);
       resolve(value);
@@ -18441,6 +18527,7 @@ function showEmailScheduleDialog(ev, check) {
     openOsDialogBackdrop();
     bindOsDialogDismiss(backdrop, finish, true);
     document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
     if (addressInput) {
       destroyAddressAutocomplete = mountScheduleAddressAutocomplete(addressInput);
     }
