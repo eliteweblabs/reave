@@ -22,7 +22,7 @@ import {
 } from '../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel, companyStaffAvatarUrl } from '../../lib/companyConfig';
 import { hasFeature } from '../../lib/features';
-import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, type ClientBilling, type ClientPayments } from '../../lib/craterClient';
+import { isCraterConfigured, craterGetClientBilling, craterGetClientPayments, buildPortalBillingView, type ClientBilling, type ClientPayments, type PortalBillingInvoiceGroup } from '../../lib/craterClient';
 import { isBookingConfigured, publicBookingPageUrl } from '../../lib/bookingClient';
 import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../../lib/workStore';
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
@@ -95,6 +95,8 @@ if (contact && hasFeature('billing') && isCraterConfigured()) {
     // Crater is optional on the portal — never take down the page for billing drift.
   }
 }
+
+const portalBillingView = buildPortalBillingView(billing, clientPayments?.payments);
 
 const money = (n: number) => `$${Number(n).toFixed(2)}`;
 const fmtDate = (s: string | null | undefined) => {
@@ -266,8 +268,7 @@ const hasUptime = clientUptimeMonitors.length > 0 || clientUptimeIncidents.lengt
 const hasOverview = Boolean(
   clientTagline || clientWebsite || showClientContact || headline || bodyHtml || fields.length > 0
 );
-const hasBilling = Boolean(billing);
-const hasPayments = Boolean(clientPayments?.payments.length);
+const hasBilling = Boolean(portalBillingView);
 const hasData = dataEntries.length > 0;
 const hasDocs = portalDocs.length > 0;
 const hasWork = clientJobs.length > 0;
@@ -275,17 +276,35 @@ const tabs: Array<{ id: string; label: string }> = [];
 tabs.push({ id: 'overview', label: 'Overview' });
 if (hasWork) tabs.push({ id: 'work', label: 'Projects' });
 if (hasBilling) tabs.push({ id: 'billing', label: 'Billing' });
-if (hasPayments) tabs.push({ id: 'payments', label: 'Payments' });
 if (hasData) tabs.push({ id: 'vault', label: 'Vault' });
 if (hasDocs) tabs.push({ id: 'documents', label: 'Documents' });
 const showTabs = tabs.length > 1;
 
 const initialTab = (() => {
   const raw = Astro.url.searchParams.get('tab')?.trim().toLowerCase();
-  const normalized = raw === 'data' ? 'vault' : raw;
+  const normalized = raw === 'data' ? 'vault' : raw === 'payments' ? 'billing' : raw;
   if (normalized && tabs.some((t) => t.id === normalized)) return normalized;
   return tabs[0]?.id ?? 'overview';
 })();
+
+type BillingSectionBlock = {
+  title: string;
+  groups: PortalBillingInvoiceGroup[];
+};
+
+const billingSections: BillingSectionBlock[] = portalBillingView
+  ? [
+      ...(portalBillingView.outstandingGroups.length
+        ? [{ title: 'Outstanding', groups: portalBillingView.outstandingGroups }]
+        : []),
+      ...(portalBillingView.previousGroups.length
+        ? [{ title: 'Previous', groups: portalBillingView.previousGroups }]
+        : []),
+      ...(portalBillingView.paymentsOnlyGroups.length
+        ? [{ title: 'Payment history', groups: portalBillingView.paymentsOnlyGroups }]
+        : []),
+    ]
+  : [];
 
 const pageTitle = company ? `${displayName} · ${company}` : displayName;
 const appTitle = brandTitle;
@@ -498,39 +517,21 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             />
           )}
 
-          {/* Billing */}
-          {hasBilling && billing && (
+          {/* Billing (invoices + nested payments) */}
+          {hasBilling && portalBillingView && (
             <section class={`panel ${initialTab === 'billing' ? 'active' : ''}`} data-tab-panel="billing">
               <div class="billing-head">
                 <span class="billing-title">Balance due</span>
-                <span class={`billing-total ${billing.totalDue > 0 ? 'due' : 'clear'}`}>{money(billing.totalDue)}</span>
+                <span class={`billing-total ${portalBillingView.totalDue > 0 ? 'due' : 'clear'}`}>
+                  {money(portalBillingView.totalDue)}
+                </span>
               </div>
 
-              {billing.outstanding.length > 0 && (
-                <div class="bill-group">
-                  <h3 class="group-title">Outstanding</h3>
-                  <ul class="invoices">
-                    {billing.outstanding.map((inv) => (
-                      <li class="invoice">
-                        <div class="inv-main">
-                          <span class="inv-num">#{inv.number}</span>
-                          <span class="inv-meta">{fmtDate(inv.date)} · {inv.status}</span>
-                        </div>
-                        <div class="inv-side">
-                          <span class="inv-due">{money(inv.due)}</span>
-                          {inv.url && <a class="pay" href={inv.url} target="_blank" rel="noopener noreferrer">Pay</a>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {billing.upcoming.length > 0 && (
+              {portalBillingView.upcoming.length > 0 && (
                 <div class="bill-group">
                   <h3 class="group-title">Upcoming</h3>
                   <ul class="invoices">
-                    {billing.upcoming.map((r) => (
+                    {portalBillingView.upcoming.map((r) => (
                       <li class="invoice">
                         <div class="inv-main">
                           <span class="inv-num">{r.frequency || 'Recurring'}</span>
@@ -545,42 +546,88 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                 </div>
               )}
 
-              {billing.previous.length > 0 && (
+              {billingSections.map((section) => (
                 <div class="bill-group">
-                  <h3 class="group-title">Previous</h3>
-                  <ul class="invoices">
-                    {billing.previous.map((inv) => (
-                      <li class="invoice">
-                        <div class="inv-main">
-                          <span class="inv-num">#{inv.number}</span>
-                          <span class="inv-meta">{fmtDate(inv.date)} · Paid</span>
+                  <h3 class="group-title">{section.title}</h3>
+                  <div class="invoice-stack">
+                    {section.groups.map((group) => {
+                      const inv = group.invoice;
+                      const isOutstanding = group.section === 'outstanding';
+                      return (
+                        <div class="invoice-block">
+                          <div class="invoice">
+                            <div class="inv-main">
+                              <span class="inv-num">#{inv.number}</span>
+                              <span class="inv-meta">
+                                {inv.date ? fmtDate(inv.date) : '—'}
+                                {' · '}
+                                {isOutstanding ? inv.status : 'Paid'}
+                              </span>
+                            </div>
+                            <div class="inv-side">
+                              {isOutstanding ? (
+                                <>
+                                  <span class="inv-due">{money(inv.due)}</span>
+                                  {inv.url && (
+                                    <a class="pay" href={inv.url} target="_blank" rel="noopener noreferrer">
+                                      Pay
+                                    </a>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <span class="inv-due paid">{money(inv.total)}</span>
+                                  {inv.url && (
+                                    <a class="view" href={inv.url} target="_blank" rel="noopener noreferrer">
+                                      View
+                                    </a>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          {group.payments.length > 0 && (
+                            <ul class="invoice-payments">
+                              {group.payments.map((pay) => (
+                                <li class="invoice-payment">
+                                  <div class="pay-main">
+                                    <span class="pay-date">{fmtDate(pay.date)}</span>
+                                    <span class="pay-meta">
+                                      {pay.method}
+                                      {pay.paymentNumber ? ` · ${pay.paymentNumber}` : ''}
+                                    </span>
+                                  </div>
+                                  <span class="pay-amount">{money(pay.amount)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
-                        <div class="inv-side">
-                          <span class="inv-due paid">{money(inv.total)}</span>
-                          {inv.url && <a class="view" href={inv.url} target="_blank" rel="noopener noreferrer">View</a>}
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {portalBillingView.orphanPayments.length > 0 && (
+                <div class="bill-group">
+                  <h3 class="group-title">Other payments</h3>
+                  <ul class="invoice-payments invoice-payments-standalone">
+                    {portalBillingView.orphanPayments.map((pay) => (
+                      <li class="invoice-payment">
+                        <div class="pay-main">
+                          <span class="pay-date">{fmtDate(pay.date)}</span>
+                          <span class="pay-meta">
+                            {pay.method}
+                            {pay.paymentNumber ? ` · ${pay.paymentNumber}` : ''}
+                          </span>
                         </div>
+                        <span class="pay-amount">{money(pay.amount)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
-            </section>
-          )}
-
-          {/* Payments */}
-          {hasPayments && clientPayments && (
-            <section class={`panel ${initialTab === 'payments' ? 'active' : ''}`} data-tab-panel="payments">
-              <ul class="payments">
-                {clientPayments.payments.map((pay) => (
-                  <li class="payment">
-                    <div class="pay-main">
-                      <span class="pay-date">{fmtDate(pay.date)}</span>
-                      <span class="pay-meta">{pay.method}{pay.invoiceNumber ? ` · #${pay.invoiceNumber}` : ''}</span>
-                    </div>
-                    <span class="pay-amount">{money(pay.amount)}</span>
-                  </li>
-                ))}
-              </ul>
             </section>
           )}
 
@@ -957,6 +1004,46 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         border-top: 1px solid rgba(255, 255, 255, 0.05);
       }
       .invoice:first-child { border-top: none; }
+      .invoice-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .invoice-block {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .invoice-block .invoice {
+        border-top: none;
+        background: transparent;
+      }
+      .invoice-payments {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        background: rgba(0, 0, 0, 0.16);
+      }
+      .invoice-payments-standalone {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .invoice-payment {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 16px 11px 28px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .invoice-payment:first-child { border-top: none; }
+      .invoice-payment .pay-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+      .invoice-payment .pay-date { font-size: 14px; font-weight: 600; }
+      .invoice-payment .pay-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+      .invoice-payment .pay-amount { font-size: 14px; font-weight: 600; flex: none; color: #86efac; }
       .inv-main { display: flex; flex-direction: column; gap: 2px; }
       .inv-num { font-size: 15px; font-weight: 600; }
       .inv-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); text-transform: capitalize; }
@@ -971,21 +1058,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .pay:active { opacity: 0.85; }
       .view { color: #d8b4fe; text-decoration: none; font-size: 13px; font-weight: 500; }
-
-      .payments {
-        list-style: none; margin: 0; padding: 0;
-        border-radius: 14px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
-      }
-      .payment {
-        display: flex; justify-content: space-between; align-items: center; gap: 12px;
-        padding: 13px 16px; background: rgba(255, 255, 255, 0.04);
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-      }
-      .payment:first-child { border-top: none; }
-      .pay-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-      .pay-date { font-size: 15px; font-weight: 600; }
-      .pay-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
-      .pay-amount { font-size: 15px; font-weight: 600; flex: none; color: #86efac; }
 
       /* Documents tab */
       .doc-card {

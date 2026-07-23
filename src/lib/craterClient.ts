@@ -653,6 +653,115 @@ export type ClientPayments = {
   payments: CraterPaymentSummary[];
 };
 
+export type PortalBillingInvoiceGroup = {
+  section: 'outstanding' | 'previous' | 'payments-only';
+  invoice: BillingInvoice;
+  payments: CraterPaymentSummary[];
+};
+
+export type PortalBillingView = {
+  totalDue: number;
+  upcoming: UpcomingInvoice[];
+  outstandingGroups: PortalBillingInvoiceGroup[];
+  previousGroups: PortalBillingInvoiceGroup[];
+  paymentsOnlyGroups: PortalBillingInvoiceGroup[];
+  orphanPayments: CraterPaymentSummary[];
+};
+
+function sortPaymentsNewestFirst(payments: CraterPaymentSummary[]): CraterPaymentSummary[] {
+  return [...payments].sort(
+    (a, b) => (Date.parse(b.date ?? '') || 0) - (Date.parse(a.date ?? '') || 0),
+  );
+}
+
+/** Merge invoices and payments for the client portal billing tab. */
+export function buildPortalBillingView(
+  billing: ClientBilling | null,
+  payments: CraterPaymentSummary[] | undefined,
+): PortalBillingView | null {
+  const payList = payments ?? [];
+  const hasInvoices =
+    (billing?.outstanding.length ?? 0) > 0 ||
+    (billing?.previous.length ?? 0) > 0 ||
+    (billing?.upcoming.length ?? 0) > 0;
+  if (!hasInvoices && !payList.length) return null;
+
+  const claimed = new Set<number>();
+  const attachPayments = (
+    section: PortalBillingInvoiceGroup['section'],
+    invoice: BillingInvoice,
+  ): PortalBillingInvoiceGroup => {
+    const matched = payList.filter(
+      (p) =>
+        (p.invoiceId != null && p.invoiceId === invoice.id) ||
+        (p.invoiceNumber &&
+          p.invoiceNumber.replace(/^#/, '').trim() === invoice.number.trim()),
+    );
+    matched.forEach((p) => claimed.add(p.id));
+    return { section, invoice, payments: sortPaymentsNewestFirst(matched) };
+  };
+
+  const outstandingGroups = (billing?.outstanding ?? []).map((invoice) =>
+    attachPayments('outstanding', invoice),
+  );
+  const previousGroups = (billing?.previous ?? []).map((invoice) =>
+    attachPayments('previous', invoice),
+  );
+
+  const paymentsOnlyGroups: PortalBillingInvoiceGroup[] = [];
+  const byKey = new Map<string, CraterPaymentSummary[]>();
+  for (const p of payList) {
+    if (claimed.has(p.id)) continue;
+    const key =
+      p.invoiceId != null
+        ? `id:${p.invoiceId}`
+        : p.invoiceNumber
+          ? `num:${p.invoiceNumber.replace(/^#/, '').trim()}`
+          : '';
+    if (!key) continue;
+    const arr = byKey.get(key) ?? [];
+    arr.push(p);
+    byKey.set(key, arr);
+  }
+
+  for (const [key, pays] of byKey) {
+    for (const p of pays) claimed.add(p.id);
+    const sorted = sortPaymentsNewestFirst(pays);
+    const number =
+      key.startsWith('num:')
+        ? key.slice(4)
+        : sorted[0].invoiceNumber?.replace(/^#/, '').trim() || '—';
+    const id = key.startsWith('id:') ? Number(key.slice(3)) : sorted[0].invoiceId ?? 0;
+    paymentsOnlyGroups.push({
+      section: 'payments-only',
+      invoice: {
+        id,
+        number,
+        status: 'PAID',
+        paidStatus: 'PAID',
+        date: sorted[0].date,
+        total: sorted.reduce((sum, p) => sum + p.amount, 0),
+        due: 0,
+        url: null,
+      },
+      payments: sorted,
+    });
+  }
+
+  const orphanPayments = sortPaymentsNewestFirst(
+    payList.filter((p) => !claimed.has(p.id) && p.invoiceId == null && !p.invoiceNumber),
+  );
+
+  return {
+    totalDue: billing?.totalDue ?? 0,
+    upcoming: billing?.upcoming ?? [],
+    outstandingGroups,
+    previousGroups,
+    paymentsOnlyGroups,
+    orphanPayments,
+  };
+}
+
 /**
  * Resolve a Crater customer for a contact (prefer email match, else name) and
  * return their full billing picture: outstanding (unpaid) + previous (paid)
