@@ -21,7 +21,6 @@ import { createContact, getContact, resolveContact } from './contactApi';
 import { enrichClientPortalBrand } from './clientBrand';
 import { parseSenderEmail, parseSenderName } from './emailAddress';
 import { extractContactFromInboundEmail, preferredContactName } from './emailContactExtract';
-import { sortBySidebarOrder } from './sidebarOrderStore';
 import { serverEnv } from './serverEnv';
 
 export const WORK_STATUSES = ['inquiry', 'active', 'archived'] as const;
@@ -173,16 +172,9 @@ export function compareWorkByRecency(a: WorkJobSummary, b: WorkJobSummary): numb
   return bT.localeCompare(aT);
 }
 
-/** Sidebar list: manual order within active/archived groups; archived always last. */
-export function sortWorkJobsForSidebar(
-  jobs: WorkJobSummary[],
-  orderMap: Map<string, number>,
-): WorkJobSummary[] {
-  const active = jobs.filter((j) => !isWorkArchived(j.status));
-  const archived = jobs.filter((j) => isWorkArchived(j.status));
-  const sortGroup = (group: WorkJobSummary[]) =>
-    sortBySidebarOrder(group, orderMap, (j) => j.slug, compareWorkByRecency);
-  return [...sortGroup(active), ...sortGroup(archived)];
+/** Sidebar list: most recently edited first. */
+export function sortWorkJobsForSidebar(jobs: WorkJobSummary[]): WorkJobSummary[] {
+  return [...jobs].sort(compareWorkByRecency);
 }
 
 function sortWorkSummaries(jobs: WorkJobSummary[]): WorkJobSummary[] {

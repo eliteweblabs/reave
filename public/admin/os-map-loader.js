@@ -8753,22 +8753,6 @@ async function persistChatOrder(ids) {
   }
 }
 
-async function persistWorkOrder(slugs) {
-  try {
-    const res = await fetch('/api/work/reorder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slugs }),
-    });
-    const data = await readApiJson(res);
-    workState.jobs = sortWorkJobsForDisplay(data.jobs || workState.jobs);
-    refreshWorkSidebarList();
-  } catch (e) {
-    osAlert({ title: 'Reorder failed', bodyHtml: escHtml(e.message) });
-    refreshWorkSidebarList();
-  }
-}
-
 async function persistKnowledgeOrder(slugs) {
   try {
     const res = await adminFetch(`${KNOWLEDGE_API}/reorder`, {
@@ -10143,11 +10127,12 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
         contact_name: data.contact_name || payload.contact_name,
         client: data.client,
         status: data.status || payload.status || 'inquiry',
-        updated_at: data.updated_at,
+        updated: data.updated || new Date().toISOString(),
       };
       if (!workState.jobs.some((j) => j.slug === slug)) {
-        workState.jobs.unshift(jobEntry);
+        workState.jobs.push(jobEntry);
       }
+      workState.jobs = sortWorkJobsForDisplay(workState.jobs);
       clearEditorFooterSave();
       refreshWorkSidebarList();
       void linkWorkToReturnTodoIfNeeded(slug);
@@ -10159,6 +10144,19 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
       });
       data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const idx = workState.jobs.findIndex((j) => j.slug === slug);
+      if (idx !== -1) {
+        workState.jobs[idx] = {
+          ...workState.jobs[idx],
+          title: data.title || payload.title,
+          contact_name: data.contact_name || payload.contact_name,
+          client: data.client,
+          status: data.status || payload.status,
+          updated: data.updated || new Date().toISOString(),
+        };
+        workState.jobs = sortWorkJobsForDisplay(workState.jobs);
+        refreshWorkSidebarList();
+      }
     }
     Object.assign(workState.draft, {
       title: payload.title,
@@ -10188,13 +10186,18 @@ function isWorkArchivedStatus(status) {
   return status === 'archived' || status === 'done';
 }
 
+function workJobLastEdited(job) {
+  return job.updated || job.updated_at || job.created || '';
+}
+
+function compareWorkJobsByRecency(a, b) {
+  const bT = workJobLastEdited(b) || b.slug || '';
+  const aT = workJobLastEdited(a) || a.slug || '';
+  return bT.localeCompare(aT);
+}
+
 function sortWorkJobsForDisplay(jobs) {
-  const active = [];
-  const archived = [];
-  for (const job of jobs) {
-    (isWorkArchivedStatus(job.status) ? archived : active).push(job);
-  }
-  return [...active, ...archived];
+  return [...jobs].sort(compareWorkJobsByRecency);
 }
 
 function filterWorkJobs(jobs, query) {
@@ -10638,8 +10641,7 @@ function startNewClient() {
 function fillWorkSidebarList(list) {
   const { search } = workState;
   const filtered = filterWorkJobs(workState.jobs, search);
-  const visibleJobs =
-    workState.statusFilter === 'archived' ? filtered : sortWorkJobsForDisplay(filtered);
+  const visibleJobs = sortWorkJobsForDisplay(filtered);
   list.innerHTML = '';
   for (const job of visibleJobs) {
     list.appendChild(createWorkSwipeRow(job));
@@ -10649,8 +10651,6 @@ function fillWorkSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = search.trim() ? 'No matches.' : 'No projects yet.';
     list.appendChild(empty);
-  } else if (!search.trim()) {
-    attachSidebarListReorder(list, visibleJobs.map((j) => j.slug), persistWorkOrder);
   }
 }
 
@@ -11983,8 +11983,9 @@ async function archiveWork(jobOrSlug) {
         title: data.title || payload.title,
         contact_name: data.contact_name || payload.contact_name,
         client: data.client,
-        updated_at: data.updated_at,
+        updated: data.updated || new Date().toISOString(),
       };
+      workState.jobs = sortWorkJobsForDisplay(workState.jobs);
     }
 
     if (workState.activeSlug === slug) {
@@ -18375,9 +18376,9 @@ function createWorkListItem(job) {
     (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
-    SIDEBAR_LIST_GRIP +
     `<span class="ch-list-content">` +
-    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span></span>` +
+    `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span>` +
+    `<span class="ch-item-date">${escHtml(formatChatDate(workJobLastEdited(job)))}</span></span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact wk-list-client-name">${escHtml(job.contact_name || job.client || '—')}</span>` +
     `<span class="${workStatusClass(job.status)}">${escHtml(workStatusLabel(job.status))}</span>` +

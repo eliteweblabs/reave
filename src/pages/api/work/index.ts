@@ -15,7 +15,6 @@ import {
   sortWorkJobsForSidebar,
 } from '../../../lib/workStore';
 import { parseWorkJobInput } from '../../../lib/workJobInput';
-import { storeGetSidebarOrder } from '../../../lib/sidebarOrderStore';
 
 export const prerender = false;
 
@@ -41,8 +40,7 @@ export async function GET(context: APIContext): Promise<Response> {
       contact_uid: contactUid || undefined,
       status,
     });
-    const orderMap = await storeGetSidebarOrder('work');
-    const sorted = sortWorkJobsForSidebar(jobs, orderMap);
+    const sorted = sortWorkJobsForSidebar(jobs);
 
     return json({
       ok: true,

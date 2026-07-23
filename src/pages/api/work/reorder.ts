@@ -4,7 +4,7 @@
 
 import type { APIContext } from 'astro';
 import { sortWorkJobsForSidebar, storeListWork } from '../../../lib/workStore';
-import { storeGetSidebarOrder, storeReorderSidebarList } from '../../../lib/sidebarOrderStore';
+import { storeReorderSidebarList } from '../../../lib/sidebarOrderStore';
 
 export const prerender = false;
 
@@ -36,8 +36,7 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!result.ok) return json({ ok: false, error: result.error }, 400);
 
   const jobs = await storeListWork();
-  const orderMap = await storeGetSidebarOrder('work');
-  const sorted = sortWorkJobsForSidebar(jobs, orderMap);
+  const sorted = sortWorkJobsForSidebar(jobs);
 
   return json({ ok: true, jobs: sorted });
 }
