@@ -512,11 +512,12 @@ export async function dbAddJobComment(
     const text = input.text.trim();
     if (!text) return { ok: false, error: 'Comment is required' };
 
+    const staffAckAt = input.author === 'staff' ? new Date() : null;
     const { rows } = await pool.query<JobCommentRow>(
       `INSERT INTO job_comments (job_slug, author, author_name, body, staff_ack_at)
-       VALUES ($1, $2, $3, $4, CASE WHEN $2 = 'staff' THEN NOW() ELSE NULL END)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING id, job_slug, author, author_name, body, created_at, staff_ack_at`,
-      [slug, input.author, input.authorName.trim(), text],
+      [slug, input.author, input.authorName.trim(), text, staffAckAt],
     );
     const row = rows[0];
     if (!row) return { ok: false, error: 'Insert failed' };
