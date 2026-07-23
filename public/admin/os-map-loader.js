@@ -5231,12 +5231,15 @@ function renderProfileOnlyPanel(profile) {
           `<div class="prof-field"><label for="profile-email">Email</label>` +
           `<input id="profile-email" name="email" type="email" value="${escHtml(p.email || '')}" disabled autocomplete="email" />` +
           `<span class="prof-hint">Email is managed through your Clerk account.</span></div>` +
-          `<div class="prof-field-row">` +
+            `<div class="prof-field-row">` +
             `<div class="prof-field"><label for="profile-phone">Phone</label>` +
             `<input id="profile-phone" name="phone" type="tel" value="${escHtml(p.phone || '')}" autocomplete="tel" placeholder="+1 (555) 000-0000" /></div>` +
             `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
             `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
           `</div>` +
+          `<div class="prof-field"><label for="profile-address">Address</label>` +
+          `<input id="profile-address" name="address" type="text" value="${escHtml(p.address || '')}" placeholder="123 Main St, Boston, MA 02108" autocomplete="street-address" autocapitalize="words" />` +
+          `<span class="prof-hint prof-hint--block">Included on the public contact card (/contact.vcf) and sales deck download.</span></div>` +
         `</form>` +
       `</div>` +
     `</div>`

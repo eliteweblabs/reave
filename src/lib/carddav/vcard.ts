@@ -49,6 +49,56 @@ export function contactToVCard(contact: ContactRecord, opts?: { includeNotes?: b
   return lines.join('\r\n') + '\r\n';
 }
 
+export type CompanyContactVCardInput = {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  orgName: string;
+  phone: string;
+  email: string;
+  website: string;
+  address: string;
+  photoUrl: string;
+};
+
+/** Public company / owner contact card for /contact.vcf and client portal "Add contact". */
+export function buildCompanyContactVCard(input: CompanyContactVCardInput): string {
+  const first = input.firstName.trim();
+  const last = input.lastName.trim();
+  const fn =
+    input.fullName.trim() ||
+    [first, last].filter(Boolean).join(' ').trim() ||
+    input.orgName.trim() ||
+    'Contact';
+  const org = input.orgName.trim();
+
+  const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+  lines.push(foldLine(`N:${escVCard(last)};${escVCard(first)};;;`));
+  lines.push(foldLine(`FN:${escVCard(fn)}`));
+  if (org) lines.push(foldLine(`ORG:${escVCard(org)}`));
+  if (input.phone.trim()) {
+    lines.push(foldLine(`TEL;TYPE=WORK,VOICE:${escVCard(input.phone.trim())}`));
+  }
+  if (input.email.trim()) {
+    lines.push(foldLine(`EMAIL;TYPE=INTERNET:${escVCard(input.email.trim())}`));
+  }
+  const address = input.address.trim();
+  if (address) {
+    lines.push(foldLine(`LABEL;TYPE=WORK:${escVCard(address)}`));
+    lines.push(foldLine(`ADR;TYPE=WORK:;;${escVCard(address)};;;;`));
+  }
+  if (input.website.trim()) {
+    lines.push(foldLine(`URL:${escVCard(input.website.trim())}`));
+  }
+  const photo = input.photoUrl.trim();
+  if (photo) {
+    lines.push(foldLine(`PHOTO;VALUE=URI:${escVCard(photo)}`));
+  }
+  lines.push('END:VCARD');
+
+  return lines.join('\r\n') + '\r\n';
+}
+
 export type ParsedVCard = {
   uid?: string;
   name?: string;
