@@ -15519,8 +15519,13 @@ function buildReaveShareActions(state, opts = {}) {
   }
 }
 
+function setReaveShareDocPickerExpanded(expanded) {
+  document.getElementById('reave-share-backdrop')?.classList.toggle('reave-share--doc-picker', !!expanded);
+}
+
 function removeDocSharePicker() {
   document.getElementById('reave-share-doc-picker')?.remove();
+  setReaveShareDocPickerExpanded(false);
 }
 
 async function openReaveShareSheet(opts = {}) {
@@ -15619,15 +15624,15 @@ async function openDocumentShareSheet(opts = {}) {
   selectedRow.appendChild(changeBtn);
 
   const searchWrap = document.createElement('div');
-  searchWrap.className = 'wk-client-search-wrap';
+  searchWrap.className = 'reave-share-client-search';
   const searchInput = document.createElement('input');
-  searchInput.className = 'de-input';
+  searchInput.className = 'de-input reave-share-client-search-input';
   searchInput.type = 'search';
   searchInput.placeholder = 'Search clients…';
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
-  dropdown.className = 'wk-client-dropdown';
-  dropdown.style.display = 'none';
+  dropdown.className = 'reave-share-client-list';
+  dropdown.setAttribute('role', 'listbox');
   searchWrap.appendChild(searchInput);
   searchWrap.appendChild(dropdown);
 
@@ -15649,12 +15654,13 @@ async function openDocumentShareSheet(opts = {}) {
     state.recipient = {};
     state.url = undefined;
     selectedRow.style.display = 'none';
-    searchWrap.style.display = 'block';
+    searchWrap.style.display = 'flex';
     if (actionsEl) actionsEl.innerHTML = '';
     setNoteVisible(false);
     setReaveShareStatus('', null);
     searchInput.value = '';
-    dropdown.style.display = 'none';
+    dropdown.style.display = '';
+    setReaveShareDocPickerExpanded(true);
     searchInput.focus();
     scheduleDocClientSearch();
   }
@@ -15671,6 +15677,7 @@ async function openDocumentShareSheet(opts = {}) {
     selectedRow.style.display = 'flex';
     searchWrap.style.display = 'none';
     dropdown.style.display = 'none';
+    setReaveShareDocPickerExpanded(false);
     setNoteVisible(true);
     buildReaveShareActions(state, {
       shareTitle: docTitle,
@@ -15681,19 +15688,18 @@ async function openDocumentShareSheet(opts = {}) {
   function renderDropdown(clients) {
     dropdown.innerHTML = '';
     if (!clients.length) {
-      dropdown.innerHTML = '<div class="de-empty">No clients found</div>';
-      dropdown.style.display = 'block';
+      dropdown.innerHTML = '<div class="de-empty reave-share-client-empty">No clients found</div>';
       return;
     }
     for (const c of clients) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'wk-client-option';
+      btn.className = 'wk-client-option reave-share-client-option';
+      btn.setAttribute('role', 'option');
       btn.innerHTML = `${escHtml(c.name)}<span class="sub">${escHtml(workClientSubline(c))}</span>`;
       btn.addEventListener('click', () => pick(c));
       dropdown.appendChild(btn);
     }
-    dropdown.style.display = 'block';
   }
 
   let docClientSearchTimer = null;
@@ -15703,14 +15709,13 @@ async function openDocumentShareSheet(opts = {}) {
       try {
         const params = new URLSearchParams();
         if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
-        params.set('limit', '20');
+        params.set('limit', '100');
         const res = await fetch(`/api/clients?${params}`, { cache: 'no-store' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         renderDropdown(data.clients || []);
       } catch (e) {
-        dropdown.innerHTML = `<div class="de-empty">${escHtml(e.message)}</div>`;
-        dropdown.style.display = 'block';
+        dropdown.innerHTML = `<div class="de-empty reave-share-client-empty">${escHtml(e.message)}</div>`;
       }
     }, 250);
   }
@@ -15720,6 +15725,7 @@ async function openDocumentShareSheet(opts = {}) {
   searchInput.addEventListener('input', () => scheduleDocClientSearch());
 
   setNoteVisible(false);
+  setReaveShareDocPickerExpanded(true);
 
   window.IosSheet?.open('reave-share-backdrop', {
     onClose: () => {

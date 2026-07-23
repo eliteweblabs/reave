@@ -5249,6 +5249,81 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         flex-direction: column;
         gap: 0.4rem;
       }
+      /* Document share: tall sheet + full-width search + scrollable client list */
+      #reave-share-backdrop.reave-share--doc-picker .ios-sheet {
+        display: flex;
+        flex-direction: column;
+        max-width: 100%;
+      }
+      @media (max-width: 767px) {
+        #reave-share-backdrop.reave-share--doc-picker .ios-sheet {
+          height: 90dvh;
+          max-height: 90dvh;
+        }
+      }
+      @media (min-width: 768px) {
+        #reave-share-backdrop.reave-share--doc-picker .ios-sheet {
+          max-height: min(90dvh, 720px);
+          height: min(90dvh, 720px);
+        }
+      }
+      #reave-share-backdrop.reave-share--doc-picker .reave-share-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+        padding-left: 0;
+        padding-right: 0;
+        padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+      }
+      #reave-share-backdrop.reave-share--doc-picker .reave-share-sub,
+      #reave-share-backdrop.reave-share--doc-picker .reave-share-picked {
+        margin-left: 1rem;
+        margin-right: 1rem;
+      }
+      #reave-share-backdrop.reave-share--doc-picker .reave-share-picker {
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 0;
+      }
+      .reave-share-client-search {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+      .reave-share-client-search-input {
+        width: 100%;
+        box-sizing: border-box;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        border-bottom: 1px solid var(--panel-border);
+        padding: 0.65rem 1rem;
+        background: var(--surface);
+      }
+      .reave-share-client-search-input:focus {
+        outline: none;
+        border-bottom-color: #0a84ff;
+      }
+      .reave-share-client-list {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+      .reave-share-client-option {
+        padding: 0.72rem 1rem;
+        border-bottom: 1px solid var(--panel-border);
+      }
+      .reave-share-client-option:last-child {
+        border-bottom: none;
+      }
+      .reave-share-client-empty {
+        padding: 1.25rem 1rem;
+        text-align: center;
+      }
       .reave-share-picked {
         display: flex;
         align-items: center;
