@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 60" fill="none">
+  <!-- Mountain mark -->
+  <polygon points="20,48 36,20 52,48" fill="#1a1a1a"/>
+  <polygon points="32,48 44,28 56,48" fill="#444"/>
+  <!-- Wordmark -->
+  <text x="66" y="30" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="15" fill="#1a1a1a" letter-spacing="1.5" text-anchor="start">KINGDOM</text>
+  <text x="66" y="47" font-family="'Arial', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="11" fill="#1a1a1a" letter-spacing="3.5" text-anchor="start">TRAILS</text>
+  <!-- Tagline -->
+  <text x="66" y="57" font-family="Arial, sans-serif" font-size="7" fill="#555" letter-spacing="1" text-anchor="start">VERMONT</text>
+</svg>
