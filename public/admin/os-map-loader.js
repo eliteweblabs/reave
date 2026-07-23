@@ -5923,6 +5923,9 @@ async function triggerFooterSave() {
 
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #search-overlay';
+/** Primary scroll roots per panel — nested overflow (e.g. Today list) must not collapse the footer. */
+const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
+  '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
 const footerPanelScrollTops = new WeakMap();
 const FOOTER_SCROLL_DELTA = 4;
 
@@ -5974,6 +5977,8 @@ function onPanelScrollCollapse(ev) {
   if (!panel) return;
   const style = window.getComputedStyle(panel);
   if (style.display === 'none' || style.visibility === 'hidden') return;
+  // Only the panel shell or its primary scroll root should drive footer collapse.
+  if (target !== panel && !target.matches(FOOTER_PANEL_SCROLL_ROOT_SELECTOR)) return;
 
   const scrollTop = target.scrollTop;
   const prevTop = footerPanelScrollTops.get(target);
