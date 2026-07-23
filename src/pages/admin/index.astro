@@ -5550,6 +5550,10 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         overflow-y: auto;
         padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem) 1rem var(--footer-scroll-pad);
       }
+      /* Prevent flex children from shrinking below content (iOS home dashboard). */
+      .home-dashboard-scroll > * {
+        flex-shrink: 0;
+      }
       .home-dashboard-title {
         margin: 0 0 0.25rem;
         font-size: 1.35rem;
@@ -5846,6 +5850,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .dash-panel {
         margin-bottom: 1.35rem;
         min-width: 0;
+        flex-shrink: 0;
+        min-height: min-content;
         overflow: hidden;
         padding: 0.85rem 0.9rem;
         border-radius: 14px;
@@ -5854,6 +5860,14 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       }
       .dash-panel-body {
         min-width: 0;
+      }
+      .dash-panel-inbox .dash-panel-body {
+        min-height: 2.25rem;
+      }
+      .dash-panel-inbox--empty .dash-panel-body {
+        display: flex;
+        align-items: center;
+        min-height: 2.75rem;
       }
       .dash-panel-today {
         display: flex;

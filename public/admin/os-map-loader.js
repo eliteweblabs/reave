@@ -3451,19 +3451,22 @@ function renderHomeDashboard(data) {
     }
   }
 
+  const inboxRecent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
   const inboxPanel = document.createElement('section');
-  inboxPanel.className = 'dash-panel';
+  inboxPanel.className =
+    'dash-panel dash-panel-inbox' + (inboxRecent.length ? '' : ' dash-panel-inbox--empty');
   inboxPanel.innerHTML = `<div class="dash-panel-head"><h2 class="dash-panel-title">Recent inbox</h2></div>`;
-  const recent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
-  if (!recent.length) {
+  const inboxBody = document.createElement('div');
+  inboxBody.className = 'dash-panel-body';
+  if (!inboxRecent.length) {
     const empty = document.createElement('p');
     empty.className = 'dash-empty';
     empty.textContent = 'No emails yet.';
-    inboxPanel.appendChild(empty);
+    inboxBody.appendChild(empty);
   } else {
     const list = document.createElement('ul');
     list.className = 'dash-inbox-list';
-    for (const mail of recent) {
+    for (const mail of inboxRecent) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'dash-inbox-item';
@@ -3475,8 +3478,9 @@ function renderHomeDashboard(data) {
       li.appendChild(btn);
       list.appendChild(li);
     }
-    inboxPanel.appendChild(list);
+    inboxBody.appendChild(list);
   }
+  inboxPanel.appendChild(inboxBody);
   scroll.appendChild(inboxPanel);
 
   const grid = document.createElement('div');
