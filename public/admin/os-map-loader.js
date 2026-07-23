@@ -10947,7 +10947,6 @@ function renderNewWorkForm(pane) {
       label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
       onClick: async () => {
         await flushWorkAutosave();
-        if (workState.dirty && !(await confirmDiscardChanges())) return;
         if (returnTodoId) {
           workState.returnToTodoId = null;
           workState.activeSlug = null;
@@ -11249,7 +11248,6 @@ function renderEditWorkForm(pane) {
           label: returnEmailId ? 'Back to email' : returnTodoId ? 'Back to to‑do' : 'Back to projects',
           onClick: async () => {
             await flushWorkAutosave();
-            if (workState.dirty && !(await confirmDiscardChanges())) return;
             if (returnEmailId) {
               workState.returnToEmailId = null;
               workState.activeSlug = null;
@@ -11393,7 +11391,6 @@ function renderEditWorkForm(pane) {
 
 async function openWork(slug) {
   await flushWorkAutosave();
-  if (workState.dirty && workState.activeSlug && !(await confirmDiscardChanges())) return;
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
   workState.activeSlug = slug;
