@@ -2,6 +2,7 @@
 import MarketingLayout from "../layouts/MarketingLayout.astro";
 import ConversationalForm from "../components/ConversationalForm.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { Contact, Mail, Phone } from "lucide-astro";
 
 const company = await getCompanyConfig(Astro.request);
 const supportMail =
@@ -18,40 +19,52 @@ const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
   <div class="contact-top">
     {
       supportMail ? (
-        <a class="contact-card" href={`mailto:${supportMail}`}>
-          <span class="contact-card-label">Email</span>
-          <span class="contact-card-value">{supportMail}</span>
+        <a
+          class="contact-icon"
+          href={`mailto:${supportMail}`}
+          aria-label={`Email ${supportMail}`}
+          title={supportMail}
+        >
+          <Mail size={22} strokeWidth={1.75} />
         </a>
       ) : (
-        <div class="contact-card contact-card--static">
-          <span class="contact-card-label">Email</span>
-          <span class="contact-card-value contact-card-value--muted">—</span>
-        </div>
+        <span class="contact-icon contact-icon--muted" aria-hidden="true">
+          <Mail size={22} strokeWidth={1.75} />
+        </span>
       )
     }
     {
-      company.supportPhone ? (
-        phoneHref ? (
-          <a class="contact-card" href={phoneHref}>
-            <span class="contact-card-label">Phone</span>
-            <span class="contact-card-value">{company.supportPhone}</span>
-          </a>
-        ) : (
-          <div class="contact-card contact-card--static">
-            <span class="contact-card-label">Phone</span>
-            <span class="contact-card-value">{company.supportPhone}</span>
-          </div>
-        )
+      company.supportPhone && phoneHref ? (
+        <a
+          class="contact-icon"
+          href={phoneHref}
+          aria-label={`Phone ${company.supportPhone}`}
+          title={company.supportPhone}
+        >
+          <Phone size={22} strokeWidth={1.75} />
+        </a>
+      ) : company.supportPhone ? (
+        <span
+          class="contact-icon contact-icon--muted"
+          aria-label={`Phone ${company.supportPhone}`}
+          title={company.supportPhone}
+        >
+          <Phone size={22} strokeWidth={1.75} />
+        </span>
       ) : (
-        <div class="contact-card contact-card--static">
-          <span class="contact-card-label">Phone</span>
-          <span class="contact-card-value contact-card-value--muted">—</span>
-        </div>
+        <span class="contact-icon contact-icon--muted" aria-hidden="true">
+          <Phone size={22} strokeWidth={1.75} />
+        </span>
       )
     }
-    <a class="contact-card" href={vcardHref} download>
-      <span class="contact-card-label">vCard</span>
-      <span class="contact-card-value">{vcardLabel}</span>
+    <a
+      class="contact-icon"
+      href={vcardHref}
+      download
+      aria-label={vcardLabel}
+      title={vcardLabel}
+    >
+      <Contact size={22} strokeWidth={1.75} />
     </a>
   </div>
 
@@ -60,73 +73,38 @@ const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
 
 <style>
   .contact-top {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 28px;
     margin-bottom: 16px;
   }
 
-  .contact-card {
+  .contact-icon {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 14px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.03);
-    text-decoration: none;
-    min-width: 0;
-    transition:
-      border-color 0.2s,
-      background 0.2s;
-  }
-
-  a.contact-card:hover {
-    border-color: rgba(168, 85, 247, 0.45);
-    background: rgba(168, 85, 247, 0.08);
-  }
-
-  .contact-card--static {
-    cursor: default;
-  }
-
-  .contact-card-label {
-    font-family: var(--font-display);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.45);
-  }
-
-  .contact-card-value {
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 1.35;
-    font-weight: 500;
+    align-items: center;
+    justify-content: center;
     color: #a855f7;
-    word-break: break-word;
+    text-decoration: none;
+    transition:
+      color 0.2s,
+      transform 0.2s;
   }
 
-  .contact-card--static .contact-card-value {
-    color: rgba(255, 255, 255, 0.85);
+  a.contact-icon:hover {
+    color: #ec4899;
+    transform: scale(1.08);
   }
 
-  .contact-card-value--muted {
-    color: rgba(255, 255, 255, 0.35);
+  .contact-icon--muted {
+    color: rgba(255, 255, 255, 0.25);
+    cursor: default;
   }
 
   @media (max-width: 640px) {
     .contact-top {
-      gap: 8px;
-    }
-
-    .contact-card {
-      padding: 12px 10px;
-    }
-
-    .contact-card-value {
-      font-size: 12px;
+      gap: 24px;
+      margin-bottom: 12px;
     }
   }
 </style>
