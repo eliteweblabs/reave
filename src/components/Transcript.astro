@@ -10,7 +10,10 @@
 <style>
   .transcript-container {
     position: fixed;
-    top: 60%; /* Position under the logo (logo is centered) */
+    /* Sit just above the footer nav pill; lines stack upward from there. */
+    bottom: calc(
+      var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom, 0px) + 0.35rem
+    );
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
@@ -31,7 +34,6 @@
   /* Responsive */
   @media (max-width: 768px) {
     .transcript-container {
-      top: 65%; /* Adjust for mobile */
       width: 95%;
     }
   }
