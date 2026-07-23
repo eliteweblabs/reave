@@ -14454,7 +14454,7 @@ const CLIENT_LIST_AVATAR_PLACEHOLDER =
 
 function clientListAvatarHtml(c) {
   const url =
-    clientBrandingPreviewUrl(c.logoUrl) || clientBrandingPreviewUrl(c.iconUrl);
+    clientBrandingPreviewUrl(c.iconUrl) || clientBrandingPreviewUrl(c.logoUrl);
   if (url) {
     return (
       `<span class="cl-list-avatar">` +
@@ -15239,6 +15239,10 @@ function renderEditClientForm(pane) {
       };
       clientState.dirty = false;
       clientState.autosaveGetPayload = null;
+      syncClientListAvatar(uid, {
+        logoUrl: clientState.draft.logoUrl,
+        iconUrl: clientState.draft.iconUrl,
+      });
       pane.innerHTML = '';
 
       const titleWrap = document.createElement('div');

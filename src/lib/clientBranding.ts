@@ -20,7 +20,7 @@ export function clientIconServePath(uid: string): string {
 
 export function resolveClientLogoUrl(portal: ClientPortal | null | undefined, uid: string): string {
   if (!portal) return '';
-  if (portal.logoSource === 'upload' && portal.logoData && portal.logoMediaType) {
+  if (portal.logoSource === 'upload') {
     const v = portal.updatedAt ? `?v=${encodeURIComponent(portal.updatedAt)}` : '';
     return `${clientLogoServePath(uid)}${v}`;
   }
@@ -29,7 +29,7 @@ export function resolveClientLogoUrl(portal: ClientPortal | null | undefined, ui
 
 export function resolveClientIconUrl(portal: ClientPortal | null | undefined, uid: string): string {
   if (!portal) return '';
-  if (portal.iconSource === 'upload' && portal.iconData && portal.iconMediaType) {
+  if (portal.iconSource === 'upload') {
     const v = portal.updatedAt ? `?v=${encodeURIComponent(portal.updatedAt)}` : '';
     return `${clientIconServePath(uid)}${v}`;
   }
