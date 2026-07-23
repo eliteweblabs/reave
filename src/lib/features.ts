@@ -23,6 +23,7 @@ export const FEATURE_IDS = [
   'code_dev',
   'email_marketing',
   'fleet_tracking',
+  'dealership_wizard',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -92,6 +93,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   code_dev: 'Local code tools (read/write/list/exec) — Reave install only',
   email_marketing: 'Newsletter & email automation (welcome, follow-ups, review requests, broadcasts)',
   fleet_tracking: 'Fleet tracking (multi-vehicle GPS via fleet-api)',
+  dealership_wizard: 'Dealership inventory & deal wizard (paulino-wizard)',
 };
 
 export const CORE_FEATURE_NOTE =

@@ -20,6 +20,7 @@ import { siteMonitoringPlugin } from '../../plugins/site-monitoring/manifest';
 import { uptimeMonitoringPlugin } from '../../plugins/uptime-monitoring/manifest';
 import { vapiPlugin } from '../../plugins/vapi/manifest';
 import { fleetPlugin } from '../../plugins/fleet/manifest';
+import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -34,6 +35,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   uptimeMonitoringPlugin,
   vapiPlugin,
   fleetPlugin,
+  paulinoWizardPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -85,6 +87,7 @@ export function isDefaultKnowledgeSlug(slug: string): boolean {
 export const CORE_DEFAULT_SLUGS: ReadonlySet<string> = new Set([
   'contact-api-reference',
   'materials-api-reference',
+  'paulino-wizard-reference',
   'contact-import',
   'email-rules',
   'siri-examples',
@@ -115,6 +118,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['uptime-monitoring'];
     case 'fleet':
       return ['fleet-tracking'];
+    case 'paulino-wizard':
+      return ['paulino-wizard'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

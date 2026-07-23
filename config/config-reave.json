@@ -14,7 +14,8 @@
     "dev_infra",
     "code_dev",
     "email_marketing",
-    "fleet_tracking"
+    "fleet_tracking",
+    "dealership_wizard"
   ],
   "footerNav": [
     "__system__",

@@ -6,6 +6,7 @@ import { isChangeDetectionConfigured } from '../../lib/changedetectionClient';
 import { isUptimeRobotConfigured } from '../../lib/uptimerobotClient';
 import { isPlausibleConfigured } from '../../lib/plausibleClient';
 import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/bookingClient';
+import { paulinoWizardPing } from '../../lib/paulinoWizardClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
 
@@ -111,11 +112,12 @@ export const GET: APIRoute = async () => {
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
   const materialsBase = trimBase(serverEnv('MATERIALS_API_BASE_URL'));
   const fleetBase = trimBase(serverEnv('FLEET_API_BASE_URL'));
+  const paulinoWizardBase = trimBase(serverEnv('PAULINO_WIZARD_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, materialsProbe, fleetProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
+  const [contactProbe, materialsProbe, fleetProbe, paulinoWizardProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
     contactBase ? reach(contactBase, healthUserAgent) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
     materialsBase ? reach(`${materialsBase}/health`, healthUserAgent) : Promise.resolve(unconfigured('MATERIALS_API_BASE_URL not set')),
@@ -124,6 +126,15 @@ export const GET: APIRoute = async () => {
         ? reach(`${fleetBase}/health`, healthUserAgent)
         : Promise.resolve(unconfigured('FLEET_API_BASE_URL not set'))
       : Promise.resolve(unconfigured('fleet_tracking not in FEATURES')),
+    hasFeature('dealership_wizard')
+      ? paulinoWizardBase
+        ? paulinoWizardPing().then((r) =>
+            r.ok
+              ? { status: 'up' as Status, mode: 'live' as Mode, detail: 'inventory API reachable' }
+              : { status: 'down' as Status, mode: 'live' as Mode, detail: r.error },
+          )
+        : Promise.resolve(unconfigured('PAULINO_WIZARD_API_BASE_URL not set'))
+      : Promise.resolve(unconfigured('dealership_wizard not in FEATURES')),
     craterBase ? reach(craterBase, healthUserAgent) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
     ghToken ? githubProbe(ghToken, healthUserAgent) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
     isChangeDetectionConfigured()
@@ -169,6 +180,7 @@ export const GET: APIRoute = async () => {
     contact_pg: contactPg,
     materials_api: materialsProbe,
     fleet_api: fleetProbe,
+    paulino_wizard: paulinoWizardProbe,
     crater: craterProbe,
     anthropic: serverEnv('ANTHROPIC_API_KEY')
       ? configured(anthropicDetail ?? 'ANTHROPIC_API_KEY set')
