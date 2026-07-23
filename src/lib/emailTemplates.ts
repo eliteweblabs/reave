@@ -17,6 +17,20 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** Kidney-bean SVG paths — same as FootBostonTag.astro (O's in "Boston"). */
+const BEAN_BODY =
+  'M5.8 1.1c2.9-.1 4.6 2.2 4.5 5.3-.1 3.1-2 5.9-4.4 6.3-1.4.3-2.6-.4-3-1.6-.35-.95-.15-2.05.55-2.35.65-.25 1.15.75.95 2.05-.35 2.2-2.25 1.35-2.75-1.05C1.15 7.35 1.55 3.95 3.25 2.25 4.15 1.35 5 1.1 5.8 1.1Z';
+const BEAN_CREASE = 'M3.45 3.35q.55 3.65.95 7.35';
+
+function emailBeanSvg(rotateDeg: number): string {
+  return `<span style="display:inline-block;width:10px;height:10px;margin:0 1px;vertical-align:middle;line-height:0;overflow:visible" aria-hidden="true"><svg viewBox="0 0 11 14" width="10" height="13" style="display:block" focusable="false" aria-hidden="true"><g transform="rotate(${rotateDeg} 5.5 7)"><path d="${BEAN_BODY}" fill="currentColor"></path><path d="${BEAN_CREASE}" fill="none" stroke="currentColor" stroke-width=".7" stroke-linecap="round" opacity=".4"></path></g></svg></span>`;
+}
+
+/** "Baked in Boston" footer tag with bean O's — matches FootBostonTag.astro. */
+function emailBostonTagHtml(): string {
+  return `<span class="email-boston-tag" style="letter-spacing:0.02em;display:inline-block;line-height:1;color:#aaa" aria-label="Baked in Boston">Baked in B${emailBeanSvg(28)}st${emailBeanSvg(-28)}n</span>`;
+}
+
 export type EmailCta = { label: string; url: string };
 /** Label, display value, optional link (e.g. calendar download or maps directions). */
 export type EmailMetaRow = [string, string, string?];
@@ -122,7 +136,8 @@ export async function brandedEmailHtml(opts: {
       .email-meta-label           { color: #8e8e93 !important; }
       .email-meta-table           { border-top-color: #38383a !important; }
       .email-note                 { color: #636366 !important; }
-      .email-footer-text          { color: #636366 !important; }
+      .email-footer-text,
+      .email-boston-tag           { color: #636366 !important; }
       /* CTA button and link keep the purple — stays readable in both modes */
     }
   </style>
@@ -180,6 +195,9 @@ export async function brandedEmailHtml(opts: {
           <!-- ── Footer ────────────────────────────────────────────── -->
           <tr>
             <td style="padding:20px 32px;text-align:center">
+              <p class="email-footer-text" style="margin:0 0 8px;color:#aaa;font-size:12px;line-height:1.5">
+                ${emailBostonTagHtml()}
+              </p>
               <p class="email-footer-text" style="margin:0;color:#aaa;font-size:12px;line-height:1.5">
                 Sent by <a href="${esc(homeUrl)}" style="color:#a855f7;text-decoration:none">${esc(brandName)}</a>
               </p>
