@@ -140,6 +140,14 @@ const { title, description, label = "Explore", active, backgroundImage } = Astro
     margin-bottom: 32px;
   }
 
+  .marketing-body :global(section.section--full-bleed) {
+    width: 100vw;
+    max-width: none;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    margin-bottom: 40px;
+  }
+
   .marketing-body :global(h2) {
     font-size: 18px;
     font-weight: 600;
