@@ -1,0 +1,80 @@
+---
+// Desaturated "worked with" logo wall.
+// Assets live in /public/logos/clients — see that folder for sourcing notes.
+interface ClientLogo {
+  name: string;
+  src: string;
+}
+
+const logos: ClientLogo[] = [
+  { name: "Red Bull", src: "/logos/clients/redbull.svg" },
+  { name: "Porsche", src: "/logos/clients/porsche.svg" },
+  { name: "Acura", src: "/logos/clients/acura.svg" },
+  { name: "The New York Times", src: "/logos/clients/newyorktimes.svg" },
+  { name: "Chase Bank", src: "/logos/clients/chase.svg" },
+  { name: "Bombay Sapphire", src: "/logos/clients/bombay-sapphire.png" },
+  { name: "Johnnie Walker", src: "/logos/clients/johnnie-walker.svg" },
+  { name: "Worcester Polytechnic Institute", src: "/logos/clients/wpi.svg" },
+  { name: "Live Nation", src: "/logos/clients/live-nation.svg" },
+];
+---
+
+<div class="client-logos">
+  {
+    logos.map((logo) => (
+      <div class="client-logo-tile" title={logo.name}>
+        <img src={logo.src} alt={logo.name} loading="lazy" decoding="async" />
+      </div>
+    ))
+  }
+</div>
+
+<style>
+  .client-logos {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .client-logo-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 9;
+    padding: 18px 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+    transition:
+      background 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .client-logo-tile:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .client-logo-tile img {
+    max-width: 100%;
+    max-height: 34px;
+    width: auto;
+    height: auto;
+    /* Fully desaturate, then flip dark wordmarks light so every logo —
+       regardless of its source colors — reads as a neutral gray/white
+       mark against the dark background. */
+    filter: grayscale(100%) invert(100%);
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+  }
+
+  .client-logo-tile:hover img {
+    opacity: 0.9;
+  }
+
+  @media (max-width: 560px) {
+    .client-logos {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

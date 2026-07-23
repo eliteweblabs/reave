@@ -1,5 +1,6 @@
 ---
 import MarketingLayout from "../layouts/MarketingLayout.astro";
+import ClientLogos from "../components/ClientLogos.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -32,6 +33,11 @@ const company = await getCompanyConfig(Astro.request);
       operations and providing tools to automate tasks. If you have a small to medium size business,
       a startup idea, or a critical problem — don't hesitate to reach out.
     </p>
+  </section>
+
+  <section>
+    <h2>Companies I've Worked With</h2>
+    <ClientLogos />
   </section>
 
   <section>
