@@ -59,11 +59,11 @@ const { title, description, label = "Explore", active, backgroundImage } = Astro
 
   .marketing-bg-photo {
     position: absolute;
-    top: 0;
+    top: -200px;
     left: 0;
     width: 100%;
     height: auto;
-    min-height: 100vh;
+    min-height: calc(100vh + 200px);
     object-fit: cover;
     object-position: top center;
     filter: grayscale(100%) contrast(1.08) brightness(0.82);
