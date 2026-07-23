@@ -109,13 +109,15 @@ export const GET: APIRoute = async () => {
   const safeBrand = headerSafe(brand.name).toLowerCase().replace(/\s+/g, '-') || 'app';
   const healthUserAgent = `${safeBrand}-health-probe/1.0`;
   const contactBase = trimBase(serverEnv('CONTACT_API_BASE_URL'));
+  const materialsBase = trimBase(serverEnv('MATERIALS_API_BASE_URL'));
   const craterBase = trimBase(serverEnv('CRATER_API_BASE_URL'));
   const ghToken = (serverEnv('GITHUB_TOKEN') || serverEnv('GH_TOKEN'))?.trim();
 
   // Run the network probes concurrently.
-  const [contactProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
+  const [contactProbe, materialsProbe, craterProbe, ghProbe, cdProbe, bookingProbe, calWebProbe] =
     await Promise.all([
     contactBase ? reach(contactBase, healthUserAgent) : Promise.resolve(unconfigured('CONTACT_API_BASE_URL not set')),
+    materialsBase ? reach(`${materialsBase}/health`, healthUserAgent) : Promise.resolve(unconfigured('MATERIALS_API_BASE_URL not set')),
     craterBase ? reach(craterBase, healthUserAgent) : Promise.resolve(unconfigured('CRATER_API_BASE_URL not set')),
     ghToken ? githubProbe(ghToken, healthUserAgent) : Promise.resolve(unconfigured('GITHUB_TOKEN not set')),
     isChangeDetectionConfigured()
@@ -159,6 +161,7 @@ export const GET: APIRoute = async () => {
       : unconfigured('DATABASE_URL not set'),
     contact_api: contactProbe,
     contact_pg: contactPg,
+    materials_api: materialsProbe,
     crater: craterProbe,
     anthropic: serverEnv('ANTHROPIC_API_KEY')
       ? configured(anthropicDetail ?? 'ANTHROPIC_API_KEY set')
