@@ -1,5 +1,6 @@
 ---
 import Layout from "./Layout.astro";
+import ScrollThemeColor from "../components/ScrollThemeColor.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
 
 type SiteNavId = "home" | "about" | "services" | "portfolio" | "contact";
@@ -11,12 +12,31 @@ interface Props {
   active?: SiteNavId;
   /** Full-width fixed hero background (about page, etc.). */
   backgroundImage?: string;
+  /** Status-bar tint at scroll top (photo pages). */
+  themeColorPrimary?: string;
+  /** Status-bar tint at scroll bottom. */
+  themeColorSecondary?: string;
 }
 
-const { title, description, label = "Explore", active, backgroundImage } = Astro.props;
+const {
+  title,
+  description,
+  label = "Explore",
+  active,
+  backgroundImage,
+  themeColorPrimary = "#2a2826",
+  themeColorSecondary = "#050505",
+} = Astro.props;
 ---
 
-<Layout title={title} description={description}>
+<Layout
+  title={title}
+  description={description}
+  themeColor={backgroundImage ? themeColorPrimary : undefined}
+>
+  {backgroundImage ? (
+    <ScrollThemeColor primary={themeColorPrimary} secondary={themeColorSecondary} />
+  ) : null}
   {
     backgroundImage ? (
       <div class="marketing-bg" aria-hidden="true">
@@ -51,7 +71,11 @@ const { title, description, label = "Explore", active, backgroundImage } = Astro
 <style>
   .marketing-bg {
     position: fixed;
-    inset: 0;
+    top: calc(-1 * env(safe-area-inset-top, 0px));
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: calc(100% + env(safe-area-inset-top, 0px));
     z-index: 0;
     pointer-events: none;
     overflow: hidden;

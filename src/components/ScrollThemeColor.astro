@@ -1,0 +1,13 @@
+---
+interface Props {
+  primary: string;
+  secondary: string;
+}
+
+const { primary, secondary } = Astro.props;
+---
+
+<script define:vars={{ primary, secondary }}>
+  import { attachScrollThemeColor } from "../lib/scrollThemeColor";
+  attachScrollThemeColor({ primary, secondary });
+</script>
