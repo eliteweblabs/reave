@@ -10574,8 +10574,24 @@ async function saveClientVaultData(uid, data) {
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
-  if (clientState.draft) clientState.draft.data = body.data || data;
-  return body.data || data;
+  const saved = body.data || data;
+  if (clientState.draft) clientState.draft.data = saved;
+  return saved;
+}
+
+async function flushClientVaultSave() {
+  if (clientVaultSaveTimer) {
+    clearTimeout(clientVaultSaveTimer);
+    clientVaultSaveTimer = null;
+  }
+  const uid = clientState.activeUid;
+  const getData = clientState.vaultGetData;
+  if (!uid || uid === '__new__' || typeof getData !== 'function') return;
+  try {
+    await saveClientVaultData(uid, getData());
+  } catch (e) {
+    console.warn('[clients] vault flush failed', e);
+  }
 }
 
 function scheduleClientVaultSave(uid, getData) {
@@ -10655,13 +10671,14 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       if (password) next.password = password;
       if (url) next.url = url;
       return next;
-    }).filter((entry) => entry.label && (entry.value || entry.username || entry.password || entry.url));
+    }).filter((entry) => entry.label);
   }
 
   function queueSave() {
-    rows = readRowsFromDom();
-    scheduleClientVaultSave(uid, () => rows);
+    scheduleClientVaultSave(uid, readRowsFromDom);
   }
+
+  clientState.vaultGetData = readRowsFromDom;
 
   function appendVaultField(card, label, field, value, opts = {}) {
     const row = document.createElement('div');
@@ -10738,13 +10755,9 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', async () => {
         rows.splice(index, 1);
-        const payload = rows.filter(
-          (entry) => entry.label && (entry.value || entry.username || entry.password || entry.url),
-        );
-        rows = payload;
         renderVaultList();
         try {
-          await saveClientVaultData(uid, payload);
+          await saveClientVaultData(uid, readRowsFromDom());
         } catch (e) {
           showChatToast(e.message || 'Vault save failed');
         }
@@ -15194,6 +15207,7 @@ function renderNewClientForm(pane) {
 function renderEditClientForm(pane) {
   clearClientFieldRegistry();
   const uid = clientState.activeUid;
+  clientState.vaultGetData = null;
   pane.innerHTML = '<div class="de-loading">Loading…</div>';
 
   fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' })
@@ -15536,10 +15550,7 @@ function scheduleClientAutosave(uid, getPayload) {
 }
 
 async function flushClientAutosave() {
-  if (clientVaultSaveTimer) {
-    clearTimeout(clientVaultSaveTimer);
-    clientVaultSaveTimer = null;
-  }
+  await flushClientVaultSave();
   if (clientAutosaveTimer) {
     clearTimeout(clientAutosaveTimer);
     clientAutosaveTimer = null;

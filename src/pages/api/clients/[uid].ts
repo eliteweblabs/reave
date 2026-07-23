@@ -53,7 +53,7 @@ function parseClientPortalData(raw: unknown): ClientDataEntry[] | null {
       if (url) entry.url = url;
       return entry;
     })
-    .filter((e) => e.label && (e.value || e.username || e.password || e.url));
+    .filter((e) => e.label);
 }
 
 async function saveClientPortalData(
