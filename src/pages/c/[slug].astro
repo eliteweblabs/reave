@@ -282,6 +282,7 @@ const initialTab = (() => {
   const raw = Astro.url.searchParams.get('tab')?.trim().toLowerCase();
   const normalized = raw === 'data' ? 'vault' : raw === 'payments' ? 'billing' : raw;
   if (normalized && tabs.some((t) => t.id === normalized)) return normalized;
+  if (hasWork) return 'work';
   return tabs[0]?.id ?? 'overview';
 })();
 
