@@ -401,9 +401,14 @@ export function attachQuantumCoreOpticalEngine(
   const stackEl = host.parentElement as HTMLElement | null;
   const isCompactStack =
     stackEl?.classList.contains("quantum-logo-stack--compact") ?? false;
+  /** Scrollable homepage hero — parallax from scroll, not pointer drag. */
+  const useScrollParallax =
+    stackEl?.classList.contains("quantum-logo-stack--in-section") ?? false;
 
+  let presentationGalaxy: boolean | null = null;
   function setPresentationMode(galaxy: boolean): void {
-    if (!stackEl || isCompactStack) return;
+    if (!stackEl || isCompactStack || presentationGalaxy === galaxy) return;
+    presentationGalaxy = galaxy;
     stackEl.classList.toggle("quantum-logo-stack--galaxy", galaxy);
     stackEl.classList.toggle("quantum-logo-stack--logo", !galaxy);
   }
@@ -417,6 +422,14 @@ export function attachQuantumCoreOpticalEngine(
 
   function getViewportSize(): { w: number; h: number } {
     const rect = host.getBoundingClientRect();
+    /* Host rect only on the scrollable homepage — visualViewport shrinks/grows with
+       the mobile URL bar during scroll and retriggers WebGL buffer reallocations. */
+    if (useScrollParallax) {
+      return {
+        w: Math.max(1, Math.round(rect.width)),
+        h: Math.max(1, Math.round(rect.height)),
+      };
+    }
     const vv = window.visualViewport;
     const w = Math.max(
       1,
@@ -764,10 +777,6 @@ export function attachQuantumCoreOpticalEngine(
     tiltTargetY = 0;
   }
 
-  /** Scrollable homepage hero — parallax from scroll, not pointer drag. */
-  const useScrollParallax =
-    stackEl?.classList.contains("quantum-logo-stack--in-section") ?? false;
-
   function setParallaxFromScroll() {
     const heroEl = stackEl?.closest("section") ?? host.closest("section");
     if (!heroEl) {
@@ -813,7 +822,21 @@ export function attachQuantumCoreOpticalEngine(
   };
 
   let scrollRaf = 0;
+  let scrollActive = false;
+  let scrollIdleTimer = 0;
+  const markScrollActive = () => {
+    scrollActive = true;
+    window.clearTimeout(scrollIdleTimer);
+    scrollIdleTimer = window.setTimeout(() => {
+      scrollActive = false;
+      scrollIdleTimer = 0;
+      pendingResize = true;
+      onResize();
+    }, 180);
+  };
+
   const onScroll = () => {
+    markScrollActive();
     if (scrollRaf) return;
     scrollRaf = requestAnimationFrame(() => {
       scrollRaf = 0;
@@ -954,11 +977,9 @@ export function attachQuantumCoreOpticalEngine(
     );
 
     if (inGalaxyView) {
-      resetCameraViewportAspect();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0018 : 0.0026;
       setPresentationMode(true);
     } else {
-      resetCameraViewportAspect();
       (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0035 : 0.0055;
       if (useGalaxyIntro) setPresentationMode(false);
     }
@@ -1173,8 +1194,23 @@ export function attachQuantumCoreOpticalEngine(
   }
 
   let resizeRaf = 0;
+  let pendingResize = false;
+  let lastBufferW = 0;
+  let lastBufferH = 0;
+  const RESIZE_DELTA_PX = 12;
+
   const applyResize = () => {
+    pendingResize = false;
     const { w, h } = getViewportSize();
+    if (
+      lastBufferW > 0 &&
+      Math.abs(w - lastBufferW) < RESIZE_DELTA_PX &&
+      Math.abs(h - lastBufferH) < RESIZE_DELTA_PX
+    ) {
+      return;
+    }
+    lastBufferW = w;
+    lastBufferH = h;
     renderer.setSize(w, h);
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
@@ -1183,6 +1219,10 @@ export function attachQuantumCoreOpticalEngine(
   };
 
   const onResize = () => {
+    if (useScrollParallax && scrollActive) {
+      pendingResize = true;
+      return;
+    }
     cancelAnimationFrame(resizeRaf);
     resizeRaf = requestAnimationFrame(() => {
       resizeRaf = 0;
@@ -1190,7 +1230,9 @@ export function attachQuantumCoreOpticalEngine(
     });
   };
   window.addEventListener("resize", onResize);
-  window.visualViewport?.addEventListener("resize", onResize);
+  if (!useScrollParallax) {
+    window.visualViewport?.addEventListener("resize", onResize);
+  }
 
   applyResize();
   raf = requestAnimationFrame(animate);
@@ -1209,6 +1251,7 @@ export function attachQuantumCoreOpticalEngine(
     window.removeEventListener("vapi-call-end", onCallEnd);
     window.removeEventListener("vapi-transcript", onTranscript);
     cancelAnimationFrame(scrollRaf);
+    window.clearTimeout(scrollIdleTimer);
     if (useScrollParallax) {
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("scroll", onScroll);

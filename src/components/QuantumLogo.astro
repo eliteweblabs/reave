@@ -78,6 +78,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: none;
     touch-action: auto;
     cursor: default;
+    isolation: isolate;
   }
 
   /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */
@@ -108,6 +109,11 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
   }
 
+  /* Scrollable homepage: CSS filter on the WebGL stack repaints every frame during scroll. */
+  .quantum-logo-stack--in-section.quantum-logo-stack--logo {
+    filter: none;
+  }
+
   .quantum-host {
     position: absolute;
     inset: 0;
@@ -130,6 +136,8 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     height: 100% !important;
     max-width: none;
     min-height: 100%;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 </style>
 
@@ -205,15 +213,21 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 
     // Pause the WebGL loop while the hero is offscreen (scrollable homepage).
     if (stack.dataset.pauseOffscreen === "true" && "IntersectionObserver" in window) {
+      let paused = false;
       visibilityObs = new IntersectionObserver(
         (entries) => {
-          const visible = entries.some((entry) => entry.isIntersecting);
-          host.dataset.quantumPaused = visible ? "false" : "true";
-          if (visible) {
+          const ratio = Math.max(...entries.map((entry) => entry.intersectionRatio));
+          /* Hysteresis: avoid RAF stop/start flicker when the hero edge crosses ~5%. */
+          if (!paused && ratio <= 0) {
+            paused = true;
+            host.dataset.quantumPaused = "true";
+          } else if (paused && ratio >= 0.08) {
+            paused = false;
+            host.dataset.quantumPaused = "false";
             host.dispatchEvent(new CustomEvent("quantum-resume"));
           }
         },
-        { root: null, threshold: 0.05 },
+        { root: null, threshold: [0, 0.08, 0.15] },
       );
       visibilityObs.observe(stack);
     }
