@@ -279,6 +279,12 @@ const count = testimonials.length;
         rafId = 0;
         applyFrame();
       });
+
+      window.clearTimeout(scrollIdleTimer);
+      scrollIdleTimer = window.setTimeout(() => {
+        scrollVelocity = 0;
+        applyFrame();
+      }, 140);
     }
 
     function scrollToIndex(index: number, behavior: ScrollBehavior = "smooth") {
@@ -327,6 +333,7 @@ const count = testimonials.length;
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
+      window.clearTimeout(scrollIdleTimer);
       if (rafId) window.cancelAnimationFrame(rafId);
     };
   }
