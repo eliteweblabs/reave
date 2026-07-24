@@ -16,8 +16,6 @@ export interface PortalWorkJobItem {
   dateLabel: string;
   /** Shareable portal URL for this project. */
   portalUrl: string;
-  /** Data URL for the project QR code image. */
-  qrDataUrl: string;
 }
 
 export interface PortalWorkFileItem {
@@ -125,20 +123,6 @@ const filesEndpointBase = commentEndpointBase;
               <span class="work-chevron" aria-hidden="true">›</span>
             </button>
 
-            {job.qrDataUrl && (
-              <div class="work-qr-float" data-job-slug={job.slug}>
-                <button type="button" class="work-qr-close" aria-label="Hide QR code">×</button>
-                <img
-                  class="work-qr"
-                  src={job.qrDataUrl}
-                  width="86"
-                  height="86"
-                  alt={`QR code to open ${job.title}`}
-                  loading="lazy"
-                />
-              </div>
-            )}
-
             <div class="work-item-body" hidden={!startOpen || undefined}>
               {job.bodyHtml ? (
                 <div class="work-description" set:html={job.bodyHtml} />
@@ -240,8 +224,6 @@ const filesEndpointBase = commentEndpointBase;
 </section>
 
 <script define:vars={{ commentEndpointBase, filesEndpointBase, clientAvatarUrl, staffAvatarUrl }}>
-  const portalQrDismissed = new Set();
-
   function escHtml(s) {
     return String(s)
       .replace(/&/g, '&amp;')
@@ -355,8 +337,6 @@ const filesEndpointBase = commentEndpointBase;
     const head = item.querySelector('.work-item-head');
     const body = item.querySelector('.work-item-body');
     const slug = item.getAttribute('data-job-slug');
-    const qrFloat = item.querySelector('.work-qr-float');
-    const qrClose = item.querySelector('.work-qr-close');
     const textarea = item.querySelector('.work-comment-input');
     const submitBtn = item.querySelector('.work-comment-submit');
     const commentsRoot = item.querySelector('[data-comments-root]');
@@ -364,15 +344,6 @@ const filesEndpointBase = commentEndpointBase;
     const fileInput = item.querySelector('.work-files-input');
     const uploadBtn = item.querySelector('.work-files-upload-btn');
     if (!head || !body || !slug || !textarea || !submitBtn || !commentsRoot) return;
-
-    if (qrFloat && qrClose) {
-      if (portalQrDismissed.has(slug)) qrFloat.hidden = true;
-      qrClose.addEventListener('click', (event) => {
-        event.stopPropagation();
-        portalQrDismissed.add(slug);
-        qrFloat.hidden = true;
-      });
-    }
 
     if (filesRoot && fileInput && uploadBtn) {
       uploadBtn.addEventListener('click', () => fileInput.click());
@@ -425,10 +396,6 @@ const filesEndpointBase = commentEndpointBase;
       if (open) {
         body.removeAttribute('hidden');
         head.setAttribute('aria-expanded', 'true');
-        if (qrFloat) {
-          portalQrDismissed.delete(slug);
-          qrFloat.hidden = false;
-        }
         textarea.focus();
       } else {
         body.setAttribute('hidden', '');
@@ -498,7 +465,6 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .work-item {
-    position: relative;
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
@@ -510,7 +476,7 @@ const filesEndpointBase = commentEndpointBase;
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 14px 96px 14px 16px;
+    padding: 14px 16px;
     border: none;
     background: transparent;
     color: #fff;
@@ -578,48 +544,6 @@ const filesEndpointBase = commentEndpointBase;
   .work-item-body {
     padding: 0 16px 16px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .work-qr-float {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-    pointer-events: none;
-  }
-
-  .work-qr-float > * {
-    pointer-events: auto;
-  }
-
-  .work-qr-close {
-    margin: 0;
-    padding: 0 2px;
-    border: none;
-    background: transparent;
-    color: #ef4444;
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .work-qr-close:hover {
-    color: #f87171;
-  }
-
-  .work-qr {
-    display: block;
-    width: 86px;
-    height: 86px;
-  }
-
-  .work-qr-float[hidden] {
-    display: none;
   }
 
   .work-description {

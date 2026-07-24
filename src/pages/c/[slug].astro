@@ -33,7 +33,6 @@ import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
 import { requestOrigin } from '../../lib/requestOrigin';
 import { projectPortalUrl } from '../../lib/contactApi';
-import { qrCodeDataUrl } from '../../lib/qrCode';
 import { SITE } from '../../config/site';
 import PortalWorkPanel, { type PortalWorkJobItem, type PortalWorkFileItem } from '../../components/PortalWorkPanel.astro';
 import FootBostonTag from '../../components/FootBostonTag.astro';
@@ -240,7 +239,6 @@ const portalWorkJobs: PortalWorkJobItem[] = await Promise.all(
       bodyHtml: jobBodies[job.slug] ? workBodyHtml(jobBodies[job.slug], uid, job.slug) : '',
       dateLabel: fmtDate(job.updated || job.created),
       portalUrl,
-      qrDataUrl: await qrCodeDataUrl(portalUrl, 128),
     };
   }),
 );

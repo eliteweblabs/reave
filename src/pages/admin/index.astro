@@ -2223,44 +2223,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         padding: 0.85rem 0 0;
         border-top: 1px solid var(--panel-border);
       }
-      #work-editor .de-pane {
-        position: relative;
-      }
-      #work-editor .wk-project-qr-float {
-        position: absolute;
-        top: calc(var(--control-h) + 0.35rem);
-        right: max(0.65rem, env(safe-area-inset-right, 0px));
-        z-index: 4;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.1rem;
-        pointer-events: none;
-      }
-      #work-editor .wk-project-qr-float > * {
-        pointer-events: auto;
-      }
-      #work-editor .wk-project-qr-close {
-        width: 18px;
-        height: 18px;
-        margin: 0;
-        padding: 0;
-        border: none;
-        background: transparent;
-        color: #ef4444;
-        font-size: 17px;
-        font-weight: 700;
-        line-height: 1;
-        cursor: pointer;
-      }
-      #work-editor .wk-project-qr-close:hover {
-        color: #f87171;
-      }
-      #work-editor .wk-project-qr-float img {
-        display: block;
-        width: 80px;
-        height: 80px;
-      }
       .wk-checklist-mount:empty,
       .wk-checklist-mount[hidden] {
         display: none;
@@ -5535,6 +5497,26 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         flex-direction: column;
         gap: 0.65rem;
       }
+      .reave-share-qr {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-top: 0.15rem;
+      }
+      .reave-share-qr[hidden] {
+        display: none;
+      }
+      .reave-share-qr-img {
+        display: block;
+        width: 160px;
+        height: 160px;
+      }
+      @media (max-width: 767px) {
+        .reave-share-qr-img {
+          width: 200px;
+          height: 200px;
+        }
+      }
       .reave-share-sub {
         margin: 0;
         font-size: 0.82rem;
@@ -8426,6 +8408,9 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
           <h2 class="ios-sheet-title" id="reave-share-title">Share</h2>
         </header>
         <div class="ios-sheet-body reave-share-body">
+          <div class="reave-share-qr" id="reave-share-qr" hidden>
+            <img id="reave-share-qr-img" class="reave-share-qr-img" alt="Project page QR code" width="200" height="200" />
+          </div>
           <p class="reave-share-sub" id="reave-share-sub"></p>
           <label class="reave-share-note-label" for="reave-share-note">Personal note <span class="reave-share-optional">(optional)</span></label>
           <textarea id="reave-share-note" class="reave-share-note" rows="2" placeholder="Add a short note for the recipient…"></textarea>

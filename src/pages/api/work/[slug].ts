@@ -45,7 +45,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const files = await storeListProjectFiles(slug);
   const contactUid = doc.contact_uid?.trim() || '';
   const portal_url = contactUid ? projectPortalUrl(contactUid, slug, { base: requestOrigin(context.request) }) : '';
-  const qr_data_url = portal_url ? await qrCodeDataUrl(portal_url, 160) : '';
+  const qr_data_url = portal_url ? await qrCodeDataUrl(portal_url, 200) : '';
   return json({ ok: true, ...doc, related, tracked_links, files, portal_url, qr_data_url });
 }
 

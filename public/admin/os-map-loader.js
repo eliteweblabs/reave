@@ -10074,8 +10074,6 @@ let workState = {
   draft: null,
   returnToEmailId: null,
   returnToTodoId: null,
-  qrDismissedSlugs: new Set(),
-  _prevActiveSlug: null,
 };
 
 let workAutosaveTimer = null;
@@ -11014,7 +11012,6 @@ function refreshWorkSidebarList() {
 function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
-  syncWorkQrDismissForNavigation(workState.activeSlug);
   const savedSidebarScroll = captureSidebarListScroll(root);
   const { jobs, activeSlug, search } = workState;
   root.innerHTML = '';
@@ -11726,41 +11723,6 @@ function createWorkFormScroll(pane) {
   return scroll;
 }
 
-function syncWorkQrDismissForNavigation(nextSlug) {
-  const prevSlug = workState._prevActiveSlug;
-  if (prevSlug && prevSlug !== nextSlug && prevSlug !== '__new__') {
-    workState.qrDismissedSlugs.delete(prevSlug);
-  }
-  workState._prevActiveSlug = nextSlug;
-}
-
-function mountWorkProjectQrFloat(pane, { slug, qrDataUrl }) {
-  if (!qrDataUrl || !slug || workState.qrDismissedSlugs.has(slug)) return;
-
-  const qrWrap = document.createElement('div');
-  qrWrap.className = 'wk-project-qr-float';
-
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.className = 'wk-project-qr-close';
-  closeBtn.setAttribute('aria-label', 'Hide QR code');
-  closeBtn.textContent = '×';
-  closeBtn.addEventListener('click', () => {
-    workState.qrDismissedSlugs.add(slug);
-    qrWrap.remove();
-  });
-
-  const qrImg = document.createElement('img');
-  qrImg.src = qrDataUrl;
-  qrImg.width = 80;
-  qrImg.height = 80;
-  qrImg.alt = 'Project page QR code';
-
-  qrWrap.appendChild(closeBtn);
-  qrWrap.appendChild(qrImg);
-  pane.appendChild(qrWrap);
-}
-
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const returnTodoId = workState.returnToTodoId;
@@ -12041,6 +12003,7 @@ function renderEditWorkForm(pane) {
             jobSlug: slug,
             trackEl: linkTrackEl,
             title: `${data.contact_name || data.client || 'Client'} — Projects`,
+            qrDataUrl: data.qr_data_url,
             recipient: {
               contactUid: data.contact_uid,
               name: data.contact_name || data.client || 'Client',
@@ -12100,8 +12063,6 @@ function renderEditWorkForm(pane) {
         icons,
       });
       pane.appendChild(header);
-
-      mountWorkProjectQrFloat(pane, { slug, qrDataUrl: data.qr_data_url });
 
       const scroll = createWorkFormScroll(pane);
 
@@ -16235,6 +16196,38 @@ let _reaveShareState = null;
 function closeReaveShareSheet() {
   window.IosSheet?.close('reave-share-backdrop');
   _reaveShareState = null;
+  setReaveShareQr('');
+}
+
+function setReaveShareQr(qrDataUrl) {
+  const wrap = document.getElementById('reave-share-qr');
+  const img = document.getElementById('reave-share-qr-img');
+  if (!wrap || !img) return;
+  if (!qrDataUrl) {
+    wrap.hidden = true;
+    img.removeAttribute('src');
+    return;
+  }
+  img.src = qrDataUrl;
+  wrap.hidden = false;
+}
+
+async function resolveReaveShareQrDataUrl(opts = {}) {
+  if (opts.qrDataUrl) return opts.qrDataUrl;
+  if (opts.kind !== 'work' || !opts.jobSlug) return '';
+  try {
+    const res = await fetch(`/api/work/${encodeURIComponent(opts.jobSlug)}`);
+    const data = await res.json();
+    if (res.ok && data.ok && data.qr_data_url) return data.qr_data_url;
+  } catch {
+    /* ignore */
+  }
+  return '';
+}
+
+async function loadReaveShareQr(opts = {}) {
+  const qrDataUrl = await resolveReaveShareQrDataUrl(opts);
+  setReaveShareQr(qrDataUrl);
 }
 
 function setReaveShareStatus(msg, kind) {
@@ -16443,6 +16436,7 @@ async function openReaveShareSheet(opts = {}) {
   }
   if (noteEl) noteEl.value = '';
   setReaveShareStatus('', null);
+  await loadReaveShareQr({ kind, jobSlug: opts.jobSlug, qrDataUrl: opts.qrDataUrl });
   buildReaveShareActions(state, opts);
 
   window.IosSheet?.open('reave-share-backdrop', {
@@ -16482,6 +16476,7 @@ async function openDocumentShareSheet(opts = {}) {
   }
   if (noteEl) noteEl.value = '';
   setReaveShareStatus('', null);
+  setReaveShareQr('');
   if (actionsEl) actionsEl.innerHTML = '';
 
   // ── Inject a clients-only recipient picker above the note field ──
@@ -16619,7 +16614,7 @@ async function openDocumentShareSheet(opts = {}) {
 }
 
 function createPortalShareBtn(uid, opts = {}) {
-  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, recipient } = opts;
+  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, recipient, qrDataUrl } = opts;
   if (!uid) return null;
   return createIosIconBtn({
     iconKey: 'share',
@@ -16633,6 +16628,7 @@ function createPortalShareBtn(uid, opts = {}) {
         tab,
         jobSlug,
         trackEl,
+        qrDataUrl,
         shareTitle: title || 'Your client page',
       }),
   });
