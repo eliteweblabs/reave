@@ -10,22 +10,26 @@ export type VerificationCodeExtract = {
   code: string;
 };
 
+/** Strong OTP phrasing — avoid bare "access"/"pin" (footers, "shipping", etc.). */
 const OTP_CONTEXT =
-  /\b(?:verification|one[-\s]?time|security|login|sign[-\s]?in|access|auth(?:entication)?|confirm(?:ation)?|otp|passcode|pin)\s*(?:code|number|pin|password)?\b/i;
+  /\b(?:verification(?:\s+code)?|one[-\s]?time(?:\s+(?:code|password|passcode))?|security\s+code|login\s+code|sign[-\s]?in\s+code|access\s+code|auth(?:entication)?\s+code|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)\b/i;
 
 /** "482913 is your verification code" */
 const LEADING_CODE = /\b(\d[\d\s-]{2,12}\d)\s+is\s+your\b/i;
 
-/** "Your verification code is 482913" / "code: 482913" */
+/** "Your verification code is 482913" / "code: 482913" — single-line capture only. */
 const CODE_AFTER_LABEL =
-  /\b(?:code|password|pin|otp)\s*(?:is|:)\s*['"`]?([A-Z0-9][A-Z0-9\s-]{2,14})\b/i;
+  /\b(?:(?:verification|authentication|login|security|access)\s+code|one[-\s]?time(?:\s+password)?|passcode|otp|pin|code)\s*(?:is|:)\s*['"`]?([A-Z0-9][A-Z0-9 -]{1,12}[A-Z0-9])\b/i;
 
 /** Google-style G-123456 */
 const GOOGLE_CODE = /\b(G-\d{6})\b/i;
 
-/** Standalone 6-digit near OTP wording (within ~100 chars). */
+/**
+ * Standalone / grouped digits near OTP wording (within ~120 chars).
+ * Handles HTML that splits codes across spans ("931 348") and dashed forms.
+ */
 const NEAR_KEYWORD = new RegExp(
-  String.raw`(?:verification|one[-\s]?time|security|login|sign[-\s]?in|access|auth|confirm|otp|passcode|pin)[\s\S]{0,100}?\b(\d{6})\b`,
+  String.raw`(?:verification|one[-\s]?time|security|login|sign[-\s]?in|access\s+code|auth(?:entication)?|confirm(?:ation)?\s+code|otp|passcode|pin\s+code)[\s\S]{0,120}?\b(\d{3}[\s-]+\d{3}|\d{2}(?:[\s-]+\d{2}){2}|\d{4,8})\b`,
   'i',
 );
 
@@ -49,24 +53,62 @@ function normalizeCode(raw: string): string | null {
     return compact;
   }
 
-  if (/^[A-Z0-9]{4,10}$/i.test(compact)) return compact.toUpperCase();
+  // Alphanumeric OTPs: no whitespace in the raw capture (avoids "9MT2GE Gift").
+  if (/\s/.test(trimmed)) return null;
+  if (/^[A-Z0-9]{4,10}$/i.test(compact) && /\d/.test(compact) && /[A-Z]/i.test(compact)) {
+    return compact.toUpperCase();
+  }
 
   return null;
+}
+
+/** Higher is better — prefer standard 6-digit codes over short PINs / gift codes. */
+function scoreCode(code: string): number {
+  if (/^\d{6}$/.test(code)) return 100;
+  if (/^\d{7,8}$/.test(code)) return 90;
+  if (/^\d{5}$/.test(code)) return 70;
+  if (/^\d{4}$/.test(code)) return 40;
+  if (/^[A-Z0-9]{4,10}$/i.test(code) && /\d/.test(code)) return 45;
+  return 0;
 }
 
 function hasOtpContext(text: string): boolean {
-  return OTP_CONTEXT.test(text) || LEADING_CODE.test(text);
+  return OTP_CONTEXT.test(text) || LEADING_CODE.test(text) || GOOGLE_CODE.test(text);
+}
+
+function collectFromPattern(text: string, re: RegExp): string[] {
+  const out: string[] = [];
+  const flags = re.flags.includes('g') ? re.flags : `${re.flags}g`;
+  const global = new RegExp(re.source, flags);
+  for (const m of text.matchAll(global)) {
+    const code = normalizeCode(m[1] ?? '');
+    if (code) out.push(code);
+  }
+  return out;
+}
+
+function pickBestCode(candidates: string[]): VerificationCodeExtract | null {
+  let best: string | null = null;
+  let bestScore = 0;
+  for (const code of candidates) {
+    const score = scoreCode(code);
+    if (score > bestScore) {
+      best = code;
+      bestScore = score;
+    }
+  }
+  if (!best || bestScore < 40) return null;
+  return { code: best };
 }
 
 function tryPatterns(text: string): VerificationCodeExtract | null {
-  const attempts: RegExp[] = [GOOGLE_CODE, CODE_AFTER_LABEL, LEADING_CODE, NEAR_KEYWORD];
-  for (const re of attempts) {
-    const m = text.match(re);
-    if (!m?.[1]) continue;
-    const code = normalizeCode(m[1]);
-    if (code) return { code };
-  }
-  return null;
+  const candidates = [
+    ...collectFromPattern(text, GOOGLE_CODE),
+    ...collectFromPattern(text, CODE_AFTER_LABEL),
+    ...collectFromPattern(text, LEADING_CODE),
+    ...collectFromPattern(text, NEAR_KEYWORD),
+  ];
+  return pickBestCode(candidates);
 }
 
 /** Return a verification code when the message looks like an OTP email. */

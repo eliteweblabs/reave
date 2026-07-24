@@ -751,7 +751,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   if (inboxRecord && verificationCode) {
     sendInboxPushNotification({
       title: 'Verification code ready',
-      body: 'Tap to copy — then paste in Safari',
+      body: 'Open and tap the code to copy, then paste in Safari',
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] otp push failed', e));

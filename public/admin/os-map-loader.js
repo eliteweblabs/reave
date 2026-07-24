@@ -17547,7 +17547,6 @@ let emailState = {
   digest: null,
   pushConfigured: false,
 };
-let lastOtpAutoCopyId = null;
 let pendingEmailDeepLinkId = null;
 let pendingWorkDeepLinkSlug = null;
 let pendingTodoDeepLinkId = null;
@@ -20436,24 +20435,56 @@ function renderEmailComposePane(pane) {
   pane.appendChild(form);
 }
 
-async function copyEmailVerificationCode(code, nearEl) {
-  if (!code) return false;
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
   try {
-    await navigator.clipboard.writeText(String(code));
-    showChatToast('Copied — paste in Safari', nearEl);
-    return true;
+    ok = document.execCommand('copy');
   } catch {
-    showChatToast('Copy failed — select code manually', nearEl);
-    return false;
+    ok = false;
+  }
+  ta.remove();
+  return ok;
+}
+
+async function clipboardLooksLike(text) {
+  if (!navigator.clipboard?.readText) return null;
+  try {
+    return (await navigator.clipboard.readText()) === text;
+  } catch {
+    return null;
   }
 }
 
-async function maybeAutoCopyVerificationCode(ev) {
-  if (!ev?.verificationCode || !ev.id) return;
-  if (lastOtpAutoCopyId === ev.id) return;
-  lastOtpAutoCopyId = ev.id;
-  const card = getEmailPanel()?.querySelector('[data-otp-card]');
-  await copyEmailVerificationCode(ev.verificationCode, card?.querySelector('[data-otp-code]') || card);
+async function copyEmailVerificationCode(code, nearEl) {
+  const text = String(code || '').trim();
+  if (!text) return false;
+  let wrote = false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      wrote = true;
+    }
+  } catch {
+    wrote = false;
+  }
+  if (!wrote) wrote = fallbackCopyText(text);
+  // iOS often resolves writeText without updating the clipboard when there was no
+  // user gesture (e.g. auto-copy on open). Refuse to claim success if we can tell.
+  const verified = await clipboardLooksLike(text);
+  if (!wrote || verified === false) {
+    showChatToast('Tap the code to copy', nearEl);
+    return false;
+  }
+  showChatToast('Copied — paste in Safari', nearEl);
+  return true;
 }
 
 function openEmailEvent(id) {
@@ -20462,8 +20493,6 @@ function openEmailEvent(id) {
   emailState.composing = false;
   emailState.replyToId = null;
   renderEmailPanel();
-  const ev = emailState.allEvents.find((e) => e.id === id);
-  if (ev?.verificationCode) void maybeAutoCopyVerificationCode(ev);
 }
 
 function renderEmailPanel() {
@@ -20566,8 +20595,8 @@ function renderEmailPanel() {
     detailHtml +=
       `<div class="em-otp-card" data-otp-card>` +
         `<div class="em-otp-card-title">Verification code</div>` +
-        `<button type="button" class="em-otp-code-btn" data-otp-code>${escHtml(ev.verificationCode)}</button>` +
-        `<p class="em-otp-hint">Tap the code to copy again — switch to Safari and tap <strong>Paste</strong> above the keyboard.</p>` +
+        `<button type="button" class="em-otp-code-btn" data-otp-code data-code="${escHtml(ev.verificationCode)}">${escHtml(ev.verificationCode)}</button>` +
+        `<p class="em-otp-hint">Tap the code to copy — switch to Safari and tap <strong>Paste</strong> above the keyboard.</p>` +
       `</div>`;
   }
   if (isEmailBookable(ev)) {
@@ -20631,7 +20660,9 @@ function renderEmailPanel() {
   if (bodyFrame && bodyHtmlSource) bodyFrame.srcdoc = bodyHtmlSource;
   detail.querySelector('[data-otp-code]')?.addEventListener('click', (e) => {
     e.preventDefault();
-    void copyEmailVerificationCode(ev.verificationCode, e.currentTarget);
+    const btn = e.currentTarget;
+    const code = btn?.getAttribute('data-code') || ev.verificationCode;
+    void copyEmailVerificationCode(code, btn);
   });
   if (!ev._fullLoaded) {
     void fetchFullEmailRecord(ev).then((full) => {
