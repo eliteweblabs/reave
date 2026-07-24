@@ -265,6 +265,9 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     --nav-icon: rgba(0, 0, 0, 0.45);
     --nav-icon-hover: rgba(0, 0, 0, 0.72);
     --nav-icon-active: #0f172a;
+    /* Default dark — matches Layout.astro; admin shell overrides per color scheme. */
+    --dropdown-bg: rgba(14, 17, 24, 0.98);
+    --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
   }
 
   @media (prefers-color-scheme: dark) {
@@ -795,7 +798,9 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     max-width: min(88vw, 260px);
     max-height: min(62vh, 420px);
     overflow-y: auto;
-    background: var(--dropdown-bg);
+    background: var(--dropdown-bg, rgba(14, 17, 24, 0.98));
+    backdrop-filter: blur(18px) saturate(1.15);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
     border: 1px solid var(--panel-border, rgba(255, 255, 255, 0.12));
     border-radius: 10px;
     padding: 0.35rem;
