@@ -47,3 +47,22 @@
   -webkit-text-fill-color: #fff;
   box-shadow: 0 0 0 1px var(--bg, #fff);
 }
+
+/** Footer: invert badge on the gradient-highlighted (active) tab */
+.footer-nav-btn.active .footer-nav-badge,
+.admin-footer-nav.footer-nav-collapsed #footer-nav-home .footer-nav-badge:not([hidden]) {
+  background: #fff;
+  color: var(--brand-magenta);
+  -webkit-text-fill-color: var(--brand-magenta);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95);
+}
+
+body.footer-chat-inline-home
+  .admin-footer-nav.footer-nav-collapsed
+  #footer-nav-home
+  .footer-nav-badge {
+  background: var(--brand-gradient);
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  box-shadow: 0 0 0 1px var(--bg, #fff);
+}

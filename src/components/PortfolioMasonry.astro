@@ -5,196 +5,132 @@ interface PortfolioItem {
   title: string;
   description: string;
   tags: string[];
-  seed: string;
+  image: string;
+  imageAlt: string;
   size: TileSize;
   button?: { label: string; href: string };
 }
 
 const items: PortfolioItem[] = [
   {
-    title: "Overlook CARE",
+    title: "LUXEMEDS",
     description:
-      "Clean, mobile-friendly WordPress redesign for elder hospitality — fast on Google Cloud with accessibility built in.",
-    tags: ["WordPress", "Google Cloud", "Accessibility"],
-    seed: "overlook",
-    size: "2x2",
-    button: { label: "View case study", href: "/#contact" },
-  },
-  {
-    title: "Squarer App",
-    description:
-      "Square-footage event platform with drag-and-drop space builder, Stripe checkout, and admin curation tools.",
-    tags: ["React", "Stripe", "REST API"],
-    seed: "squarer",
-    size: "2x1",
-    button: { label: "Learn more", href: "/#contact" },
-  },
-  {
-    title: "Tyler Associates",
-    description:
-      "Pre-mobile-era site rebuilt for speed, refreshed content, and Google Site Kit for local SEO ranking.",
-    tags: ["WordPress", "SEO", "Mobile"],
-    seed: "tyler",
-    size: "1x1",
-  },
-  {
-    title: "Paradigm Hydroseed",
-    description:
-      "Hands-off build with sticky call & SMS, geolocation form autofill, and strong organic search performance.",
-    tags: ["WordPress", "Analytics", "Lead gen"],
-    seed: "paradigm",
+      "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
+    tags: ["Web Design", "E-commerce", "Wellness"],
+    image: "/images/portfolio/Screenshot_2026-07-23_at_8.26.37_PM.png",
+    imageAlt: "LUXEMEDS homepage with product vial hero and chat concierge",
     size: "1x2",
-    button: { label: "See details", href: "/#contact" },
-  },
-  {
-    title: "Floorplan Builder",
-    description: "Drag-and-drop exhibitor floorplan tool for tradeshow space planning and load-in logistics.",
-    tags: ["Canvas", "SaaS", "Events"],
-    seed: "floorplan",
-    size: "2x1",
-  },
-  {
-    title: "Proposal System",
-    description: "Automated quote generation with digital signatures and branded PDF delivery.",
-    tags: ["Automation", "PDF", "CRM"],
-    seed: "proposal",
-    size: "1x1",
-    button: { label: "Request demo", href: "/#contact" },
-  },
-  {
-    title: "QR Shipping Manager",
-    description: "Warehouse workflow app tying QR labels to inbound/outbound shipments and client notifications.",
-    tags: ["QR", "Logistics", "Mobile"],
-    seed: "shipping",
-    size: "1x1",
-  },
-  {
-    title: "Admin Dashboard",
-    description: "Custom operations hub consolidating jobs, billing, and client comms in one view.",
-    tags: ["Dashboard", "Postgres", "API"],
-    seed: "dashboard",
-    size: "2x2",
-  },
-  {
-    title: "Brand Identity — Northwind",
-    description: "Logo suite, color system, and marketing templates for a regional outdoor retailer.",
-    tags: ["Branding", "Print", "Guidelines"],
-    seed: "northwind",
-    size: "3x2",
-    button: { label: "View work", href: "/#contact" },
-  },
-  {
-    title: "Conference Portal",
-    description: "Attendee registration, session scheduling, and sponsor showcase for a multi-day event.",
-    tags: ["Events", "Registration", "CMS"],
-    seed: "conference",
-    size: "1x1",
-  },
-  {
-    title: "Digital Contract Module",
-    description: "Embedded e-sign flow with audit trail and templated clause library for sales teams.",
-    tags: ["eSign", "Legal", "Workflow"],
-    seed: "contract",
-    size: "1x2",
-  },
-  {
-    title: "Training Video Library",
-    description: "Searchable onboarding hub with progress tracking and role-based access.",
-    tags: ["Video", "LMS", "Internal"],
-    seed: "training",
-    size: "2x1",
-  },
-  {
-    title: "Member Portal",
-    description: "Gated content, billing history, and support tickets for a subscription community.",
-    tags: ["Portal", "Auth", "Stripe"],
-    seed: "member-portal",
-    size: "1x1",
-    button: { label: "Explore", href: "/#contact" },
-  },
-  {
-    title: "Inventory Sync",
-    description: "Two-way stock updates between WooCommerce and a warehouse management system.",
-    tags: ["WooCommerce", "API", "Sync"],
-    seed: "inventory",
-    size: "1x1",
-  },
-  {
-    title: "Art Fair Microsite",
-    description: "Fast-loading exhibitor directory with map pins, artist bios, and press downloads.",
-    tags: ["Events", "WordPress", "Maps"],
-    seed: "artfair",
-    size: "2x2",
     button: { label: "View project", href: "/#contact" },
   },
   {
-    title: "Fleet Tracker",
-    description: "Live vehicle map with route history, maintenance alerts, and driver check-ins.",
-    tags: ["Maps", "Mobile", "Realtime"],
-    seed: "fleet",
-    size: "2x1",
-  },
-  {
-    title: "Newsletter Engine",
-    description: "Template builder, list segmentation, and open-rate analytics for client campaigns.",
-    tags: ["Email", "Marketing", "Automation"],
-    seed: "newsletter",
-    size: "1x1",
-  },
-  {
-    title: "Studio Booking",
-    description: "Calendar-based room rentals with deposits, waivers, and automated reminders.",
-    tags: ["Booking", "Calendar", "Payments"],
-    seed: "studio",
-    size: "1x2",
-    button: { label: "See details", href: "/#contact" },
-  },
-  {
-    title: "Gallery CMS",
-    description: "Exhibition archive with high-res zoom, provenance fields, and private viewing links.",
-    tags: ["CMS", "Art", "Archive"],
-    seed: "gallery",
-    size: "2x1",
-  },
-  {
-    title: "Lead Capture Widget",
-    description: "Embeddable form with CRM handoff, spam scoring, and branded thank-you flows.",
-    tags: ["Forms", "CRM", "Embed"],
-    seed: "leads",
-    size: "1x1",
-  },
-  {
-    title: "Pricing Calculator",
-    description: "Interactive estimator with tiered options, PDF export, and sales-team notifications.",
-    tags: ["SaaS", "PDF", "Sales"],
-    seed: "pricing",
+    title: "CREED",
+    description:
+      "Nightlife venue marketing with neon signage photography, social hooks, and event-hour callouts.",
+    tags: ["Venue", "Marketing", "Photography"],
+    image: "/images/portfolio/Screenshot_2026-07-23_at_8.25.26_PM.png",
+    imageAlt: "CREED hookah lounge sign against a glass skyscraper at dusk",
     size: "2x2",
-    button: { label: "Try demo", href: "/#contact" },
   },
   {
-    title: "Status Page",
-    description: "Public uptime dashboard with incident timeline and subscriber alerts.",
-    tags: ["Monitoring", "Alerts", "API"],
-    seed: "status",
-    size: "1x1",
-  },
-  {
-    title: "Document Vault",
-    description: "Secure file sharing with expiring links, watermarking, and access logs.",
-    tags: ["Security", "Files", "Portal"],
-    seed: "vault",
+    title: "Air Race 21",
+    description:
+      "Race-day livery and event graphics — ornate linework over aviation photography for a national air series.",
+    tags: ["Branding", "Events", "Aviation"],
+    image: "/images/portfolio/ar-featured.png",
+    imageAlt: "Red racing jet with Air Race 21 decorative graphic overlay",
     size: "2x1",
   },
   {
-    title: "Job Board",
-    description: "Curated listings with application routing, employer dashboards, and SEO landing pages.",
-    tags: ["Jobs", "SEO", "CMS"],
-    seed: "jobs",
+    title: "Kingdom Trails",
+    description:
+      "Trail-network identity with crown motif, forest photography, and bold outdoor typography.",
+    tags: ["Branding", "Outdoor", "Print"],
+    image: "/images/portfolio/kingdom-featured.png",
+    imageAlt: "Kingdom Trails crown logo over mountain bikers in a pine forest",
+    size: "2x1",
+  },
+  {
+    title: "Students for Haiti",
+    description:
+      "Nonprofit campaign identity — palm-tree mark, bilingual typography, and mission photography.",
+    tags: ["Nonprofit", "Branding", "Campaign"],
+    image: "/images/portfolio/featured-sfh.png",
+    imageAlt: "Students for Haiti logo over volunteer and children in Haiti",
+    size: "2x2",
+    button: { label: "Learn more", href: "/#contact" },
+  },
+  {
+    title: "Vasodyn",
+    description:
+      "Medical-device brand visuals — clinical green lighting and anatomical model photography.",
+    tags: ["Medical", "Branding", "Photography"],
+    image: "/images/portfolio/vasodyn-featured.png",
+    imageAlt: "Glass aortic arch model lit in emerald green for Vasodyn",
+    size: "1x2",
+  },
+  {
+    title: "blackWater",
+    description:
+      "Gritty wordmark integrated into weathered stone — high-contrast industrial brand treatment.",
+    tags: ["Branding", "Identity", "Environmental"],
+    image: "/images/portfolio/blackwater-featured.png",
+    imageAlt: "blackWater logo stenciled onto a textured stone wall",
+    size: "2x1",
+  },
+  {
+    title: "Box Capital",
+    description: "Isometric mark and wordmark for a finance brand — green gradient on dark field.",
+    tags: ["Logo", "Finance", "Identity"],
+    image: "/images/portfolio/box-captital-logo-dark.png",
+    imageAlt: "Box Capital isometric green logo on black",
+    size: "1x1",
+  },
+  {
+    title: "Innercity Fire Protection",
+    description:
+      "Flame icon with city-grid motif — warm gradient mark and industrial sans typography.",
+    tags: ["Logo", "Safety", "Identity"],
+    image: "/images/portfolio/icfp-logo.png",
+    imageAlt: "Innercity Fire Protection flame logo with city grid pattern",
+    size: "1x1",
+  },
+  {
+    title: "Lotus Glass",
+    description:
+      "Artisan glass brand — layered lotus mark, outlined wordmark, and soft bokeh backdrop.",
+    tags: ["Branding", "Craft", "Logo"],
+    image: "/images/portfolio/lotus-glass-featured-300x225.png",
+    imageAlt: "Lotus Glass logo with blue-green lotus flower and outlined text",
+    size: "1x1",
+  },
+  {
+    title: "DPM Construction",
+    description:
+      "Commercial interiors showcase — bold red accent walls, lounge seating, and tech bar staging.",
+    tags: ["Construction", "Interiors", "Photography"],
+    image: "/images/portfolio/dpm-construction-featured.png",
+    imageAlt: "Modern office lounge and computer bar with red accent walls",
+    size: "2x1",
+  },
+  {
+    title: "Middlebury College Events",
+    description:
+      "Arena-scale concert photography from stage — crowd energy, lighting, and venue branding.",
+    tags: ["Events", "Photography", "Live Music"],
+    image: "/images/portfolio/background-03-1024x6856a.png",
+    imageAlt: "Stage view of a packed Middlebury College arena concert",
+    size: "3x2",
+  },
+  {
+    title: "Care Plus Mark",
+    description:
+      "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
+    tags: ["Logo", "Healthcare", "Identity"],
+    image: "/images/portfolio/Screenshot_2026-07-23_at_8.07.15_PM.png",
+    imageAlt: "Black line-art logo combining a heart, plus sign, and circle",
     size: "1x1",
   },
 ];
-
-const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/800/800`;
 ---
 
 <div class="portfolio-masonry" data-portfolio-masonry>
@@ -208,8 +144,8 @@ const squareImage = (seed: string) => `https://picsum.photos/seed/${seed}/800/80
           data-masonry-card
         >
           <img
-            src={squareImage(item.seed)}
-            alt=""
+            src={item.image}
+            alt={item.imageAlt}
             width="800"
             height="800"
             loading="lazy"
