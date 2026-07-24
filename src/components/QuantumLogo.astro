@@ -69,9 +69,15 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     z-index: 0;
     pointer-events: auto;
     cursor: default;
-    /* Vertical page scroll wins; horizontal/particle drag still works via JS. */
     touch-action: pan-y;
     overflow: hidden;
+  }
+
+  /* Scrollable homepage hero: canvas is decorative — never capture pointer/touch. */
+  .quantum-logo-stack--in-section {
+    pointer-events: none;
+    touch-action: auto;
+    cursor: default;
   }
 
   /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */
@@ -111,6 +117,11 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     pointer-events: auto;
     touch-action: none;
     overflow: hidden;
+  }
+
+  .quantum-logo-stack--in-section .quantum-host {
+    pointer-events: none;
+    touch-action: auto;
   }
 
   .quantum-host :global(canvas) {

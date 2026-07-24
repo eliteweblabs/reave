@@ -764,6 +764,27 @@ export function attachQuantumCoreOpticalEngine(
     tiltTargetY = 0;
   }
 
+  /** Scrollable homepage hero — parallax from scroll, not pointer drag. */
+  const useScrollParallax =
+    stackEl?.classList.contains("quantum-logo-stack--in-section") ?? false;
+
+  function setParallaxFromScroll() {
+    const heroEl = stackEl?.closest("section") ?? host.closest("section");
+    if (!heroEl) {
+      clearParallaxTargets();
+      return;
+    }
+    const heroH = Math.max(1, heroEl.clientHeight);
+    const progress = THREE.MathUtils.clamp(-heroEl.getBoundingClientRect().top / heroH, 0, 1);
+    const coarse = isCoarsePointer();
+    const amp = coarse ? 1.35 : 1;
+    const t = (progress - 0.5) * 2;
+    mouseX = t * 0.08 * amp;
+    mouseY = progress * 0.06 * amp;
+    tiltTargetY = t * 0.42 * amp;
+    tiltTargetX = -progress * 0.25 * amp;
+  }
+
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
   const onPointerMove = (e: PointerEvent) => {
     setParallaxFromClient(e.clientX, e.clientY);
@@ -791,14 +812,29 @@ export function attachQuantumCoreOpticalEngine(
     clearParallaxTargets();
   };
 
-  host.addEventListener("touchstart", onHostTouchStart, { passive: true });
-  host.addEventListener("touchmove", onHostTouchMove, { passive: false });
-  host.addEventListener("touchend", onHostTouchEnd, { passive: true });
-  host.addEventListener("touchcancel", onHostTouchEnd, { passive: true });
+  let scrollRaf = 0;
+  const onScroll = () => {
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      setParallaxFromScroll();
+    });
+  };
 
-  window.addEventListener("pointermove", onPointerMove, { passive: true });
-  window.addEventListener("pointerdown", onPointerDown, { passive: true });
-  window.addEventListener("pointerup", onPointerUp, { passive: true });
+  if (useScrollParallax) {
+    setParallaxFromScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
+  } else {
+    host.addEventListener("touchstart", onHostTouchStart, { passive: true });
+    host.addEventListener("touchmove", onHostTouchMove, { passive: false });
+    host.addEventListener("touchend", onHostTouchEnd, { passive: true });
+    host.addEventListener("touchcancel", onHostTouchEnd, { passive: true });
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+  }
 
   function triggerShake(amt: number) {
     shakeIntensity = amt;
@@ -1172,13 +1208,19 @@ export function attachQuantumCoreOpticalEngine(
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
     window.removeEventListener("vapi-transcript", onTranscript);
-    window.removeEventListener("pointermove", onPointerMove);
-    window.removeEventListener("pointerdown", onPointerDown);
-    window.removeEventListener("pointerup", onPointerUp);
-    host.removeEventListener("touchstart", onHostTouchStart);
-    host.removeEventListener("touchmove", onHostTouchMove);
-    host.removeEventListener("touchend", onHostTouchEnd);
-    host.removeEventListener("touchcancel", onHostTouchEnd);
+    cancelAnimationFrame(scrollRaf);
+    if (useScrollParallax) {
+      window.removeEventListener("scroll", onScroll);
+      window.visualViewport?.removeEventListener("scroll", onScroll);
+    } else {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      host.removeEventListener("touchstart", onHostTouchStart);
+      host.removeEventListener("touchmove", onHostTouchMove);
+      host.removeEventListener("touchend", onHostTouchEnd);
+      host.removeEventListener("touchcancel", onHostTouchEnd);
+    }
     renderer.domElement.removeEventListener("webglcontextlost", onCtxLost);
 
     particlesGeo.dispose();
