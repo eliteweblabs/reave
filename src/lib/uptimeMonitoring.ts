@@ -86,6 +86,77 @@ function monitorClientMap(): Record<string, string> {
   }
 }
 
+let _suppressedMonitorIds: Set<string> | null = null;
+let _suppressedUrlNeedles: string[] | null = null;
+
+function loadUptimeAlertSuppressConfig(): { monitorIds: Set<string>; urlNeedles: string[] } {
+  if (_suppressedMonitorIds && _suppressedUrlNeedles) {
+    return { monitorIds: _suppressedMonitorIds, urlNeedles: _suppressedUrlNeedles };
+  }
+
+  const monitorIds = new Set<string>();
+  const rawIds = serverEnv('UPTIMEROBOT_ALERT_SUPPRESS_MONITORS')?.trim();
+  if (rawIds) {
+    try {
+      const parsed = JSON.parse(rawIds) as unknown;
+      if (Array.isArray(parsed)) {
+        for (const id of parsed) monitorIds.add(String(id).trim());
+      } else if (parsed && typeof parsed === 'object') {
+        for (const key of Object.keys(parsed as Record<string, unknown>)) {
+          monitorIds.add(String(key).trim());
+        }
+      }
+    } catch {
+      for (const part of rawIds.split(/[,\s]+/)) {
+        const id = part.trim();
+        if (id) monitorIds.add(id);
+      }
+    }
+  }
+
+  const urlNeedles: string[] = [];
+  const rawUrls = serverEnv('UPTIMEROBOT_ALERT_SUPPRESS_URLS')?.trim();
+  if (rawUrls) {
+    try {
+      const parsed = JSON.parse(rawUrls) as unknown;
+      if (Array.isArray(parsed)) {
+        for (const u of parsed) {
+          const needle = String(u).trim().toLowerCase();
+          if (needle) urlNeedles.push(needle);
+        }
+      }
+    } catch {
+      for (const part of rawUrls.split(/[,\s]+/)) {
+        const needle = part.trim().toLowerCase();
+        if (needle) urlNeedles.push(needle);
+      }
+    }
+  }
+
+  _suppressedMonitorIds = monitorIds;
+  _suppressedUrlNeedles = urlNeedles;
+  return { monitorIds, urlNeedles };
+}
+
+/** Skip push/system alerts for monitors listed in UPTIMEROBOT_ALERT_SUPPRESS_* env. */
+export function isUptimeAlertSuppressed(
+  monitorId: number | string,
+  monitorName?: string | null,
+  monitorUrl?: string | null,
+): boolean {
+  const { monitorIds, urlNeedles } = loadUptimeAlertSuppressConfig();
+  if (monitorIds.has(String(monitorId))) return true;
+
+  if (!urlNeedles.length) return false;
+
+  const haystack = [monitorName, monitorUrl, monitorHostKey(monitorUrl)]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (!haystack) return false;
+  return urlNeedles.some((needle) => haystack.includes(needle));
+}
+
 function monitorHostKey(url: string | null | undefined): string | null {
   return normalizeMonitorHost(url);
 }
@@ -156,6 +227,8 @@ async function notifyUptimeAlert(opts: {
   down: boolean;
 }): Promise<void> {
   const { monitor, incident, down } = opts;
+  if (isUptimeAlertSuppressed(monitor.id, monitor.friendly_name, monitor.url)) return;
+
   const label = monitor.friendly_name || monitor.url || `Monitor ${monitor.id}`;
   const detail = incident.message || (down ? 'Site is down' : 'Site recovered');
 

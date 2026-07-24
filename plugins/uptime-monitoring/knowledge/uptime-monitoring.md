@@ -60,6 +60,14 @@ Linked clients see **Site uptime** status and recent incidents on `/c/:uid`.
 
 Down/up events post to admin **System alerts** chat and send Web Push (same as Railway and site-change alerts). The legacy email rule matching `UptimeRobot` in subject/body is disabled by default.
 
+**Email rules do not filter uptime webhook/poll alerts** — only inbound UptimeRobot emails. To silence push alerts for a monitor, set Railway env:
+
+```bash
+UPTIMEROBOT_ALERT_SUPPRESS_MONITORS=798092635
+# and/or match by URL/name substring:
+UPTIMEROBOT_ALERT_SUPPRESS_URLS=allautofinancial.com
+```
+
 ## Known monitors (Reave account)
 
 | Site | Monitor ID |

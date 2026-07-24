@@ -29,6 +29,8 @@ export type CreatePushAlertInput = {
   title: string;
   detail?: string;
   url?: string;
+  /** When set, used instead of now() — e.g. uptime incident created_at for backfill. */
+  createdAt?: string;
 };
 
 const SCHEMA_SQL = `
@@ -147,6 +149,12 @@ export function inferPushAlertKind(tag: string, url: string): PushAlertKind {
 }
 
 export async function storeFindPendingPushAlertByTag(tag: string): Promise<PushAlert | null> {
+  const alert = await storeFindPushAlertByTag(tag);
+  return alert && !alert.staffAckAt ? alert : null;
+}
+
+/** Find any alert (pending or dismissed) for a tag within the retention window. */
+export async function storeFindPushAlertByTag(tag: string): Promise<PushAlert | null> {
   const trimmed = tag.trim().slice(0, 120);
   if (!trimmed) return null;
   const cutoff = cutoffIso(DEFAULT_MAX_AGE_DAYS);
@@ -166,7 +174,7 @@ export async function storeFindPendingPushAlertByTag(tag: string): Promise<PushA
       }>(
         `SELECT id, tag, kind, title, detail, url, created_at, staff_ack_at
          FROM admin_push_alerts
-         WHERE tag = $1 AND staff_ack_at IS NULL AND created_at >= $2::timestamptz
+         WHERE tag = $1 AND created_at >= $2::timestamptz
          ORDER BY created_at DESC
          LIMIT 1`,
         [trimmed, cutoff],
@@ -180,7 +188,7 @@ export async function storeFindPendingPushAlertByTag(tag: string): Promise<PushA
   const cutoffMs = new Date(cutoff).getTime();
   return (
     readFileAlerts().find(
-      (a) => a.tag === trimmed && !a.staffAckAt && new Date(a.createdAt).getTime() >= cutoffMs,
+      (a) => a.tag === trimmed && new Date(a.createdAt).getTime() >= cutoffMs,
     ) ?? null
   );
 }
@@ -192,7 +200,7 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
   const title = input.title.trim().slice(0, 120);
   const detail = (input.detail ?? '').trim().slice(0, 240);
   const url = (input.url ?? '/admin?tab=home').slice(0, 500);
-  const now = new Date().toISOString();
+  const createdAt = input.createdAt?.trim() || new Date().toISOString();
 
   try {
     const pool = await ensureSchema();
@@ -207,10 +215,10 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
         created_at: Date | string;
         staff_ack_at: Date | string | null;
       }>(
-        `INSERT INTO admin_push_alerts (id, tag, kind, title, detail, url)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO admin_push_alerts (id, tag, kind, title, detail, url, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7::timestamptz)
          RETURNING id, tag, kind, title, detail, url, created_at, staff_ack_at`,
-        [id, tag, kind, title, detail, url],
+        [id, tag, kind, title, detail, url, createdAt],
       );
       return rows[0] ? rowToAlert(rows[0]) : null;
     }
@@ -225,7 +233,7 @@ export async function storeCreatePushAlert(input: CreatePushAlertInput): Promise
     title,
     detail,
     url,
-    createdAt: now,
+    createdAt,
     staffAckAt: null,
   };
   const alerts = readFileAlerts();

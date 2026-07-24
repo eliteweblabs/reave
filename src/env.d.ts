@@ -141,6 +141,10 @@ interface ImportMetaEnv {
   UPTIMEROBOT_DISCOVER_MINUTES?: string;
   /** JSON map of UptimeRobot monitor id → contact-api client uid, e.g. {"798092635":"uuid"}. */
   UPTIMEROBOT_MONITOR_CLIENT_MAP?: string;
+  /** Comma-separated or JSON array of monitor IDs to skip push/system alerts for (e.g. 798092635). */
+  UPTIMEROBOT_ALERT_SUPPRESS_MONITORS?: string;
+  /** Comma-separated or JSON array of URL/name substrings to skip alerts (e.g. allautofinancial.com). */
+  UPTIMEROBOT_ALERT_SUPPRESS_URLS?: string;
   /**
    * Notification email prefilled into the free-plan "quick-start" one-click links
    * (https://uptimerobot.com/quick-start?url=…&email=…). Optional; if unset the

@@ -6,7 +6,8 @@
 import { hasFeature } from './features';
 import { dbUptimeSummary } from './pgUptime';
 import { isUptimeDbConfigured } from './pgUptime';
-import { storeCreatePushAlert, storeFindPendingPushAlertByTag } from './pushAlertStore';
+import { storeCreatePushAlert, storeFindPushAlertByTag } from './pushAlertStore';
+import { isUptimeAlertSuppressed } from './uptimeMonitoring';
 import { uptimeStatusIsDown } from './uptimerobotClient';
 
 export async function syncRecentUptimeIncidentsToPushAlerts(): Promise<void> {
@@ -19,9 +20,10 @@ export async function syncRecentUptimeIncidentsToPushAlerts(): Promise<void> {
 
   for (const inc of summary.recent_incidents) {
     if (new Date(inc.created_at).getTime() < cutoffMs) continue;
+    if (isUptimeAlertSuppressed(inc.monitor_id, inc.monitor_name)) continue;
 
     const tag = `uptime-incident-${inc.id}`;
-    const existing = await storeFindPendingPushAlertByTag(tag);
+    const existing = await storeFindPushAlertByTag(tag);
     if (existing) continue;
 
     const label = inc.monitor_name || `Monitor ${inc.monitor_id}`;
@@ -35,6 +37,7 @@ export async function syncRecentUptimeIncidentsToPushAlerts(): Promise<void> {
       title: down ? `DOWN: ${label}` : `UP: ${label}`,
       detail: (inc.message || (down ? 'Site is down' : 'Site recovered')).slice(0, 240),
       url: '/admin?tab=home',
+      createdAt: inc.created_at,
     }).catch(() => undefined);
   }
 }
