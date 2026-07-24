@@ -71,6 +71,7 @@ const companyDescription = String(props.companyDescription ?? "").trim();
 const companyDomain = String(props.companyDomain ?? "").trim();
 const userId = props.userId;
 const isAuthenticated = props.isAuthenticated ?? false;
+const voiceDebug = import.meta.env.DEV;
 
 const positionClasses = {
   "bottom-right": "bottom-right",
@@ -133,10 +134,11 @@ const positionClasses = {
     companyName,
     companyDescription,
     companyDomain,
+    voiceDebug,
   }}
 >
   // Silence verbose debug logging in production builds.
-  const __voiceDebug = Boolean(import.meta.env.DEV);
+  const __voiceDebug = Boolean(voiceDebug);
   const console = {
     ...globalThis.console,
     log: (...args) => {
