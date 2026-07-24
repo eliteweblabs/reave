@@ -11,3 +11,6 @@ dist/
 
 # Cursor
 .cursor/
+
+# clerk configuration (can include secrets)
+/.clerk/
