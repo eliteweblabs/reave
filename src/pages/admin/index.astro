@@ -6075,16 +6075,23 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         align-items: center;
         min-height: 2.75rem;
       }
-      .dash-panel-today {
-        display: flex;
-        flex-direction: column;
-        padding: 1rem 1.1rem;
+      /* Today — flat section, same width as stats; no card / no clip. */
+      .dash-today {
+        margin-bottom: 1.35rem;
+        min-width: 0;
       }
-      .dash-panel-today--empty .dash-panel-body {
+      .dash-today-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.65rem;
+      }
+      .dash-today-lists {
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        padding: 0.15rem 0 0.35rem;
+        gap: 0.65rem;
+        min-width: 0;
       }
       @media (max-width: 639px) {
         .home-dashboard-scroll {
@@ -6097,14 +6104,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         .dash-stats {
           margin-bottom: 0;
         }
-        .dash-panel-today {
-          flex: 1 1 auto;
-          min-height: 8rem;
+        .dash-today {
           margin-bottom: 0;
-          padding: 1rem 0.95rem;
-        }
-        .dash-panel-today--empty .dash-panel-body {
-          min-height: 4rem;
         }
       }
       .dash-panel-head {

@@ -2128,18 +2128,22 @@ function dashTodoSubline(todo) {
   return bits.join(' · ');
 }
 
-function buildDashTodayItems(events, todos) {
-  const items = [];
-  for (const ev of events) {
-    if (!ev?.time) continue;
-    items.push({ kind: 'event', at: ev.time, event: ev });
-  }
+function buildDashTodayGroups(events, todos) {
+  const todoItems = [];
   for (const todo of todos) {
     if (!todo?.due_date) continue;
-    items.push({ kind: 'todo', at: todo.due_date, todo });
+    todoItems.push(todo);
   }
-  items.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-  return items;
+  todoItems.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+  const eventItems = [];
+  for (const ev of events) {
+    if (!ev?.time) continue;
+    eventItems.push(ev);
+  }
+  eventItems.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+  return { todos: todoItems, events: eventItems };
 }
 
 function formatEmailWhen(iso) {
@@ -3332,7 +3336,7 @@ function renderHomeDashboard(data) {
   const scheduleLive = data?.schedulingConfigured === true;
   const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
   const upcomingTodos = Array.isArray(data?.upcomingTodos) ? data.upcomingTodos : [];
-  const todayItems = buildDashTodayItems(events, upcomingTodos);
+  const todayGroups = buildDashTodayGroups(events, upcomingTodos);
   const automationNotifications = Array.isArray(data?.automationNotifications)
     ? data.automationNotifications
     : [];
@@ -3340,6 +3344,94 @@ function renderHomeDashboard(data) {
   if (automationNotifications.length) {
     scroll.appendChild(buildReviewAlertBanners(automationNotifications));
   }
+
+  const todaySection = document.createElement('section');
+  todaySection.className = 'dash-today';
+  todaySection.innerHTML =
+    `<div class="dash-today-head">` +
+      `<h2 class="dash-panel-title">Today</h2>` +
+      (scheduleLive
+        ? `<button type="button" class="dash-panel-btn" data-schedule-all>View Schedule</button>`
+        : '') +
+    `</div>`;
+  todaySection.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
+    openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+  });
+
+  const todayLists = document.createElement('div');
+  todayLists.className = 'dash-today-lists';
+  const hasTodos = todayGroups.todos.length > 0;
+  const hasEvents = todayGroups.events.length > 0;
+
+  if (!hasTodos && !hasEvents) {
+    const empty = document.createElement('p');
+    empty.className = 'dash-empty';
+    empty.textContent = scheduleLive
+      ? 'Nothing scheduled today.'
+      : 'No meetings or due to-dos right now.';
+    todayLists.appendChild(empty);
+  } else {
+    if (hasTodos) {
+      const todoList = document.createElement('ul');
+      todoList.className = 'dash-events';
+      for (const todo of todayGroups.todos) {
+        const li = document.createElement('li');
+        const when = formatDashTodoWhen(todo.due_date);
+        const whenClass =
+          when === 'Overdue'
+            ? 'dash-event-time dash-event-time--overdue'
+            : 'dash-event-time dash-event-time--todo';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dash-event dash-event-btn';
+        btn.innerHTML =
+          `<span class="${whenClass}">${escHtml(when)}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
+            `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
+          `</div>`;
+        btn.addEventListener('click', () => navigateToTodo(todo.id));
+        li.appendChild(btn);
+        todoList.appendChild(li);
+      }
+      todayLists.appendChild(todoList);
+    }
+    if (hasEvents) {
+      const eventsList = document.createElement('ul');
+      eventsList.className = 'dash-events';
+      for (const ev of todayGroups.events) {
+        const li = document.createElement('li');
+        const uid = ev.uid || ev.id;
+        const canOpen = scheduleLive && uid;
+        if (canOpen) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'dash-event dash-event-btn';
+          btn.innerHTML =
+            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+            `<div class="dash-event-body">` +
+              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+              (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
+            `</div>`;
+          btn.addEventListener('click', () => openScheduleTab({ uid }));
+          li.appendChild(btn);
+        } else {
+          li.className = 'dash-event';
+          li.innerHTML =
+            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+            `<div class="dash-event-body">` +
+              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+            `</div>`;
+        }
+        eventsList.appendChild(li);
+      }
+      todayLists.appendChild(eventsList);
+    }
+  }
+  todaySection.appendChild(todayLists);
+  scroll.appendChild(todaySection);
 
   const statsEl = document.createElement('div');
   statsEl.className = 'dash-stats';
@@ -3435,84 +3527,6 @@ function renderHomeDashboard(data) {
       muted: !uptimeConfigured,
     }));
   }
-
-  const eventsPanel = document.createElement('section');
-  eventsPanel.className = 'dash-panel dash-panel-today' + (todayItems.length ? '' : ' dash-panel-today--empty');
-  eventsPanel.innerHTML =
-    `<div class="dash-panel-head">` +
-      `<h2 class="dash-panel-title">Today</h2>` +
-      (scheduleLive
-        ? `<button type="button" class="dash-panel-btn" data-schedule-all>View Schedule</button>`
-        : '') +
-    `</div>`;
-  eventsPanel.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
-    openScheduleTab({ view: 'day', date: scheduleTodayKey() });
-  });
-  const eventsBody = document.createElement('div');
-  eventsBody.className = 'dash-panel-body';
-  const eventsList = document.createElement('ul');
-  eventsList.className = 'dash-events';
-  if (!todayItems.length) {
-    const empty = document.createElement('p');
-    empty.className = 'dash-empty';
-    empty.textContent = scheduleLive
-      ? 'Nothing scheduled today.'
-      : 'No meetings or due to-dos right now.';
-    eventsBody.appendChild(empty);
-  } else {
-    for (const item of todayItems) {
-      const li = document.createElement('li');
-      if (item.kind === 'event') {
-        const ev = item.event;
-        const uid = ev.uid || ev.id;
-        const canOpen = scheduleLive && uid;
-        if (canOpen) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'dash-event dash-event-btn';
-          btn.innerHTML =
-            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-            `<div class="dash-event-body">` +
-              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-              (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
-            `</div>`;
-          btn.addEventListener('click', () => openScheduleTab({ uid }));
-          li.appendChild(btn);
-        } else {
-          li.className = 'dash-event';
-          li.innerHTML =
-            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-            `<div class="dash-event-body">` +
-              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-            `</div>`;
-        }
-      } else {
-        const todo = item.todo;
-        const when = formatDashTodoWhen(todo.due_date);
-        const whenClass =
-          when === 'Overdue'
-            ? 'dash-event-time dash-event-time--overdue'
-            : 'dash-event-time dash-event-time--todo';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dash-event dash-event-btn';
-        btn.innerHTML =
-          `<span class="${whenClass}">${escHtml(when)}</span>` +
-          `<div class="dash-event-body">` +
-            `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
-            `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
-          `</div>`;
-        btn.addEventListener('click', () => navigateToTodo(todo.id));
-        li.appendChild(btn);
-      }
-      eventsList.appendChild(li);
-    }
-    eventsBody.appendChild(eventsList);
-  }
-  eventsPanel.appendChild(eventsBody);
-  scroll.appendChild(eventsPanel);
 
   scroll.appendChild(statsEl);
 
@@ -6303,7 +6317,7 @@ async function triggerFooterSave() {
 
 const FOOTER_PANEL_SELECTOR =
   '#home-dashboard, #settings-panel, #chat-panel, #email-panel, #doc-editor, #knowledge-editor, #work-editor, #clients-editor, #rule-editor, #todo-editor, #search-overlay';
-/** Primary scroll roots per panel — nested overflow (e.g. Today list) must not collapse the footer. */
+/** Primary scroll roots per panel — nested overflow regions must not collapse the footer. */
 const FOOTER_PANEL_SCROLL_ROOT_SELECTOR =
   '.home-dashboard-scroll, .profile-panel-scroll, .schedule-panel-scroll, .ch-list, .ch-messages, .de-list, .em-detail, .search-overlay-results, .re-form-scroll, .de-sc-dir-body';
 const footerPanelScrollTops = new WeakMap();
