@@ -1,65 +1,70 @@
 import type { APIRoute } from 'astro';
-import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
+import { processContactFormIntake } from '../../../lib/contactFormIntake';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
     const formData = await request.json();
-    const { name, email, message, subject, to } = formData;
+    const name = String(
+      formData.name || formData.fullName || formData.full_name || '',
+    ).trim();
+    const email = String(formData.email || '').trim();
+    const message = String(formData.message || '').trim();
+    const subject = String(formData.subject || 'New form submission').trim();
+    const to = formData.to != null ? String(formData.to).trim() : undefined;
 
-    if (!isEmailSendConfigured()) {
-      console.log('[Form Submission] No RESEND_API_KEY, logging only:', formData);
-      return new Response(JSON.stringify({
+    if (!name && !email && !message) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Empty submission' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    const result = await processContactFormIntake({
+      name,
+      email,
+      message,
+      subject,
+      to,
+    });
+
+    if (result.warnings.length) {
+      console.warn('[Form Submission] warnings:', result.warnings.join(', '));
+    }
+    console.log('[Form Submission]', {
+      contactUid: result.contactUid,
+      contactCreated: result.contactCreated,
+      jobSlug: result.jobSlug,
+      companyEmailSent: result.companyEmailSent,
+      submitterEmailSent: result.submitterEmailSent,
+      noticeCreated: result.noticeCreated,
+    });
+
+    return new Response(
+      JSON.stringify({
         success: true,
-        message: 'Form submitted (no email configured)',
-      }), {
+        message: 'Form submitted successfully',
+        contactUid: result.contactUid,
+        jobSlug: result.jobSlug,
+        contactCreated: result.contactCreated,
+      }),
+      {
         headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const recipient = String(to || email || '').trim();
-    const subjectLine = String(subject || 'New form submission').trim();
-    const body = String(message || '');
-
-    const result = await sendEmail({
-      to: recipient,
-      subject: subjectLine,
-      text: body || subjectLine,
-      html: `
-        <h2>${subjectLine}</h2>
-        <p><strong>From:</strong> ${name || 'Unknown'}</p>
-        <p><strong>Email:</strong> ${email || 'N/A'}</p>
-        <hr/>
-        <pre style="white-space: pre-wrap; font-family: inherit;">${body}</pre>
-      `,
-    });
-
-    if (!result.ok) {
-      console.error('[Email Error]', result.error);
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Failed to send email',
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('[Form Submission] Email sent to', recipient, 'ID:', result.id);
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: 'Email sent successfully',
-    }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
+      },
+    );
   } catch (error) {
     console.error('[Form Submission Error]', error);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Failed to process submission',
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: 'Failed to process submission',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 };

@@ -2999,7 +2999,8 @@ function reviewAlertVariant(type) {
     type === 'project_comment' ||
     type === 'vault_entry' ||
     type === 'share_open' ||
-    type === 'deck_view'
+    type === 'deck_view' ||
+    type === 'contact_form'
   ) {
     return 'pwa';
   }
@@ -3026,6 +3027,8 @@ function reviewAlertIconName(type) {
       return 'eye';
     case 'deck_view':
       return 'monitor';
+    case 'contact_form':
+      return 'mail';
     case 'push_alert':
       return 'alert-triangle';
     default:
@@ -3051,7 +3054,13 @@ function openReviewNotificationTarget(item) {
     handleNotificationOpen(item.url);
     return;
   }
-  if ((item.type === 'project' || item.type === 'project_comment' || item.type === 'share_open') && item.jobSlug) {
+  if (
+    (item.type === 'project' ||
+      item.type === 'project_comment' ||
+      item.type === 'share_open' ||
+      item.type === 'contact_form') &&
+    item.jobSlug
+  ) {
     navigateToWork(item.jobSlug, { fromEmailId: item.emailId || null });
     return;
   }
@@ -3096,6 +3105,7 @@ function buildReviewAlertBanner(item) {
   const isVaultEntry = item.type === 'vault_entry';
   const isShareOpen = item.type === 'share_open';
   const isDeckView = item.type === 'deck_view';
+  const isContactForm = item.type === 'contact_form';
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
@@ -3111,7 +3121,7 @@ function buildReviewAlertBanner(item) {
       label: 'Archive',
       onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
     });
-  } else if (isProjectComment || isShareOpen) {
+  } else if (isProjectComment || isShareOpen || isContactForm) {
     appendReviewAlertAction(actions, {
       label: 'View project',
       primary: true,

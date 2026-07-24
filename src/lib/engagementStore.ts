@@ -1,5 +1,6 @@
 /**
- * Engagement events for dashboard review banners (vault submits, share opens, deck views).
+ * Engagement events for dashboard review banners (vault submits, share opens,
+ * deck views, contact form inquiries).
  * Postgres (DATABASE_URL) when set; otherwise JSON under src/knowledge/.
  */
 
@@ -10,7 +11,11 @@ import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
 
-export type EngagementEventType = 'vault_entry' | 'share_open' | 'deck_view';
+export type EngagementEventType =
+  | 'vault_entry'
+  | 'share_open'
+  | 'deck_view'
+  | 'contact_form';
 
 export type EngagementEvent = {
   id: string;

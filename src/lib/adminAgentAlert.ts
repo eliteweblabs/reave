@@ -342,6 +342,40 @@ export async function notifyAdminAgentOfShareOpen(opts: {
   });
 }
 
+/** Fire-and-forget — website contact form created an inquiry. */
+export async function notifyAdminAgentOfContactForm(opts: {
+  contactName: string;
+  contactUid: string;
+  jobTitle: string;
+  jobSlug: string;
+  email?: string | null;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const message = [
+    '📬 New website contact form inquiry',
+    '',
+    `Client: ${opts.contactName}`,
+    opts.email ? `Email: ${opts.email}` : null,
+    `Project: ${opts.jobTitle}`,
+    '',
+    'A new inquiry project was created from the website contact form. Review it on the Work tab.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `📬 Contact form: ${opts.contactName}`,
+      body: opts.jobTitle.slice(0, 120),
+      tag: `contact-form-${opts.engagementId}`,
+      url: `/admin?tab=work&slug=${encodeURIComponent(opts.jobSlug)}`,
+    },
+  });
+}
+
 /** Fire-and-forget — sales deck page view. */
 export async function notifyAdminAgentOfDeckView(opts: {
   contactName: string | null;

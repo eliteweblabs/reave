@@ -4,6 +4,7 @@
 
 import everythingDeck from '../deck/scripts/everything.json';
 import {
+  notifyAdminAgentOfContactForm,
   notifyAdminAgentOfDeckView,
   notifyAdminAgentOfShareOpen,
   notifyAdminAgentOfVaultSubmit,
@@ -154,6 +155,46 @@ export async function recordShareOpenEngagement(opts: {
         jobTitle: project,
         jobSlug: opts.jobSlug,
         kind,
+        engagementId: event.id,
+      }),
+  );
+}
+
+export async function recordContactFormEngagement(opts: {
+  contactUid: string;
+  contactName: string;
+  jobSlug: string;
+  jobTitle: string;
+  email?: string | null;
+  messagePreview?: string | null;
+}): Promise<EngagementEvent | null> {
+  const who = opts.contactName.trim() || 'Visitor';
+  const project = opts.jobTitle.trim() || opts.jobSlug;
+  const preview = (opts.messagePreview || '').trim().replace(/\s+/g, ' ');
+  const detail = preview
+    ? preview.length > 160
+      ? `${preview.slice(0, 157)}…`
+      : preview
+    : 'New website contact form inquiry';
+
+  return createAndNotify(
+    {
+      type: 'contact_form',
+      title: `${who} submitted the contact form — inquiry created`,
+      detail: `${project}: ${detail}`,
+      contactUid: opts.contactUid,
+      contactName: who,
+      jobSlug: opts.jobSlug,
+      jobTitle: project,
+      dedupeKey: `contact_form:${opts.jobSlug}`,
+    },
+    (event) =>
+      notifyAdminAgentOfContactForm({
+        contactName: who,
+        contactUid: opts.contactUid,
+        jobTitle: project,
+        jobSlug: opts.jobSlug,
+        email: opts.email?.trim() || null,
         engagementId: event.id,
       }),
   );

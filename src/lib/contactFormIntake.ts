@@ -1,0 +1,299 @@
+/**
+ * Website contact / form intake: resolve-or-create client, create inquiry project,
+ * dashboard engagement notice, company notify + submitter acknowledgment emails.
+ */
+
+import { getCompanyConfig } from './companyConfig';
+import { recordContactFormEngagement } from './engagementNotifications';
+import { buildNewProjectAckEmail } from './emailScheduling';
+import { hasFeature } from './features';
+import { scheduleFormUrl } from './inboundEmailReply';
+import { isEmailSendConfigured, sendEmail } from './outbound';
+import { siteBaseUrl } from './requestOrigin';
+import { parseWorkJobInput } from './workJobInput';
+import {
+  ensureWorkContact,
+  isSafeWorkSlug,
+  slugFromTitle,
+  storeReadWork,
+  storeWriteWork,
+} from './workStore';
+
+export type ContactFormIntakeInput = {
+  name?: string | null;
+  email?: string | null;
+  message?: string | null;
+  subject?: string | null;
+  /** Company inbox override from the form (homepage passes support email). */
+  to?: string | null;
+};
+
+export type ContactFormIntakeResult = {
+  ok: true;
+  contactUid: string | null;
+  contactName: string | null;
+  contactCreated: boolean;
+  jobSlug: string | null;
+  jobTitle: string | null;
+  companyEmailSent: boolean;
+  submitterEmailSent: boolean;
+  noticeCreated: boolean;
+  warnings: string[];
+};
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function firstLineTitle(name: string, message: string): string {
+  const trimmed = message.trim().replace(/\s+/g, ' ');
+  if (trimmed) {
+    const slice = trimmed.slice(0, 80);
+    return slice.length < trimmed.length ? `${slice}…` : slice;
+  }
+  return `Website inquiry from ${name || 'visitor'}`;
+}
+
+function projectBody(input: {
+  name: string;
+  email: string;
+  message: string;
+  receivedAt: string;
+}): string {
+  const lines = [
+    '## Website contact form',
+    '',
+    `- **From:** ${input.name || 'Unknown'}`,
+    `- **Email:** ${input.email || 'N/A'}`,
+    `- **Received:** ${input.receivedAt}`,
+    '',
+    '### Message',
+    '',
+    input.message.trim() || '_(no message)_',
+  ];
+  return lines.join('\n');
+}
+
+async function resolveCompanyRecipient(explicitTo?: string | null): Promise<string> {
+  const fromForm = String(explicitTo || '').trim();
+  if (fromForm.includes('@')) return fromForm;
+  const company = await getCompanyConfig();
+  const support = company.supportEmail?.trim();
+  if (support?.includes('@')) return support;
+  if (company.domain) return `hello@${company.domain}`;
+  return '';
+}
+
+async function sendCompanyNotify(opts: {
+  to: string;
+  name: string;
+  email: string;
+  message: string;
+  subject: string;
+  jobSlug?: string | null;
+}): Promise<boolean> {
+  if (!opts.to.includes('@') || !isEmailSendConfigured()) return false;
+  const jobLine = opts.jobSlug
+    ? `<p><strong>Project:</strong> inquiry <code>${escapeHtml(opts.jobSlug)}</code></p>`
+    : '';
+  const result = await sendEmail({
+    to: opts.to,
+    subject: opts.subject,
+    text: [
+      opts.subject,
+      '',
+      `From: ${opts.name || 'Unknown'}`,
+      `Email: ${opts.email || 'N/A'}`,
+      opts.jobSlug ? `Project: ${opts.jobSlug}` : '',
+      '',
+      opts.message,
+    ]
+      .filter(Boolean)
+      .join('\n'),
+    html: `
+      <h2>${escapeHtml(opts.subject)}</h2>
+      <p><strong>From:</strong> ${escapeHtml(opts.name || 'Unknown')}</p>
+      <p><strong>Email:</strong> ${escapeHtml(opts.email || 'N/A')}</p>
+      ${jobLine}
+      <hr/>
+      <pre style="white-space: pre-wrap; font-family: inherit;">${escapeHtml(opts.message)}</pre>
+    `,
+  });
+  if (!result.ok) {
+    console.error('[contactFormIntake] company notify failed:', result.error);
+    return false;
+  }
+  return true;
+}
+
+async function sendSubmitterAck(opts: {
+  name: string;
+  email: string;
+  jobTitle: string;
+  message: string;
+}): Promise<boolean> {
+  if (!opts.email.includes('@') || !isEmailSendConfigured()) return false;
+  try {
+    const company = await getCompanyConfig();
+    const scheduleUrl = hasFeature('scheduling')
+      ? scheduleFormUrl(siteBaseUrl(), { name: opts.name, email: opts.email })
+      : null;
+    const mail = await buildNewProjectAckEmail({
+      attendeeName: opts.name || 'there',
+      attendeeEmail: opts.email,
+      jobTitle: opts.jobTitle,
+      summary: opts.message.slice(0, 200),
+      subject: opts.jobTitle,
+      companyName: company.name,
+      scheduleUrl,
+    });
+    const result = await sendEmail({
+      to: opts.email,
+      subject: mail.subject.replace(/^Re:\s*/i, 'Thanks — '),
+      text: mail.text,
+      html: mail.html,
+    });
+    if (!result.ok) {
+      console.error('[contactFormIntake] submitter ack failed:', result.error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('[contactFormIntake] submitter ack failed:', e);
+    return false;
+  }
+}
+
+/**
+ * Process a public website form submission into CRM + dashboard notice + emails.
+ * Soft-fails individual steps so a Resend outage still creates the inquiry.
+ */
+export async function processContactFormIntake(
+  input: ContactFormIntakeInput,
+): Promise<ContactFormIntakeResult> {
+  const warnings: string[] = [];
+  const name = String(input.name || '').trim();
+  const email = String(input.email || '').trim().toLowerCase();
+  const message = String(input.message || '').trim();
+  const subject = String(input.subject || 'New contact form message').trim();
+  const receivedAt = new Date().toISOString();
+
+  let contactUid: string | null = null;
+  let contactName: string | null = name || null;
+  let contactCreated = false;
+  let jobSlug: string | null = null;
+  let jobTitle: string | null = null;
+  let noticeCreated = false;
+
+  if (!name && !email) {
+    warnings.push('name_and_email_missing');
+  } else {
+    const fromHeader =
+      name && email ? `"${name}" <${email}>` : email ? email : name;
+
+    const contact = await ensureWorkContact({
+      contact_name: name || null,
+      from: fromHeader,
+      bodyText: message,
+      summary: subject,
+    });
+
+    if (!contact.ok) {
+      warnings.push(`contact_failed:${contact.error}`);
+    } else {
+      contactUid = contact.uid;
+      contactName = contact.name;
+      contactCreated = contact.created;
+
+      const title = firstLineTitle(contact.name, message);
+      let slug = slugFromTitle(title);
+      if (!slug || !isSafeWorkSlug(slug)) {
+        slug = slugFromTitle(`${contact.name}-${Date.now()}`);
+      }
+      if (!slug || !isSafeWorkSlug(slug)) {
+        warnings.push('invalid_project_slug');
+      } else {
+        if (await storeReadWork(slug)) {
+          slug = `${slug}-${Date.now().toString(36).slice(-4)}`;
+        }
+
+        const parsed = parseWorkJobInput({
+          title,
+          contact_uid: contact.uid,
+          contact_name: contact.name,
+          status: 'inquiry',
+          source: 'contact_form',
+          body: projectBody({ name: contact.name, email, message, receivedAt }),
+          record_origin: 'contact_form',
+        });
+
+        if ('error' in parsed) {
+          warnings.push(`project_parse:${parsed.error}`);
+        } else {
+          const written = await storeWriteWork(slug, parsed);
+          if (!written.ok) {
+            warnings.push(`project_failed:${written.error}`);
+          } else {
+            jobSlug = written.doc.slug;
+            jobTitle = written.doc.title;
+
+            const engagement = await recordContactFormEngagement({
+              contactUid: contact.uid,
+              contactName: contact.name,
+              jobSlug: written.doc.slug,
+              jobTitle: written.doc.title,
+              email,
+              messagePreview: message,
+            });
+            noticeCreated = Boolean(engagement);
+            if (!engagement) warnings.push('notice_failed');
+          }
+        }
+      }
+    }
+  }
+
+  const companyTo = await resolveCompanyRecipient(input.to);
+  let companyEmailSent = false;
+  if (companyTo) {
+    companyEmailSent = await sendCompanyNotify({
+      to: companyTo,
+      name: contactName || name,
+      email,
+      message,
+      subject,
+      jobSlug,
+    });
+    if (!companyEmailSent) warnings.push('company_email_failed');
+  } else {
+    warnings.push('company_recipient_missing');
+  }
+
+  let submitterEmailSent = false;
+  if (email.includes('@')) {
+    submitterEmailSent = await sendSubmitterAck({
+      name: contactName || name,
+      email,
+      jobTitle: jobTitle || firstLineTitle(name, message),
+      message,
+    });
+    if (!submitterEmailSent) warnings.push('submitter_email_failed');
+  }
+
+  return {
+    ok: true,
+    contactUid,
+    contactName,
+    contactCreated,
+    jobSlug,
+    jobTitle,
+    companyEmailSent,
+    submitterEmailSent,
+    noticeCreated,
+    warnings,
+  };
+}
