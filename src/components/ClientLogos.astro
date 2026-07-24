@@ -27,7 +27,12 @@ const LOOP_COPIES = 3;
 const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 ---
 
-<div class="client-logos-viewport" data-client-logos data-loop-copies={LOOP_COPIES}>
+<div
+  class="client-logos-viewport"
+  data-client-logos
+  data-loop-copies={LOOP_COPIES}
+  style={`--loop-copies: ${LOOP_COPIES}`}
+>
   <div class="client-logos-track">
     {
       trackLogos.map((logo, index) => (
@@ -35,7 +40,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
           <img
             src={logo.src}
             alt={index < logos.length ? logo.name : ""}
-            loading="lazy"
+            loading="eager"
             decoding="async"
             draggable="false"
           />
@@ -48,7 +53,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 <style>
   .client-logos-viewport {
     --visible-count: 3;
-    container-type: inline-size;
+    --marquee-duration: 45s;
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -71,11 +76,22 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   .client-logos-track {
     display: flex;
     will-change: transform;
+    animation: client-logos-marquee var(--marquee-duration) linear infinite;
+  }
+
+  .client-logos-viewport.is-paused .client-logos-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes client-logos-marquee {
+    to {
+      transform: translate3d(calc(-100% / var(--loop-copies)), 0, 0);
+    }
   }
 
   .client-logo-item {
-    flex: 0 0 calc(100cqw / var(--visible-count));
-    width: calc(100cqw / var(--visible-count));
+    flex: 0 0 calc(100vw / var(--visible-count));
+    width: calc(100vw / var(--visible-count));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -119,6 +135,12 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       --visible-count: 6;
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-logos-track {
+      animation: none;
+    }
+  }
 </style>
 
 <script>
@@ -130,55 +152,55 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     if (!track) return;
 
     const loopCopies = Number(viewport.dataset.loopCopies || "3");
-    let offset = 0;
-    let velocity = 28;
-    let isDragging = false;
-    let dragStartX = 0;
-    let dragStartOffset = 0;
-    let paused = false;
-    let lastTime = performance.now();
-    let rafId = 0;
-
+    const velocity = 28;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReducedMotion) velocity = 0;
+    const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
     function getSetWidth() {
       return track.scrollWidth / loopCopies;
     }
 
+    function updateMarqueeDuration() {
+      if (prefersReducedMotion) return;
+
+      const setWidth = getSetWidth() || viewport.clientWidth;
+      if (setWidth > 0) {
+        viewport.style.setProperty("--marquee-duration", `${setWidth / velocity}s`);
+      }
+    }
+
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartOffset = 0;
+    let manualOffset = 0;
+
     function normalizeOffset() {
       const setWidth = getSetWidth();
       if (!setWidth) return;
 
-      while (offset <= -setWidth) offset += setWidth;
-      while (offset > 0) offset -= setWidth;
+      while (manualOffset <= -setWidth) manualOffset += setWidth;
+      while (manualOffset > 0) manualOffset -= setWidth;
     }
 
-    function applyTransform() {
-      track.style.transform = `translate3d(${offset}px, 0, 0)`;
+    function applyManualTransform() {
+      track.style.transform = `translate3d(${manualOffset}px, 0, 0)`;
     }
 
-    function tick(now: number) {
-      const delta = Math.min((now - lastTime) / 1000, 0.05);
-      lastTime = now;
-
-      if (!paused && !isDragging && velocity > 0) {
-        offset -= velocity * delta;
-        normalizeOffset();
-      }
-
-      applyTransform();
-      rafId = requestAnimationFrame(tick);
+    function clearManualTransform() {
+      track.style.removeProperty("transform");
     }
 
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0 && event.pointerType === "mouse") return;
 
       isDragging = true;
-      paused = true;
+      viewport.classList.add("is-dragging", "is-paused");
       dragStartX = event.clientX;
-      dragStartOffset = offset;
-      viewport.classList.add("is-dragging");
+
+      const matrix = new DOMMatrix(getComputedStyle(track).transform);
+      manualOffset = matrix.m41;
+      dragStartOffset = manualOffset;
+
       viewport.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
@@ -186,51 +208,56 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     function onPointerMove(event: PointerEvent) {
       if (!isDragging) return;
 
-      offset = dragStartOffset + (event.clientX - dragStartX);
+      manualOffset = dragStartOffset + (event.clientX - dragStartX);
       normalizeOffset();
-      applyTransform();
+      applyManualTransform();
     }
 
     function endDrag(event: PointerEvent) {
       if (!isDragging) return;
 
       isDragging = false;
-      paused = false;
-      viewport.classList.remove("is-dragging");
+      viewport.classList.remove("is-dragging", "is-paused");
+      clearManualTransform();
 
       if (viewport.hasPointerCapture(event.pointerId)) {
         viewport.releasePointerCapture(event.pointerId);
       }
     }
 
-    viewport.addEventListener("pointerdown", onPointerDown);
-    viewport.addEventListener("pointermove", onPointerMove);
-    viewport.addEventListener("pointerup", endDrag);
-    viewport.addEventListener("pointercancel", endDrag);
-    viewport.addEventListener("lostpointercapture", () => {
-      isDragging = false;
-      paused = false;
-      viewport.classList.remove("is-dragging");
-    });
+    if (canHover) {
+      viewport.addEventListener("pointerdown", onPointerDown);
+      viewport.addEventListener("pointermove", onPointerMove);
+      viewport.addEventListener("pointerup", endDrag);
+      viewport.addEventListener("pointercancel", endDrag);
+      viewport.addEventListener("lostpointercapture", () => {
+        isDragging = false;
+        viewport.classList.remove("is-dragging", "is-paused");
+        clearManualTransform();
+      });
 
-    viewport.addEventListener("mouseenter", () => {
-      paused = true;
-    });
+      viewport.addEventListener("mouseenter", () => {
+        viewport.classList.add("is-paused");
+      });
 
-    viewport.addEventListener("mouseleave", () => {
-      if (!isDragging) paused = false;
-    });
+      viewport.addEventListener("mouseleave", () => {
+        if (!isDragging) viewport.classList.remove("is-paused");
+      });
+    }
 
-    const resizeObserver = new ResizeObserver(() => {
-      normalizeOffset();
-      applyTransform();
-    });
+    const resizeObserver = new ResizeObserver(updateMarqueeDuration);
     resizeObserver.observe(viewport);
 
-    rafId = requestAnimationFrame(tick);
+    track.querySelectorAll("img").forEach((img) => {
+      if (!(img as HTMLImageElement).complete) {
+        img.addEventListener("load", updateMarqueeDuration, { once: true });
+      }
+    });
+
+    updateMarqueeDuration();
+    requestAnimationFrame(updateMarqueeDuration);
 
     return () => {
-      cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
   }
