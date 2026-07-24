@@ -19869,8 +19869,18 @@ async function unmarkEmailReceipt(ev) {
   }
 }
 
+/** Prefer the next (older) message in the current filter; else the previous (newer). */
+function adjacentEmailIdAfterRemove(id) {
+  const list = filteredInboxEvents();
+  const idx = list.findIndex((e) => e.id === id);
+  if (idx === -1) return null;
+  return list[idx + 1]?.id ?? list[idx - 1]?.id ?? null;
+}
+
 async function deleteEmail(ev) {
   closeOpenSwipeRow();
+  const wasActive = emailState.activeId === ev.id;
+  const nextId = wasActive ? adjacentEmailIdAfterRemove(ev.id) : null;
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'DELETE',
@@ -19879,7 +19889,14 @@ async function deleteEmail(ev) {
     });
     await readApiJson(res);
     emailState.allEvents = emailState.allEvents.filter((e) => e.id !== ev.id);
-    if (emailState.activeId === ev.id) emailState.activeId = null;
+    if (wasActive) {
+      if (nextId && emailState.allEvents.some((e) => e.id === nextId)) {
+        emailState.activeId = nextId;
+        queueEmailSeen(nextId);
+      } else {
+        emailState.activeId = null;
+      }
+    }
     renderEmailPanel();
     syncInboxAppBadge(emailState.allEvents);
   } catch (e) {
