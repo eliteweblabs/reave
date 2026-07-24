@@ -309,6 +309,17 @@
   padding: 0 0.85rem;
 }
 
+.aui-composer-dropzone {
+  width: 100%;
+  min-width: 0;
+  border-radius: 1.1rem;
+}
+
+.aui-composer-dropzone[data-dragging='true'] .aui-composer-card {
+  border-color: color-mix(in srgb, var(--fg) 45%, var(--card-border));
+  background: var(--surface-hover);
+}
+
 .aui-composer-card {
   display: flex;
   flex-direction: column;
@@ -319,6 +330,7 @@
   border: 1px solid var(--card-border);
   background: var(--card);
   box-shadow: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .aui-composer-card-running {

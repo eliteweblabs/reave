@@ -5,13 +5,17 @@ import {
   AuiIf,
   ComposerPrimitive,
   MessagePrimitive,
-  SimpleImageAttachmentAdapter,
   ThreadPrimitive,
+  generateId,
+  useAuiEvent,
   useComposerRuntime,
   useLocalRuntime,
   useAuiState,
   useThreadViewportAutoScroll,
+  type AttachmentAdapter,
   type ChatModelAdapter,
+  type CompleteAttachment,
+  type PendingAttachment,
   type ThreadMessage,
   type ThreadMessageLike,
 } from '@assistant-ui/react';
@@ -34,6 +38,89 @@ import { readSseStream } from '../../lib/chatAgentSse';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
+
+/** Match API limits in `src/pages/api/chats/[id].ts`. */
+const MAX_CHAT_IMAGES = 5;
+const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+const CHAT_IMAGE_ACCEPT =
+  'image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp';
+
+function normalizeChatImageMediaType(file: File): string {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'image/jpg' || type === 'image/jpeg') return 'image/jpeg';
+  if (type === 'image/png' || type === 'image/gif' || type === 'image/webp') return type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'gif') return 'image/gif';
+  if (ext === 'webp') return 'image/webp';
+  return type || 'image/png';
+}
+
+function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Image adapter with unique attachment ids.
+ * `SimpleImageAttachmentAdapter` uses `file.name` as id, so a second paste/upload
+ * named `image.png` upserts over the first instead of appending.
+ */
+class ChatImageAttachmentAdapter implements AttachmentAdapter {
+  public accept = CHAT_IMAGE_ACCEPT;
+
+  public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_CHAT_IMAGE_BYTES) {
+      throw new Error('Image must be 5 MB or smaller');
+    }
+    const mediaType = normalizeChatImageMediaType(state.file);
+    const file =
+      state.file.type === mediaType
+        ? state.file
+        : new File([state.file], state.file.name || `image.${mediaType.split('/')[1] || 'png'}`, {
+            type: mediaType,
+          });
+    return {
+      id: generateId(),
+      type: 'image',
+      name: file.name,
+      contentType: mediaType,
+      file,
+      status: { type: 'requires-action', reason: 'composer-send' },
+    };
+  }
+
+  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    return {
+      ...attachment,
+      status: { type: 'complete' },
+      content: [{ type: 'image', image: await fileToDataURL(attachment.file) }],
+    };
+  }
+
+  public async remove() {
+    // noop
+  }
+}
+
+function useCapComposerAttachments(max = MAX_CHAT_IMAGES) {
+  const composer = useComposerRuntime();
+  useAuiEvent('composer.attachmentAdd', () => {
+    const { attachments } = composer.getState();
+    if (attachments.length <= max) return;
+    // Drop oldest first so the newest selection/paste/drop is kept.
+    const toRemove = attachments.slice(0, attachments.length - max);
+    for (const att of toRemove) {
+      const idx = composer.getState().attachments.findIndex((a) => a.id === att.id);
+      if (idx >= 0) void composer.getAttachmentByIndex(idx).remove();
+    }
+  });
+}
 
 type AgentProgressPhase = 'thinking' | 'tool' | 'complete';
 
@@ -753,6 +840,7 @@ function ClaudeComposer({
   const helpers = useSlashHelpers(propsRef, commands);
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const showRunning = isRunning || useExternalProgress;
+  useCapComposerAttachments();
 
   useEffect(() => {
     onFocusInputReady?.(helpers.focusInput);
@@ -803,45 +891,49 @@ function ClaudeComposer({
           activeIdx={helpers.activeIdx}
         />
       ) : null}
-      <ComposerPrimitive.Root className="aui-composer-card">
-        <AuiIf condition={(s) => s.composer.attachments.length > 0}>
-          <div className="aui-composer-attachments">
-            <ComposerPrimitive.Attachments components={{ Image: ComposerAttachmentPreview }} />
+      <ComposerPrimitive.AttachmentDropzone className="aui-composer-dropzone">
+        <ComposerPrimitive.Root className="aui-composer-card">
+          <AuiIf condition={(s) => s.composer.attachments.length > 0}>
+            <div className="aui-composer-attachments">
+              <ComposerPrimitive.Attachments components={{ Image: ComposerAttachmentPreview }} />
+            </div>
+          </AuiIf>
+          <ComposerPrimitive.Input
+            ref={helpers.inputRef}
+            className="aui-input"
+            placeholder="How can I help you today?"
+            rows={1}
+            enterKeyHint="send"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            addAttachmentOnPaste
+            onFocus={helpers.onFocus}
+            onBlur={helpers.onBlur}
+            onInput={(e) => helpers.onInput(e.currentTarget.value)}
+            onKeyDown={helpers.onKeyDown}
+          />
+          <div className="aui-composer-toolbar">
+            <ComposerPrimitive.AddAttachment
+              className="aui-composer-attach"
+              aria-label="Attach images"
+              multiple
+            >
+              <AttachIcon />
+            </ComposerPrimitive.AddAttachment>
+            <span className="aui-composer-hint">
+              Type / for commands · paste or drag images
+            </span>
+            <ComposerPrimitive.Send
+              className="aui-composer-send"
+              aria-label="Send message"
+              onPointerDown={(e) => e.preventDefault()}
+            >
+              <SendIcon />
+            </ComposerPrimitive.Send>
           </div>
-        </AuiIf>
-        <ComposerPrimitive.Input
-          ref={helpers.inputRef}
-          className="aui-input"
-          placeholder="How can I help you today?"
-          rows={1}
-          enterKeyHint="send"
-          autoComplete="off"
-          autoCorrect="off"
-          spellCheck={false}
-          addAttachmentOnPaste
-          onFocus={helpers.onFocus}
-          onBlur={helpers.onBlur}
-          onInput={(e) => helpers.onInput(e.currentTarget.value)}
-          onKeyDown={helpers.onKeyDown}
-        />
-        <div className="aui-composer-toolbar">
-          <ComposerPrimitive.AddAttachment
-            className="aui-composer-attach"
-            aria-label="Attach image"
-            multiple
-          >
-            <AttachIcon />
-          </ComposerPrimitive.AddAttachment>
-          <span className="aui-composer-hint">Type / for commands · paste images</span>
-          <ComposerPrimitive.Send
-            className="aui-composer-send"
-            aria-label="Send message"
-            onPointerDown={(e) => e.preventDefault()}
-          >
-            <SendIcon />
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
+        </ComposerPrimitive.Root>
+      </ComposerPrimitive.AttachmentDropzone>
     </div>
   );
 }
@@ -1101,7 +1193,7 @@ function AgentChatThread({
     [threadId, propsRef],
   );
 
-  const imageAttachmentAdapter = useMemo(() => new SimpleImageAttachmentAdapter(), []);
+  const imageAttachmentAdapter = useMemo(() => new ChatImageAttachmentAdapter(), []);
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
