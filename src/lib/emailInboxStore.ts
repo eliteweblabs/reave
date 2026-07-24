@@ -11,6 +11,12 @@ import pg from 'pg';
 import { serverEnv } from './serverEnv';
 import type { EmailCategory } from './emailProcessor';
 import { normalizeMessageId } from './emailReply';
+import {
+  normalizeEmailAttachments,
+  type EmailAttachmentMeta,
+} from './emailAttachments';
+
+export type { EmailAttachmentMeta };
 
 export interface EmailInboxRecord {
   id: string;
@@ -29,6 +35,8 @@ export interface EmailInboxRecord {
   headers: Record<string, string>;
   messageId: string;
   resendEmailId: string;
+  /** Attachment metadata from Resend (content fetched on demand). */
+  attachments: EmailAttachmentMeta[];
   status: string;
   action: string;
   notified: boolean;
@@ -66,6 +74,7 @@ export interface EmailInboxInput {
   headers?: Record<string, string>;
   messageId?: string;
   resendEmailId?: string;
+  attachments?: EmailAttachmentMeta[];
   status: string;
   action: string;
   notified: boolean;
@@ -164,6 +173,7 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS message_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS resend_email_id TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS verification_code TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS attachments_json JSONB NOT NULL DEFAULT '[]'::jsonb`,
 ];
 
 const INDEX_SQL = [
@@ -175,7 +185,7 @@ const INDEX_SQL = [
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
-              automation_ack_at, automation_kind, verification_code`;
+              automation_ack_at, automation_kind, verification_code, attachments_json`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -254,6 +264,7 @@ type InboxRow = {
   headers_json?: Record<string, string> | null;
   message_id?: string;
   resend_email_id?: string;
+  attachments_json?: unknown;
   status: string;
   action: string;
   notified: boolean;
@@ -318,6 +329,7 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     headers: parseHeadersJson(row.headers_json),
     messageId: row.message_id ?? '',
     resendEmailId: row.resend_email_id ?? '',
+    attachments: normalizeEmailAttachments(row.attachments_json),
     status: row.status,
     action: row.action,
     notified: !!row.notified,
@@ -362,6 +374,7 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       headers: e.headers && typeof e.headers === 'object' ? parseHeadersJson(e.headers) : {},
       messageId: String(e.messageId ?? ''),
       resendEmailId: String(e.resendEmailId ?? ''),
+      attachments: normalizeEmailAttachments(e.attachments),
       status: String(e.status ?? 'UNMATCHED'),
       action: String(e.action ?? 'classified'),
       notified: !!e.notified,
@@ -443,6 +456,7 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     headers: input.headers ?? {},
     messageId: input.messageId ?? '',
     resendEmailId: input.resendEmailId ?? '',
+    attachments: normalizeEmailAttachments(input.attachments),
     status: input.status,
     action: input.action,
     notified: input.notified,
@@ -509,12 +523,12 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
     const { rows } = await pool.query(
       `INSERT INTO email_inbox
         (id, from_address, subject, body_snippet, body_text, body_html, to_addrs, cc_addrs, bcc_addrs,
-         reply_to_addrs, headers_json, message_id, resend_email_id,
+         reply_to_addrs, headers_json, message_id, resend_email_id, attachments_json,
          status, action, notified, summary, category, contact_uid, contact_name, job_slug, job_title,
          route_note, proposed_meeting_start, scheduling_note, booking_uid, booking_start, automation_kind,
          verification_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13,
-               $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14::jsonb,
+               $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
        RETURNING ${INBOX_SELECT}`,
       [
         id,
@@ -530,6 +544,7 @@ async function appendToPg(input: EmailInboxInput): Promise<EmailInboxRecord | nu
         JSON.stringify(input.headers ?? {}),
         input.messageId ?? '',
         input.resendEmailId ?? '',
+        JSON.stringify(normalizeEmailAttachments(input.attachments)),
         input.status,
         input.action,
         input.notified,
@@ -639,6 +654,8 @@ export type EmailInboxPatch = Partial<
     | 'automationKind'
     | 'notified'
     | 'verificationCode'
+    | 'attachments'
+    | 'summary'
   >
 > & {
   markSeen?: boolean;
@@ -670,6 +687,10 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.automationKind !== undefined ? { automationKind: patch.automationKind } : {}),
     ...(patch.notified !== undefined ? { notified: patch.notified } : {}),
     ...(patch.verificationCode !== undefined ? { verificationCode: patch.verificationCode } : {}),
+    ...(patch.attachments !== undefined
+      ? { attachments: normalizeEmailAttachments(patch.attachments) }
+      : {}),
+    ...(patch.summary !== undefined ? { summary: patch.summary } : {}),
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
     ...(patch.markAutomationAck && !cur.automationAckAt
       ? { automationAckAt: new Date().toISOString() }
@@ -751,6 +772,14 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     if (patch.verificationCode !== undefined) {
       sets.push(`verification_code = $${i++}`);
       vals.push(patch.verificationCode);
+    }
+    if (patch.attachments !== undefined) {
+      sets.push(`attachments_json = $${i++}::jsonb`);
+      vals.push(JSON.stringify(normalizeEmailAttachments(patch.attachments)));
+    }
+    if (patch.summary !== undefined) {
+      sets.push(`summary = $${i++}`);
+      vals.push(patch.summary);
     }
     if (patch.markSeen) {
       sets.push(`seen_at = COALESCE(seen_at, now())`);

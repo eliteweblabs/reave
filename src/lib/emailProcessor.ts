@@ -28,6 +28,11 @@ import { detectProjectClientReply } from './emailProjectReply';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import { extractVerificationCodeFromEmail } from './emailOtpParser';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
+import {
+  attachmentSummaryFallback,
+  formatAttachmentListForPrompt,
+  normalizeEmailAttachments,
+} from './emailAttachments';
 
 export type EmailCategory = 'junk' | 'client' | 'alert' | 'internal' | 'review' | 'receipt' | 'project';
 
@@ -103,9 +108,13 @@ Categories:
 - internal: personal/admin not tied to a client job
 - review: ambiguous — needs human decision
 Pick job_slug only when confident; prefer active/inquiry jobs.
-For proposed_meeting_start: require BOTH a specific date and time. Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Deadlines and launch dates are NOT meetings.`;
+For proposed_meeting_start: require BOTH a specific date and time. Use the Received timestamp to resolve relative phrases. "Next week Tuesday" means Tuesday of the following calendar week, not the nearest Tuesday. "Next Tuesday" skips the imminent Tuesday (e.g. on Monday, next Tuesday is 8 days out). Vague availability ("let's find a time") with no day/time must be null. Deadlines and launch dates are NOT meetings.
+Attachments: when the body is empty or signature-only but Attachments are listed below, the email is NOT blank — summarize that the sender attached those files (name them). Never describe an email as empty/blank when attachments are present.`;
 
   const triageBody = normalizeEmailBody(email.text, email.html);
+  const attachmentLines = formatAttachmentListForPrompt(
+    normalizeEmailAttachments(email.attachments),
+  );
   const receivedAt = new Date().toISOString();
   const user = [
     `Received: ${receivedAt}`,
@@ -115,7 +124,8 @@ For proposed_meeting_start: require BOTH a specific date and time. Use the Recei
     `Open jobs for this sender:\n${jobLines}`,
     '',
     'Body:',
-    triageBody.slice(0, 4000),
+    triageBody.slice(0, 4000) || '(empty body)',
+    attachmentLines ? `\nAttachments:\n${attachmentLines}` : '',
   ]
     .filter(Boolean)
     .join('\n');
@@ -259,6 +269,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const senderEmail = parseSenderEmail(from);
   const bodyText = normalizeEmailBody(email.text, email.html);
   const bodyHtml = normalizeEmailHtml(email.text, email.html);
+  const attachments = normalizeEmailAttachments(email.attachments);
   const verificationCode =
     extractVerificationCodeFromEmail({
       subject: email.subject,
@@ -269,7 +280,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
   let category: EmailCategory = ruleCategory(ruleResult.status);
-  let summary = snippet(bodyText) || email.subject || '(no subject)';
+  let summary =
+    snippet(bodyText) ||
+    attachmentSummaryFallback(attachments) ||
+    email.subject ||
+    '(no subject)';
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
   let contactUid: string | null = null;
@@ -309,6 +324,16 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     if (ai) {
       category = ai.category;
       summary = ai.summary;
+      // Guard against models calling attachment-only mail "blank/empty".
+      if (
+        attachments.length &&
+        /\b(no body|blank|empty|no content|no message body|no attachment details|just (a |his )?signature)\b/i.test(
+          summary,
+        ) &&
+        !/\battach/i.test(summary)
+      ) {
+        summary = attachmentSummaryFallback(attachments);
+      }
       routeNote = ai.reason ?? '';
       proposedMeetingStart = ai.proposed_meeting_start;
       schedulingNote = ai.scheduling_note ?? '';
@@ -555,7 +580,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const record = await storeRecordEmailInbox({
     from,
     subject: email.subject ?? '',
-    bodySnippet: snippet(bodyText),
+    bodySnippet: snippet(bodyText) || attachmentSummaryFallback(attachments),
     bodyText,
     bodyHtml,
     to: email.to,
@@ -565,6 +590,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     headers: email.headers,
     messageId: email.messageId,
     resendEmailId: email.resendEmailId,
+    attachments,
     status: inboxStatus,
     action,
     notified: false,

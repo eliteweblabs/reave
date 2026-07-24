@@ -26,6 +26,7 @@ export async function handleInboundEmail(email: {
   headers?: Record<string, string>;
   messageId?: string;
   resendEmailId?: string;
+  attachments?: import('./emailAttachments').EmailAttachmentMeta[];
 }): Promise<InboundEmailResult> {
   const from = email.from ?? '';
 
@@ -69,6 +70,7 @@ export async function handleInboundEmail(email: {
     headers: email.headers,
     messageId: email.messageId,
     resendEmailId: email.resendEmailId,
+    attachments: email.attachments,
   });
 
   return {

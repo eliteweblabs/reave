@@ -1,4 +1,8 @@
 import type { EmailInboxRecord } from './emailInboxStore';
+import {
+  attachmentSummaryFallback,
+  formatAttachmentListForPrompt,
+} from './emailAttachments';
 
 /** Max body chars injected into agent prompts (full mail stays in DB / read_email_inbox). */
 export const MAX_AGENT_EMAIL_BODY = 12_000;
@@ -42,22 +46,35 @@ export function formatEmailChatReference(
 
 /** Body (+ optional summary) for agent prompts — skips headers already shown in chat. */
 export function formatEmailBodyForAgent(
-  email: Pick<EmailInboxRecord, 'bodyText' | 'bodySnippet' | 'summary'>,
+  email: Pick<EmailInboxRecord, 'bodyText' | 'bodySnippet' | 'summary' | 'attachments'>,
   maxBody = MAX_AGENT_EMAIL_BODY,
 ): string {
   const body = email.bodyText?.trim() || email.bodySnippet?.trim() || '';
   const summary = email.summary?.trim() || '';
+  const attLines = formatAttachmentListForPrompt(email.attachments ?? []);
+  const attBlock = attLines ? `\n\nAttachments:\n${attLines}` : '';
   if (summary && body && summary !== body && !body.startsWith(summary)) {
-    return ['Summary:', summary, '', 'Body:', truncateForAgent(body, maxBody)].join('\n');
+    return ['Summary:', summary, '', 'Body:', truncateForAgent(body, maxBody) + attBlock].join(
+      '\n',
+    );
   }
-  if (body) return truncateForAgent(body, maxBody);
+  if (body) return truncateForAgent(body, maxBody) + attBlock;
+  if (attLines) {
+    return (
+      (summary ? `Summary:\n${summary}\n\n` : '') +
+      `Attachments:\n${attLines}`
+    );
+  }
   if (summary) return summary;
-  return '(no body text)';
+  return attachmentSummaryFallback(email.attachments ?? []) || '(no body text)';
 }
 
 /** Chat-visible reference with a trimmed body preview. */
 export function formatEmailChatReferenceWithBody(
-  email: Pick<EmailInboxRecord, 'from' | 'subject' | 'receivedAt' | 'bodyText' | 'bodySnippet' | 'summary'>,
+  email: Pick<
+    EmailInboxRecord,
+    'from' | 'subject' | 'receivedAt' | 'bodyText' | 'bodySnippet' | 'summary' | 'attachments'
+  >,
   maxBody = 4_000,
 ): string {
   const lines = [formatEmailChatReference(email), ''];

@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { serverEnv } from '../../../lib/serverEnv';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
 import { handleInboundEmail } from '../../../lib/inboundEmailHandler';
+import { normalizeEmailAttachments } from '../../../lib/emailAttachments';
 
 export const prerender = false;
 
@@ -72,6 +73,10 @@ export const POST: APIRoute = async ({ request }) => {
     let headers: Record<string, string> = {};
     let messageId = '';
     let resendEmailId = meta.email_id ?? '';
+    // Webhook includes attachment metadata; receiving.get may refresh/enrich it.
+    let attachments = normalizeEmailAttachments(
+      (meta as { attachments?: unknown }).attachments,
+    );
 
     // The webhook payload carries metadata only; fetch the full email for the body.
     if (meta.email_id) {
@@ -98,6 +103,22 @@ export const POST: APIRoute = async ({ request }) => {
             : {};
         messageId = data.message_id ?? '';
         resendEmailId = data.id ?? resendEmailId;
+        const fromGet = normalizeEmailAttachments(
+          (data as { attachments?: unknown }).attachments,
+        );
+        if (fromGet.length) attachments = fromGet;
+      }
+    }
+
+    // If get() omitted attachments but we have an email id, list them explicitly.
+    if (!attachments.length && resendEmailId) {
+      const { data: attList, error: attErr } = await resend.emails.receiving.attachments.list({
+        emailId: resendEmailId,
+      });
+      if (attErr) {
+        console.warn('[email] attachments.list error', attErr);
+      } else {
+        attachments = normalizeEmailAttachments(attList?.data ?? attList);
       }
     }
 
@@ -113,6 +134,7 @@ export const POST: APIRoute = async ({ request }) => {
       headers,
       messageId,
       resendEmailId,
+      attachments,
     });
     return new Response(JSON.stringify(result), {
       status: 200,

@@ -5023,6 +5023,63 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         border-radius: 8px;
         background: #fff;
       }
+      .em-attach-hint {
+        --em-item-accent: #94a3b8;
+        color: #cbd5e1;
+        background: rgba(148, 163, 184, 0.14);
+      }
+      .em-detail-attachments {
+        margin: 0.75rem 0 1rem;
+        padding: 0.75rem 0.85rem;
+        border-radius: 8px;
+        border: 1px solid var(--card-border);
+        background: var(--card);
+      }
+      .em-detail-attachments-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 0.5rem;
+      }
+      .em-detail-attachments-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .em-detail-attachment-link {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        padding: 0.45rem 0.55rem;
+        border-radius: 6px;
+        text-decoration: none;
+        color: inherit;
+        background: rgba(148, 163, 184, 0.08);
+        border: 1px solid transparent;
+      }
+      .em-detail-attachment-link:hover {
+        border-color: rgba(148, 163, 184, 0.35);
+        background: rgba(148, 163, 184, 0.14);
+      }
+      .em-detail-attachment-name {
+        font-size: 0.86rem;
+        font-weight: 600;
+        color: #79c0ff;
+        overflow-wrap: anywhere;
+      }
+      .em-detail-attachment-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .em-detail-body-empty {
+        color: var(--muted);
+        font-style: italic;
+      }
       .em-item-summary {
         font-size: 0.82rem;
         font-weight: 600;

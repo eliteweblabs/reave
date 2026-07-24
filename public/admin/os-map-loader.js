@@ -20040,6 +20040,11 @@ function createEmailListItem(ev) {
       (ev.verificationCode
         ? `<span class="em-status em-otp-hint">${escHtml(ev.verificationCode)}</span>`
         : '') +
+      (Array.isArray(ev.attachments) && ev.attachments.length
+        ? `<span class="em-status em-attach-hint" title="${escHtml(
+            ev.attachments.map((a) => a.filename || 'file').join(', '),
+          )}">${ev.attachments.length} file${ev.attachments.length === 1 ? '' : 's'}</span>`
+        : '') +
       `<span class="em-item-date">${escHtml(formatChatDate(ev.receivedAt))}</span>` +
       `<span class="em-item-from">${escHtml(formatEmailCardFrom(ev))}</span>` +
     `</span>` +
@@ -21037,6 +21042,41 @@ function renderEmailPanel() {
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
     `</div>`;
+  const attachments = Array.isArray(ev.attachments) ? ev.attachments : [];
+  if (attachments.length) {
+    detailHtml +=
+      `<div class="em-detail-attachments">` +
+        `<div class="em-detail-attachments-title">${attachments.length} attachment${attachments.length === 1 ? '' : 's'}</div>` +
+        `<ul class="em-detail-attachments-list">` +
+        attachments
+          .map((a) => {
+            const name = a.filename || 'attachment';
+            const size =
+              typeof a.size === 'number' && a.size > 0
+                ? a.size < 1024
+                  ? `${a.size} B`
+                  : a.size < 1024 * 1024
+                    ? `${(a.size / 1024).toFixed(a.size < 10240 ? 1 : 0)} KB`
+                    : `${(a.size / (1024 * 1024)).toFixed(1)} MB`
+                : '';
+            const href = `/api/email/inbox/${encodeURIComponent(ev.id)}/attachments/${encodeURIComponent(a.id)}`;
+            return (
+              `<li class="em-detail-attachment">` +
+                `<a class="em-detail-attachment-link" href="${escHtml(href)}" download="${escHtml(name)}">` +
+                  `<span class="em-detail-attachment-name">${escHtml(name)}</span>` +
+                  (size || a.contentType
+                    ? `<span class="em-detail-attachment-meta">${escHtml(
+                        [a.contentType, size].filter(Boolean).join(' · '),
+                      )}</span>`
+                    : '') +
+                `</a>` +
+              `</li>`
+            );
+          })
+          .join('') +
+        `</ul>` +
+      `</div>`;
+  }
   const bodyHtmlSource = (ev.bodyHtml || '').trim();
   const plainBody = ev.bodyText || ev.bodySnippet || '';
   const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summary;
@@ -21045,6 +21085,8 @@ function renderEmailPanel() {
       `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="" title="Email message"></iframe></div>`;
   } else if (showPlainBody) {
     detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
+  } else if (!attachments.length && !summary) {
+    detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
   }
   detail.innerHTML = detailHtml;
   const bodyFrame = detail.querySelector('.em-detail-body-frame');

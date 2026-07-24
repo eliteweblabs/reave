@@ -46,6 +46,8 @@ export interface InboundEmail {
   headers?: Record<string, string>;
   messageId?: string;
   resendEmailId?: string;
+  /** Attachment metadata from Resend (id, filename, content type, size). */
+  attachments?: import('./emailAttachments').EmailAttachmentMeta[];
 }
 
 export interface Classification {
