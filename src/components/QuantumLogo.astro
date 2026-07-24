@@ -1,13 +1,16 @@
 ---
 export interface Props {
-  /** Mask image URL. When omitted, nothing is rendered. */
-  heroMask: string;
+  /**
+   * Optional brand mask URL (kept on `data-hero-mask` for scrape tooling).
+   * WebGL uses `logoSrc` only.
+   */
+  heroMask?: string;
   /** Full-color logo PNG the animation resolves into (default /logo.png). */
   logoSrc: string;
   /** Canvas host element id. */
   hostId?: string;
-  /** Homepage full-viewport; centered keeps the logo in the middle; compact fits the header. */
-  layout?: "homepage" | "centered" | "compact";
+  /** Homepage full-viewport; centered keeps the logo in the middle. */
+  layout?: "homepage" | "centered";
   /** Particles rush inward from outside the mask on load. */
   introRush?: boolean;
   /** Rush duration in seconds (default 2). */
@@ -29,7 +32,6 @@ const {
 } = Astro.props;
 
 const isHomepage = layout === "homepage";
-const isCompact = layout === "compact";
 const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 ---
 
@@ -38,12 +40,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     "quantum-logo-stack",
     isHomepage && "quantum-logo-stack--homepage",
     layout === "centered" && "quantum-logo-stack--centered",
-    isCompact && "quantum-logo-stack--compact",
-    introRush && !isCompact && "quantum-logo-stack--galaxy",
-    (!introRush || isCompact) && "quantum-logo-stack--logo",
+    introRush && "quantum-logo-stack--galaxy",
+    !introRush && "quantum-logo-stack--logo",
     className,
   ]}
-  style={`--hero-logo-mask: url("${heroMask}")`}
   data-quantum-logo
   data-layout={layout}
   data-host-id={hostId}
@@ -80,33 +80,16 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   }
 
   /* Full-viewport galaxy during the collapse — no logo mask on the canvas yet. */
-  .quantum-logo-stack--galaxy:not(.quantum-logo-stack--compact) {
+  .quantum-logo-stack--galaxy {
     mask-image: none;
     -webkit-mask-image: none;
     filter: none;
   }
 
   /* After intro: WebGL resolve plane defines the logo shape (no CSS mask). */
-  .quantum-logo-stack--logo:not(.quantum-logo-stack--compact),
-  .quantum-logo-stack--compact {
+  .quantum-logo-stack--logo {
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))
       drop-shadow(0 0 16px rgba(200, 80, 180, 0.14));
-  }
-
-  .quantum-logo-stack--compact {
-    position: relative;
-    inset: unset;
-    width: 24px;
-    height: 24px;
-    flex: 0 0 24px;
-    pointer-events: none;
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.24))
-      drop-shadow(0 0 7px rgba(200, 80, 180, 0.12));
-  }
-
-  .quantum-logo-stack--compact .quantum-host {
-    position: absolute;
-    inset: 0;
   }
 
   .quantum-host {
@@ -190,10 +173,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       delayId = window.setTimeout(start, delayMs);
     };
 
-    if (
-      (layout === "compact" || layout === "homepage") &&
-      document.getElementById("boot")
-    ) {
+    if (layout === "homepage" && document.getElementById("boot")) {
       void waitForPreloaderGone().then(scheduleStart);
     } else {
       scheduleStart();

@@ -39,7 +39,6 @@ export default defineConfig({
         'three',
         'three/examples/jsm/postprocessing/EffectComposer.js',
         'three/examples/jsm/postprocessing/RenderPass.js',
-        'three/examples/jsm/postprocessing/ShaderPass.js',
         'three/examples/jsm/postprocessing/UnrealBloomPass.js',
       ],
     },

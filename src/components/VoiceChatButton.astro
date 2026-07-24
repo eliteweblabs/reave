@@ -135,6 +135,21 @@ const positionClasses = {
     companyDomain,
   }}
 >
+  // Silence verbose debug logging in production builds.
+  const __voiceDebug = Boolean(import.meta.env.DEV);
+  const console = {
+    ...globalThis.console,
+    log: (...args) => {
+      if (__voiceDebug) globalThis.console.log(...args);
+    },
+    debug: (...args) => {
+      if (__voiceDebug) globalThis.console.debug(...args);
+    },
+    info: (...args) => {
+      if (__voiceDebug) globalThis.console.info(...args);
+    },
+  };
+
   // Get auth state from Clerk client-side using nanostores
   let userId = null;
   let isAuthenticated = false;
@@ -357,10 +372,10 @@ const positionClasses = {
         // This is normal - browser scripts can't resolve npm packages directly
         console.log("Local import failed, using CDN:", localError.message);
         console.log(
-          "Importing from CDN: https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm"
+          "Importing from CDN: https://cdn.jsdelivr.net/npm/@vapi-ai/web@2.5.2/+esm"
         );
         VapiModule =
-          await import("https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/+esm");
+          await import("https://cdn.jsdelivr.net/npm/@vapi-ai/web@2.5.2/+esm");
         console.log("CDN import successful");
       }
 

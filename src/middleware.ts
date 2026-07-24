@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
+import { applySecurityHeaders } from "./lib/securityHeaders";
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
 const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
@@ -11,7 +12,7 @@ const isPublicAdminAsset = createRouteMatcher([
 ]);
 
 function featureBlockedResponse(): Response {
-  return new Response("Not found", { status: 404 });
+  return applySecurityHeaders(new Response("Not found", { status: 404 }));
 }
 
 function isFeatureBlockedPath(pathname: string): boolean {
@@ -34,8 +35,23 @@ function isFeatureBlockedPath(pathname: string): boolean {
   return false;
 }
 
-export const onRequest = clerkMiddleware((auth, context, next) => {
-  const { pathname } = new URL(context.request.url);
+export const onRequest = clerkMiddleware(async (auth, context, next) => {
+  const url = new URL(context.request.url);
+  const { pathname } = url;
+
+  // Canonical host: www → apex (works once DNS for www exists).
+  const host = (context.request.headers.get("host") || url.host).split(":")[0];
+  if (host === "www.reave.app") {
+    const target = new URL(url.href);
+    target.host = "reave.app";
+    target.protocol = "https:";
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
 
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
@@ -45,9 +61,12 @@ export const onRequest = clerkMiddleware((auth, context, next) => {
     const { userId } = auth();
     if (!userId) {
       const returnTo = encodeURIComponent(pathname + new URL(context.request.url).search);
-      return context.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`);
+      return applySecurityHeaders(
+        context.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`),
+      );
     }
   }
 
-  return next();
+  const response = await next();
+  return applySecurityHeaders(response);
 });

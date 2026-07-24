@@ -5,7 +5,6 @@
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
@@ -58,17 +57,12 @@ export interface QuantumEngineOptions {
   };
   /** Static logo PNG — colors, resolve plane, and intro sampling target. */
   logoImageUrl?: string;
-  /** Pre-sampled home positions (length = QUANTUM_PARTICLE_COUNT * 3). */
-  homePositions?: Float32Array;
 }
 
-export const QUANTUM_PARTICLE_COUNT = 4000;
-export const QUANTUM_CLOUD_RADIUS = 11.0;
-export const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
+const QUANTUM_PARTICLE_COUNT = 4000;
+const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
 /** Diffuse particle cloud radius — large, soft edges, no readable sphere silhouette. */
-export const QUANTUM_BALL_RADIUS = 14.0;
-
-const LOGO_SAMPLE_SIZE = 512;
+const QUANTUM_BALL_RADIUS = 14.0;
 
 /** UV band for the A + V characters (3rd & 4th) — localized glow reduction only. */
 const LOGO_AV_DAMP_U0 = 0.36;
@@ -207,105 +201,8 @@ function attachParticleSizeAttribute(material: THREE.PointsMaterial): void {
   };
 }
 
-function uvToHome(
-  u: number,
-  v: number,
-  cloudRadius: number,
-  cloudHalfH: number,
-): [number, number, number] {
-  const hx = (u - 0.5) * cloudRadius * 2;
-  const hy = (0.5 - v) * cloudHalfH * 2;
-  const hz = (Math.random() - 0.5) * 0.55;
-  return [hx, hy, hz];
-}
-
-/** Sample particle home positions from a logo image (opaque pixels → 3D homes). */
-export async function sampleHomePositionsFromMask(
-  url: string,
-  particleCount = QUANTUM_PARTICLE_COUNT,
-): Promise<Float32Array> {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error(`Failed to load mask image: ${url}`));
-    img.src = url;
-  });
-
-  const canvas = document.createElement("canvas");
-  canvas.width = LOGO_SAMPLE_SIZE;
-  canvas.height = LOGO_SAMPLE_SIZE;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) throw new Error("Canvas 2D unavailable");
-
-  const aspect = img.naturalWidth / Math.max(1, img.naturalHeight);
-  let drawW = LOGO_SAMPLE_SIZE;
-  let drawH = LOGO_SAMPLE_SIZE;
-  let offsetX = 0;
-  let offsetY = 0;
-  if (aspect > 1) {
-    drawH = LOGO_SAMPLE_SIZE / aspect;
-    offsetY = (LOGO_SAMPLE_SIZE - drawH) / 2;
-  } else {
-    drawW = LOGO_SAMPLE_SIZE * aspect;
-    offsetX = (LOGO_SAMPLE_SIZE - drawW) / 2;
-  }
-  ctx.clearRect(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE);
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-  const pixels = ctx.getImageData(0, 0, LOGO_SAMPLE_SIZE, LOGO_SAMPLE_SIZE)
-    .data;
-
-  const homes = new Float32Array(particleCount * 3);
-  let filled = 0;
-  let attempts = 0;
-  const maxAttempts = particleCount * 80;
-  while (filled < particleCount && attempts < maxAttempts) {
-    attempts++;
-    const u = Math.random();
-    const v = Math.random();
-    const x = Math.floor(u * (LOGO_SAMPLE_SIZE - 1));
-    const y = Math.floor(v * (LOGO_SAMPLE_SIZE - 1));
-    const pi = (y * LOGO_SAMPLE_SIZE + x) * 4;
-    const r = pixels[pi]! / 255;
-    const g = pixels[pi + 1]! / 255;
-    const b = pixels[pi + 2]! / 255;
-    const a = pixels[pi + 3]! / 255;
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    if (a < 0.1 && lum < 0.1) continue;
-
-    const [hx, hy, hz] = uvToHome(
-      u,
-      v,
-      QUANTUM_CLOUD_RADIUS,
-      QUANTUM_CLOUD_HALF_HEIGHT,
-    );
-    const i3 = filled * 3;
-    homes[i3] = hx;
-    homes[i3 + 1] = hy;
-    homes[i3 + 2] = hz;
-    filled++;
-  }
-
-  while (filled < particleCount) {
-    const u = Math.random();
-    const rho = QUANTUM_CLOUD_RADIUS * Math.sqrt(u * (2 - u));
-    const theta = Math.random() * Math.PI * 2;
-    const i3 = filled * 3;
-    homes[i3] = rho * Math.cos(theta);
-    homes[i3 + 1] = (Math.random() * 2 - 1) * QUANTUM_CLOUD_HALF_HEIGHT;
-    homes[i3 + 2] = rho * Math.sin(theta);
-    filled++;
-  }
-
-  return homes;
-}
-
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
-}
-
-function easeOutQuart(t: number): number {
-  return 1 - Math.pow(1 - t, 4);
 }
 
 function easeInQuart(t: number): number {
@@ -406,7 +303,6 @@ export function attachQuantumCoreOpticalEngine(
    */
   const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  const CORE_VIS_SCALE = 0.38;
   const PARTICLE_VIS_SCALE = 0.52;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
@@ -486,97 +382,6 @@ export function attachQuantumCoreOpticalEngine(
   const { w: initialW, h: initialH } = getViewportSize();
   renderer.setSize(initialW, initialH);
 
-  const noiseVertex = `
-    varying vec2 vUv; varying vec3 vNormal; varying vec3 vPos;
-    uniform float uTime; uniform float uSpike;
-    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-    vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-    vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-    vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-    float snoise(vec3 v) {
-      const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-      const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-      vec3 i  = floor(v + dot(v, C.yyy) );
-      vec3 x0 = v - i + dot(i, C.xxx) ;
-      vec3 g = step(x0.yzx, x0.xyz);
-      vec3 l = 1.0 - g;
-      vec3 i1 = min( g.xyz, l.zxy );
-      vec3 i2 = max( g.xyz, l.zxy );
-      vec3 x1 = x0 - i1 + C.xxx;
-      vec3 x2 = x0 - i2 + C.yyy;
-      vec3 x3 = x0 - D.yyy;
-      i = mod289(i);
-      vec4 p = permute( permute( permute(
-                  i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-              + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
-              + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-      float n_ = 0.142857142857;
-      vec3  ns = n_ * D.wyz - D.xzx;
-      vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-      vec4 x_ = floor(j * ns.z);
-      vec4 y_ = floor(j - 7.0 * x_ );
-      vec4 x = x_ *ns.x + ns.yyyy;
-      vec4 y = y_ *ns.x + ns.yyyy;
-      vec4 h = 1.0 - abs(x) - abs(y);
-      vec4 b0 = vec4( x.xy, y.xy );
-      vec4 b1 = vec4( x.zw, y.zw );
-      vec4 s0 = floor(b0)*2.0 + 1.0;
-      vec4 s1 = floor(b1)*2.0 + 1.0;
-      vec4 sh = -step(h, vec4(0.0));
-      vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-      vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-      vec3 p0 = vec3(a0.xy,h.x);
-      vec3 p1 = vec3(a0.zw,h.y);
-      vec3 p2 = vec3(a1.xy,h.z);
-      vec3 p3 = vec3(a1.zw,h.w);
-      vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-      p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-      vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-      m = m * m;
-      return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
-    }
-    void main() {
-      vUv = uv; vNormal = normalize(normalMatrix * normal);
-      float n = snoise(position * 2.5 + uTime * 0.5);
-      float pulse = sin(uTime * 4.0) * 0.03;
-      vec3 newPos = position + normal * (n * uSpike + pulse);
-      vPos = newPos;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-    }
-  `;
-
-  const plasmaFragment = `
-    uniform vec3 uColorA; uniform vec3 uColorB; uniform float uTime;
-    varying vec3 vNormal; varying vec3 vPos;
-    void main() {
-      vec3 viewDir = normalize(cameraPosition - vPos);
-      float ndv = clamp(dot(viewDir, vNormal), 0.0, 1.0);
-      /* Linear limb only — avoids fresnel/additive/center-multiply bands that read as a ring under bloom. */
-      float limb = 1.0 - ndv;
-      float tw = sin(vPos.y * 28.0 + uTime * 3.4) * 0.028
-        + sin(dot(vPos, vec3(1.7, 2.3, 1.1)) * 6.0 + uTime * 1.8) * 0.022;
-      float depth = clamp(0.05 + 0.4 * limb + tw, 0.0, 1.0);
-      vec3 color = mix(uColorA, uColorB, depth);
-      gl_FragColor = vec4(color, 1.0);
-    }
-  `;
-
-  const sphereGeo = new THREE.IcosahedronGeometry(1.6, 64);
-  const sphereMat = new THREE.ShaderMaterial({
-    vertexShader: noiseVertex,
-    fragmentShader: plasmaFragment,
-    uniforms: {
-      uTime: { value: 0 },
-      uSpike: { value: 0.2 },
-      uColorA: { value: new THREE.Color("#03060c") },
-      uColorB: { value: new THREE.Color("#00f3ff") },
-    },
-  });
-  const core = new THREE.Mesh(sphereGeo, sphereMat);
-  core.scale.setScalar(CORE_VIS_SCALE);
-  /* Logo read: particles only — the icosahedron reads as a bright “planet” in the mask. */
-  core.visible = false;
-
   const particleCount = QUANTUM_PARTICLE_COUNT;
   const particlesGeo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
@@ -593,28 +398,14 @@ export function attachQuantumCoreOpticalEngine(
   /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
   const introOutwardMin = 2.4;
   const introOutwardMax = 4.2;
-  const CLOUD_RADIUS = QUANTUM_CLOUD_RADIUS;
   const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
   const BALL_RADIUS = QUANTUM_BALL_RADIUS;
-  let logoCloudRadiusX = CLOUD_RADIUS;
+  let logoCloudRadiusX = CLOUD_HALF_HEIGHT;
   const homeEdgeFade = new Float32Array(particleCount);
-  const suppliedHomes =
-    options?.homePositions && options.homePositions.length >= particleCount * 3
-      ? options.homePositions
-      : null;
 
   for (let i = 0; i < particleCount; i++) {
     particleIdlePhase[i] = Math.random() * Math.PI * 2;
-    let hx: number;
-    let hy: number;
-    let hz: number;
-    if (suppliedHomes) {
-      hx = suppliedHomes[i * 3]!;
-      hy = suppliedHomes[i * 3 + 1]!;
-      hz = suppliedHomes[i * 3 + 2]!;
-    } else {
-      [hx, hy, hz] = sampleSphericalHome(BALL_RADIUS);
-    }
+    const [hx, hy, hz] = sampleSphericalHome(BALL_RADIUS);
     homeEdgeFade[i] = particleDissolveStrength(hx, hy, hz, BALL_RADIUS);
     homePositions[i * 3] = hx;
     homePositions[i * 3 + 1] = hy;
@@ -715,48 +506,6 @@ export function attachQuantumCoreOpticalEngine(
   pulseGroup.add(logoResolve);
   scene.add(pulseGroup);
 
-  const AdvancedLensShader = {
-    uniforms: {
-      tDiffuse: { value: null },
-      uAberration: { value: 0.005 },
-      uDistortion: { value: 0.2 },
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D tDiffuse;
-      uniform float uAberration;
-      uniform float uDistortion;
-      varying vec2 vUv;
-
-      vec2 distort(vec2 uv, float k) {
-        vec2 centered = uv - 0.5;
-        float r2 = dot(centered, centered);
-        float f = 1.0 + r2 * (k + k * sqrt(r2));
-        return f * centered + 0.5;
-      }
-
-      void main() {
-        vec2 uv = vUv;
-        vec2 rUv = distort(uv, uDistortion - uAberration);
-        vec2 gUv = distort(uv, uDistortion);
-        vec2 bUv = distort(uv, uDistortion + uAberration);
-        float r = texture2D(tDiffuse, rUv).r;
-        float g = texture2D(tDiffuse, gUv).g;
-        float b = texture2D(tDiffuse, bUv).b;
-        float mask = 1.0;
-        if(rUv.x < 0.0 || rUv.x > 1.0 || rUv.y < 0.0 || rUv.y > 1.0) mask = 0.0;
-        if(bUv.x < 0.0 || bUv.x > 1.0 || bUv.y < 0.0 || bUv.y > 1.0) mask = 0.0;
-        gl_FragColor = vec4(r, g, b, 1.0) * mask;
-      }
-    `,
-  };
-
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
 
@@ -778,13 +527,6 @@ export function attachQuantumCoreOpticalEngine(
   hpUniforms["smoothWidth"].value = 0.11;
   composer.addPass(bloomPass);
 
-  const lensPass = new ShaderPass(AdvancedLensShader);
-  /* Zero = passthrough (no barrel / CA ring). */
-  lensPass.uniforms.uAberration.value = 0;
-  lensPass.uniforms.uDistortion.value = 0;
-  composer.addPass(lensPass);
-
-  let targetSpike = 0.2;
   const rushTint = new THREE.Color(1, 0.98, 1);
   const ballHomeColors = new Float32Array(particleCount * 3);
 
@@ -847,7 +589,7 @@ export function attachQuantumCoreOpticalEngine(
     }
     particlesGeo.attributes.color!.needsUpdate = true;
   }
-  let particleSpeedMult = 1.0;
+  const particleSpeedMult = 1.0;
   /** Smoothed 0–1 from `window` `audioLevel` events (voice reactive). */
   let micLevelTarget = 0;
   let micLevelSmoothed = 0;
@@ -963,41 +705,6 @@ export function attachQuantumCoreOpticalEngine(
     shakeIntensity = amt;
   }
 
-  const btnStabilize = document.getElementById("btn-stabilize");
-  const btnDestabilize = document.getElementById("btn-destabilize");
-  const btnReset = document.getElementById("btn-reset");
-
-  const onStabilize = () => {
-    targetSpike = 0.1;
-    bloomPass.strength = 0.88;
-    particleSpeedMult = 0.5;
-    lensPass.uniforms.uAberration.value = 0;
-    lensPass.uniforms.uDistortion.value = 0;
-    triggerShake(0.1);
-  };
-
-  const onDestabilize = () => {
-    targetSpike = 1.2;
-    bloomPass.strength = 2.8;
-    particleSpeedMult = 8.0;
-    triggerShake(0.5);
-    lensPass.uniforms.uDistortion.value = 0.6;
-    lensPass.uniforms.uAberration.value = 0.04;
-  };
-
-  const onReset = () => {
-    targetSpike = 0.3;
-    bloomPass.strength = 0.92;
-    particleSpeedMult = 1.0;
-    lensPass.uniforms.uAberration.value = 0;
-    lensPass.uniforms.uDistortion.value = 0;
-    triggerShake(0.2);
-  };
-
-  btnStabilize?.addEventListener("click", onStabilize);
-  btnDestabilize?.addEventListener("click", onDestabilize);
-  btnReset?.addEventListener("click", onReset);
-
   let introCompleteFired = false;
   let raf = 0;
   let alive = true;
@@ -1036,11 +743,6 @@ export function attachQuantumCoreOpticalEngine(
     raf = requestAnimationFrame(animate);
     const rawT = tickIntroElapsed();
     const sceneT = clock.getElapsedTime();
-    /* Plasma / noise: real-time so it doesn’t look “frozen” when Reduce Motion slows other lerps. */
-    sphereMat.uniforms.uTime.value = sceneT;
-
-    sphereMat.uniforms.uSpike.value +=
-      (targetSpike - sphereMat.uniforms.uSpike.value) * 0.05 * motionScale;
 
     const micLerp = prefersReduced ? 0.04 : 0.08;
     micLevelSmoothed +=
@@ -1309,16 +1011,6 @@ export function attachQuantumCoreOpticalEngine(
     camera.position.z = VIEW_Z;
     camera.lookAt(scene.position);
 
-    /* Very subtle lens shimmer on voice — no barrel warp (reads wrong with the halo). */
-    const warpTarget = 0;
-    const aberrTarget =
-      THREE.MathUtils.clamp(mic * 0.012 + burst * 0.006, 0, 0.022) *
-      motionScale;
-    lensPass.uniforms.uDistortion.value +=
-      (warpTarget - lensPass.uniforms.uDistortion.value) * 0.1;
-    lensPass.uniforms.uAberration.value +=
-      (aberrTarget - lensPass.uniforms.uAberration.value) * 0.1;
-
     composer.render();
   }
 
@@ -1364,12 +1056,7 @@ export function attachQuantumCoreOpticalEngine(
     host.removeEventListener("touchend", onHostTouchEnd);
     host.removeEventListener("touchcancel", onHostTouchEnd);
     renderer.domElement.removeEventListener("webglcontextlost", onCtxLost);
-    btnStabilize?.removeEventListener("click", onStabilize);
-    btnDestabilize?.removeEventListener("click", onDestabilize);
-    btnReset?.removeEventListener("click", onReset);
 
-    sphereGeo.dispose();
-    sphereMat.dispose();
     particlesGeo.dispose();
     particlesMat.dispose();
     logoResolveGeo.dispose();
