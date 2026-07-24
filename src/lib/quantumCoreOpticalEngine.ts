@@ -784,7 +784,13 @@ export function attachQuantumCoreOpticalEngine(
       return;
     }
     const heroH = Math.max(1, heroEl.clientHeight);
-    const progress = THREE.MathUtils.clamp(-heroEl.getBoundingClientRect().top / heroH, 0, 1);
+    const scrollProgress = THREE.MathUtils.clamp(
+      -heroEl.getBoundingClientRect().top / heroH,
+      0,
+      1,
+    );
+    /* Inverted: hero loads in the "scrolled" pose and eases back toward center as you scroll down. */
+    const progress = 1 - scrollProgress;
     const coarse = isCoarsePointer();
     const amp = coarse ? 1.35 : 1;
     const t = (progress - 0.5) * 2;
