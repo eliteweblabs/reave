@@ -1,8 +1,12 @@
 export function initHomepageLogoReveal() {
   const header = document.querySelector<HTMLElement>(".app-header--homepage-logo-reveal");
-  const about = document.getElementById("about");
   const logo = header?.querySelector<HTMLAnchorElement>(".app-header-logo");
-  if (!header || !about || !logo) return false;
+  const sections = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-home-section]"),
+  );
+  const hero = document.getElementById("home");
+
+  if (!header || !logo || !hero || sections.length === 0) return false;
   if (header.dataset.logoRevealBound === "1") return true;
   header.dataset.logoRevealBound = "1";
 
@@ -33,17 +37,57 @@ export function initHomepageLogoReveal() {
     }, animMs);
   };
 
-  const update = () => {
-    const heroBottom = document.getElementById("home")?.getBoundingClientRect().bottom ?? 0;
-    const headerBottom = header.getBoundingClientRect().bottom;
-    const aboutTop = about.getBoundingClientRect().top;
-    const pastHero = heroBottom <= headerBottom + 8;
-    const aboutInView = aboutTop < window.innerHeight * 0.85;
-    setVisible(pastHero || aboutInView);
+  const ratios = new Map<Element, number>();
+
+  const activeSectionId = () => {
+    let bestSection: HTMLElement | null = null;
+    let bestRatio = 0;
+
+    for (const section of sections) {
+      const ratio = ratios.get(section) ?? 0;
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        bestSection = section;
+      }
+    }
+
+    if (!bestSection || bestRatio <= 0.15) {
+      return "home";
+    }
+
+    return bestSection.dataset.homeSection ?? "home";
   };
 
-  update();
-  window.addEventListener("scroll", update, { passive: true });
+  const update = () => {
+    setVisible(activeSectionId() !== "home");
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        ratios.set(entry.target, entry.intersectionRatio);
+      });
+      update();
+    },
+    {
+      root: null,
+      // Match SiteFooterNav — section in the upper/mid viewport is "active".
+      rootMargin: "-18% 0px -42% 0px",
+      threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
+    },
+  );
+
+  sections.forEach((section) => observer.observe(section));
+
+  // Deep links: `/#about` or `/?section=about`
+  const params = new URLSearchParams(location.search);
+  const deepLink = (params.get("section") || location.hash.replace(/^#/, "") || "").trim();
+  if (deepLink && deepLink !== "home") {
+    setVisible(true);
+  } else {
+    update();
+  }
+
   window.addEventListener("resize", update, { passive: true });
   return true;
 }
