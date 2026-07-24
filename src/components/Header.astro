@@ -27,8 +27,8 @@ const headerLogoMarkup = readFileSync(
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
   adminShell?: boolean;
-  /** Hide logo link (homepage — logo lives in page content) */
-  hideLogo?: boolean;
+  /** Homepage — hide header logo on hero, fade in after first section */
+  homepageLogoReveal?: boolean;
   /** Homepage — single user icon links to admin instead of tools/profile menus */
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
@@ -43,7 +43,7 @@ interface Props {
 
 const {
   adminShell = false,
-  hideLogo = false,
+  homepageLogoReveal = false,
   homeAdminEntry = false,
   staffPreview = false,
   profileMenu = [],
@@ -74,15 +74,26 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 ---
 
 <header
-  class:list={["app-header", { "app-header--admin": adminShell, "app-header--portal-brand": !!portalBrand }]}
+  class:list={[
+    "app-header",
+    {
+      "app-header--admin": adminShell,
+      "app-header--portal-brand": !!portalBrand,
+      "app-header--homepage-logo-reveal": homepageLogoReveal,
+    },
+  ]}
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
-  {!hideLogo ? (
-    <a href={logoHref} class="app-header-logo brand" aria-label={logoAriaLabel}>
-      <Fragment set:html={headerLogoMarkup} />
-    </a>
-  ) : null}
+  <a
+    href={logoHref}
+    class:list={["app-header-logo brand", homepageLogoReveal && "app-header-logo--hero-hidden"]}
+    aria-label={logoAriaLabel}
+    aria-hidden={homepageLogoReveal ? "true" : undefined}
+    tabindex={homepageLogoReveal ? -1 : undefined}
+  >
+    <Fragment set:html={headerLogoMarkup} />
+  </a>
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
@@ -410,6 +421,23 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     flex-shrink: 0;
     line-height: 0;
     text-decoration: none;
+  }
+
+  .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
+      transition: none;
+    }
   }
 
   .app-header-logo-svg {
@@ -911,6 +939,45 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     }
   }
 </style>
+
+{homepageLogoReveal && (
+  <script>
+    function initHomepageLogoReveal() {
+      const header = document.querySelector<HTMLElement>(".app-header--homepage-logo-reveal");
+      const about = document.getElementById("about");
+      const logo = header?.querySelector<HTMLAnchorElement>(".app-header-logo");
+      if (!header || !about || !logo) return;
+      if (header.dataset.logoRevealBound === "1") return;
+      header.dataset.logoRevealBound = "1";
+
+      const setVisible = (visible: boolean) => {
+        header.classList.toggle("app-header--logo-visible", visible);
+        logo.setAttribute("aria-hidden", visible ? "false" : "true");
+        if (visible) {
+          logo.removeAttribute("tabindex");
+        } else {
+          logo.setAttribute("tabindex", "-1");
+        }
+      };
+
+      const update = () => {
+        const heroBottom = document.getElementById("home")?.getBoundingClientRect().bottom ?? 0;
+        const headerBottom = header.getBoundingClientRect().bottom;
+        const aboutTop = about.getBoundingClientRect().top;
+        const pastHero = heroBottom <= headerBottom + 8;
+        const aboutInView = aboutTop < window.innerHeight * 0.85;
+        setVisible(pastHero || aboutInView);
+      };
+
+      update();
+      window.addEventListener("scroll", update, { passive: true });
+      window.addEventListener("resize", update, { passive: true });
+    }
+
+    initHomepageLogoReveal();
+    document.addEventListener("astro:page-load", initHomepageLogoReveal);
+  </script>
+)}
 
 {!adminShell && !homeAdminEntry && (
   <script>
