@@ -11106,12 +11106,16 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     row.className = 'cl-vault-row';
     const key = document.createElement('span');
     key.className = 'cl-vault-row-label';
-    key.textContent = label;
+    key.textContent = opts.required ? `${label} *` : label;
     const input = document.createElement('input');
     input.className = 'de-input' + (opts.secret ? ' cl-vault-secret' : '');
     input.dataset.field = field;
     input.value = value || '';
     input.placeholder = opts.placeholder || '';
+    if (opts.required) {
+      input.required = true;
+      input.setAttribute('aria-required', 'true');
+    }
     if (opts.type) input.type = opts.type;
     row.appendChild(key);
     row.appendChild(input);
@@ -11187,7 +11191,10 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       head.appendChild(deleteBtn);
       card.appendChild(head);
 
-      const labelInput = appendVaultField(card, 'Label', 'label', entry.label, { placeholder: 'e.g. WordPress admin' });
+      const labelInput = appendVaultField(card, 'Label', 'label', entry.label, {
+        placeholder: 'e.g. WordPress admin',
+        required: true,
+      });
       appendVaultField(card, 'URL', 'url', entry.url, { placeholder: 'https://…', type: 'url' });
       appendVaultField(card, 'Username', 'username', entry.username, { copy: true });
       appendVaultField(card, 'Password', 'password', entry.password, { secret: true, copy: true });

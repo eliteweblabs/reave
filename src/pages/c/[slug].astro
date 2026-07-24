@@ -770,8 +770,10 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               <span class="entry-num">Entry ${idx}</span>
               ${idx > 1 ? '<button class="entry-remove" type="button" aria-label="Remove">✕</button>' : ''}
             </div>
-            <input class="entry-label" type="text" placeholder="Label (e.g. Hosting, cPanel, Domain…)" autocomplete="off" />
-            <textarea class="entry-value" rows="4" placeholder="Paste your info here…"></textarea>
+            <label class="entry-field-label" for="entry-label-${idx}">Label <span class="entry-required" aria-hidden="true">*</span></label>
+            <input id="entry-label-${idx}" class="entry-label" type="text" placeholder="e.g. Hosting, cPanel, Domain…" autocomplete="off" required aria-required="true" />
+            <label class="entry-field-label" for="entry-value-${idx}">Details</label>
+            <textarea id="entry-value-${idx}" class="entry-value" rows="4" placeholder="Paste your info here…"></textarea>
           `;
           const removeBtn = card.querySelector('.entry-remove');
           if (removeBtn) {
@@ -1159,6 +1161,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .entry-header { display: flex; justify-content: space-between; align-items: center; }
       .entry-num { font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(255, 255, 255, 0.4); }
+      .entry-field-label {
+        font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+        color: rgba(255, 255, 255, 0.5); margin-top: 2px;
+      }
+      .entry-required { color: #f87171; }
       .entry-remove {
         background: none; border: none; color: rgba(255, 255, 255, 0.35);
         font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
