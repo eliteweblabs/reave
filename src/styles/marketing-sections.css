@@ -178,8 +178,10 @@
   margin-top: 0;
 }
 
-/* Defer rendering work for below-fold sections until near the viewport. */
-.home-section[data-home-section]:not([data-home-section="home"]) {
+/* Defer rendering work for below-fold sections until near the viewport.
+   Sections with the client-logo marquee are excluded — content-visibility
+   can leave CSS/WAAPI animations stuck paused on iOS Safari. */
+.home-section[data-home-section]:not([data-home-section="home"]):not(:has([data-client-logos])) {
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
 }

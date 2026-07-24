@@ -71,10 +71,13 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
   .client-logos-viewport.is-dragging {
     cursor: grabbing;
+    touch-action: none;
   }
 
   .client-logos-track {
     display: flex;
+    width: max-content;
+    will-change: transform;
     animation: client-logos-marquee var(--marquee-duration) linear infinite;
   }
 
@@ -82,11 +85,10 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     animation-play-state: paused;
   }
 
-  /* Touch devices: keep autoplay even if JS adds is-paused (IO + content-visibility
-     can leave the marquee stuck paused on iOS Safari). */
+  /* Touch devices use WAAPI instead of CSS keyframes (see script). */
   @media (hover: none), (pointer: coarse) {
-    .client-logos-viewport.is-paused .client-logos-track {
-      animation-play-state: running;
+    .client-logos-track {
+      animation: none;
     }
   }
 
@@ -163,10 +165,44 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     const velocity = 28;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const useWaapi = !canHover;
     const pauseWhenOffscreen = canHover;
+
+    let waapiAnim: Animation | null = null;
 
     function getSetWidth() {
       return track.scrollWidth / loopCopies;
+    }
+
+    function getCurrentOffset() {
+      return new DOMMatrix(getComputedStyle(track).transform).m41;
+    }
+
+    function cancelWaapi() {
+      waapiAnim?.cancel();
+      waapiAnim = null;
+    }
+
+    function startWaapiMarquee(fromOffset = 0) {
+      if (!useWaapi || prefersReducedMotion || isDragging || offscreen) return;
+
+      const setWidth = getSetWidth();
+      if (!setWidth) return;
+
+      cancelWaapi();
+      track.style.transform = `translate3d(${fromOffset}px, 0, 0)`;
+
+      waapiAnim = track.animate(
+        [
+          { transform: `translate3d(${fromOffset}px, 0, 0)` },
+          { transform: `translate3d(${fromOffset - setWidth}px, 0, 0)` },
+        ],
+        {
+          duration: (setWidth / velocity) * 1000,
+          iterations: Infinity,
+          easing: "linear",
+        },
+      );
     }
 
     function updateMarqueeDuration() {
@@ -175,6 +211,10 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       const setWidth = getSetWidth() || viewport.clientWidth;
       if (setWidth > 0) {
         viewport.style.setProperty("--marquee-duration", `${setWidth / velocity}s`);
+      }
+
+      if (useWaapi && !isDragging && !offscreen) {
+        startWaapiMarquee(getCurrentOffset());
       }
     }
 
@@ -189,10 +229,22 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       viewport.classList.toggle("is-paused", offscreen || isDragging);
     }
 
-    function restartMarqueeAnimation() {
+    function restartCssMarquee() {
       track.style.animation = "none";
       void track.offsetWidth;
       track.style.removeProperty("animation");
+    }
+
+    function resumeAutoplay(fromOffset?: number) {
+      if (prefersReducedMotion || isDragging || offscreen) return;
+
+      if (useWaapi) {
+        startWaapiMarquee(fromOffset ?? getCurrentOffset());
+        return;
+      }
+
+      syncPausedClass();
+      restartCssMarquee();
     }
 
     function normalizeOffset() {
@@ -219,7 +271,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
               offscreen = !entries.some((entry) => entry.isIntersecting);
               if (!isDragging) {
                 syncPausedClass();
-                if (wasOffscreen && !offscreen) restartMarqueeAnimation();
+                if (wasOffscreen && !offscreen) resumeAutoplay();
               }
             },
             { root: null, threshold: 0, rootMargin: "80px 0px" },
@@ -233,10 +285,9 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       isDragging = true;
       viewport.classList.add("is-dragging");
       syncPausedClass();
+      cancelWaapi();
       dragStartX = event.clientX;
-
-      const matrix = new DOMMatrix(getComputedStyle(track).transform);
-      manualOffset = matrix.m41;
+      manualOffset = getCurrentOffset();
       dragStartOffset = manualOffset;
 
       viewport.setPointerCapture(event.pointerId);
@@ -256,27 +307,33 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
       isDragging = false;
       viewport.classList.remove("is-dragging");
+      normalizeOffset();
+      const resumeFrom = manualOffset;
       clearManualTransform();
       syncPausedClass();
-      if (!offscreen) restartMarqueeAnimation();
+      resumeAutoplay(resumeFrom);
 
       if (viewport.hasPointerCapture(event.pointerId)) {
         viewport.releasePointerCapture(event.pointerId);
       }
     }
 
-    if (canHover) {
-      viewport.addEventListener("pointerdown", onPointerDown);
-      viewport.addEventListener("pointermove", onPointerMove);
-      viewport.addEventListener("pointerup", endDrag);
-      viewport.addEventListener("pointercancel", endDrag);
-      viewport.addEventListener("lostpointercapture", () => {
-        isDragging = false;
-        viewport.classList.remove("is-dragging");
-        clearManualTransform();
-        syncPausedClass();
-      });
+    viewport.addEventListener("pointerdown", onPointerDown);
+    viewport.addEventListener("pointermove", onPointerMove);
+    viewport.addEventListener("pointerup", endDrag);
+    viewport.addEventListener("pointercancel", endDrag);
+    viewport.addEventListener("lostpointercapture", () => {
+      if (!isDragging) return;
+      isDragging = false;
+      viewport.classList.remove("is-dragging");
+      normalizeOffset();
+      const resumeFrom = manualOffset;
+      clearManualTransform();
+      syncPausedClass();
+      resumeAutoplay(resumeFrom);
+    });
 
+    if (canHover) {
       viewport.addEventListener("mouseenter", () => {
         viewport.classList.add("is-paused");
       });
@@ -284,13 +341,21 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       viewport.addEventListener("mouseleave", () => {
         if (!isDragging && !offscreen) {
           viewport.classList.remove("is-paused");
-          restartMarqueeAnimation();
+          restartCssMarquee();
         }
       });
     }
 
+    const section = viewport.closest(".home-section");
+    section?.addEventListener("contentvisibilityautostatechange", (event) => {
+      const { skipped } = event as ContentVisibilityAutoStateChangeEvent;
+      if (skipped || isDragging) return;
+      resumeAutoplay();
+    });
+
     const resizeObserver = new ResizeObserver(updateMarqueeDuration);
     resizeObserver.observe(viewport);
+    resizeObserver.observe(track);
 
     track.querySelectorAll("img").forEach((img) => {
       if (!(img as HTMLImageElement).complete) {
@@ -301,7 +366,18 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     updateMarqueeDuration();
     requestAnimationFrame(updateMarqueeDuration);
 
+    if (useWaapi) {
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden || isDragging || offscreen) {
+          cancelWaapi();
+          return;
+        }
+        resumeAutoplay();
+      });
+    }
+
     return () => {
+      cancelWaapi();
       resizeObserver.disconnect();
       visibilityObs?.disconnect();
     };
