@@ -1,5 +1,8 @@
 ---
-/** Vector REAVE wordmark split into letter segments for cascade reveal. */
+/**
+ * Vector REAVE wordmark — seven letter paths filled with the brand gradient.
+ * No clipPath + raster (that breaks in iOS WebViews when the PNG is a full rect).
+ */
 
 const parts = [
   {
@@ -35,7 +38,6 @@ const parts = [
 
 <svg
   xmlns="http://www.w3.org/2000/svg"
-  xmlns:xlink="http://www.w3.org/1999/xlink"
   width="1014"
   height="329"
   viewBox="0 0 1014 329"
@@ -45,13 +47,18 @@ const parts = [
   focusable="false"
 >
   <defs>
-    {
-      parts.map((part) => (
-        <clipPath id={`header-logo-clip-${part.id}`} clipPathUnits="userSpaceOnUse">
-          <path d={part.d} />
-        </clipPath>
-      ))
-    }
+    <linearGradient
+      id="header-logo-brand"
+      gradientUnits="userSpaceOnUse"
+      x1="80"
+      y1="300"
+      x2="920"
+      y2="40"
+    >
+      <stop offset="0%" stop-color="var(--brand-pink, #f472b6)"></stop>
+      <stop offset="52%" stop-color="var(--brand-magenta, #c026d3)"></stop>
+      <stop offset="100%" stop-color="var(--brand-indigo, #6366f1)"></stop>
+    </linearGradient>
   </defs>
   {
     parts.map((part, index) => (
@@ -60,15 +67,7 @@ const parts = [
         style={`--logo-part-index: ${index}`}
         data-logo-part={part.id}
       >
-        <g clip-path={`url(#header-logo-clip-${part.id})`}>
-          <image
-            width="2134"
-            height="707"
-            transform="translate(-5.32 -5.24) scale(.48)"
-            href="/reave-logo-1.png"
-            xlink:href="/reave-logo-1.png"
-          />
-        </g>
+        <path d={part.d} fill="url(#header-logo-brand)" />
       </g>
     ))
   }
