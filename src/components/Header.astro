@@ -5,6 +5,7 @@ import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
+import HeaderLogoAnimated from "./HeaderLogoAnimated.astro";
 import {
   Shield,
   LayoutDashboard,
@@ -27,7 +28,7 @@ const headerLogoMarkup = readFileSync(
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
   adminShell?: boolean;
-  /** Homepage — hide header logo on hero, fade in after first section */
+  /** Homepage — hide header logo on hero, cascade in after first section */
   homepageLogoReveal?: boolean;
   /** Homepage — single user icon links to admin instead of tools/profile menus */
   homeAdminEntry?: boolean;
@@ -92,7 +93,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     aria-hidden={homepageLogoReveal ? "true" : undefined}
     tabindex={homepageLogoReveal ? -1 : undefined}
   >
-    <Fragment set:html={headerLogoMarkup} />
+    {homepageLogoReveal ? (
+      <HeaderLogoAnimated />
+    ) : (
+      <Fragment set:html={headerLogoMarkup} />
+    )}
   </a>
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
@@ -265,6 +270,9 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     --app-header-h: 3.25rem;
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
+    --app-header-logo-drop: calc(var(--app-header-h) + 12px);
+    --app-header-logo-part-stagger: 100ms;
+    --app-header-logo-part-duration: 0.55s;
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -424,19 +432,44 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   }
 
   .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
-    opacity: 0;
     pointer-events: none;
-    transition: opacity 0.4s ease;
   }
 
   .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
-    opacity: 1;
     pointer-events: auto;
   }
 
+  .app-header-logo-svg--animated {
+    overflow: visible;
+  }
+
+  .app-header--homepage-logo-reveal .app-header-logo-part {
+    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
+    transition: transform var(--app-header-logo-part-duration) cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
+  }
+
+  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
+    transform: translateY(0);
+  }
+
+  .app-header--homepage-logo-reveal.app-header--logo-hiding .app-header-logo-part {
+    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
+    transition-delay: calc((var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) * var(--app-header-logo-part-stagger));
+  }
+
   @media (prefers-reduced-motion: reduce) {
-    .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
+    .app-header--homepage-logo-reveal .app-header-logo-part {
       transition: none;
+      transform: translateY(0);
+    }
+
+    .app-header--homepage-logo-reveal:not(.app-header--logo-visible) .app-header-logo-part {
+      opacity: 0;
+    }
+
+    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
+      opacity: 1;
     }
   }
 
@@ -950,14 +983,32 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
       if (header.dataset.logoRevealBound === "1") return;
       header.dataset.logoRevealBound = "1";
 
+      const partCount = header.querySelectorAll(".app-header-logo-part").length;
+      const animMs =
+        550 + Math.max(0, partCount - 1) * 100;
+      let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
       const setVisible = (visible: boolean) => {
-        header.classList.toggle("app-header--logo-visible", visible);
-        logo.setAttribute("aria-hidden", visible ? "false" : "true");
-        if (visible) {
-          logo.removeAttribute("tabindex");
-        } else {
-          logo.setAttribute("tabindex", "-1");
+        if (hideTimer) {
+          clearTimeout(hideTimer);
+          hideTimer = null;
         }
+
+        if (visible) {
+          header.classList.remove("app-header--logo-hiding");
+          header.classList.add("app-header--logo-visible");
+          logo.setAttribute("aria-hidden", "false");
+          logo.removeAttribute("tabindex");
+          return;
+        }
+
+        header.classList.remove("app-header--logo-visible");
+        header.classList.add("app-header--logo-hiding");
+        logo.setAttribute("aria-hidden", "true");
+        logo.setAttribute("tabindex", "-1");
+        hideTimer = setTimeout(() => {
+          header.classList.remove("app-header--logo-hiding");
+        }, animMs);
       };
 
       const update = () => {
