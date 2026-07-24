@@ -19834,14 +19834,6 @@ async function unmarkEmailReceipt(ev) {
 
 async function deleteEmail(ev) {
   closeOpenSwipeRow();
-  const summary = ev.summary || ev.subject || ev.from || 'this message';
-  const ok = await osConfirm({
-    title: 'Delete message?',
-    bodyHtml: `<p>Remove <strong>${escHtml(summary.slice(0, 80))}</strong> from the inbox log?</p>`,
-    confirmLabel: 'Delete',
-    danger: true,
-  });
-  if (!ok) return;
   try {
     const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}`, {
       method: 'DELETE',
