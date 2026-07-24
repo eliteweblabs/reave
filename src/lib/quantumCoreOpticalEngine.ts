@@ -830,14 +830,42 @@ export function attachQuantumCoreOpticalEngine(
   let scrollRaf = 0;
   let scrollActive = false;
   let scrollIdleTimer = 0;
+  /** Random tilt/camera wander while scroll is idle on the homepage hero. */
+  let scrollIdleWanderX = 0;
+  let scrollIdleWanderY = 0;
+  let scrollIdleWanderCamX = 0;
+  let scrollIdleWanderCamY = 0;
+  let scrollIdleWanderTargetX = 0;
+  let scrollIdleWanderTargetY = 0;
+  let scrollIdleWanderCamTargetX = 0;
+  let scrollIdleWanderCamTargetY = 0;
+  let scrollIdleWanderNextAt = 0;
+
+  function pickScrollIdleWanderTargets() {
+    const coarse = isCoarsePointer();
+    const amp = coarse ? 1.35 : 1;
+    scrollIdleWanderTargetX = (Math.random() - 0.5) * 0.52 * amp;
+    scrollIdleWanderTargetY = (Math.random() - 0.5) * 0.86 * amp;
+    scrollIdleWanderCamTargetX = (Math.random() - 0.5) * 0.16 * amp;
+    scrollIdleWanderCamTargetY = (Math.random() - 0.5) * 0.12 * amp;
+    scrollIdleWanderNextAt =
+      performance.now() + 550 + Math.random() * 1100;
+  }
+
   const markScrollActive = () => {
     scrollActive = true;
+    scrollIdleWanderNextAt = 0;
     window.clearTimeout(scrollIdleTimer);
     scrollIdleTimer = window.setTimeout(() => {
       scrollActive = false;
       scrollIdleTimer = 0;
       pendingResize = true;
       onResize();
+      scrollIdleWanderX = tiltTargetX;
+      scrollIdleWanderY = tiltTargetY;
+      scrollIdleWanderCamX = mouseX;
+      scrollIdleWanderCamY = mouseY;
+      pickScrollIdleWanderTargets();
     }, 180);
   };
 
@@ -852,6 +880,11 @@ export function attachQuantumCoreOpticalEngine(
 
   if (useScrollParallax) {
     setParallaxFromScroll();
+    scrollIdleWanderX = tiltTargetX;
+    scrollIdleWanderY = tiltTargetY;
+    scrollIdleWanderCamX = mouseX;
+    scrollIdleWanderCamY = mouseY;
+    pickScrollIdleWanderTargets();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
   } else {
@@ -1165,10 +1198,43 @@ export function attachQuantumCoreOpticalEngine(
       inIntro || prefersReduced || isCompactStack
         ? 0
         : Math.cos(sceneT * 0.17) * 0.038 * motionScale * idleVoiceDamp;
+
+    let effectiveTiltX = tiltTargetX;
+    let effectiveTiltY = tiltTargetY;
+    let effectiveMouseX = mouseX;
+    let effectiveMouseY = mouseY;
+    if (
+      useScrollParallax &&
+      !scrollActive &&
+      !inIntro &&
+      !prefersReduced &&
+      !isCompactStack
+    ) {
+      if (
+        scrollIdleWanderNextAt === 0 ||
+        performance.now() >= scrollIdleWanderNextAt
+      ) {
+        pickScrollIdleWanderTargets();
+      }
+      const wanderLerp = 0.022 * Math.max(motionScale, 0.4);
+      scrollIdleWanderX +=
+        (scrollIdleWanderTargetX - scrollIdleWanderX) * wanderLerp;
+      scrollIdleWanderY +=
+        (scrollIdleWanderTargetY - scrollIdleWanderY) * wanderLerp;
+      scrollIdleWanderCamX +=
+        (scrollIdleWanderCamTargetX - scrollIdleWanderCamX) * wanderLerp;
+      scrollIdleWanderCamY +=
+        (scrollIdleWanderCamTargetY - scrollIdleWanderCamY) * wanderLerp;
+      effectiveTiltX = scrollIdleWanderX;
+      effectiveTiltY = scrollIdleWanderY;
+      effectiveMouseX = scrollIdleWanderCamX;
+      effectiveMouseY = scrollIdleWanderCamY;
+    }
+
     pulseGroup.rotation.x +=
-      (tiltTargetX + idleTiltX - pulseGroup.rotation.x) * tiltLerp;
+      (effectiveTiltX + idleTiltX - pulseGroup.rotation.x) * tiltLerp;
     pulseGroup.rotation.y +=
-      (tiltTargetY + idleTiltY - pulseGroup.rotation.y) * tiltLerp;
+      (effectiveTiltY + idleTiltY - pulseGroup.rotation.y) * tiltLerp;
     pulseGroup.rotation.x = THREE.MathUtils.clamp(
       pulseGroup.rotation.x,
       -0.55,
@@ -1188,9 +1254,11 @@ export function attachQuantumCoreOpticalEngine(
     const parallaxAmp = (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
     const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
     camera.position.x +=
-      (mouseX * parallaxAmp - camera.position.x) * parallaxLerp + shakeX;
+      (effectiveMouseX * parallaxAmp - camera.position.x) * parallaxLerp +
+      shakeX;
     camera.position.y +=
-      (-mouseY * parallaxAmp - camera.position.y) * parallaxLerp + shakeY;
+      (-effectiveMouseY * parallaxAmp - camera.position.y) * parallaxLerp +
+      shakeY;
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
     camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
     camera.position.z = VIEW_Z;
