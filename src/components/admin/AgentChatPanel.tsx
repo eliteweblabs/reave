@@ -11,7 +11,7 @@ import {
   useComposerRuntime,
   useLocalRuntime,
   useAuiState,
-  useThreadViewportAutoScroll,
+  useThreadViewport,
   type AttachmentAdapter,
   type ChatModelAdapter,
   type CompleteAttachment,
@@ -21,7 +21,7 @@ import {
 } from '@assistant-ui/react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   filterHelperCommands,
   matchHelperCommand,
@@ -1052,6 +1052,72 @@ function useRecoverInFlightRun(threadId: string, propsRef: RefObject<AgentChatPa
   return { recovering, recoveryProgress, recoveryText, stopRecovery };
 }
 
+function lastAssistantMessageText(
+  messages: ReadonlyArray<{ role: string; content?: ReadonlyArray<{ type: string; text?: string }> }>,
+): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message.role !== 'assistant') continue;
+    return (message.content ?? [])
+      .filter((part) => part.type === 'text')
+      .map((part) => part.text ?? '')
+      .join('');
+  }
+  return '';
+}
+
+function scrollAnchorIntoView(anchor: HTMLElement | null) {
+  if (!anchor) return;
+  const run = () => anchor.scrollIntoView({ block: 'end' });
+  run();
+  requestAnimationFrame(() => {
+    run();
+    requestAnimationFrame(run);
+  });
+}
+
+/** Keep the viewport pinned to the latest content while the agent streams. */
+function ChatFollowBottom({
+  followActive,
+  recoveryText,
+}: {
+  followActive: boolean;
+  recoveryText: string;
+}) {
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom);
+  const lastAssistantText = useAuiState((s) => lastAssistantMessageText(s.thread.messages));
+  const messageCount = useAuiState((s) => s.thread.messages.length);
+  const wasFollowingRef = useRef(followActive);
+
+  useLayoutEffect(() => {
+    const shouldFollow = followActive || isAtBottom || wasFollowingRef.current;
+    if (!shouldFollow) return;
+    scrollAnchorIntoView(anchorRef.current);
+    wasFollowingRef.current = followActive;
+  }, [followActive, isAtBottom, lastAssistantText, messageCount, recoveryText]);
+
+  useEffect(() => {
+    const viewport = anchorRef.current?.closest('.aui-viewport');
+    if (!viewport || !followActive) return;
+
+    let frame: number | null = null;
+    const schedule = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => scrollAnchorIntoView(anchorRef.current));
+    };
+
+    const observer = new ResizeObserver(schedule);
+    observer.observe(viewport);
+    return () => {
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [followActive, lastAssistantText]);
+
+  return <div ref={anchorRef} className="aui-scroll-anchor" aria-hidden="true" />;
+}
+
 function InFlightRecoveryMessage({ text }: { text: string }) {
   return (
     <div className="aui-msg-row aui-msg-row-assistant">
@@ -1085,8 +1151,10 @@ function AgentChatThreadBody({
     propsRef,
   );
   const showThreadStatus = isRunning || recovering;
-
-  useThreadViewportAutoScroll({ autoScroll: true });
+  const inFlightAssistantText = useAuiState((s) =>
+    s.thread.isRunning ? lastAssistantMessageText(s.thread.messages) : '',
+  );
+  const showInThreadStatus = showThreadStatus && !recoveryText.trim() && !inFlightAssistantText.trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -1137,10 +1205,14 @@ function AgentChatThreadBody({
 
       <AuiIf condition={(s) => s.thread.messages.length > 0}>
         <div className="aui-thread-body">
-          <ThreadPrimitive.Viewport className="aui-viewport">
+          <ThreadPrimitive.Viewport
+            className="aui-viewport"
+            autoScroll
+            scrollToBottomOnRunStart
+          >
             <div className="aui-thread-column">
               <ChatMessages />
-              {showThreadStatus && !recoveryText.trim() ? (
+              {showInThreadStatus ? (
                 <InThreadRunStatus
                   threadId={threadId}
                   externalProgress={recoveryProgress}
@@ -1151,6 +1223,7 @@ function AgentChatThreadBody({
               {recovering && recoveryText.trim() ? (
                 <InFlightRecoveryMessage text={recoveryText} />
               ) : null}
+              <ChatFollowBottom followActive={showThreadStatus} recoveryText={recoveryText} />
             </div>
           </ThreadPrimitive.Viewport>
           <div className="aui-compose-footer">

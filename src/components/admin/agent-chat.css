@@ -61,6 +61,13 @@
   padding: 1rem 0.85rem 0.75rem;
 }
 
+.aui-scroll-anchor {
+  height: 1px;
+  width: 100%;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
 .aui-compose-footer {
   flex-shrink: 0;
   z-index: 2;
