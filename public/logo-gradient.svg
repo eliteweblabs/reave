@@ -1,52 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- REAVE brand gradient sampled from public/logo.png. Full-bleed fill without letter cutouts. -->
+<!-- REAVE brand cloud fill — matches src/styles/brand.css + LogoResolveShader. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="1014" height="329" viewBox="0 0 1014 329">
   <defs>
-    <linearGradient id="reave-sweep" gradientUnits="userSpaceOnUse" x1="56" y1="164.5" x2="956" y2="164.5">
-      <stop offset="0%" stop-color="#b977e8"></stop>
-      <stop offset="6%" stop-color="#d969ce"></stop>
-      <stop offset="12%" stop-color="#de59f1"></stop>
-      <stop offset="20%" stop-color="#e342fe"></stop>
-      <stop offset="28%" stop-color="#db4dfe"></stop>
-      <stop offset="36%" stop-color="#d04cfe"></stop>
-      <stop offset="44%" stop-color="#c948fe"></stop>
-      <stop offset="52%" stop-color="#df27fc"></stop>
-      <stop offset="60%" stop-color="#e420f9"></stop>
-      <stop offset="68%" stop-color="#f806ff"></stop>
-      <stop offset="76%" stop-color="#fe00b8"></stop>
-      <stop offset="84%" stop-color="#f110a9"></stop>
-      <stop offset="92%" stop-color="#d8339c"></stop>
-      <stop offset="100%" stop-color="#ce4b7f"></stop>
+    <linearGradient id="brand-sweep" gradientUnits="userSpaceOnUse" x1="80" y1="300" x2="920" y2="40">
+      <stop offset="0%" stop-color="#f472b6"></stop>
+      <stop offset="52%" stop-color="#c026d3"></stop>
+      <stop offset="100%" stop-color="#6366f1"></stop>
     </linearGradient>
 
-    <radialGradient id="cloud-lavender" gradientUnits="objectBoundingBox" cx="0.18" cy="0.52" r="0.55" gradientTransform="matrix(2.4 0 0 0.42 0 0)">
-      <stop offset="0%" stop-color="#ddd0ff" stop-opacity="0.72"></stop>
-      <stop offset="42%" stop-color="#c4a8ff" stop-opacity="0.38"></stop>
-      <stop offset="100%" stop-color="#b977e8" stop-opacity="0"></stop>
+    <radialGradient id="cloud-indigo" gradientUnits="objectBoundingBox" cx="0.17" cy="0.53" r="0.55" gradientTransform="matrix(2.35 0 0 0.42 0 0)">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.72"></stop>
+      <stop offset="42%" stop-color="#6366f1" stop-opacity="0.38"></stop>
+      <stop offset="100%" stop-color="#c026d3" stop-opacity="0"></stop>
     </radialGradient>
 
-    <radialGradient id="cloud-magenta" gradientUnits="objectBoundingBox" cx="0.42" cy="0.48" r="0.58" gradientTransform="matrix(2.6 0 0 0.45 0 0)">
-      <stop offset="0%" stop-color="#f060f8" stop-opacity="0.78"></stop>
-      <stop offset="38%" stop-color="#e342fe" stop-opacity="0.42"></stop>
-      <stop offset="100%" stop-color="#d04cfe" stop-opacity="0"></stop>
+    <radialGradient id="cloud-magenta" gradientUnits="objectBoundingBox" cx="0.39" cy="0.47" r="0.58" gradientTransform="matrix(2.15 0 0 0.45 0 0)">
+      <stop offset="0%" stop-color="#d946ef" stop-opacity="0.78"></stop>
+      <stop offset="38%" stop-color="#c026d3" stop-opacity="0.42"></stop>
+      <stop offset="100%" stop-color="#a21caf" stop-opacity="0"></stop>
     </radialGradient>
 
-    <radialGradient id="cloud-pink" gradientUnits="objectBoundingBox" cx="0.62" cy="0.54" r="0.56" gradientTransform="matrix(2.5 0 0 0.4 0 0)">
-      <stop offset="0%" stop-color="#ff00e5" stop-opacity="0.82"></stop>
-      <stop offset="40%" stop-color="#fe00b8" stop-opacity="0.45"></stop>
-      <stop offset="100%" stop-color="#f806ff" stop-opacity="0"></stop>
+    <radialGradient id="cloud-pink" gradientUnits="objectBoundingBox" cx="0.60" cy="0.52" r="0.56" gradientTransform="matrix(2.25 0 0 0.4 0 0)">
+      <stop offset="0%" stop-color="#f472b6" stop-opacity="0.82"></stop>
+      <stop offset="40%" stop-color="#ec4899" stop-opacity="0.45"></stop>
+      <stop offset="100%" stop-color="#c026d3" stop-opacity="0"></stop>
     </radialGradient>
 
-    <radialGradient id="cloud-rose" gradientUnits="objectBoundingBox" cx="0.84" cy="0.5" r="0.52" gradientTransform="matrix(2.3 0 0 0.38 0 0)">
-      <stop offset="0%" stop-color="#ff7090" stop-opacity="0.7"></stop>
-      <stop offset="45%" stop-color="#f110a9" stop-opacity="0.36"></stop>
-      <stop offset="100%" stop-color="#ce4b7f" stop-opacity="0"></stop>
+    <radialGradient id="cloud-rose" gradientUnits="objectBoundingBox" cx="0.81" cy="0.49" r="0.52" gradientTransform="matrix(2.05 0 0 0.38 0 0)">
+      <stop offset="0%" stop-color="#fb7185" stop-opacity="0.7"></stop>
+      <stop offset="45%" stop-color="#f472b6" stop-opacity="0.36"></stop>
+      <stop offset="100%" stop-color="#c026d3" stop-opacity="0"></stop>
     </radialGradient>
 
-    <radialGradient id="cloud-mist" gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.7" gradientTransform="matrix(3.2 0 0 0.35 0 0)">
-      <stop offset="0%" stop-color="#ffc4f0" stop-opacity="0.28"></stop>
-      <stop offset="55%" stop-color="#f9a8e8" stop-opacity="0.12"></stop>
-      <stop offset="100%" stop-color="#f472d0" stop-opacity="0"></stop>
+    <radialGradient id="cloud-mist" gradientUnits="objectBoundingBox" cx="0.5" cy="0.55" r="0.7" gradientTransform="matrix(2.75 0 0 0.35 0 0)">
+      <stop offset="0%" stop-color="#fce7f3" stop-opacity="0.28"></stop>
+      <stop offset="55%" stop-color="#fbcfe8" stop-opacity="0.12"></stop>
+      <stop offset="100%" stop-color="#f472b6" stop-opacity="0"></stop>
     </radialGradient>
 
     <filter id="cloud-blur" x="-0.35" y="-0.8" width="1.7" height="2.6" filterUnits="objectBoundingBox">
@@ -58,8 +47,8 @@
     </filter>
   </defs>
 
-  <rect width="1014" height="329" fill="url(#reave-sweep)"></rect>
-  <rect width="1014" height="329" fill="url(#cloud-lavender)"></rect>
+  <rect width="1014" height="329" fill="url(#brand-sweep)"></rect>
+  <rect width="1014" height="329" fill="url(#cloud-indigo)"></rect>
   <rect width="1014" height="329" fill="url(#cloud-magenta)"></rect>
   <rect width="1014" height="329" fill="url(#cloud-pink)"></rect>
   <rect width="1014" height="329" fill="url(#cloud-rose)"></rect>
@@ -68,26 +57,26 @@
   <g filter="url(#cloud-blur)">
     <path
       d="M-40,148 C120,108 240,188 380,138 S620,98 760,158 S940,208 1060,148 L1060,198 C920,238 760,178 600,218 S280,248 80,188 Z"
-      fill="#d969ce"
-      opacity="0.42"
+      fill="#6366f1"
+      opacity="0.36"
     ></path>
     <path
       d="M-20,178 C180,218 320,148 500,198 S760,228 920,168 S1020,138 1040,188 L1040,228 C860,258 680,198 480,238 S160,268 -20,218 Z"
-      fill="#e420f9"
-      opacity="0.38"
+      fill="#c026d3"
+      opacity="0.34"
     ></path>
     <path
       d="M60,132 C220,92 400,162 560,112 S820,82 980,142 L980,172 C820,202 640,152 460,192 S200,212 60,162 Z"
-      fill="#de59f1"
-      opacity="0.34"
+      fill="#f472b6"
+      opacity="0.30"
     ></path>
   </g>
 
   <g filter="url(#cloud-soft)">
-    <ellipse cx="210" cy="164" rx="168" ry="46" fill="#c4a8ff" opacity="0.36"></ellipse>
-    <ellipse cx="520" cy="158" rx="198" ry="52" fill="#ff00e5" opacity="0.34"></ellipse>
-    <ellipse cx="780" cy="170" rx="156" ry="44" fill="#f110a9" opacity="0.32"></ellipse>
-    <ellipse cx="420" cy="176" rx="124" ry="36" fill="#f9a8e8" opacity="0.26"></ellipse>
-    <ellipse cx="640" cy="162" rx="110" ry="32" fill="#e342fe" opacity="0.24"></ellipse>
+    <ellipse cx="210" cy="164" rx="168" ry="46" fill="#818cf8" opacity="0.32"></ellipse>
+    <ellipse cx="520" cy="158" rx="198" ry="52" fill="#c026d3" opacity="0.30"></ellipse>
+    <ellipse cx="780" cy="170" rx="156" ry="44" fill="#f472b6" opacity="0.28"></ellipse>
+    <ellipse cx="420" cy="176" rx="124" ry="36" fill="#fbcfe8" opacity="0.24"></ellipse>
+    <ellipse cx="640" cy="162" rx="110" ry="32" fill="#d946ef" opacity="0.22"></ellipse>
   </g>
 </svg>
