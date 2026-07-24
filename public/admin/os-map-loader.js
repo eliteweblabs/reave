@@ -5567,7 +5567,7 @@ function renderCompanyPanel(company) {
           `<div class="prof-field"><label for="company-description">Tagline / description</label>` +
           `<input id="company-description" name="description" type="text" value="${escHtml(c.description || '')}" placeholder="Automated client communication" /></div>` +
           `<div class="prof-field"><label for="company-address">Business address</label>` +
-          `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="123 Main St, Boston, MA 02108" autocomplete="street-address" autocapitalize="words" />` +
+          `<input id="company-address" name="address" type="text" value="${escHtml(c.address || '')}" placeholder="Business or street address" autocomplete="street-address" autocapitalize="words" />` +
           `<span class="prof-hint prof-hint--block">Office location for the map below, driving directions, and address autocomplete defaults.</span></div>` +
           `<div id="company-map-host" class="cl-map-section"></div>` +
           `<div class="prof-field">` +
@@ -13366,9 +13366,9 @@ function ensureScheduleAddress({ initial = '', forcePrompt = false } = {}) {
     bodyEl.innerHTML =
       '<p class="em-book-dialog-lead">Enter the project site or meeting location so the booking can be placed on the map.</p>' +
       '<label class="de-label sched-create-field em-book-address-field">' +
-        '<span>Street address</span>' +
+        '<span>Address</span>' +
         '<div class="control-field">' +
-          '<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="123 Main St, City, MA 02134" required>' +
+          '<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="Business or street address" required>' +
         '</div>' +
       '</label>';
     actionsEl.innerHTML = '';
@@ -15148,7 +15148,7 @@ async function geocodeClientAddressPreview(address) {
 function mountClientAddressField(parent, value) {
   const input = document.createElement('input');
   input.className = 'de-input cl-address-input';
-  input.placeholder = 'Street address';
+  input.placeholder = 'Business or street address';
   input.value = value || '';
   input.autocomplete = 'street-address';
   appendClientField(parent, 'Address', input);
@@ -19235,7 +19235,7 @@ function showEmailScheduleDialog(ev, check) {
       '<label class="de-label sched-create-field em-book-address-field">' +
         '<span>Meeting address</span>' +
         '<div class="control-field">' +
-          `<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="123 Main St, City, MA 02134" value="${escHtml(readScheduleLastAddress())}">` +
+          `<input id="em-book-address" type="text" autocomplete="street-address" autocapitalize="words" placeholder="Business or street address" value="${escHtml(readScheduleLastAddress())}">` +
         '</div>' +
       '</label>',
     );

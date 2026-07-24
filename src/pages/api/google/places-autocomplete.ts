@@ -65,10 +65,12 @@ export async function GET(context: APIContext): Promise<Response> {
       requestBody.includedRegionCodes = [countryCode];
     }
 
-    if (types === 'address') {
-      requestBody.includedPrimaryTypes = ['street_address', 'premise'];
-    } else if (types) {
-      requestBody.includedPrimaryTypes = [types];
+    // `address` is the admin address-field default: include businesses and
+    // street addresses so typing a company/POI name returns a place with an
+    // address. Omitting includedPrimaryTypes lets Places Autocomplete (New)
+    // return all primary types. Street-only callers can pass types=street_address.
+    if (types && types !== 'address') {
+      requestBody.includedPrimaryTypes = types.split(',').map((t) => t.trim()).filter(Boolean).slice(0, 5);
     }
 
     const { lat, lng } = await resolvePlacesLocationBias(locationBias);
