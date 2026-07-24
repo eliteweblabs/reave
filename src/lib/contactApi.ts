@@ -263,7 +263,7 @@ export type ClientPortal = {
   /** Uploaded icon bytes (base64) when iconSource is upload. */
   iconData?: string;
   iconMediaType?: string;
-  iconSource?: 'upload';
+  iconSource?: 'upload' | 'website';
   /** Public website URL shown under the logo. */
   website?: string;
   /** Short company blurb (often from site meta description). */
@@ -528,6 +528,125 @@ export async function listContacts(opts: {
   }
 }
 
+/**
+ * Fetch external links for one contact (GET /api/contacts/:uid/links).
+ * contact-api list/search omits links; detail GET includes them.
+ */
+export async function getContactLinks(
+  uid: string,
+): Promise<{ ok: true; data: ContactLink[] } | { ok: false; error: string; status?: number }> {
+  const base = baseUrl();
+  if (!base) return { ok: false, error: 'CONTACT_API_BASE_URL is not set' };
+  if (!uid?.trim()) return { ok: false, error: 'uid is required' };
+
+  try {
+    const res = await fetch(`${base}/api/contacts/${encodeURIComponent(uid.trim())}/links`, {
+      method: 'GET',
+      headers: authHeaders(),
+    });
+    const text = await res.text();
+    let json: unknown;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const err =
+        json && typeof json === 'object' && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : text.slice(0, 200) || res.statusText;
+      return { ok: false, error: err, status: res.status };
+    }
+    const o = (json ?? {}) as { links?: ContactLink[] };
+    const links = Array.isArray(o.links) ? o.links : [];
+    return { ok: true, data: links };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Portal list projection — enough for personal flag + logo/icon URLs, without
+ * base64 blobs, vault secrets, or signed document HTML.
+ */
+export function slimPortalMetadataForList(
+  metadata: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== 'object') return null;
+  const m = metadata as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  if (m.personal === true) out.personal = true;
+  const logoSource = contactStringField(m.logoSource);
+  const iconSource = contactStringField(m.iconSource);
+  const logoUrl = contactStringField(m.logoUrl);
+  const iconUrl = contactStringField(m.iconUrl);
+  const updatedAt = contactStringField(m.updatedAt);
+  const website = contactStringField(m.website);
+  if (logoSource) out.logoSource = logoSource;
+  if (iconSource) out.iconSource = iconSource;
+  if (logoUrl) out.logoUrl = logoUrl;
+  if (iconUrl) out.iconUrl = iconUrl;
+  if (updatedAt) out.updatedAt = updatedAt;
+  if (website) out.website = website;
+  return Object.keys(out).length ? out : null;
+}
+
+async function mapPool<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  if (!items.length) return;
+  const limit = Math.min(Math.max(concurrency, 1), items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: limit }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        await fn(items[i]!, i);
+      }
+    }),
+  );
+}
+
+/**
+ * Attach slim portal links onto list contacts.
+ *
+ * contact-api `GET /api/contacts` returns rows without `links`, so portal
+ * branding / personal flags are invisible until a detail GET. This fills that
+ * gap for admin list UIs without pulling upload blobs.
+ */
+export async function attachPortalLinksForList(
+  contacts: ContactRecord[],
+  opts?: { concurrency?: number },
+): Promise<ContactRecord[]> {
+  if (!contacts.length) return contacts;
+  const concurrency = opts?.concurrency ?? 12;
+
+  await mapPool(contacts, concurrency, async (contact) => {
+    const res = await getContactLinks(contact.uid);
+    if (!res.ok) {
+      contact.links = contact.links ?? [];
+      return;
+    }
+    const portal = res.data.find((l) => l.system === PORTAL_SYSTEM);
+    if (!portal) {
+      contact.links = [];
+      return;
+    }
+    const meta =
+      portal.metadata && typeof portal.metadata === 'object'
+        ? slimPortalMetadataForList(portal.metadata as Record<string, unknown>)
+        : null;
+    contact.links = meta
+      ? [{ system: PORTAL_SYSTEM, externalId: portal.externalId || contact.uid, metadata: meta }]
+      : [];
+  });
+
+  return contacts;
+}
+
 /** Delete a contact by uid (DELETE /api/contacts/:uid). Soft-archives by default; ?permanent=true hard-deletes. */
 export async function deleteContact(
   uid: string,
@@ -575,6 +694,7 @@ export function extractPortal(contact: ContactRecord): ClientPortal | null {
     headline: contactStringField(raw.headline) || undefined,
     body: contactStringField(raw.body) || undefined,
     logoUrl: contactStringField(raw.logoUrl) || undefined,
+    iconUrl: contactStringField(raw.iconUrl) || undefined,
     website: contactStringField(raw.website) || undefined,
     tagline: contactStringField(raw.tagline) || undefined,
     address: contactStringField(raw.address) || undefined,

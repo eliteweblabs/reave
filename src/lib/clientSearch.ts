@@ -4,6 +4,7 @@
  */
 import { websiteFromNotes } from './clientBrand';
 import {
+  attachPortalLinksForList,
   contactIsPersonal,
   getContact,
   listContacts,
@@ -268,10 +269,10 @@ export async function searchClientsEnhanced(
     }
   }
 
-  const contacts = filterClientsByKind(rankContacts([...byUid.values()]), opts?.kind ?? 'all').slice(
-    0,
-    limit,
-  );
+  // contact-api list omits links; attach slim portal metadata before personal/work filter.
+  const ranked = rankContacts([...byUid.values()]);
+  await attachPortalLinksForList(ranked);
+  const contacts = filterClientsByKind(ranked, opts?.kind ?? 'all').slice(0, limit);
   return { ok: true, data: { total: contacts.length, contacts } };
 }
 

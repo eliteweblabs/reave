@@ -12,6 +12,7 @@ import {
 } from '../../../lib/clientSearch';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
 import {
+  attachPortalLinksForList,
   contactSummary,
   createContact,
   extractPortal,
@@ -28,6 +29,11 @@ function clientListEntry(c: ContactRecord) {
     logoUrl: resolveClientLogoUrl(portal, c.uid),
     iconUrl: resolveClientIconUrl(portal, c.uid),
   };
+}
+
+/** contact-api list omits links; attach slim portal metadata before branding/personal. */
+async function clientsWithPortalLinks(contacts: ContactRecord[]): Promise<ContactRecord[]> {
+  return attachPortalLinksForList(contacts.filter((c) => !c.archived));
 }
 export const prerender = false;
 
@@ -54,10 +60,10 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!q) {
     const result = await listContacts({ limit });
     if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-    const clients = filterClientsByKind(
-      result.data.contacts.filter((c) => !c.archived).map(clientListEntry),
-      kind,
-    ).sort(compareClientsForList);
+    const withLinks = await clientsWithPortalLinks(result.data.contacts);
+    const clients = filterClientsByKind(withLinks.map(clientListEntry), kind).sort(
+      compareClientsForList,
+    );
     return json({
       ok: true,
       total: clients.length,
@@ -68,12 +74,11 @@ export async function GET(context: APIContext): Promise<Response> {
   const result = await searchClientsEnhanced(q, limit, { kind });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
-  const clients = result.data.contacts
-    .filter((c) => !c.archived)
-    .map((c) => ({
-      ...clientListEntry(c),
-      matchReason: c._matchReason,
-    }));
+  // searchClientsEnhanced already attaches slim portal links for branding/personal.
+  const clients = result.data.contacts.map((c) => ({
+    ...clientListEntry(c),
+    matchReason: c._matchReason,
+  }));
 
   return json({
     ok: true,
