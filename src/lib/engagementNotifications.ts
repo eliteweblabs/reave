@@ -2,11 +2,13 @@
  * Dashboard review notifications + push side-effects for engagement events.
  */
 
+import everythingDeck from '../deck/scripts/everything.json';
 import {
   notifyAdminAgentOfDeckView,
   notifyAdminAgentOfShareOpen,
   notifyAdminAgentOfVaultSubmit,
 } from './adminAgentAlert';
+import { getDeckIndustryBySlug } from './deckIndustriesStore';
 import {
   storeCreateEngagementEvent,
   storeListPendingEngagementEvents,
@@ -15,6 +17,12 @@ import {
   type EngagementEvent,
   type EngagementEventType,
 } from './engagementStore';
+
+/** Display name for the public `/deck` narrative (kept in sync with the script JSON). */
+const SALES_DECK_TITLE =
+  typeof everythingDeck?.title === 'string' && everythingDeck.title.trim()
+    ? everythingDeck.title.trim()
+    : 'Business OS — everything';
 
 export type EngagementReviewNotification = {
   id: string;
@@ -158,11 +166,18 @@ export async function recordDeckViewEngagement(opts: {
   sessionKey: string;
 }): Promise<EngagementEvent | null> {
   const who = opts.contactName?.trim() || null;
-  const industry = opts.industry?.trim() || null;
-  const title = who
-    ? `${who} viewed the sales deck`
-    : 'Someone viewed the sales deck';
-  const detail = industry ? `Industry preset: ${industry}` : 'Public sales deck';
+  const industrySlug = opts.industry?.trim() || null;
+  let industryLabel: string | null = null;
+  if (industrySlug) {
+    const row = await getDeckIndustryBySlug(industrySlug).catch(() => null);
+    industryLabel = row?.label?.trim() || industrySlug;
+  }
+
+  const deckName = SALES_DECK_TITLE;
+  const title = who ? `${who} viewed ${deckName}` : `Someone viewed ${deckName}`;
+  const detail = industryLabel
+    ? `${industryLabel} preset · /deck?type=${industrySlug}`
+    : `Default deck · /deck`;
 
   return createAndNotify(
     {
@@ -177,7 +192,9 @@ export async function recordDeckViewEngagement(opts: {
       notifyAdminAgentOfDeckView({
         contactName: who,
         contactUid: opts.contactUid?.trim() || null,
-        industry,
+        industry: industrySlug,
+        industryLabel,
+        deckTitle: deckName,
         engagementId: event.id,
       }),
   );

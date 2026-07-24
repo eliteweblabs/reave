@@ -347,16 +347,22 @@ export async function notifyAdminAgentOfDeckView(opts: {
   contactName: string | null;
   contactUid: string | null;
   industry: string | null;
+  industryLabel?: string | null;
+  deckTitle?: string | null;
   engagementId: string;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
+  const deckTitle = opts.deckTitle?.trim() || 'Business OS — everything';
+  const industryLabel = opts.industryLabel?.trim() || opts.industry?.trim() || null;
   const who = opts.contactName || 'Anonymous visitor';
   const message = [
-    '📊 Sales deck viewed',
+    `📊 ${deckTitle} viewed`,
     '',
     `Viewer: ${who}`,
-    opts.industry ? `Industry: ${opts.industry}` : 'Public /deck',
+    industryLabel
+      ? `Preset: ${industryLabel}${opts.industry ? ` (/deck?type=${opts.industry})` : ''}`
+      : 'Default deck · /deck',
     '',
     'Someone is reviewing the sales narrative.',
   ].join('\n');
@@ -368,8 +374,12 @@ export async function notifyAdminAgentOfDeckView(opts: {
   await postToSystemAlertsThread({
     message,
     push: {
-      title: `📊 Deck viewed${opts.contactName ? `: ${opts.contactName}` : ''}`,
-      body: opts.industry ? `Preset: ${opts.industry}` : 'Sales deck',
+      title: `📊 ${deckTitle}`,
+      body: opts.contactName
+        ? `${opts.contactName}${industryLabel ? ` · ${industryLabel}` : ''}`
+        : industryLabel
+          ? `${industryLabel} preset`
+          : 'Anonymous · default deck',
       tag: `deck-view-${opts.engagementId}`,
       url,
     },
