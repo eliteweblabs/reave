@@ -16,11 +16,13 @@ const rootClass = embedded
 
 <div class={rootClass}>
   <form id="conversational-form" class="conversation">
-    <div id="questions-container"></div>
+    <div class="conversation-scroll" id="conversation-scroll">
+      <div id="questions-container"></div>
+    </div>
 
     <div class="input-area" id="input-area">
       <div class="input-pill">
-        <input type="text" id="user-input" placeholder="" autocomplete="off" />
+        <input type="text" id="user-input" placeholder="Type your answer…" autocomplete="off" />
         <button type="submit">Send</button>
       </div>
     </div>
@@ -39,15 +41,22 @@ const rootClass = embedded
 
 <style is:global>
   .conversational-form-root {
+    --cf-input-h: 3rem;
     max-width: 640px;
     margin: 0 auto;
-    padding: calc(16vw + 48px) 0 120px;
+    min-height: calc(100dvh - 4.5rem);
+    padding:
+      calc(4.5rem + env(safe-area-inset-top, 0px))
+      max(1rem, env(safe-area-inset-right, 0px))
+      calc(var(--cf-input-h) + 1.5rem + env(safe-area-inset-bottom, 0px))
+      max(1rem, env(safe-area-inset-left, 0px));
     color: #fff;
     font-family: "Inter", sans-serif;
   }
 
   .conversational-form-root--embedded {
     max-width: none;
+    min-height: 0;
     margin: 16px 0 0;
     padding: 20px 18px 24px;
     border-radius: 14px;
@@ -58,22 +67,42 @@ const rootClass = embedded
   .conversational-form-root .conversation {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    min-height: 100%;
+  }
+
+  .conversational-form-root .conversation-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 0.5rem;
+    scrollbar-width: none;
+  }
+
+  .conversational-form-root .conversation-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   .conversational-form-root .message {
-    max-width: 85%;
+    max-width: 88%;
     animation: cfFadeIn 0.3s ease;
-    line-height: 1.6;
+    line-height: 1.55;
     font-size: 15px;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
   }
 
   .conversational-form-root .message.robot {
-    background: transparent;
-    border: none;
     align-self: flex-start;
-    padding: 0;
-    color: rgba(255, 255, 255, 0.9);
+    padding: 10px 14px;
+    border-radius: 14px;
+    border-bottom-left-radius: 4px;
+    background: rgba(18, 16, 26, 0.92);
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    color: rgba(255, 255, 255, 0.95);
   }
 
   .conversational-form-root .message.robot .word {
@@ -88,7 +117,12 @@ const rootClass = embedded
   .conversational-form-root .message.user {
     align-self: flex-end;
     text-align: right;
-    color: rgba(255, 255, 255, 0.5);
+    padding: 10px 14px;
+    border-radius: 14px;
+    border-bottom-right-radius: 4px;
+    background: rgba(168, 85, 247, 0.14);
+    border: 1px solid rgba(236, 72, 153, 0.4);
+    color: rgba(255, 255, 255, 0.95);
   }
 
   .conversational-form-root .options-wrapper {
@@ -131,19 +165,27 @@ const rootClass = embedded
   .conversational-form-root .input-area {
     display: flex;
     position: fixed;
-    top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
     max-width: 640px;
-    width: 90%;
+    width: min(640px, calc(100% - 2rem));
+    z-index: 20;
+  }
+
+  .conversational-form-root--embedded .conversation-scroll {
+    max-height: min(52vh, 26rem);
   }
 
   .conversational-form-root--embedded .input-area {
-    position: static;
+    position: sticky;
+    bottom: 0;
+    left: auto;
     transform: none;
     width: 100%;
     max-width: none;
     margin-top: 8px;
+    z-index: 1;
   }
 
   .conversational-form-root .input-pill {
@@ -168,6 +210,7 @@ const rootClass = embedded
   .conversational-form-root .input-pill input {
     flex: 1;
     min-width: 0;
+    width: 0;
     padding: 10px 14px;
     border: none;
     border-radius: 0;
@@ -175,6 +218,13 @@ const rootClass = embedded
     color: #fff;
     font-size: 16px;
     outline: none;
+  }
+
+  .conversational-form-root .input-pill input::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .conversational-form-root .input-pill button[type="submit"] {
@@ -195,6 +245,20 @@ const rootClass = embedded
   }
 
   @media (max-width: 640px) {
+    .conversational-form-root {
+      padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+      padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    }
+
+    .conversational-form-root .message {
+      max-width: 92%;
+      font-size: 14px;
+    }
+
+    .conversational-form-root .input-area {
+      width: calc(100% - 1.5rem);
+    }
+
     .conversational-form-root .input-pill input {
       padding: 9px 12px;
     }
@@ -272,8 +336,42 @@ const rootClass = embedded
 
   const root = () => document.querySelector(".conversational-form-root");
   const container = () => root()?.querySelector("#questions-container");
+  const scrollArea = () => root()?.querySelector("#conversation-scroll");
   const inputArea = () => root()?.querySelector("#input-area");
   const userInput = () => root()?.querySelector("#user-input");
+
+  function scrollToLatest() {
+    const area = scrollArea();
+    if (!area) return;
+    area.scrollTop = area.scrollHeight;
+  }
+
+  function placeholderForField(field) {
+    switch (field.type) {
+      case "email":
+        return "you@example.com";
+      case "tel":
+        return "Phone number";
+      case "textarea":
+        return "Type your message…";
+      default:
+        if (field.name === "name") return "Your name";
+        return "Type your answer…";
+    }
+  }
+
+  function inputModeForField(field) {
+    const input = userInput();
+    if (!input) return;
+    input.type = field.type === "email" ? "email" : "text";
+    input.inputMode =
+      field.type === "email"
+        ? "email"
+        : field.type === "tel"
+          ? "tel"
+          : "text";
+    input.autocomplete = field.name === "email" ? "email" : field.name === "name" ? "name" : "off";
+  }
 
   function getPrefillFromUrl() {
     const params = new URLSearchParams(window.location.search);
@@ -331,14 +429,14 @@ const rootClass = embedded
     msg.className = `message ${type}`;
     msg.textContent = text;
     container()?.appendChild(msg);
-    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    scrollToLatest();
   }
 
   async function appendTypewriter(text) {
     const msg = document.createElement("div");
     msg.className = "message robot";
     container()?.appendChild(msg);
-    msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    scrollToLatest();
 
     const words = text.split(" ");
     typewriterInProgress = true;
@@ -354,6 +452,7 @@ const rootClass = embedded
       wordSpan.offsetHeight;
       wordSpan.style.filter = "blur(0)";
       wordSpan.style.opacity = "1";
+      scrollToLatest();
       await new Promise((r) => setTimeout(r, 60));
     }
 
@@ -365,7 +464,7 @@ const rootClass = embedded
     el.className = "loading-msg";
     el.textContent = text;
     container()?.appendChild(el);
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    scrollToLatest();
     return el;
   }
 
@@ -389,7 +488,7 @@ const rootClass = embedded
     });
 
     container()?.appendChild(wrapper);
-    wrapper.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    scrollToLatest();
   }
 
   function setInputVisible(visible) {
@@ -447,9 +546,13 @@ const rootClass = embedded
         appendMessage(introLines[i], "robot");
       }
       if (introLines.length > 0) await delay(300);
+      await appendTypewriter(promptLine);
+      await delay(200);
       setInputVisible(true);
+      inputModeForField(field);
       if (userInput()) {
-        userInput().placeholder = promptLine;
+        userInput().placeholder = placeholderForField(field);
+        userInput().value = "";
         userInput().focus();
       }
     }
@@ -582,6 +685,9 @@ const rootClass = embedded
   }
 
   root()?.querySelector("#conversational-form")?.addEventListener("submit", handleSubmit);
+  userInput()?.addEventListener("focus", () => {
+    window.setTimeout(scrollToLatest, 300);
+  });
   root()?.querySelector("#retry-btn")?.addEventListener("click", () => {
     window.location.reload();
   });
