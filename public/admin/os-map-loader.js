@@ -10103,6 +10103,32 @@ function scrollSidebarListItemIntoView(list, itemEl) {
   }
 }
 
+/** Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible. */
+function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
+  if (!nav || !tabEl) return;
+  const navRect = nav.getBoundingClientRect();
+  const tabRect = tabEl.getBoundingClientRect();
+  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  if (tabRect.left < navRect.left) {
+    nav.scrollLeft += tabRect.left - navRect.left;
+  } else if (tabRect.right > navRect.right) {
+    nav.scrollLeft += tabRect.right - navRect.right;
+  }
+}
+
+function captureFilterTabsScroll(root) {
+  return root?.querySelector('.em-filter-tabs')?.scrollLeft ?? 0;
+}
+
+function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
+  if (!nav) return;
+  // Restore after attach — scrollLeft on a detached node does not stick.
+  requestAnimationFrame(() => {
+    nav.scrollLeft = savedScrollLeft;
+    scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
+  });
+}
+
 function captureSidebarListScroll(root) {
   return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
 }
@@ -10662,7 +10688,7 @@ function workSearchPlaceholder(count) {
   return `Search ${n} ${n === 1 ? 'Project' : 'Projects'}`;
 }
 
-function renderWorkFilterTabs() {
+function renderWorkFilterTabs(savedScrollLeft = 0) {
   const counts = workStatusTabCounts();
   const nav = document.createElement('div');
   nav.className = 'em-filter-tabs';
@@ -10699,9 +10725,7 @@ function renderWorkFilterTabs() {
     nav.appendChild(btn);
   }
 
-  requestAnimationFrame(() => {
-    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  });
+  mountFilterTabsScroll(nav, savedScrollLeft);
   return nav;
 }
 
@@ -11381,6 +11405,7 @@ function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
+  const savedFilterScroll = captureFilterTabsScroll(root);
   const { jobs, activeSlug, search } = workState;
   root.innerHTML = '';
 
@@ -11398,7 +11423,7 @@ function renderWorkEditor() {
         refreshWorkSidebarList();
       },
     },
-    below: renderWorkFilterTabs(),
+    below: renderWorkFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -14890,7 +14915,7 @@ function clientFilterCounts(clients) {
   return { all: clients.length, work, personal };
 }
 
-function renderClientFilterTabs() {
+function renderClientFilterTabs(savedScrollLeft = 0) {
   const counts = clientFilterCounts(clientState.clients);
   const nav = document.createElement('div');
   nav.className = 'em-filter-tabs';
@@ -14926,9 +14951,7 @@ function renderClientFilterTabs() {
     nav.appendChild(btn);
   }
 
-  requestAnimationFrame(() => {
-    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  });
+  mountFilterTabsScroll(nav, savedScrollLeft);
   return nav;
 }
 
@@ -15021,6 +15044,7 @@ function renderClientsEditor() {
   const root = getClientsEditor();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
+  const savedFilterScroll = captureFilterTabsScroll(root);
   const { clients, activeUid } = clientState;
   const visibleCount = filterClientsForSidebar(clients).length;
   root.innerHTML = '';
@@ -15039,7 +15063,7 @@ function renderClientsEditor() {
         scheduleClientSearch();
       },
     },
-    below: renderClientFilterTabs(),
+    below: renderClientFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -16067,7 +16091,7 @@ async function autosaveClient(uid, payload) {
       refreshClientsSidebarList();
       const root = getClientsEditor();
       const tabs = root?.querySelector('.em-filter-tabs');
-      if (tabs) tabs.replaceWith(renderClientFilterTabs());
+      if (tabs) tabs.replaceWith(renderClientFilterTabs(tabs.scrollLeft));
     }
     if (clientActiveField) flashFormFieldSaved(clientActiveField);
     return true;
@@ -20138,7 +20162,7 @@ async function loadEmailTab(quiet) {
   syncInboxAppBadge(emailState.allEvents);
 }
 
-function renderEmailFilterTabs() {
+function renderEmailFilterTabs(savedScrollLeft = 0) {
   const counts = inboxTabCounts();
   const nav = document.createElement('div');
   nav.className = 'em-filter-tabs';
@@ -20189,13 +20213,11 @@ function renderEmailFilterTabs() {
 
     nav.appendChild(btn);
   }
-  requestAnimationFrame(() => {
-    nav.querySelector('.em-filter-tab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  });
+  mountFilterTabsScroll(nav, savedScrollLeft);
   return nav;
 }
 
-function renderEmailSidebar() {
+function renderEmailSidebar(savedFilterScroll = 0) {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
@@ -20231,7 +20253,7 @@ function renderEmailSidebar() {
         renderEmailPanel();
       },
     },
-    below: renderEmailFilterTabs(),
+    below: renderEmailFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -20871,8 +20893,9 @@ function renderEmailPanel() {
   const root = getEmailPanel();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
+  const savedFilterScroll = captureFilterTabsScroll(root);
   root.innerHTML = '';
-  root.appendChild(renderEmailSidebar());
+  root.appendChild(renderEmailSidebar(savedFilterScroll));
 
   const pane = document.createElement('div');
   pane.className = 'ch-pane';
