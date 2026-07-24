@@ -10,6 +10,10 @@ import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
 
 export const prerender = false;
 
+/** Link unfurls / crawlers that sometimes execute enough JS to hit this endpoint. */
+const BOT_UA_RE =
+  /bot|crawl|spider|slurp|preview|facebookexternalhit|facebot|twitterbot|linkedinbot|slackbot|discordbot|telegrambot|whatsapp|google-inspection|bingpreview|embedly|quora link preview|pinterest|redditbot|applebot|duckduckbot|baiduspider|yandex|semrush|ahrefs|petalbot|bytespider/i;
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -26,6 +30,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const userId = locals.auth?.()?.userId ?? null;
   if (userId) return json({ ok: true, skipped: 'signed_in' });
 
+  const ua = request.headers.get('user-agent') || '';
+  if (!ua.trim() || BOT_UA_RE.test(ua)) {
+    return json({ ok: true, skipped: 'bot' });
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -33,6 +42,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     body = {};
   }
   const raw = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
+
+  if (raw.preview === true || raw.preview === '1') {
+    return json({ ok: true, skipped: 'preview' });
+  }
 
   const contactUid =
     typeof raw.contactUid === 'string'
@@ -44,7 +57,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const clientSession =
     typeof raw.sessionKey === 'string' ? raw.sessionKey.trim().slice(0, 120) : '';
 
-  const ua = request.headers.get('user-agent') || '';
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     request.headers.get('x-real-ip') ||
