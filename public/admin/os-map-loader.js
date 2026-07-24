@@ -17393,7 +17393,7 @@ function buildReaveShareActions(state, opts = {}) {
     }),
   );
   actionsEl.appendChild(
-    mkBtn('Copy link', 'reave-share-btn--ghost', async () => {
+    mkBtn('Copy link', 'reave-share-btn--ghost', async (e) => {
       const url = await resolveReaveShareUrl(state);
       let text = url;
       if (state.kind === 'booking' && state.booking) {
@@ -17401,7 +17401,7 @@ function buildReaveShareActions(state, opts = {}) {
           .filter(Boolean)
           .join('\n');
       }
-      if (text && (await copyChatText(text))) setReaveShareStatus('Copied to clipboard', 'ok');
+      if (text) await copyChatText(text, e.currentTarget);
     }),
   );
   if (navigator.share) {
