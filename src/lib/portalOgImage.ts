@@ -136,7 +136,7 @@ function parseClientBrandingApiPath(source: string): { uid: string; kind: 'logo'
   return { uid: decodeURIComponent(m[1]), kind: m[2] as 'logo' | 'icon' };
 }
 
-async function loadLogoBuffer(source: string): Promise<Buffer | null> {
+export async function loadLogoBuffer(source: string): Promise<Buffer | null> {
   const brandingPath = parseClientBrandingApiPath(source);
   if (brandingPath) {
     const blob =

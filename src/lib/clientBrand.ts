@@ -13,6 +13,7 @@ import {
 } from './contactApi';
 import { normalizePublicUrl } from './publicUrl';
 import { portalSiteUrl } from './siteMonitoring';
+import { refreshPortalBrandColors } from './portalBrandColors';
 
 /** Browser-like UA — avoids bot-detection redirect loops on some sites (incl. self-fetch). */
 const SCRAPE_USER_AGENT =
@@ -271,6 +272,7 @@ export async function enrichClientPortalBrand(
     };
 
     await setContactPortal(contactUid.trim(), next);
+    void refreshPortalBrandColors(contactUid.trim());
   } catch (e) {
     console.warn('[client-brand] enrich failed', e);
   }

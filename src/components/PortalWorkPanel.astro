@@ -485,7 +485,7 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .work-item-head:active {
-    background: rgba(168, 85, 247, 0.08);
+    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.08);
   }
 
   .work-main {
@@ -532,7 +532,7 @@ const filesEndpointBase = commentEndpointBase;
   .work-chevron {
     flex: none;
     font-size: 18px;
-    color: rgba(168, 85, 247, 0.75);
+    color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.75);
     transition: transform 0.2s;
   }
 
@@ -559,7 +559,7 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .work-description :global(a) {
-    color: #d8b4fe;
+    color: var(--portal-accent, #d8b4fe);
   }
 
   .work-description :global(.work-body-img) {
@@ -618,7 +618,7 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .work-file-card:active {
-    border-color: rgba(168, 85, 247, 0.45);
+    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45);
   }
 
   .work-file-thumb {
@@ -637,8 +637,8 @@ const filesEndpointBase = commentEndpointBase;
     width: 100%;
     aspect-ratio: 1;
     border-radius: 8px;
-    background: rgba(168, 85, 247, 0.12);
-    color: #d8b4fe;
+    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.12);
+    color: var(--portal-accent, #d8b4fe);
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -678,9 +678,9 @@ const filesEndpointBase = commentEndpointBase;
     width: 100%;
     padding: 11px 14px;
     background: rgba(255, 255, 255, 0.06);
-    border: 1px dashed rgba(168, 85, 247, 0.45);
+    border: 1px dashed rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45);
     border-radius: 12px;
-    color: #d8b4fe;
+    color: var(--portal-accent, #d8b4fe);
     font: inherit;
     font-size: 14px;
     font-weight: 600;
@@ -776,8 +776,8 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .portal-work :global(.work-comment-staff .work-comment-avatar) {
-    border-color: rgba(168, 85, 247, 0.35);
-    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.35);
+    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.12);
   }
 
   .portal-work :global(.work-comment-main) {
@@ -800,7 +800,7 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .portal-work :global(.work-comment-staff .work-comment-author) {
-    color: #d8b4fe;
+    color: var(--portal-accent, #d8b4fe);
   }
 
   .portal-work :global(.work-comment-time) {
@@ -844,13 +844,13 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   .work-comment-input:focus {
-    border-color: rgba(168, 85, 247, 0.6);
+    border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6);
   }
 
   .work-comment-submit {
     width: 100%;
     padding: 12px;
-    background: linear-gradient(135deg, #a855f7, #ec4899);
+    background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
     border: none;
     border-radius: 12px;
     color: #fff;

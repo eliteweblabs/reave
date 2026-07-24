@@ -28,6 +28,7 @@ import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
+import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
 import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
 import { PORTAL_OG_HEIGHT, PORTAL_OG_WIDTH } from '../../lib/portalOgImage';
@@ -316,6 +317,13 @@ const ogImageAbsolute = ogImagePath.startsWith('http') ? ogImagePath : `${origin
 
 // ?submit — show a focused data-submission form instead of the full portal.
 const submitMode = !notFound && Astro.url.searchParams.has('submit');
+
+let portalBrand: PortalBrandColors | null = null;
+if (contact && uid) {
+  portalBrand = await resolvePortalBrandColors(uid, portal);
+}
+const portalBrandStyle = portalBrand ? portalBrandCssVars(portalBrand) : null;
+
 const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 ---
 
@@ -358,8 +366,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       rel="stylesheet"
     />
   </head>
-  <body>
-    <Header />
+  <body class:list={[{ 'portal-branded': !!portalBrand }]} style={portalBrandStyle ?? undefined}>
+    <Header portalBrand={portalBrand} />
     {
       notFound ? (
         <main class="wrap empty">
@@ -840,8 +848,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       body {
         background:
-          radial-gradient(1200px 600px at 50% -10%, rgba(168, 85, 247, 0.18), transparent 60%),
-          radial-gradient(900px 500px at 100% 0%, rgba(236, 72, 153, 0.12), transparent 55%),
+          radial-gradient(1200px 600px at 50% -10%, rgba(var(--portal-primary-rgb, 168, 85, 247), 0.18), transparent 60%),
+          radial-gradient(900px 500px at 100% 0%, rgba(var(--portal-secondary-rgb, 236, 72, 153), 0.12), transparent 55%),
           #0a0a0a;
       }
       button,
@@ -896,7 +904,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .overview-intro .client-website {
         display: inline-block;
         margin-top: 8px;
-        color: #d8b4fe;
+        color: var(--portal-accent, #d8b4fe);
         font-size: 13px;
         text-decoration: none;
       }
@@ -918,12 +926,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .action {
         display: flex; flex-direction: column; align-items: center; gap: 6px;
         padding: 14px 6px; border-radius: 16px;
-        border: 1px solid rgba(168, 85, 247, 0.35);
-        background: rgba(168, 85, 247, 0.1);
+        border: 1px solid rgba(var(--portal-primary-rgb, 168, 85, 247), 0.35);
+        background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.1);
         color: #fff; text-decoration: none; font-size: 12px; font-weight: 500;
         transition: transform 0.15s, background 0.2s, border-color 0.2s;
       }
-      .action:active { transform: scale(0.97); background: rgba(168, 85, 247, 0.22); border-color: #a855f7; }
+      .action:active { transform: scale(0.97); background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.22); border-color: var(--portal-primary, #a855f7); }
       .action.action--icon-only { padding: 14px 10px; }
       .action .ico {
         display: inline-flex;
@@ -952,7 +960,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
         transition: background 0.2s, color 0.2s;
       }
-      .tab.active { background: linear-gradient(135deg, #a855f7, #ec4899); color: #fff; }
+      .tab.active { background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)); color: #fff; }
 
       .panel { display: none; }
       .panel.active { display: block; }
@@ -966,7 +974,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
         word-wrap: break-word; overflow-wrap: anywhere;
       }
-      .body a { color: #d8b4fe; }
+      .body a { color: var(--portal-accent, #d8b4fe); }
       .fields {
         margin-top: 18px; display: flex; flex-direction: column; gap: 1px;
         border-radius: 16px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1072,11 +1080,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .inv-due.upcoming { color: #fcd34d; }
       .pay {
         padding: 7px 16px; border-radius: 999px;
-        background: linear-gradient(135deg, #a855f7, #ec4899);
+        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
         color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
       }
       .pay:active { opacity: 0.85; }
-      .view { color: #d8b4fe; text-decoration: none; font-size: 13px; font-weight: 500; }
+      .view { color: var(--portal-accent, #d8b4fe); text-decoration: none; font-size: 13px; font-weight: 500; }
 
       /* Documents tab */
       .doc-card {
@@ -1085,11 +1093,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
         text-decoration: none; color: #fff; transition: background 0.2s, border-color 0.2s;
       }
-      .doc-card:active { background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.4); }
+      .doc-card:active { background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.15); border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.4); }
       .doc-card-left { flex: 1; min-width: 0; }
       .doc-card-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .doc-card-meta { font-size: 12px; color: rgba(255, 255, 255, 0.45); }
-      .doc-card-arrow { font-size: 18px; color: rgba(168, 85, 247, 0.8); flex: none; }
+      .doc-card-arrow { font-size: 18px; color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.8); flex: none; }
 
       .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
       .data-card {
@@ -1097,7 +1105,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
       }
       .data-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-      .data-url { display: block; color: #d8b4fe; font-size: 14px; margin-bottom: 8px; word-break: break-all; }
+      .data-url { display: block; color: var(--portal-accent, #d8b4fe); font-size: 14px; margin-bottom: 8px; word-break: break-all; }
       .data-value { font-size: 14px; color: rgba(255, 255, 255, 0.85); white-space: pre-wrap; word-break: break-word; }
       .cred { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
       .cred-key { width: 42px; font-size: 12px; color: rgba(255, 255, 255, 0.45); flex: none; }
@@ -1158,7 +1166,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         transition: border-color 0.2s;
       }
       .entry-label::placeholder, .entry-value::placeholder { color: rgba(255, 255, 255, 0.3); }
-      .entry-label:focus, .entry-value:focus { border-color: rgba(168, 85, 247, 0.6); }
+      .entry-label:focus, .entry-value:focus { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6); }
       .entry-label.input-error { border-color: #f87171; }
       .entry-value { font-size: 14px; line-height: 1.5; }
       .add-btn {
@@ -1169,10 +1177,10 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font: inherit; font-size: 14px; cursor: pointer;
         transition: border-color 0.2s, color 0.2s;
       }
-      .add-btn:hover { border-color: rgba(168, 85, 247, 0.5); color: rgba(255, 255, 255, 0.8); }
+      .add-btn:hover { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.5); color: rgba(255, 255, 255, 0.8); }
       .submit-btn {
         width: 100%; padding: 16px;
-        background: linear-gradient(135deg, #a855f7, #ec4899);
+        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
         border: none; border-radius: 14px; color: #fff;
         font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
         transition: opacity 0.2s, transform 0.15s;
@@ -1186,7 +1194,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .success-icon {
         font-size: 36px; width: 64px; height: 64px; border-radius: 50%;
-        background: linear-gradient(135deg, #a855f7, #ec4899);
+        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
         display: flex; align-items: center; justify-content: center;
         margin: 0 auto 20px; color: #fff;
       }

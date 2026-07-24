@@ -268,6 +268,10 @@ export type ClientPortal = {
   website?: string;
   /** Short company blurb (often from site meta description). */
   tagline?: string;
+  /** Portal accent colors derived from the client logo (hex). */
+  brandPrimary?: string;
+  brandSecondary?: string;
+  brandAccent?: string;
   /** Client street / mailing address (shown on admin client page + optional portal). */
   address?: string;
   /** Geocoded coordinates for `address`. */

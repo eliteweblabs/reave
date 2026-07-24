@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
+import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import {
@@ -36,6 +37,8 @@ interface Props {
   profileMenu?: readonly ProfileMenuKey[];
   /** Open the sign-in bottom sheet on load (signed-out admin shell). */
   signInAutoOpen?: boolean;
+  /** Client portal brand colors — tints the REAVE logo and header accents. */
+  portalBrand?: PortalBrandColors | null;
 }
 
 const {
@@ -45,6 +48,7 @@ const {
   staffPreview = false,
   profileMenu = [],
   signInAutoOpen: signInAutoOpenProp = false,
+  portalBrand = null,
 } = Astro.props;
 
 const company = await getCompanyConfig(Astro.request);
@@ -70,7 +74,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 ---
 
 <header
-  class:list={["app-header", { "app-header--admin": adminShell }]}
+  class:list={["app-header", { "app-header--admin": adminShell, "app-header--portal-brand": !!portalBrand }]}
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
@@ -415,6 +419,35 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     max-width: none;
     pointer-events: none;
     mix-blend-mode: difference;
+  }
+
+  .app-header--portal-brand .app-header-logo {
+    position: relative;
+  }
+
+  .app-header--portal-brand .app-header-logo-svg {
+    opacity: 0;
+  }
+
+  .app-header--portal-brand .app-header-logo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--portal-brand-gradient, var(--brand-gradient));
+    -webkit-mask: url("/reave-logo-1.png") center / contain no-repeat;
+    mask: url("/reave-logo-1.png") center / contain no-repeat;
+    pointer-events: none;
+  }
+
+  .app-header--portal-brand .topbar-profile-btn--admin {
+    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.14);
+    color: var(--portal-accent, #e9d5ff);
+  }
+
+  .app-header--portal-brand .topbar-profile-btn--admin:hover,
+  .app-header--portal-brand .topbar-profile-menu:has(.topbar-dropdown.open) .topbar-profile-btn--admin {
+    background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.22);
+    color: #fff;
   }
 
   @supports not (mix-blend-mode: difference) {

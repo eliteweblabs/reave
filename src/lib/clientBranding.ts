@@ -9,6 +9,7 @@ import {
   setContactPortal,
   type ClientPortal,
 } from './contactApi';
+import { refreshPortalBrandColors } from './portalBrandColors';
 
 export function clientLogoServePath(uid: string): string {
   return `/api/clients/${encodeURIComponent(uid.trim())}/logo`;
@@ -90,6 +91,8 @@ export async function setClientPortalLogo(
   });
   if (!saved.ok) return { ok: false, error: saved.error };
 
+  void refreshPortalBrandColors(uid);
+
   return { ok: true, logoUrl: `${clientLogoServePath(uid)}?v=${encodeURIComponent(updatedAt)}` };
 }
 
@@ -108,6 +111,8 @@ export async function clearClientPortalLogo(
 
   const saved = await setContactPortal(uid, next);
   if (!saved.ok) return { ok: false, error: saved.error };
+
+  void refreshPortalBrandColors(uid);
 
   const refreshed = await getContact(uid);
   const refreshedPortal = refreshed.ok ? extractPortal(refreshed.data) : null;
