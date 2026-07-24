@@ -846,7 +846,12 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      body {
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
         background:
           radial-gradient(1200px 600px at 50% -10%, rgba(var(--portal-primary-rgb, 168, 85, 247), 0.18), transparent 60%),
           radial-gradient(900px 500px at 100% 0%, rgba(var(--portal-secondary-rgb, 236, 72, 153), 0.12), transparent 55%),
