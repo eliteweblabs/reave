@@ -17,7 +17,7 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Clients / entry points
-  { id: 'web', title: 'Web visitors', sub: 'reave.app · /form/* · /doc/*', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'web', title: 'Web visitors', sub: 'reave.app · /form/* · /doc/* · /deck · /go', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 520 },
@@ -26,12 +26,13 @@ const SYSTEM_NODES = [
   // Reave App (Railway) — the hub
   { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
-  { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · site-change · uptime alerts', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
+  { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Clients editor', sub: '/admin/ · Clients tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
-  { id: 'portal', title: 'Client portal', sub: '/c/:uid · PWA (FEATURES: client_portal)', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'portal', title: 'Client portal', sub: '/c/:uid · vault · comments · tracked shares', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · home banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
   { id: 'fleet_api', title: 'fleet-api', sub: 'multi-vehicle GPS · location history (FEATURES: fleet_tracking)', icon: '🚚', hue: 55, status: true, group: 'reave', x: 880, y: 696 },
@@ -55,9 +56,12 @@ const SYSTEM_NODES = [
 ];
 
 const SYSTEM_EDGES = [
-  { from: 'web', to: 'astro' },
+  { from: 'web', to: 'astro', label: '/deck · /go · forms' },
   { from: 'web', to: 'vapi', label: 'voice widget', dashed: true },
   { from: 'web', to: 'portal', label: 'share link', dashed: true },
+  { from: 'portal', to: 'engagement', label: 'vault · comments', dashed: true },
+  { from: 'astro', to: 'engagement', label: 'deck · share opens' },
+  { from: 'engagement', to: 'web_push', label: 'dashboard + push', dashed: true },
   { from: 'sms_caller', to: 'telnyx', label: 'SMS / call' },
   { from: 'siri', to: 'astro', label: '/api/siri' },
   { from: 'dev', to: 'clerk', label: 'sign-in' },
@@ -101,7 +105,7 @@ const SYSTEM_EDGES = [
   { from: 'web', to: 'plausible', label: 'pageviews', dashed: true },
   { from: 'calcom_api', to: 'calcom_web', label: 'Cal.com Postgres', dashed: true },
   { from: 'astro', to: 'plausible', label: '/api/admin/analytics', dashed: true },
-  { from: 'astro', to: 'web_push', label: 'inbox · site alerts' },
+  { from: 'astro', to: 'web_push', label: 'inbox · site · engagement' },
   { from: 'railway_webhook', to: 'astro', label: 'deploy webhook' },
   { from: 'railway_webhook', to: 'web_push', label: 'deploy alert', dashed: true },
   { from: 'railway_webhook', to: 'anthropic', label: 'System alerts chat', dashed: true },
@@ -109,7 +113,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'vapi', 'siri'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
+  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible'] },
 ];
 

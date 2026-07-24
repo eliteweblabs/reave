@@ -306,7 +306,7 @@ export async function notifyAdminAgentOfVaultSubmit(opts: {
       title: `🔐 Vault update: ${opts.contactName}`,
       body: labelLine.slice(0, 120),
       tag: `vault-${opts.engagementId}`,
-      url: `/admin?tab=clients&uid=${encodeURIComponent(opts.contactUid)}`,
+      url: `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`,
     },
   });
 }
@@ -362,7 +362,7 @@ export async function notifyAdminAgentOfDeckView(opts: {
   ].join('\n');
 
   const url = opts.contactUid
-    ? `/admin?tab=clients&uid=${encodeURIComponent(opts.contactUid)}`
+    ? `/admin?tab=clients&client=${encodeURIComponent(opts.contactUid)}`
     : '/admin?tab=home';
 
   await postToSystemAlertsThread({

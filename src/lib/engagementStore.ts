@@ -202,7 +202,7 @@ export async function storeCreateEngagementEvent(
   const events = readFileEvents();
   if (
     event.dedupeKey &&
-    events.some((e) => e.type === event.type && e.dedupeKey === event.dedupeKey && !e.staffAckAt)
+    events.some((e) => e.type === event.type && e.dedupeKey === event.dedupeKey)
   ) {
     return null;
   }
