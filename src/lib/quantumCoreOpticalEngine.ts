@@ -837,8 +837,19 @@ export function attachQuantumCoreOpticalEngine(
   };
   renderer.domElement.addEventListener("webglcontextlost", onCtxLost);
 
+  const onQuantumResume = () => {
+    if (!alive || raf) return;
+    lastIntroTickMs = performance.now();
+    raf = requestAnimationFrame(animate);
+  };
+  host.addEventListener("quantum-resume", onQuantumResume);
+
   function animate() {
     if (!alive) return;
+    if (host.dataset.quantumPaused === "true") {
+      raf = 0;
+      return;
+    }
     raf = requestAnimationFrame(animate);
     const rawT = tickIntroElapsed();
     const sceneT = clock.getElapsedTime();
@@ -1153,6 +1164,7 @@ export function attachQuantumCoreOpticalEngine(
     cancelAnimationFrame(raf);
     cancelAnimationFrame(resizeRaf);
     resetCameraViewportAspect();
+    host.removeEventListener("quantum-resume", onQuantumResume);
     window.removeEventListener("resize", onResize);
     window.visualViewport?.removeEventListener("resize", onResize);
     document.removeEventListener("visibilitychange", onVisibilityChange);

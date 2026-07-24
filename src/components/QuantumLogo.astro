@@ -39,6 +39,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   class:list={[
     "quantum-logo-stack",
     isHomepage && "quantum-logo-stack--homepage",
+    isHomepage && "quantum-logo-stack--in-section",
     layout === "centered" && "quantum-logo-stack--centered",
     introRush && "quantum-logo-stack--galaxy",
     !introRush && "quantum-logo-stack--logo",
@@ -46,6 +47,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   ]}
   data-quantum-logo
   data-layout={layout}
+  data-pause-offscreen={isHomepage ? "true" : undefined}
   data-host-id={hostId}
   data-logo-src={logoSrc}
   data-hero-mask={heroMask}
@@ -59,17 +61,25 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
 
 <style>
   .quantum-logo-stack {
-    position: fixed;
+    position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    min-height: 100vh;
-    min-height: 100dvh;
+    min-height: 100%;
     z-index: 0;
     pointer-events: auto;
     cursor: default;
-    touch-action: none;
+    /* Vertical page scroll wins; horizontal/particle drag still works via JS. */
+    touch-action: pan-y;
     overflow: hidden;
+  }
+
+  /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */
+  .quantum-logo-stack--homepage:not(.quantum-logo-stack--in-section) {
+    position: fixed;
+    min-height: 100vh;
+    min-height: 100dvh;
+    touch-action: none;
   }
 
   .quantum-logo-stack--centered {
@@ -158,9 +168,12 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     let detach: (() => void) | undefined;
     let delayId = 0;
     let cancelled = false;
+    let started = false;
+    let visibilityObs: IntersectionObserver | undefined;
 
     const start = () => {
-      if (cancelled) return;
+      if (cancelled || started) return;
+      started = true;
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
         logoImageUrl: logoSrc,
@@ -177,6 +190,21 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       void waitForPreloaderGone().then(scheduleStart);
     } else {
       scheduleStart();
+    }
+
+    // Pause the WebGL loop while the hero is offscreen (scrollable homepage).
+    if (stack.dataset.pauseOffscreen === "true" && "IntersectionObserver" in window) {
+      visibilityObs = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.some((entry) => entry.isIntersecting);
+          host.dataset.quantumPaused = visible ? "false" : "true";
+          if (visible) {
+            host.dispatchEvent(new CustomEvent("quantum-resume"));
+          }
+        },
+        { root: null, threshold: 0.05 },
+      );
+      visibilityObs.observe(stack);
     }
 
     const parent = stack.parentElement;
@@ -196,6 +224,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     return () => {
       cancelled = true;
       window.clearTimeout(delayId);
+      visibilityObs?.disconnect();
       detach?.();
       obs?.disconnect();
       document.documentElement.classList.remove("quantum-page-touch");

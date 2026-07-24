@@ -2,8 +2,12 @@
 import Layout from "../layouts/Layout.astro";
 import QuantumLogo from "../components/QuantumLogo.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
-
+import HomeAboutSection from "../components/home/HomeAboutSection.astro";
+import HomeServicesSection from "../components/home/HomeServicesSection.astro";
+import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
+import HomeContactSection from "../components/home/HomeContactSection.astro";
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
+import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
@@ -11,42 +15,79 @@ const heroLogo = homepageHeroLogo(company);
 ---
 
 <Layout>
-  {
-    heroLogo && (
-      <QuantumLogo
-        heroMask={heroMask ?? undefined}
-        logoSrc={heroLogo}
-        layout="homepage"
-      />
-    )
-  }
-  <div class="quantum-vignette" aria-hidden="true"></div>
+  <div class="home-scroll">
+    <section
+      id="home"
+      class="home-hero"
+      data-home-section="home"
+      aria-label={company.name}
+    >
+      {
+        heroLogo && (
+          <QuantumLogo
+            heroMask={heroMask ?? undefined}
+            logoSrc={heroLogo}
+            layout="homepage"
+          />
+        )
+      }
+      <div class="quantum-vignette" aria-hidden="true"></div>
+    </section>
+
+    <HomeAboutSection />
+    <HomeServicesSection />
+    <HomePortfolioSection />
+    <HomeContactSection />
+  </div>
 
   <SiteFooterNav active="home" />
 </Layout>
 
 <style>
-  /* Dark background default now lives in Layout.astro; keep min-height here. */
+  :global(html) {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--app-header-h, 3.25rem) + 8px);
+    scroll-padding-bottom: calc(var(--site-footer-nav-offset, 3.35rem) + 16px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :global(html) {
+      scroll-behavior: auto;
+    }
+  }
+
   :global(html),
   :global(body) {
     min-height: 100%;
   }
 
-  /* Let drags reach the scene on iOS (otherwise Safari keeps scroll/rubber-band). */
+  /* Allow page scroll; particle host still captures horizontal drag. */
   :global(html.quantum-page-touch),
   :global(html.quantum-page-touch body) {
-    touch-action: none;
-    overscroll-behavior: none;
+    touch-action: pan-y;
+    overscroll-behavior-y: none;
+  }
+
+  .home-scroll {
+    position: relative;
+    z-index: 1;
+    padding-bottom: calc(var(--site-footer-nav-offset, 3.35rem) + 24px);
+  }
+
+  .home-hero {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    scroll-margin-top: 0;
   }
 
   .quantum-vignette {
-    position: fixed;
+    position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 2;
-    /* Soft page-edge fade — stays clear through most of the frame so the particle
-       cloud (not this overlay) defines the falloff. Overshoots 100% so top/bottom
-       don’t show a hard vignette ring. */
     background: radial-gradient(
       ellipse 120% 120% at center,
       transparent 48%,

@@ -35,6 +35,14 @@ function isFeatureBlockedPath(pathname: string): boolean {
   return false;
 }
 
+/** Old marketing routes → single-scroll homepage sections. */
+const HOME_SECTION_REDIRECTS: Record<string, string> = {
+  "/about": "about",
+  "/services": "services",
+  "/portfolio": "portfolio",
+  "/contact": "contact",
+};
+
 export const onRequest = clerkMiddleware(async (auth, context, next) => {
   const url = new URL(context.request.url);
   const { pathname } = url;
@@ -45,6 +53,18 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
     const target = new URL(url.href);
     target.host = "reave.app";
     target.protocol = "https:";
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: target.toString() },
+      }),
+    );
+  }
+
+  const section = HOME_SECTION_REDIRECTS[pathname.replace(/\/$/, "") || "/"];
+  if (section) {
+    const target = new URL("/", url.origin);
+    target.searchParams.set("section", section);
     return applySecurityHeaders(
       new Response(null, {
         status: 301,

@@ -125,6 +125,8 @@ const testimonials: Testimonial[] = [
     if (activeIndex < 0) activeIndex = 0;
 
     let timerId = 0;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let visible = true;
 
     function showSlide(nextIndex: number) {
       slides.forEach((slide, index) => {
@@ -141,19 +143,34 @@ const testimonials: Testimonial[] = [
 
     function scheduleNext() {
       window.clearTimeout(timerId);
+      if (!visible || prefersReducedMotion) return;
       timerId = window.setTimeout(() => {
+        if (!visible) return;
         advance();
         scheduleNext();
       }, DISPLAY_MS);
     }
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const visibilityObs =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (entries) => {
+              visible = entries.some((entry) => entry.isIntersecting);
+              if (visible && !prefersReducedMotion) scheduleNext();
+              else window.clearTimeout(timerId);
+            },
+            { root: null, threshold: 0.2 },
+          )
+        : null;
+    visibilityObs?.observe(viewport);
+
     if (!prefersReducedMotion) {
       scheduleNext();
     }
 
     return () => {
       window.clearTimeout(timerId);
+      visibilityObs?.disconnect();
     };
   }
 

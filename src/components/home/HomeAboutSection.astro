@@ -1,0 +1,65 @@
+---
+import ClientLogos from "../ClientLogos.astro";
+import TestimonialsCarousel from "../TestimonialsCarousel.astro";
+---
+
+<section
+  id="about"
+  class="home-section home-section--photo"
+  data-home-section="about"
+  aria-labelledby="about-title"
+>
+  <div class="marketing-bg" aria-hidden="true">
+    <img
+      class="marketing-bg-photo"
+      src="/images/about-office.jpg"
+      alt=""
+      width="1600"
+      height="2400"
+      loading="lazy"
+      decoding="async"
+      fetchpriority="low"
+    />
+    <div class="marketing-bg-grain"></div>
+    <div class="marketing-bg-scrim"></div>
+  </div>
+
+  <div class="home-section-inner">
+    <header class="home-section-hero">
+      <p class="marketing-label">Who We Are</p>
+      <h2 id="about-title">Automation Expertise</h2>
+      <p class="marketing-lead">
+        Over 20 years designing logos &amp; graphics to building websites, developing plugins &amp;
+        web apps. Rooted in real world experience.
+      </p>
+    </header>
+
+    <section>
+      <h2>Design + Code All of the Things</h2>
+      <p>
+        Over 20 years I went from designing logos &amp; graphics to building websites and — aided by
+        extensive one-on-one training from Toptal — developing plugins &amp; web apps. I'm rooted in
+        real world experience; I've done more debugging than exterminators.
+      </p>
+      <p>
+        From rebuilding the spaghetti code of janky websites to working within the rigid design
+        guidelines of Fortune 500 companies, I can design + code all of the things.
+      </p>
+      <p>
+        For the last 10 years I worked full time in the New York art world. I'm currently available
+        for freelance remote long or short term projects and onsite consulting &amp; development.
+      </p>
+      <p>
+        My biggest asset is that I can <strong>save you time &amp; money</strong> by reviewing your
+        operations and providing tools to automate tasks. If you have a small to medium size
+        business, a startup idea, or a critical problem — don't hesitate to reach out.
+      </p>
+    </section>
+
+    <section class="section--full-bleed">
+      <ClientLogos />
+    </section>
+
+    <TestimonialsCarousel />
+  </div>
+</section>

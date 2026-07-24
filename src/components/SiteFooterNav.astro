@@ -20,14 +20,11 @@ const company = await getCompanyConfig(Astro.request);
 const voice = isHomepageVoiceWidgetEnabled(company);
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isHomePage = pathNorm === "/" || pathNorm === "/index.html";
 
 function resolveActive(): SiteNavId {
   if (active) return active;
-  if (pathNorm === "/") return "home";
-  if (pathNorm === "/about") return "about";
-  if (pathNorm === "/services") return "services";
-  if (pathNorm === "/portfolio") return "portfolio";
-  if (pathNorm === "/contact") return "contact";
+  if (isHomePage) return "home";
   return "home";
 }
 
@@ -39,15 +36,15 @@ const items: Array<{
   label: string;
   Icon: typeof Home;
 }> = [
-  { id: "home", href: "/", label: "Home", Icon: Home },
-  { id: "about", href: "/about", label: "About", Icon: Info },
-  { id: "services", href: "/services", label: "Services", Icon: Briefcase },
-  { id: "portfolio", href: "/portfolio", label: "Portfolio", Icon: LayoutGrid },
-  { id: "contact", href: "/contact", label: "Contact", Icon: Mail },
+  { id: "home", href: "/#home", label: "Home", Icon: Home },
+  { id: "about", href: "/#about", label: "About", Icon: Info },
+  { id: "services", href: "/#services", label: "Services", Icon: Briefcase },
+  { id: "portfolio", href: "/#portfolio", label: "Portfolio", Icon: LayoutGrid },
+  { id: "contact", href: "/#contact", label: "Contact", Icon: Mail },
 ];
 ---
 
-<nav id="site-footer-nav" class="site-footer-nav" aria-label="Site navigation">
+<nav id="site-footer-nav" class="site-footer-nav" aria-label="Site navigation" data-home-nav={isHomePage ? "true" : undefined}>
   <div class="site-footer-nav-bar">
     <div class="site-footer-nav-pill">
       <div id="site-footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
@@ -58,7 +55,7 @@ const items: Array<{
             class:list={["footer-nav-btn", { active: current === id }]}
             data-nav={id}
             aria-label={label}
-            aria-current={current === id ? "page" : undefined}
+            aria-current={current === id ? "true" : undefined}
           >
             <Icon size={20} strokeWidth={1.75} />
           </a>
@@ -98,10 +95,13 @@ const items: Array<{
 }
 
 <script>
+  const SECTION_IDS = ["home", "about", "services", "portfolio", "contact"] as const;
+  type NavId = (typeof SECTION_IDS)[number];
+
   function positionSiteFooterIndicator() {
     const pill = document.querySelector(".site-footer-nav-pill");
     const indicator = document.getElementById("site-footer-nav-indicator");
-    const active = pill?.querySelector(".footer-nav-btn.active");
+    const active = pill?.querySelector<HTMLElement>(".footer-nav-btn.active");
     if (!pill || !indicator || !active) {
       if (indicator) indicator.hidden = true;
       return;
@@ -113,9 +113,151 @@ const items: Array<{
     indicator.style.transform = `translateX(${active.offsetLeft}px)`;
   }
 
-  positionSiteFooterIndicator();
+  function setActiveNav(id: NavId, { updateHash = false }: { updateHash?: boolean } = {}) {
+    const pill = document.querySelector(".site-footer-nav-pill");
+    if (!pill) return;
+
+    pill.querySelectorAll<HTMLAnchorElement>(".footer-nav-btn[data-nav]").forEach((btn) => {
+      const navId = btn.dataset.nav;
+      if (!navId || navId === "voice") return;
+      const isActive = navId === id;
+      btn.classList.toggle("active", isActive);
+      if (isActive) btn.setAttribute("aria-current", "true");
+      else btn.removeAttribute("aria-current");
+    });
+
+    positionSiteFooterIndicator();
+
+    if (updateHash) {
+      const next = id === "home" ? "/" : `/#${id}`;
+      if (`${location.pathname}${location.hash}` !== next && location.pathname === "/") {
+        history.replaceState(null, "", next === "/" ? "/" : `#${id}`);
+      }
+    }
+  }
+
+  function scrollToSection(id: NavId) {
+    const el = document.getElementById(id);
+    if (!el) return false;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    setActiveNav(id, { updateHash: true });
+    return true;
+  }
+
+  function wireFooterNavAnchors() {
+    const nav = document.getElementById("site-footer-nav");
+    if (!nav || nav.dataset.anchorsWired === "1") return;
+    nav.dataset.anchorsWired = "1";
+
+    nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const id = link.dataset.nav as NavId | undefined;
+        if (!id || !SECTION_IDS.includes(id)) return;
+
+        // Already on homepage — smooth-scroll to the section.
+        if (document.getElementById(id)) {
+          event.preventDefault();
+          scrollToSection(id);
+          return;
+        }
+
+        // Off-homepage: let the browser navigate to `/#section`.
+      });
+    });
+  }
+
+  function wireScrollSpy() {
+    const nav = document.getElementById("site-footer-nav");
+    if (!nav || nav.dataset.homeNav !== "true") return;
+    if (nav.dataset.spyWired === "1") return;
+    nav.dataset.spyWired = "1";
+
+    const sections = SECTION_IDS.map((id) => document.getElementById(id)).filter(
+      (el): el is HTMLElement => !!el,
+    );
+    if (!sections.length) return;
+
+    const ratios = new Map<Element, number>();
+    let scrollingTo: NavId | null = null;
+    let scrollTimer = 0;
+
+    const activateBest = () => {
+      if (scrollingTo) {
+        setActiveNav(scrollingTo);
+        return;
+      }
+      let bestId: NavId | null = null;
+      let bestRatio = 0;
+      for (const section of sections) {
+        const r = ratios.get(section) || 0;
+        if (r > bestRatio) {
+          bestRatio = r;
+          const id = section.id as NavId;
+          if (SECTION_IDS.includes(id)) bestId = id;
+        }
+      }
+      if (bestId && bestRatio > 0.15) {
+        setActiveNav(bestId, { updateHash: true });
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          ratios.set(entry.target, entry.intersectionRatio);
+        });
+        activateBest();
+      },
+      {
+        root: null,
+        // Bias toward the section occupying the upper/mid viewport (above the footer pill).
+        rootMargin: "-18% 0px -42% 0px",
+        threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+
+    // While a nav click smooth-scroll is in flight, pin the active item.
+    nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
+      link.addEventListener("click", () => {
+        const id = link.dataset.nav as NavId | undefined;
+        if (!id || !SECTION_IDS.includes(id)) return;
+        scrollingTo = id;
+        window.clearTimeout(scrollTimer);
+        scrollTimer = window.setTimeout(() => {
+          scrollingTo = null;
+          activateBest();
+        }, 900);
+      });
+    });
+
+    // Deep links: `/#about` or `/?section=about`
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get("section");
+    const fromHash = location.hash.replace(/^#/, "");
+    const target = (fromQuery || fromHash) as NavId;
+    if (SECTION_IDS.includes(target)) {
+      // Defer so layout/fonts settle before scrolling.
+      requestAnimationFrame(() => {
+        scrollToSection(target);
+        if (fromQuery) {
+          history.replaceState(null, "", target === "home" ? "/" : `/#${target}`);
+        }
+      });
+    }
+  }
+
+  function bootSiteFooterNav() {
+    positionSiteFooterIndicator();
+    wireFooterNavAnchors();
+    wireScrollSpy();
+  }
+
+  bootSiteFooterNav();
   window.addEventListener("resize", positionSiteFooterIndicator, { passive: true });
-  document.addEventListener("astro:page-load", positionSiteFooterIndicator);
+  document.addEventListener("astro:page-load", bootSiteFooterNav);
 
   // Wire the footer voice button to the hidden VoiceChatButton widget and
   // reflect the call state (active while a call is in progress).

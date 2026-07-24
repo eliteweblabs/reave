@@ -40,7 +40,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
           <img
             src={logo.src}
             alt={index < logos.length ? logo.name : ""}
-            loading="eager"
+            loading="lazy"
             decoding="async"
             draggable="false"
           />
@@ -148,8 +148,9 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     if (viewport.dataset.clientLogosInit === "true") return;
     viewport.dataset.clientLogosInit = "true";
 
-    const track = viewport.querySelector<HTMLElement>(".client-logos-track");
-    if (!track) return;
+    const trackEl = viewport.querySelector<HTMLElement>(".client-logos-track");
+    if (!trackEl) return;
+    const track = trackEl;
 
     const loopCopies = Number(viewport.dataset.loopCopies || "3");
     const velocity = 28;
@@ -170,9 +171,14 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     }
 
     let isDragging = false;
+    let offscreen = false;
     let dragStartX = 0;
     let dragStartOffset = 0;
     let manualOffset = 0;
+
+    function syncPausedClass() {
+      viewport.classList.toggle("is-paused", offscreen || isDragging);
+    }
 
     function normalizeOffset() {
       const setWidth = getSetWidth();
@@ -190,11 +196,24 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       track.style.removeProperty("transform");
     }
 
+    const visibilityObs =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (entries) => {
+              offscreen = !entries.some((entry) => entry.isIntersecting);
+              if (!isDragging) syncPausedClass();
+            },
+            { root: null, threshold: 0.05 },
+          )
+        : null;
+    visibilityObs?.observe(viewport);
+
     function onPointerDown(event: PointerEvent) {
       if (event.button !== 0 && event.pointerType === "mouse") return;
 
       isDragging = true;
-      viewport.classList.add("is-dragging", "is-paused");
+      viewport.classList.add("is-dragging");
+      syncPausedClass();
       dragStartX = event.clientX;
 
       const matrix = new DOMMatrix(getComputedStyle(track).transform);
@@ -217,8 +236,9 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       if (!isDragging) return;
 
       isDragging = false;
-      viewport.classList.remove("is-dragging", "is-paused");
+      viewport.classList.remove("is-dragging");
       clearManualTransform();
+      syncPausedClass();
 
       if (viewport.hasPointerCapture(event.pointerId)) {
         viewport.releasePointerCapture(event.pointerId);
@@ -232,8 +252,9 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       viewport.addEventListener("pointercancel", endDrag);
       viewport.addEventListener("lostpointercapture", () => {
         isDragging = false;
-        viewport.classList.remove("is-dragging", "is-paused");
+        viewport.classList.remove("is-dragging");
         clearManualTransform();
+        syncPausedClass();
       });
 
       viewport.addEventListener("mouseenter", () => {
@@ -241,7 +262,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       });
 
       viewport.addEventListener("mouseleave", () => {
-        if (!isDragging) viewport.classList.remove("is-paused");
+        if (!isDragging && !offscreen) viewport.classList.remove("is-paused");
       });
     }
 
@@ -259,6 +280,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
     return () => {
       resizeObserver.disconnect();
+      visibilityObs?.disconnect();
     };
   }
 
