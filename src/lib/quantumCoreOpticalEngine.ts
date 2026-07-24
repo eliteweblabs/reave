@@ -756,18 +756,28 @@ export function attachQuantumCoreOpticalEngine(
     );
   }
 
-  function setParallaxFromClient(clientX: number, clientY: number) {
+  function setParallaxFromClient(
+    clientX: number,
+    clientY: number,
+    opts?: { blockDown?: boolean },
+  ) {
     const w = window.innerWidth;
     const h = Math.max(1, window.innerHeight);
     const coarse = isCoarsePointer();
     const px = coarse ? 0.00052 : 0.00022;
-    mouseX = (clientX - w / 2) * px;
-    mouseY = (clientY - h / 2) * px;
     const nx = (clientX - w / 2) / w;
     const ny = (clientY - h / 2) / h;
     const tiltMul = coarse ? 0.72 : 0.42;
+    mouseX = (clientX - w / 2) * px;
     tiltTargetY = nx * tiltMul;
-    tiltTargetX = -ny * tiltMul;
+
+    const blockDown = opts?.blockDown ?? false;
+    if (blockDown && ny > 0) {
+      /* Down is a dead end on the homepage — keep the last up/level pitch. */
+    } else {
+      mouseY = (clientY - h / 2) * px;
+      tiltTargetX = -ny * tiltMul;
+    }
   }
 
   function clearParallaxTargets() {
@@ -777,27 +787,21 @@ export function attachQuantumCoreOpticalEngine(
     tiltTargetY = 0;
   }
 
-  function setParallaxFromScroll() {
-    const heroEl = stackEl?.closest("section") ?? host.closest("section");
-    if (!heroEl) {
-      clearParallaxTargets();
-      return;
-    }
-    const heroH = Math.max(1, heroEl.clientHeight);
-    const scrollProgress = THREE.MathUtils.clamp(
-      -heroEl.getBoundingClientRect().top / heroH,
-      0,
-      1,
-    );
-    /* Inverted: hero loads in the "scrolled" pose and eases back toward center as you scroll down. */
-    const progress = 1 - scrollProgress;
+  function syncScrollIdleWanderFromTargets() {
+    scrollIdleWanderX = tiltTargetX;
+    scrollIdleWanderY = tiltTargetY;
+    scrollIdleWanderCamX = mouseX;
+    scrollIdleWanderCamY = mouseY;
+  }
+
+  /** Homepage hero loads skewed; scroll-down no longer drives tilt (only real scroll axis). */
+  function seedHomeHeroPose() {
     const coarse = isCoarsePointer();
     const amp = coarse ? 1.35 : 1;
-    const t = (progress - 0.5) * 2;
-    mouseX = t * 0.08 * amp;
-    mouseY = progress * 0.06 * amp;
-    tiltTargetY = t * 0.42 * amp;
-    tiltTargetX = -progress * 0.25 * amp;
+    mouseX = 0.08 * amp;
+    mouseY = 0.06 * amp;
+    tiltTargetY = 0.42 * amp;
+    tiltTargetX = -0.25 * amp;
   }
 
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
@@ -809,6 +813,14 @@ export function attachQuantumCoreOpticalEngine(
   };
   const onPointerUp = (e: PointerEvent) => {
     if (e.pointerType === "touch" && e.isPrimary) clearParallaxTargets();
+  };
+
+  const onHomePointerMove = (e: PointerEvent) => {
+    setParallaxFromClient(e.clientX, e.clientY, { blockDown: true });
+    syncScrollIdleWanderFromTargets();
+  };
+  const onHomePointerDown = (e: PointerEvent) => {
+    if (e.isPrimary) onHomePointerMove(e);
   };
 
   const touchClient = (e: TouchEvent) =>
@@ -827,7 +839,6 @@ export function attachQuantumCoreOpticalEngine(
     clearParallaxTargets();
   };
 
-  let scrollRaf = 0;
   let scrollActive = false;
   let scrollIdleTimer = 0;
   /** Random tilt/camera wander while scroll is idle on the homepage hero. */
@@ -844,10 +855,11 @@ export function attachQuantumCoreOpticalEngine(
   function pickScrollIdleWanderTargets() {
     const coarse = isCoarsePointer();
     const amp = coarse ? 1.35 : 1;
-    scrollIdleWanderTargetX = (Math.random() - 0.5) * 0.52 * amp;
+    /* Up / left / right only — down is a scroll dead-end on the homepage hero. */
+    scrollIdleWanderTargetX = -Math.random() * 0.52 * amp;
     scrollIdleWanderTargetY = (Math.random() - 0.5) * 0.86 * amp;
     scrollIdleWanderCamTargetX = (Math.random() - 0.5) * 0.16 * amp;
-    scrollIdleWanderCamTargetY = (Math.random() - 0.5) * 0.12 * amp;
+    scrollIdleWanderCamTargetY = -Math.random() * 0.12 * amp;
     scrollIdleWanderNextAt =
       performance.now() + 550 + Math.random() * 1100;
   }
@@ -871,22 +883,16 @@ export function attachQuantumCoreOpticalEngine(
 
   const onScroll = () => {
     markScrollActive();
-    if (scrollRaf) return;
-    scrollRaf = requestAnimationFrame(() => {
-      scrollRaf = 0;
-      setParallaxFromScroll();
-    });
   };
 
   if (useScrollParallax) {
-    setParallaxFromScroll();
-    scrollIdleWanderX = tiltTargetX;
-    scrollIdleWanderY = tiltTargetY;
-    scrollIdleWanderCamX = mouseX;
-    scrollIdleWanderCamY = mouseY;
+    seedHomeHeroPose();
+    syncScrollIdleWanderFromTargets();
     pickScrollIdleWanderTargets();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("pointermove", onHomePointerMove, { passive: true });
+    window.addEventListener("pointerdown", onHomePointerDown, { passive: true });
   } else {
     host.addEventListener("touchstart", onHostTouchStart, { passive: true });
     host.addEventListener("touchmove", onHostTouchMove, { passive: false });
@@ -1225,10 +1231,12 @@ export function attachQuantumCoreOpticalEngine(
         (scrollIdleWanderCamTargetX - scrollIdleWanderCamX) * wanderLerp;
       scrollIdleWanderCamY +=
         (scrollIdleWanderCamTargetY - scrollIdleWanderCamY) * wanderLerp;
-      effectiveTiltX = scrollIdleWanderX;
+      effectiveTiltX = Math.min(scrollIdleWanderX, 0);
       effectiveTiltY = scrollIdleWanderY;
       effectiveMouseX = scrollIdleWanderCamX;
       effectiveMouseY = scrollIdleWanderCamY;
+    } else if (useScrollParallax) {
+      effectiveTiltX = Math.min(effectiveTiltX, 0);
     }
 
     pulseGroup.rotation.x +=
@@ -1238,7 +1246,7 @@ export function attachQuantumCoreOpticalEngine(
     pulseGroup.rotation.x = THREE.MathUtils.clamp(
       pulseGroup.rotation.x,
       -0.55,
-      0.55,
+      useScrollParallax ? 0 : 0.55,
     );
     pulseGroup.rotation.y = THREE.MathUtils.clamp(
       pulseGroup.rotation.y,
@@ -1324,11 +1332,12 @@ export function attachQuantumCoreOpticalEngine(
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
     window.removeEventListener("vapi-transcript", onTranscript);
-    cancelAnimationFrame(scrollRaf);
     window.clearTimeout(scrollIdleTimer);
     if (useScrollParallax) {
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("scroll", onScroll);
+      window.removeEventListener("pointermove", onHomePointerMove);
+      window.removeEventListener("pointerdown", onHomePointerDown);
     } else {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerdown", onPointerDown);
