@@ -43,7 +43,7 @@ export interface OAuthPlatformConfig {
  * OAuth 2.0 docs; some (Meta, TikTok) have review requirements before scopes
  * beyond basic profile are granted.
  */
-export const OAUTH_CONFIGS: Record<SocialPlatformId, OAuthPlatformConfig> = {
+export const OAUTH_CONFIGS: Partial<Record<SocialPlatformId, OAuthPlatformConfig>> = {
   twitter: {
     platform: 'twitter',
     label: 'X / Twitter',
@@ -142,7 +142,9 @@ export function isSocialPlatform(value: string): value is SocialPlatformId {
 }
 
 export function getOAuthConfig(platform: SocialPlatformId): OAuthPlatformConfig {
-  return OAUTH_CONFIGS[platform];
+  const cfg = OAUTH_CONFIGS[platform];
+  if (!cfg) throw new Error(`OAuth is not available for platform: ${platform}`);
+  return cfg;
 }
 
 export interface OAuthCredentials {

@@ -7,6 +7,7 @@ import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin'
 import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { serverEnv } from './serverEnv';
+import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 
 /**
  * Make a string safe to use as an HTTP header value. `fetch` requires header
@@ -143,6 +144,21 @@ export type CompanyConfig = {
   socialFacebook: string;
   socialYoutube: string;
   socialTiktok: string;
+  socialBluesky: string;
+  socialThreads: string;
+  socialPinterest: string;
+  socialSnapchat: string;
+  socialDiscord: string;
+  socialReddit: string;
+  socialGithub: string;
+  socialTwitch: string;
+  socialTelegram: string;
+  socialWhatsapp: string;
+  socialSubstack: string;
+  socialYelp: string;
+  socialGoogleBusiness: string;
+  /** Platform ids hidden from the Socials settings form. */
+  socialHiddenPlatforms: string[];
 };
 
 function trim(s: string | null | undefined): string {
@@ -323,6 +339,20 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialFacebook: trim(stored?.socialFacebook),
     socialYoutube: trim(stored?.socialYoutube),
     socialTiktok: trim(stored?.socialTiktok),
+    socialBluesky: trim(stored?.socialBluesky),
+    socialThreads: trim(stored?.socialThreads),
+    socialPinterest: trim(stored?.socialPinterest),
+    socialSnapchat: trim(stored?.socialSnapchat),
+    socialDiscord: trim(stored?.socialDiscord),
+    socialReddit: trim(stored?.socialReddit),
+    socialGithub: trim(stored?.socialGithub),
+    socialTwitch: trim(stored?.socialTwitch),
+    socialTelegram: trim(stored?.socialTelegram),
+    socialWhatsapp: trim(stored?.socialWhatsapp),
+    socialSubstack: trim(stored?.socialSubstack),
+    socialYelp: trim(stored?.socialYelp),
+    socialGoogleBusiness: trim(stored?.socialGoogleBusiness),
+    socialHiddenPlatforms: parseHiddenSocialPlatforms(stored?.socialHiddenPlatforms),
     ...logo,
     ...icon,
   };
@@ -371,6 +401,20 @@ export type CompanyConfigInput = {
   socialFacebook?: string;
   socialYoutube?: string;
   socialTiktok?: string;
+  socialBluesky?: string;
+  socialThreads?: string;
+  socialPinterest?: string;
+  socialSnapchat?: string;
+  socialDiscord?: string;
+  socialReddit?: string;
+  socialGithub?: string;
+  socialTwitch?: string;
+  socialTelegram?: string;
+  socialWhatsapp?: string;
+  socialSubstack?: string;
+  socialYelp?: string;
+  socialGoogleBusiness?: string;
+  socialHiddenPlatforms?: string[] | string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -395,6 +439,33 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.socialFacebook !== undefined) out.socialFacebook = trim(input.socialFacebook) || null;
   if (input.socialYoutube !== undefined) out.socialYoutube = trim(input.socialYoutube) || null;
   if (input.socialTiktok !== undefined) out.socialTiktok = trim(input.socialTiktok) || null;
+  if (input.socialBluesky !== undefined) out.socialBluesky = trim(input.socialBluesky) || null;
+  if (input.socialThreads !== undefined) out.socialThreads = trim(input.socialThreads) || null;
+  if (input.socialPinterest !== undefined) out.socialPinterest = trim(input.socialPinterest) || null;
+  if (input.socialSnapchat !== undefined) out.socialSnapchat = trim(input.socialSnapchat) || null;
+  if (input.socialDiscord !== undefined) out.socialDiscord = trim(input.socialDiscord) || null;
+  if (input.socialReddit !== undefined) out.socialReddit = trim(input.socialReddit) || null;
+  if (input.socialGithub !== undefined) out.socialGithub = trim(input.socialGithub) || null;
+  if (input.socialTwitch !== undefined) out.socialTwitch = trim(input.socialTwitch) || null;
+  if (input.socialTelegram !== undefined) out.socialTelegram = trim(input.socialTelegram) || null;
+  if (input.socialWhatsapp !== undefined) out.socialWhatsapp = trim(input.socialWhatsapp) || null;
+  if (input.socialSubstack !== undefined) out.socialSubstack = trim(input.socialSubstack) || null;
+  if (input.socialYelp !== undefined) out.socialYelp = trim(input.socialYelp) || null;
+  if (input.socialGoogleBusiness !== undefined) {
+    out.socialGoogleBusiness = trim(input.socialGoogleBusiness) || null;
+  }
+  if (input.socialHiddenPlatforms !== undefined) {
+    const raw = input.socialHiddenPlatforms;
+    if (typeof raw === 'string') {
+      try {
+        out.socialHiddenPlatforms = parseHiddenSocialPlatforms(JSON.parse(raw));
+      } catch {
+        out.socialHiddenPlatforms = [];
+      }
+    } else {
+      out.socialHiddenPlatforms = parseHiddenSocialPlatforms(raw);
+    }
+  }
   return out;
 }
 

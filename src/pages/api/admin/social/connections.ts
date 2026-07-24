@@ -23,7 +23,9 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
-  const platforms = Object.keys(OAUTH_CONFIGS) as SocialPlatformId[];
+  const platforms = (Object.keys(OAUTH_CONFIGS) as SocialPlatformId[]).filter(
+    (platform) => OAUTH_CONFIGS[platform],
+  );
   const origin = requestOrigin(context.request);
   const statuses = await listConnections(platforms);
   const byPlatform = new Map(statuses.map((s) => [s.platform, s]));

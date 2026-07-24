@@ -8,6 +8,7 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { serverEnv } from './serverEnv';
+import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 
 export type StoredCompanyLogo = {
   dataBase64: string;
@@ -49,6 +50,20 @@ export type StoredCompanyConfig = {
   socialFacebook?: string | null;
   socialYoutube?: string | null;
   socialTiktok?: string | null;
+  socialBluesky?: string | null;
+  socialThreads?: string | null;
+  socialPinterest?: string | null;
+  socialSnapchat?: string | null;
+  socialDiscord?: string | null;
+  socialReddit?: string | null;
+  socialGithub?: string | null;
+  socialTwitch?: string | null;
+  socialTelegram?: string | null;
+  socialWhatsapp?: string | null;
+  socialSubstack?: string | null;
+  socialYelp?: string | null;
+  socialGoogleBusiness?: string | null;
+  socialHiddenPlatforms?: string[] | null;
   updatedAt?: string | null;
 };
 
@@ -85,6 +100,20 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_linkedin TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_facebook TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_youtube TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_tiktok TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_bluesky TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_threads TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_pinterest TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_snapchat TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_discord TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_reddit TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_github TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_twitch TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_telegram TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_whatsapp TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_substack TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_yelp TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_google_business TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS social_hidden_platforms TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS address TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lat DOUBLE PRECISION;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lng DOUBLE PRECISION;
@@ -213,6 +242,20 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     socialFacebook: str('socialFacebook') || null,
     socialYoutube: str('socialYoutube') || null,
     socialTiktok: str('socialTiktok') || null,
+    socialBluesky: str('socialBluesky') || null,
+    socialThreads: str('socialThreads') || null,
+    socialPinterest: str('socialPinterest') || null,
+    socialSnapchat: str('socialSnapchat') || null,
+    socialDiscord: str('socialDiscord') || null,
+    socialReddit: str('socialReddit') || null,
+    socialGithub: str('socialGithub') || null,
+    socialTwitch: str('socialTwitch') || null,
+    socialTelegram: str('socialTelegram') || null,
+    socialWhatsapp: str('socialWhatsapp') || null,
+    socialSubstack: str('socialSubstack') || null,
+    socialYelp: str('socialYelp') || null,
+    socialGoogleBusiness: str('socialGoogleBusiness') || null,
+    socialHiddenPlatforms: parseHiddenSocialPlatforms(o.socialHiddenPlatforms),
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -266,6 +309,20 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     social_facebook: string | null;
     social_youtube: string | null;
     social_tiktok: string | null;
+    social_bluesky: string | null;
+    social_threads: string | null;
+    social_pinterest: string | null;
+    social_snapchat: string | null;
+    social_discord: string | null;
+    social_reddit: string | null;
+    social_github: string | null;
+    social_twitch: string | null;
+    social_telegram: string | null;
+    social_whatsapp: string | null;
+    social_substack: string | null;
+    social_yelp: string | null;
+    social_google_business: string | null;
+    social_hidden_platforms: string | null;
     address: string | null;
     geo_lat: number | null;
     geo_lng: number | null;
@@ -278,7 +335,10 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             icon_path, icon_data, icon_media_type,
             vapi_assistant_id, vapi_first_message, vapi_system_prompt,
             social_twitter, social_instagram, social_linkedin, social_facebook,
-            social_youtube, social_tiktok, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
+            social_youtube, social_tiktok, social_bluesky, social_threads, social_pinterest,
+            social_snapchat, social_discord, social_reddit, social_github, social_twitch,
+            social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
+            social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
             updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
@@ -307,6 +367,20 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     socialFacebook: row.social_facebook,
     socialYoutube: row.social_youtube,
     socialTiktok: row.social_tiktok,
+    socialBluesky: row.social_bluesky,
+    socialThreads: row.social_threads,
+    socialPinterest: row.social_pinterest,
+    socialSnapchat: row.social_snapchat,
+    socialDiscord: row.social_discord,
+    socialReddit: row.social_reddit,
+    socialGithub: row.social_github,
+    socialTwitch: row.social_twitch,
+    socialTelegram: row.social_telegram,
+    socialWhatsapp: row.social_whatsapp,
+    socialSubstack: row.social_substack,
+    socialYelp: row.social_yelp,
+    socialGoogleBusiness: row.social_google_business,
+    socialHiddenPlatforms: parseHiddenSocialPlatforms(row.social_hidden_platforms),
     address: row.address,
     geo:
       row.geo_lat != null && row.geo_lng != null
@@ -348,11 +422,25 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        social_facebook = $20,
        social_youtube = $21,
        social_tiktok = $22,
-       address = $23,
-       geo_lat = $24,
-       geo_lng = $25,
-       geo_place_id = $26,
-       geo_geocoded_at = $27,
+       social_bluesky = $23,
+       social_threads = $24,
+       social_pinterest = $25,
+       social_snapchat = $26,
+       social_discord = $27,
+       social_reddit = $28,
+       social_github = $29,
+       social_twitch = $30,
+       social_telegram = $31,
+       social_whatsapp = $32,
+       social_substack = $33,
+       social_yelp = $34,
+       social_google_business = $35,
+       social_hidden_platforms = $36,
+       address = $37,
+       geo_lat = $38,
+       geo_lng = $39,
+       geo_place_id = $40,
+       geo_geocoded_at = $41,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -378,6 +466,22 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.socialFacebook ?? null,
       config.socialYoutube ?? null,
       config.socialTiktok ?? null,
+      config.socialBluesky ?? null,
+      config.socialThreads ?? null,
+      config.socialPinterest ?? null,
+      config.socialSnapchat ?? null,
+      config.socialDiscord ?? null,
+      config.socialReddit ?? null,
+      config.socialGithub ?? null,
+      config.socialTwitch ?? null,
+      config.socialTelegram ?? null,
+      config.socialWhatsapp ?? null,
+      config.socialSubstack ?? null,
+      config.socialYelp ?? null,
+      config.socialGoogleBusiness ?? null,
+      config.socialHiddenPlatforms?.length
+        ? JSON.stringify(config.socialHiddenPlatforms)
+        : null,
       config.address ?? null,
       config.geo?.lat ?? null,
       config.geo?.lng ?? null,

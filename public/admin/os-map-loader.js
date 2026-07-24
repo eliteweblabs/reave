@@ -3820,6 +3820,19 @@ const SOCIAL_PLATFORM_UI = {
   facebook: { slug: 'facebook', color: '#1877f2' },
   youtube: { slug: 'youtube', color: '#ff0000' },
   tiktok: { slug: 'tiktok', color: '#ff0050' },
+  bluesky: { slug: 'bluesky', color: '#0085ff' },
+  threads: { slug: 'threads', color: '#000000' },
+  pinterest: { slug: 'pinterest', color: '#bd081c' },
+  snapchat: { slug: 'snapchat', color: '#fffc00' },
+  discord: { slug: 'discord', color: '#5865f2' },
+  reddit: { slug: 'reddit', color: '#ff4500' },
+  github: { slug: 'github', color: '#181717' },
+  twitch: { slug: 'twitch', color: '#9146ff' },
+  telegram: { slug: 'telegram', color: '#26a5e4' },
+  whatsapp: { slug: 'whatsapp', color: '#25d366' },
+  substack: { slug: 'substack', color: '#ff6719' },
+  yelp: { slug: 'yelp', color: '#d32323' },
+  googlebusiness: { slug: 'google', color: '#4285f4' },
 };
 
 const SOCIAL_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
@@ -5099,18 +5112,36 @@ function showSocialOAuthReturnAlert(root) {
 }
 
 function bindSocialsForm(root) {
+  const form = root.querySelector('#socials-form');
+  const hiddenInput = root.querySelector('#social-hidden-platforms');
+
+  const readHidden = () => {
+    try {
+      const parsed = JSON.parse(hiddenInput?.value || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const writeHidden = (ids) => {
+    if (hiddenInput) hiddenInput.value = JSON.stringify(ids);
+  };
+
+  const saveCompanyPayload = async (payload) => {
+    const res = await fetch('/api/admin/company', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    return { ok: res.ok, error: json.error };
+  };
+
   bindAutosaveForm(root, {
     formSelector: '#socials-form',
     alertEl: root.querySelector('#socials-alert'),
-    async save(payload) {
-      const res = await fetch('/api/admin/company', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      return { ok: res.ok, error: json.error };
-    },
+    save: saveCompanyPayload,
   });
 
   root.querySelectorAll('[data-soc-copy]').forEach((btn) => {
@@ -5136,6 +5167,75 @@ function bindSocialsForm(root) {
       }
     });
   });
+
+  root.querySelectorAll('[data-soc-hide]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const platformId = btn.getAttribute('data-soc-hide');
+      if (!platformId || !(form instanceof HTMLFormElement)) return;
+      const label = socialPlatformLabel(platformId);
+      if (!confirm(`Remove ${label} from your socials list? You can restore it later from "Removed platforms".`)) {
+        return;
+      }
+
+      const hidden = readHidden();
+      if (!hidden.includes(platformId)) hidden.push(platformId);
+      writeHidden(hidden);
+
+      const platform = socialPlatformCatalog.find((p) => p.id === platformId);
+      if (platform) {
+        const input = form.querySelector(`[name="${platform.field}"]`);
+        if (input instanceof HTMLInputElement) input.value = '';
+      }
+
+      btn.disabled = true;
+      try {
+        const payload = Object.fromEntries(new FormData(form));
+        const result = await saveCompanyPayload(payload);
+        if (!result.ok) throw new Error(result.error || 'Save failed');
+        await loadSocialsTab();
+      } catch (e) {
+        btn.disabled = false;
+        showProfileAlert(root.querySelector('#socials-alert'), e.message || 'Remove failed.', 'error');
+      }
+    });
+  });
+
+  root.querySelectorAll('[data-soc-restore]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const platformId = btn.getAttribute('data-soc-restore');
+      if (!platformId || !(form instanceof HTMLFormElement)) return;
+      writeHidden(readHidden().filter((id) => id !== platformId));
+      btn.disabled = true;
+      try {
+        const payload = Object.fromEntries(new FormData(form));
+        const result = await saveCompanyPayload(payload);
+        if (!result.ok) throw new Error(result.error || 'Save failed');
+        await loadSocialsTab();
+      } catch (e) {
+        btn.disabled = false;
+        showProfileAlert(root.querySelector('#socials-alert'), e.message || 'Restore failed.', 'error');
+      }
+    });
+  });
+
+  const addSelect = root.querySelector('#social-add-platform');
+  if (addSelect instanceof HTMLSelectElement) {
+    addSelect.addEventListener('change', async () => {
+      const platformId = addSelect.value;
+      if (!platformId || !(form instanceof HTMLFormElement)) return;
+      writeHidden(readHidden().filter((id) => id !== platformId));
+      addSelect.disabled = true;
+      try {
+        const payload = Object.fromEntries(new FormData(form));
+        const result = await saveCompanyPayload(payload);
+        if (!result.ok) throw new Error(result.error || 'Save failed');
+        await loadSocialsTab();
+      } catch (e) {
+        addSelect.disabled = false;
+        showProfileAlert(root.querySelector('#socials-alert'), e.message || 'Could not add platform.', 'error');
+      }
+    });
+  }
 
   showSocialOAuthReturnAlert(root);
 }
@@ -5391,7 +5491,84 @@ const SOCIAL_PLATFORM_LABELS = {
   facebook: 'Facebook',
   youtube: 'YouTube',
   tiktok: 'TikTok',
+  bluesky: 'Bluesky',
+  threads: 'Threads',
+  pinterest: 'Pinterest',
+  snapchat: 'Snapchat',
+  discord: 'Discord',
+  reddit: 'Reddit',
+  github: 'GitHub',
+  twitch: 'Twitch',
+  telegram: 'Telegram',
+  whatsapp: 'WhatsApp',
+  substack: 'Substack',
+  yelp: 'Yelp',
+  googlebusiness: 'Google Business',
 };
+
+let socialPlatformCatalog = [];
+let socialDefaultVisible = [];
+
+const FALLBACK_SOCIAL_LINK_CATALOG = [
+  { id: 'twitter', label: 'X / Twitter', field: 'socialTwitter', placeholder: 'https://x.com/yourcompany', iconSlug: 'x', color: '#1d9bf0' },
+  { id: 'instagram', label: 'Instagram', field: 'socialInstagram', placeholder: 'https://instagram.com/yourcompany', iconSlug: 'instagram', color: '#e1306c' },
+  { id: 'linkedin', label: 'LinkedIn', field: 'socialLinkedin', placeholder: 'https://linkedin.com/company/yourcompany', iconSlug: 'linkedin', color: '#0a66c2' },
+  { id: 'facebook', label: 'Facebook', field: 'socialFacebook', placeholder: 'https://facebook.com/yourcompany', iconSlug: 'facebook', color: '#1877f2' },
+  { id: 'youtube', label: 'YouTube', field: 'socialYoutube', placeholder: 'https://youtube.com/@yourcompany', iconSlug: 'youtube', color: '#ff0000' },
+  { id: 'tiktok', label: 'TikTok', field: 'socialTiktok', placeholder: 'https://tiktok.com/@yourcompany', iconSlug: 'tiktok', color: '#ff0050' },
+  { id: 'bluesky', label: 'Bluesky', field: 'socialBluesky', placeholder: 'https://bsky.app/profile/yourcompany.bsky.social', iconSlug: 'bluesky', color: '#0085ff' },
+  { id: 'threads', label: 'Threads', field: 'socialThreads', placeholder: 'https://threads.net/@yourcompany', iconSlug: 'threads', color: '#000000' },
+];
+
+const FALLBACK_SOCIAL_DEFAULT_VISIBLE = ['twitter', 'instagram', 'linkedin', 'facebook', 'youtube', 'tiktok', 'bluesky', 'threads'];
+
+function syncSocialPlatformCatalog(catalog, defaultVisible) {
+  socialPlatformCatalog = Array.isArray(catalog) ? catalog : [];
+  socialDefaultVisible = Array.isArray(defaultVisible) ? defaultVisible : [];
+  for (const platform of socialPlatformCatalog) {
+    if (!platform?.id) continue;
+    SOCIAL_PLATFORM_LABELS[platform.id] = platform.label || platform.id;
+    SOCIAL_PLATFORM_UI[platform.id] = {
+      slug: platform.iconSlug || platform.id,
+      color: platform.color || '#64748b',
+    };
+  }
+}
+
+function socialHiddenPlatformIds(company) {
+  return Array.isArray(company?.socialHiddenPlatforms) ? company.socialHiddenPlatforms : [];
+}
+
+function visibleSocialLinkPlatforms(company) {
+  const hidden = new Set(socialHiddenPlatformIds(company));
+  const visible = socialPlatformCatalog.filter((p) => !hidden.has(p.id));
+  if (visible.length) return visible;
+  const defaults = new Set(socialDefaultVisible);
+  return socialPlatformCatalog.filter((p) => defaults.has(p.id));
+}
+
+function hiddenSocialLinkPlatforms(company) {
+  const hidden = new Set(socialHiddenPlatformIds(company));
+  return socialPlatformCatalog.filter((p) => hidden.has(p.id));
+}
+
+function addableSocialLinkPlatforms(company) {
+  const visibleIds = new Set(visibleSocialLinkPlatforms(company).map((p) => p.id));
+  return socialPlatformCatalog.filter((p) => !visibleIds.has(p.id));
+}
+
+function socialLinkFieldRow(platform, company) {
+  const value = company?.[platform.field] || '';
+  return (
+    `<div class="soc-field-row" data-soc-platform="${escHtml(platform.id)}">` +
+      `<div class="prof-field soc-field">` +
+        `<label for="social-${escHtml(platform.id)}">${escHtml(platform.label)}</label>` +
+        `<input id="social-${escHtml(platform.id)}" name="${escHtml(platform.field)}" type="url" value="${escHtml(value)}" placeholder="${escHtml(platform.placeholder)}" autocomplete="url" />` +
+      `</div>` +
+      `<button type="button" class="prof-btn-secondary soc-field-remove" data-soc-hide="${escHtml(platform.id)}" aria-label="Remove ${escHtml(platform.label)}">Remove</button>` +
+    `</div>`
+  );
+}
 
 function socialPlatformLabel(platform) {
   return SOCIAL_PLATFORM_LABELS[platform] || platform || '';
@@ -5474,23 +5651,51 @@ function renderSocialConnectionsCard(connections) {
 
 function renderSocialsPanel(company, connections) {
   const c = company || {};
-  const field = (id, name, label, placeholder) =>
-    `<div class="prof-field"><label for="${id}">${label}</label>` +
-    `<input id="${id}" name="${name}" type="url" value="${escHtml(c[name] || '')}" placeholder="${placeholder}" autocomplete="url" /></div>`;
+  const visible = visibleSocialLinkPlatforms(c);
+  const hidden = hiddenSocialLinkPlatforms(c);
+  const addable = addableSocialLinkPlatforms(c);
+  const hiddenJson = escHtml(JSON.stringify(socialHiddenPlatformIds(c)));
+
+  const addPlatformHtml = addable.length
+    ? `<div class="soc-add-row">` +
+        `<label for="social-add-platform">Add platform</label>` +
+        `<select id="social-add-platform" class="soc-add-select">` +
+          `<option value="">Choose a platform…</option>` +
+          addable.map((p) => `<option value="${escHtml(p.id)}">${escHtml(p.label)}</option>`).join('') +
+        `</select>` +
+      `</div>`
+    : '';
+
+  const hiddenHtml = hidden.length
+    ? `<details class="soc-hidden-wrap">` +
+        `<summary>Removed platforms (${hidden.length})</summary>` +
+        `<div class="soc-hidden-list">` +
+          hidden
+            .map(
+              (p) =>
+                `<div class="soc-hidden-item">` +
+                  `<span>${escHtml(p.label)}</span>` +
+                  `<button type="button" class="prof-btn-secondary soc-field-restore" data-soc-restore="${escHtml(p.id)}">Restore</button>` +
+                `</div>`,
+            )
+            .join('') +
+        `</div>` +
+      `</details>`
+    : '';
 
   return (
     `<div class="profile-panel-scroll">` +
       `<div class="prof-card">` +
         `<h1 class="prof-title">Socials</h1>` +
-        `<p class="prof-subtitle">Public profile links for your organization.</p>` +
+        `<p class="prof-subtitle">Public profile links for your organization. Remove platforms you will never use — they stay out of the way until you restore them.</p>` +
         `<div id="socials-alert" class="prof-alert" hidden></div>` +
         `<form id="socials-form" class="prof-form">` +
-          field('social-twitter', 'socialTwitter', 'X / Twitter', 'https://x.com/yourcompany') +
-          field('social-instagram', 'socialInstagram', 'Instagram', 'https://instagram.com/yourcompany') +
-          field('social-linkedin', 'socialLinkedin', 'LinkedIn', 'https://linkedin.com/company/yourcompany') +
-          field('social-facebook', 'socialFacebook', 'Facebook', 'https://facebook.com/yourcompany') +
-          field('social-youtube', 'socialYoutube', 'YouTube', 'https://youtube.com/@yourcompany') +
-          field('social-tiktok', 'socialTiktok', 'TikTok', 'https://tiktok.com/@yourcompany') +
+          `<input type="hidden" id="social-hidden-platforms" name="socialHiddenPlatforms" value="${hiddenJson}" />` +
+          `<div id="social-fields-list" class="soc-fields-list">` +
+            visible.map((p) => socialLinkFieldRow(p, c)).join('') +
+          `</div>` +
+          addPlatformHtml +
+          hiddenHtml +
         `</form>` +
       `</div>` +
       renderSocialConnectionsCard(connections) +
@@ -5599,12 +5804,25 @@ async function loadSocialsTab() {
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
 
   try {
-    const [companyRes, connRes] = await Promise.all([
+    const [companyRes, connRes, catalogRes] = await Promise.all([
       fetch('/api/admin/company', { cache: 'no-store' }),
       fetch('/api/admin/social/connections', { cache: 'no-store' }),
+      fetch('/api/admin/social/platforms', { cache: 'no-store' }),
     ]);
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
+
+    try {
+      const catalogData = await catalogRes.json();
+      if (catalogRes.ok && catalogData.ok) {
+        syncSocialPlatformCatalog(catalogData.platforms, catalogData.defaultVisible);
+      }
+    } catch {
+      /* catalog is best-effort */
+    }
+    if (!socialPlatformCatalog.length) {
+      syncSocialPlatformCatalog(FALLBACK_SOCIAL_LINK_CATALOG, FALLBACK_SOCIAL_DEFAULT_VISIBLE);
+    }
 
     let connections = [];
     try {

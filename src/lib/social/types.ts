@@ -14,7 +14,20 @@ export type SocialPlatformId =
   | 'linkedin'
   | 'facebook'
   | 'youtube'
-  | 'tiktok';
+  | 'tiktok'
+  | 'bluesky'
+  | 'threads'
+  | 'pinterest'
+  | 'snapchat'
+  | 'discord'
+  | 'reddit'
+  | 'github'
+  | 'twitch'
+  | 'telegram'
+  | 'whatsapp'
+  | 'substack'
+  | 'yelp'
+  | 'googlebusiness';
 
 export interface SocialAccount {
   platform: SocialPlatformId;

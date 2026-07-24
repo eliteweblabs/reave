@@ -5,62 +5,10 @@
  * normalize to a clean handle plus a canonical URL.
  */
 import type { CompanyConfig } from '../companyConfig.ts';
-import type { SocialAccount, SocialPlatformId } from './types.ts';
+import { SOCIAL_PLATFORM_CATALOG } from './platforms.ts';
+import type { SocialAccount } from './types.ts';
 
-interface PlatformMeta {
-  id: SocialPlatformId;
-  label: string;
-  followersLabel: string;
-  /** Company-config field holding the stored link/handle. */
-  field: keyof CompanyConfig;
-  /** Build a canonical profile URL from a bare handle. */
-  profileUrl: (handle: string) => string;
-}
-
-export const SOCIAL_PLATFORMS: PlatformMeta[] = [
-  {
-    id: 'twitter',
-    label: 'X / Twitter',
-    followersLabel: 'Followers',
-    field: 'socialTwitter',
-    profileUrl: (h) => `https://x.com/${h}`,
-  },
-  {
-    id: 'instagram',
-    label: 'Instagram',
-    followersLabel: 'Followers',
-    field: 'socialInstagram',
-    profileUrl: (h) => `https://instagram.com/${h}`,
-  },
-  {
-    id: 'linkedin',
-    label: 'LinkedIn',
-    followersLabel: 'Followers',
-    field: 'socialLinkedin',
-    profileUrl: (h) => `https://linkedin.com/company/${h}`,
-  },
-  {
-    id: 'facebook',
-    label: 'Facebook',
-    followersLabel: 'Followers',
-    field: 'socialFacebook',
-    profileUrl: (h) => `https://facebook.com/${h}`,
-  },
-  {
-    id: 'youtube',
-    label: 'YouTube',
-    followersLabel: 'Subscribers',
-    field: 'socialYoutube',
-    profileUrl: (h) => `https://youtube.com/@${h.replace(/^@/, '')}`,
-  },
-  {
-    id: 'tiktok',
-    label: 'TikTok',
-    followersLabel: 'Followers',
-    field: 'socialTiktok',
-    profileUrl: (h) => `https://tiktok.com/@${h.replace(/^@/, '')}`,
-  },
-];
+export { SOCIAL_PLATFORM_CATALOG as SOCIAL_PLATFORMS } from './platforms.ts';
 
 /** Extract a clean handle from a stored URL or bare handle string. */
 export function parseHandle(raw: string): string {
@@ -98,7 +46,7 @@ export function parseHandle(raw: string): string {
 /** Accounts for every platform that has a non-empty handle configured. */
 export function accountsFromCompany(company: CompanyConfig): SocialAccount[] {
   const accounts: SocialAccount[] = [];
-  for (const meta of SOCIAL_PLATFORMS) {
+  for (const meta of SOCIAL_PLATFORM_CATALOG) {
     const stored = String((company as Record<string, unknown>)[meta.field] ?? '');
     const handle = parseHandle(stored);
     if (!handle) continue;

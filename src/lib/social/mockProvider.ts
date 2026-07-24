@@ -24,6 +24,19 @@ const FOLLOWER_BASE: Record<SocialPlatformId, [number, number]> = {
   facebook: [1_200, 38_000],
   youtube: [400, 15_000],
   tiktok: [3_000, 120_000],
+  bluesky: [600, 18_000],
+  threads: [800, 22_000],
+  pinterest: [700, 20_000],
+  snapchat: [1_500, 45_000],
+  discord: [200, 8_000],
+  reddit: [300, 12_000],
+  github: [150, 6_000],
+  twitch: [250, 9_000],
+  telegram: [400, 14_000],
+  whatsapp: [100, 3_000],
+  substack: [200, 7_500],
+  yelp: [50, 2_000],
+  googlebusiness: [80, 2_500],
 };
 
 function hashString(input: string): number {
