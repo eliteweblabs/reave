@@ -2223,45 +2223,43 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         padding: 0.85rem 0 0;
         border-top: 1px solid var(--panel-border);
       }
-      #work-editor .wk-project-qr {
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        margin: 0.35rem 1rem 0;
-        padding: 0;
-        flex: 0 0 auto;
-        min-width: 0;
+      #work-editor .de-pane {
+        position: relative;
       }
-      #work-editor .wk-project-qr img {
-        flex: none;
+      #work-editor .wk-project-qr-float {
+        position: absolute;
+        top: calc(var(--control-h) + 0.35rem);
+        right: max(0.65rem, env(safe-area-inset-right, 0px));
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.1rem;
+        pointer-events: none;
+      }
+      #work-editor .wk-project-qr-float > * {
+        pointer-events: auto;
+      }
+      #work-editor .wk-project-qr-close {
+        width: 18px;
+        height: 18px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: #ef4444;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+      }
+      #work-editor .wk-project-qr-close:hover {
+        color: #f87171;
+      }
+      #work-editor .wk-project-qr-float img {
         display: block;
         width: 80px;
         height: 80px;
-      }
-      #work-editor .wk-project-qr-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        min-width: 0;
-      }
-      #work-editor .wk-project-qr-label {
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-      #work-editor .wk-project-qr-link {
-        font-size: 0.72rem;
-        line-height: 1.35;
-        color: var(--accent, #a855f7);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        text-decoration: none;
-      }
-      #work-editor .wk-project-qr-link:hover {
-        text-decoration: underline;
       }
       .wk-checklist-mount:empty,
       .wk-checklist-mount[hidden] {

@@ -10074,6 +10074,8 @@ let workState = {
   draft: null,
   returnToEmailId: null,
   returnToTodoId: null,
+  qrDismissedSlugs: new Set(),
+  _prevActiveSlug: null,
 };
 
 let workAutosaveTimer = null;
@@ -11012,6 +11014,7 @@ function refreshWorkSidebarList() {
 function renderWorkEditor() {
   const root = getWorkEditor();
   if (!root) return;
+  syncWorkQrDismissForNavigation(workState.activeSlug);
   const savedSidebarScroll = captureSidebarListScroll(root);
   const { jobs, activeSlug, search } = workState;
   root.innerHTML = '';
@@ -11723,6 +11726,41 @@ function createWorkFormScroll(pane) {
   return scroll;
 }
 
+function syncWorkQrDismissForNavigation(nextSlug) {
+  const prevSlug = workState._prevActiveSlug;
+  if (prevSlug && prevSlug !== nextSlug && prevSlug !== '__new__') {
+    workState.qrDismissedSlugs.delete(prevSlug);
+  }
+  workState._prevActiveSlug = nextSlug;
+}
+
+function mountWorkProjectQrFloat(pane, { slug, qrDataUrl }) {
+  if (!qrDataUrl || !slug || workState.qrDismissedSlugs.has(slug)) return;
+
+  const qrWrap = document.createElement('div');
+  qrWrap.className = 'wk-project-qr-float';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'wk-project-qr-close';
+  closeBtn.setAttribute('aria-label', 'Hide QR code');
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', () => {
+    workState.qrDismissedSlugs.add(slug);
+    qrWrap.remove();
+  });
+
+  const qrImg = document.createElement('img');
+  qrImg.src = qrDataUrl;
+  qrImg.width = 80;
+  qrImg.height = 80;
+  qrImg.alt = 'Project page QR code';
+
+  qrWrap.appendChild(closeBtn);
+  qrWrap.appendChild(qrImg);
+  pane.appendChild(qrWrap);
+}
+
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
   const returnTodoId = workState.returnToTodoId;
@@ -12063,34 +12101,7 @@ function renderEditWorkForm(pane) {
       });
       pane.appendChild(header);
 
-      if (data.qr_data_url && data.portal_url) {
-        const qrWrap = document.createElement('div');
-        qrWrap.className = 'wk-project-qr';
-        const qrImg = document.createElement('img');
-        qrImg.src = data.qr_data_url;
-        qrImg.width = 80;
-        qrImg.height = 80;
-        qrImg.alt = 'Project page QR code';
-        qrWrap.appendChild(qrImg);
-
-        const copy = document.createElement('div');
-        copy.className = 'wk-project-qr-copy';
-        const label = document.createElement('span');
-        label.className = 'wk-project-qr-label';
-        label.textContent = 'Client project page';
-        const link = document.createElement('a');
-        link.className = 'wk-project-qr-link';
-        link.href = data.portal_url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.title = data.portal_url;
-        const urlText = String(data.portal_url || '');
-        link.textContent = urlText.length > 52 ? `${urlText.slice(0, 51)}…` : urlText;
-        copy.appendChild(label);
-        copy.appendChild(link);
-        qrWrap.appendChild(copy);
-        pane.appendChild(qrWrap);
-      }
+      mountWorkProjectQrFloat(pane, { slug, qrDataUrl: data.qr_data_url });
 
       const scroll = createWorkFormScroll(pane);
 
