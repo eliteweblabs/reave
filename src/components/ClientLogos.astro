@@ -40,7 +40,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
           <img
             src={logo.src}
             alt={index < logos.length ? logo.name : ""}
-            loading="lazy"
+            loading="eager"
             decoding="async"
             draggable="false"
           />
@@ -75,7 +75,6 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
   .client-logos-track {
     display: flex;
-    will-change: transform;
     animation: client-logos-marquee var(--marquee-duration) linear infinite;
   }
 
@@ -83,9 +82,17 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     animation-play-state: paused;
   }
 
+  /* Touch devices: keep autoplay even if JS adds is-paused (IO + content-visibility
+     can leave the marquee stuck paused on iOS Safari). */
+  @media (hover: none), (pointer: coarse) {
+    .client-logos-viewport.is-paused .client-logos-track {
+      animation-play-state: running;
+    }
+  }
+
   @keyframes client-logos-marquee {
     to {
-      transform: translate3d(calc(-100% / var(--loop-copies)), 0, 0);
+      transform: translate3d(-33.333333%, 0, 0);
     }
   }
 
@@ -156,6 +163,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     const velocity = 28;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const pauseWhenOffscreen = canHover;
 
     function getSetWidth() {
       return track.scrollWidth / loopCopies;
@@ -177,7 +185,14 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     let manualOffset = 0;
 
     function syncPausedClass() {
+      if (!pauseWhenOffscreen) return;
       viewport.classList.toggle("is-paused", offscreen || isDragging);
+    }
+
+    function restartMarqueeAnimation() {
+      track.style.animation = "none";
+      void track.offsetWidth;
+      track.style.removeProperty("animation");
     }
 
     function normalizeOffset() {
@@ -197,13 +212,17 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     }
 
     const visibilityObs =
-      "IntersectionObserver" in window
+      pauseWhenOffscreen && "IntersectionObserver" in window
         ? new IntersectionObserver(
             (entries) => {
+              const wasOffscreen = offscreen;
               offscreen = !entries.some((entry) => entry.isIntersecting);
-              if (!isDragging) syncPausedClass();
+              if (!isDragging) {
+                syncPausedClass();
+                if (wasOffscreen && !offscreen) restartMarqueeAnimation();
+              }
             },
-            { root: null, threshold: 0.05 },
+            { root: null, threshold: 0, rootMargin: "80px 0px" },
           )
         : null;
     visibilityObs?.observe(viewport);
@@ -239,6 +258,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       viewport.classList.remove("is-dragging");
       clearManualTransform();
       syncPausedClass();
+      if (!offscreen) restartMarqueeAnimation();
 
       if (viewport.hasPointerCapture(event.pointerId)) {
         viewport.releasePointerCapture(event.pointerId);
@@ -262,7 +282,10 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       });
 
       viewport.addEventListener("mouseleave", () => {
-        if (!isDragging && !offscreen) viewport.classList.remove("is-paused");
+        if (!isDragging && !offscreen) {
+          viewport.classList.remove("is-paused");
+          restartMarqueeAnimation();
+        }
       });
     }
 
