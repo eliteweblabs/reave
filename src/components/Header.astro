@@ -1,35 +1,18 @@
 ---
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { getCompanyConfig, companyStaffAvatarUrl } from "../lib/companyConfig";
 import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
-import HeaderLogoAnimated from "./HeaderLogoAnimated.astro";
 import {
   Shield,
   LayoutDashboard,
 } from "lucide-astro";
 
-const headerLogoMarkup = readFileSync(
-  join(process.cwd(), "public/reave-logo.svg"),
-  "utf8",
-)
-  .replace(/<\?xml[\s\S]*?\?>\s*/i, "")
-  .replace(
-    /xlink:href="reave-logo-1\.png"/g,
-    'href="/reave-logo-1.png" xlink:href="/reave-logo-1.png"',
-  )
-  .replace(
-    /<svg\b/,
-    '<svg class="app-header-logo-svg brand-img logo-img" aria-hidden="true" focusable="false"',
-  );
-
 interface Props {
   /** Admin SPA shell — profile menu; tab nav lives in footer */
   adminShell?: boolean;
-  /** Homepage — hide header logo on hero, cascade in after first section */
-  homepageLogoReveal?: boolean;
+  /** Hide logo link (homepage — logo lives in page content) */
+  hideLogo?: boolean;
   /** Homepage — single user icon links to admin instead of tools/profile menus */
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
@@ -44,7 +27,7 @@ interface Props {
 
 const {
   adminShell = false,
-  homepageLogoReveal = false,
+  hideLogo = false,
   homeAdminEntry = false,
   staffPreview = false,
   profileMenu = [],
@@ -75,30 +58,15 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 ---
 
 <header
-  class:list={[
-    "app-header",
-    {
-      "app-header--admin": adminShell,
-      "app-header--portal-brand": !!portalBrand,
-      "app-header--homepage-logo-reveal": homepageLogoReveal,
-    },
-  ]}
+  class:list={["app-header", { "app-header--admin": adminShell, "app-header--portal-brand": !!portalBrand }]}
   id={adminShell ? "topbar" : undefined}
 >
   <div class:list={["app-header-row", { "app-header-row--admin": adminShell }]}>
-  <a
-    href={logoHref}
-    class:list={["app-header-logo brand", homepageLogoReveal && "app-header-logo--hero-hidden"]}
-    aria-label={logoAriaLabel}
-    aria-hidden={homepageLogoReveal ? "true" : undefined}
-    tabindex={homepageLogoReveal ? -1 : undefined}
-  >
-    {homepageLogoReveal ? (
-      <HeaderLogoAnimated />
-    ) : (
-      <Fragment set:html={headerLogoMarkup} />
-    )}
-  </a>
+  {!hideLogo ? (
+    <a href={logoHref} class="app-header-logo brand" aria-label={logoAriaLabel}>
+      <span class="app-header-logo-mark brand-img logo-img" aria-hidden="true"></span>
+    </a>
+  ) : null}
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
@@ -270,9 +238,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     --app-header-h: 3.25rem;
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
-    --app-header-logo-drop: calc(var(--app-header-h) + 12px);
-    --app-header-logo-part-stagger: 100ms;
-    --app-header-logo-part-duration: 0.55s;
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
     --app-header-profile-icon-h: calc(16px * var(--app-header-chrome-scale));
     --app-header-signin-h: calc(32px * var(--app-header-chrome-scale));
@@ -431,73 +396,33 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     text-decoration: none;
   }
 
-  .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
-    pointer-events: none;
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
-    pointer-events: auto;
-  }
-
-  .app-header-logo-svg--animated {
-    overflow: visible;
-  }
-
-  .app-header--homepage-logo-reveal .app-header-logo-part {
-    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
-    transition: transform var(--app-header-logo-part-duration) cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-    transform: translateY(0);
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-hiding .app-header-logo-part {
-    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
-    transition-delay: calc((var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) * var(--app-header-logo-part-stagger));
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .app-header--homepage-logo-reveal .app-header-logo-part {
-      transition: none;
-      transform: translateY(0);
-    }
-
-    .app-header--homepage-logo-reveal:not(.app-header--logo-visible) .app-header-logo-part {
-      opacity: 0;
-    }
-
-    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-      opacity: 1;
-    }
-  }
-
-  .app-header-logo-svg {
+  /*
+   * Letter silhouette via CSS mask (not SVG clipPath + raster fill).
+   * Illustrator clip-path:url(#…) breaks in iOS WebViews; reave-logo-1.png
+   * is a full rectangle, so a failed clip shows a gradient block.
+   */
+  .app-header-logo-mark {
     display: block;
     height: var(--app-header-logo-h);
     width: calc(var(--app-header-logo-h) * (1014 / 329));
     max-width: none;
     pointer-events: none;
-    mix-blend-mode: difference;
-  }
-
-  .app-header--portal-brand .app-header-logo {
-    position: relative;
-  }
-
-  .app-header--portal-brand .app-header-logo-svg {
-    opacity: 0;
-  }
-
-  .app-header--portal-brand .app-header-logo::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--portal-brand-gradient, var(--brand-gradient));
-    -webkit-mask: url("/reave-logo-1.png") center / contain no-repeat;
-    mask: url("/reave-logo-1.png") center / contain no-repeat;
-    pointer-events: none;
+    background: var(
+      --portal-brand-gradient,
+      var(
+        --brand-gradient,
+        linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%)
+      )
+    );
+    /* PNG alpha mask — SVG mask-image is unreliable in WebKit/Chromium. */
+    -webkit-mask-image: url("/reave-logo-mask.png");
+    mask-image: url("/reave-logo-mask.png");
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
   }
 
   .app-header--portal-brand .topbar-profile-btn--admin {
@@ -509,12 +434,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   .app-header--portal-brand .topbar-profile-menu:has(.topbar-dropdown.open) .topbar-profile-btn--admin {
     background: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.22);
     color: #fff;
-  }
-
-  @supports not (mix-blend-mode: difference) {
-    .app-header-logo-svg {
-      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.35));
-    }
   }
 
   .topbar-dash-date {
@@ -972,63 +891,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     }
   }
 </style>
-
-{homepageLogoReveal && (
-  <script>
-    function initHomepageLogoReveal() {
-      const header = document.querySelector<HTMLElement>(".app-header--homepage-logo-reveal");
-      const about = document.getElementById("about");
-      const logo = header?.querySelector<HTMLAnchorElement>(".app-header-logo");
-      if (!header || !about || !logo) return;
-      if (header.dataset.logoRevealBound === "1") return;
-      header.dataset.logoRevealBound = "1";
-
-      const partCount = header.querySelectorAll(".app-header-logo-part").length;
-      const animMs =
-        550 + Math.max(0, partCount - 1) * 100;
-      let hideTimer: ReturnType<typeof setTimeout> | null = null;
-
-      const setVisible = (visible: boolean) => {
-        if (hideTimer) {
-          clearTimeout(hideTimer);
-          hideTimer = null;
-        }
-
-        if (visible) {
-          header.classList.remove("app-header--logo-hiding");
-          header.classList.add("app-header--logo-visible");
-          logo.setAttribute("aria-hidden", "false");
-          logo.removeAttribute("tabindex");
-          return;
-        }
-
-        header.classList.remove("app-header--logo-visible");
-        header.classList.add("app-header--logo-hiding");
-        logo.setAttribute("aria-hidden", "true");
-        logo.setAttribute("tabindex", "-1");
-        hideTimer = setTimeout(() => {
-          header.classList.remove("app-header--logo-hiding");
-        }, animMs);
-      };
-
-      const update = () => {
-        const heroBottom = document.getElementById("home")?.getBoundingClientRect().bottom ?? 0;
-        const headerBottom = header.getBoundingClientRect().bottom;
-        const aboutTop = about.getBoundingClientRect().top;
-        const pastHero = heroBottom <= headerBottom + 8;
-        const aboutInView = aboutTop < window.innerHeight * 0.85;
-        setVisible(pastHero || aboutInView);
-      };
-
-      update();
-      window.addEventListener("scroll", update, { passive: true });
-      window.addEventListener("resize", update, { passive: true });
-    }
-
-    initHomepageLogoReveal();
-    document.addEventListener("astro:page-load", initHomepageLogoReveal);
-  </script>
-)}
 
 {!adminShell && !homeAdminEntry && (
   <script>
