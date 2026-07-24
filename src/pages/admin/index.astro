@@ -49,6 +49,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         --grid: #e2e8f0;
         --fg: #0f172a;
         --muted: #64748b;
+        --placeholder: color-mix(in srgb, var(--muted), #000 25%);
         --card: #ffffff;
         --card-border: #e2e8f0;
         --panel: #f8fafc;
@@ -1156,6 +1157,11 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         color: var(--fg);
         font-size: 0.82rem;
         outline: none;
+      }
+      .panel-list-search::placeholder,
+      .search-overlay-input::placeholder {
+        color: var(--placeholder);
+        opacity: 1;
       }
       .panel-list-search::-webkit-search-cancel-button,
       .panel-list-search::-webkit-search-decoration {

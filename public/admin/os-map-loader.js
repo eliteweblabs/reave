@@ -17572,7 +17572,7 @@ function refreshChatSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const count = chatState.threads.length;
-    searchInput.placeholder = `Search ${count} ${count === 1 ? 'chat' : 'chats'}`;
+    searchInput.placeholder = `Search ${count} ${count === 1 ? 'Chat' : 'Chats'}`;
   }
   fillChatSidebarList(list);
 }
@@ -17585,7 +17585,7 @@ function renderChatSidebar() {
     itemCount: chatState.threads.length,
     search: {
       value: chatState.search,
-      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'chat' : 'chats'}`,
+      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'Chat' : 'Chats'}`,
       onInput: (value) => {
         chatState.search = value;
         refreshChatSidebarList();
