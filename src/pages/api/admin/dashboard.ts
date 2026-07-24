@@ -14,6 +14,10 @@ import {
   countProjectCommentNotifications,
   listProjectCommentNotifications,
 } from '../../../lib/workCommentNotifications';
+import {
+  countEngagementNotifications,
+  listEngagementNotifications,
+} from '../../../lib/engagementNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
 import {
   bookingList,
@@ -116,16 +120,26 @@ export async function GET(context: APIContext): Promise<Response> {
   const digest = computeInboxDigest(events, true);
   const emailsTotal = computeInboxDigest(inboxForCount, true).visible;
   const projectsTotal = jobs.length;
-  const [emailNotifications, commentNotifications, commentReviewsPending] = await Promise.all([
+  const [
+    emailNotifications,
+    commentNotifications,
+    engagementNotifications,
+    commentReviewsPending,
+    engagementReviewsPending,
+  ] = await Promise.all([
     Promise.resolve(listReviewNotifications(events)),
     listProjectCommentNotifications(),
+    listEngagementNotifications(),
     countProjectCommentNotifications(),
+    countEngagementNotifications(),
   ]);
-  const automationNotifications = [...emailNotifications, ...commentNotifications].sort(
-    (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime(),
-  );
+  const automationNotifications = [
+    ...emailNotifications,
+    ...commentNotifications,
+    ...engagementNotifications,
+  ].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
   const emailReviewsPending = countReviewNotifications(events);
-  const reviewsPending = emailReviewsPending + commentReviewsPending;
+  const reviewsPending = emailReviewsPending + commentReviewsPending + engagementReviewsPending;
 
   const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;

@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, setContactPortal } from '../../../../lib/contactApi';
+import { recordVaultSubmitEngagement } from '../../../../lib/engagementNotifications';
 import { hasFeature } from '../../../../lib/features';
 
 export const prerender = false;
@@ -98,6 +99,13 @@ export const POST: APIRoute = async ({ params, request }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+
+  const contactName = contactRes.data.name?.trim() || 'Client';
+  void recordVaultSubmitEngagement({
+    contactUid: uid,
+    contactName,
+    labels: newEntries.map((e) => e.label),
+  });
 
   return new Response(JSON.stringify({ ok: true }), {
     headers: { 'Content-Type': 'application/json' },

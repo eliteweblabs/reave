@@ -866,5 +866,38 @@ const deckPayload = {
     </style>
 
     <script src="/deck/deck-nav.js" defer></script>
+    <script is:inline>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          var contactUid = (params.get('ref') || params.get('c') || params.get('uid') || '').trim();
+          var industry = (params.get('type') || '').trim();
+          var storageKey = 'deck-view:' + (contactUid || 'anon') + ':' + (industry || 'default');
+          if (sessionStorage.getItem(storageKey)) return;
+          sessionStorage.setItem(storageKey, '1');
+          var sessionKey = '';
+          try {
+            sessionKey = sessionStorage.getItem('deck-session-id') || '';
+            if (!sessionKey) {
+              sessionKey =
+                (crypto.randomUUID && crypto.randomUUID()) ||
+                String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+              sessionStorage.setItem('deck-session-id', sessionKey);
+            }
+          } catch (_) {}
+          fetch('/api/deck/view', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contactUid: contactUid || undefined,
+              ref: contactUid || undefined,
+              industry: industry || undefined,
+              sessionKey: sessionKey || undefined,
+            }),
+            keepalive: true,
+          }).catch(function () {});
+        } catch (_) {}
+      })();
+    </script>
   </body>
 </html>

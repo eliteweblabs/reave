@@ -280,6 +280,102 @@ export async function notifyAdminAgentOfProjectComment(opts: {
   });
 }
 
+/** Fire-and-forget — client added password vault entries. */
+export async function notifyAdminAgentOfVaultSubmit(opts: {
+  contactName: string;
+  contactUid: string;
+  labels: string[];
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const labelLine =
+    opts.labels.length > 0 ? opts.labels.slice(0, 8).join(', ') : 'New vault item';
+  const message = [
+    '🔐 Client added to the password vault',
+    '',
+    `Client: ${opts.contactName}`,
+    `Items: ${labelLine}`,
+    '',
+    'Review the vault on the client page in admin.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `🔐 Vault update: ${opts.contactName}`,
+      body: labelLine.slice(0, 120),
+      tag: `vault-${opts.engagementId}`,
+      url: `/admin?tab=clients&uid=${encodeURIComponent(opts.contactUid)}`,
+    },
+  });
+}
+
+/** Fire-and-forget — client opened a tracked share / proposal / deck link. */
+export async function notifyAdminAgentOfShareOpen(opts: {
+  contactName: string;
+  contactUid: string;
+  jobTitle: string;
+  jobSlug: string;
+  kind: string;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const message = [
+    `👀 Client opened ${opts.kind}`,
+    '',
+    `Client: ${opts.contactName}`,
+    `Project: ${opts.jobTitle}`,
+    '',
+    'They engaged with the share link — follow up while interest is warm.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `👀 ${opts.contactName} opened ${opts.kind}`,
+      body: opts.jobTitle,
+      tag: `share-open-${opts.engagementId}`,
+      url: `/admin?tab=work&slug=${encodeURIComponent(opts.jobSlug)}`,
+    },
+  });
+}
+
+/** Fire-and-forget — sales deck page view. */
+export async function notifyAdminAgentOfDeckView(opts: {
+  contactName: string | null;
+  contactUid: string | null;
+  industry: string | null;
+  engagementId: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const who = opts.contactName || 'Anonymous visitor';
+  const message = [
+    '📊 Sales deck viewed',
+    '',
+    `Viewer: ${who}`,
+    opts.industry ? `Industry: ${opts.industry}` : 'Public /deck',
+    '',
+    'Someone is reviewing the sales narrative.',
+  ].join('\n');
+
+  const url = opts.contactUid
+    ? `/admin?tab=clients&uid=${encodeURIComponent(opts.contactUid)}`
+    : '/admin?tab=home';
+
+  await postToSystemAlertsThread({
+    message,
+    push: {
+      title: `📊 Deck viewed${opts.contactName ? `: ${opts.contactName}` : ''}`,
+      body: opts.industry ? `Preset: ${opts.industry}` : 'Sales deck',
+      tag: `deck-view-${opts.engagementId}`,
+      url,
+    },
+  });
+}
+
 /** Fire-and-forget — logs failures, never throws to inbound email handler. */
 export async function notifyAdminAgentOfEmailAlert(opts: {
   status: string;

@@ -2439,6 +2439,32 @@ async function runReviewScheduleAction(item, action, btn) {
 }
 
 async function dismissReviewNotification(item, btn) {
+  if (item?.engagementId) {
+    const prevLabel = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      if (prevLabel) btn.textContent = 'Dismissing…';
+    }
+    try {
+      const res = await fetch(`/api/admin/engagement/${encodeURIComponent(item.engagementId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await readApiJson(res);
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      removeReviewAlertBanner(null, null, item.engagementId);
+      syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+      if (MAP.type === 'home') await loadHomeDashboard();
+    } catch (e) {
+      await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        if (prevLabel) btn.textContent = prevLabel;
+      }
+    }
+    return;
+  }
   if (item?.commentId) {
     const prevLabel = btn?.textContent;
     if (btn) {
@@ -2943,7 +2969,15 @@ function rescheduleScheduledMeeting(item) {
 
 function reviewAlertVariant(type) {
   if (type === 'meeting_conflict') return 'confirm';
-  if (type === 'project' || type === 'project_comment') return 'pwa';
+  if (
+    type === 'project' ||
+    type === 'project_comment' ||
+    type === 'vault_entry' ||
+    type === 'share_open' ||
+    type === 'deck_view'
+  ) {
+    return 'pwa';
+  }
   return 'push';
 }
 
@@ -2961,6 +2995,12 @@ function reviewAlertIconName(type) {
       return 'briefcase';
     case 'project_comment':
       return 'message-circle';
+    case 'vault_entry':
+      return 'key';
+    case 'share_open':
+      return 'eye';
+    case 'deck_view':
+      return 'presentation';
     default:
       return 'bell';
   }
@@ -2980,8 +3020,12 @@ function appendReviewAlertAction(actions, { label, primary, onClick }) {
 }
 
 function openReviewNotificationTarget(item) {
-  if ((item.type === 'project' || item.type === 'project_comment') && item.jobSlug) {
+  if ((item.type === 'project' || item.type === 'project_comment' || item.type === 'share_open') && item.jobSlug) {
     navigateToWork(item.jobSlug, { fromEmailId: item.emailId || null });
+    return;
+  }
+  if ((item.type === 'vault_entry' || item.type === 'deck_view') && item.contactUid) {
+    navigateToClient(item.contactUid);
     return;
   }
   if (item.emailId) setActiveMap('email', { force: true, emailId: item.emailId });
@@ -2993,6 +3037,7 @@ function buildReviewAlertBanner(item) {
   alert.setAttribute('role', 'status');
   if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
   if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
+  if (item.engagementId) alert.setAttribute('data-review-engagement-id', item.engagementId);
 
   const iconWrap = document.createElement('div');
   iconWrap.className = 'admin-setup-alert-icon';
@@ -3016,13 +3061,28 @@ function buildReviewAlertBanner(item) {
 
   const isProject = item.type === 'project';
   const isProjectComment = item.type === 'project_comment';
+  const isVaultEntry = item.type === 'vault_entry';
+  const isShareOpen = item.type === 'share_open';
+  const isDeckView = item.type === 'deck_view';
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
 
-  if (isProjectComment) {
+  if (isProjectComment || isShareOpen) {
     appendReviewAlertAction(actions, {
       label: 'View project',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isVaultEntry) {
+    appendReviewAlertAction(actions, {
+      label: 'View vault',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isDeckView && item.contactUid) {
+    appendReviewAlertAction(actions, {
+      label: 'View client',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
@@ -3115,11 +3175,16 @@ function buildReviewAlertBanners(notifications) {
 }
 
 /** Drop a resolved review alert from the home dashboard immediately (no poll / reload wait). */
-function removeReviewAlertBanner(emailId, commentId) {
+function removeReviewAlertBanner(emailId, commentId, engagementId) {
   const emailKey = String(emailId || '').trim();
   const commentKey = String(commentId || '').trim();
+  const engagementKey = String(engagementId || '').trim();
   let banner = null;
-  if (commentKey) {
+  if (engagementKey) {
+    banner = document.querySelector(
+      `.dash-review-alerts [data-review-engagement-id="${CSS.escape(engagementKey)}"]`,
+    );
+  } else if (commentKey) {
     banner = document.querySelector(
       `.dash-review-alerts [data-review-comment-id="${CSS.escape(commentKey)}"]`,
     );
