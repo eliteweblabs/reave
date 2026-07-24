@@ -13,7 +13,7 @@ export const SITE = {
   description: "Automated client communication platform",
 
   /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
-  logoPath: "/logo.png",
+  logoPath: "/reave-logo.png",
 
   /** Default OG / Twitter card image — animated GIF, 600×315, 3.1 MB. */
   ogImage: "/og-image.gif",

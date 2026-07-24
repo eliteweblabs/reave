@@ -111,32 +111,6 @@ const LogoResolveShader = {
     uniform float uAvDampInnerAmt;
     varying vec2 vUv;
 
-    /* Match src/styles/brand.css — pink → magenta → indigo at ~145deg. */
-    const vec3 BRAND_PINK = vec3(0.957, 0.447, 0.710);
-    const vec3 BRAND_MAGENTA = vec3(0.753, 0.149, 0.827);
-    const vec3 BRAND_INDIGO = vec3(0.388, 0.404, 0.945);
-
-    float cloudBlob(vec2 uv, vec2 center, vec2 stretch, float radius) {
-      vec2 d = (uv - center) * stretch;
-      return exp(-dot(d, d) / (radius * radius));
-    }
-
-    vec3 brandLogoFill(vec2 uv) {
-      vec2 gradDir = normalize(vec2(0.819, -0.574));
-      float sweep = clamp(dot(uv - vec2(0.06, 0.94), gradDir) * 1.32, 0.0, 1.0);
-      vec3 col = mix(BRAND_PINK, BRAND_MAGENTA, smoothstep(0.0, 0.52, sweep));
-      col = mix(col, BRAND_INDIGO, smoothstep(0.42, 1.0, sweep));
-
-      col = mix(col, mix(BRAND_INDIGO, BRAND_MAGENTA, 0.38), cloudBlob(uv, vec2(0.17, 0.53), vec2(1.0, 2.35), 0.36) * 0.58);
-      col = mix(col, BRAND_MAGENTA, cloudBlob(uv, vec2(0.39, 0.47), vec2(1.0, 2.15), 0.34) * 0.64);
-      col = mix(col, BRAND_PINK, cloudBlob(uv, vec2(0.60, 0.52), vec2(1.0, 2.25), 0.32) * 0.70);
-      col = mix(col, mix(BRAND_PINK, BRAND_MAGENTA, 0.55), cloudBlob(uv, vec2(0.81, 0.49), vec2(1.0, 2.05), 0.30) * 0.54);
-      col = mix(col, vec3(1.0, 0.84, 0.94), cloudBlob(uv, vec2(0.50, 0.55), vec2(1.0, 2.75), 0.40) * 0.22);
-
-      float grain = fract(sin(dot(uv * vec2(97.3, 53.7), vec2(12.9898, 78.233))) * 43758.5453);
-      return col * (0.93 + grain * 0.14);
-    }
-
     void main() {
       vec4 tex = texture2D(uMap, vUv);
       float outer = smoothstep(uAvDampU0, uAvDampU0 + uAvDampEdge, vUv.x)
@@ -144,7 +118,10 @@ const LogoResolveShader = {
       float inner = smoothstep(uAvDampInnerU0, uAvDampInnerU0 + 0.03, vUv.x)
         * (1.0 - smoothstep(uAvDampInnerU1 - 0.03, uAvDampInnerU1, vUv.x));
       float damp = 1.0 - outer * uAvDampAmt - inner * uAvDampInnerAmt;
-      vec3 rgb = brandLogoFill(vUv) * damp;
+      /* Use the PNG gradient; leave headroom for ACES + bloom (avoids white blow-out). */
+      vec3 rgb = tex.rgb * damp;
+      float luma = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+      rgb = mix(vec3(luma), rgb, 1.06) * 0.58;
       gl_FragColor = vec4(rgb, tex.a * uOpacity);
     }
   `,
@@ -613,7 +590,9 @@ export function attachQuantumCoreOpticalEngine(
   );
   /* More generous bloom so points read as luminous haze, not isolated dots.
      Lower threshold on mobile so dim hues (purple/blue) still cross into bloom. */
-  bloomPass.threshold = isMobileLike ? 0.028 : 0.034;
+  const bloomThresholdIdle = isMobileLike ? 0.028 : 0.034;
+  const bloomThresholdLogo = isMobileLike ? 0.36 : 0.42;
+  bloomPass.threshold = bloomThresholdIdle;
   bloomPass.strength = 0.92;
   bloomPass.radius = 1.18;
   const hpUniforms = bloomPass.highPassUniforms as Record<
@@ -921,6 +900,11 @@ export function attachQuantumCoreOpticalEngine(
     logoResolveMat.uniforms.uOpacity.value =
       resolveMix * (1 - reactiveLift * 0.08);
     const particleResolveDim = 1 - resolveMix * 0.08;
+    bloomPass.threshold = THREE.MathUtils.lerp(
+      bloomThresholdIdle,
+      bloomThresholdLogo,
+      resolveMix,
+    );
 
     if (inGalaxyView) {
       resetCameraViewportAspect();
