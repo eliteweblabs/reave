@@ -61,8 +61,12 @@ export interface QuantumEngineOptions {
 
 const QUANTUM_PARTICLE_COUNT = 4000;
 const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
-/** Diffuse particle cloud radius — large, soft edges, no readable sphere silhouette. */
-const QUANTUM_BALL_RADIUS = 14.0;
+/**
+ * Particle cloud radius in world units. Sized so after PARTICLE_VIS_SCALE the
+ * cloud overshoots the viewport (~120%+) and dissolve — not a hard rho cutoff —
+ * is what fades particles out at the frame edge.
+ */
+const QUANTUM_BALL_RADIUS = 32.0;
 
 /** UV band for the A + V characters (3rd & 4th) — localized glow reduction only. */
 const LOGO_AV_DAMP_U0 = 0.36;
@@ -141,20 +145,24 @@ function particleDissolveStrength(
   const r3 =
     Math.sqrt(hx * hx + hy * hy + hz * hz) / Math.max(ballRadius, 0.001);
   const r2 = Math.sqrt(hx * hx + hy * hy) / Math.max(ballRadius, 0.001);
-  /* Long soft falloff — cloud dissolves into black, no hard rim. */
-  const dissolve = Math.exp(-Math.pow(Math.max(0, r3 - 0.1) / 0.88, 1.55));
-  /* Brighter specks where the logo glow passes over them. */
-  const underLogo = 1 - THREE.MathUtils.smoothstep(0.06, 0.68, r2);
-  return dissolve * THREE.MathUtils.lerp(0.14, 1, underLogo);
+  /*
+   * Soft page-edge gradient: bright near the logo, ~0 by ~0.85–1.0 of the cloud
+   * radius (past the viewport). Avoids a readable circular rim.
+   */
+  const dissolve = Math.exp(-Math.pow(Math.max(0, r3) / 0.62, 2.35));
+  /* Slightly brighter under the logo without carving a second hard disk. */
+  const underLogo = 1 - THREE.MathUtils.smoothstep(0.03, 0.42, r2);
+  return dissolve * THREE.MathUtils.lerp(0.06, 1, underLogo);
 }
 
-/** Diffuse cloud sampling — spread outward, not a dense solid ball. */
+/** Diffuse cloud sampling — center-biased, sparse out past the frame. */
 function sampleSphericalHome(ballRadius: number): [number, number, number] {
   const u = Math.random();
   const v = Math.random();
   const theta = u * Math.PI * 2;
   const phi = Math.acos(2 * v - 1);
-  const rho = ballRadius * (0.22 + Math.pow(Math.random(), 0.36) * 0.78);
+  /* pow > 1 packs more near center; max rho = full radius (cutoff is dissolve). */
+  const rho = ballRadius * Math.pow(Math.random(), 0.48);
   return [
     rho * Math.sin(phi) * Math.cos(theta),
     rho * Math.sin(phi) * Math.sin(theta),
@@ -303,7 +311,8 @@ export function attachQuantumCoreOpticalEngine(
    */
   const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  const PARTICLE_VIS_SCALE = 0.52;
+  /** Larger scale so the soft cloud fills / overshoots the viewport edges. */
+  const PARTICLE_VIS_SCALE = 0.72;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -327,8 +336,8 @@ export function attachQuantumCoreOpticalEngine(
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
-  /* Softer than pure black so bloom halos don’t clip to “pinpricks”. Lighter fog on mobile so edge particles don’t fade to black. */
-  scene.fog = new THREE.FogExp2(0x030308, isMobileLike ? 0.006 : 0.0095);
+  /* Light fog — keep outer particles visible so the edge is dissolve, not fog. */
+  scene.fog = new THREE.FogExp2(0x030308, isMobileLike ? 0.0035 : 0.0055);
 
   const camera = new THREE.PerspectiveCamera(
     VIEW_FOV,
@@ -804,11 +813,11 @@ export function attachQuantumCoreOpticalEngine(
 
     if (inGalaxyView) {
       resetCameraViewportAspect();
-      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0024 : 0.0032;
+      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0018 : 0.0026;
       setPresentationMode(true);
     } else {
       resetCameraViewportAspect();
-      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.006 : 0.0095;
+      (scene.fog as THREE.FogExp2).density = isMobileLike ? 0.0035 : 0.0055;
       if (useGalaxyIntro) setPresentationMode(false);
     }
 

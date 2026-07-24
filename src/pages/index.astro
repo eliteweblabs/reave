@@ -44,19 +44,24 @@ const heroLogo = homepageHeroLogo(company);
     inset: 0;
     pointer-events: none;
     z-index: 2;
+    /* Soft page-edge fade — stays clear through most of the frame so the particle
+       cloud (not this overlay) defines the falloff. Overshoots 100% so top/bottom
+       don’t show a hard vignette ring. */
     background: radial-gradient(
-      circle at center,
-      transparent 32%,
-      rgba(0, 0, 0, 0.82) 100%
+      ellipse 120% 120% at center,
+      transparent 48%,
+      rgba(0, 0, 0, 0.35) 78%,
+      rgba(0, 0, 0, 0.72) 115%
     );
   }
 
   @media screen and (max-width: 768px) {
     .quantum-vignette {
       background: radial-gradient(
-        circle at center,
-        transparent 42%,
-        rgba(0, 0, 0, 0.72) 110%
+        ellipse 125% 125% at center,
+        transparent 52%,
+        rgba(0, 0, 0, 0.28) 80%,
+        rgba(0, 0, 0, 0.65) 118%
       );
     }
   }
