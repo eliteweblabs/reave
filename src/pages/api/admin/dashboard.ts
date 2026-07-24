@@ -18,7 +18,12 @@ import {
   countEngagementNotifications,
   listEngagementNotifications,
 } from '../../../lib/engagementNotifications';
+import {
+  countPushAlertNotifications,
+  listPushAlertNotifications,
+} from '../../../lib/pushAlertNotifications';
 import { getDeployStatus } from '../../../lib/deployStatus';
+import { syncRecentUptimeIncidentsToPushAlerts } from '../../../lib/uptimePushAlertSync';
 import {
   bookingList,
   bookingsToday,
@@ -109,6 +114,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
+  await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
+
   const [events, inboxForCount, jobs, threads, deploy] = await Promise.all([
     storeListEmailInbox(100, { hideJunk: true }),
     storeListEmailInbox(10_000, { hideJunk: true, forDigest: true }),
@@ -124,22 +131,28 @@ export async function GET(context: APIContext): Promise<Response> {
     emailNotifications,
     commentNotifications,
     engagementNotifications,
+    pushAlertNotifications,
     commentReviewsPending,
     engagementReviewsPending,
+    pushAlertsPending,
   ] = await Promise.all([
     Promise.resolve(listReviewNotifications(events)),
     listProjectCommentNotifications(),
     listEngagementNotifications(),
+    listPushAlertNotifications(),
     countProjectCommentNotifications(),
     countEngagementNotifications(),
+    countPushAlertNotifications(),
   ]);
   const automationNotifications = [
     ...emailNotifications,
     ...commentNotifications,
     ...engagementNotifications,
+    ...pushAlertNotifications,
   ].sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime());
   const emailReviewsPending = countReviewNotifications(events);
-  const reviewsPending = emailReviewsPending + commentReviewsPending + engagementReviewsPending;
+  const reviewsPending =
+    emailReviewsPending + commentReviewsPending + engagementReviewsPending + pushAlertsPending;
 
   const projectsPending = jobs.filter((j) => j.status === 'inquiry' || j.status === 'active').length;
   const projectsActive = jobs.filter((j) => j.status === 'active').length;

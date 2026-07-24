@@ -179,7 +179,7 @@ async function notifyUptimeAlert(opts: {
     push: {
       title: down ? `DOWN: ${label}` : `UP: ${label}`,
       body: detail.slice(0, 180),
-      tag: `uptime-${monitor.id}`,
+      tag: `uptime-incident-${incident.id}`,
       url: '/admin?tab=home',
     },
   });

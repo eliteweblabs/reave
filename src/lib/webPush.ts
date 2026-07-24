@@ -5,6 +5,7 @@
 import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
 import { getReviewsPendingCount } from './reviewsPendingCount';
+import { inferPushAlertKind, storeCreatePushAlert } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 
@@ -42,11 +43,28 @@ export async function sendPushNotification(payload: {
   url?: string;
   /** Absolute pending-review count for the PWA icon badge (defaults to live server count). */
   badgeCount?: number;
+  /** When true, skip creating a dismissible dashboard alert (default false). */
+  skipDashboardAlert?: boolean;
 }): Promise<void> {
   if (!isPushConfigured() || !(await configureWebPush())) return;
 
   const subs = await listPushSubscriptions();
   if (!subs.length) return;
+
+  const tag = payload.tag ?? 'inbox';
+  const url = payload.url ?? '/admin?tab=email';
+
+  let alertId: string | undefined;
+  if (!payload.skipDashboardAlert) {
+    const alert = await storeCreatePushAlert({
+      tag,
+      kind: inferPushAlertKind(tag, url),
+      title: payload.title,
+      detail: payload.body,
+      url,
+    }).catch(() => null);
+    alertId = alert?.id;
+  }
 
   const badgeCount =
     payload.badgeCount != null
@@ -56,8 +74,9 @@ export async function sendPushNotification(payload: {
   const note = JSON.stringify({
     title: payload.title.slice(0, 120),
     body: payload.body.slice(0, 240),
-    tag: payload.tag ?? 'inbox',
-    url: payload.url ?? '/admin?tab=email',
+    tag,
+    url,
+    ...(alertId ? { alertId } : {}),
     ...(badgeCount != null ? { badgeCount } : {}),
   });
 

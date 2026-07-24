@@ -5853,8 +5853,11 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         flex-direction: column;
         gap: 0.45rem;
         margin-bottom: 0.85rem;
+        overflow: hidden;
       }
       .dash-review-alerts .admin-setup-alert {
+        touch-action: pan-y;
+        will-change: transform, opacity;
         max-width: none;
         margin: 0;
         box-shadow: none;

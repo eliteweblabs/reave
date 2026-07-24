@@ -52,6 +52,7 @@ self.addEventListener('push', (event) => {
 
   const badgeCount =
     data.badgeCount != null ? Math.max(0, Number(data.badgeCount) || 0) : null;
+  const alertId = data.alertId ? String(data.alertId) : '';
 
   const tasks = [
     self.registration.showNotification(data.title, {
@@ -59,7 +60,13 @@ self.addEventListener('push', (event) => {
       tag: data.tag || 'inbox',
       icon: '/favicon-192.png',
       badge: '/favicon-192.png',
-      data: { url: data.url || '/admin?tab=email' },
+      data: { url: data.url || '/admin?tab=email', alertId },
+      actions: alertId
+        ? [
+            { action: 'archive', title: 'Archive' },
+            { action: 'open', title: 'View' },
+          ]
+        : [],
     }),
     notifyClientsInboxPush(),
   ];
@@ -76,8 +83,20 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const alertId = event.notification.data?.alertId ? String(event.notification.data.alertId) : '';
   const url = event.notification.data?.url || '/admin?tab=email';
   const absoluteUrl = new URL(url, self.location.origin).href;
+
+  if (event.action === 'archive' && alertId) {
+    event.waitUntil(
+      Promise.all([
+        notifyClientsDismissAlert(alertId),
+        notifyClientsInboxPush(),
+      ]),
+    );
+    return;
+  }
+
   event.waitUntil(
     Promise.all([
       notifyClientsInboxPush(),
@@ -100,6 +119,14 @@ self.addEventListener('notificationclick', (event) => {
     ]),
   );
 });
+
+function notifyClientsDismissAlert(alertId) {
+  return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    for (const client of clients) {
+      client.postMessage({ type: 'reave-alert-dismiss', alertId });
+    }
+  });
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());

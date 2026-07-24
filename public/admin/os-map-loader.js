@@ -2441,6 +2441,24 @@ async function runReviewScheduleAction(item, action, btn) {
 }
 
 async function dismissReviewNotification(item, btn) {
+  if (item?.alertId) {
+    const prevLabel = btn?.textContent;
+    if (btn) {
+      btn.disabled = true;
+      if (prevLabel) btn.textContent = 'Archiving…';
+    }
+    try {
+      await dismissPushAlertById(item.alertId);
+    } catch (e) {
+      await osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message || String(e)) });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        if (prevLabel) btn.textContent = prevLabel;
+      }
+    }
+    return;
+  }
   if (item?.engagementId) {
     const prevLabel = btn?.textContent;
     if (btn) {
@@ -2970,6 +2988,7 @@ function rescheduleScheduledMeeting(item) {
 }
 
 function reviewAlertVariant(type) {
+  if (type === 'push_alert') return 'confirm';
   if (type === 'meeting_conflict') return 'confirm';
   if (
     type === 'project' ||
@@ -3003,6 +3022,8 @@ function reviewAlertIconName(type) {
       return 'eye';
     case 'deck_view':
       return 'monitor';
+    case 'push_alert':
+      return 'alert-triangle';
     default:
       return 'bell';
   }
@@ -3022,6 +3043,10 @@ function appendReviewAlertAction(actions, { label, primary, onClick }) {
 }
 
 function openReviewNotificationTarget(item) {
+  if (item.type === 'push_alert' && item.url) {
+    handleNotificationOpen(item.url);
+    return;
+  }
   if ((item.type === 'project' || item.type === 'project_comment' || item.type === 'share_open') && item.jobSlug) {
     navigateToWork(item.jobSlug, { fromEmailId: item.emailId || null });
     return;
@@ -3040,6 +3065,7 @@ function buildReviewAlertBanner(item) {
   if (item.emailId) alert.setAttribute('data-review-email-id', item.emailId);
   if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
   if (item.engagementId) alert.setAttribute('data-review-engagement-id', item.engagementId);
+  if (item.alertId) alert.setAttribute('data-review-alert-id', item.alertId);
 
   const iconWrap = document.createElement('div');
   iconWrap.className = 'admin-setup-alert-icon';
@@ -3069,8 +3095,19 @@ function buildReviewAlertBanner(item) {
   const isMeetingFollowup = item.type === 'meeting_followup';
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
+  const isPushAlert = item.type === 'push_alert';
 
-  if (isProjectComment || isShareOpen) {
+  if (isPushAlert) {
+    appendReviewAlertAction(actions, {
+      label: 'View',
+      primary: true,
+      onClick: () => openReviewNotificationTarget(item),
+    });
+    appendReviewAlertAction(actions, {
+      label: 'Archive',
+      onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
+    });
+  } else if (isProjectComment || isShareOpen) {
     appendReviewAlertAction(actions, {
       label: 'View project',
       primary: true,
@@ -3164,7 +3201,84 @@ function buildReviewAlertBanner(item) {
   actions.appendChild(dismissBtn);
 
   alert.append(iconWrap, copy, actions);
+  bindReviewAlertSwipe(alert, item);
   return alert;
+}
+
+function bindReviewAlertSwipe(alert, item) {
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  alert.addEventListener(
+    'touchstart',
+    (ev) => {
+      if (ev.touches.length !== 1) return;
+      startX = ev.touches[0].clientX;
+      startY = ev.touches[0].clientY;
+      tracking = true;
+      alert.style.transition = 'none';
+    },
+    { passive: true },
+  );
+
+  alert.addEventListener(
+    'touchmove',
+    (ev) => {
+      if (!tracking || ev.touches.length !== 1) return;
+      const dx = ev.touches[0].clientX - startX;
+      const dy = ev.touches[0].clientY - startY;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        tracking = false;
+        alert.style.transform = '';
+        alert.style.opacity = '';
+        return;
+      }
+      if (dx > 0) {
+        alert.style.transform = `translateX(${Math.min(dx, 120)}px)`;
+        alert.style.opacity = String(Math.max(0.35, 1 - dx / 180));
+      }
+    },
+    { passive: true },
+  );
+
+  alert.addEventListener(
+    'touchend',
+    (ev) => {
+      if (!tracking) return;
+      tracking = false;
+      alert.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+      const dx = (ev.changedTouches[0]?.clientX ?? startX) - startX;
+      if (dx > 80) {
+        alert.style.transform = 'translateX(120%)';
+        alert.style.opacity = '0';
+        window.setTimeout(() => {
+          void dismissReviewNotification(item).catch(() => {
+            alert.style.transform = '';
+            alert.style.opacity = '';
+          });
+        }, 180);
+        return;
+      }
+      alert.style.transform = '';
+      alert.style.opacity = '';
+    },
+    { passive: true },
+  );
+}
+
+async function dismissPushAlertById(alertId) {
+  const id = String(alertId || '').trim();
+  if (!id) return;
+  const res = await fetch(`/api/admin/alerts/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await readApiJson(res);
+  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  removeReviewAlertBanner(null, null, null, id);
+  syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  if (MAP.type === 'home') await loadHomeDashboard();
 }
 
 function buildReviewAlertBanners(notifications) {
@@ -3177,12 +3291,17 @@ function buildReviewAlertBanners(notifications) {
 }
 
 /** Drop a resolved review alert from the home dashboard immediately (no poll / reload wait). */
-function removeReviewAlertBanner(emailId, commentId, engagementId) {
+function removeReviewAlertBanner(emailId, commentId, engagementId, alertId) {
   const emailKey = String(emailId || '').trim();
   const commentKey = String(commentId || '').trim();
   const engagementKey = String(engagementId || '').trim();
+  const alertKey = String(alertId || '').trim();
   let banner = null;
-  if (engagementKey) {
+  if (alertKey) {
+    banner = document.querySelector(
+      `.dash-review-alerts [data-review-alert-id="${CSS.escape(alertKey)}"]`,
+    );
+  } else if (engagementKey) {
     banner = document.querySelector(
       `.dash-review-alerts [data-review-engagement-id="${CSS.escape(engagementKey)}"]`,
     );
@@ -18697,29 +18816,34 @@ async function refreshFooterBadgesQuiet() {
       fetch('/api/admin/dashboard', { cache: 'no-store' }),
       fetch('/api/email/inbox?limit=100', { cache: 'no-store' }),
     ]);
-    
+
     const inboxOk = inboxRes.ok;
-    
+    let dashStats = null;
+
     if (dashRes.ok) {
       const dash = await dashRes.json();
       if (dash.ok) {
-        if (inboxOk) {
-          syncDashboardFooterBadgesWithoutReview(dash.stats);
-        } else {
-          syncDashboardFooterBadges(dash.stats);
-        }
+        dashStats = dash.stats;
+        syncDashboardFooterBadgesWithoutReview(dash.stats);
       }
     }
+
     if (inboxOk) {
       const inboxData = await inboxRes.json();
       const events = inboxData.events || [];
       if (MAP.type === 'email' && emailState.allEvents.length) {
         mergeEmailSeenFromServer(events);
       }
-      await syncInboxAppBadge(events, inboxData.digest?.reviewsPending);
+      const badgeCount =
+        dashStats?.reviewsPending ??
+        dashStats?.automationPending ??
+        inboxData.digest?.reviewsPending;
+      await syncInboxAppBadge(events, badgeCount);
       return;
     }
-    await setAppIconBadge(reviewsPendingCount);
+
+    if (dashStats) syncReviewBadge(dashStats.reviewsPending ?? dashStats.automationPending ?? 0);
+    else await setAppIconBadge(reviewsPendingCount);
   } catch {}
 }
 
@@ -21015,6 +21139,9 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     if (event.data?.type === 'reave-inbox-push') refreshInboxBadgeQuiet(true);
     if (event.data?.type === 'reave-notification-open') handleNotificationOpen(event.data.url);
+    if (event.data?.type === 'reave-alert-dismiss' && event.data.alertId) {
+      void dismissPushAlertById(event.data.alertId).catch(() => undefined);
+    }
   });
 }
 

@@ -53,7 +53,14 @@
       ]);
       if (inboxRes.ok) {
         const inboxData = await inboxRes.json();
-        const n = Math.max(0, Number(inboxData.digest?.reviewsPending) || 0);
+        let n = Math.max(0, Number(inboxData.digest?.reviewsPending) || 0);
+        if (dashRes.ok) {
+          const dash = await dashRes.json();
+          if (dash.ok) {
+            const stats = dash.stats || {};
+            n = Math.max(0, Number(stats.reviewsPending ?? stats.automationPending ?? n) || 0);
+          }
+        }
         sync(n);
         return;
       }

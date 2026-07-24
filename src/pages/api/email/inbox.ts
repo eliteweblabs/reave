@@ -10,8 +10,7 @@ import {
   toEmailInboxListRecord,
   type EmailInboxListRecord,
 } from '../../../lib/emailInboxStore';
-import { countReviewNotifications } from '../../../lib/emailAutomation';
-import { countProjectCommentNotifications } from '../../../lib/workCommentNotifications';
+import { getReviewsPendingCount } from '../../../lib/reviewsPendingCount';
 import { plainTextForDisplay } from '../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../lib/emailMoney';
 import { getCompanyBrandContext } from '../../../lib/companyConfig';
@@ -45,23 +44,20 @@ export async function GET(context: APIContext): Promise<Response> {
   const limit = Math.min(Math.max(Number(limitRaw) || 100, 1), 500);
   const showJunk = context.url.searchParams.get('junk') === '1';
 
-  const allForDigest = await storeListEmailInbox(limit, { hideJunk: false, forDigest: true });
+  const allForDigest = await storeListEmailInbox(limit, { hideJunk: true, forDigest: true });
   const events = showJunk
-    ? allForDigest
-    : await storeListEmailInbox(limit, { hideJunk: true });
+    ? await storeListEmailInbox(limit, { hideJunk: false })
+    : allForDigest;
 
   const brand = await getCompanyBrandContext(context.request);
-  const [emailReviewsPending, commentReviewsPending] = await Promise.all([
-    Promise.resolve(countReviewNotifications(allForDigest)),
-    countProjectCommentNotifications(),
-  ]);
+  const reviewsPending = await getReviewsPendingCount();
 
   return json({
     ok: true,
     events: events.map((e) => enrichEmailEvent(toEmailInboxListRecord(e))),
     digest: {
       ...computeInboxDigest(allForDigest, !showJunk),
-      reviewsPending: emailReviewsPending + commentReviewsPending,
+      reviewsPending,
     },
     storage: emailInboxStorageBackend(),
     pushConfigured: isPushConfigured(),
