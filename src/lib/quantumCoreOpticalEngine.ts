@@ -60,7 +60,6 @@ export interface QuantumEngineOptions {
 }
 
 const QUANTUM_PARTICLE_COUNT = 4000;
-const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
 /**
  * Particle cloud radius in world units. Sized so after PARTICLE_VIS_SCALE the
  * cloud overshoots the viewport (~120%+) and dissolve — not a hard rho cutoff —
@@ -68,14 +67,18 @@ const QUANTUM_CLOUD_HALF_HEIGHT = 3.9;
  */
 const QUANTUM_BALL_RADIUS = 32.0;
 
-/** UV band for the A + V characters (3rd & 4th) — localized glow reduction only. */
+/** UV band for the A + V characters (3rd & 4th) — light glow trim only (keep brand vibrancy). */
 const LOGO_AV_DAMP_U0 = 0.36;
 const LOGO_AV_DAMP_U1 = 0.64;
 const LOGO_AV_DAMP_EDGE = 0.05;
-const LOGO_AV_DAMP_AMOUNT = 0.408;
+const LOGO_AV_DAMP_AMOUNT = 0.12;
 const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
-const LOGO_AV_DAMP_INNER_AMOUNT = 0.144;
+const LOGO_AV_DAMP_INNER_AMOUNT = 0.04;
+
+/** Desktop logo width cap (px). Mobile uses 80% of viewport width. */
+const LOGO_MAX_WIDTH_PX = 560;
+const LOGO_MAX_VIEWPORT_FRAC = 0.8;
 
 const LogoResolveShader = {
   uniforms: {
@@ -114,7 +117,10 @@ const LogoResolveShader = {
       float inner = smoothstep(uAvDampInnerU0, uAvDampInnerU0 + 0.03, vUv.x)
         * (1.0 - smoothstep(uAvDampInnerU1 - 0.03, uAvDampInnerU1, vUv.x));
       float damp = 1.0 - outer * uAvDampAmt - inner * uAvDampInnerAmt;
-      gl_FragColor = vec4(tex.rgb * damp, tex.a * uOpacity);
+      /* Preserve SVG brand saturation under ACES (slight push, no wash-out). */
+      float luma = dot(tex.rgb, vec3(0.2126, 0.7152, 0.0722));
+      vec3 rgb = mix(vec3(luma), tex.rgb, 1.22) * damp;
+      gl_FragColor = vec4(rgb, tex.a * uOpacity);
     }
   `,
 };
@@ -311,8 +317,6 @@ export function attachQuantumCoreOpticalEngine(
    */
   const VIEW_Z = 20.5;
   const VIEW_FOV = 60;
-  /** Larger scale so the soft cloud fills / overshoots the viewport edges. */
-  const PARTICLE_VIS_SCALE = 0.72;
 
   /** Stacked canvases / double init = multiple RAF clocks fighting; iOS shows a “~100ms loop”. */
   while (host.firstChild) {
@@ -333,6 +337,12 @@ export function attachQuantumCoreOpticalEngine(
     typeof matchMedia !== "undefined" &&
     (matchMedia("(pointer: coarse)").matches ||
       matchMedia("(max-width: 768px)").matches);
+
+  /**
+   * Soft cloud fills the frame on desktop; tighter on mobile so it doesn’t
+   * dominate narrow viewports.
+   */
+  const PARTICLE_VIS_SCALE = isMobileLike ? 0.48 : 0.72;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
@@ -407,9 +417,8 @@ export function attachQuantumCoreOpticalEngine(
   /** Compact/header: scale outward from home. Hero/preloader: full-screen galaxy field. */
   const introOutwardMin = 2.4;
   const introOutwardMax = 4.2;
-  const CLOUD_HALF_HEIGHT = QUANTUM_CLOUD_HALF_HEIGHT;
-  const BALL_RADIUS = QUANTUM_BALL_RADIUS;
-  let logoCloudRadiusX = CLOUD_HALF_HEIGHT;
+  const BALL_RADIUS = isMobileLike ? 22 : QUANTUM_BALL_RADIUS;
+  let logoImageAspect = 1014 / 329;
   const homeEdgeFade = new Float32Array(particleCount);
 
   for (let i = 0; i < particleCount; i++) {
@@ -492,9 +501,8 @@ export function attachQuantumCoreOpticalEngine(
   particles.scale.setScalar(PARTICLE_VIS_SCALE);
   particles.renderOrder = 0;
 
-  const logoPlaneH = CLOUD_HALF_HEIGHT * 2 * PARTICLE_VIS_SCALE;
-  const logoPlaneW = logoPlaneH * (logoCloudRadiusX / CLOUD_HALF_HEIGHT);
-  const logoResolveGeo = new THREE.PlaneGeometry(logoPlaneW, logoPlaneH);
+  /* Unit plane — sized in syncLogoDimensions from viewport px caps. */
+  const logoResolveGeo = new THREE.PlaneGeometry(1, 1);
   const logoResolveMat = new THREE.ShaderMaterial({
     uniforms: THREE.UniformsUtils.clone(LogoResolveShader.uniforms),
     vertexShader: LogoResolveShader.vertexShader,
@@ -555,11 +563,35 @@ export function attachQuantumCoreOpticalEngine(
 
   const logoImageUrl = options?.logoImageUrl?.trim() || "";
 
-  function syncLogoDimensions(imageAspect: number): void {
-    logoCloudRadiusX = CLOUD_HALF_HEIGHT * imageAspect;
-    const targetPlaneW = logoPlaneH * imageAspect;
-    logoResolve.scale.set(targetPlaneW / logoPlaneW, 1, 1);
+  /** World-space size for a target on-screen width/height in CSS pixels. */
+  function logoTargetWorldSize(aspect: number): { w: number; h: number } {
+    const { w: vw, h: vh } = getViewportSize();
+    const visibleH =
+      2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
+    const visibleW = visibleH * (vw / Math.max(1, vh));
+    const maxWidthPx = Math.min(vw * LOGO_MAX_VIEWPORT_FRAC, LOGO_MAX_WIDTH_PX);
+    const maxHeightPx = vh * LOGO_MAX_VIEWPORT_FRAC;
+    let widthPx = maxWidthPx;
+    let heightPx = widthPx / Math.max(aspect, 0.001);
+    if (heightPx > maxHeightPx) {
+      heightPx = maxHeightPx;
+      widthPx = heightPx * aspect;
+    }
+    return {
+      w: (widthPx / Math.max(vw, 1)) * visibleW,
+      h: (heightPx / Math.max(vh, 1)) * visibleH,
+    };
   }
+
+  function syncLogoDimensions(imageAspect?: number): void {
+    if (imageAspect && Number.isFinite(imageAspect) && imageAspect > 0) {
+      logoImageAspect = imageAspect;
+    }
+    const { w, h } = logoTargetWorldSize(logoImageAspect);
+    logoResolve.scale.set(w, h, 1);
+  }
+
+  syncLogoDimensions(logoImageAspect);
 
   if (logoImageUrl) {
     void loadLogoTexture(logoImageUrl)
@@ -1030,6 +1062,7 @@ export function attachQuantumCoreOpticalEngine(
     composer.setSize(w, h);
     bloomPass.setSize(w, h);
     resetCameraViewportAspect();
+    syncLogoDimensions();
   };
 
   const onResize = () => {
