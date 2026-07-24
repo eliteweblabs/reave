@@ -2478,7 +2478,6 @@ async function dismissReviewNotification(item, btn) {
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       removeReviewAlertBanner(null, null, item.engagementId);
       syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-      if (MAP.type === 'home') await loadHomeDashboard();
     } catch (e) {
       await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
     } finally {
@@ -2504,7 +2503,6 @@ async function dismissReviewNotification(item, btn) {
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
       removeReviewAlertBanner(null, item.commentId);
       syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-      if (MAP.type === 'home') await loadHomeDashboard();
     } catch (e) {
       await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
     } finally {
@@ -2534,9 +2532,8 @@ async function dismissReviewNotification(item, btn) {
       const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
       if (idx !== -1) emailState.allEvents[idx] = data.event;
     }
-    updateInboxBadgesFromState();
     removeReviewAlertBanner(item.emailId);
-    if (MAP.type === 'home') await loadHomeDashboard();
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
     if (emailState.activeId === item.emailId) renderEmailPanel();
   } catch (e) {
     await osAlert({ title: 'Could not dismiss', bodyHtml: escHtml(e.message || String(e)) });
@@ -3292,7 +3289,6 @@ async function dismissPushAlertById(alertId) {
   if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
   removeReviewAlertBanner(null, null, null, id);
   syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-  if (MAP.type === 'home') await loadHomeDashboard();
 }
 
 function buildReviewAlertBanners(notifications) {
