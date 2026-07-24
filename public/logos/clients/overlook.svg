@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60" fill="none">
+  <!-- The Overlook — Charlton, MA senior living CCRC wordmark -->
+  <!-- Decorative leaf/nature mark -->
+  <g transform="translate(10, 8)">
+    <!-- Stylized tree/hill icon suggesting the scenic 450-acre campus -->
+    <ellipse cx="18" cy="38" rx="16" ry="6" fill="#2d5a27" opacity="0.85"/>
+    <ellipse cx="18" cy="30" rx="11" ry="9" fill="#3a7a32" opacity="0.9"/>
+    <ellipse cx="18" cy="22" rx="7" ry="7" fill="#4a9a40" opacity="0.95"/>
+    <rect x="16" y="38" width="4" height="6" fill="#2d5a27"/>
+  </g>
+  <!-- "The" small caps -->
+  <text x="50" y="24" font-family="Georgia, 'Times New Roman', serif" font-size="10" font-weight="400" letter-spacing="3" fill="#1a3a1a" text-anchor="start">THE</text>
+  <!-- "Overlook" primary wordmark -->
+  <text x="48" y="46" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700" letter-spacing="1.5" fill="#1a3a1a" text-anchor="start">OVERLOOK</text>
+  <!-- Tagline -->
+  <text x="50" y="57" font-family="Georgia, 'Times New Roman', serif" font-size="7" font-weight="400" letter-spacing="2.5" fill="#2d5a27" text-anchor="start">CHARLTON, MASSACHUSETTS</text>
+</svg>
