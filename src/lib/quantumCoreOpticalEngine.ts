@@ -204,15 +204,54 @@ function particleSizeMultiplier(i: number): number {
   return 1;
 }
 
-function attachParticleSizeAttribute(material: THREE.PointsMaterial): void {
-  material.customProgramCacheKey = () => "quantum-particle-size-mul";
+type ParticleDepthLayer = "back" | "front";
+
+/** Size tiers + hemisphere clip so the logo sits inside a rotating particle shell. */
+function attachParticleLayerShader(
+  material: THREE.PointsMaterial,
+  layer: ParticleDepthLayer,
+): { setSpinY: (y: number) => void } {
+  const uParticleSpinY = { value: 0 };
+  material.customProgramCacheKey = () => `quantum-particle-${layer}-shell`;
   material.onBeforeCompile = (shader) => {
-    shader.vertexShader = `attribute float aSizeMul;\n${shader.vertexShader}`;
+    shader.uniforms.uParticleSpinY = uParticleSpinY;
+    shader.vertexShader = `uniform float uParticleSpinY;\nattribute float aSizeMul;\n${shader.vertexShader}`;
+    const layerClip =
+      layer === "front"
+        ? "\tfloat spinZ = -position.x * sin(uParticleSpinY) + position.z * cos(uParticleSpinY);\n\tif (spinZ <= 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n"
+        : "\tfloat spinZ = -position.x * sin(uParticleSpinY) + position.z * cos(uParticleSpinY);\n\tif (spinZ > 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n";
+    shader.vertexShader = shader.vertexShader.replace(
+      /#include <project_vertex>/,
+      `${layerClip}\t#include <project_vertex>`,
+    );
     shader.vertexShader = shader.vertexShader.replace(
       /#endif\s*\n\s*#include <logdepthbuf_vertex>/,
       "#endif\n\tgl_PointSize *= aSizeMul;\n\n\t#include <logdepthbuf_vertex>",
     );
   };
+  return {
+    setSpinY(y: number) {
+      uParticleSpinY.value = y;
+    },
+  };
+}
+
+function createParticleMaterial(
+  isMobileLike: boolean,
+  sprite: THREE.CanvasTexture,
+): THREE.PointsMaterial {
+  return new THREE.PointsMaterial({
+    map: sprite,
+    size: isMobileLike ? 0.108 : 0.096,
+    color: 0xffffff,
+    vertexColors: true,
+    transparent: true,
+    opacity: isMobileLike ? 0.58 : 0.52,
+    depthWrite: false,
+    fog: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
 }
 
 function easeOutCubic(t: number): number {
@@ -480,26 +519,41 @@ export function attachQuantumCoreOpticalEngine(
     new THREE.BufferAttribute(particleSizeMul, 1),
   );
   const particleSprite = createSoftParticleSpriteTexture();
-  const particlesMat = new THREE.PointsMaterial({
-    map: particleSprite,
-    /* Larger / more opaque on mobile so the thin letter strokes actually catch glow.
-       Bumped a touch on desktop so each dot reads as a small glow, not a pinprick. */
-    size: isMobileLike ? 0.108 : 0.096,
-    color: 0xffffff,
-    vertexColors: true,
-    transparent: true,
-    opacity: isMobileLike ? 0.58 : 0.52,
-    depthWrite: false,
-    fog: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-  });
-  attachParticleSizeAttribute(particlesMat);
-  const particleBaseSize = particlesMat.size;
-  const particleBaseOpacity = particlesMat.opacity;
-  const particles = new THREE.Points(particlesGeo, particlesMat);
-  particles.scale.setScalar(PARTICLE_VIS_SCALE);
-  particles.renderOrder = 0;
+  const particlesMatBack = createParticleMaterial(isMobileLike, particleSprite);
+  const particlesMatFront = createParticleMaterial(isMobileLike, particleSprite);
+  particlesMatFront.opacity *= 1.06;
+  const particleLayerBack = attachParticleLayerShader(particlesMatBack, "back");
+  const particleLayerFront = attachParticleLayerShader(
+    particlesMatFront,
+    "front",
+  );
+  const particleBaseSize = particlesMatBack.size;
+  const particleBaseOpacity = particlesMatBack.opacity;
+  const particlesBack = new THREE.Points(particlesGeo, particlesMatBack);
+  const particlesFront = new THREE.Points(particlesGeo, particlesMatFront);
+  particlesBack.renderOrder = 0;
+  particlesFront.renderOrder = 3;
+  const particleGroup = new THREE.Group();
+  particleGroup.scale.setScalar(PARTICLE_VIS_SCALE);
+  particleGroup.add(particlesBack);
+  particleGroup.add(particlesFront);
+
+  function syncParticleMaterial(size: number, backOpacity: number): void {
+    particlesMatBack.size = size;
+    particlesMatFront.size = size * 1.04;
+    particlesMatBack.opacity = backOpacity;
+    particlesMatFront.opacity = THREE.MathUtils.clamp(
+      backOpacity * 1.06,
+      0.08,
+      0.95,
+    );
+  }
+
+  function syncParticleSpinY(): void {
+    const spinY = particleGroup.rotation.y;
+    particleLayerBack.setSpinY(spinY);
+    particleLayerFront.setSpinY(spinY);
+  }
 
   /* Unit plane — sized in syncLogoDimensions from viewport px caps. */
   const logoResolveGeo = new THREE.PlaneGeometry(1, 1);
@@ -517,9 +571,9 @@ export function attachQuantumCoreOpticalEngine(
   logoResolve.renderOrder = 2;
   let logoResolveSmoothed = 0;
 
-  /** Particles = background ball; glowing logo plane sits on top. */
+  /** Rotating shell: back hemisphere → logo → front hemisphere. */
   const pulseGroup = new THREE.Group();
-  pulseGroup.add(particles);
+  pulseGroup.add(particleGroup);
   pulseGroup.add(logoResolve);
   scene.add(pulseGroup);
 
@@ -930,18 +984,21 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
       particlesGeo.attributes.color!.needsUpdate = true;
 
-      particles.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
+      particleGroup.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
+      syncParticleSpinY();
       pulseGroup.scale.set(coverSx, coverSy, 1);
-      particles.scale.setScalar(
+      particleGroup.scale.setScalar(
         PARTICLE_VIS_SCALE * introGatherScale(globalIntroT, useGalaxyIntro),
       );
-      particlesMat.size = particleBaseSize * introParticleSizeMul(globalIntroT);
-      particlesMat.opacity = THREE.MathUtils.clamp(
-        particleBaseOpacity *
-          THREE.MathUtils.lerp(0.88, 1, globalIntroT) *
-          particleResolveDim,
-        0.08,
-        particleBaseOpacity,
+      syncParticleMaterial(
+        particleBaseSize * introParticleSizeMul(globalIntroT),
+        THREE.MathUtils.clamp(
+          particleBaseOpacity *
+            THREE.MathUtils.lerp(0.88, 1, globalIntroT) *
+            particleResolveDim,
+          0.08,
+          particleBaseOpacity,
+        ),
       );
       bloomPass.strength = THREE.MathUtils.lerp(
         0.82,
@@ -972,7 +1029,8 @@ export function attachQuantumCoreOpticalEngine(
       }
       particlesGeo.attributes.position!.needsUpdate = true;
 
-      particles.rotation.y = rotY;
+      particleGroup.rotation.y = rotY;
+      syncParticleSpinY();
       applyBallParticleColors(1, energy);
 
       if (introDurationSec > 0) {
@@ -984,14 +1042,17 @@ export function attachQuantumCoreOpticalEngine(
     }
 
     if (!inIntro) {
-      particles.scale.setScalar(PARTICLE_VIS_SCALE);
+      particleGroup.scale.setScalar(PARTICLE_VIS_SCALE);
       const voiceSizeLift = mic * 0.07 + reactiveLift * 0.05;
-      particlesMat.size =
-        particleBaseSize * (1 + voiceSizeLift + idleSizeWobble);
-      particlesMat.opacity = THREE.MathUtils.clamp(
-        particleBaseOpacity * particleResolveDim * (1 + mic * 0.08 + reactiveLift * 0.1),
-        0.08,
-        particleBaseOpacity * 0.88,
+      syncParticleMaterial(
+        particleBaseSize * (1 + voiceSizeLift + idleSizeWobble),
+        THREE.MathUtils.clamp(
+          particleBaseOpacity *
+            particleResolveDim *
+            (1 + mic * 0.08 + reactiveLift * 0.1),
+          0.08,
+          particleBaseOpacity * 0.88,
+        ),
       );
       bloomPass.strength = THREE.MathUtils.clamp(
         (0.86 + wild * 0.06 + energy * 0.14) * (1 - resolveMix * 0.35),
@@ -1100,7 +1161,11 @@ export function attachQuantumCoreOpticalEngine(
     renderer.domElement.removeEventListener("webglcontextlost", onCtxLost);
 
     particlesGeo.dispose();
-    particlesMat.dispose();
+    particlesMatBack.map = null;
+    particlesMatFront.map = null;
+    particlesMatBack.dispose();
+    particlesMatFront.dispose();
+    particleSprite.dispose();
     logoResolveGeo.dispose();
     const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
     logoMap?.dispose();
