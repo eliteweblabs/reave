@@ -49,7 +49,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         --grid: #e2e8f0;
         --fg: #0f172a;
         --muted: #64748b;
-        --placeholder: color-mix(in srgb, var(--muted), #000 25%);
+        /* Search placeholders: 25% stronger than muted (darker in light, lighter in dark). */
+        --placeholder: color-mix(in srgb, var(--muted), var(--fg) 25%);
         --card: #ffffff;
         --card-border: #e2e8f0;
         --panel: #f8fafc;
