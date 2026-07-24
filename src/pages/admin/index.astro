@@ -2226,40 +2226,38 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       #work-editor .wk-project-qr {
         display: flex;
         align-items: center;
-        gap: 0.85rem;
-        margin: 0.65rem 1rem 0;
-        padding: 0.75rem 0.9rem;
-        border: 1px solid var(--panel-border);
-        border-radius: var(--radius-input);
-        background: var(--card);
+        gap: 0.55rem;
+        margin: 0.35rem 1rem 0;
+        padding: 0;
+        flex: 0 0 auto;
+        min-width: 0;
       }
       #work-editor .wk-project-qr img {
         flex: none;
         display: block;
-        width: 120px;
-        height: 120px;
-        border-radius: 8px;
-        border: 1px solid var(--panel-border);
-        background: #fff;
+        width: 80px;
+        height: 80px;
       }
       #work-editor .wk-project-qr-copy {
         display: flex;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: 0.15rem;
         min-width: 0;
       }
       #work-editor .wk-project-qr-label {
-        font-size: 0.68rem;
+        font-size: 0.62rem;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
         color: var(--muted);
       }
       #work-editor .wk-project-qr-link {
-        font-size: 0.78rem;
-        line-height: 1.45;
+        font-size: 0.72rem;
+        line-height: 1.35;
         color: var(--accent, #a855f7);
-        word-break: break-all;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
         text-decoration: none;
       }
       #work-editor .wk-project-qr-link:hover {

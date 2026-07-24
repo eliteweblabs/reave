@@ -12001,8 +12001,8 @@ function renderEditWorkForm(pane) {
         qrWrap.className = 'wk-project-qr';
         const qrImg = document.createElement('img');
         qrImg.src = data.qr_data_url;
-        qrImg.width = 120;
-        qrImg.height = 120;
+        qrImg.width = 80;
+        qrImg.height = 80;
         qrImg.alt = 'Project page QR code';
         qrWrap.appendChild(qrImg);
 
@@ -12016,7 +12016,9 @@ function renderEditWorkForm(pane) {
         link.href = data.portal_url;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.textContent = data.portal_url;
+        link.title = data.portal_url;
+        const urlText = String(data.portal_url || '');
+        link.textContent = urlText.length > 52 ? `${urlText.slice(0, 51)}…` : urlText;
         copy.appendChild(label);
         copy.appendChild(link);
         qrWrap.appendChild(copy);
