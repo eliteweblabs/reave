@@ -6,6 +6,7 @@ import type { APIRoute } from 'astro';
 import { getContact } from '../../lib/contactApi';
 import { recordShareOpenEngagement } from '../../lib/engagementNotifications';
 import { getTrackedLink, recordTrackedLinkClick } from '../../lib/linkTracking';
+import { isOwnerPreviewRequest, isStaffSession } from '../../lib/staffSession';
 import { storeReadWork } from '../../lib/workStore';
 
 export const prerender = false;
@@ -17,10 +18,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
   const existing = await getTrackedLink(token);
   if (!existing) return new Response('Not found', { status: 404 });
 
-  // Don't count/mark as viewed when a signed-in user (i.e. the owner previewing
-  // a link before sending it) opens it — only anonymous recipients count.
-  const userId = locals.auth?.()?.userId ?? null;
-  if (!userId) {
+  // Don't count/mark as viewed when staff preview (signed-in admin or ?preview=1).
+  const skipTracking = isStaffSession(locals) || isOwnerPreviewRequest(request);
+  if (!skipTracking) {
     const wasUnopened = !existing.first_clicked_at;
     await recordTrackedLinkClick(token, {
       userAgent: request.headers.get('user-agent'),

@@ -16772,6 +16772,14 @@ function buildReaveShareActions(state, opts = {}) {
     ),
   );
   actionsEl.appendChild(
+    mkBtn('Preview', 'reave-share-btn--ghost', async () => {
+      const url = await resolveReaveShareUrl(state);
+      if (!url) return;
+      const previewUrl = `${url}${url.includes('?') ? '&' : '?'}preview=1`;
+      window.open(previewUrl, '_blank', 'noopener,noreferrer');
+    }),
+  );
+  actionsEl.appendChild(
     mkBtn('Copy link', 'reave-share-btn--ghost', async () => {
       const url = await resolveReaveShareUrl(state);
       let text = url;
