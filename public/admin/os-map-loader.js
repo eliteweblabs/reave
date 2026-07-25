@@ -13244,6 +13244,29 @@ function findScheduleBooking(uid) {
   return scheduleState.bookings.find((b) => b.uid === uid) || null;
 }
 
+function scheduleSortedBookings() {
+  return [...scheduleState.bookings].sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+function scheduleAdjacentBooking(uid, delta) {
+  const sorted = scheduleSortedBookings();
+  const idx = sorted.findIndex((b) => b.uid === uid);
+  if (idx < 0) return null;
+  return sorted[idx + delta] || null;
+}
+
+function navigateScheduleBooking(delta) {
+  const uid = scheduleState.activeUid;
+  if (!uid) return;
+  const next = scheduleAdjacentBooking(uid, delta);
+  if (!next) return;
+  scheduleState.activeUid = next.uid;
+  scheduleState.selectedDate = scheduleBookingDateKey(next.startTime);
+  scheduleState.focusDate = scheduleState.selectedDate;
+  renderSchedulePanel();
+  syncFooterNav();
+}
+
 async function loadScheduleTab() {
   const root = getSchedulePanel();
   if (!root) return;
@@ -14102,6 +14125,40 @@ function scheduleShareBookingUrl(booking) {
   return `${window.location.origin}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
+function renderScheduleDetailWhenNav(booking) {
+  const bar = document.createElement('div');
+  bar.className = 'schedule-detail-when-nav';
+
+  const prevBtn = createIosIconBtn({
+    iconKey: 'chevron-left',
+    label: 'Previous meeting',
+    className: 'ios-icon-btn schedule-detail-when-nav-btn',
+    onClick: () => navigateScheduleBooking(-1),
+  });
+  prevBtn.disabled = !scheduleAdjacentBooking(booking.uid, -1);
+
+  const when = document.createElement('p');
+  when.className = 'schedule-detail-when';
+  const whenFull = document.createElement('span');
+  whenFull.className = 'schedule-detail-when-full';
+  whenFull.textContent = formatScheduleRange(booking.startTime, booking.endTime);
+  const whenCompact = document.createElement('span');
+  whenCompact.className = 'schedule-detail-when-compact';
+  whenCompact.textContent = formatScheduleRange(booking.startTime, booking.endTime, { compact: true });
+  when.append(whenFull, whenCompact);
+
+  const nextBtn = createIosIconBtn({
+    iconKey: 'chevron-right',
+    label: 'Next meeting',
+    className: 'ios-icon-btn schedule-detail-when-nav-btn',
+    onClick: () => navigateScheduleBooking(1),
+  });
+  nextBtn.disabled = !scheduleAdjacentBooking(booking.uid, 1);
+
+  bar.append(prevBtn, when, nextBtn);
+  return bar;
+}
+
 function renderScheduleDetail(pane, booking) {
   pane.innerHTML = '';
   const who = scheduleBookingWho(booking);
@@ -14145,20 +14202,10 @@ function renderScheduleDetail(pane, booking) {
       icons,
     }).header,
   );
+  pane.appendChild(renderScheduleDetailWhenNav(booking));
 
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll schedule-detail-scroll';
-
-  const when = document.createElement('p');
-  when.className = 'schedule-detail-when';
-  const whenFull = document.createElement('span');
-  whenFull.className = 'schedule-detail-when-full';
-  whenFull.textContent = formatScheduleRange(booking.startTime, booking.endTime);
-  const whenCompact = document.createElement('span');
-  whenCompact.className = 'schedule-detail-when-compact';
-  whenCompact.textContent = formatScheduleRange(booking.startTime, booking.endTime, { compact: true });
-  when.append(whenFull, whenCompact);
-  scroll.appendChild(when);
 
   if (booking.status) {
     const status = document.createElement('span');

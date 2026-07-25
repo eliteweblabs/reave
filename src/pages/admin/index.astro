@@ -6465,16 +6465,45 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .dash-event-btn:hover {
         background: var(--surface-hover-strong);
       }
+      .schedule-detail-when-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.1rem;
+        padding: 0.1rem 0.35rem 0.35rem;
+        border-bottom: 1px solid var(--panel-border);
+        flex: 0 0 auto;
+      }
+      .schedule-detail-when-nav-btn {
+        flex: 0 0 auto;
+      }
+      .schedule-detail-when-nav-btn:disabled {
+        opacity: 0.28;
+        cursor: default;
+      }
       .schedule-detail-when {
-        margin: 0 0 0.75rem;
-        font-size: 0.92rem;
+        flex: 1;
+        min-width: 0;
+        margin: 0;
+        font-size: 0.88rem;
         font-weight: 600;
         line-height: 1.45;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .schedule-detail-when-compact {
         display: none;
       }
       @media (max-width: 639px) {
+        .schedule-detail-when-nav {
+          padding: 0.05rem 0.2rem 0.3rem;
+        }
+        .schedule-detail-when-nav-btn {
+          width: 2.25rem;
+          height: 2.25rem;
+        }
         .schedule-detail-when-full {
           display: none;
         }
@@ -8599,6 +8628,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260723f"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260725c"></script>
   </body>
 </html>
