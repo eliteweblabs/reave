@@ -172,6 +172,44 @@ export function uptimeStatusIsDown(status: number): boolean {
   return status === UPTIME_MONITOR_STATUS.DOWN || status === UPTIME_MONITOR_STATUS.SEEMS_DOWN;
 }
 
+export function uptimeStatusIsPaused(status: number): boolean {
+  return status === UPTIME_MONITOR_STATUS.PAUSED;
+}
+
+/** Paused (disabled in UptimeRobot) or actively down — show as offline on the dashboard. */
+export function uptimeStatusIsOffline(status: number): boolean {
+  return uptimeStatusIsDown(status) || uptimeStatusIsPaused(status);
+}
+
+export function uptimeMonitorTileMeta(
+  status: number,
+  uptimeRatio7d: number | null | undefined,
+): { offline: boolean; label: string } {
+  if (uptimeStatusIsPaused(status)) {
+    return { offline: true, label: 'offline' };
+  }
+  if (uptimeStatusIsDown(status)) {
+    return { offline: true, label: 'down' };
+  }
+  if (uptimeRatio7d != null && Number.isFinite(Number(uptimeRatio7d))) {
+    return { offline: false, label: `${Number(uptimeRatio7d).toFixed(1)}%` };
+  }
+  return { offline: false, label: 'up' };
+}
+
+export function enrichUptimeMonitorView<T extends { status: number; uptime_ratio_7d?: number | null }>(
+  monitor: T,
+): T & { status_label: string; is_down: boolean; is_offline: boolean; tile_label: string } {
+  const tile = uptimeMonitorTileMeta(monitor.status, monitor.uptime_ratio_7d);
+  return {
+    ...monitor,
+    status_label: uptimeStatusLabel(monitor.status),
+    is_down: uptimeStatusIsDown(monitor.status),
+    is_offline: tile.offline,
+    tile_label: tile.label,
+  };
+}
+
 export function parseCustomUptimeRatios(raw: string | undefined): { d7: number | null; d30: number | null } {
   if (!raw?.trim()) return { d7: null, d30: null };
   const parts = raw.split('-').map((p) => Number(p.trim()));

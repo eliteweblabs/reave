@@ -2180,6 +2180,15 @@ let uptimePlatformSyncActive = false;
 
 const UPTIME_SYNC_SITES_BTN_SELECTOR = '.dash-uptime-sync-sites-btn';
 
+function uptimeMonitorTileMeta(m) {
+  if (m?.tile_label) return { offline: m.is_offline === true, label: m.tile_label };
+  const status = Number(m?.status);
+  if (status === 0) return { offline: true, label: 'offline' };
+  if (status === 8 || status === 9 || m?.is_down) return { offline: true, label: 'down' };
+  if (m?.uptime_ratio_7d != null) return { offline: false, label: `${Number(m.uptime_ratio_7d).toFixed(1)}%` };
+  return { offline: false, label: 'up' };
+}
+
 function getUptimeSyncSitesButton() {
   return document.querySelector(UPTIME_SYNC_SITES_BTN_SELECTOR);
 }
@@ -3542,13 +3551,12 @@ function renderHomeDashboard(data) {
     const monitors = Array.isArray(data?.uptimeMonitors) ? data.uptimeMonitors : [];
     for (const m of monitors) {
       const li = document.createElement('li');
-      const down = m.is_down || m.status === 8 || m.status === 9;
-      const pct = m.uptime_ratio_7d != null ? `${Number(m.uptime_ratio_7d).toFixed(1)}%` : '';
-      li.className = `dash-uptime-tile${down ? ' dash-uptime-tile--down' : ''}`;
+      const { offline, label } = uptimeMonitorTileMeta(m);
+      li.className = `dash-uptime-tile${offline ? ' dash-uptime-tile--down' : ''}`;
       li.innerHTML =
         `<span class="dash-uptime-dot" aria-hidden="true"></span>` +
         `<div class="dash-uptime-name">${escHtml(m.friendly_name || m.url || `Monitor ${m.id}`)}</div>` +
-        `<div class="dash-uptime-meta">${escHtml(down ? 'down' : pct || 'up')}</div>`;
+        `<div class="dash-uptime-meta">${escHtml(label)}</div>`;
       list.appendChild(li);
     }
 

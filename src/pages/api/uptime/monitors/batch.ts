@@ -7,7 +7,7 @@
 import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../../lib/features';
 import { createUptimeMonitor } from '../../../../lib/uptimeMonitoring';
-import { uptimeStatusLabel } from '../../../../lib/uptimerobotClient';
+import { enrichUptimeMonitorView } from '../../../../lib/uptimerobotClient';
 
 export const prerender = false;
 
@@ -63,11 +63,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     results.push({
       ok: true,
       url,
-      monitor: {
-        ...m,
-        status_label: uptimeStatusLabel(m.status),
-        is_down: m.status === 8 || m.status === 9,
-      },
+      monitor: enrichUptimeMonitorView(m),
     });
   }
 

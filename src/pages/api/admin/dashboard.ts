@@ -32,8 +32,9 @@ import {
 } from '../../../lib/bookingClient';
 import { storeListWork } from '../../../lib/workStore';
 import { isTodoDbConfigured, storeListTodos } from '../../../lib/todoStore';
-import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView } from '../../../lib/uptimeMonitoring';
+import { getUptimeSummaryView, getUptimeMonitorsView, getUptimeAccountView, syncUptimeMonitorsFromApiIfStale } from '../../../lib/uptimeMonitoring';
 import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
+import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
 
@@ -195,9 +196,10 @@ export async function GET(context: APIContext): Promise<Response> {
   let uptimeAccount: Awaited<ReturnType<typeof getUptimeAccountView>> | null = null;
   if (hasFeature('uptime_monitoring')) {
     ensureUptimePollScheduler();
+    await syncUptimeMonitorsFromApiIfStale();
     uptime = await getUptimeSummaryView();
     const monitorsView = await getUptimeMonitorsView();
-    uptimeMonitors = monitorsView.monitors;
+    uptimeMonitors = monitorsView.monitors.map(enrichUptimeMonitorView);
     uptimeAccount = await getUptimeAccountView();
   }
 

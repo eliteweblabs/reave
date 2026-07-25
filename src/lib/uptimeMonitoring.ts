@@ -367,6 +367,15 @@ export async function syncUptimeMonitorsFromApi(): Promise<{
   return { ok: true, synced };
 }
 
+let _lastApiSyncAt = 0;
+
+/** Pull fresh monitor status from UptimeRobot when the local cache may be stale. */
+export async function syncUptimeMonitorsFromApiIfStale(maxAgeMs = 30_000): Promise<void> {
+  if (Date.now() - _lastApiSyncAt < maxAgeMs) return;
+  const result = await syncUptimeMonitorsFromApi();
+  if (result.ok) _lastApiSyncAt = Date.now();
+}
+
 export async function createUptimeMonitor(opts: {
   url: string;
   friendlyName?: string;
