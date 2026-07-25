@@ -3561,25 +3561,6 @@ function renderHomeDashboard(data) {
     }
 
     scroll.appendChild(list);
-
-    const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
-    if (recent.length) {
-      const incHead = document.createElement('h3');
-      incHead.className = 'dash-uptime-inc-head';
-      incHead.textContent = 'Recent incidents';
-      scroll.appendChild(incHead);
-      const incList = document.createElement('ul');
-      incList.className = 'dash-uptime-incidents';
-      for (const inc of recent.slice(0, 5)) {
-        const li = document.createElement('li');
-        li.className = 'dash-uptime-incident';
-        li.innerHTML =
-          `<span class="dash-uptime-inc-title">${escHtml(inc.monitor_name || 'Monitor')} — ${escHtml(inc.alert_type || 'incident')}</span>` +
-          `<span class="dash-uptime-inc-when">${escHtml(formatEmailWhen(inc.created_at))}</span>`;
-        incList.appendChild(li);
-      }
-      scroll.appendChild(incList);
-    }
   }
 
   const inboxRecent = Array.isArray(data?.recentEmails) ? data.recentEmails : [];
