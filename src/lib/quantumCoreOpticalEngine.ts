@@ -471,6 +471,7 @@ export function attachQuantumCoreOpticalEngine(
   function syncHeroBleedOffset(): void {
     if (!useScrollParallax) {
       pulseGroup.position.y = 0;
+      logoResolve.position.y = 0;
       return;
     }
     const { h: canvasH } = getViewportSize();
@@ -478,8 +479,10 @@ export function attachQuantumCoreOpticalEngine(
     const visibleH =
       2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
     /* Hero center sits above the canvas center by (bleed/2) of hero height. */
-    const nudgeFrac = ((canvasH / 2 - heroH / 2) / Math.max(canvasH, 1));
-    pulseGroup.position.y = visibleH * nudgeFrac;
+    const nudgeFrac = (canvasH / 2 - heroH / 2) / Math.max(canvasH, 1);
+    const y = visibleH * nudgeFrac;
+    pulseGroup.position.y = y;
+    logoResolve.position.y = y;
   }
 
   const renderer = new THREE.WebGLRenderer({
@@ -626,9 +629,9 @@ export function attachQuantumCoreOpticalEngine(
   function applyTrackballDelta(dx: number, dy: number, radPerPx: number): void {
     const dist = Math.hypot(dx, dy);
     if (dist < 1e-6) return;
-    /* Swipe right → yaw about Y; swipe down → pitch about X. */
+    /* Swipe right → yaw about Y; swipe down → pitch about X. Follows the finger. */
     trackballAxis.set(dy, dx, 0).normalize();
-    trackballQuat.setFromAxisAngle(trackballAxis, -dist * radPerPx);
+    trackballQuat.setFromAxisAngle(trackballAxis, dist * radPerPx);
     particleGroup.quaternion.premultiply(trackballQuat);
     particleGroup.quaternion.normalize();
   }
@@ -649,11 +652,14 @@ export function attachQuantumCoreOpticalEngine(
   logoResolve.renderOrder = 2;
   let logoResolveSmoothed = 0;
 
-  /** Rotating shell: back hemisphere → logo → front hemisphere. */
+  /**
+   * Particles live under pulseGroup (breath / intro scale only).
+   * Logo is a scene sibling so it stays fixed in the center — no tilt/spin.
+   */
   const pulseGroup = new THREE.Group();
   pulseGroup.add(particleGroup);
-  pulseGroup.add(logoResolve);
   scene.add(pulseGroup);
+  scene.add(logoResolve);
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -810,10 +816,6 @@ export function attachQuantumCoreOpticalEngine(
   window.addEventListener("vapi-transcript", onTranscript);
 
   let shakeIntensity = 0;
-  let mouseX = 0;
-  let mouseY = 0;
-  let tiltTargetX = 0;
-  let tiltTargetY = 0;
 
   let lastSpinSceneT = 0;
   let prevPointerX = 0;
@@ -888,21 +890,17 @@ export function attachQuantumCoreOpticalEngine(
     /*
      * Coasting velocity matches the swipe: pitch from vertical, yaw from
      * horizontal. Replace (don't only nudge) so the cloud assumes this direction.
+     * Sense matches applyTrackballDelta (positive angle about (dy, dx, 0)).
      */
-    /* Match applyTrackballDelta’s sense: negative angle about (dy, dx, 0). */
     const velFromPx = (1000 / Math.max(dtMs, 8)) * radPerPx;
-    const nextX = -dy * velFromPx;
-    const nextY = -dx * velFromPx;
+    const nextX = dy * velFromPx;
+    const nextY = dx * velFromPx;
     spinVel.x = THREE.MathUtils.lerp(spinVel.x, nextX, 0.55);
     spinVel.y = THREE.MathUtils.lerp(spinVel.y, nextY, 0.55);
     const mag = spinVel.length();
     if (mag > PARTICLE_SPIN_MAX) {
       spinVel.multiplyScalar(PARTICLE_SPIN_MAX / mag);
     }
-
-    const camK = coarse ? 0.00028 : 0.00016;
-    mouseX = THREE.MathUtils.clamp(mouseX + dx * camK, -0.28, 0.28);
-    mouseY = THREE.MathUtils.clamp(mouseY + dy * camK, -0.28, 0.28);
   }
 
   function setParallaxFromClient(
@@ -911,54 +909,19 @@ export function attachQuantumCoreOpticalEngine(
     opts?: {
       pointerType?: string;
       buttons?: number;
-      /** When false, only absolute hover parallax (no spin/tilt impulse). */
+      /** When false, skip cloud spin (legacy no-op hover path). */
       driveCloud?: boolean;
     },
   ) {
-    if (opts?.driveCloud !== false) {
-      impartCloudFromPointer(clientX, clientY, {
-        pointerType: opts?.pointerType,
-        buttons: opts?.buttons,
-      });
-    }
-    /* Absolute parallax from pointer position (hover framing). Skip while dragging. */
-    if (homeGestureActive) return;
-    const w = window.innerWidth;
-    const h = Math.max(1, window.innerHeight);
-    const coarse = isCoarsePointer();
-    const px = coarse ? 0.00052 : 0.00022;
-    const nx = (clientX - w / 2) / w;
-    const ny = (clientY - h / 2) / h;
-    const tiltMul = coarse ? 0.72 : 0.42;
-    mouseX = (clientX - w / 2) * px;
-    mouseY = (clientY - h / 2) * px;
-    tiltTargetY = nx * tiltMul;
-    tiltTargetX = -ny * tiltMul;
+    if (opts?.driveCloud === false) return;
+    impartCloudFromPointer(clientX, clientY, {
+      pointerType: opts?.pointerType,
+      buttons: opts?.buttons,
+    });
   }
 
   function clearParallaxTargets() {
-    mouseX = 0;
-    mouseY = 0;
-    tiltTargetX = 0;
-    tiltTargetY = 0;
     resetPointerSample();
-  }
-
-  function syncScrollIdleWanderFromTargets() {
-    scrollIdleWanderX = tiltTargetX;
-    scrollIdleWanderY = tiltTargetY;
-    scrollIdleWanderCamX = mouseX;
-    scrollIdleWanderCamY = mouseY;
-  }
-
-  /** Homepage hero loads with a slight skew so the cloud doesn’t sit dead-flat. */
-  function seedHomeHeroPose() {
-    const coarse = isCoarsePointer();
-    const amp = coarse ? 1.35 : 1;
-    mouseX = 0.08 * amp;
-    mouseY = 0.06 * amp;
-    tiltTargetY = 0.42 * amp;
-    tiltTargetX = -0.25 * amp;
   }
 
   const gestureEl =
@@ -1044,7 +1007,6 @@ export function attachQuantumCoreOpticalEngine(
       buttons: e.buttons || 1,
       driveCloud: true,
     });
-    syncScrollIdleWanderFromTargets();
   };
   const onHomeGestureUp = (e: PointerEvent) => {
     if (!e.isPrimary) return;
@@ -1063,19 +1025,6 @@ export function attachQuantumCoreOpticalEngine(
     homeGesturePointerId = null;
     cloudDragging = false;
     resetPointerSample();
-    syncScrollIdleWanderFromTargets();
-  };
-
-  /** Hover parallax only — cloud drag is on the gesture catcher. */
-  const onHomeHoverMove = (e: PointerEvent) => {
-    if (homeGestureActive) return;
-    if (e.pointerType === "touch") return;
-    setParallaxFromClient(e.clientX, e.clientY, {
-      pointerType: e.pointerType,
-      buttons: 0,
-      driveCloud: false,
-    });
-    syncScrollIdleWanderFromTargets();
   };
 
   const touchClient = (e: TouchEvent) =>
@@ -1102,43 +1051,15 @@ export function attachQuantumCoreOpticalEngine(
 
   let scrollActive = false;
   let scrollIdleTimer = 0;
-  /** Random tilt/camera wander while scroll is idle on the homepage hero. */
-  let scrollIdleWanderX = 0;
-  let scrollIdleWanderY = 0;
-  let scrollIdleWanderCamX = 0;
-  let scrollIdleWanderCamY = 0;
-  let scrollIdleWanderTargetX = 0;
-  let scrollIdleWanderTargetY = 0;
-  let scrollIdleWanderCamTargetX = 0;
-  let scrollIdleWanderCamTargetY = 0;
-  let scrollIdleWanderNextAt = 0;
-
-  function pickScrollIdleWanderTargets() {
-    const coarse = isCoarsePointer();
-    const amp = coarse ? 1.35 : 1;
-    /* Full tilt range — pull-down is a particle gesture, not a scroll dead-end. */
-    scrollIdleWanderTargetX = (Math.random() - 0.5) * 0.7 * amp;
-    scrollIdleWanderTargetY = (Math.random() - 0.5) * 0.86 * amp;
-    scrollIdleWanderCamTargetX = (Math.random() - 0.5) * 0.16 * amp;
-    scrollIdleWanderCamTargetY = (Math.random() - 0.5) * 0.14 * amp;
-    scrollIdleWanderNextAt =
-      performance.now() + 550 + Math.random() * 1100;
-  }
 
   const markScrollActive = () => {
     scrollActive = true;
-    scrollIdleWanderNextAt = 0;
     window.clearTimeout(scrollIdleTimer);
     scrollIdleTimer = window.setTimeout(() => {
       scrollActive = false;
       scrollIdleTimer = 0;
       pendingResize = true;
       onResize();
-      scrollIdleWanderX = tiltTargetX;
-      scrollIdleWanderY = tiltTargetY;
-      scrollIdleWanderCamX = mouseX;
-      scrollIdleWanderCamY = mouseY;
-      pickScrollIdleWanderTargets();
     }, 180);
   };
 
@@ -1147,12 +1068,8 @@ export function attachQuantumCoreOpticalEngine(
   };
 
   if (useScrollParallax) {
-    seedHomeHeroPose();
-    syncScrollIdleWanderFromTargets();
-    pickScrollIdleWanderTargets();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("pointermove", onHomeHoverMove, { passive: true });
     if (gestureEl) {
       gestureEl.addEventListener("pointerdown", onHomeGestureDown, {
         passive: true,
@@ -1500,81 +1417,19 @@ export function attachQuantumCoreOpticalEngine(
       pulseGroup.scale.setScalar(scaleBreath * voiceSwell);
     }
 
-    const tiltLerp = 0.09 * Math.max(motionScale, 0.4) * (inIntro ? 0.12 : 1);
-    const idleTiltX =
-      inIntro || prefersReduced || isCompactStack
-        ? 0
-        : Math.sin(sceneT * 0.21) * 0.032 * motionScale * idleVoiceDamp;
-    const idleTiltY =
-      inIntro || prefersReduced || isCompactStack
-        ? 0
-        : Math.cos(sceneT * 0.17) * 0.038 * motionScale * idleVoiceDamp;
-
-    let effectiveTiltX = tiltTargetX;
-    let effectiveTiltY = tiltTargetY;
-    let effectiveMouseX = mouseX;
-    let effectiveMouseY = mouseY;
-    if (
-      useScrollParallax &&
-      !scrollActive &&
-      !inIntro &&
-      !cloudDirected &&
-      !prefersReduced &&
-      !isCompactStack
-    ) {
-      if (
-        scrollIdleWanderNextAt === 0 ||
-        performance.now() >= scrollIdleWanderNextAt
-      ) {
-        pickScrollIdleWanderTargets();
-      }
-      const wanderLerp = 0.022 * Math.max(motionScale, 0.4);
-      scrollIdleWanderX +=
-        (scrollIdleWanderTargetX - scrollIdleWanderX) * wanderLerp;
-      scrollIdleWanderY +=
-        (scrollIdleWanderTargetY - scrollIdleWanderY) * wanderLerp;
-      scrollIdleWanderCamX +=
-        (scrollIdleWanderCamTargetX - scrollIdleWanderCamX) * wanderLerp;
-      scrollIdleWanderCamY +=
-        (scrollIdleWanderCamTargetY - scrollIdleWanderCamY) * wanderLerp;
-      effectiveTiltX = scrollIdleWanderX;
-      effectiveTiltY = scrollIdleWanderY;
-      effectiveMouseX = scrollIdleWanderCamX;
-      effectiveMouseY = scrollIdleWanderCamY;
-    }
-
-    pulseGroup.rotation.x +=
-      (effectiveTiltX + idleTiltX - pulseGroup.rotation.x) * tiltLerp;
-    pulseGroup.rotation.y +=
-      (effectiveTiltY + idleTiltY - pulseGroup.rotation.y) * tiltLerp;
-    pulseGroup.rotation.x = THREE.MathUtils.clamp(
-      pulseGroup.rotation.x,
-      -0.55,
-      0.55,
-    );
-    pulseGroup.rotation.y = THREE.MathUtils.clamp(
-      pulseGroup.rotation.y,
-      -0.62,
-      0.62,
-    );
-
+    /*
+     * Logo stays fixed in the center — no tilt and no camera parallax.
+     * Voice shake nudges the particle group only.
+     */
+    pulseGroup.rotation.set(0, 0, 0);
     shakeIntensity *= 0.9;
     const shakeX = (Math.random() - 0.5) * shakeIntensity;
     const shakeY = (Math.random() - 0.5) * shakeIntensity;
-
-    const coarse = isCoarsePointer();
-    const parallaxAmp = (prefersReduced ? 0.85 : 1.55) * (coarse ? 1.35 : 1);
-    const parallaxLerp = 0.038 * Math.max(motionScale, 0.35);
-    camera.position.x +=
-      (effectiveMouseX * parallaxAmp - camera.position.x) * parallaxLerp +
-      shakeX;
-    camera.position.y +=
-      (-effectiveMouseY * parallaxAmp - camera.position.y) * parallaxLerp +
-      shakeY;
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -0.38, 0.38);
-    camera.position.y = THREE.MathUtils.clamp(camera.position.y, -0.38, 0.38);
-    camera.position.z = VIEW_Z;
-    camera.lookAt(scene.position);
+    const baseY = logoResolve.position.y;
+    pulseGroup.position.x = shakeX;
+    pulseGroup.position.y = baseY + shakeY;
+    camera.position.set(0, 0, VIEW_Z);
+    camera.lookAt(0, baseY, 0);
 
     composer.render();
   }
@@ -1641,7 +1496,6 @@ export function attachQuantumCoreOpticalEngine(
     if (useScrollParallax) {
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("scroll", onScroll);
-      window.removeEventListener("pointermove", onHomeHoverMove);
       if (gestureEl) {
         gestureEl.removeEventListener("pointerdown", onHomeGestureDown);
         gestureEl.removeEventListener("pointermove", onHomeGestureMove);
