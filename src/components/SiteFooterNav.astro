@@ -153,21 +153,27 @@ const items: Array<{
     if (!nav || nav.dataset.anchorsWired === "1") return;
     nav.dataset.anchorsWired = "1";
 
-    nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
-      link.addEventListener("click", (event) => {
+    // Capture phase so we always beat the browser's hash jump on `/#section` links.
+    nav.addEventListener(
+      "click",
+      (event) => {
+        const link = (event.target as Element | null)?.closest<HTMLAnchorElement>(
+          "a.footer-nav-btn[data-nav]",
+        );
+        if (!link) return;
+
         const id = link.dataset.nav as NavId | undefined;
         if (!id || !isHomepageSectionId(id)) return;
-
-        // Already on homepage — smooth-scroll to the section.
-        if (document.getElementById(id)) {
-          event.preventDefault();
-          scrollToSection(id);
+        if (!document.getElementById(id)) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
           return;
         }
 
-        // Off-homepage: let the browser navigate to `/#section`.
-      });
-    });
+        event.preventDefault();
+        scrollToSection(id);
+      },
+      { capture: true },
+    );
   }
 
   function wireScrollSpy() {
@@ -232,7 +238,7 @@ const items: Array<{
         scrollTimer = window.setTimeout(() => {
           scrollingTo = null;
           activateBest();
-        }, 1200);
+        }, 1400);
       });
     });
 
