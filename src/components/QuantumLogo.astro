@@ -57,6 +57,10 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
+  {/* Hero-band only: pan-up scrolls the page; down/left/right drive the particle cloud. */}
+  {isHomepage && (
+    <div class="quantum-gesture-catcher" data-quantum-gesture tabindex="-1"></div>
+  )}
 </div>
 
 <style>
@@ -73,7 +77,7 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     overflow: hidden;
   }
 
-  /* Scrollable homepage hero: canvas is decorative — never capture pointer/touch.
+  /* Scrollable homepage hero: canvas stays non-interactive (bleed overlays About).
      Extends ~30% past the hero so particles can dissolve into the next section. */
   .quantum-logo-stack--in-section {
     top: 0;
@@ -102,6 +106,31 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       rgba(0, 0, 0, 0.55) 82%,
       transparent 100%
     );
+  }
+
+  /*
+   * Covers only the hero band (100/130 of the tall stack). Browser may scroll on
+   * upward pans; left/right/down are left to JS for particle control.
+   */
+  .quantum-gesture-catcher {
+    display: none;
+  }
+
+  .quantum-logo-stack--in-section .quantum-gesture-catcher {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(100% / 1.3);
+    z-index: 1;
+    pointer-events: auto;
+    touch-action: pan-up;
+    cursor: grab;
+  }
+
+  .quantum-logo-stack--in-section .quantum-gesture-catcher:active {
+    cursor: grabbing;
   }
 
   /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */

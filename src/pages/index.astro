@@ -65,7 +65,10 @@ const heroLogo = homepageHeroLogo(company);
     min-height: 100%;
   }
 
-  /* Allow page scroll through the decorative hero canvas. */
+  /*
+   * Default page scroll is vertical; the hero overrides with pan-up so only
+   * upward pans scroll — down/left/right drive the particle cloud.
+   */
   :global(html.quantum-page-touch),
   :global(html.quantum-page-touch body) {
     touch-action: pan-y;
@@ -88,6 +91,8 @@ const heroLogo = homepageHeroLogo(company);
     /* Let the particle stack bleed ~30% into the following section. */
     overflow: visible;
     scroll-margin-top: 0;
+    touch-action: pan-up;
+    overscroll-behavior-y: none;
   }
 
   .quantum-vignette {

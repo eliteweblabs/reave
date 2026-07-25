@@ -811,13 +811,24 @@ export function attachQuantumCoreOpticalEngine(
     hasPointerSample = false;
   }
 
+  /** True while a pointer is actively dragging the homepage gesture catcher. */
+  let homeGestureActive = false;
   /**
-   * Impart Y-spin from pointer travel. Swipe right → shell follows right
-   * (negative Y in Three.js); swipe left → opposite. Vertical-dominant moves on
-   * the scrollable homepage are ignored so page scroll doesn’t flip the orbit.
+   * Homepage gesture arbitration: `pending` until the first clear move, then
+   * `cloud` (down/left/right) or `scroll` (up — leave the page alone).
+   */
+  let homeGestureMode: "pending" | "cloud" | "scroll" = "pending";
+  let homeGestureStartX = 0;
+  let homeGestureStartY = 0;
+  let homeGesturePointerId: number | null = null;
+
+  /**
+   * Impart cloud motion from pointer travel.
+   * - Horizontal → Y-spin (shell follows the swipe)
+   * - Vertical → pitch tilt (including pull-down on the homepage hero)
    * Hover-only mouse moves are ignored — requires an active drag or touch.
    */
-  function impartSpinFromPointer(
+  function impartCloudFromPointer(
     clientX: number,
     clientY: number,
     opts?: { pointerType?: string; buttons?: number },
@@ -844,30 +855,43 @@ export function attachQuantumCoreOpticalEngine(
     prevPointerT = now;
     if (dtMs <= 0 || dtMs > 90) return;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
-    if (useScrollParallax && Math.abs(dx) < Math.abs(dy) * 0.55) return;
 
     const coarse = isCoarsePointer() || isTouch;
-    const impulse = -dx * (coarse ? 0.0034 : 0.0024);
+    const spinK = coarse ? 0.0034 : 0.0024;
+    const tiltK = coarse ? 0.0028 : 0.0018;
+    const camK = coarse ? 0.00035 : 0.0002;
+
+    /* Swipe right → shell follows right (negative Y in Three.js). */
     spinVelY = THREE.MathUtils.clamp(
-      spinVelY + impulse,
+      spinVelY - dx * spinK,
       -PARTICLE_SPIN_MAX,
       PARTICLE_SPIN_MAX,
     );
+    /* Swipe down/up tips the cloud; left/right yaws it. */
+    tiltTargetX = THREE.MathUtils.clamp(tiltTargetX + dy * tiltK, -0.55, 0.55);
+    tiltTargetY = THREE.MathUtils.clamp(tiltTargetY + dx * tiltK, -0.62, 0.62);
+    mouseX = THREE.MathUtils.clamp(mouseX + dx * camK, -0.28, 0.28);
+    mouseY = THREE.MathUtils.clamp(mouseY + dy * camK, -0.28, 0.28);
   }
 
   function setParallaxFromClient(
     clientX: number,
     clientY: number,
     opts?: {
-      blockDown?: boolean;
       pointerType?: string;
       buttons?: number;
+      /** When false, only absolute hover parallax (no spin/tilt impulse). */
+      driveCloud?: boolean;
     },
   ) {
-    impartSpinFromPointer(clientX, clientY, {
-      pointerType: opts?.pointerType,
-      buttons: opts?.buttons,
-    });
+    if (opts?.driveCloud !== false) {
+      impartCloudFromPointer(clientX, clientY, {
+        pointerType: opts?.pointerType,
+        buttons: opts?.buttons,
+      });
+    }
+    /* Absolute parallax from pointer position (hover framing). Skip while dragging. */
+    if (homeGestureActive) return;
     const w = window.innerWidth;
     const h = Math.max(1, window.innerHeight);
     const coarse = isCoarsePointer();
@@ -876,15 +900,9 @@ export function attachQuantumCoreOpticalEngine(
     const ny = (clientY - h / 2) / h;
     const tiltMul = coarse ? 0.72 : 0.42;
     mouseX = (clientX - w / 2) * px;
+    mouseY = (clientY - h / 2) * px;
     tiltTargetY = nx * tiltMul;
-
-    const blockDown = opts?.blockDown ?? false;
-    if (blockDown && ny > 0) {
-      /* Down is a dead end on the homepage — keep the last up/level pitch. */
-    } else {
-      mouseY = (clientY - h / 2) * px;
-      tiltTargetX = -ny * tiltMul;
-    }
+    tiltTargetX = -ny * tiltMul;
   }
 
   function clearParallaxTargets() {
@@ -902,7 +920,7 @@ export function attachQuantumCoreOpticalEngine(
     scrollIdleWanderCamY = mouseY;
   }
 
-  /** Homepage hero loads skewed; scroll-down no longer drives tilt (only real scroll axis). */
+  /** Homepage hero loads with a slight skew so the cloud doesn’t sit dead-flat. */
   function seedHomeHeroPose() {
     const coarse = isCoarsePointer();
     const amp = coarse ? 1.35 : 1;
@@ -911,6 +929,10 @@ export function attachQuantumCoreOpticalEngine(
     tiltTargetY = 0.42 * amp;
     tiltTargetX = -0.25 * amp;
   }
+
+  const gestureEl =
+    (stackEl?.querySelector("[data-quantum-gesture]") as HTMLElement | null) ??
+    null;
 
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
   const onPointerMove = (e: PointerEvent) => {
@@ -932,26 +954,95 @@ export function attachQuantumCoreOpticalEngine(
     else resetPointerSample();
   };
 
-  const onHomePointerMove = (e: PointerEvent) => {
-    setParallaxFromClient(e.clientX, e.clientY, {
-      blockDown: true,
-      pointerType: e.pointerType,
-      buttons: e.buttons,
-    });
-    syncScrollIdleWanderFromTargets();
-  };
-  const onHomePointerDown = (e: PointerEvent) => {
+  /**
+   * Homepage hero gesture catcher: left/right/down steer the cloud.
+   * Upward pans use CSS `touch-action: pan-up` so the page can scroll —
+   * we detect that early and stop driving the cloud / skip pointer capture.
+   */
+  const onHomeGestureDown = (e: PointerEvent) => {
     if (!e.isPrimary) return;
+    homeGestureActive = true;
+    homeGestureMode = "pending";
+    homeGestureStartX = e.clientX;
+    homeGestureStartY = e.clientY;
+    homeGesturePointerId = e.pointerId;
     resetPointerSample();
+    /* Seed sample only — no cloud impulse until direction is known. */
+    prevPointerX = e.clientX;
+    prevPointerY = e.clientY;
+    prevPointerT = performance.now();
+    hasPointerSample = true;
+  };
+  const onHomeGestureMove = (e: PointerEvent) => {
+    if (!homeGestureActive || !e.isPrimary) return;
+    if (homeGestureMode === "scroll") return;
+
+    if (homeGestureMode === "pending") {
+      const dx0 = e.clientX - homeGestureStartX;
+      const dy0 = e.clientY - homeGestureStartY;
+      const dist = Math.hypot(dx0, dy0);
+      if (dist < 8) return;
+      /* Touch finger moving up → page scroll; mouse drags always steer the cloud. */
+      if (
+        e.pointerType === "touch" &&
+        dy0 < -2 &&
+        Math.abs(dy0) >= Math.abs(dx0) * 0.85
+      ) {
+        homeGestureMode = "scroll";
+        homeGestureActive = false;
+        resetPointerSample();
+        return;
+      }
+      homeGestureMode = "cloud";
+      try {
+        gestureEl?.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore capture failures */
+      }
+      /* Reset sample at the decision point so the first cloud impulse is clean. */
+      prevPointerX = e.clientX;
+      prevPointerY = e.clientY;
+      prevPointerT = performance.now();
+      hasPointerSample = true;
+      return;
+    }
+
     setParallaxFromClient(e.clientX, e.clientY, {
-      blockDown: true,
       pointerType: e.pointerType,
       buttons: e.buttons || 1,
+      driveCloud: true,
     });
     syncScrollIdleWanderFromTargets();
   };
-  const onHomePointerUp = () => {
+  const onHomeGestureUp = (e: PointerEvent) => {
+    if (!e.isPrimary) return;
+    if (
+      homeGesturePointerId != null &&
+      gestureEl?.hasPointerCapture?.(homeGesturePointerId)
+    ) {
+      try {
+        gestureEl.releasePointerCapture(homeGesturePointerId);
+      } catch {
+        /* ignore */
+      }
+    }
+    homeGestureActive = false;
+    homeGestureMode = "pending";
+    homeGesturePointerId = null;
     resetPointerSample();
+    syncScrollIdleWanderFromTargets();
+  };
+
+  /** Hover parallax only — cloud drag is on the gesture catcher. */
+  const onHomeHoverMove = (e: PointerEvent) => {
+    if (homeGestureActive) return;
+    if (e.pointerType === "touch") return;
+    setParallaxFromClient(e.clientX, e.clientY, {
+      pointerType: e.pointerType,
+      buttons: 0,
+      driveCloud: false,
+    });
+    syncScrollIdleWanderFromTargets();
   };
 
   const touchClient = (e: TouchEvent) =>
@@ -991,11 +1082,11 @@ export function attachQuantumCoreOpticalEngine(
   function pickScrollIdleWanderTargets() {
     const coarse = isCoarsePointer();
     const amp = coarse ? 1.35 : 1;
-    /* Up / left / right only — down is a scroll dead-end on the homepage hero. */
-    scrollIdleWanderTargetX = -Math.random() * 0.52 * amp;
+    /* Full tilt range — pull-down is a particle gesture, not a scroll dead-end. */
+    scrollIdleWanderTargetX = (Math.random() - 0.5) * 0.7 * amp;
     scrollIdleWanderTargetY = (Math.random() - 0.5) * 0.86 * amp;
     scrollIdleWanderCamTargetX = (Math.random() - 0.5) * 0.16 * amp;
-    scrollIdleWanderCamTargetY = -Math.random() * 0.12 * amp;
+    scrollIdleWanderCamTargetY = (Math.random() - 0.5) * 0.14 * amp;
     scrollIdleWanderNextAt =
       performance.now() + 550 + Math.random() * 1100;
   }
@@ -1027,10 +1118,19 @@ export function attachQuantumCoreOpticalEngine(
     pickScrollIdleWanderTargets();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("pointermove", onHomePointerMove, { passive: true });
-    window.addEventListener("pointerdown", onHomePointerDown, { passive: true });
-    window.addEventListener("pointerup", onHomePointerUp, { passive: true });
-    window.addEventListener("pointercancel", onHomePointerUp, { passive: true });
+    window.addEventListener("pointermove", onHomeHoverMove, { passive: true });
+    if (gestureEl) {
+      gestureEl.addEventListener("pointerdown", onHomeGestureDown, {
+        passive: true,
+      });
+      gestureEl.addEventListener("pointermove", onHomeGestureMove, {
+        passive: true,
+      });
+      gestureEl.addEventListener("pointerup", onHomeGestureUp, { passive: true });
+      gestureEl.addEventListener("pointercancel", onHomeGestureUp, {
+        passive: true,
+      });
+    }
   } else {
     host.addEventListener("touchstart", onHostTouchStart, { passive: true });
     host.addEventListener("touchmove", onHostTouchMove, { passive: false });
@@ -1379,12 +1479,10 @@ export function attachQuantumCoreOpticalEngine(
         (scrollIdleWanderCamTargetX - scrollIdleWanderCamX) * wanderLerp;
       scrollIdleWanderCamY +=
         (scrollIdleWanderCamTargetY - scrollIdleWanderCamY) * wanderLerp;
-      effectiveTiltX = Math.min(scrollIdleWanderX, 0);
+      effectiveTiltX = scrollIdleWanderX;
       effectiveTiltY = scrollIdleWanderY;
       effectiveMouseX = scrollIdleWanderCamX;
       effectiveMouseY = scrollIdleWanderCamY;
-    } else if (useScrollParallax) {
-      effectiveTiltX = Math.min(effectiveTiltX, 0);
     }
 
     pulseGroup.rotation.x +=
@@ -1394,7 +1492,7 @@ export function attachQuantumCoreOpticalEngine(
     pulseGroup.rotation.x = THREE.MathUtils.clamp(
       pulseGroup.rotation.x,
       -0.55,
-      useScrollParallax ? 0 : 0.55,
+      0.55,
     );
     pulseGroup.rotation.y = THREE.MathUtils.clamp(
       pulseGroup.rotation.y,
@@ -1485,10 +1583,13 @@ export function attachQuantumCoreOpticalEngine(
     if (useScrollParallax) {
       window.removeEventListener("scroll", onScroll);
       window.visualViewport?.removeEventListener("scroll", onScroll);
-      window.removeEventListener("pointermove", onHomePointerMove);
-      window.removeEventListener("pointerdown", onHomePointerDown);
-      window.removeEventListener("pointerup", onHomePointerUp);
-      window.removeEventListener("pointercancel", onHomePointerUp);
+      window.removeEventListener("pointermove", onHomeHoverMove);
+      if (gestureEl) {
+        gestureEl.removeEventListener("pointerdown", onHomeGestureDown);
+        gestureEl.removeEventListener("pointermove", onHomeGestureMove);
+        gestureEl.removeEventListener("pointerup", onHomeGestureUp);
+        gestureEl.removeEventListener("pointercancel", onHomeGestureUp);
+      }
     } else {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerdown", onPointerDown);
