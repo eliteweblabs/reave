@@ -73,6 +73,9 @@ const QUANTUM_BALL_RADIUS = 32.0;
  */
 const HERO_BLEED_FRAC = 0.3;
 
+/** Lift logo + cloud above the hero optical center (fraction of hero band height). */
+const HERO_CONTENT_LIFT_FRAC = 0.2;
+
 /** Baseline spin speed after swipe momentum settles (rad/sec). */
 const PARTICLE_SPIN_CRUISE = 0.17;
 const PARTICLE_SPIN_MAX = 1.35;
@@ -467,20 +470,31 @@ export function attachQuantumCoreOpticalEngine(
     };
   }
 
-  /** Keep the logo/cloud centered in the hero band of a taller bleed canvas. */
+  /**
+   * Y the camera looks at (hero optical center). Content sits above this by
+   * HERO_CONTENT_LIFT_FRAC so the cloud reads higher in the frame.
+   */
+  let contentAnchorY = 0;
+
+  /** Keep the logo/cloud in the hero band of a taller bleed canvas, lifted ~20%. */
   function syncHeroBleedOffset(): void {
+    const visibleH =
+      2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
     if (!useScrollParallax) {
-      pulseGroup.position.y = 0;
-      logoResolve.position.y = 0;
+      contentAnchorY = 0;
+      const liftY = visibleH * HERO_CONTENT_LIFT_FRAC;
+      pulseGroup.position.y = liftY;
+      logoResolve.position.y = liftY;
       return;
     }
     const { h: canvasH } = getViewportSize();
     const heroH = canvasH / (1 + HERO_BLEED_FRAC);
-    const visibleH =
-      2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
+    const heroFrac = heroH / Math.max(canvasH, 1);
     /* Hero center sits above the canvas center by (bleed/2) of hero height. */
     const nudgeFrac = (canvasH / 2 - heroH / 2) / Math.max(canvasH, 1);
-    const y = visibleH * nudgeFrac;
+    contentAnchorY = visibleH * nudgeFrac;
+    const liftY = visibleH * heroFrac * HERO_CONTENT_LIFT_FRAC;
+    const y = contentAnchorY + liftY;
     pulseGroup.position.y = y;
     logoResolve.position.y = y;
   }
@@ -1425,11 +1439,11 @@ export function attachQuantumCoreOpticalEngine(
     shakeIntensity *= 0.9;
     const shakeX = (Math.random() - 0.5) * shakeIntensity;
     const shakeY = (Math.random() - 0.5) * shakeIntensity;
-    const baseY = logoResolve.position.y;
     pulseGroup.position.x = shakeX;
-    pulseGroup.position.y = baseY + shakeY;
+    pulseGroup.position.y = logoResolve.position.y + shakeY;
     camera.position.set(0, 0, VIEW_Z);
-    camera.lookAt(0, baseY, 0);
+    /* Look at hero center (not the lifted content) so the +20% lift reads on screen. */
+    camera.lookAt(0, contentAnchorY, 0);
 
     composer.render();
   }
