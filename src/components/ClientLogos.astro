@@ -32,6 +32,8 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   data-client-logos
   data-loop-copies={LOOP_COPIES}
   style={`--loop-copies: ${LOOP_COPIES}`}
+  aria-label="Client logos"
+  role="region"
 >
   <div class="client-logos-track">
     {
@@ -53,7 +55,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 <style>
   .client-logos-viewport {
     --visible-count: 3;
-    --marquee-duration: 45s;
+    --slide-width: calc(100vw / var(--visible-count));
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -78,29 +80,11 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     display: flex;
     width: max-content;
     will-change: transform;
-    animation: client-logos-marquee var(--marquee-duration) linear infinite;
-  }
-
-  .client-logos-viewport.is-paused .client-logos-track {
-    animation-play-state: paused;
-  }
-
-  /* Touch devices use WAAPI instead of CSS keyframes (see script). */
-  @media (hover: none), (pointer: coarse) {
-    .client-logos-track {
-      animation: none;
-    }
-  }
-
-  @keyframes client-logos-marquee {
-    to {
-      transform: translate3d(-33.333333%, 0, 0);
-    }
   }
 
   .client-logo-item {
-    flex: 0 0 calc(100vw / var(--visible-count));
-    width: calc(100vw / var(--visible-count));
+    flex: 0 0 var(--slide-width);
+    width: var(--slide-width);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -115,9 +99,6 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     height: auto;
     pointer-events: none;
     user-select: none;
-    /* Fully desaturate, then flip dark wordmarks light so every logo —
-       regardless of its source colors — reads as a neutral gray/white
-       mark against the dark background. */
     filter: grayscale(100%) invert(100%);
     opacity: 0.6;
     transition: opacity 0.2s ease;
@@ -144,251 +125,11 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
       --visible-count: 6;
     }
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .client-logos-track {
-      animation: none;
-    }
-  }
 </style>
 
 <script>
-  function initClientLogos(viewport: HTMLElement) {
-    if (viewport.dataset.clientLogosInit === "true") return;
-    viewport.dataset.clientLogosInit = "true";
+  import { bootClientLogosMarquees } from "../lib/clientLogosMarquee";
 
-    const trackEl = viewport.querySelector<HTMLElement>(".client-logos-track");
-    if (!trackEl) return;
-    const track = trackEl;
-
-    const loopCopies = Number(viewport.dataset.loopCopies || "3");
-    const velocity = 28;
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-    const useWaapi = !canHover;
-    const pauseWhenOffscreen = canHover;
-
-    let waapiAnim: Animation | null = null;
-
-    function getSetWidth() {
-      return track.scrollWidth / loopCopies;
-    }
-
-    function getCurrentOffset() {
-      return new DOMMatrix(getComputedStyle(track).transform).m41;
-    }
-
-    function cancelWaapi() {
-      waapiAnim?.cancel();
-      waapiAnim = null;
-    }
-
-    function startWaapiMarquee(fromOffset = 0) {
-      if (!useWaapi || prefersReducedMotion || isDragging || offscreen) return;
-
-      const setWidth = getSetWidth();
-      if (!setWidth) return;
-
-      cancelWaapi();
-      track.style.transform = `translate3d(${fromOffset}px, 0, 0)`;
-
-      waapiAnim = track.animate(
-        [
-          { transform: `translate3d(${fromOffset}px, 0, 0)` },
-          { transform: `translate3d(${fromOffset - setWidth}px, 0, 0)` },
-        ],
-        {
-          duration: (setWidth / velocity) * 1000,
-          iterations: Infinity,
-          easing: "linear",
-        },
-      );
-    }
-
-    function updateMarqueeDuration() {
-      if (prefersReducedMotion) return;
-
-      const setWidth = getSetWidth() || viewport.clientWidth;
-      if (setWidth > 0) {
-        viewport.style.setProperty("--marquee-duration", `${setWidth / velocity}s`);
-      }
-
-      if (useWaapi && !isDragging && !offscreen) {
-        startWaapiMarquee(getCurrentOffset());
-      }
-    }
-
-    let isDragging = false;
-    let offscreen = false;
-    let dragStartX = 0;
-    let dragStartOffset = 0;
-    let manualOffset = 0;
-
-    function syncPausedClass() {
-      if (!pauseWhenOffscreen) return;
-      viewport.classList.toggle("is-paused", offscreen || isDragging);
-    }
-
-    function restartCssMarquee() {
-      track.style.animation = "none";
-      void track.offsetWidth;
-      track.style.removeProperty("animation");
-    }
-
-    function resumeAutoplay(fromOffset?: number) {
-      if (prefersReducedMotion || isDragging || offscreen) return;
-
-      if (useWaapi) {
-        startWaapiMarquee(fromOffset ?? getCurrentOffset());
-        return;
-      }
-
-      syncPausedClass();
-      restartCssMarquee();
-    }
-
-    function normalizeOffset() {
-      const setWidth = getSetWidth();
-      if (!setWidth) return;
-
-      while (manualOffset <= -setWidth) manualOffset += setWidth;
-      while (manualOffset > 0) manualOffset -= setWidth;
-    }
-
-    function applyManualTransform() {
-      track.style.transform = `translate3d(${manualOffset}px, 0, 0)`;
-    }
-
-    function clearManualTransform() {
-      track.style.removeProperty("transform");
-    }
-
-    const visibilityObs =
-      pauseWhenOffscreen && "IntersectionObserver" in window
-        ? new IntersectionObserver(
-            (entries) => {
-              const wasOffscreen = offscreen;
-              offscreen = !entries.some((entry) => entry.isIntersecting);
-              if (!isDragging) {
-                syncPausedClass();
-                if (wasOffscreen && !offscreen) resumeAutoplay();
-              }
-            },
-            { root: null, threshold: 0, rootMargin: "80px 0px" },
-          )
-        : null;
-    visibilityObs?.observe(viewport);
-
-    function onPointerDown(event: PointerEvent) {
-      if (event.button !== 0 && event.pointerType === "mouse") return;
-
-      isDragging = true;
-      viewport.classList.add("is-dragging");
-      syncPausedClass();
-      cancelWaapi();
-      dragStartX = event.clientX;
-      manualOffset = getCurrentOffset();
-      dragStartOffset = manualOffset;
-
-      viewport.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    }
-
-    function onPointerMove(event: PointerEvent) {
-      if (!isDragging) return;
-
-      manualOffset = dragStartOffset + (event.clientX - dragStartX);
-      normalizeOffset();
-      applyManualTransform();
-    }
-
-    function endDrag(event: PointerEvent) {
-      if (!isDragging) return;
-
-      isDragging = false;
-      viewport.classList.remove("is-dragging");
-      normalizeOffset();
-      const resumeFrom = manualOffset;
-      clearManualTransform();
-      syncPausedClass();
-      resumeAutoplay(resumeFrom);
-
-      if (viewport.hasPointerCapture(event.pointerId)) {
-        viewport.releasePointerCapture(event.pointerId);
-      }
-    }
-
-    viewport.addEventListener("pointerdown", onPointerDown);
-    viewport.addEventListener("pointermove", onPointerMove);
-    viewport.addEventListener("pointerup", endDrag);
-    viewport.addEventListener("pointercancel", endDrag);
-    viewport.addEventListener("lostpointercapture", () => {
-      if (!isDragging) return;
-      isDragging = false;
-      viewport.classList.remove("is-dragging");
-      normalizeOffset();
-      const resumeFrom = manualOffset;
-      clearManualTransform();
-      syncPausedClass();
-      resumeAutoplay(resumeFrom);
-    });
-
-    if (canHover) {
-      viewport.addEventListener("mouseenter", () => {
-        viewport.classList.add("is-paused");
-      });
-
-      viewport.addEventListener("mouseleave", () => {
-        if (!isDragging && !offscreen) {
-          viewport.classList.remove("is-paused");
-          restartCssMarquee();
-        }
-      });
-    }
-
-    const section = viewport.closest(".home-section");
-    section?.addEventListener("contentvisibilityautostatechange", (event) => {
-      const { skipped } = event as ContentVisibilityAutoStateChangeEvent;
-      if (skipped || isDragging) return;
-      resumeAutoplay();
-    });
-
-    const resizeObserver = new ResizeObserver(updateMarqueeDuration);
-    resizeObserver.observe(viewport);
-    resizeObserver.observe(track);
-
-    track.querySelectorAll("img").forEach((img) => {
-      if (!(img as HTMLImageElement).complete) {
-        img.addEventListener("load", updateMarqueeDuration, { once: true });
-      }
-    });
-
-    updateMarqueeDuration();
-    requestAnimationFrame(updateMarqueeDuration);
-
-    if (useWaapi) {
-      document.addEventListener("visibilitychange", () => {
-        if (document.hidden || isDragging || offscreen) {
-          cancelWaapi();
-          return;
-        }
-        resumeAutoplay();
-      });
-    }
-
-    return () => {
-      cancelWaapi();
-      resizeObserver.disconnect();
-      visibilityObs?.disconnect();
-    };
-  }
-
-  function initAllClientLogos() {
-    document.querySelectorAll<HTMLElement>("[data-client-logos]").forEach((viewport) => {
-      initClientLogos(viewport);
-    });
-  }
-
-  initAllClientLogos();
-  document.addEventListener("astro:page-load", initAllClientLogos);
+  bootClientLogosMarquees();
+  document.addEventListener("astro:page-load", () => bootClientLogosMarquees());
 </script>
