@@ -6933,7 +6933,7 @@ async function renderSearchResults(query) {
   if (!root.children.length) {
     const empty = document.createElement('div');
     empty.className = 'search-result-empty';
-    empty.textContent = q ? 'No matches.' : 'Search sections and clients…';
+    empty.textContent = q ? 'No Matches.' : 'Search Sections And Clients…';
     root.appendChild(empty);
   }
 }
@@ -7668,7 +7668,7 @@ function renderRulesEditor() {
     itemCount: rules.length,
     search: {
       value: ruleState.search,
-      placeholder: `Search ${rules.length} ${rules.length === 1 ? 'rule' : 'rules'}`,
+      placeholder: `Search ${rules.length} ${rules.length === 1 ? 'Rule' : 'Rules'}`,
       onInput: (value) => {
         ruleState.search = value;
         renderRulesEditor();
@@ -8929,7 +8929,7 @@ function mountTodoProjectPicker(parent, draft, markDirty) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search projects…';
+  searchInput.placeholder = 'Search Projects…';
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
   dropdown.className = 'wk-client-dropdown';
@@ -9428,7 +9428,7 @@ function renderDocEditor() {
     itemCount: templates.length,
     search: {
       value: search,
-      placeholder: `Search ${templates.length} ${templates.length === 1 ? 'document' : 'documents'}`,
+      placeholder: `Search ${templates.length} ${templates.length === 1 ? 'Document' : 'Documents'}`,
       onInput: (value) => {
         docState.search = value;
         renderDocEditor();
@@ -10101,7 +10101,7 @@ function refreshKnowledgeSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const count = knowledgeState.entries.length;
-    searchInput.placeholder = `Search ${count} ${count === 1 ? 'doc' : 'docs'}`;
+    searchInput.placeholder = `Search ${count} ${count === 1 ? 'Doc' : 'Docs'}`;
   }
   fillKnowledgeSidebarList(list);
   syncKnowledgeSidebarActiveState();
@@ -10224,7 +10224,7 @@ function renderKnowledgeEditor() {
     itemCount: entries.length,
     search: {
       value: search,
-      placeholder: `Search ${entries.length} ${entries.length === 1 ? 'doc' : 'docs'}`,
+      placeholder: `Search ${entries.length} ${entries.length === 1 ? 'Doc' : 'Docs'}`;
       onInput: (value) => {
         knowledgeState.search = value;
         refreshKnowledgeSidebarList();
@@ -11640,7 +11640,7 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search clients…';
+  searchInput.placeholder = 'Search Clients…';
   searchInput.autocomplete = 'off';
   searchWrap.appendChild(searchInput);
   const dropdown = document.createElement('div');
@@ -16911,7 +16911,7 @@ async function openDocumentShareSheet(opts = {}) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input reave-share-client-search-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search clients…';
+  searchInput.placeholder = 'Search Clients…';
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
   dropdown.className = 'reave-share-client-list';
@@ -18402,7 +18402,7 @@ function mountWorkTodoLinkPicker(parent, jobSlug, onLinked) {
   const searchInput = document.createElement('input');
   searchInput.className = 'de-input';
   searchInput.type = 'search';
-  searchInput.placeholder = 'Search unlinked to‑dos…';
+  searchInput.placeholder = 'Search Unlinked To‑Dos…';
   searchInput.autocomplete = 'off';
   const dropdown = document.createElement('div');
   dropdown.className = 'wk-client-dropdown';
@@ -20288,7 +20288,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     itemCount: countForTab,
     search: {
       value: emailState.search,
-      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'email' : 'emails'}`,
+      placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`,
       onInput: (value) => {
         emailState.search = value;
         if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
@@ -20393,7 +20393,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   input.id = 'em-compose-to';
   input.type = 'text';
   input.className = 'em-compose-to-input';
-  input.placeholder = 'Search clients or type an email…';
+  input.placeholder = 'Search Clients Or Type An Email…';
   input.autocomplete = 'off';
   input.setAttribute('role', 'combobox');
   input.setAttribute('aria-autocomplete', 'list');
@@ -20411,7 +20411,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   parent.appendChild(wrap);
 
   function syncPlaceholder() {
-    input.placeholder = recipients.length ? 'Add another…' : 'Search clients or type an email…';
+    input.placeholder = recipients.length ? 'Add Another…' : 'Search Clients Or Type An Email…';
   }
 
   function hasRecipient(email) {
