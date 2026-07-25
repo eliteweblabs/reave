@@ -80,11 +80,13 @@ const heroLogo = homepageHeroLogo(company);
 
   .home-hero {
     position: relative;
+    z-index: 0;
     width: 100%;
     min-height: 100vh;
     /* svh stays fixed while scrolling; dvh shrinks/grows with the mobile URL bar. */
     min-height: 100svh;
-    overflow: hidden;
+    /* Let the particle stack bleed ~30% into the following section. */
+    overflow: visible;
     scroll-margin-top: 0;
   }
 
@@ -93,6 +95,8 @@ const heroLogo = homepageHeroLogo(company);
     inset: 0;
     pointer-events: none;
     z-index: 2;
+    /* Keep vignette clipped to the hero band (not the particle bleed). */
+    overflow: hidden;
     background: radial-gradient(
       ellipse 120% 120% at center,
       transparent 48%,

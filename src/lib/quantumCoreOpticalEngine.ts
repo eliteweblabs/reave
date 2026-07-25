@@ -67,6 +67,16 @@ const QUANTUM_PARTICLE_COUNT = 4000;
  */
 const QUANTUM_BALL_RADIUS = 32.0;
 
+/**
+ * Homepage particle stack extends this fraction of the hero height into the next
+ * section (CSS `height: 130%` ↔ 0.30). Keep in sync with QuantumLogo.astro.
+ */
+const HERO_BLEED_FRAC = 0.3;
+
+/** Baseline |Y-spin| after swipe momentum settles (matches prior idle orbit feel). */
+const PARTICLE_SPIN_CRUISE = 0.17;
+const PARTICLE_SPIN_MAX = 0.9;
+
 /** UV band for the A + V characters (3rd & 4th) — light glow trim only (keep brand vibrancy). */
 const LOGO_AV_DAMP_U0 = 0.36;
 const LOGO_AV_DAMP_U1 = 0.64;
@@ -442,6 +452,31 @@ export function attachQuantumCoreOpticalEngine(
     return { w, h };
   }
 
+  /** Hero band only (excludes the homepage bleed into the next section). */
+  function getHeroViewportSize(): { w: number; h: number } {
+    const { w, h } = getViewportSize();
+    if (!useScrollParallax) return { w, h };
+    return {
+      w,
+      h: Math.max(1, Math.round(h / (1 + HERO_BLEED_FRAC))),
+    };
+  }
+
+  /** Keep the logo/cloud centered in the hero band of a taller bleed canvas. */
+  function syncHeroBleedOffset(): void {
+    if (!useScrollParallax) {
+      pulseGroup.position.y = 0;
+      return;
+    }
+    const { h: canvasH } = getViewportSize();
+    const heroH = canvasH / (1 + HERO_BLEED_FRAC);
+    const visibleH =
+      2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
+    /* Hero center sits above the canvas center by (bleed/2) of hero height. */
+    const nudgeFrac = ((canvasH / 2 - heroH / 2) / Math.max(canvasH, 1));
+    pulseGroup.position.y = visibleH * nudgeFrac;
+  }
+
   const renderer = new THREE.WebGLRenderer({
     antialias: false,
     alpha: false,
@@ -636,10 +671,12 @@ export function attachQuantumCoreOpticalEngine(
 
   /** World-space size for a target on-screen width/height in CSS pixels. */
   function logoTargetWorldSize(aspect: number): { w: number; h: number } {
-    const { w: vw, h: vh } = getViewportSize();
+    const { w: canvasW, h: canvasH } = getViewportSize();
+    /* Cap against the hero band so the bleed extension doesn’t shrink the logo. */
+    const { w: vw, h: vh } = getHeroViewportSize();
     const visibleH =
       2 * Math.tan(((VIEW_FOV * Math.PI) / 180) * 0.5) * VIEW_Z;
-    const visibleW = visibleH * (vw / Math.max(1, vh));
+    const visibleW = visibleH * (canvasW / Math.max(1, canvasH));
     const maxWidthPx = Math.min(vw * LOGO_MAX_VIEWPORT_FRAC, LOGO_MAX_WIDTH_PX);
     const maxHeightPx = vh * LOGO_MAX_VIEWPORT_FRAC;
     let widthPx = maxWidthPx;
@@ -649,8 +686,8 @@ export function attachQuantumCoreOpticalEngine(
       widthPx = heightPx * aspect;
     }
     return {
-      w: (widthPx / Math.max(vw, 1)) * visibleW,
-      h: (heightPx / Math.max(vh, 1)) * visibleH,
+      w: (widthPx / Math.max(canvasW, 1)) * visibleW,
+      h: (heightPx / Math.max(canvasH, 1)) * visibleH,
     };
   }
 
@@ -663,6 +700,7 @@ export function attachQuantumCoreOpticalEngine(
   }
 
   syncLogoDimensions(logoImageAspect);
+  syncHeroBleedOffset();
 
   if (logoImageUrl) {
     void loadLogoTexture(logoImageUrl)
@@ -749,6 +787,19 @@ export function attachQuantumCoreOpticalEngine(
   let tiltTargetX = 0;
   let tiltTargetY = 0;
 
+  /**
+   * Particle shell Y-spin: integrated angle + velocity. Swipes impart direction;
+   * velocity eases back to a cruise speed in the last chosen direction (instead of
+   * a fixed CW/CCW orbit locked to elapsed time).
+   */
+  let spinAngleY = 0;
+  let spinVelY = -PARTICLE_SPIN_CRUISE;
+  let lastSpinSceneT = 0;
+  let prevPointerX = 0;
+  let prevPointerY = 0;
+  let prevPointerT = 0;
+  let hasPointerSample = false;
+
   function isCoarsePointer(): boolean {
     return (
       typeof matchMedia !== "undefined" &&
@@ -756,11 +807,67 @@ export function attachQuantumCoreOpticalEngine(
     );
   }
 
+  function resetPointerSample() {
+    hasPointerSample = false;
+  }
+
+  /**
+   * Impart Y-spin from pointer travel. Swipe right → shell follows right
+   * (negative Y in Three.js); swipe left → opposite. Vertical-dominant moves on
+   * the scrollable homepage are ignored so page scroll doesn’t flip the orbit.
+   * Hover-only mouse moves are ignored — requires an active drag or touch.
+   */
+  function impartSpinFromPointer(
+    clientX: number,
+    clientY: number,
+    opts?: { pointerType?: string; buttons?: number },
+  ) {
+    const isTouch = opts?.pointerType === "touch";
+    const isDragging = ((opts?.buttons ?? 0) & 1) === 1;
+    if (!isTouch && !isDragging) {
+      resetPointerSample();
+      return;
+    }
+    const now = performance.now();
+    if (!hasPointerSample) {
+      prevPointerX = clientX;
+      prevPointerY = clientY;
+      prevPointerT = now;
+      hasPointerSample = true;
+      return;
+    }
+    const dtMs = now - prevPointerT;
+    const dx = clientX - prevPointerX;
+    const dy = clientY - prevPointerY;
+    prevPointerX = clientX;
+    prevPointerY = clientY;
+    prevPointerT = now;
+    if (dtMs <= 0 || dtMs > 90) return;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    if (useScrollParallax && Math.abs(dx) < Math.abs(dy) * 0.55) return;
+
+    const coarse = isCoarsePointer() || isTouch;
+    const impulse = -dx * (coarse ? 0.0034 : 0.0024);
+    spinVelY = THREE.MathUtils.clamp(
+      spinVelY + impulse,
+      -PARTICLE_SPIN_MAX,
+      PARTICLE_SPIN_MAX,
+    );
+  }
+
   function setParallaxFromClient(
     clientX: number,
     clientY: number,
-    opts?: { blockDown?: boolean },
+    opts?: {
+      blockDown?: boolean;
+      pointerType?: string;
+      buttons?: number;
+    },
   ) {
+    impartSpinFromPointer(clientX, clientY, {
+      pointerType: opts?.pointerType,
+      buttons: opts?.buttons,
+    });
     const w = window.innerWidth;
     const h = Math.max(1, window.innerHeight);
     const coarse = isCoarsePointer();
@@ -785,6 +892,7 @@ export function attachQuantumCoreOpticalEngine(
     mouseY = 0;
     tiltTargetX = 0;
     tiltTargetY = 0;
+    resetPointerSample();
   }
 
   function syncScrollIdleWanderFromTargets() {
@@ -806,34 +914,62 @@ export function attachQuantumCoreOpticalEngine(
 
   /** Parallax from pointer position — `window` so it still runs when higher z-index UI is under the cursor. */
   const onPointerMove = (e: PointerEvent) => {
-    setParallaxFromClient(e.clientX, e.clientY);
+    setParallaxFromClient(e.clientX, e.clientY, {
+      pointerType: e.pointerType,
+      buttons: e.buttons,
+    });
   };
   const onPointerDown = (e: PointerEvent) => {
-    if (e.isPrimary) setParallaxFromClient(e.clientX, e.clientY);
+    if (!e.isPrimary) return;
+    resetPointerSample();
+    setParallaxFromClient(e.clientX, e.clientY, {
+      pointerType: e.pointerType,
+      buttons: e.buttons || 1,
+    });
   };
   const onPointerUp = (e: PointerEvent) => {
     if (e.pointerType === "touch" && e.isPrimary) clearParallaxTargets();
+    else resetPointerSample();
   };
 
   const onHomePointerMove = (e: PointerEvent) => {
-    setParallaxFromClient(e.clientX, e.clientY, { blockDown: true });
+    setParallaxFromClient(e.clientX, e.clientY, {
+      blockDown: true,
+      pointerType: e.pointerType,
+      buttons: e.buttons,
+    });
     syncScrollIdleWanderFromTargets();
   };
   const onHomePointerDown = (e: PointerEvent) => {
-    if (e.isPrimary) onHomePointerMove(e);
+    if (!e.isPrimary) return;
+    resetPointerSample();
+    setParallaxFromClient(e.clientX, e.clientY, {
+      blockDown: true,
+      pointerType: e.pointerType,
+      buttons: e.buttons || 1,
+    });
+    syncScrollIdleWanderFromTargets();
+  };
+  const onHomePointerUp = () => {
+    resetPointerSample();
   };
 
   const touchClient = (e: TouchEvent) =>
     e.touches[0] ?? e.changedTouches[0] ?? null;
 
   const onHostTouchStart = (e: TouchEvent) => {
+    resetPointerSample();
     const t = touchClient(e);
-    if (t) setParallaxFromClient(t.clientX, t.clientY);
+    if (t) {
+      setParallaxFromClient(t.clientX, t.clientY, { pointerType: "touch" });
+    }
   };
   const onHostTouchMove = (e: TouchEvent) => {
     if (e.cancelable) e.preventDefault();
     const t = e.touches[0];
-    if (t) setParallaxFromClient(t.clientX, t.clientY);
+    if (t) {
+      setParallaxFromClient(t.clientX, t.clientY, { pointerType: "touch" });
+    }
   };
   const onHostTouchEnd = () => {
     clearParallaxTargets();
@@ -893,6 +1029,8 @@ export function attachQuantumCoreOpticalEngine(
     window.visualViewport?.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("pointermove", onHomePointerMove, { passive: true });
     window.addEventListener("pointerdown", onHomePointerDown, { passive: true });
+    window.addEventListener("pointerup", onHomePointerUp, { passive: true });
+    window.addEventListener("pointercancel", onHomePointerUp, { passive: true });
   } else {
     host.addEventListener("touchstart", onHostTouchStart, { passive: true });
     host.addEventListener("touchmove", onHostTouchMove, { passive: false });
@@ -988,8 +1126,18 @@ export function attachQuantumCoreOpticalEngine(
     const voiceSwell = 1 + mic * 0.032 + burst * 0.02 + wild * 0.015;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
-    const idleSpinMul = inIntro ? 0.1 : 0.17;
-    const rotY = -sceneT * idleSpinMul * particleSpeedMult * spinBoost;
+    /* Integrate swipe-directed spin; ease toward cruise in the current direction. */
+    const spinDt =
+      lastSpinSceneT === 0 ? 0 : Math.min(0.05, Math.max(0, sceneT - lastSpinSceneT));
+    lastSpinSceneT = sceneT;
+    const spinCruise = inIntro
+      ? PARTICLE_SPIN_CRUISE * 0.1
+      : PARTICLE_SPIN_CRUISE;
+    const spinSign = spinVelY >= 0 ? 1 : -1;
+    const spinSettle = inIntro ? 0.04 : 0.018;
+    spinVelY += (spinSign * spinCruise - spinVelY) * spinSettle;
+    spinAngleY += spinDt * spinVelY * particleSpeedMult * spinBoost;
+    const rotY = spinAngleY;
     const idleSizeWobble =
       inIntro || isCompactStack || prefersReduced
         ? 0
@@ -1106,7 +1254,7 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
       particlesGeo.attributes.color!.needsUpdate = true;
 
-      particleGroup.rotation.y = rotY * easeInQuart(globalIntroT) * 0.08;
+      particleGroup.rotation.y = rotY;
       syncParticleSpinY();
       pulseGroup.scale.set(coverSx, coverSy, 1);
       particleGroup.scale.setScalar(
@@ -1298,6 +1446,7 @@ export function attachQuantumCoreOpticalEngine(
     bloomPass.setSize(w, h);
     resetCameraViewportAspect();
     syncLogoDimensions();
+    syncHeroBleedOffset();
   };
 
   const onResize = () => {
@@ -1338,6 +1487,8 @@ export function attachQuantumCoreOpticalEngine(
       window.visualViewport?.removeEventListener("scroll", onScroll);
       window.removeEventListener("pointermove", onHomePointerMove);
       window.removeEventListener("pointerdown", onHomePointerDown);
+      window.removeEventListener("pointerup", onHomePointerUp);
+      window.removeEventListener("pointercancel", onHomePointerUp);
     } else {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerdown", onPointerDown);

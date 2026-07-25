@@ -73,12 +73,35 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     overflow: hidden;
   }
 
-  /* Scrollable homepage hero: canvas is decorative — never capture pointer/touch. */
+  /* Scrollable homepage hero: canvas is decorative — never capture pointer/touch.
+     Extends ~30% past the hero so particles can dissolve into the next section. */
   .quantum-logo-stack--in-section {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: auto;
+    height: 130%;
+    min-height: 130%;
     pointer-events: none;
     touch-action: auto;
     cursor: default;
     isolation: isolate;
+    overflow: visible;
+    /* Fade the bleed so the opaque WebGL clear softens into the section below. */
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 68%,
+      rgba(0, 0, 0, 0.55) 82%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0%,
+      #000 68%,
+      rgba(0, 0, 0, 0.55) 82%,
+      transparent 100%
+    );
   }
 
   /* Standalone full-bleed pages (non-scroll hosts) keep the fixed cover. */

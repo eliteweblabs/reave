@@ -8,6 +8,24 @@
   overflow: hidden;
 }
 
+/* Soften the top of the first photo section so hero particles can read through. */
+.home-section--photo[data-home-section="about"] .marketing-bg {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.55) 18%,
+    #000 36%,
+    #000 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.55) 18%,
+    #000 36%,
+    #000 100%
+  );
+}
+
 .marketing-bg-photo {
   position: absolute;
   inset: 0;
@@ -36,6 +54,7 @@
 
 .home-section {
   position: relative;
+  /* Sit under the hero particle bleed; section content still stacks above its own bg. */
   z-index: 1;
   width: 100%;
   padding: 64px 24px;
