@@ -1,5 +1,17 @@
 /* Shared marketing section styles for the single-scroll homepage. */
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--app-header-h, 3.25rem) + 8px);
+  scroll-padding-bottom: calc(var(--site-footer-nav-offset, 3.35rem) + 16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .marketing-bg {
   position: absolute;
   inset: 0;
@@ -195,14 +207,6 @@
 
 .home-section-inner .card h3 {
   margin-top: 0;
-}
-
-/* Defer rendering work for below-fold sections until near the viewport.
-   Sections with the client-logo marquee are excluded — content-visibility
-   can leave CSS/WAAPI animations stuck paused on iOS Safari. */
-.home-section[data-home-section]:not([data-home-section="home"]):not(:has([data-client-logos])) {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 900px;
 }
 
 .home-section-inner .card .text-fit {

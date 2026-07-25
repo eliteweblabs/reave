@@ -95,8 +95,14 @@ const items: Array<{
 }
 
 <script>
+  import {
+    isHomepageSectionId,
+    smoothScrollToHomepageSection,
+    type HomepageSectionId,
+  } from "../lib/homepageSmoothScroll";
+
   const SECTION_IDS = ["home", "about", "services", "portfolio", "contact"] as const;
-  type NavId = (typeof SECTION_IDS)[number];
+  type NavId = HomepageSectionId;
 
   function positionSiteFooterIndicator() {
     const pill = document.querySelector(".site-footer-nav-pill");
@@ -137,10 +143,7 @@ const items: Array<{
   }
 
   function scrollToSection(id: NavId) {
-    const el = document.getElementById(id);
-    if (!el) return false;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+    if (!smoothScrollToHomepageSection(id)) return false;
     setActiveNav(id, { updateHash: true });
     return true;
   }
@@ -153,7 +156,7 @@ const items: Array<{
     nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
       link.addEventListener("click", (event) => {
         const id = link.dataset.nav as NavId | undefined;
-        if (!id || !SECTION_IDS.includes(id)) return;
+        if (!id || !isHomepageSectionId(id)) return;
 
         // Already on homepage — smooth-scroll to the section.
         if (document.getElementById(id)) {
@@ -223,7 +226,7 @@ const items: Array<{
     nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
       link.addEventListener("click", () => {
         const id = link.dataset.nav as NavId | undefined;
-        if (!id || !SECTION_IDS.includes(id)) return;
+        if (!id || !isHomepageSectionId(id)) return;
         scrollingTo = id;
         window.clearTimeout(scrollTimer);
         scrollTimer = window.setTimeout(() => {
@@ -238,7 +241,7 @@ const items: Array<{
     const fromQuery = params.get("section");
     const fromHash = location.hash.replace(/^#/, "");
     const target = (fromQuery || fromHash) as NavId;
-    if (SECTION_IDS.includes(target)) {
+    if (isHomepageSectionId(target)) {
       // Defer so layout/fonts settle before scrolling.
       requestAnimationFrame(() => {
         scrollToSection(target);
