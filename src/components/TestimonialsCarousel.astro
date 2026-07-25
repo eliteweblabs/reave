@@ -31,65 +31,37 @@ const testimonials: Testimonial[] = [
     title: "President — Aster Group",
   },
 ];
-
-const count = testimonials.length;
 ---
 
-<section
-  class="testimonials-carousel section--full-bleed"
-  aria-label="Client testimonials"
-  data-testimonials-scroll
-  style={`--testimonial-count: ${count}`}
->
-  <div class="testimonials-scroll-track" data-testimonials-track>
-    <div class="testimonials-sticky">
-      <div
-        class="testimonials-viewport"
-        data-testimonials-carousel
-        tabindex="0"
-        role="region"
-        aria-roledescription="carousel"
-        aria-label="Client testimonials. Tap or scroll to change."
-      >
-        {
-          testimonials.map((testimonial, index) => (
-            <article
-              class="testimonial-slide"
-              data-testimonial-slide
-              data-index={index}
-              aria-hidden={index === 0 ? "false" : "true"}
-            >
-              <blockquote>&ldquo;{testimonial.quote}&rdquo;</blockquote>
-              <p>
-                <strong>{testimonial.name}</strong>, {testimonial.title}
-              </p>
-            </article>
-          ))
-        }
-      </div>
-    </div>
+<section class="testimonials-carousel section--full-bleed" aria-label="Client testimonials">
+  <div
+    class="testimonials-viewport"
+    data-testimonials-carousel
+    tabindex="0"
+    role="region"
+    aria-roledescription="carousel"
+    aria-label="Client testimonials. Swipe or tap to change."
+  >
+    {
+      testimonials.map((testimonial, index) => (
+        <article
+          class:list={["testimonial-slide", index === 0 && "is-active"]}
+          data-testimonial-slide
+          aria-hidden={index === 0 ? "false" : "true"}
+        >
+          <blockquote>&ldquo;{testimonial.quote}&rdquo;</blockquote>
+          <p>
+            <strong>{testimonial.name}</strong>, {testimonial.title}
+          </p>
+        </article>
+      ))
+    }
   </div>
 </section>
 
 <style>
   .testimonials-carousel {
     margin-bottom: 40px;
-  }
-
-  .testimonials-scroll-track {
-    position: relative;
-    height: calc(var(--testimonial-count) * 55dvh);
-    min-height: calc(var(--testimonial-count) * 280px);
-  }
-
-  .testimonials-sticky {
-    position: sticky;
-    top: calc(var(--app-header-h, 3.25rem) + 16px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: min(52dvh, 420px);
-    padding-bottom: 8px;
   }
 
   .testimonials-viewport {
@@ -99,7 +71,9 @@ const count = testimonials.length;
     box-sizing: border-box;
     text-align: center;
     cursor: pointer;
-    touch-action: manipulation;
+    touch-action: pan-y;
+    user-select: none;
+    -webkit-user-select: none;
     outline: none;
   }
 
@@ -116,8 +90,16 @@ const count = testimonials.length;
     align-items: center;
     justify-content: center;
     opacity: 0;
-    will-change: opacity;
+    transition: opacity 0.45s ease;
     pointer-events: none;
+  }
+
+  .testimonial-slide.is-active {
+    opacity: 1;
+  }
+
+  .testimonials-viewport.is-fast .testimonial-slide {
+    transition-duration: 0.18s;
   }
 
   .testimonial-slide blockquote {
@@ -142,20 +124,18 @@ const count = testimonials.length;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .testimonials-scroll-track {
-      height: auto;
-      min-height: 0;
-    }
-
-    .testimonials-sticky {
-      position: relative;
-      top: auto;
-      min-height: 0;
+    .testimonial-slide,
+    .testimonials-viewport.is-fast .testimonial-slide {
+      transition: none;
     }
   }
 </style>
 
 <script>
+  const DISPLAY_MS = 5000;
+  const SWIPE_THRESHOLD_PX = 48;
+  const SCROLL_IDLE_MS = 180;
+
   function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
   }
@@ -164,177 +144,198 @@ const count = testimonials.length;
     if (viewport.dataset.testimonialsInit === "true") return;
     viewport.dataset.testimonialsInit = "true";
 
-    const track = viewport.closest<HTMLElement>("[data-testimonials-track]");
-    if (!track) return;
-
     const slides = Array.from(
       viewport.querySelectorAll<HTMLElement>("[data-testimonial-slide]"),
     );
     const count = slides.length;
     if (count <= 1) return;
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const aboutSection =
+      viewport.closest<HTMLElement>("#about") ||
+      document.getElementById("about");
 
-    if (prefersReducedMotion) {
-      let activeIndex = 0;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-      function showSlide(index: number) {
-        slides.forEach((slide, i) => {
-          slide.style.opacity = i === index ? "1" : "0";
-          slide.setAttribute("aria-hidden", i === index ? "false" : "true");
-        });
-        viewport.setAttribute(
-          "aria-label",
-          `Client testimonial ${index + 1} of ${count}. Tap to advance.`,
-        );
-      }
+    let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
+    if (activeIndex < 0) activeIndex = 0;
 
-      showSlide(activeIndex);
-
-      const advance = () => {
-        activeIndex = (activeIndex + 1) % count;
-        showSlide(activeIndex);
-      };
-
-      viewport.addEventListener("click", advance);
-      viewport.addEventListener("keydown", (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          advance();
-        }
-      });
-
-      return;
-    }
-
-    let rafId = 0;
+    let timerId = 0;
+    let visible = false;
+    let scrolling = false;
+    let scrollIdleTimer = 0;
     let lastScrollY = window.scrollY;
     let lastScrollTime = performance.now();
-    let scrollVelocity = 0;
-    let scrollIdleTimer = 0;
+    let suppressClick = false;
 
-    function getScrollProgress(): number {
-      const rect = track.getBoundingClientRect();
-      const top = window.scrollY + rect.top;
-      const range = Math.max(track.offsetHeight - window.innerHeight, 1);
-      return clamp((window.scrollY - top) / range, 0, 1);
+    function showSlide(nextIndex: number, fast = false) {
+      const index = ((nextIndex % count) + count) % count;
+      viewport.classList.toggle("is-fast", fast);
+      slides.forEach((slide, i) => {
+        const isActive = i === index;
+        slide.classList.toggle("is-active", isActive);
+        slide.setAttribute("aria-hidden", isActive ? "false" : "true");
+      });
+      activeIndex = index;
+      viewport.setAttribute(
+        "aria-label",
+        `Client testimonial ${index + 1} of ${count}. Swipe or tap to change.`,
+      );
     }
 
-    function fadeWidthForVelocity(): number {
-      if (prefersReducedMotion) return 0.08 / count;
-
-      const segment = 1 / count;
-      const normalized = clamp(scrollVelocity * 0.012, 0, 1);
-      return clamp(segment * (0.28 - normalized * 0.22), segment * 0.04, segment * 0.28);
+    function scheduleNext() {
+      window.clearTimeout(timerId);
+      if (!visible || prefersReducedMotion || scrolling) return;
+      timerId = window.setTimeout(() => {
+        if (!visible || scrolling) return;
+        showSlide(activeIndex + 1, false);
+        scheduleNext();
+      }, DISPLAY_MS);
     }
 
-    function opacityForSlide(index: number, progress: number, fadeWidth: number): number {
-      const segStart = index / count;
-      const segEnd = (index + 1) / count;
-      const innerStart = segStart + fadeWidth;
-      const innerEnd = segEnd - fadeWidth;
+    function pauseAutoplayBriefly() {
+      window.clearTimeout(timerId);
+      scheduleNext();
+    }
 
-      if (progress >= innerStart && progress <= innerEnd) return 1;
-      if (progress < segStart || progress > segEnd) return 0;
+    /** Map about-section travel through the viewport → 0..1. */
+    function aboutScrollProgress(): number | null {
+      if (!aboutSection) return null;
+      const rect = aboutSection.getBoundingClientRect();
+      const travel = rect.height + window.innerHeight;
+      if (travel <= 0) return null;
+      return clamp((window.innerHeight - rect.top) / travel, 0, 1);
+    }
 
-      if (progress < innerStart) {
-        return clamp((progress - segStart) / fadeWidth, 0, 1);
+    function syncFromScroll(fast: boolean) {
+      const progress = aboutScrollProgress();
+      if (progress == null) return;
+      const nextIndex = clamp(Math.floor(progress * count), 0, count - 1);
+      if (nextIndex !== activeIndex) {
+        showSlide(nextIndex, fast);
       }
-
-      return clamp((segEnd - progress) / fadeWidth, 0, 1);
-    }
-
-    function applyFrame() {
-      const progress = getScrollProgress();
-      const fadeWidth = fadeWidthForVelocity();
-      let dominantIndex = 0;
-      let dominantOpacity = 0;
-
-      slides.forEach((slide, index) => {
-        const opacity = opacityForSlide(index, progress, fadeWidth);
-        slide.style.opacity = String(opacity);
-
-        if (opacity > dominantOpacity) {
-          dominantOpacity = opacity;
-          dominantIndex = index;
-        }
-      });
-
-      slides.forEach((slide, index) => {
-        slide.setAttribute("aria-hidden", index === dominantIndex ? "false" : "true");
-      });
-
-      viewport.setAttribute("aria-label", `Client testimonial ${dominantIndex + 1} of ${count}. Tap to advance.`);
     }
 
     function onScroll() {
       const now = performance.now();
       const dt = Math.max(now - lastScrollTime, 1);
-      scrollVelocity = Math.abs(window.scrollY - lastScrollY) / dt;
+      const velocity = Math.abs(window.scrollY - lastScrollY) / dt;
       lastScrollY = window.scrollY;
       lastScrollTime = now;
 
-      if (rafId) return;
-      rafId = window.requestAnimationFrame(() => {
-        rafId = 0;
-        applyFrame();
-      });
+      scrolling = true;
+      window.clearTimeout(timerId);
+      syncFromScroll(velocity > 0.35);
 
       window.clearTimeout(scrollIdleTimer);
       scrollIdleTimer = window.setTimeout(() => {
-        scrollVelocity = 0;
-        applyFrame();
-      }, 140);
+        scrolling = false;
+        viewport.classList.remove("is-fast");
+        scheduleNext();
+      }, SCROLL_IDLE_MS);
     }
 
-    function scrollToIndex(index: number, behavior: ScrollBehavior = "smooth") {
-      const rect = track.getBoundingClientRect();
-      const top = window.scrollY + rect.top;
-      const range = Math.max(track.offsetHeight - window.innerHeight, 1);
-      const targetProgress = (index + 0.5) / count;
-      const targetY = top + targetProgress * range;
+    // --- pointer swipe (horizontal) + tap ---
+    let pointerId: number | null = null;
+    let startX = 0;
+    let startY = 0;
+    let dragging = false;
+    let swiped = false;
 
-      window.scrollTo({
-        top: targetY,
-        behavior: prefersReducedMotion ? "auto" : behavior,
-      });
+    function onPointerDown(event: PointerEvent) {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      dragging = true;
+      swiped = false;
+      try {
+        viewport.setPointerCapture(event.pointerId);
+      } catch {
+        /* ignore */
+      }
     }
 
-    function advanceOnTap() {
-      const progress = getScrollProgress();
-      const current = clamp(Math.floor(progress * count), 0, count - 1);
-      scrollToIndex((current + 1) % count);
+    function onPointerMove(event: PointerEvent) {
+      if (!dragging || event.pointerId !== pointerId) return;
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      if (!swiped && Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        swiped = true;
+        suppressClick = true;
+        showSlide(activeIndex + (dx < 0 ? 1 : -1), true);
+        pauseAutoplayBriefly();
+      }
     }
 
-    viewport.addEventListener("click", advanceOnTap);
+    function onPointerUp(event: PointerEvent) {
+      if (event.pointerId !== pointerId) return;
+      dragging = false;
+      pointerId = null;
+      if (viewport.hasPointerCapture(event.pointerId)) {
+        viewport.releasePointerCapture(event.pointerId);
+      }
+      window.setTimeout(() => {
+        suppressClick = false;
+      }, 0);
+    }
+
+    function onClick() {
+      if (suppressClick || swiped) {
+        swiped = false;
+        return;
+      }
+      showSlide(activeIndex + 1, false);
+      pauseAutoplayBriefly();
+    }
+
+    viewport.addEventListener("pointerdown", onPointerDown);
+    viewport.addEventListener("pointermove", onPointerMove);
+    viewport.addEventListener("pointerup", onPointerUp);
+    viewport.addEventListener("pointercancel", onPointerUp);
+    viewport.addEventListener("click", onClick);
 
     viewport.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
+      if (event.key === "Enter" || event.key === " " || event.key === "ArrowRight") {
         event.preventDefault();
-        advanceOnTap();
-      } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        showSlide(activeIndex + 1, false);
+        pauseAutoplayBriefly();
+      } else if (event.key === "ArrowLeft") {
         event.preventDefault();
-        const progress = getScrollProgress();
-        const current = clamp(Math.floor(progress * count), 0, count - 1);
-        scrollToIndex((current + 1) % count);
-      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-        event.preventDefault();
-        const progress = getScrollProgress();
-        const current = clamp(Math.floor(progress * count), 0, count - 1);
-        scrollToIndex((current - 1 + count) % count);
+        showSlide(activeIndex - 1, false);
+        pauseAutoplayBriefly();
       }
     });
+
+    const visibilityObs =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (entries) => {
+              visible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0.15);
+              if (visible) scheduleNext();
+              else window.clearTimeout(timerId);
+            },
+            { root: null, threshold: [0, 0.15, 0.4] },
+          )
+        : null;
+    visibilityObs?.observe(viewport);
 
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
 
-    applyFrame();
+    // Seed from current scroll position, then start autoplay if already visible.
+    syncFromScroll(false);
+    const rect = viewport.getBoundingClientRect();
+    visible = rect.top < window.innerHeight && rect.bottom > 0;
+    if (visible && !prefersReducedMotion) scheduleNext();
 
     return () => {
+      window.clearTimeout(timerId);
+      window.clearTimeout(scrollIdleTimer);
+      visibilityObs?.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
-      window.clearTimeout(scrollIdleTimer);
-      if (rafId) window.cancelAnimationFrame(rafId);
     };
   }
 
