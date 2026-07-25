@@ -50,5 +50,10 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
     }
   }
 
-  return Response.redirect(existing.destination, 302);
+  // Mutable headers — Response.redirect() is immutable and Astro appends
+  // Set-Cookie on GET (not HEAD), which would otherwise 500 the request.
+  return new Response(null, {
+    status: 302,
+    headers: { Location: existing.destination },
+  });
 };
