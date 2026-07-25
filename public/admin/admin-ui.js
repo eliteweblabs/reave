@@ -32,6 +32,8 @@ export const IOS_ICONS = {
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>',
   receipt:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>',
+  undo:
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>',
 };
 
 /** Branded agent control (Lucide hat-glasses / fedora + glasses, gradient background). */
@@ -939,7 +941,7 @@ const SWIPE_ACTIONS = {
   delete: { iconKey: 'trash', className: 'swipe-act swipe-act-delete', label: 'Delete' },
   junk: { iconKey: 'trash', className: 'swipe-act swipe-act-junk', label: 'Junk' },
   receipt: { iconKey: 'receipt', className: 'swipe-act swipe-act-receipt', label: 'Receipt' },
-  clear: { iconKey: 'square', className: 'swipe-act swipe-act-archive', label: 'Clear' },
+  clear: { iconKey: 'undo', className: 'swipe-act swipe-act-archive', label: 'Undo' },
 };
 
 function swipeIconMarkup(iconKey, size = 18) {
