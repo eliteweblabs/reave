@@ -73,9 +73,11 @@ const QUANTUM_BALL_RADIUS = 32.0;
  */
 const HERO_BLEED_FRAC = 0.3;
 
-/** Baseline |Y-spin| after swipe momentum settles (matches prior idle orbit feel). */
+/** Baseline spin speed after swipe momentum settles (rad/sec). */
 const PARTICLE_SPIN_CRUISE = 0.17;
-const PARTICLE_SPIN_MAX = 0.9;
+const PARTICLE_SPIN_MAX = 1.35;
+/** Screen pixels → radians while dragging the cloud (trackball). */
+const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
 
 /** UV band for the A + V characters (3rd & 4th) — light glow trim only (keep brand vibrancy). */
 const LOGO_AV_DAMP_U0 = 0.36;
@@ -218,20 +220,23 @@ function particleSizeMultiplier(i: number): number {
 
 type ParticleDepthLayer = "back" | "front";
 
-/** Size tiers + hemisphere clip so the logo sits inside a rotating particle shell. */
+/**
+ * Size tiers + hemisphere clip so the logo sits inside a freely rotating
+ * particle shell (full trackball / 360°, not Y-only).
+ */
 function attachParticleLayerShader(
   material: THREE.PointsMaterial,
   layer: ParticleDepthLayer,
-): { setSpinY: (y: number) => void } {
-  const uParticleSpinY = { value: 0 };
-  material.customProgramCacheKey = () => `quantum-particle-${layer}-shell`;
+): { setSpinMatrix: (m: THREE.Matrix3) => void } {
+  const uParticleSpin = { value: new THREE.Matrix3() };
+  material.customProgramCacheKey = () => `quantum-particle-${layer}-shell-trackball`;
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uParticleSpinY = uParticleSpinY;
-    shader.vertexShader = `uniform float uParticleSpinY;\nattribute float aSizeMul;\n${shader.vertexShader}`;
+    shader.uniforms.uParticleSpin = uParticleSpin;
+    shader.vertexShader = `uniform mat3 uParticleSpin;\nattribute float aSizeMul;\n${shader.vertexShader}`;
     const layerClip =
       layer === "front"
-        ? "\tfloat spinZ = -position.x * sin(uParticleSpinY) + position.z * cos(uParticleSpinY);\n\tif (spinZ <= 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n"
-        : "\tfloat spinZ = -position.x * sin(uParticleSpinY) + position.z * cos(uParticleSpinY);\n\tif (spinZ > 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n";
+        ? "\tvec3 spun = uParticleSpin * position;\n\tif (spun.z <= 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n"
+        : "\tvec3 spun = uParticleSpin * position;\n\tif (spun.z > 0.0) { gl_Position = vec4(2.0, 2.0, 0.0, 1.0); return; }\n";
     shader.vertexShader = shader.vertexShader.replace(
       /#include <project_vertex>/,
       `${layerClip}\t#include <project_vertex>`,
@@ -242,8 +247,8 @@ function attachParticleLayerShader(
     );
   };
   return {
-    setSpinY(y: number) {
-      uParticleSpinY.value = y;
+    setSpinMatrix(m: THREE.Matrix3) {
+      uParticleSpin.value.copy(m);
     },
   };
 }
@@ -599,10 +604,33 @@ export function attachQuantumCoreOpticalEngine(
     );
   }
 
-  function syncParticleSpinY(): void {
-    const spinY = particleGroup.rotation.y;
-    particleLayerBack.setSpinY(spinY);
-    particleLayerFront.setSpinY(spinY);
+  const spinMat4 = new THREE.Matrix4();
+  const spinMat3 = new THREE.Matrix3();
+  const trackballAxis = new THREE.Vector3();
+  const trackballQuat = new THREE.Quaternion();
+  /** Angular velocity in view space: x = pitch (rad/s), y = yaw (rad/s). */
+  const spinVel = new THREE.Vector2(0, -PARTICLE_SPIN_CRUISE);
+  /** False until the user swipes the cloud — auto Y-spin until then. */
+  let cloudDirected = false;
+  /** True while a cloud drag is actively applying trackball deltas. */
+  let cloudDragging = false;
+
+  function syncParticleSpin(): void {
+    spinMat4.makeRotationFromQuaternion(particleGroup.quaternion);
+    spinMat3.setFromMatrix4(spinMat4);
+    particleLayerBack.setSpinMatrix(spinMat3);
+    particleLayerFront.setSpinMatrix(spinMat3);
+  }
+
+  /** Screen-space trackball: swipe direction → rotation axis ⊥ swipe (full 360°). */
+  function applyTrackballDelta(dx: number, dy: number, radPerPx: number): void {
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) return;
+    /* Swipe right → yaw about Y; swipe down → pitch about X. */
+    trackballAxis.set(dy, dx, 0).normalize();
+    trackballQuat.setFromAxisAngle(trackballAxis, -dist * radPerPx);
+    particleGroup.quaternion.premultiply(trackballQuat);
+    particleGroup.quaternion.normalize();
   }
 
   /* Unit plane — sized in syncLogoDimensions from viewport px caps. */
@@ -787,13 +815,6 @@ export function attachQuantumCoreOpticalEngine(
   let tiltTargetX = 0;
   let tiltTargetY = 0;
 
-  /**
-   * Particle shell Y-spin: integrated angle + velocity. Swipes impart direction;
-   * velocity eases back to a cruise speed in the last chosen direction (instead of
-   * a fixed CW/CCW orbit locked to elapsed time).
-   */
-  let spinAngleY = 0;
-  let spinVelY = -PARTICLE_SPIN_CRUISE;
   let lastSpinSceneT = 0;
   let prevPointerX = 0;
   let prevPointerY = 0;
@@ -823,9 +844,8 @@ export function attachQuantumCoreOpticalEngine(
   let homeGesturePointerId: number | null = null;
 
   /**
-   * Impart cloud motion from pointer travel.
-   * - Horizontal → Y-spin (shell follows the swipe)
-   * - Vertical → pitch tilt (including pull-down on the homepage hero)
+   * Impart cloud motion from pointer travel (trackball).
+   * Swipe direction sets both live 360° rotation and coasting angular velocity.
    * Hover-only mouse moves are ignored — requires an active drag or touch.
    */
   function impartCloudFromPointer(
@@ -857,19 +877,30 @@ export function attachQuantumCoreOpticalEngine(
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
     const coarse = isCoarsePointer() || isTouch;
-    const spinK = coarse ? 0.0034 : 0.0024;
-    const tiltK = coarse ? 0.0028 : 0.0018;
-    const camK = coarse ? 0.00035 : 0.0002;
+    const radPerPx =
+      PARTICLE_TRACKBALL_RAD_PER_PX *
+      (coarse ? 1.35 : 1) *
+      (prefersReduced ? 0.35 : 1);
+    cloudDirected = true;
+    cloudDragging = true;
+    applyTrackballDelta(dx, dy, radPerPx);
 
-    /* Swipe right → shell follows right (negative Y in Three.js). */
-    spinVelY = THREE.MathUtils.clamp(
-      spinVelY - dx * spinK,
-      -PARTICLE_SPIN_MAX,
-      PARTICLE_SPIN_MAX,
-    );
-    /* Swipe down/up tips the cloud; left/right yaws it. */
-    tiltTargetX = THREE.MathUtils.clamp(tiltTargetX + dy * tiltK, -0.55, 0.55);
-    tiltTargetY = THREE.MathUtils.clamp(tiltTargetY + dx * tiltK, -0.62, 0.62);
+    /*
+     * Coasting velocity matches the swipe: pitch from vertical, yaw from
+     * horizontal. Replace (don't only nudge) so the cloud assumes this direction.
+     */
+    /* Match applyTrackballDelta’s sense: negative angle about (dy, dx, 0). */
+    const velFromPx = (1000 / Math.max(dtMs, 8)) * radPerPx;
+    const nextX = -dy * velFromPx;
+    const nextY = -dx * velFromPx;
+    spinVel.x = THREE.MathUtils.lerp(spinVel.x, nextX, 0.55);
+    spinVel.y = THREE.MathUtils.lerp(spinVel.y, nextY, 0.55);
+    const mag = spinVel.length();
+    if (mag > PARTICLE_SPIN_MAX) {
+      spinVel.multiplyScalar(PARTICLE_SPIN_MAX / mag);
+    }
+
+    const camK = coarse ? 0.00028 : 0.00016;
     mouseX = THREE.MathUtils.clamp(mouseX + dx * camK, -0.28, 0.28);
     mouseY = THREE.MathUtils.clamp(mouseY + dy * camK, -0.28, 0.28);
   }
@@ -950,6 +981,7 @@ export function attachQuantumCoreOpticalEngine(
     });
   };
   const onPointerUp = (e: PointerEvent) => {
+    cloudDragging = false;
     if (e.pointerType === "touch" && e.isPrimary) clearParallaxTargets();
     else resetPointerSample();
   };
@@ -1029,6 +1061,7 @@ export function attachQuantumCoreOpticalEngine(
     homeGestureActive = false;
     homeGestureMode = "pending";
     homeGesturePointerId = null;
+    cloudDragging = false;
     resetPointerSample();
     syncScrollIdleWanderFromTargets();
   };
@@ -1063,6 +1096,7 @@ export function attachQuantumCoreOpticalEngine(
     }
   };
   const onHostTouchEnd = () => {
+    cloudDragging = false;
     clearParallaxTargets();
   };
 
@@ -1226,18 +1260,45 @@ export function attachQuantumCoreOpticalEngine(
     const voiceSwell = 1 + mic * 0.032 + burst * 0.02 + wild * 0.015;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
-    /* Integrate swipe-directed spin; ease toward cruise in the current direction. */
+    /*
+     * Trackball spin: auto Y-orbit until first swipe, then coast in the swipe
+     * direction at cruise speed (full 360° on any axis).
+     */
     const spinDt =
-      lastSpinSceneT === 0 ? 0 : Math.min(0.05, Math.max(0, sceneT - lastSpinSceneT));
+      lastSpinSceneT === 0
+        ? 0
+        : Math.min(0.05, Math.max(0, sceneT - lastSpinSceneT));
     lastSpinSceneT = sceneT;
     const spinCruise = inIntro
       ? PARTICLE_SPIN_CRUISE * 0.1
       : PARTICLE_SPIN_CRUISE;
-    const spinSign = spinVelY >= 0 ? 1 : -1;
-    const spinSettle = inIntro ? 0.04 : 0.018;
-    spinVelY += (spinSign * spinCruise - spinVelY) * spinSettle;
-    spinAngleY += spinDt * spinVelY * particleSpeedMult * spinBoost;
-    const rotY = spinAngleY;
+    const spinSettle = inIntro ? 0.04 : 0.02;
+    if (!cloudDragging) {
+      if (!cloudDirected) {
+        spinVel.set(0, -spinCruise);
+      } else {
+        const mag = spinVel.length();
+        if (mag > 1e-5) {
+          const tx = (spinVel.x / mag) * spinCruise;
+          const ty = (spinVel.y / mag) * spinCruise;
+          spinVel.x += (tx - spinVel.x) * spinSettle;
+          spinVel.y += (ty - spinVel.y) * spinSettle;
+        } else {
+          spinVel.set(0, -spinCruise);
+        }
+      }
+      const speed = spinVel.length();
+      if (spinDt > 0 && speed > 1e-6) {
+        trackballAxis.set(spinVel.x, spinVel.y, 0).multiplyScalar(1 / speed);
+        trackballQuat.setFromAxisAngle(
+          trackballAxis,
+          speed * spinDt * particleSpeedMult * spinBoost,
+        );
+        particleGroup.quaternion.premultiply(trackballQuat);
+        particleGroup.quaternion.normalize();
+      }
+    }
+    syncParticleSpin();
     const idleSizeWobble =
       inIntro || isCompactStack || prefersReduced
         ? 0
@@ -1354,8 +1415,6 @@ export function attachQuantumCoreOpticalEngine(
       particlesGeo.attributes.position!.needsUpdate = true;
       particlesGeo.attributes.color!.needsUpdate = true;
 
-      particleGroup.rotation.y = rotY;
-      syncParticleSpinY();
       pulseGroup.scale.set(coverSx, coverSy, 1);
       particleGroup.scale.setScalar(
         PARTICLE_VIS_SCALE * introGatherScale(globalIntroT, useGalaxyIntro),
@@ -1399,8 +1458,6 @@ export function attachQuantumCoreOpticalEngine(
       }
       particlesGeo.attributes.position!.needsUpdate = true;
 
-      particleGroup.rotation.y = rotY;
-      syncParticleSpinY();
       applyBallParticleColors(1, energy);
 
       if (introDurationSec > 0) {
@@ -1461,6 +1518,7 @@ export function attachQuantumCoreOpticalEngine(
       useScrollParallax &&
       !scrollActive &&
       !inIntro &&
+      !cloudDirected &&
       !prefersReduced &&
       !isCompactStack
     ) {
