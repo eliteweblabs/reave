@@ -10224,7 +10224,7 @@ function renderKnowledgeEditor() {
     itemCount: entries.length,
     search: {
       value: search,
-      placeholder: `Search ${entries.length} ${entries.length === 1 ? 'Doc' : 'Docs'}`;
+      placeholder: `Search ${entries.length} ${entries.length === 1 ? 'Doc' : 'Docs'}`,
       onInput: (value) => {
         knowledgeState.search = value;
         refreshKnowledgeSidebarList();
