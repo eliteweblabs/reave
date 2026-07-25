@@ -5,16 +5,42 @@
     {
       "name": "name",
       "type": "text",
+      "required": true,
       "cf-questions": "Whether you have a detailed brief or just an idea, tell us below and we'll respond as soon as we can. You can also press the voice button on the homepage to talk with our assistant.&&What's your name?"
     },
     {
       "name": "email",
       "type": "email",
+      "required": true,
       "cf-questions": "What's the best email to reach you?"
+    },
+    {
+      "name": "company",
+      "type": "text",
+      "required": false,
+      "cf-questions": "What company are you with? (optional)"
+    },
+    {
+      "name": "phone",
+      "type": "tel",
+      "required": false,
+      "cf-questions": "What's the best phone number to reach you? (optional)"
+    },
+    {
+      "name": "sms_opt_in",
+      "type": "select",
+      "required": true,
+      "cf-show-if": "phone",
+      "cf-questions": "Can we text you updates about your inquiry?",
+      "options": [
+        { "value": "yes", "label": "Yes, text me" },
+        { "value": "no", "label": "No thanks" }
+      ]
     },
     {
       "name": "message",
       "type": "textarea",
+      "required": true,
       "cf-questions": "What would you like to talk about?"
     }
   ],

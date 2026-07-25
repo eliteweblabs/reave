@@ -356,6 +356,7 @@ const rootClass = embedded
         return "Type your message…";
       default:
         if (field.name === "name") return "Your name";
+        if (field.name === "company") return "Company name";
         return "Type your answer…";
     }
   }
@@ -387,6 +388,29 @@ const rootClass = embedded
     const trimmed = String(fullName || "").trim();
     if (!trimmed) return "";
     return trimmed.split(/\s+/)[0] || "";
+  }
+
+  function fieldShouldShow(field) {
+    const cond = field["cf-show-if"];
+    if (!cond) return true;
+    if (cond === "phone") {
+      return Boolean(String(formData.phone || "").trim());
+    }
+    const value = formData[cond];
+    return Boolean(String(value || "").trim());
+  }
+
+  function advanceToNextVisibleField() {
+    while (formDef && currentFieldIndex < formDef.fields.length) {
+      const field = formDef.fields[currentFieldIndex];
+      if (fieldShouldShow(field)) return field;
+      currentFieldIndex++;
+    }
+    return null;
+  }
+
+  function showOptionalSkip(onSkip) {
+    showOptionButtons([{ value: "skip", label: "Skip" }], () => onSkip());
   }
 
   function applyPrefill() {
@@ -509,12 +533,12 @@ const rootClass = embedded
   }
 
   async function showQuestion() {
-    if (!formDef || currentFieldIndex >= formDef.fields.length) {
+    const field = advanceToNextVisibleField();
+    if (!field) {
       await submitForm();
       return;
     }
 
-    const field = formDef.fields[currentFieldIndex];
     let questionText = field["cf-questions"] || `What's your ${field.name}?`;
     if (field.name === "email" && formData.name) {
       const firstName = firstNameFrom(formData.name);
@@ -554,6 +578,13 @@ const rootClass = embedded
         userInput().placeholder = placeholderForField(field);
         userInput().value = "";
         userInput().focus();
+      }
+      if (field.required === false) {
+        showOptionalSkip(() => {
+          appendMessage("Skip", "user");
+          currentFieldIndex++;
+          setTimeout(showQuestion, 500);
+        });
       }
     }
   }

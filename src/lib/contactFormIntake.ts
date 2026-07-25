@@ -11,6 +11,7 @@ import { scheduleFormUrl } from './inboundEmailReply';
 import { isEmailSendConfigured, sendEmail } from './outbound';
 import { siteBaseUrl } from './requestOrigin';
 import { parseWorkJobInput } from './workJobInput';
+import { updateContact } from './contactApi';
 import {
   ensureWorkContact,
   isSafeWorkSlug,
@@ -22,6 +23,9 @@ import {
 export type ContactFormIntakeInput = {
   name?: string | null;
   email?: string | null;
+  company?: string | null;
+  phone?: string | null;
+  smsOptIn?: boolean | null;
   message?: string | null;
   subject?: string | null;
   /** Company inbox override from the form (homepage passes support email). */
@@ -49,18 +53,18 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function firstLineTitle(name: string, message: string): string {
-  const trimmed = message.trim().replace(/\s+/g, ' ');
-  if (trimmed) {
-    const slice = trimmed.slice(0, 80);
-    return slice.length < trimmed.length ? `${slice}…` : slice;
-  }
-  return `Website inquiry from ${name || 'visitor'}`;
+function projectTitle(name: string): string {
+  const trimmed = name.trim().replace(/\s+/g, ' ');
+  if (trimmed) return trimmed;
+  return 'Website inquiry';
 }
 
 function projectBody(input: {
   name: string;
   email: string;
+  company?: string;
+  phone?: string;
+  smsOptIn?: boolean | null;
   message: string;
   receivedAt: string;
 }): string {
@@ -69,13 +73,38 @@ function projectBody(input: {
     '',
     `- **From:** ${input.name || 'Unknown'}`,
     `- **Email:** ${input.email || 'N/A'}`,
+  ];
+  if (input.company?.trim()) lines.push(`- **Company:** ${input.company.trim()}`);
+  if (input.phone?.trim()) {
+    lines.push(`- **Phone:** ${input.phone.trim()}`);
+    if (input.smsOptIn != null) {
+      lines.push(`- **SMS opt-in:** ${input.smsOptIn ? 'Yes' : 'No'}`);
+    }
+  }
+  lines.push(
     `- **Received:** ${input.receivedAt}`,
     '',
     '### Message',
     '',
     input.message.trim() || '_(no message)_',
-  ];
+  );
   return lines.join('\n');
+}
+
+async function applyContactFormDetails(
+  uid: string,
+  input: { company?: string; phone?: string },
+): Promise<void> {
+  const patch: { company?: string; phone?: string } = {};
+  const company = String(input.company || '').trim();
+  const phone = String(input.phone || '').trim();
+  if (company) patch.company = company;
+  if (phone) patch.phone = phone;
+  if (!Object.keys(patch).length) return;
+  const updated = await updateContact(uid, patch);
+  if (!updated.ok) {
+    console.warn('[contactFormIntake] contact update failed:', updated.error);
+  }
 }
 
 async function resolveCompanyRecipient(explicitTo?: string | null): Promise<string> {
@@ -92,6 +121,9 @@ async function sendCompanyNotify(opts: {
   to: string;
   name: string;
   email: string;
+  company?: string;
+  phone?: string;
+  smsOptIn?: boolean | null;
   message: string;
   subject: string;
   jobSlug?: string | null;
@@ -100,6 +132,16 @@ async function sendCompanyNotify(opts: {
   const jobLine = opts.jobSlug
     ? `<p><strong>Project:</strong> inquiry <code>${escapeHtml(opts.jobSlug)}</code></p>`
     : '';
+  const companyLine = opts.company?.trim()
+    ? `<p><strong>Company:</strong> ${escapeHtml(opts.company.trim())}</p>`
+    : '';
+  const phoneLine = opts.phone?.trim()
+    ? `<p><strong>Phone:</strong> ${escapeHtml(opts.phone.trim())}</p>`
+    : '';
+  const smsLine =
+    opts.smsOptIn != null
+      ? `<p><strong>SMS opt-in:</strong> ${opts.smsOptIn ? 'Yes' : 'No'}</p>`
+      : '';
   const result = await sendEmail({
     to: opts.to,
     subject: opts.subject,
@@ -108,6 +150,9 @@ async function sendCompanyNotify(opts: {
       '',
       `From: ${opts.name || 'Unknown'}`,
       `Email: ${opts.email || 'N/A'}`,
+      opts.company?.trim() ? `Company: ${opts.company.trim()}` : '',
+      opts.phone?.trim() ? `Phone: ${opts.phone.trim()}` : '',
+      opts.smsOptIn != null ? `SMS opt-in: ${opts.smsOptIn ? 'Yes' : 'No'}` : '',
       opts.jobSlug ? `Project: ${opts.jobSlug}` : '',
       '',
       opts.message,
@@ -118,6 +163,9 @@ async function sendCompanyNotify(opts: {
       <h2>${escapeHtml(opts.subject)}</h2>
       <p><strong>From:</strong> ${escapeHtml(opts.name || 'Unknown')}</p>
       <p><strong>Email:</strong> ${escapeHtml(opts.email || 'N/A')}</p>
+      ${companyLine}
+      ${phoneLine}
+      ${smsLine}
       ${jobLine}
       <hr/>
       <pre style="white-space: pre-wrap; font-family: inherit;">${escapeHtml(opts.message)}</pre>
@@ -178,6 +226,9 @@ export async function processContactFormIntake(
   const warnings: string[] = [];
   const name = String(input.name || '').trim();
   const email = String(input.email || '').trim().toLowerCase();
+  const company = String(input.company || '').trim();
+  const phone = String(input.phone || '').trim();
+  const smsOptIn = input.smsOptIn ?? null;
   const message = String(input.message || '').trim();
   const subject = String(input.subject || 'New contact form message').trim();
   const receivedAt = new Date().toISOString();
@@ -209,7 +260,9 @@ export async function processContactFormIntake(
       contactName = contact.name;
       contactCreated = contact.created;
 
-      const title = firstLineTitle(contact.name, message);
+      await applyContactFormDetails(contact.uid, { company, phone });
+
+      const title = projectTitle(contact.name);
       let slug = slugFromTitle(title);
       if (!slug || !isSafeWorkSlug(slug)) {
         slug = slugFromTitle(`${contact.name}-${Date.now()}`);
@@ -227,7 +280,15 @@ export async function processContactFormIntake(
           contact_name: contact.name,
           status: 'inquiry',
           source: 'contact_form',
-          body: projectBody({ name: contact.name, email, message, receivedAt }),
+          body: projectBody({
+            name: contact.name,
+            email,
+            company,
+            phone,
+            smsOptIn,
+            message,
+            receivedAt,
+          }),
           record_origin: 'contact_form',
         });
 
@@ -264,6 +325,9 @@ export async function processContactFormIntake(
       to: companyTo,
       name: contactName || name,
       email,
+      company,
+      phone,
+      smsOptIn,
       message,
       subject,
       jobSlug,
@@ -278,7 +342,7 @@ export async function processContactFormIntake(
     submitterEmailSent = await sendSubmitterAck({
       name: contactName || name,
       email,
-      jobTitle: jobTitle || firstLineTitle(name, message),
+      jobTitle: jobTitle || projectTitle(contactName || name),
       message,
     });
     if (!submitterEmailSent) warnings.push('submitter_email_failed');

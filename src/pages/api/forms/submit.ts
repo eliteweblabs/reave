@@ -8,6 +8,15 @@ export const POST: APIRoute = async ({ request }) => {
       formData.name || formData.fullName || formData.full_name || '',
     ).trim();
     const email = String(formData.email || '').trim();
+    const company = String(formData.company || '').trim();
+    const phone = String(formData.phone || formData.tel || '').trim();
+    const smsRaw = formData.sms_opt_in ?? formData.smsOptIn;
+    const smsOptIn =
+      smsRaw === 'yes' || smsRaw === true
+        ? true
+        : smsRaw === 'no' || smsRaw === false
+          ? false
+          : null;
     const message = String(formData.message || '').trim();
     const subject = String(formData.subject || 'New form submission').trim();
     const to = formData.to != null ? String(formData.to).trim() : undefined;
@@ -25,6 +34,9 @@ export const POST: APIRoute = async ({ request }) => {
     const result = await processContactFormIntake({
       name,
       email,
+      company,
+      phone,
+      smsOptIn,
       message,
       subject,
       to,
