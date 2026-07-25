@@ -1,12 +1,15 @@
 const PIXELS_PER_SECOND = 28;
-const DRAG_THRESHOLD_PX = 6;
+const DRAG_THRESHOLD_PX = 8;
 
 export type ClientLogosMarqueeOptions = {
   loopCopies?: number;
   velocity?: number;
 };
 
-/** One rAF loop + one offset — autoplay and drag on every device. */
+/**
+ * Infinite logo marquee: one transform offset, one rAF loop.
+ * Autoplay and horizontal swipe work the same on desktop and mobile.
+ */
 export function attachClientLogosMarquee(
   viewport: HTMLElement,
   opts: ClientLogosMarqueeOptions = {},
@@ -34,15 +37,29 @@ export function attachClientLogosMarquee(
   let activePointerId: number | null = null;
   let lastFrameTime = 0;
   let rafId = 0;
-  let offscreen = false;
+  let dragListenersBound = false;
 
   function measure() {
-    const next = track.scrollWidth / loopCopies;
-    if (next > 0) setWidth = next;
+    const items = track.querySelectorAll<HTMLElement>(".client-logo-item");
+    const perSet = Math.floor(items.length / loopCopies);
+    if (perSet > 0) {
+      let width = 0;
+      for (let i = 0; i < perSet; i++) {
+        width += items[i]!.offsetWidth;
+      }
+      if (width > 0) {
+        setWidth = width;
+        return;
+      }
+    }
+
+    const fallback = track.scrollWidth / loopCopies;
+    if (fallback > 0) setWidth = fallback;
   }
 
-  function wrapOffset() {
-    if (setWidth <= 0) return;
+  /** Keep offset in (-setWidth, 0]; skip while dragging so swipes don't snap. */
+  function wrapOffset(force = false) {
+    if (setWidth <= 0 || (dragging && !force)) return;
     while (offset <= -setWidth) offset += setWidth;
     while (offset > 0) offset -= setWidth;
   }
@@ -51,13 +68,12 @@ export function attachClientLogosMarquee(
     track.style.transform = `translate3d(${offset}px, 0, 0)`;
   }
 
-  function shouldAutoplay() {
-    return !prefersReducedMotion && !dragging && !dragPending && !offscreen && setWidth > 0;
+  function canAutoplay() {
+    return !prefersReducedMotion && !dragging && !dragPending && setWidth > 0;
   }
 
   function frame(now: number) {
     rafId = requestAnimationFrame(frame);
-
     if (!running) {
       lastFrameTime = now;
       return;
@@ -66,9 +82,9 @@ export function attachClientLogosMarquee(
     const dt = lastFrameTime ? Math.min((now - lastFrameTime) / 1000, 0.05) : 0;
     lastFrameTime = now;
 
-    if (shouldAutoplay()) {
+    if (canAutoplay()) {
       offset -= velocity * dt;
-      wrapOffset();
+      wrapOffset(true);
       paint();
     }
   }
@@ -86,6 +102,34 @@ export function attachClientLogosMarquee(
     rafId = 0;
   }
 
+  function bindDragListeners() {
+    if (dragListenersBound) return;
+    dragListenersBound = true;
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+  }
+
+  function unbindDragListeners() {
+    if (!dragListenersBound) return;
+    dragListenersBound = false;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+  }
+
+  function finishDrag() {
+    if (!dragging && !dragPending) return;
+
+    dragPending = false;
+    dragging = false;
+    activePointerId = null;
+    viewport.classList.remove("is-dragging");
+    unbindDragListeners();
+    wrapOffset(true);
+    paint();
+  }
+
   function onPointerDown(event: PointerEvent) {
     if (event.button !== 0 && event.pointerType === "mouse") return;
 
@@ -95,6 +139,7 @@ export function attachClientLogosMarquee(
     dragStartX = event.clientX;
     dragStartY = event.clientY;
     dragStartOffset = offset;
+    bindDragListeners();
   }
 
   function onPointerMove(event: PointerEvent) {
@@ -107,10 +152,9 @@ export function attachClientLogosMarquee(
     if (dragPending) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
 
-      // Let vertical pans scroll the page; only capture horizontal swipes.
-      if (Math.abs(dy) > Math.abs(dx)) {
-        dragPending = false;
-        activePointerId = null;
+      // Vertical intent → let the page scroll; abandon the drag.
+      if (Math.abs(dy) > Math.abs(dx) * 1.1) {
+        finishDrag();
         return;
       }
 
@@ -125,19 +169,11 @@ export function attachClientLogosMarquee(
     }
 
     offset = dragStartOffset + dx;
-    wrapOffset();
     paint();
   }
 
-  function endDrag(event: PointerEvent) {
+  function onPointerUp(event: PointerEvent) {
     if (activePointerId !== event.pointerId) return;
-
-    dragPending = false;
-    dragging = false;
-    activePointerId = null;
-    viewport.classList.remove("is-dragging");
-    wrapOffset();
-    paint();
 
     if (viewport.hasPointerCapture(event.pointerId)) {
       try {
@@ -146,43 +182,27 @@ export function attachClientLogosMarquee(
         /* ignore */
       }
     }
+
+    finishDrag();
   }
 
   const onLostPointerCapture = () => {
-    dragPending = false;
-    dragging = false;
-    activePointerId = null;
-    viewport.classList.remove("is-dragging");
-    wrapOffset();
+    finishDrag();
+  };
+
+  const remeasure = () => {
+    measure();
+    wrapOffset(true);
     paint();
   };
 
-  const visibilityObs =
-    "IntersectionObserver" in window
-      ? new IntersectionObserver(
-          (entries) => {
-            offscreen = !entries.some((entry) => entry.isIntersecting);
-          },
-          { root: null, threshold: 0, rootMargin: "64px 0px" },
-        )
-      : null;
-  visibilityObs?.observe(viewport);
-
-  const resizeObs = new ResizeObserver(() => {
-    measure();
-    wrapOffset();
-    paint();
-  });
+  const resizeObs = new ResizeObserver(remeasure);
   resizeObs.observe(viewport);
   resizeObs.observe(track);
 
   track.querySelectorAll("img").forEach((img) => {
     if (!(img as HTMLImageElement).complete) {
-      img.addEventListener("load", () => {
-        measure();
-        wrapOffset();
-        paint();
-      }, { once: true });
+      img.addEventListener("load", remeasure, { once: true });
     }
   });
 
@@ -192,25 +212,18 @@ export function attachClientLogosMarquee(
   };
 
   viewport.addEventListener("pointerdown", onPointerDown);
-  viewport.addEventListener("pointermove", onPointerMove);
-  viewport.addEventListener("pointerup", endDrag);
-  viewport.addEventListener("pointercancel", endDrag);
   viewport.addEventListener("lostpointercapture", onLostPointerCapture);
   document.addEventListener("visibilitychange", onVisibilityChange);
 
-  measure();
-  wrapOffset();
-  paint();
+  remeasure();
+  requestAnimationFrame(remeasure);
   startLoop();
 
   return () => {
     stopLoop();
-    visibilityObs?.disconnect();
+    unbindDragListeners();
     resizeObs.disconnect();
     viewport.removeEventListener("pointerdown", onPointerDown);
-    viewport.removeEventListener("pointermove", onPointerMove);
-    viewport.removeEventListener("pointerup", endDrag);
-    viewport.removeEventListener("pointercancel", endDrag);
     viewport.removeEventListener("lostpointercapture", onLostPointerCapture);
     document.removeEventListener("visibilitychange", onVisibilityChange);
     track.style.removeProperty("transform");
@@ -223,4 +236,14 @@ export function bootClientLogosMarquees(root: ParentNode = document) {
     viewport.dataset.clientLogosInit = "1";
     attachClientLogosMarquee(viewport);
   });
+}
+
+if (typeof document !== "undefined") {
+  const boot = () => bootClientLogosMarquees();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once: true });
+  } else {
+    boot();
+  }
+  document.addEventListener("astro:page-load", boot);
 }

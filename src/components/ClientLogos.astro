@@ -99,6 +99,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     height: auto;
     pointer-events: none;
     user-select: none;
+    -webkit-user-drag: none;
     filter: grayscale(100%) invert(100%);
     opacity: 0.6;
     transition: opacity 0.2s ease;
@@ -128,8 +129,5 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 </style>
 
 <script>
-  import { bootClientLogosMarquees } from "../lib/clientLogosMarquee";
-
-  bootClientLogosMarquees();
-  document.addEventListener("astro:page-load", () => bootClientLogosMarquees());
+  import "../lib/clientLogosMarquee";
 </script>
