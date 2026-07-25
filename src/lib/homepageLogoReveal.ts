@@ -1,12 +1,9 @@
 export function initHomepageLogoReveal() {
   const header = document.querySelector<HTMLElement>(".app-header--homepage-logo-reveal");
   const logo = header?.querySelector<HTMLAnchorElement>(".app-header-logo");
-  const sections = Array.from(
-    document.querySelectorAll<HTMLElement>("[data-home-section]"),
-  );
   const hero = document.getElementById("home");
 
-  if (!header || !logo || !hero || sections.length === 0) return false;
+  if (!header || !logo || !hero) return false;
   if (header.dataset.logoRevealBound === "1") return true;
   header.dataset.logoRevealBound = "1";
 
@@ -37,35 +34,19 @@ export function initHomepageLogoReveal() {
     }, animMs);
   };
 
-  const ratios = new Map<Element, number>();
-
-  const activeSectionId = () => {
-    let bestSection: HTMLElement | null = null;
-    let bestRatio = 0;
-
-    for (const section of sections) {
-      const ratio = ratios.get(section) ?? 0;
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        bestSection = section;
-      }
-    }
-
-    if (!bestSection || bestRatio <= 0.15) {
-      return "home";
-    }
-
-    return bestSection.dataset.homeSection ?? "home";
-  };
+  // Default to hidden until the observer reports; avoids a flash on first paint.
+  let heroRatio = 1;
 
   const update = () => {
-    setVisible(activeSectionId() !== "home");
+    // Show on every section after the hero — not only when a downstream section
+    // wins the footer-nav "best ratio" contest (shorter sections often stay ≤0.15).
+    setVisible(heroRatio <= 0.15);
   };
 
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        ratios.set(entry.target, entry.intersectionRatio);
+        if (entry.target === hero) heroRatio = entry.intersectionRatio;
       });
       update();
     },
@@ -77,7 +58,7 @@ export function initHomepageLogoReveal() {
     },
   );
 
-  sections.forEach((section) => observer.observe(section));
+  observer.observe(hero);
 
   // Deep links: `/#about` or `/?section=about`
   const params = new URLSearchParams(location.search);
