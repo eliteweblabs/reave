@@ -3552,58 +3552,6 @@ function renderHomeDashboard(data) {
       list.appendChild(li);
     }
 
-    const addLi = document.createElement('li');
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'dash-uptime-tile dash-uptime-tile--add';
-    addBtn.innerHTML =
-      `<span class="dash-uptime-add-icon" aria-hidden="true">+</span>` +
-      `<div class="dash-uptime-name">Add site</div>`;
-    addBtn.addEventListener('click', () => showAddUptimeSiteDialog());
-    addLi.appendChild(addBtn);
-    list.appendChild(addLi);
-
-    const linkLi = document.createElement('li');
-    const linkBtn = document.createElement('button');
-    linkBtn.type = 'button';
-    linkBtn.className = 'dash-uptime-tile dash-uptime-tile--add';
-    linkBtn.innerHTML =
-      `<span class="dash-uptime-add-icon" aria-hidden="true">#</span>` +
-      `<div class="dash-uptime-name">Link monitor</div>`;
-    linkBtn.addEventListener('click', () => showLinkUptimeMonitorDialog());
-    linkLi.appendChild(linkBtn);
-    list.appendChild(linkLi);
-
-    const syncLi = document.createElement('li');
-    const syncBtn = document.createElement('button');
-    syncBtn.type = 'button';
-    syncBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync dash-uptime-sync-sites-btn';
-    syncBtn.innerHTML =
-      `<span class="dash-uptime-add-icon" aria-hidden="true">↻</span>` +
-      `<div class="dash-uptime-name">Sync sites</div>`;
-    syncBtn.addEventListener('click', () => syncUptimeSitesFromPlatforms());
-    syncLi.appendChild(syncBtn);
-    list.appendChild(syncLi);
-    if (uptimePlatformSyncActive) {
-      setUptimeSyncButtonBusy(true, { running: true, phase: 'creating' });
-      ensureUptimePlatformSyncPolling();
-    } else {
-      void refreshUptimeSyncButtonState();
-    }
-
-    if (isDeploymentOwnerClient && uptimeConfigured) {
-      const pullLi = document.createElement('li');
-      const pullBtn = document.createElement('button');
-      pullBtn.type = 'button';
-      pullBtn.className = 'dash-uptime-tile dash-uptime-tile--add dash-uptime-tile--sync';
-      pullBtn.innerHTML =
-        `<span class="dash-uptime-add-icon" aria-hidden="true">⟳</span>` +
-        `<div class="dash-uptime-name">Sync status</div>`;
-      pullBtn.addEventListener('click', () => syncUptimeMonitorsFromApi());
-      pullLi.appendChild(pullBtn);
-      list.appendChild(pullLi);
-    }
-
     scroll.appendChild(list);
 
     const recent = Array.isArray(uptimeSummary?.recent_incidents) ? uptimeSummary.recent_incidents : [];
