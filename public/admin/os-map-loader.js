@@ -7543,11 +7543,53 @@ function getRuleEditor() {
   return document.getElementById('rule-editor');
 }
 
+function isRuleExpired(rule) {
+  if (!rule?.expiresAt) return false;
+  const t = new Date(rule.expiresAt).getTime();
+  return Number.isFinite(t) && t <= Date.now();
+}
+
+function formatRuleExpiresLabel(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function toRuleDatetimeLocalValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromRuleDatetimeLocalValue(local) {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function defaultRuleExpiresLocalValue() {
+  const d = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  return toRuleDatetimeLocalValue(d.toISOString());
+}
+
 function ruleSubline(rule) {
   const bits = [];
   if (rule.status) bits.push(rule.status);
   bits.push(rule.notify ? 'Notify' : 'Silent');
   if (!rule.enabled) bits.push('Off');
+  if (rule.expiresAt) {
+    bits.push(isRuleExpired(rule) ? 'Expired' : `Until ${formatRuleExpiresLabel(rule.expiresAt)}`);
+  }
   return bits.join(' · ');
 }
 
@@ -7585,7 +7627,7 @@ async function loadRulesTab() {
 function createRuleListItem(rule, activeId) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false ? ' re-list-disabled' : ''}`;
+  btn.className = `ch-list-item${activeId === rule.id ? ' active' : ''}${rule.enabled === false || isRuleExpired(rule) ? ' re-list-disabled' : ''}`;
   btn.dataset.id = rule.id;
   btn.innerHTML = `
     <span class="ch-item-row">
@@ -7822,6 +7864,36 @@ function renderRuleEditPane(pane) {
   enabledCb.addEventListener('change', () => { ruleState.dirty = true; });
   enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
 
+  const expiresLb = document.createElement('label');
+  expiresLb.className = 're-check';
+  const expiresCb = document.createElement('input');
+  expiresCb.type = 'checkbox';
+  expiresCb.checked = !!rule.expiresAt;
+  expiresLb.append(expiresCb, document.createTextNode(' Expires'));
+
+  const expiresAtIn = document.createElement('input');
+  expiresAtIn.className = 'de-input';
+  expiresAtIn.type = 'datetime-local';
+  expiresAtIn.value = toRuleDatetimeLocalValue(rule.expiresAt);
+  expiresAtIn.disabled = !expiresCb.checked;
+  expiresAtIn.style.marginTop = '0.4rem';
+
+  const expiresWrap = document.createElement('div');
+  expiresWrap.className = 're-expires-field';
+  expiresWrap.appendChild(expiresLb);
+  expiresWrap.appendChild(expiresAtIn);
+
+  const syncExpiresUi = () => {
+    expiresAtIn.disabled = !expiresCb.checked;
+    if (expiresCb.checked && !expiresAtIn.value) {
+      expiresAtIn.value = defaultRuleExpiresLocalValue();
+    }
+    ruleState.dirty = true;
+  };
+  expiresCb.addEventListener('change', syncExpiresUi);
+  expiresAtIn.addEventListener('input', () => { ruleState.dirty = true; });
+  expiresAtIn.addEventListener('change', () => { ruleState.dirty = true; });
+
   appendRuleField(form, 'Title', titleIn);
   appendRuleField(form, 'Status tag', statusIn);
   appendRuleField(form, 'Description', descIn);
@@ -7830,6 +7902,7 @@ function renderRuleEditPane(pane) {
   appendRuleField(form, 'Search in', fieldsWrap);
   form.appendChild(notifyLb);
   form.appendChild(enabledLb);
+  form.appendChild(expiresWrap);
   pane.appendChild(form);
 
   const ruleInputs = {
@@ -7841,6 +7914,8 @@ function renderRuleEditPane(pane) {
     fieldsWrap,
     notifyCb,
     enabledCb,
+    expiresCb,
+    expiresAtIn,
   };
   bindRuleAutosave(rule, ruleInputs);
   clearEditorFooterSave();
@@ -7860,6 +7935,7 @@ function collectRulePayload(inputs) {
     fields: fields.length ? fields : ['subject', 'body'],
     notify: inputs.notifyCb.checked,
     enabled: inputs.enabledCb.checked,
+    expiresAt: inputs.expiresCb.checked ? fromRuleDatetimeLocalValue(inputs.expiresAtIn.value) : null,
   };
 }
 
@@ -7884,6 +7960,7 @@ function syncRuleListItem(id, payload, savedRule) {
   }
   const subEl = item.querySelector('.de-item-slug');
   if (subEl && rule) subEl.textContent = ruleSubline(rule);
+  item.classList.toggle('re-list-disabled', rule?.enabled === false || isRuleExpired(rule));
 }
 
 function bindRuleAutosave(rule, inputs) {
@@ -7901,6 +7978,8 @@ function bindRuleAutosave(rule, inputs) {
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.notifyCb,
     inputs.enabledCb,
+    inputs.expiresCb,
+    inputs.expiresAtIn,
   ];
 
   const flush = async () => {
@@ -7920,6 +7999,10 @@ function bindRuleAutosave(rule, inputs) {
     }
     if (!payload.title || !payload.status) {
       if (activeEl) setFormFieldState(activeEl, 'invalid');
+      return;
+    }
+    if (inputs.expiresCb.checked && !payload.expiresAt) {
+      setFormFieldState(inputs.expiresAtIn, 'invalid');
       return;
     }
 
@@ -8060,6 +8143,7 @@ async function startNewRule() {
         fields: ['subject', 'body'],
         notify: true,
         enabled: true,
+        expiresAt: null,
       }),
     });
     const data = await res.json();
@@ -18989,6 +19073,13 @@ async function askAgentAboutRule(rule) {
     }
     lines.push('', `Enabled: ${rule.enabled !== false ? 'Yes' : 'No'}`);
     lines.push(`Send alert: ${rule.notify ? 'Yes' : 'No'}`);
+    lines.push(
+      `Expires: ${
+        rule.expiresAt
+          ? `${formatRuleExpiresLabel(rule.expiresAt)}${isRuleExpired(rule) ? ' (expired)' : ''}`
+          : 'Indefinite'
+      }`,
+    );
     lines.push('', 'Please suggest improvements or explain how this rule works.');
     await askAgentWithPrompt(lines.join('\n'));
   } catch (e) {

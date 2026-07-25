@@ -16,7 +16,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 
 - **Ingest:** Resend webhook at `/api/email/inbound` (copy mail here; keep reading in Proton).
 - **Cutoff:** Mail whose `Date` header is before go-live is dropped (not triaged, not stored). Cutoff auto-sets to the first webhook time; override with `EMAIL_INBOUND_SINCE`.
-- **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`).
+- **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`). Rules are indefinite by default; optional `expires_at` stops matching after that time (admin Rules toggle, or chat when creating a rule).
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.

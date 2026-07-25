@@ -139,7 +139,7 @@ import { getAgentContext } from '../../agentContext';
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../../companyConfig';
 import { syncVapiAssistantBrand } from '../../vapiAssistantSync';
 import { isVapiAdminConfigured } from '../../vapiPlugin';
-import { storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
+import { parseExpiresAt, storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
 import type { RuleField } from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
@@ -311,6 +311,18 @@ async function handle_delete_email(args: Record<string, unknown>, _ctx: ToolCont
   return JSON.stringify({ ok: true, email_id: emailId, deleted: true });
 }
 
+function resolveRuleExpiresAt(args: Record<string, unknown>): string | null | undefined {
+  const expiresRaw = args.expires_at ?? args.expiresAt;
+  if (expiresRaw != null && String(expiresRaw).trim() !== '') {
+    return parseExpiresAt(expiresRaw);
+  }
+  const daysRaw = args.expires_in_days ?? args.expiresInDays;
+  if (daysRaw == null || daysRaw === '') return null;
+  const days = Number(daysRaw);
+  if (!Number.isFinite(days) || days <= 0) return undefined;
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
 async function handle_create_email_filter_rule(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const sender = String(args.sender ?? '').trim().toLowerCase();
   const extra = Array.isArray(args.phrases)
@@ -318,6 +330,11 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     : [];
   const phrases = [...new Set([...(sender ? [sender] : []), ...extra])];
   if (!phrases.length) return JSON.stringify({ error: 'sender or phrases required' });
+
+  const expiresAt = resolveRuleExpiresAt(args);
+  if (expiresAt === undefined) {
+    return JSON.stringify({ error: 'expires_at / expires_in_days is invalid' });
+  }
 
   const config = await storeListEmailRules();
   const needle = phrases[0].toLowerCase();
@@ -332,7 +349,12 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       ok: true,
       skipped: true,
       reason: 'rule already exists',
-      rule: { id: existing.id, title: existing.title, phrases: existing.phrases },
+      rule: {
+        id: existing.id,
+        title: existing.title,
+        phrases: existing.phrases,
+        expiresAt: existing.expiresAt ?? null,
+      },
     });
   }
 
@@ -348,11 +370,19 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
     fields: sender ? (['from'] as RuleField[]) : (['subject', 'body'] as RuleField[]),
     notify: false,
     enabled: true,
+    expiresAt,
   });
   if (!rule) return JSON.stringify({ error: 'failed to create rule' });
   return JSON.stringify({
     ok: true,
-    rule: { id: rule.id, title: rule.title, status: rule.status, phrases: rule.phrases, fields: rule.fields },
+    rule: {
+      id: rule.id,
+      title: rule.title,
+      status: rule.status,
+      phrases: rule.phrases,
+      fields: rule.fields,
+      expiresAt: rule.expiresAt ?? null,
+    },
   });
 }
 
@@ -471,7 +501,7 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a triage rule so future mail from a sender or matching phrases is auto-classified as junk (status DELETE, no alert). Skips if an enabled rule already matches the same sender phrase.',
+                'Create a triage rule so future mail from a sender or matching phrases is auto-classified as junk (status DELETE, no alert). Rules are indefinite by default. When the user mentions an expiration ("for 7 days", "until Friday", "expires next month"), set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -487,6 +517,16 @@ export const emailInboxModule: AgentToolModule = {
                   title: {
                     type: 'string',
                     description: 'Optional rule title shown in admin Rules UI',
+                  },
+                  expires_at: {
+                    type: 'string',
+                    description:
+                      'Optional ISO timestamp when the rule should stop matching. Omit for indefinite. Use when the user gives a specific end date/time.',
+                  },
+                  expires_in_days: {
+                    type: 'number',
+                    description:
+                      'Optional relative TTL in days from now (e.g. 7 for "for a week"). Prefer this for relative durations. Omit for indefinite.',
                   },
                 },
                 additionalProperties: false,

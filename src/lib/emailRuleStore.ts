@@ -16,6 +16,8 @@ export interface EmailRuleRecord extends EmailRule {
   /** Display title on the Rules canvas. */
   title: string;
   sortOrder: number;
+  /** ISO timestamp when the rule stops matching; null/undefined = indefinite. */
+  expiresAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -48,9 +50,11 @@ CREATE TABLE IF NOT EXISTS email_rules (
   fields      JSONB NOT NULL DEFAULT '["subject","body"]',
   notify      BOOLEAN NOT NULL DEFAULT false,
   enabled     BOOLEAN NOT NULL DEFAULT true,
+  expires_at  TIMESTAMPTZ,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -143,6 +147,45 @@ function normalizeMatchMode(raw: unknown): MatchMode {
   return raw === 'all' ? 'all' : 'any';
 }
 
+/** Parse expires_at from ISO / datetime-local / YYYY-MM-DD. null = indefinite; undefined = invalid. */
+export function parseExpiresAt(raw: unknown): string | null | undefined {
+  if (raw == null || raw === '') return null;
+  const v = String(raw).trim();
+  if (!v || v.toLowerCase() === 'null' || v.toLowerCase() === 'indefinite') return null;
+
+  const localMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (localMatch) {
+    const d = new Date(
+      Number(localMatch[1]),
+      Number(localMatch[2]) - 1,
+      Number(localMatch[3]),
+      Number(localMatch[4]),
+      Number(localMatch[5]),
+      Number(localMatch[6] || 0),
+      0,
+    );
+    if (Number.isNaN(d.getTime())) return undefined;
+    return d.toISOString();
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const [y, m, d] = v.split('-').map(Number);
+    const dt = new Date(y, m - 1, d, 23, 59, 59, 999);
+    if (Number.isNaN(dt.getTime())) return undefined;
+    return dt.toISOString();
+  }
+
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+export function isEmailRuleExpired(rule: { expiresAt?: string | null }, now = Date.now()): boolean {
+  if (!rule.expiresAt) return false;
+  const t = new Date(rule.expiresAt).getTime();
+  return Number.isFinite(t) && t <= now;
+}
+
 function rowToRecord(row: {
   id: string;
   sort_order: number;
@@ -154,6 +197,7 @@ function rowToRecord(row: {
   fields: unknown;
   notify: boolean;
   enabled: boolean;
+  expires_at?: Date | string | null;
   created_at?: Date | string | null;
   updated_at?: Date | string | null;
 }): EmailRuleRecord {
@@ -168,6 +212,7 @@ function rowToRecord(row: {
     fields: normalizeFields(row.fields),
     notify: !!row.notify,
     enabled: !!row.enabled,
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
   };
@@ -194,6 +239,7 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         fields: normalizeFields(r.fields),
         notify: !!r.notify,
         enabled: r.enabled !== false,
+        expiresAt: r.expiresAt ? String(r.expiresAt) : null,
         createdAt: r.createdAt ? String(r.createdAt) : undefined,
         updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
       })),
@@ -254,7 +300,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-              created_at, updated_at
+              expires_at, created_at, updated_at
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -291,8 +337,9 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
     for (const r of config.rules) {
       await pool.query(
         `INSERT INTO email_rules
-          (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, COALESCE($11, now()), COALESCE($12, now()))`,
+          (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
+           expires_at, created_at, updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()))`,
         [
           r.id,
           r.sortOrder,
@@ -304,6 +351,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           JSON.stringify(r.fields),
           r.notify,
           r.enabled,
+          r.expiresAt ? new Date(r.expiresAt) : null,
           r.createdAt ? new Date(r.createdAt) : null,
           r.updatedAt ? new Date(r.updatedAt) : null,
         ]
@@ -353,11 +401,12 @@ async function ensureBuiltinRules(config: EmailRulesConfig): Promise<EmailRulesC
   return merged;
 }
 
-/** Active enabled rules in sort order for classification. */
+/** Active enabled (and non-expired) rules in sort order for classification. */
 export async function loadActiveEmailRules(): Promise<{ rules: EmailRule[]; notifyOnUnmatched: boolean }> {
   const config = await loadEmailRulesConfig();
+  const now = Date.now();
   return {
-    rules: config.rules.filter((r) => r.enabled),
+    rules: config.rules.filter((r) => r.enabled && !isEmailRuleExpired(r, now)),
     notifyOnUnmatched: config.notifyOnUnmatched,
   };
 }
@@ -378,6 +427,8 @@ export type RuleInput = {
   fields: RuleField[];
   notify: boolean;
   enabled: boolean;
+  /** ISO timestamp or null for indefinite. */
+  expiresAt?: string | null;
 };
 
 function sanitizeInput(input: RuleInput): RuleInput | null {
@@ -385,6 +436,8 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
   const status = input.status.trim().toUpperCase().replace(/\s+/g, '_');
   if (!title || !status) return null;
   const phrases = input.phrases.map((p) => p.trim()).filter(Boolean);
+  const expiresAt = parseExpiresAt(input.expiresAt ?? null);
+  if (expiresAt === undefined) return null;
   return {
     title,
     status,
@@ -394,6 +447,7 @@ function sanitizeInput(input: RuleInput): RuleInput | null {
     fields: normalizeFields(input.fields),
     notify: !!input.notify,
     enabled: input.enabled !== false,
+    expiresAt,
   };
 }
 

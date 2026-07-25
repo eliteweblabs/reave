@@ -117,8 +117,8 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
   {
     slash: '/rule',
     summary: 'Create an email filter rule',
-    template: 'Create an email filter rule for sender [address].',
-    example: 'Create an email filter rule for sender noreply@wordpress.com.',
+    template: 'Create an email filter rule for sender [address] (optional: expires in [N] days).',
+    example: 'Create an email filter rule for sender noreply@wordpress.com that expires in 7 days.',
   },
 
   // Personal todos

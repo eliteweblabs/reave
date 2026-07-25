@@ -7,6 +7,7 @@
 import type { APIContext } from 'astro';
 import {
   emailRulesStorageBackend,
+  parseExpiresAt,
   storeCreateEmailRule,
   storeListEmailRules,
   storeSetNotifyOnUnmatched,
@@ -36,6 +37,9 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
         .filter(Boolean);
   const fieldsRaw = body.fields;
   const fields = Array.isArray(fieldsRaw) ? (fieldsRaw as RuleField[]) : (['subject', 'body'] as RuleField[]);
+  const expiresRaw = body.expiresAt !== undefined ? body.expiresAt : body.expires_at;
+  const expiresAt = parseExpiresAt(expiresRaw ?? null);
+  if (expiresAt === undefined) return null;
   return {
     title,
     status,
@@ -45,6 +49,7 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
     fields,
     notify: body.notify === true || body.notify === 'true',
     enabled: body.enabled !== false && body.enabled !== 'false',
+    expiresAt,
   };
 }
 
