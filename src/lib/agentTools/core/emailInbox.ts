@@ -139,7 +139,7 @@ import { getAgentContext } from '../../agentContext';
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../../companyConfig';
 import { syncVapiAssistantBrand } from '../../vapiAssistantSync';
 import { isVapiAdminConfigured } from '../../vapiPlugin';
-import { parseExpiresAt, storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
+import { isEmailRuleExpired, parseExpiresAt, storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
 import type { RuleField } from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
@@ -323,6 +323,30 @@ function resolveRuleExpiresAt(args: Record<string, unknown>): string | null | un
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
+async function handle_list_email_filter_rules(_args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const config = await storeListEmailRules();
+  const now = Date.now();
+  const rules = config.rules.map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    description: r.description ?? null,
+    phrases: r.phrases,
+    fields: r.fields,
+    matchMode: r.matchMode,
+    enabled: r.enabled,
+    expired: isEmailRuleExpired(r, now),
+    expiresAt: r.expiresAt ?? null,
+    createdAt: r.createdAt ?? null,
+  }));
+  return JSON.stringify({
+    ok: true,
+    count: rules.length,
+    notifyOnUnmatched: config.notifyOnUnmatched,
+    rules,
+  });
+}
+
 async function handle_create_email_filter_rule(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const sender = String(args.sender ?? '').trim().toLowerCase();
   const extra = Array.isArray(args.phrases)
@@ -499,6 +523,19 @@ export const emailInboxModule: AgentToolModule = {
           {
             type: 'function',
             function: {
+              name: 'list_email_filter_rules',
+              description:
+                'List all email triage/filter rules (both enabled and disabled). Returns id, title, status, phrases, fields, enabled flag, expiry, and whether the rule is currently expired. Use before create_email_filter_rule to check for duplicates, or when the user asks what rules exist.',
+              parameters: {
+                type: 'object',
+                properties: {},
+                additionalProperties: false,
+              },
+            },
+          },
+          {
+            type: 'function',
+            function: {
               name: 'create_email_filter_rule',
               description:
                 'Create a triage rule so future mail from a sender or matching phrases is auto-classified as junk (status DELETE, no alert). Rules are indefinite by default. When the user mentions an expiration ("for 7 days", "until Friday", "expires next month"), set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
@@ -532,7 +569,7 @@ export const emailInboxModule: AgentToolModule = {
                 additionalProperties: false,
               },
             },
-          }
+          },
     ];
   },
   handlers: {
@@ -542,6 +579,7 @@ export const emailInboxModule: AgentToolModule = {
     'mark_email_receipt': handle_mark_email_receipt,
     'mark_email_routed': handle_mark_email_routed,
     'delete_email': handle_delete_email,
+    'list_email_filter_rules': handle_list_email_filter_rules,
     'create_email_filter_rule': handle_create_email_filter_rule,
   },
 };
