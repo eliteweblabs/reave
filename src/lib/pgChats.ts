@@ -84,7 +84,11 @@ export function isPgChatsConfigured(): boolean {
   return !!databaseUrl();
 }
 
-type ThreadRow = ChatThreadSummary & { archived?: boolean; source_email_id?: string | null };
+type ThreadRow = ChatThreadSummary & {
+  archived?: boolean;
+  source_email_id?: string | null;
+  last_role?: 'user' | 'assistant' | null;
+};
 
 function rowToSummary(row: ThreadRow): ChatThreadSummary {
   return {
@@ -94,6 +98,7 @@ function rowToSummary(row: ThreadRow): ChatThreadSummary {
     created_at: row.created_at,
     archived: !!row.archived,
     source_email_id: row.source_email_id ?? null,
+    last_role: row.last_role ?? null,
   };
 }
 
@@ -104,11 +109,14 @@ export async function pgListChatThreads(
   try {
     const pool = await ensureSchema();
     if (!pool) return null;
-    const archivedFilter = opts?.archivedOnly ? 'AND archived = true' : 'AND archived = false';
+    const archivedFilter = opts?.archivedOnly ? 'AND t.archived = true' : 'AND t.archived = false';
     const { rows } = await pool.query<ThreadRow>(
-      `SELECT id, title, updated_at, created_at, archived, source_email_id
-       FROM chat_threads WHERE user_id = $1 ${archivedFilter}
-       ORDER BY updated_at DESC`,
+      `SELECT t.id, t.title, t.updated_at, t.created_at, t.archived, t.source_email_id,
+              (SELECT m.role FROM chat_messages m
+                WHERE m.thread_id = t.id
+                ORDER BY m.created_at DESC LIMIT 1) AS last_role
+       FROM chat_threads t WHERE t.user_id = $1 ${archivedFilter}
+       ORDER BY t.updated_at DESC`,
       [userId],
     );
     return rows.map(rowToSummary);

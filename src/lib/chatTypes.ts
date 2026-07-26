@@ -37,6 +37,8 @@ export interface ChatThreadSummary {
   archived?: boolean;
   source_email_id?: string | null;
   linked_jobs?: LinkedJobRef[];
+  /** Role of the most recent message, if any — drives the sidebar "unread" dot. */
+  last_role?: ChatTurn['role'] | null;
 }
 
 export interface ChatMessage {

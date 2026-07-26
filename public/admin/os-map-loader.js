@@ -513,6 +513,7 @@ function setActiveMap(key, opts = {}) {
   activateMapPanel(opts);
   syncHealthLifecycle();
   syncEmailPoll();
+  syncChatRunningPoll();
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
@@ -17177,9 +17178,51 @@ let chatState = {
   pendingAutoSend: false,
   disposableChatId: null,
   composeDirty: false,
+  // Thread ids with an in-flight agent run (own tab + polled background runs
+  // in other threads/tabs) — drives the sidebar "working…" spinner.
+  runningIds: new Set(),
 };
 
 const CHAT_LAST_ACTIVE_KEY = 'chat:lastActiveId-v1';
+const CHAT_LAST_SEEN_KEY = 'chat:lastSeenAt-v1';
+
+/** Per-thread "I have seen the latest message" timestamps, keyed by thread id. */
+function readChatSeenMap() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHAT_LAST_SEEN_KEY) || '{}');
+    return raw && typeof raw === 'object' ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+function markChatSeen(threadId, atIso) {
+  if (!threadId) return;
+  try {
+    const map = readChatSeenMap();
+    map[threadId] = atIso || new Date().toISOString();
+    localStorage.setItem(CHAT_LAST_SEEN_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+/** True when a thread's latest message is an unseen assistant reply. */
+function isChatUnread(t) {
+  if (!t || !t.id || t.id === chatState.activeId) return false;
+  if (t.last_role !== 'assistant') return false;
+  const updated = Date.parse(t.updated_at || '');
+  if (!Number.isFinite(updated)) return false;
+  const seenAt = readChatSeenMap()[t.id];
+  if (!seenAt) return true;
+  const seen = Date.parse(seenAt);
+  return !Number.isFinite(seen) || updated > seen;
+}
+
+const CH_SPINNER_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="42" stroke-dashoffset="15" opacity="0.9"/>' +
+  '</svg>';
 
 function readChatLastActiveId() {
   try {
@@ -17558,16 +17601,26 @@ function syncChatSidebarActiveState(opts = {}) {
 
 function createChatListItem(t) {
   const isActive = t.id === chatState.activeId;
+  const isRunning = chatState.runningIds.has(t.id);
+  const isUnread = isChatUnread(t);
   const item = document.createElement('button');
   item.type = 'button';
   item.className =
     'ch-list-item' +
     (isActive ? ' active' : '') +
-    (t.archived ? ' ch-list-item--archived' : '');
+    (t.archived ? ' ch-list-item--archived' : '') +
+    (isRunning ? ' ch-list-item--running' : '') +
+    (isUnread ? ' ch-list-item--unread' : '');
   item.dataset.id = t.id;
   if (isActive) item.setAttribute('aria-current', 'page');
   const archivedIcon = t.archived
     ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
+    : '';
+  const runningIcon = isRunning
+    ? `<span class="ch-item-running" title="Working…" aria-label="Working">${CH_SPINNER_SVG}</span>`
+    : '';
+  const unreadDot = isUnread
+    ? `<span class="ch-item-unread-dot" title="New response" aria-label="New response"></span>`
     : '';
   const linkedSub = formatLinkedJobsSub(t.linked_jobs);
   const subLine = linkedSub
@@ -17578,7 +17631,9 @@ function createChatListItem(t) {
     `<span class="ch-list-content">` +
       `<span class="ch-item-row">` +
         archivedIcon +
+        runningIcon +
         `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
+        unreadDot +
         `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
       `</span>` +
       subLine +
@@ -17588,6 +17643,32 @@ function createChatListItem(t) {
     void openChat(t.id);
   });
   return item;
+}
+
+/**
+ * Patch running-spinner state directly on existing sidebar DOM nodes (called
+ * on every running-poll tick) instead of rebuilding the whole list — keeps
+ * the indicator snappy without flicker or losing scroll/swipe state.
+ */
+function applyChatRunningIndicators() {
+  const root = getChatPanel();
+  if (!root) return;
+  root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((el) => {
+    const running = chatState.runningIds.has(el.dataset.id);
+    el.classList.toggle('ch-list-item--running', running);
+    const row = el.querySelector('.ch-item-row');
+    let icon = el.querySelector('.ch-item-running');
+    if (running && !icon && row) {
+      icon = document.createElement('span');
+      icon.className = 'ch-item-running';
+      icon.title = 'Working…';
+      icon.setAttribute('aria-label', 'Working');
+      icon.innerHTML = CH_SPINNER_SVG;
+      row.insertBefore(icon, row.querySelector('.ch-item-title') || row.firstChild);
+    } else if (!running && icon) {
+      icon.remove();
+    }
+  });
 }
 
 function createChatSwipeRow(t) {
@@ -17631,6 +17712,49 @@ async function refreshChatsListQuiet() {
     refreshChatSidebarList();
   } catch {
     /* keep current list on refresh failure */
+  }
+}
+
+let chatRunningPollTimer = null;
+
+/**
+ * Poll which threads currently have an in-flight agent run (cheap, in-memory
+ * endpoint) so the sidebar spinner stays live even for runs happening in
+ * another thread — including ones that keep going in the background after a
+ * dropped connection. When a run we were tracking disappears, also refresh
+ * the full thread list so title/updated_at/last_role catch up (which is what
+ * lights up the "unread" dot once a background report finishes).
+ */
+async function refreshChatRunningIndicatorsQuiet() {
+  try {
+    const res = await fetch('/api/chats/running', { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const nextIds = new Set(Array.isArray(data.running) ? data.running : []);
+    let justFinished = false;
+    chatState.runningIds.forEach((id) => {
+      if (!nextIds.has(id)) justFinished = true;
+    });
+    chatState.runningIds = nextIds;
+    applyChatRunningIndicators();
+    if (justFinished) void refreshChatsListQuiet();
+  } catch {
+    /* ignore transient poll errors */
+  }
+}
+
+function stopChatRunningPoll() {
+  if (chatRunningPollTimer) {
+    clearInterval(chatRunningPollTimer);
+    chatRunningPollTimer = null;
+  }
+}
+
+function syncChatRunningPoll() {
+  stopChatRunningPoll();
+  if (MAP.type === 'chats' && !document.hidden) {
+    void refreshChatRunningIndicatorsQuiet();
+    chatRunningPollTimer = setInterval(refreshChatRunningIndicatorsQuiet, 3000);
   }
 }
 
@@ -17800,6 +17924,11 @@ function mountChatThreadRoot(threadHost) {
     },
     onAgentRunChange: (running) => {
       chatState.sending = running;
+      const id = chatState.activeId;
+      if (!id) return;
+      if (running) chatState.runningIds.add(id);
+      else chatState.runningIds.delete(id);
+      applyChatRunningIndicators();
     },
     onRefreshMessages: async () => {
       if (!chatState.activeId) return;
@@ -17831,6 +17960,16 @@ function mountChatThreadRoot(threadHost) {
       chatState.composeDirty = false;
       if (chatState.activeId === chatState.disposableChatId) {
         chatState.disposableChatId = null;
+      }
+      // Already watching this thread live — no need for an "unread" dot on it.
+      if (chatState.activeId) {
+        const now = new Date().toISOString();
+        markChatSeen(chatState.activeId, now);
+        const thread = chatState.threads.find((t) => t.id === chatState.activeId);
+        if (thread) {
+          thread.last_role = 'assistant';
+          thread.updated_at = now;
+        }
       }
     },
     onLinkedJobsRefresh: () => {
@@ -17938,6 +18077,7 @@ async function openChat(id, opts = {}) {
     chatState.disposableChatId = null;
     chatState.sending = false;
     rememberChatActiveId(id);
+    markChatSeen(id, data.thread.updated_at);
     const idx = chatState.threads.findIndex((t) => t.id === id);
     if (idx !== -1) {
       chatState.threads[idx] = { ...chatState.threads[idx], linked_jobs: chatState.linkedJobs };
@@ -21300,6 +21440,7 @@ async function boot() {
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();
+  syncChatRunningPoll();
   syncFooterNav();
   syncProfileMenuActive();
   syncTopbarPanelContext();
@@ -21334,11 +21475,13 @@ document.addEventListener('visibilitychange', () => {
     stopHealth();
     stopEmailPoll();
     stopInboxBadgePoll();
+    stopChatRunningPoll();
     stopDeployPoll();
   } else {
     syncHealthLifecycle();
     syncEmailPoll();
     syncInboxBadgePoll();
+    syncChatRunningPoll();
     startDeployPoll();
   }
 });

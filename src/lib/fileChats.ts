@@ -144,6 +144,9 @@ export function fileListChatThreads(
         created_at: parsed.meta.created,
         updated_at: parsed.meta.updated,
         archived: !!parsed.meta.archived,
+        last_role: parsed.messages.length
+          ? parsed.messages[parsed.messages.length - 1].role
+          : null,
       });
     } catch (e) {
       console.error('[chats:file] parse error:', file, e);

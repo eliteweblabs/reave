@@ -3353,6 +3353,46 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .ch-item-archived-icon svg {
         display: block;
       }
+      .ch-item-running {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        color: #0a84ff;
+      }
+      .ch-item-running svg {
+        display: block;
+        animation: ch-item-spin 0.8s linear infinite;
+        transform-origin: 50% 50%;
+      }
+      @keyframes ch-item-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .ch-item-unread-dot {
+        flex-shrink: 0;
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #0a84ff;
+        box-shadow: 0 0 0 3px color-mix(in srgb, #0a84ff 20%, transparent);
+        animation: ch-item-unread-pulse 2s ease-in-out infinite;
+      }
+      @keyframes ch-item-unread-pulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.6;
+          transform: scale(0.8);
+        }
+      }
+      .ch-list-item--unread .ch-item-title {
+        color: var(--fg);
+        font-weight: 700;
+      }
       .ch-item-badge {
         flex-shrink: 0;
         font-size: 0.58rem;

@@ -39,6 +39,16 @@ export function isAgentRunActive(userId: string, threadId: string): boolean {
   return activeRuns.has(runKey(userId, threadId));
 }
 
+/** Thread ids with an in-flight agent run for this user — powers the sidebar "working" indicator. */
+export function listActiveRunThreadIds(userId: string): string[] {
+  const prefix = `${userId}:`;
+  const ids: string[] = [];
+  for (const key of activeRuns.keys()) {
+    if (key.startsWith(prefix)) ids.push(key.slice(prefix.length));
+  }
+  return ids;
+}
+
 export function clearAgentRun(userId: string, threadId: string): void {
   activeRuns.delete(runKey(userId, threadId));
 }
