@@ -139,7 +139,13 @@ import { getAgentContext } from '../../agentContext';
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../../companyConfig';
 import { syncVapiAssistantBrand } from '../../vapiAssistantSync';
 import { isVapiAdminConfigured } from '../../vapiPlugin';
-import { isEmailRuleExpired, parseExpiresAt, storeCreateEmailRule, storeListEmailRules } from '../../emailRuleStore';
+import {
+  isEmailRuleExpired,
+  parseExpiresAt,
+  storeCreateEmailRule,
+  storeDeleteEmailRule,
+  storeListEmailRules,
+} from '../../emailRuleStore';
 import type { RuleField } from '../../emailRules';
 import { MAX_AGENT_EMAIL_BODY } from '../../emailAgentContext';
 import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient';
@@ -410,6 +416,14 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
   });
 }
 
+async function handle_delete_email_filter_rule(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const id = String(args.id ?? '').trim();
+  if (!id) return JSON.stringify({ error: 'id is required' });
+  const ok = await storeDeleteEmailRule(id);
+  if (!ok) return JSON.stringify({ error: 'not found or delete failed', id });
+  return JSON.stringify({ ok: true, deleted: true, id });
+}
+
 export const emailInboxModule: AgentToolModule = {
   id: 'emailInbox',
   enabled: (ctx) => true,
@@ -570,6 +584,25 @@ export const emailInboxModule: AgentToolModule = {
               },
             },
           },
+          {
+            type: 'function',
+            function: {
+              name: 'delete_email_filter_rule',
+              description:
+                'Permanently delete an email triage/filter rule by id. Use only when the user explicitly asks to remove a rule. Call list_email_filter_rules first to get the id.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    description: 'Rule id from list_email_filter_rules',
+                  },
+                },
+                required: ['id'],
+                additionalProperties: false,
+              },
+            },
+          },
     ];
   },
   handlers: {
@@ -581,5 +614,6 @@ export const emailInboxModule: AgentToolModule = {
     'delete_email': handle_delete_email,
     'list_email_filter_rules': handle_list_email_filter_rules,
     'create_email_filter_rule': handle_create_email_filter_rule,
+    'delete_email_filter_rule': handle_delete_email_filter_rule,
   },
 };
