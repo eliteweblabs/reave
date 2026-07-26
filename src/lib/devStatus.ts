@@ -39,7 +39,7 @@ function healthUrl(): string {
 }
 
 /** Repo-level status: branch, latest commits, branch count, deployed delta. */
-export async function getGitStatus(opts: { branch?: string; limit?: number } = {}): Promise<
+export async function getGitStatus(opts: { repo?: string; branch?: string; limit?: number } = {}): Promise<
   StatusResult<{
     repo: string;
     branch: string;
@@ -51,14 +51,14 @@ export async function getGitStatus(opts: { branch?: string; limit?: number } = {
     local_working_tree: string;
   }>
 > {
-  const branchRes = opts.branch ? ({ ok: true, data: opts.branch } as const) : await githubGetDefaultBranch();
+  const branchRes = opts.branch ? ({ ok: true, data: opts.branch } as const) : await githubGetDefaultBranch(opts.repo);
   if (!branchRes.ok) return { ok: false, error: branchRes.error };
   const branch = branchRes.data;
 
-  const commitsRes = await githubListCommits({ branch, perPage: opts.limit ?? 8 });
+  const commitsRes = await githubListCommits({ repo: opts.repo, branch, perPage: opts.limit ?? 8 });
   if (!commitsRes.ok) return { ok: false, error: commitsRes.error };
 
-  const branchesRes = await githubListBranches({ perPage: 100 });
+  const branchesRes = await githubListBranches({ repo: opts.repo, perPage: 100 });
   const branchCount = branchesRes.ok ? branchesRes.data.length : 0;
 
   const latestSha = commitsRes.data[0]?.sha ?? null;
@@ -68,7 +68,7 @@ export async function getGitStatus(opts: { branch?: string; limit?: number } = {
   if (deployed && latestSha) {
     deployedIsLatest = deployed === latestSha;
     if (!deployedIsLatest) {
-      const cmp = await githubCompare(deployed, latestSha);
+      const cmp = await githubCompare(deployed, latestSha, opts.repo);
       behind = cmp.ok ? cmp.data.ahead_by : null;
     } else {
       behind = 0;
@@ -78,7 +78,7 @@ export async function getGitStatus(opts: { branch?: string; limit?: number } = {
   return {
     ok: true,
     data: {
-      repo: githubRepoSlug(),
+      repo: opts.repo ?? githubRepoSlug(),
       branch,
       latest_commits: commitsRes.data,
       branch_count: branchCount,
@@ -92,18 +92,19 @@ export async function getGitStatus(opts: { branch?: string; limit?: number } = {
 }
 
 export async function getRecentCommits(opts: {
+  repo?: string;
   branch?: string;
   limit?: number;
   with_files?: boolean;
 }): Promise<StatusResult<{ repo: string; branch: string | null; commits: unknown[] }>> {
-  const commitsRes = await githubListCommits({ branch: opts.branch, perPage: opts.limit ?? 5 });
+  const commitsRes = await githubListCommits({ repo: opts.repo, branch: opts.branch, perPage: opts.limit ?? 5 });
   if (!commitsRes.ok) return { ok: false, error: commitsRes.error };
 
   let commits: unknown[] = commitsRes.data;
   if (opts.with_files) {
     const detailed = [] as unknown[];
     for (const c of commitsRes.data) {
-      const d = await githubGetCommit(c.sha);
+      const d = await githubGetCommit(c.sha, opts.repo);
       if (d.ok) {
         detailed.push({
           ...c,
@@ -120,7 +121,7 @@ export async function getRecentCommits(opts: {
   return {
     ok: true,
     data: {
-      repo: githubRepoSlug(),
+      repo: opts.repo ?? githubRepoSlug(),
       branch: opts.branch ?? null,
       commits,
     },
@@ -128,14 +129,14 @@ export async function getRecentCommits(opts: {
 }
 
 /** Branches with how far ahead/behind the default branch they are. */
-export async function listOpenBranches(): Promise<
+export async function listOpenBranches(opts: { repo?: string } = {}): Promise<
   StatusResult<{ repo: string; default_branch: string; branches: unknown[] }>
 > {
-  const defRes = await githubGetDefaultBranch();
+  const defRes = await githubGetDefaultBranch(opts.repo);
   if (!defRes.ok) return { ok: false, error: defRes.error };
   const def = defRes.data;
 
-  const branchesRes = await githubListBranches({ perPage: 100 });
+  const branchesRes = await githubListBranches({ repo: opts.repo, perPage: 100 });
   if (!branchesRes.ok) return { ok: false, error: branchesRes.error };
 
   const out: unknown[] = [];
@@ -144,7 +145,7 @@ export async function listOpenBranches(): Promise<
       out.push({ name: b.name, default: true, short_sha: b.short_sha, protected: b.protected });
       continue;
     }
-    const cmp = await githubCompare(def, b.name);
+    const cmp = await githubCompare(def, b.name, opts.repo);
     out.push({
       name: b.name,
       default: false,
@@ -155,7 +156,7 @@ export async function listOpenBranches(): Promise<
     });
   }
 
-  return { ok: true, data: { repo: githubRepoSlug(), default_branch: def, branches: out } };
+  return { ok: true, data: { repo: opts.repo ?? githubRepoSlug(), default_branch: def, branches: out } };
 }
 
 /** Is the latest pushed code actually live? Compares deployed SHA to GitHub + health ping. */
