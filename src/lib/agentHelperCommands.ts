@@ -254,6 +254,13 @@ const HELPER_MANIFEST: HelperManifestEntry[] = [
     example: 'Run DNS check for acme.com.',
     feature: 'site_audits',
   },
+  {
+    slash: '/techstack',
+    summary: 'Detect tech stack (Wappalyzer-style)',
+    template: 'What is [url] built with? Detect the tech stack.',
+    example: 'What is https://acme.com built with? Detect the tech stack.',
+    feature: 'site_audits',
+  },
 
   // Site monitoring (plugin)
   {
