@@ -17616,24 +17616,22 @@ function createChatListItem(t) {
   const archivedIcon = t.archived
     ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
     : '';
-  const runningIcon = isRunning
-    ? `<span class="ch-item-running" title="Working…" aria-label="Working">${CH_SPINNER_SVG}</span>`
-    : '';
-  const unreadDot = isUnread
-    ? `<span class="ch-item-unread-dot" title="New response" aria-label="New response"></span>`
-    : '';
+  // Always render the running-icon slot (fixed size, visibility toggled via
+  // the `is-active` class) and the unread dot as an absolutely-positioned
+  // sibling — neither ever gets inserted/removed from the DOM, so toggling
+  // them on and off can never reflow or "jump" the row.
   const linkedSub = formatLinkedJobsSub(t.linked_jobs);
   const subLine = linkedSub
     ? `<span class="ch-item-sub project-link-sub">${escHtml(linkedSub)}</span>`
     : '';
   item.innerHTML =
     SIDEBAR_LIST_GRIP +
+    `<span class="ch-item-unread-dot" title="New response" aria-label="New response"></span>` +
     `<span class="ch-list-content">` +
       `<span class="ch-item-row">` +
         archivedIcon +
-        runningIcon +
+        `<span class="ch-item-running${isRunning ? ' is-active' : ''}" title="Working…" aria-label="Working">${CH_SPINNER_SVG}</span>` +
         `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
-        unreadDot +
         `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
       `</span>` +
       subLine +
@@ -17647,8 +17645,9 @@ function createChatListItem(t) {
 
 /**
  * Patch running-spinner state directly on existing sidebar DOM nodes (called
- * on every running-poll tick) instead of rebuilding the whole list — keeps
- * the indicator snappy without flicker or losing scroll/swipe state.
+ * on every running-poll tick) instead of rebuilding the whole list. Only
+ * toggles classes on an always-present, fixed-size slot — never
+ * inserts/removes elements — so it can't reflow or "jump" the row.
  */
 function applyChatRunningIndicators() {
   const root = getChatPanel();
@@ -17656,18 +17655,7 @@ function applyChatRunningIndicators() {
   root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((el) => {
     const running = chatState.runningIds.has(el.dataset.id);
     el.classList.toggle('ch-list-item--running', running);
-    const row = el.querySelector('.ch-item-row');
-    let icon = el.querySelector('.ch-item-running');
-    if (running && !icon && row) {
-      icon = document.createElement('span');
-      icon.className = 'ch-item-running';
-      icon.title = 'Working…';
-      icon.setAttribute('aria-label', 'Working');
-      icon.innerHTML = CH_SPINNER_SVG;
-      row.insertBefore(icon, row.querySelector('.ch-item-title') || row.firstChild);
-    } else if (!running && icon) {
-      icon.remove();
-    }
+    el.querySelector('.ch-item-running')?.classList.toggle('is-active', running);
   });
 }
 

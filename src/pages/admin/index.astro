@@ -3264,6 +3264,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         padding: 0.5rem 0.5rem var(--footer-scroll-pad);
       }
       .ch-list-item {
+        position: relative;
         width: 100%;
         max-width: 100%;
         min-width: 0;
@@ -3353,11 +3354,26 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .ch-item-archived-icon svg {
         display: block;
       }
+      /*
+       * Both indicators are designed to never shift layout when they toggle
+       * on/off: the running icon is a permanent fixed-size slot (only its
+       * visibility/opacity is toggled, so it never changes box size), and the
+       * unread dot is fully removed from flow via absolute positioning.
+       */
       .ch-item-running {
         flex-shrink: 0;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
+        width: 12px;
+        height: 12px;
         color: #0a84ff;
+        opacity: 0;
+        visibility: hidden;
+      }
+      .ch-item-running.is-active {
+        opacity: 1;
+        visibility: visible;
       }
       .ch-item-running svg {
         display: block;
@@ -3370,12 +3386,21 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         }
       }
       .ch-item-unread-dot {
-        flex-shrink: 0;
+        position: absolute;
+        top: 5px;
+        right: 6px;
         width: 7px;
         height: 7px;
         border-radius: 999px;
         background: #0a84ff;
         box-shadow: 0 0 0 3px color-mix(in srgb, #0a84ff 20%, transparent);
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+      }
+      .ch-list-item--unread .ch-item-unread-dot {
+        opacity: 1;
+        visibility: visible;
         animation: ch-item-unread-pulse 2s ease-in-out infinite;
       }
       @keyframes ch-item-unread-pulse {
@@ -8668,6 +8693,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260725c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260726a"></script>
   </body>
 </html>
