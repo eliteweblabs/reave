@@ -415,6 +415,37 @@ export function emailInboxStorageBackend(): 'postgres' | 'files' {
   return databaseUrl() ? 'postgres' : 'files';
 }
 
+/** Matches admin inbox "Projects" tab — category project or legacy job match. */
+export function isEmailInboxProject(
+  record: Pick<EmailInboxRecord, 'category' | 'jobSlug' | 'action'>,
+): boolean {
+  const category = String(record.category || '').toLowerCase();
+  if (category === 'project') return true;
+  return Boolean(record.jobSlug) && String(record.action || '').toLowerCase() === 'matched';
+}
+
+/** Matches admin inbox "Archive" tab — filed/routed mail not shown under Projects. */
+export function isEmailInboxRouted(
+  record: Pick<EmailInboxRecord, 'category' | 'jobSlug' | 'action'>,
+): boolean {
+  if (isEmailInboxProject(record)) return false;
+  const action = String(record.action || '').toLowerCase();
+  return action === 'filed' || action === 'matched';
+}
+
+/** Matches admin inbox default "All" tab — active mail still in the working queue. */
+export function isEmailInboxActive(
+  record: Pick<EmailInboxRecord, 'category' | 'jobSlug' | 'action'>,
+): boolean {
+  const category = String(record.category || '').toLowerCase();
+  return (
+    category !== 'junk' &&
+    category !== 'receipt' &&
+    !isEmailInboxProject(record) &&
+    !isEmailInboxRouted(record)
+  );
+}
+
 export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean): EmailInboxDigest {
   const junkHidden = events.filter((e) => e.category === 'junk').length;
   const visibleEvents = hideJunk ? events.filter((e) => e.category !== 'junk') : events;

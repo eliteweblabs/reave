@@ -8,7 +8,11 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
-import { computeInboxDigest, storeListEmailInbox } from '../../../lib/emailInboxStore';
+import {
+  computeInboxDigest,
+  isEmailInboxActive,
+  storeListEmailInbox,
+} from '../../../lib/emailInboxStore';
 import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
 import {
   countProjectCommentNotifications,
@@ -164,7 +168,7 @@ export async function GET(context: APIContext): Promise<Response> {
     if (listed.ok) clientsTotal = listed.data.total;
   }
 
-  const recentEmails = events.slice(0, 5).map((e) => ({
+  const recentEmails = inboxForCount.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
     id: e.id,
     subject: e.subject || '(no subject)',
     from: e.from || '',
