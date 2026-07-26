@@ -542,6 +542,30 @@ async function runKnowledgeAgentInner(
     });
   };
 
+  const completedStreamTexts: string[] = [];
+  let activeRoundStreamText = '';
+  const assistantTextFromContent = (blocks: AnthropicContentBlock[]) =>
+    blocks
+      .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n')
+      .trim();
+  const emitStreamedText = () => {
+    if (!stream?.onText) return;
+    const parts = [...completedStreamTexts];
+    if (activeRoundStreamText.trim()) parts.push(activeRoundStreamText);
+    const cumulative = parts.join('\n\n');
+    stream.onText(cumulative);
+    const { userId, threadId } = getAgentContext();
+    if (userId && threadId) appendAgentPartialText(userId, threadId, cumulative);
+  };
+  const finishRoundStream = (finalRoundText?: string) => {
+    const roundText = (finalRoundText ?? activeRoundStreamText).trim();
+    if (roundText) completedStreamTexts.push(roundText);
+    activeRoundStreamText = '';
+    emitStreamedText();
+  };
+
   for (let round = 0; round < maxRounds; round++) {
     throwIfAborted(stream?.signal);
     emitProgress({ phase: 'thinking', round: round + 1 });
@@ -559,12 +583,11 @@ async function runKnowledgeAgentInner(
     let content: AnthropicContentBlock[] = [];
 
     if (stream) {
-      const { userId, threadId } = getAgentContext();
       const result = await streamAnthropicMessage(apiBody, {
         signal: stream.signal,
         onText: (text) => {
-          stream.onText?.(text);
-          if (userId && threadId) appendAgentPartialText(userId, threadId, text);
+          activeRoundStreamText = text;
+          emitStreamedText();
         },
       });
       if (!result.ok) {
@@ -586,6 +609,7 @@ async function runKnowledgeAgentInner(
     }
 
     if (stopReason === 'tool_use') {
+      if (stream) finishRoundStream(assistantTextFromContent(content));
       messages.push({ role: 'assistant', content });
       const toolResults: AnthropicContentBlock[] = [];
       for (const block of content) {

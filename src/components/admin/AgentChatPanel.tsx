@@ -453,8 +453,11 @@ function createChatAdapter(
                 round: typeof data.round === 'number' ? data.round : undefined,
               });
             } else if (event === 'text' && typeof data.text === 'string') {
-              streamedText = data.text;
-              yield { content: [{ type: 'text', text: streamedText }] };
+              // Ignore shrinking updates (e.g. a new Anthropic round starting with "").
+              if (data.text.length >= streamedText.length) {
+                streamedText = data.text;
+                yield { content: [{ type: 'text', text: streamedText }] };
+              }
             } else if (event === 'done') {
               if (data.ok === false) {
                 throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
@@ -467,7 +470,9 @@ function createChatAdapter(
                 propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
               }
               const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
-              yield { content: [{ type: 'text', text: assistantText }] };
+              if (assistantText !== streamedText) {
+                yield { content: [{ type: 'text', text: assistantText }] };
+              }
               return;
             } else if (event === 'error') {
               throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
@@ -525,8 +530,13 @@ function PendingDraftBoot({
   return null;
 }
 
-function AssistantTextPart(props: { text?: string }) {
-  const { text, buttons } = useChatRenderer(props.text ?? '');
+function AssistantTextPart(props: { text?: string; status?: { type?: string } }) {
+  const isStreaming = props.status?.type === 'running';
+  const { text, buttons } = useChatRenderer(props.text ?? '', { skipStructured: isStreaming });
+
+  if (isStreaming) {
+    return text ? <span className="aui-text aui-text-streaming">{text}</span> : null;
+  }
 
   return (
     <>
@@ -1068,12 +1078,12 @@ function lastAssistantMessageText(
 
 function scrollAnchorIntoView(anchor: HTMLElement | null) {
   if (!anchor) return;
-  const run = () => anchor.scrollIntoView({ block: 'end' });
-  run();
-  requestAnimationFrame(() => {
-    run();
-    requestAnimationFrame(run);
-  });
+  const viewport = anchor.closest('.aui-viewport');
+  if (viewport instanceof HTMLElement) {
+    viewport.scrollTop = viewport.scrollHeight;
+    return;
+  }
+  anchor.scrollIntoView({ block: 'end' });
 }
 
 /** Keep the viewport pinned to the latest content while the agent streams. */
