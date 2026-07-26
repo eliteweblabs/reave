@@ -180,18 +180,23 @@ function normalizeCommit(c: RawCommit): GithubCommit {
   };
 }
 
-export async function githubGetDefaultBranch(): Promise<GithubResult<string>> {
-  const res = await ghFetch<{ default_branch?: string }>(`/repos/${githubRepoSlug()}`);
+export async function githubGetDefaultBranch(repo?: string): Promise<GithubResult<string>> {
+  const repoRes = resolveRepo(repo);
+  if (!repoRes.ok) return repoRes;
+  const res = await ghFetch<{ default_branch?: string }>(`/repos/${repoRes.data}`);
   if (!res.ok) return res;
   return { ok: true, data: res.data.default_branch || 'main' };
 }
 
 export async function githubListCommits(opts: {
+  repo?: string;
   branch?: string;
   perPage?: number;
 }): Promise<GithubResult<GithubCommit[]>> {
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
   const perPage = Math.min(Math.max(opts.perPage ?? 5, 1), 30);
-  const res = await ghFetch<RawCommit[]>(`/repos/${githubRepoSlug()}/commits`, {
+  const res = await ghFetch<RawCommit[]>(`/repos/${repoRes.data}/commits`, {
     query: { sha: opts.branch, per_page: perPage },
   });
   if (!res.ok) return res;
@@ -203,13 +208,15 @@ export type GithubCommitDetail = GithubCommit & {
   stats?: { additions: number; deletions: number; total: number };
 };
 
-export async function githubGetCommit(sha: string): Promise<GithubResult<GithubCommitDetail>> {
+export async function githubGetCommit(sha: string, repo?: string): Promise<GithubResult<GithubCommitDetail>> {
+  const repoRes = resolveRepo(repo);
+  if (!repoRes.ok) return repoRes;
   const res = await ghFetch<
     RawCommit & {
       stats?: { additions: number; deletions: number; total: number };
       files?: Array<{ filename: string; status: string; additions: number; deletions: number }>;
     }
-  >(`/repos/${githubRepoSlug()}/commits/${encodeURIComponent(sha)}`);
+  >(`/repos/${repoRes.data}/commits/${encodeURIComponent(sha)}`);
   if (!res.ok) return res;
   return {
     ok: true,
@@ -233,10 +240,12 @@ export type GithubBranch = {
   protected: boolean;
 };
 
-export async function githubListBranches(opts: { perPage?: number } = {}): Promise<GithubResult<GithubBranch[]>> {
+export async function githubListBranches(opts: { repo?: string; perPage?: number } = {}): Promise<GithubResult<GithubBranch[]>> {
+  const repoRes = resolveRepo(opts.repo);
+  if (!repoRes.ok) return repoRes;
   const perPage = Math.min(Math.max(opts.perPage ?? 30, 1), 100);
   const res = await ghFetch<Array<{ name: string; protected?: boolean; commit: { sha: string } }>>(
-    `/repos/${githubRepoSlug()}/branches`,
+    `/repos/${repoRes.data}/branches`,
     { query: { per_page: perPage } }
   );
   if (!res.ok) return res;
@@ -258,9 +267,11 @@ export type GithubComparison = {
 };
 
 /** Compare base...head (how far head is ahead/behind base). */
-export async function githubCompare(base: string, head: string): Promise<GithubResult<GithubComparison>> {
+export async function githubCompare(base: string, head: string, repo?: string): Promise<GithubResult<GithubComparison>> {
+  const repoRes = resolveRepo(repo);
+  if (!repoRes.ok) return repoRes;
   const res = await ghFetch<{ status?: string; ahead_by?: number; behind_by?: number }>(
-    `/repos/${githubRepoSlug()}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
+    `/repos/${repoRes.data}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`
   );
   if (!res.ok) return res;
   return {
