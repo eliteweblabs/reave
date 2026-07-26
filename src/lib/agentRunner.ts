@@ -641,13 +641,15 @@ async function runKnowledgeAgentInner(
       .join('\n')
       .trim();
 
-    // Anti-stall: the model either got cut off mid-turn (max_tokens) or ended
-    // its turn with a future-tense promise but never called a tool. Both leave
-    // the user staring at "Now writing all three pages…" while nothing happens.
-    // Re-prompt it to actually execute, up to MAX_STALL_NUDGES times, instead of
-    // silently returning the dead-end preamble.
+    // Anti-stall: the model either got cut off mid-turn (max_tokens), ended its
+    // turn with a future-tense promise but never called a tool, or produced no
+    // text and no tool call at all (blank turn). All three leave the user
+    // staring at nothing happening. Re-prompt it to actually execute or answer,
+    // up to MAX_STALL_NUDGES times, instead of silently returning a dead-end
+    // preamble or a bare internal placeholder the user has no way to interpret.
     const truncated = stopReason === 'max_tokens';
-    if ((truncated || looksLikeUnfulfilledPromise(text)) && stallNudges < MAX_STALL_NUDGES) {
+    const blank = !text;
+    if ((truncated || blank || looksLikeUnfulfilledPromise(text)) && stallNudges < MAX_STALL_NUDGES) {
       stallNudges++;
       messages.push(assistantTextMessageFor(content, '(interrupted)'));
       messages.push({
@@ -657,7 +659,9 @@ async function runKnowledgeAgentInner(
             type: 'text',
             text: truncated
               ? 'Your previous response was cut off before the action completed. Continue now and finish the task by calling the required tools in this turn — do not restate the plan, just execute it.'
-              : 'You described what you were going to do but did not call any tools, so nothing actually happened. Execute it now by invoking the tools in this same turn. Do not reply with another plan or a future-tense promise ("I\'ll…", "Let me…"). If you genuinely cannot proceed, say exactly why instead.',
+              : blank
+                ? 'Your previous turn produced no text and no tool call, so nothing happened and the user saw no reply. Answer the user\'s message now, or call the necessary tool(s) if action is required.'
+                : 'You described what you were going to do but did not call any tools, so nothing actually happened. Execute it now by invoking the tools in this same turn. Do not reply with another plan or a future-tense promise ("I\'ll…", "Let me…"). If you genuinely cannot proceed, say exactly why instead.',
           },
         ],
       });
@@ -665,7 +669,11 @@ async function runKnowledgeAgentInner(
       continue;
     }
 
-    return finalizeAgentReply(text || '(no text)', userText);
+    return finalizeAgentReply(
+      text ||
+        'Sorry — I hit an internal snag and didn\'t generate a reply to that. Please try asking again.',
+      userText,
+    );
   }
 
   return finalizeAgentReply(

@@ -26,6 +26,7 @@ import {
   clearAgentRun,
   registerAgentRun,
 } from '../../../lib/agentRunControl';
+import { getAgentProgress } from '../../../lib/agentProgress';
 import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
@@ -140,6 +141,32 @@ async function persistAssistantReply(
   };
 }
 
+/**
+ * Build (and best-effort persist) a record of a turn that never produced a
+ * normal reply — cancelled, errored, or the process died mid-run. Without
+ * this, an interrupted run leaves the user's question saved with NO answer
+ * at all, so the next time they ask "how's it going?" the assistant has zero
+ * memory of ever having started the task. Whatever text had streamed so far
+ * (tracked via agentProgress) is preserved so the model has real context on
+ * the next turn instead of drawing a blank.
+ */
+async function persistInterruptedReply(
+  userId: string,
+  id: string,
+  opts: { cancelled: boolean; errorMessage?: string },
+): Promise<void> {
+  const partial = getAgentProgress(userId, id)?.partialText?.trim() ?? '';
+  const note = opts.cancelled
+    ? '_(This response was stopped before it finished.)_'
+    : `_(This response did not finish — the run failed: ${opts.errorMessage || 'unknown error'}.)_`;
+  const reply = partial ? `${partial}\n\n${note}` : note;
+  try {
+    await storeAppendChatMessages(userId, id, [{ role: 'assistant', content: reply }]);
+  } catch {
+    /* best-effort — do not throw from an error/cancel path */
+  }
+}
+
 export async function GET(context: APIContext): Promise<Response> {
   const { userId } = context.locals.auth();
   if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
@@ -231,8 +258,13 @@ export async function POST(context: APIContext): Promise<Response> {
   };
 
   if (wantsEventStream(context, body)) {
-    return createChatAgentSseResponse(async (emit, streamSignal) => {
-      const runSignal = registerAgentRun(userId, id, streamSignal);
+    // Deliberately NOT passing context.request.signal here: a dropped
+    // connection (tab closed, navigation, phone locked mid-audit) must not
+    // kill a long multi-tool-call run. The run keeps going server-side and
+    // persists its result regardless of whether anyone is still listening.
+    // The only way to actually stop it early is the explicit /cancel route.
+    return createChatAgentSseResponse(async (emit) => {
+      const runSignal = registerAgentRun(userId, id);
       let reply = '';
       try {
         const stream = runKnowledgeAgentStreaming({
@@ -275,19 +307,24 @@ export async function POST(context: APIContext): Promise<Response> {
         });
       } catch (err) {
         if (runSignal.aborted) {
+          await persistInterruptedReply(userId, id, { cancelled: true });
           emit({ type: 'error', error: 'Stopped' });
           return;
         }
         const msg = err instanceof Error ? err.message : 'Agent run failed';
+        await persistInterruptedReply(userId, id, { cancelled: false, errorMessage: msg });
         emit({ type: 'error', error: msg });
       } finally {
         clearAgentProgress(userId, id);
         clearAgentRun(userId, id);
       }
-    }, context.request.signal);
+    });
   }
 
-  const runSignal = registerAgentRun(userId, id, context.request.signal);
+  // Same reasoning as the streaming branch above: do not tie this run to the
+  // request's own connection lifetime, so it can finish and persist even if
+  // the caller goes away before the response comes back.
+  const runSignal = registerAgentRun(userId, id);
   let reply: string;
   try {
     reply = await runKnowledgeAgent({
@@ -298,6 +335,10 @@ export async function POST(context: APIContext): Promise<Response> {
       context: agentContext,
       signal: runSignal,
     });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Agent run failed';
+    await persistInterruptedReply(userId, id, { cancelled: runSignal.aborted, errorMessage: msg });
+    return json({ ok: false, error: msg }, runSignal.aborted ? 499 : 500);
   } finally {
     clearAgentProgress(userId, id);
     clearAgentRun(userId, id);

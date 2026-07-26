@@ -22,32 +22,55 @@ export function encodeChatAgentSseEvent(event: ChatAgentSseEvent): Uint8Array {
   return new TextEncoder().encode(payload);
 }
 
+/**
+ * Runs `run` to completion and streams its events over SSE while a client is
+ * listening. Deliberately does NOT tie the agent run to the HTTP connection's
+ * lifetime: a dropped network connection, a closed tab, browser navigation,
+ * or a mobile browser suspending the page mid-task must not kill a multi-step
+ * agent run. `run` keeps executing on the server even after the client goes
+ * away — `emit` becomes a no-op once the stream can no longer be written to,
+ * but the caller is still responsible for persisting the final result (e.g.
+ * to the chat thread) so the user gets their answer/report when they come
+ * back, instead of the run silently vanishing with nothing saved. The only
+ * way to actually stop the run early is an explicit cancellation signal
+ * passed by the caller (e.g. from a "Stop" button), not client disconnect.
+ */
 export function createChatAgentSseResponse(
-  run: (
-    emit: (event: ChatAgentSseEvent) => void,
-    signal: AbortSignal,
-  ) => Promise<void>,
-  requestSignal?: AbortSignal,
+  run: (emit: (event: ChatAgentSseEvent) => void) => Promise<void>,
 ): Response {
+  let clientGone = false;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (event: ChatAgentSseEvent) => {
-        controller.enqueue(encodeChatAgentSseEvent(event));
+        if (clientGone) return;
+        try {
+          controller.enqueue(encodeChatAgentSseEvent(event));
+        } catch {
+          // Client disconnected mid-stream (tab closed, navigation, network
+          // drop, phone locked). Stop trying to write to it, but let `run`
+          // keep going in the background so it can still finish and persist.
+          clientGone = true;
+        }
       };
-      const abort = new AbortController();
-      if (requestSignal) {
-        if (requestSignal.aborted) abort.abort();
-        else requestSignal.addEventListener('abort', () => abort.abort(), { once: true });
-      }
       try {
-        await run(emit, abort.signal);
+        await run(emit);
       } catch (err) {
-        if (abort.signal.aborted) return;
         const message = err instanceof Error ? err.message : 'Agent run failed';
         emit({ type: 'error', error: message });
       } finally {
-        controller.close();
+        if (!clientGone) {
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+        }
       }
+    },
+    cancel() {
+      // The reader (client) went away. `run` above is still executing and
+      // will finish + persist on its own; we just stop trying to stream to it.
+      clientGone = true;
     },
   });
 
