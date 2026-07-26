@@ -8,6 +8,7 @@ import { todosModule } from './core/todos';
 import { contactsModule } from './core/contacts';
 import { outboundModule } from './core/outbound';
 import { namecomModule } from './core/namecom';
+import { techStackModule } from './core/techStack';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -20,5 +21,6 @@ export const AGENT_TOOL_MODULES: AgentToolModule[] = [
   contactsModule,
   outboundModule,
   namecomModule,
+  techStackModule,
   ...activeAgentToolModules(),
 ];
