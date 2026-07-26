@@ -147,25 +147,35 @@ export type GithubCommit = {
   short_sha: string;
   message: string;
   author: string;
+  /** Git author date (ISO). */
   date: string;
+  /** Git committer date (ISO) — when the commit actually landed on the branch. */
+  pushed_at: string;
   url: string;
 };
 
 type RawCommit = {
   sha: string;
   html_url: string;
-  commit: { message: string; author?: { name?: string; date?: string } };
+  commit: {
+    message: string;
+    author?: { name?: string; date?: string };
+    committer?: { name?: string; date?: string };
+  };
   author?: { login?: string } | null;
 };
 
 function normalizeCommit(c: RawCommit): GithubCommit {
   const fullMsg = c.commit?.message ?? '';
+  const authorDate = c.commit?.author?.date ?? '';
+  const committerDate = c.commit?.committer?.date ?? authorDate;
   return {
     sha: c.sha,
     short_sha: c.sha.slice(0, 7),
     message: fullMsg.split('\n')[0].slice(0, 200),
     author: c.author?.login || c.commit?.author?.name || 'unknown',
-    date: c.commit?.author?.date ?? '',
+    date: authorDate,
+    pushed_at: committerDate,
     url: c.html_url,
   };
 }

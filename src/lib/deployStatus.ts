@@ -17,7 +17,7 @@ export type DeployStatusSnapshot = {
   on_railway: boolean;
   deployed_sha: string | null;
   deployed_short: string | null;
-  /** ISO timestamp for the deployed Git commit (GitHub author date). */
+  /** ISO timestamp when the deployed commit landed on GitHub (committer date). */
   deployed_at: string | null;
   latest_commit: GithubCommit | null;
   up_to_date: boolean | null;
@@ -82,9 +82,18 @@ export function formatDeployDateEastern(iso: string | null | undefined): string 
   }).format(d);
 }
 
-function appendEasternDateLine(text: string, iso: string | null | undefined): string {
-  const when = formatDeployDateEastern(iso);
-  return when ? `${text}\n${when}` : text;
+function commitPushedAt(commit: GithubCommit | null | undefined): string | null {
+  if (!commit) return null;
+  return commit.pushed_at || commit.date || null;
+}
+
+function appendRelativeDeployLine(
+  text: string,
+  iso: string | null | undefined,
+  label: 'Deployed' | 'Pushed' = 'Deployed',
+): string {
+  const age = relativeAge(iso);
+  return age ? `${text}\n${label} ${age}` : text;
 }
 
 async function resolveDeployedAt(
@@ -92,10 +101,10 @@ async function resolveDeployedAt(
   latest: GithubCommit | null,
 ): Promise<string | null> {
   if (!deployed) return null;
-  if (latest && deployed === latest.sha && latest.date) return latest.date;
+  if (latest && deployed === latest.sha) return commitPushedAt(latest);
   if (!isGithubConfigured()) return null;
   const commit = await githubGetCommit(deployed);
-  return commit.ok && commit.data.date ? commit.data.date : null;
+  return commit.ok ? commitPushedAt(commit.data) : null;
 }
 
 function noteStateTransition(state: DeployState): void {
@@ -210,7 +219,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
   const commitsRes = await githubListCommits({ branch: defRes.data, perPage: 1 });
   const latest = commitsRes.ok ? (commitsRes.data[0] ?? null) : null;
   const upToDate = latest && deployed ? deployed === latest.sha : null;
-  const minutesSincePush = !upToDate && latest ? minutesSince(latest.date) : null;
+  const minutesSincePush = !upToDate && latest ? minutesSince(commitPushedAt(latest)) : null;
 
   if (upToDate) {
     failedOverride = null;
@@ -264,7 +273,8 @@ export function deployBanner(
   }
 
   if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min = snapshot.minutes_since_push ?? minutesSince(snapshot.latest_commit.date) ?? '?';
+    const min =
+      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
     return `🔴 Deploy stale: ${snapshot.latest_commit.short_sha} pushed ${min} min ago — not yet live, check Railway logs`;
   }
 
@@ -275,7 +285,7 @@ export function deployBanner(
   }
 
   if (snapshot.state === 'live' && opts?.includeLive && snapshot.deployed_short) {
-    return appendEasternDateLine(
+    return appendRelativeDeployLine(
       `🟢 Live: ${snapshot.deployed_short} — up to date`,
       snapshot.deployed_at,
     );
@@ -296,15 +306,16 @@ export function deployIndicatorTone(state: DeployState): DeployIndicatorTone {
 /** Plain-text tooltip for the admin deploy indicator (no emoji). */
 export function deployTooltip(snapshot: DeployStatusSnapshot): string {
   if (snapshot.state === 'failed') {
-    return appendEasternDateLine(
+    return appendRelativeDeployLine(
       snapshot.failed_reason ?? 'Deploy failed — check Railway logs',
       snapshot.deployed_at,
     );
   }
 
   if (snapshot.state === 'stale' && snapshot.latest_commit) {
-    const min = snapshot.minutes_since_push ?? minutesSince(snapshot.latest_commit.date) ?? '?';
-    return appendEasternDateLine(
+    const min =
+      snapshot.minutes_since_push ?? minutesSince(commitPushedAt(snapshot.latest_commit)) ?? '?';
+    return appendRelativeDeployLine(
       `Deploy stale — ${snapshot.latest_commit.short_sha} pushed ${min} min ago, not live yet. Check Railway logs.`,
       snapshot.deployed_at,
     );
@@ -313,14 +324,15 @@ export function deployTooltip(snapshot: DeployStatusSnapshot): string {
   if (snapshot.state === 'deploying' && snapshot.latest_commit) {
     const msg = truncateMessage(snapshot.latest_commit.message, 48);
     const bit = msg ? `: ${msg}` : '';
-    return appendEasternDateLine(
+    return appendRelativeDeployLine(
       `Deploying ${snapshot.latest_commit.short_sha}${bit} — not live yet`,
-      snapshot.latest_commit.date,
+      commitPushedAt(snapshot.latest_commit),
+      'Pushed',
     );
   }
 
   if (snapshot.state === 'live' && snapshot.deployed_short) {
-    return appendEasternDateLine(
+    return appendRelativeDeployLine(
       `Live — ${snapshot.deployed_short} up to date`,
       snapshot.deployed_at,
     );
