@@ -1,5 +1,6 @@
-const PIXELS_PER_SECOND = 28;
+const PIXELS_PER_SECOND = 32;
 const DRAG_THRESHOLD_PX = 8;
+const AUTOPLAY_RESUME_MS = 4000;
 
 export type ClientLogosMarqueeOptions = {
   loopCopies?: number;
@@ -7,99 +8,89 @@ export type ClientLogosMarqueeOptions = {
 };
 
 /**
- * Infinite logo marquee: one transform offset, one rAF loop.
- * Autoplay and horizontal swipe work the same on desktop and mobile.
+ * Autoplay is a CSS animation on the track, so it keeps running on the
+ * compositor regardless of what the main thread — or this module — is doing.
+ * JS only sets the duration and moves a separate drag layer, so the swipe
+ * offset and the autoplay transform compose instead of overwriting each other.
  */
 export function attachClientLogosMarquee(
   viewport: HTMLElement,
   opts: ClientLogosMarqueeOptions = {},
 ): () => void {
-  const track = viewport.querySelector<HTMLElement>(".client-logos-track");
-  if (!track) return () => {};
+  const dragLayer = viewport.querySelector<HTMLElement>(".client-logos-drag");
+  const track = dragLayer?.querySelector<HTMLElement>(".client-logos-track");
+  if (!dragLayer || !track) return () => {};
+  return runMarquee(viewport, dragLayer, track, opts);
+}
 
+function runMarquee(
+  viewport: HTMLElement,
+  dragLayer: HTMLElement,
+  track: HTMLElement,
+  opts: ClientLogosMarqueeOptions,
+): () => void {
   const loopCopies = Math.max(
     1,
     opts.loopCopies ?? (Number(viewport.dataset.loopCopies) || 3),
   );
   const velocity = opts.velocity ?? PIXELS_PER_SECOND;
-  const prefersReducedMotion =
-    typeof matchMedia !== "undefined" &&
-    matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let setWidth = 0;
   let offset = 0;
-  let running = false;
   let dragging = false;
   let dragPending = false;
+  let activePointerId: number | null = null;
   let dragStartX = 0;
   let dragStartY = 0;
   let dragStartOffset = 0;
-  let activePointerId: number | null = null;
-  let lastFrameTime = 0;
-  let rafId = 0;
+  let resumeTimer = 0;
   let dragListenersBound = false;
 
-  function measure() {
-    const items = track.querySelectorAll<HTMLElement>(".client-logo-item");
-    const perSet = Math.floor(items.length / loopCopies);
-    if (perSet > 0) {
-      let width = 0;
-      for (let i = 0; i < perSet; i++) {
-        width += items[i]!.offsetWidth;
-      }
-      if (width > 0) {
-        setWidth = width;
-        return;
-      }
-    }
-
-    const fallback = track.scrollWidth / loopCopies;
-    if (fallback > 0) setWidth = fallback;
-  }
-
-  /** Keep offset in (-setWidth, 0]; skip while dragging so swipes don't snap. */
-  function wrapOffset(force = false) {
-    if (setWidth <= 0 || (dragging && !force)) return;
-    while (offset <= -setWidth) offset += setWidth;
-    while (offset > 0) offset -= setWidth;
+  /** Offsets are periodic: shifting by a whole set is visually identical. */
+  function wrap(value: number) {
+    if (setWidth <= 0) return value;
+    const wrapped = value % setWidth;
+    return wrapped > 0 ? wrapped - setWidth : wrapped;
   }
 
   function paint() {
-    track.style.transform = `translate3d(${offset}px, 0, 0)`;
+    dragLayer.style.transform = `translate3d(${wrap(offset)}px, 0, 0)`;
   }
 
-  function canAutoplay() {
-    return !prefersReducedMotion && !dragging && !dragPending && setWidth > 0;
-  }
+  function measure() {
+    const total = track.scrollWidth || track.offsetWidth;
+    const next = total / loopCopies;
+    if (next <= 0) return;
 
-  function frame(now: number) {
-    rafId = requestAnimationFrame(frame);
-    if (!running) {
-      lastFrameTime = now;
-      return;
-    }
-
-    const dt = lastFrameTime ? Math.min((now - lastFrameTime) / 1000, 0.05) : 0;
-    lastFrameTime = now;
-
-    if (canAutoplay()) {
-      offset -= velocity * dt;
-      wrapOffset(true);
-      paint();
+    setWidth = next;
+    // Constant pixel speed at every breakpoint. Reassigning restarts the
+    // animation's timing, so only write when the value actually moved.
+    const seconds = (setWidth / velocity).toFixed(2);
+    const duration = `${seconds}s`;
+    if (track.style.animationDuration !== duration) {
+      track.style.animationDuration = duration;
     }
   }
 
-  function startLoop() {
-    if (running) return;
-    running = true;
-    lastFrameTime = 0;
-    rafId = requestAnimationFrame(frame);
+  function pauseAutoplay() {
+    track.style.animationPlayState = "paused";
   }
 
-  function stopLoop() {
-    running = false;
-    if (rafId) cancelAnimationFrame(rafId);
-    rafId = 0;
+  function resumeAutoplay() {
+    track.style.animationPlayState = "";
+    if (resumeTimer) {
+      clearTimeout(resumeTimer);
+      resumeTimer = 0;
+    }
+  }
+
+  /**
+   * Safety net: a pointerup that never arrives (gesture stolen by the OS, tab
+   * switch mid-swipe) must not leave the strip parked forever.
+   */
+  function armAutoplayResume() {
+    if (resumeTimer) clearTimeout(resumeTimer);
+    resumeTimer = window.setTimeout(resumeAutoplay, AUTOPLAY_RESUME_MS);
   }
 
   function bindDragListeners() {
@@ -118,20 +109,21 @@ export function attachClientLogosMarquee(
     window.removeEventListener("pointercancel", onPointerUp);
   }
 
-  function finishDrag() {
+  function endDrag() {
     if (!dragging && !dragPending) return;
 
-    dragPending = false;
     dragging = false;
+    dragPending = false;
     activePointerId = null;
+    offset = wrap(offset);
     viewport.classList.remove("is-dragging");
     unbindDragListeners();
-    wrapOffset(true);
+    resumeAutoplay();
     paint();
   }
 
   function onPointerDown(event: PointerEvent) {
-    if (event.button !== 0 && event.pointerType === "mouse") return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
 
     dragPending = true;
     dragging = false;
@@ -143,7 +135,6 @@ export function attachClientLogosMarquee(
   }
 
   function onPointerMove(event: PointerEvent) {
-    if (!dragPending && !dragging) return;
     if (activePointerId !== event.pointerId) return;
 
     const dx = event.clientX - dragStartX;
@@ -152,47 +143,32 @@ export function attachClientLogosMarquee(
     if (dragPending) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
 
-      // Vertical intent → let the page scroll; abandon the drag.
-      if (Math.abs(dy) > Math.abs(dx) * 1.1) {
-        finishDrag();
+      // Vertical intent → let the page scroll; abandon the swipe.
+      if (Math.abs(dy) > Math.abs(dx)) {
+        endDrag();
         return;
       }
 
       dragPending = false;
       dragging = true;
       viewport.classList.add("is-dragging");
-      try {
-        viewport.setPointerCapture(event.pointerId);
-      } catch {
-        /* ignore */
-      }
+      pauseAutoplay();
     }
 
     offset = dragStartOffset + dx;
+    armAutoplayResume();
     paint();
   }
 
   function onPointerUp(event: PointerEvent) {
     if (activePointerId !== event.pointerId) return;
-
-    if (viewport.hasPointerCapture(event.pointerId)) {
-      try {
-        viewport.releasePointerCapture(event.pointerId);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    finishDrag();
+    endDrag();
   }
 
-  const onLostPointerCapture = () => {
-    finishDrag();
-  };
+  const onWindowBlur = () => endDrag();
 
   const remeasure = () => {
     measure();
-    wrapOffset(true);
     paint();
   };
 
@@ -201,32 +177,22 @@ export function attachClientLogosMarquee(
   resizeObs.observe(track);
 
   track.querySelectorAll("img").forEach((img) => {
-    if (!(img as HTMLImageElement).complete) {
-      img.addEventListener("load", remeasure, { once: true });
-    }
+    if (!img.complete) img.addEventListener("load", remeasure, { once: true });
   });
 
-  const onVisibilityChange = () => {
-    if (document.hidden) stopLoop();
-    else startLoop();
-  };
-
   viewport.addEventListener("pointerdown", onPointerDown);
-  viewport.addEventListener("lostpointercapture", onLostPointerCapture);
-  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("blur", onWindowBlur);
 
   remeasure();
-  requestAnimationFrame(remeasure);
-  startLoop();
 
   return () => {
-    stopLoop();
-    unbindDragListeners();
+    endDrag();
     resizeObs.disconnect();
     viewport.removeEventListener("pointerdown", onPointerDown);
-    viewport.removeEventListener("lostpointercapture", onLostPointerCapture);
-    document.removeEventListener("visibilitychange", onVisibilityChange);
-    track.style.removeProperty("transform");
+    window.removeEventListener("blur", onWindowBlur);
+    dragLayer.style.removeProperty("transform");
+    track.style.removeProperty("animation-duration");
+    track.style.removeProperty("animation-play-state");
   };
 }
 

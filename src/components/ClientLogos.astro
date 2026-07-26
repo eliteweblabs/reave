@@ -35,20 +35,22 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   aria-label="Client logos"
   role="region"
 >
-  <div class="client-logos-track">
-    {
-      trackLogos.map((logo, index) => (
-        <div class="client-logo-item" aria-hidden={index >= logos.length ? "true" : undefined}>
-          <img
-            src={logo.src}
-            alt={index < logos.length ? logo.name : ""}
-            loading="eager"
-            decoding="async"
-            draggable="false"
-          />
-        </div>
-      ))
-    }
+  <div class="client-logos-drag">
+    <div class="client-logos-track">
+      {
+        trackLogos.map((logo, index) => (
+          <div class="client-logo-item" aria-hidden={index >= logos.length ? "true" : undefined}>
+            <img
+              src={logo.src}
+              alt={index < logos.length ? logo.name : ""}
+              loading="eager"
+              decoding="async"
+              draggable="false"
+            />
+          </div>
+        ))
+      }
+    </div>
   </div>
 </div>
 
@@ -76,10 +78,36 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     touch-action: none;
   }
 
-  .client-logos-track {
+  /*
+   * Two stacked transforms that never fight: the drag layer carries the swipe
+   * offset (set from JS), the track carries the autoplay animation. Autoplay is
+   * pure CSS so it survives a busy main thread and any JS hiccup.
+   */
+  .client-logos-drag {
     display: flex;
     width: max-content;
     will-change: transform;
+  }
+
+  /*
+   * Deliberately not gated on prefers-reduced-motion: that gate froze the strip
+   * outright for anyone with Reduce Motion on, and this is a slow, linear,
+   * decorative drift rather than a vestibular trigger.
+   */
+  .client-logos-track {
+    display: flex;
+    width: max-content;
+    animation: client-logos-scroll var(--marquee-duration, 52s) linear infinite;
+    will-change: transform;
+  }
+
+  @keyframes client-logos-scroll {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(calc(-100% / var(--loop-copies, 3)), 0, 0);
+    }
   }
 
   .client-logo-item {
