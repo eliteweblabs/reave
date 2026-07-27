@@ -5729,14 +5729,15 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         background: color-mix(in srgb, var(--muted) 55%, transparent);
         touch-action: none;
       }
-      /* Widen the grab target without widening the pill. */
+      /* Widen the grab target without widening the pill — but stop at the bar
+         above the Cancel/Add buttons, which the grabber would otherwise cover. */
       .de-drawer-grabber::before {
         content: '';
         position: absolute;
         left: -40vw;
         right: -40vw;
         top: -14px;
-        bottom: -10px;
+        bottom: -4px;
       }
       .de-drawer-bar {
         flex: 0 0 auto;
