@@ -265,6 +265,55 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
+## Example 6b: "Create Proposal" (full research audit)
+
+**What it does**: Give it whatever you have on a prospect — a URL, business name, and/or phone number — and it kicks off the full research agent in the background: resolves/creates the client, runs the complete audit tool sequence (Lighthouse, SSL, DNS, broken links, web search for their online presence), and files a project with a full write-up. Siri gets an immediate "researching now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
+
+**Siri phrase**: "create proposal" or "research this business"
+
+**Shortcut steps**:
+
+1. **Ask for Input**
+   - Prompt: `Website URL? (leave blank if you don't have one)`
+   - Variable: `Url`
+
+2. **Ask for Input**
+   - Prompt: `Business name?`
+   - Variable: `Business`
+
+3. **Ask for Input**
+   - Prompt: `Phone number? (optional)`
+   - Default Answer: ""
+   - Variable: `Phone`
+
+4. **Text** (build JSON — insert each variable as a blue pill, not typed text)
+   ```json
+   {
+     "action": "create_proposal",
+     "url": "Url",
+     "business": "Business",
+     "phone": "Phone",
+     "format": "text"
+   }
+   ```
+
+5. **Get Contents of URL**
+   - URL: `https://reave.app/api/siri`
+   - Method: POST
+   - Headers: `X-Siri-Key` + `Content-Type: application/json`
+   - Request Body: Text (from step 4)
+
+6. **Speak Text** → Text: Contents of URL
+
+**Tip**: Share Sheet variant — from Safari, tap Share → this shortcut, and use "Shortcut Input" as the `Url` value instead of asking for it, so you can kick off research on a competitor/prospect site straight from their homepage.
+
+**Notes**:
+- Give it as little as a business name and phone number, or as much as a full URL + name + phone + email — it works with whatever you provide.
+- This does NOT reply with the finished audit — that comes later via push notification (needs `AGENT_ALERT_USER_ID` + web push configured). The immediate Siri response only confirms the research has started.
+- The new client and project both land in the admin dashboard as soon as the research finishes, even before the push notification arrives.
+
+---
+
 ## Example 7: "Send Client SMS"
 
 **What it does**: Sends a text message via Telnyx.

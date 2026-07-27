@@ -228,6 +228,41 @@ Created project Website redesign for Tony Vello. Status: active.
 
 **Siri phrase**: "create reave project" or "new reave project"
 
+### Create Proposal (full research audit)
+
+**What it does**: The big one. Give it whatever you have — a URL, business name, and/or phone number — and it hands the job to the full research agent: looks up or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence (Lighthouse, SSL, broken links, DNS, web search for their Google Business Profile/social presence), and files an "inquiry" project with a complete audit write-up. This is the same research playbook the admin chat agent runs, triggered hands-free.
+
+Because a full audit can take a couple of minutes (Lighthouse alone budgets up to 150 seconds), this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
+
+**JSON body**:
+
+```json
+{
+  "action": "create_proposal",
+  "url": "https://example-plumbing.com",
+  "business": "Example Plumbing Co",
+  "phone": "+19876543210",
+  "format": "text"
+}
+```
+
+**Parameters** (give as many as you have — at least one is required):
+- `url` (optional): Website to audit. If omitted, the agent tries to find it via web search from the business name/phone.
+- `business` (optional): Business/company name (aliases: `business_name`, `company`, `name`)
+- `phone` (optional): Phone number
+- `email` (optional): Email address
+- `notes` (optional): Anything else you know (referral source, what they need, etc.)
+
+**Example response** (immediate ack — the real result comes later via push notification):
+
+```
+🔎 Researching Example Plumbing Co now — full audit, client record, and project coming up. I'll notify you when it's ready.
+```
+
+**Siri phrase**: "create proposal" or "research this business"
+
+**Requirement**: `ANTHROPIC_API_KEY` (for the research agent), `CONTACT_API_BASE_URL` (to create the client), and `AGENT_ALERT_USER_ID` (so the finished audit posts to System alerts with a push notification — without it the research still runs but there's nowhere to see the result land).
+
 ### Create Work Item
 
 **What it does**: Start a new project/work item.

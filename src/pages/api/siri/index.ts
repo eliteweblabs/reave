@@ -12,6 +12,11 @@
  * - create_work: { action: "create_work", title: string, client: string, status?, priority?, body? }
  * - find_client: { action: "find_client", client?: string, query?: string } — lookup for Shortcuts conditionals
  * - create_project: { action: "create_project", title: string, client?, first_name?, last_name?, company?, email? }
+ * - create_proposal: { action: "create_proposal", url?, business?, phone?, email?, notes? } — hands whatever you have
+ *   (URL, business name, phone, email) to the full research agent: it looks up or creates the client, runs the
+ *   complete site/SEO/SSL/DNS audit tool sequence, and files a project with a full audit body. Runs in the
+ *   background (this returns immediately) — the finished result posts to the "System alerts" chat with a push
+ *   notification. Requires ANTHROPIC_API_KEY and AGENT_ALERT_USER_ID for the notification/chat log.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  *
@@ -38,6 +43,13 @@ import {
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
+import { runKnowledgeAgent } from '../../../lib/agentRunner';
+import { agentAlertUserId } from '../../../lib/adminAgentAlert';
+import { storeAppendChatMessages, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { sendPushNotification } from '../../../lib/webPush';
+import { createLogger } from '../../../lib/logger';
+
+const log = createLogger('siri-proposal');
 
 export const prerender = false;
 
@@ -123,6 +135,9 @@ export async function POST(context: APIContext): Promise<Response> {
         break;
       case 'create_project':
         result = await handleCreateProject(body);
+        break;
+      case 'create_proposal':
+        result = await handleCreateProposal(body);
         break;
       case 'send_sms':
         result = await handleSendSms(body);
@@ -471,6 +486,128 @@ async function handleCreateProject(params: Record<string, unknown>): Promise<Sir
       client: { uid: clientResult.uid, name: clientResult.name, created: clientResult.created },
     },
   };
+}
+
+/**
+ * "Siri, create proposal" — give it whatever you have (URL, business name,
+ * phone, email) and it hands the job to the full research agent: resolve or
+ * create the client, run the whole audit tool sequence (fetch_url,
+ * lighthouse_audit, ssl_check, check_links, dns_check, brave_search), and file
+ * an inquiry project with a complete audit body — the same "inquiry-website-
+ * audit" playbook the admin chat agent already follows.
+ *
+ * This can take minutes (Lighthouse alone budgets up to 150s, plus DNS/SSL/link
+ * checks and multiple LLM turns), far longer than a Siri Shortcut should sit
+ * waiting on a spinner. So this kicks the run off in the background and
+ * replies immediately; the finished audit lands in the "System alerts" chat
+ * thread with a push notification when it's done.
+ */
+async function handleCreateProposal(params: Record<string, unknown>): Promise<SiriResponse> {
+  if (!isContactApiConfigured()) {
+    return { ok: false, error: 'Contact API not configured' };
+  }
+
+  const url = String(params.url ?? params.website ?? params.link ?? '').trim();
+  const business = String(
+    params.business ?? params.business_name ?? params.company ?? params.name ?? '',
+  ).trim();
+  const phone = String(params.phone ?? '').trim();
+  const email = String(params.email ?? '').trim();
+  const notes = String(params.notes ?? params.context ?? '').trim();
+
+  if (!url && !business && !phone && !email) {
+    const msg = 'Give me at least a URL, business name, phone number, or email to research.';
+    return { ok: false, error: msg, text: msg };
+  }
+
+  const label = business || url || phone || email;
+
+  runProposalResearch({ url, business, phone, email, notes, label }).catch((e) => {
+    log.error('background research failed', e);
+  });
+
+  return {
+    ok: true,
+    text: `🔎 Researching ${label} now — full audit, client record, and project coming up. I'll notify you when it's ready.`,
+    data: { started: true, label, url: url || null, business: business || null },
+  };
+}
+
+async function runProposalResearch(input: {
+  url: string;
+  business: string;
+  phone: string;
+  email: string;
+  notes: string;
+  label: string;
+}): Promise<void> {
+  const givenLines = [
+    input.business ? `Business name: ${input.business}` : null,
+    input.url ? `Website/URL: ${input.url}` : null,
+    input.phone ? `Phone: ${input.phone}` : null,
+    input.email ? `Email: ${input.email}` : null,
+    input.notes ? `Notes: ${input.notes}` : null,
+  ].filter((l): l is string => Boolean(l));
+
+  const userText = [
+    'Siri shortcut "Create Proposal" was triggered with only the raw information below — there is no one ' +
+      'here to ask follow-up questions, so proceed autonomously and make reasonable, clearly-noted assumptions ' +
+      'instead of stopping to ask.',
+    '',
+    ...givenLines,
+    '',
+    'Follow the full inquiry-website-audit playbook (read_knowledge slug "inquiry-website-audit" first):',
+    "1. If no URL was given, use brave_search to find the business's real website from its name/phone/email; " +
+      'if none can be found, say so in the audit and skip to step 3 with whatever public info you can find.',
+    '2. resolve_contact for the client; create_contact if there is no match — use the business name as the ' +
+      'contact name when no personal name is known, and save whatever phone/email/company was given.',
+    '3. Run the full audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, check_links, ' +
+      "dns_check, and brave_search for the business's Google Business Profile / Yelp / social presence.",
+    '4. create_work with status "inquiry", contact_uid set, title "Website Redesign — {Business Name}" (best ' +
+      'known name), and a complete markdown audit body following the required section structure — 1,500+ ' +
+      'characters, not a stub.',
+    '5. link_to_work if applicable, then end your final reply with a line formatted exactly like ' +
+      '`Project: <slug>` followed by 2-3 sentences summarizing the top findings and the recommended next step.',
+  ].join('\n');
+
+  const userId = agentAlertUserId();
+  let threadId: string | undefined;
+  if (userId) {
+    const thread = await storeCreateChatThread(userId);
+    threadId = thread?.id;
+    if (threadId) {
+      await storeUpdateChatTitle(userId, threadId, `Proposal: ${input.label}`.slice(0, 80));
+    }
+  }
+
+  let reply: string;
+  try {
+    reply = await runKnowledgeAgent({
+      userText,
+      context: userId ? { userId, threadId } : {},
+    });
+  } catch (e) {
+    reply = `Research failed: ${e instanceof Error ? e.message : String(e)}`;
+    log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));
+  }
+
+  if (userId && threadId) {
+    await storeAppendChatMessages(userId, threadId, [
+      { role: 'user', content: userText },
+      { role: 'assistant', content: reply },
+    ]);
+  }
+
+  const slugMatch = reply.match(/Project:\s*([a-z0-9._-]+)/i);
+  const slug = slugMatch?.[1]?.trim();
+  const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
+
+  await sendPushNotification({
+    title: `🔎 Proposal ready: ${input.label}`,
+    body: reply.slice(0, 150),
+    tag: `siri-proposal-${threadId ?? input.label}`,
+    url: deepLinkUrl,
+  }).catch((e) => log.warn('push notification failed', e));
 }
 
 async function handleCreateWork(params: Record<string, unknown>): Promise<SiriResponse> {

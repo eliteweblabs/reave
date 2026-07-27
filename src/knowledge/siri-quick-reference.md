@@ -81,6 +81,24 @@ Copy-paste these JSON payloads into Apple Shortcuts → Get Contents of URL → 
 
 ---
 
+## Create Proposal (full research audit)
+
+Give it whatever you have — the research agent does the rest (client + audit + project). Returns immediately; the finished audit lands via push notification.
+
+```json
+{
+  "action": "create_proposal",
+  "url": "https://example-plumbing.com",
+  "business": "Example Plumbing Co",
+  "phone": "+19876543210",
+  "format": "text"
+}
+```
+
+**At least one of** `url`, `business`, `phone`, `email` is required. Optional: `notes`.
+
+---
+
 ## Create Work Item
 
 ```json
@@ -168,6 +186,12 @@ curl -X POST https://reave.app/api/siri \
   -H "X-Siri-Key: YOUR_KEY_HERE" \
   -H "Content-Type: application/json" \
   -d '{"action":"list_work","status":"active","format":"text"}'
+
+# Create proposal (full research audit — runs in the background)
+curl -X POST https://reave.app/api/siri \
+  -H "X-Siri-Key: YOUR_KEY_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"create_proposal","url":"https://example-plumbing.com","business":"Example Plumbing Co","phone":"+19876543210","format":"text"}'
 
 # Status
 curl -X POST https://reave.app/api/siri \
