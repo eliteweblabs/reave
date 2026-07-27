@@ -290,7 +290,7 @@ async function handleCreateClient(params: Record<string, unknown>): Promise<Siri
   const summary = contactSummary(result.data);
   return {
     ok: true,
-    text: `✅ Created client: ${summary.name}${summary.company ? ` (${summary.company})` : ''}`,
+    text: `Created client: ${summary.name}${summary.company ? ` (${summary.company})` : ''}`,
     data: { client: summary },
   };
 }
@@ -528,7 +528,7 @@ async function handleCreateProposal(params: Record<string, unknown>): Promise<Si
 
   return {
     ok: true,
-    text: `🔎 Researching ${label} now — full audit, client record, and project coming up. I'll notify you when it's ready.`,
+    text: `Researching ${label} now — full audit, client record, and project coming up. I'll notify you when it's ready.`,
     data: { started: true, label, url: url || null, business: business || null },
   };
 }
@@ -603,7 +603,7 @@ async function runProposalResearch(input: {
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
 
   await sendPushNotification({
-    title: `🔎 Proposal ready: ${input.label}`,
+    title: `Proposal ready: ${input.label}`,
     body: reply.slice(0, 150),
     tag: `siri-proposal-${threadId ?? input.label}`,
     url: deepLinkUrl,
@@ -636,7 +636,7 @@ async function handleCreateWork(params: Record<string, unknown>): Promise<SiriRe
 
   return {
     ok: true,
-    text: `✅ Created work item: ${result.doc.title}\nStatus: ${result.doc.status}\nClient: ${result.doc.client}`,
+    text: `Created work item: ${result.doc.title}\nStatus: ${result.doc.status}\nClient: ${result.doc.client}`,
     data: { job: result.doc },
   };
 }
@@ -653,7 +653,7 @@ async function handleSendSms(params: Record<string, unknown>): Promise<SiriRespo
 
   return {
     ok: true,
-    text: `✅ Sent SMS to ${to}`,
+    text: `Sent SMS to ${to}`,
     data: { messageId: result.id },
   };
 }
