@@ -21679,7 +21679,7 @@ async function copyEmailVerificationCode(code, nearEl) {
     showChatToast('Tap the code to copy', nearEl);
     return false;
   }
-  showChatToast('Copied — paste in Safari', nearEl);
+  showChatToast('Copied — switch back to your browser to paste', nearEl);
   return true;
 }
 
@@ -21793,7 +21793,7 @@ function renderEmailPanel() {
       `<div class="em-otp-card" data-otp-card>` +
         `<div class="em-otp-card-title">Verification code</div>` +
         `<button type="button" class="em-otp-code-btn" data-otp-code data-code="${escHtml(ev.verificationCode)}">${escHtml(ev.verificationCode)}</button>` +
-        `<p class="em-otp-hint">Tap the code to copy — switch to Safari and tap <strong>Paste</strong> above the keyboard.</p>` +
+        `<p class="em-otp-hint">Tap the code to copy — switch back to your browser and tap <strong>Paste</strong> above the keyboard.</p>` +
       `</div>`;
   }
   if (isEmailBookable(ev)) {
