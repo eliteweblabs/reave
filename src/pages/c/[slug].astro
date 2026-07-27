@@ -28,6 +28,8 @@ import { storeListWorkForContact, storeReadWork, type WorkJobSummary } from '../
 import { storeListWorkCommentsForSlugs, type WorkJobComment } from '../../lib/workComments';
 import { portalProjectFileUrl, storeListProjectFiles } from '../../lib/projectFiles';
 import { enrichClientPortalBrand } from '../../lib/clientBrand';
+import { isPortalAssistantConfigured } from '../../lib/portalAssistant';
+import PortalAssistantWidget from '../../components/PortalAssistantWidget.astro';
 import { resolvePortalBrandColors, portalBrandCssVars, type PortalBrandColors } from '../../lib/portalBrandColors';
 import { getClientUptimeView } from '../../lib/uptimeMonitoring';
 import { uptimeStatusLabel } from '../../lib/uptimerobotClient';
@@ -317,6 +319,10 @@ const ogImageAbsolute = ogImagePath.startsWith('http') ? ogImagePath : `${origin
 
 // ?submit — show a focused data-submission form instead of the full portal.
 const submitMode = !notFound && Astro.url.searchParams.has('submit');
+
+const showAssistant =
+  !notFound && !submitMode && hasFeature('portal_assistant') && isPortalAssistantConfigured();
+const clientFirstName = displayName.split(/\s+/)[0] || '';
 
 let portalBrand: PortalBrandColors | null = null;
 if (contact && uid) {
@@ -705,6 +711,16 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         </main>
       )
     }
+
+    {showAssistant && (
+      <PortalAssistantWidget
+        contactUid={uid}
+        brandTitle={brandTitle}
+        clientFirstName={clientFirstName}
+        supportPhone={org.supportPhone}
+        supportEmail={org.supportEmail}
+      />
+    )}
 
     <script define:vars={{ submitEndpoint, submitMode }}>
       const iconEye =
