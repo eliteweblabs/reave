@@ -36,6 +36,59 @@ export function formatAnthropicApiError(status: number, text: string): string {
   return `Anthropic error (${status}): ${text.slice(0, 500)}`;
 }
 
+/**
+ * Largest `max_tokens` each model actually accepts, learned from the API rather
+ * than hardcoded.
+ *
+ * The agent needs a big output budget because a `write_file` call carries the
+ * entire file body in its arguments, and those count as output tokens — too small
+ * a budget truncates the call mid-argument and nothing gets written. But the real
+ * ceiling differs per model and changes as Anthropic ships new ones, so instead
+ * of guessing we ask for what we want and let a rejection teach us the limit.
+ */
+const learnedOutputCaps = new Map<string, number>();
+
+/** e.g. "max_tokens: 32000 > 8192, which is the maximum allowed…" */
+const MAX_TOKENS_LIMIT_RE = /max_tokens:\s*\d+\s*>\s*(\d+)/i;
+const MAX_TOKENS_LIMIT_FALLBACK_RE =
+  /maximum allowed number of output tokens[^0-9]{0,40}(\d{3,7})/i;
+
+function modelOf(body: Record<string, unknown>): string {
+  return typeof body.model === 'string' ? body.model : '';
+}
+
+/** Clamp `max_tokens` to this model's known ceiling before sending. */
+function withLearnedOutputCap(body: Record<string, unknown>): Record<string, unknown> {
+  const cap = learnedOutputCaps.get(modelOf(body));
+  const requested = typeof body.max_tokens === 'number' ? body.max_tokens : 0;
+  if (!cap || !requested || requested <= cap) return body;
+  return { ...body, max_tokens: cap };
+}
+
+/**
+ * Record the ceiling named in a rejection and report the value to retry with,
+ * or null when this was not a max_tokens problem.
+ */
+function learnOutputCapFromError(
+  body: Record<string, unknown>,
+  status: number,
+  text: string,
+): number | null {
+  if (status !== 400) return null;
+  const match = MAX_TOKENS_LIMIT_RE.exec(text) ?? MAX_TOKENS_LIMIT_FALLBACK_RE.exec(text);
+  const limit = match ? Number(match[1]) : NaN;
+  if (!Number.isFinite(limit) || limit < 1024) return null;
+  const model = modelOf(body);
+  const requested = typeof body.max_tokens === 'number' ? body.max_tokens : 0;
+  if (requested && limit >= requested) return null;
+  learnedOutputCaps.set(model, limit);
+  console.info('[anthropic] learned max output tokens', { model, limit });
+  return limit;
+}
+
+/** Internals exercised by scripts/verify-chat-resilience.ts. */
+export const __testables = { learnOutputCapFromError, withLearnedOutputCap };
+
 export function anthropicApiHeaders(apiKey: string): Record<string, string> {
   return {
     'x-api-key': apiKey,
@@ -94,15 +147,26 @@ export async function createAnthropicMessage(
     return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
   }
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: anthropicApiHeaders(apiKey),
-    body: JSON.stringify(body),
-    signal,
-  });
+  const send = (payload: Record<string, unknown>) =>
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: anthropicApiHeaders(apiKey),
+      body: JSON.stringify(payload),
+      signal,
+    });
+
+  let payload = withLearnedOutputCap(body);
+  let res = await send(payload);
 
   if (!res.ok) {
-    return { ok: false, status: res.status, text: await res.text().catch(() => res.statusText) };
+    const text = await res.text().catch(() => res.statusText);
+    const retryMax = learnOutputCapFromError(payload, res.status, text);
+    if (retryMax == null) return { ok: false, status: res.status, text };
+    payload = { ...payload, max_tokens: retryMax };
+    res = await send(payload);
+    if (!res.ok) {
+      return { ok: false, status: res.status, text: await res.text().catch(() => res.statusText) };
+    }
   }
 
   const data = (await res.json()) as AnthropicMessagesResponse;
@@ -150,15 +214,26 @@ export async function streamAnthropicMessage(
     return { ok: false, status: 0, text: 'ANTHROPIC_API_KEY not set' };
   }
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: anthropicApiHeaders(apiKey),
-    body: JSON.stringify({ ...body, stream: true }),
-    signal: opts.signal,
-  });
+  const send = (payload: Record<string, unknown>) =>
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: anthropicApiHeaders(apiKey),
+      body: JSON.stringify({ ...payload, stream: true }),
+      signal: opts.signal,
+    });
+
+  let payload = withLearnedOutputCap(body);
+  let res = await send(payload);
 
   if (!res.ok) {
-    return { ok: false, status: res.status, text: await res.text().catch(() => res.statusText) };
+    const text = await res.text().catch(() => res.statusText);
+    const retryMax = learnOutputCapFromError(payload, res.status, text);
+    if (retryMax == null) return { ok: false, status: res.status, text };
+    payload = { ...payload, max_tokens: retryMax };
+    res = await send(payload);
+    if (!res.ok) {
+      return { ok: false, status: res.status, text: await res.text().catch(() => res.statusText) };
+    }
   }
   if (!res.body) {
     return { ok: false, status: 0, text: 'Empty stream body' };

@@ -38,6 +38,7 @@ import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import { pumpAgentStream } from '../../../lib/chatAgentPump';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
+import { serverEnv } from '../../../lib/serverEnv';
 import { promoteChatImagesToLinkedProjects } from '../../../lib/projectFiles';
 
 export const prerender = false;
@@ -49,8 +50,10 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// serverEnv, not import.meta.env — the latter is inlined at build time and so is
+// always empty for values set on the Railway service.
 function historyCap(): number | null {
-  const raw = import.meta.env.AGENT_CHAT_HISTORY_TURNS;
+  const raw = serverEnv('AGENT_CHAT_HISTORY_TURNS');
   if (!raw?.trim()) return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return null;

@@ -294,13 +294,21 @@ export type GithubFileWriteResult = {
   created: boolean;
 };
 
-/** Create or update a file via the GitHub Contents API. */
+/**
+ * Create or update a file via the GitHub Contents API.
+ *
+ * With `append`, the existing file is fetched and the new content is added to the
+ * end. That is what makes a long file writable at all from a deployed container:
+ * the body travels inside one tool call's arguments, which are output tokens, so
+ * anything past the model's output budget has to arrive in sections.
+ */
 export async function githubWriteFile(opts: {
   repo?: string;
   branch: string;
   path: string;
   content: string;
   message: string;
+  append?: boolean;
 }): Promise<GithubResult<GithubFileWriteResult>> {
   if (!token()) {
     return { ok: false, error: 'GITHUB_TOKEN is required for write_github_file' };
@@ -319,15 +327,23 @@ export async function githubWriteFile(opts: {
   const repo = repoRes.data;
   const encodedPath = encodeRepoPath(path);
 
-  const existing = await ghFetch<{ sha?: string }>(`/repos/${repo}/contents/${encodedPath}`, {
-    query: { ref: branch },
-  });
+  const existing = await ghFetch<{ sha?: string; content?: string; encoding?: string }>(
+    `/repos/${repo}/contents/${encodedPath}`,
+    { query: { ref: branch } },
+  );
   const existingSha = existing.ok ? existing.data.sha : undefined;
   if (!existing.ok && existing.status !== 404) return existing;
 
+  let content = opts.content;
+  if (opts.append && existing.ok && existing.data.content) {
+    const prior = Buffer.from(existing.data.content, 'base64').toString('utf8');
+    const joiner = prior.endsWith('\n') || !prior ? '' : '\n';
+    content = `${prior}${joiner}${content}`;
+  }
+
   const body: Record<string, string> = {
     message,
-    content: Buffer.from(opts.content, 'utf8').toString('base64'),
+    content: Buffer.from(content, 'utf8').toString('base64'),
     branch,
   };
   if (existingSha) body.sha = existingSha;

@@ -414,6 +414,106 @@ await test('a single call and unknown tools are never parallelised', () => {
   );
 });
 
+// ------------------------------------------------- output budget self-tuning
+
+const {
+  __testables: { learnOutputCapFromError, withLearnedOutputCap },
+} = await import('../src/lib/anthropicMessages.ts');
+
+await test('a max_tokens rejection teaches the real ceiling and asks for a retry', () => {
+  const body = { model: 'claude-test-a', max_tokens: 32_768 };
+  const limit = learnOutputCapFromError(
+    body,
+    400,
+    '{"error":{"message":"max_tokens: 32768 > 8192, which is the maximum allowed number of output tokens for claude-test-a"}}',
+  );
+  assert.equal(limit, 8_192);
+  // And every later request for that model is clamped without a round trip.
+  assert.deepEqual(withLearnedOutputCap({ model: 'claude-test-a', max_tokens: 32_768 }), {
+    model: 'claude-test-a',
+    max_tokens: 8_192,
+  });
+});
+
+await test('the ceiling is also read from a message without the comparison form', () => {
+  const limit = learnOutputCapFromError(
+    { model: 'claude-test-b', max_tokens: 64_000 },
+    400,
+    'invalid_request_error: this model supports a maximum allowed number of output tokens of 32000',
+  );
+  assert.equal(limit, 32_000);
+});
+
+await test('unrelated API errors do not change the budget', () => {
+  assert.equal(
+    learnOutputCapFromError({ model: 'claude-test-c', max_tokens: 32_768 }, 400, 'credit balance is too low'),
+    null,
+  );
+  assert.equal(
+    learnOutputCapFromError({ model: 'claude-test-c', max_tokens: 32_768 }, 529, 'overloaded_error'),
+    null,
+  );
+  assert.deepEqual(withLearnedOutputCap({ model: 'claude-test-c', max_tokens: 32_768 }), {
+    model: 'claude-test-c',
+    max_tokens: 32_768,
+  });
+});
+
+await test('a request already under the ceiling is left alone', () => {
+  learnOutputCapFromError(
+    { model: 'claude-test-d', max_tokens: 32_768 },
+    400,
+    'max_tokens: 32768 > 16000, which is the maximum allowed number of output tokens',
+  );
+  assert.deepEqual(withLearnedOutputCap({ model: 'claude-test-d', max_tokens: 4_096 }), {
+    model: 'claude-test-d',
+    max_tokens: 4_096,
+  });
+});
+
+// ------------------------------------------------------- append-mode writes
+
+const { codeDevWriteFile, codeDevReadFile } = await import('../src/lib/codeDevTools.ts');
+
+await test('a long file can be built in sections with append', async () => {
+  const rel = `.tmp-verify-chat/${Date.now()}-page.astro`;
+  const first = codeDevWriteFile(rel, '---\nconst title = "Features";\n---');
+  assert.equal(first.ok, true);
+  assert.equal((first as { data: Record<string, unknown> }).data.created, true);
+
+  const second = codeDevWriteFile(rel, '<h1>{title}</h1>', { append: true });
+  assert.equal(second.ok, true);
+  assert.equal((second as { data: Record<string, unknown> }).data.appended, true);
+
+  const third = codeDevWriteFile(rel, '<section>Accordion</section>', { append: true });
+  assert.equal(third.ok, true);
+
+  const read = codeDevReadFile(rel);
+  assert.equal(read.ok, true);
+  const content = String((read as unknown as { data: { content: string } }).data.content);
+  assert.match(content, /const title = "Features";/);
+  assert.match(content, /<h1>\{title\}<\/h1>/);
+  assert.match(content, /<section>Accordion<\/section>/);
+  assert.ok(
+    content.indexOf('const title') < content.indexOf('<h1>'),
+    'appended sections must keep their order',
+  );
+
+  const { rmSync } = await import('node:fs');
+  const { codeDevProjectRoot } = await import('../src/lib/codeDevTools.ts');
+  rmSync(`${codeDevProjectRoot()}/.tmp-verify-chat`, { recursive: true, force: true });
+});
+
+await test('append on a file that does not exist creates it rather than failing', async () => {
+  const rel = `.tmp-verify-chat2/${Date.now()}-new.txt`;
+  const out = codeDevWriteFile(rel, 'first chunk', { append: true });
+  assert.equal(out.ok, true);
+  assert.equal((out as { data: Record<string, unknown> }).data.created, true);
+  const { rmSync } = await import('node:fs');
+  const { codeDevProjectRoot } = await import('../src/lib/codeDevTools.ts');
+  rmSync(`${codeDevProjectRoot()}/.tmp-verify-chat2`, { recursive: true, force: true });
+});
+
 console.log(`\nchat resilience checks\n${results.join('\n')}\n`);
 console.log(failures ? `${failures} check(s) failed` : 'all checks passed');
 process.exit(failures ? 1 : 0);

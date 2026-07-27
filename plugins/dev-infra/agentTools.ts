@@ -405,6 +405,7 @@ async function handle_write_github_file(args: Record<string, unknown>, _ctx: Too
     path: String(args.path ?? '').trim(),
     content: String(args.content ?? ''),
     message: String(args.message ?? '').trim(),
+    append: args.append === true,
   });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
@@ -721,7 +722,7 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'write_github_file',
               description:
-                'Create or update a file in a GitHub repo via the Contents API. Commits directly to the given branch (branch must already exist). Requires GITHUB_TOKEN with Contents write. Returns commit SHA and URL.',
+                'Create or update a file in a GitHub repo via the Contents API. Commits directly to the given branch (branch must already exist). Requires GITHUB_TOKEN with Contents write. Returns commit SHA and URL. For a long file (a full page, a big component), write it in sections: one call for the first chunk, then more calls with append:true — a single call carrying the whole body will be cut off by the output limit and nothing will be written.',
               parameters: {
                 type: 'object',
                 properties: {
@@ -731,7 +732,16 @@ export const devInfraModule: AgentToolModule = {
                   },
                   branch: { type: 'string', description: 'Target branch to commit to' },
                   path: { type: 'string', description: 'File path in the repo, e.g. src/lib/example.ts' },
-                  content: { type: 'string', description: 'Full new file contents (UTF-8 text)' },
+                  content: {
+                    type: 'string',
+                    description:
+                      'File contents (UTF-8 text). The full file, or the next chunk when append is true.',
+                  },
+                  append: {
+                    type: 'boolean',
+                    description:
+                      'Add content to the end of the existing file instead of replacing it. Use for the 2nd and later chunks of a long file (default false).',
+                  },
                   message: { type: 'string', description: 'Git commit message' },
                 },
                 required: ['branch', 'path', 'content', 'message'],

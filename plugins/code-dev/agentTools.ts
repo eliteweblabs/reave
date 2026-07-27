@@ -190,7 +190,9 @@ async function handle_read_file(args: Record<string, unknown>, _ctx: ToolContext
 
 async function handle_write_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
-  const result = codeDevWriteFile(String(args.path ?? ''), String(args.content ?? ''));
+  const result = codeDevWriteFile(String(args.path ?? ''), String(args.content ?? ''), {
+    append: args.append === true,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -244,7 +246,7 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'write_file',
                 description:
-                  'Write or update a file on the local project filesystem. Creates parent directories as needed. Read the file first when updating. Reave code_dev only. Commit and push after changes.',
+                  'Write or update a file on the local project filesystem. Creates parent directories as needed. Read the file first when updating. Reave code_dev only. Commit and push after changes. For a long file (a full page, a big component), write it in sections: one call for the first chunk, then more calls with append:true — a single call carrying the whole body will be cut off by the output limit and nothing will be written.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -254,7 +256,13 @@ export const codeDevModule: AgentToolModule = {
                     },
                     content: {
                       type: 'string',
-                      description: 'Full new file contents (UTF-8 text)',
+                      description:
+                        'File contents (UTF-8 text). The full file, or the next chunk when append is true.',
+                    },
+                    append: {
+                      type: 'boolean',
+                      description:
+                        'Add content to the end of the existing file instead of replacing it. Use for the 2nd and later chunks of a long file (default false).',
                     },
                   },
                   required: ['path', 'content'],

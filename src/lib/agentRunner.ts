@@ -115,8 +115,11 @@ function runtimeContextLine(model: string): string {
   ].join('\n');
 }
 
+// serverEnv, not import.meta.env: Vite inlines import.meta.env at build time, so
+// reading it here meant Railway-set values were silently ignored and these knobs
+// did nothing in production.
 function agentHistoryCap(): number | null {
-  const raw = import.meta.env.AGENT_CHAT_HISTORY_TURNS;
+  const raw = serverEnv('AGENT_CHAT_HISTORY_TURNS');
   if (!raw?.trim()) return null;
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return null;
@@ -131,18 +134,28 @@ const MAX_SYSTEM_ALERT_TOOL_ROUNDS = 5;
 /**
  * Output-token budget per LLM turn. This must be large: when the agent writes a
  * file/page, the whole file body is embedded in the tool-call arguments, which
- * count as OUTPUT tokens. The old value (1024) truncated write_file/write_github_file
- * calls mid-argument → stop_reason "max_tokens" → the loop returned the preamble
- * ("Now writing all three pages…") with nothing actually written. Overridable via
- * AGENT_MAX_OUTPUT_TOKENS.
+ * count as OUTPUT tokens. Too small and write_file/write_github_file calls get cut
+ * off mid-argument → stop_reason "max_tokens" → the turn ends on the preamble
+ * ("Now building the page…") with nothing actually written.
+ *
+ * 8,192 was still far too small for a real page: a single Astro page with copy
+ * runs well past it, so building one could not succeed no matter how many times
+ * the model retried. Ask for a lot; anthropicMessages clamps this to whatever the
+ * model actually allows (learned from the API), so overshooting is safe.
+ * Overridable via AGENT_MAX_OUTPUT_TOKENS.
  */
-const DEFAULT_MAX_OUTPUT_TOKENS = 8_192;
-/** How many times we re-prompt the model when it stalls (truncated turn or an
- * unfulfilled future-tense promise with no tool call) before giving up. */
-const MAX_STALL_NUDGES = 2;
+const DEFAULT_MAX_OUTPUT_TOKENS = 32_768;
+/**
+ * How many times we re-prompt the model when it stalls (truncated turn or an
+ * unfulfilled future-tense promise with no tool call) before giving up. Three,
+ * not two: the first nudge often just repeats the same oversized write, and the
+ * advice that actually fixes it (split the file, append the rest) needs an
+ * attempt of its own to land.
+ */
+const MAX_STALL_NUDGES = 3;
 
 function agentMaxOutputTokens(): number {
-  const raw = import.meta.env.AGENT_MAX_OUTPUT_TOKENS;
+  const raw = serverEnv('AGENT_MAX_OUTPUT_TOKENS');
   if (raw?.trim()) {
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 1024) return Math.floor(n);
@@ -183,6 +196,85 @@ function assistantTextMessageFor(
     role: 'assistant',
     content: textBlocks.length ? textBlocks : [{ type: 'text', text: fallback }],
   };
+}
+
+/**
+ * Name of the tool whose call was still being written when the output budget ran
+ * out. A truncated turn carries a partial `tool_use` block: the name arrives
+ * early in the stream, the arguments are what got cut off.
+ */
+function truncatedToolName(content: AnthropicContentBlock[]): string | undefined {
+  for (let i = content.length - 1; i >= 0; i--) {
+    const block = content[i];
+    if (block.type === 'tool_use' && block.name) return block.name;
+  }
+  return undefined;
+}
+
+const CHUNKED_WRITE_INSTRUCTION =
+  'Write it in sections instead: call the tool once with the first part of the file, then call it ' +
+  'again with append:true for each following part. Keep each part comfortably under the limit. ' +
+  'Do not send the whole file in one call again — it will be cut off the same way.';
+
+/** What we tell the model when a turn stalls, so its next attempt can succeed. */
+function stallNudgeText(opts: {
+  truncated: boolean;
+  blank: boolean;
+  cutOffTool?: string;
+}): string {
+  if (opts.truncated) {
+    if (opts.cutOffTool) {
+      return (
+        `Your ${opts.cutOffTool} call was cut off mid-argument: the content you were sending exceeded ` +
+        `the output limit for a single response, so the call never ran and nothing was written. ` +
+        CHUNKED_WRITE_INSTRUCTION
+      );
+    }
+    return (
+      'Your previous response was cut off before the action completed. Continue now and finish the ' +
+      'task by calling the required tools in this turn — do not restate the plan, just execute it. ' +
+      'If you were writing a large file, send it in smaller pieces (append:true for later pieces).'
+    );
+  }
+  if (opts.blank) {
+    return (
+      'Your previous turn produced no text and no tool call, so nothing happened and the user saw no ' +
+      "reply. Answer the user's message now, or call the necessary tool(s) if action is required."
+    );
+  }
+  return (
+    'You described what you were going to do but did not call any tools, so nothing actually ' +
+    'happened. Execute it now by invoking the tools in this same turn. Do not reply with another ' +
+    'plan or a future-tense promise ("I\'ll…", "Let me…"). If you genuinely cannot proceed, say ' +
+    'exactly why instead.'
+  );
+}
+
+/** What we tell the user when the model could not be coaxed into finishing. */
+function stallExplanation(opts: {
+  truncated: boolean;
+  blank: boolean;
+  unfulfilled: boolean;
+  cutOffTool?: string;
+}): string {
+  if (opts.truncated) {
+    const what = opts.cutOffTool ? `my ${opts.cutOffTool} call` : 'my response';
+    return (
+      `_(I couldn't finish this: ${what} kept exceeding the size limit for a single response, so the ` +
+      "write never went through — nothing was saved. Ask me to build it in smaller pieces (one " +
+      'section or one file at a time) and it will go through.)_'
+    );
+  }
+  if (opts.unfulfilled) {
+    return (
+      "_(I said I'd do that but never actually ran the tools, so nothing was created or changed. " +
+      'Nothing is half-done. Ask me again — ideally for one concrete step — and I\'ll execute it.)_'
+    );
+  }
+  return (
+    '_(I stopped producing output partway through this turn, so nothing was completed. Please ask ' +
+    'again.)_'
+  );
 }
 
 function truncateToolResult(content: string): string {
@@ -466,6 +558,11 @@ async function runKnowledgeAgentInner(
       );
     }
   }
+  if (hasFeature('code_dev') || (hasFeature('dev_infra') && isGithubConfigured())) {
+    sysParts.push(
+      'Long files — read this before building a page or a large component. A tool call\'s arguments count against your per-response output budget, so a whole long file sent in one write_file/write_github_file call gets cut off mid-argument: the call never runs and NOTHING is written. When a file will run long (roughly 400+ lines, e.g. a full marketing/features page with real copy), plan for it up front: make the first call with the opening section (imports, head, first section markup), then make additional calls to the same path with append:true for each following section, then verify with read_file or get_git_status. Do not announce the page and stop, and do not retry the same oversized single call — split it. Prefer several modest sections over one heroic write.',
+    );
+  }
   if (hasFeature('billing') && isCraterConfigured()) {
     sysParts.push(
       'Billing: use create_invoice to make invoices in Crater. Treat amounts as whole US dollars. For "invoice <name> for $X" with no line detail, create one line item named "Services rendered" with quantity 1 and price X. When billing for a tracked project, call get_work_invoice_suggestions first — use completed checklist descriptions on line items (name + description from suggestions; ask for price if missing). Invoices default to DRAFT; do not mark SENT unless the user says it was sent. After creating, report the invoice number, amount, and the public link returned by the tool.',
@@ -598,11 +695,12 @@ async function runKnowledgeAgentInner(
   /**
    * End the turn with real content even though the run did not reach a natural
    * finish. The user always gets a reply; the note tells them (and the model, on
-   * the next turn) exactly how far it got.
+   * the next turn) exactly how far it got, so a stalled turn reads as a stalled
+   * turn rather than as a completed one that quietly did nothing.
    */
-  const bailOut = (note: string) => {
-    const partial = partialSoFar();
-    return finalizeAgentReply(partial ? `${partial}\n\n${note}` : note, userText);
+  const bailOut = (note: string, roundText = '') => {
+    const said = partialSoFar() || roundText.trim();
+    return finalizeAgentReply(said ? `${said}\n\n${note}` : note, userText);
   };
 
   for (let round = 0; round < maxRounds; round++) {
@@ -753,32 +851,31 @@ async function runKnowledgeAgentInner(
     // preamble or a bare internal placeholder the user has no way to interpret.
     const truncated = stopReason === 'max_tokens';
     const blank = !text;
-    if ((truncated || blank || looksLikeUnfulfilledPromise(text)) && stallNudges < MAX_STALL_NUDGES) {
+    const unfulfilled = looksLikeUnfulfilledPromise(text);
+    // When a turn is cut off, the block being written when the budget ran out is
+    // usually an oversized write. Naming it lets us give advice that can actually
+    // work instead of "try again", which just reproduces the same overrun.
+    const cutOffTool = truncated ? truncatedToolName(content) : undefined;
+
+    if ((truncated || blank || unfulfilled) && stallNudges < MAX_STALL_NUDGES) {
       stallNudges++;
       messages.push(assistantTextMessageFor(content, '(interrupted)'));
       messages.push({
         role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: truncated
-              ? 'Your previous response was cut off before the action completed. Continue now and finish the task by calling the required tools in this turn — do not restate the plan, just execute it.'
-              : blank
-                ? 'Your previous turn produced no text and no tool call, so nothing happened and the user saw no reply. Answer the user\'s message now, or call the necessary tool(s) if action is required.'
-                : 'You described what you were going to do but did not call any tools, so nothing actually happened. Execute it now by invoking the tools in this same turn. Do not reply with another plan or a future-tense promise ("I\'ll…", "Let me…"). If you genuinely cannot proceed, say exactly why instead.',
-          },
-        ],
+        content: [{ type: 'text', text: stallNudgeText({ truncated, blank, cutOffTool }) }],
       });
       emitProgress({ phase: 'thinking', round: round + 1 });
       continue;
     }
 
-    return finalizeAgentReply(
-      text ||
-        partialSoFar() ||
-        'Sorry — I hit an internal snag and didn\'t generate a reply to that. Please try asking again.',
-      userText,
-    );
+    if (truncated || blank || unfulfilled) {
+      // Out of nudges. Returning `text` here is what made the agent look like it
+      // lied: the last thing it said was "Now building the page…", so that became
+      // the answer while nothing had been built. Say what actually happened.
+      return bailOut(stallExplanation({ truncated, blank, unfulfilled, cutOffTool }), text);
+    }
+
+    return finalizeAgentReply(text, userText);
   }
 
   return bailOut(

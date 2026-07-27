@@ -6,6 +6,7 @@
  */
 import { execFile } from 'node:child_process';
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -72,24 +73,53 @@ export function codeDevReadFile(path: string): CodeDevResult {
   };
 }
 
-export function codeDevWriteFile(path: string, content: string): CodeDevResult {
+/**
+ * Write a file, or append to it.
+ *
+ * Append exists because a file's whole body travels inside a single tool call's
+ * arguments, which are billed as output tokens: a large page cannot be written in
+ * one call no matter how big the budget is. Appending lets the model build a long
+ * file in sections instead of failing on the first oversized attempt.
+ */
+export function codeDevWriteFile(
+  path: string,
+  content: string,
+  opts: { append?: boolean } = {},
+): CodeDevResult {
   const resolved = resolveSafePath(path);
   if (!resolved.ok) return resolved;
   if (isEnvLikePath(resolved.rel)) {
     return { ok: false, error: 'writing .env files is blocked' };
   }
   if (typeof content !== 'string') return { ok: false, error: 'content must be a string' };
+
+  const exists = existsSync(resolved.abs);
+  const append = Boolean(opts.append) && exists;
+  const existingBytes = append ? statSync(resolved.abs).size : 0;
   const bytes = Buffer.byteLength(content, 'utf8');
-  if (bytes > MAX_WRITE_BYTES) {
-    return { ok: false, error: `content too large (${bytes} bytes; max ${MAX_WRITE_BYTES})` };
+  if (existingBytes + bytes > MAX_WRITE_BYTES) {
+    return {
+      ok: false,
+      error: `content too large (${existingBytes + bytes} bytes; max ${MAX_WRITE_BYTES})`,
+    };
   }
+
   const parent = dirname(resolved.abs);
   if (!existsSync(parent)) mkdirSync(parent, { recursive: true });
-  const created = !existsSync(resolved.abs);
-  writeFileSync(resolved.abs, content.endsWith('\n') ? content : `${content}\n`, 'utf8');
+  const body = content.endsWith('\n') ? content : `${content}\n`;
+  if (append) appendFileSync(resolved.abs, body, 'utf8');
+  else writeFileSync(resolved.abs, body, 'utf8');
+
   return {
     ok: true,
-    data: { path: resolved.rel, bytes, created, updated: !created },
+    data: {
+      path: resolved.rel,
+      bytes,
+      total_bytes: existingBytes + bytes,
+      created: !exists,
+      updated: exists,
+      appended: append,
+    },
   };
 }
 
