@@ -8760,8 +8760,7 @@ async function loadTodoTab(opts = {}) {
   renderTodoEditor();
 }
 
-function startNewTodo(opts = {}) {
-  armTitleFocus('todo');
+function beginNewTodoDrawer() {
   beginCreateDrawer({
     key: 'todo',
     title: 'New To‑do',
@@ -8792,6 +8791,11 @@ function startNewTodo(opts = {}) {
       syncFooterNav();
     },
   });
+}
+
+function startNewTodo(opts = {}) {
+  armTitleFocus('todo');
+  beginNewTodoDrawer();
   if (!opts.keepReturnSlug) todoState.returnToWorkSlug = null;
   todoState.activeId = '__new__';
   todoState.dirty = false;
@@ -18720,6 +18724,9 @@ function navigateToTodo(id, opts = {}) {
 function navigateToNewTodoForProject(jobSlug) {
   if (!jobSlug) return;
   armTitleFocus('todo');
+  // Arm the drawer before switching tabs so the to-do tab renders the draft as
+  // a drawer rather than taking over its detail pane.
+  beginNewTodoDrawer();
   todoState.returnToWorkSlug = jobSlug;
   todoState.activeId = '__new__';
   todoState.dirty = false;
