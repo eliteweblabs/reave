@@ -51,6 +51,10 @@ import {
   createEditableHeaderTitleInput,
   createPaneSubheader,
   wrapEditableHeaderTitle,
+  armTitleFocus,
+  requestTitleFocus,
+  flushTitleFocus,
+  cancelTitleFocus,
   matchesListSearch,
   initSidebarLayout,
   syncAdminSplitView,
@@ -67,7 +71,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
-} from './admin-ui.js?v=20260725b';
+} from './admin-ui.js?v=20260727a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 
 const GRID = 12;
@@ -7769,6 +7773,7 @@ function renderRulesEditor() {
     });
   }
   root.appendChild(pane);
+  flushTitleFocus('rules');
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -7830,6 +7835,7 @@ function renderRuleEditPane(pane) {
   titleIn.type = 'text';
   titleIn.value = rule.title || '';
   titleIn.addEventListener('input', () => { ruleState.dirty = true; });
+  requestTitleFocus('rules', titleIn);
 
   const statusIn = document.createElement('input');
   statusIn.className = 'de-input';
@@ -8153,7 +8159,11 @@ async function deleteRule(id) {
 }
 
 async function startNewRule() {
-  if (ruleState.dirty && !(await confirmDiscardChanges())) return;
+  armTitleFocus('rules');
+  if (ruleState.dirty && !(await confirmDiscardChanges())) {
+    cancelTitleFocus();
+    return;
+  }
   try {
     const res = await fetch('/api/email/rules', {
       method: 'POST',
@@ -8177,6 +8187,7 @@ async function startNewRule() {
     await loadRulesTab();
     openRuleEditor(data.rule.id);
   } catch (e) {
+    cancelTitleFocus();
     alert(`Could not create rule: ${e.message}`);
   }
 }
@@ -8431,6 +8442,7 @@ async function loadTodoTab(opts = {}) {
 }
 
 function startNewTodo(opts = {}) {
+  armTitleFocus('todo');
   if (!opts.keepReturnSlug) todoState.returnToWorkSlug = null;
   todoState.activeId = '__new__';
   todoState.dirty = false;
@@ -8555,6 +8567,7 @@ function renderTodoEditor() {
     });
   }
   root.appendChild(pane);
+  flushTitleFocus('todo');
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -8803,6 +8816,7 @@ function renderTodoEditPane(pane, isNew) {
     icons,
   });
   pane.appendChild(header);
+  if (isNew) requestTitleFocus('todo', titleInput);
 
   const scroll = document.createElement('div');
   scroll.className = 're-form-scroll';
@@ -9536,6 +9550,7 @@ function renderDocEditor() {
   }
 
   root.appendChild(pane);
+  flushTitleFocus('documents');
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -9563,6 +9578,7 @@ function renderNewForm(pane) {
   slugLabel.appendChild(slugInput);
   fields.appendChild(slugLabel);
   pane.appendChild(fields);
+  requestTitleFocus('documents', slugInput);
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
@@ -9748,8 +9764,12 @@ async function openDocument(slug) {
 }
 
 async function startNewDocument() {
+  armTitleFocus('documents');
   await flushDocAutosave();
-  if (docState.dirty && !(await confirmDiscardChanges())) return;
+  if (docState.dirty && !(await confirmDiscardChanges())) {
+    cancelTitleFocus();
+    return;
+  }
   docState.activeSlug = '__new__';
   docState.dirty = false;
   docState.savedHtml = '';
@@ -10232,6 +10252,7 @@ function renderKnowledgePane() {
     });
     root.classList.remove('de-pane-active');
   }
+  flushTitleFocus('knowledge');
 }
 
 function renderKnowledgeEditor() {
@@ -10278,6 +10299,7 @@ function renderKnowledgeEditor() {
 }
 
 function startNewKnowledge() {
+  armTitleFocus('knowledge');
   knowledgeState.activeSlug = '__new__';
   knowledgeState.dirty = false;
   syncKnowledgeSidebarActiveState();
@@ -10312,6 +10334,7 @@ function renderNewKnowledgeForm(pane) {
   slugLabel.appendChild(slugInput);
   fields.appendChild(slugLabel);
   pane.appendChild(fields);
+  requestTitleFocus('knowledge', slugInput);
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
@@ -11377,6 +11400,7 @@ async function loadWorkTab(opts = {}) {
 }
 
 function startNewProject() {
+  armTitleFocus('work');
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
   workState.activeSlug = '__new__';
@@ -11397,6 +11421,7 @@ function startNewProject() {
 }
 
 function startNewClient() {
+  armTitleFocus('clients');
   clientState.activeUid = '__new__';
   clientState.dirty = false;
   clientState.draft = {
@@ -11493,6 +11518,7 @@ function renderWorkEditor() {
   }
 
   root.appendChild(pane);
+  flushTitleFocus('work');
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -12186,6 +12212,7 @@ function renderNewWorkForm(pane) {
     },
   });
   pane.appendChild(header);
+  requestTitleFocus('work', titleInput);
 
   const scroll = createWorkFormScroll(pane);
 
@@ -15181,6 +15208,7 @@ function renderClientsEditor() {
   }
 
   root.appendChild(pane);
+  flushTitleFocus('clients');
   finishSidebarListScroll(root, savedSidebarScroll);
 }
 
@@ -15651,6 +15679,7 @@ function renderNewClientForm(pane) {
       titleNode: titleWrap,
     }).header,
   );
+  requestTitleFocus('clients', companyInput);
 
   const scroll = createClientFormScroll(pane);
   const fields = document.createElement('div');
@@ -18230,6 +18259,7 @@ function navigateToTodo(id, opts = {}) {
 
 function navigateToNewTodoForProject(jobSlug) {
   if (!jobSlug) return;
+  armTitleFocus('todo');
   todoState.returnToWorkSlug = jobSlug;
   todoState.activeId = '__new__';
   todoState.dirty = false;
@@ -18248,10 +18278,12 @@ function navigateToNewTodoForProject(jobSlug) {
 }
 
 async function navigateToNewWorkFromTodo(opts = {}) {
+  armTitleFocus('work');
   await flushTodoAutosave();
   let todoId = typeof todoState.activeId === 'number' ? todoState.activeId : null;
   if (!todoId) {
     if (!todoState.draft?.title?.trim()) {
+      cancelTitleFocus();
       await osAlert({
         title: 'Enter a to‑do title',
         bodyHtml: 'Save the to‑do title before creating a project.',
@@ -18260,6 +18292,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
     }
     const saved = await saveActiveTodoDraft(true);
     if (!saved || typeof todoState.activeId !== 'number') {
+      cancelTitleFocus();
       await osAlert({
         title: 'Could not save to‑do',
         bodyHtml: 'Save the to‑do before creating a project.',

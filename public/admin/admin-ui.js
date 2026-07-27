@@ -713,6 +713,99 @@ export function wrapEditableHeaderTitle(titleEl, opts = {}) {
   return wrap;
 }
 
+/*
+ * Auto-focus for the title field of a freshly started record.
+ *
+ * iOS only raises the software keyboard when focus() runs while the browser is
+ * still handling the tap that asked for it, but create panes are built detached
+ * and appended afterwards (and a few flows wait on the server first). So the tap
+ * handler arms the request and parks focus on an offscreen input to hold the
+ * keyboard open, then the renderer hands focus to the real title field.
+ */
+
+const TITLE_FOCUS_TIMEOUT = 3500;
+
+let titleFocusKey = null;
+let titleFocusTarget = null;
+let titleFocusPrimer = null;
+let titleFocusTimer = null;
+
+function usesSoftwareKeyboard() {
+  return window.matchMedia?.('(pointer: coarse)').matches ?? false;
+}
+
+function dropTitleFocusPrimer() {
+  const primer = titleFocusPrimer;
+  titleFocusPrimer = null;
+  if (!primer) return;
+  if (document.activeElement === primer) primer.blur();
+  primer.remove();
+}
+
+/**
+ * Arm title auto-focus for a record type ('work', 'todo', …). Must run
+ * synchronously from the tap that starts the record.
+ */
+export function armTitleFocus(key) {
+  cancelTitleFocus();
+  titleFocusKey = key;
+  titleFocusTimer = window.setTimeout(cancelTitleFocus, TITLE_FOCUS_TIMEOUT);
+  if (!usesSoftwareKeyboard()) return;
+  const primer = document.createElement('input');
+  primer.type = 'text';
+  primer.tabIndex = -1;
+  primer.setAttribute('aria-hidden', 'true');
+  primer.autocomplete = 'off';
+  primer.spellcheck = false;
+  // Has to stay rendered and non-zero sized — iOS ignores focus() on hidden
+  // inputs — and 16px keeps Safari from zooming while it is momentarily focused.
+  primer.style.cssText =
+    'position:fixed;top:0;left:0;width:1px;height:1px;z-index:-1;opacity:0;' +
+    'padding:0;border:0;font-size:16px;background:transparent;caret-color:transparent;';
+  document.body.appendChild(primer);
+  titleFocusPrimer = primer;
+  try {
+    primer.focus({ preventScroll: true });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Register the field an armed create pane wants focused once it is on screen. */
+export function requestTitleFocus(key, field) {
+  if (titleFocusKey == null || titleFocusKey !== key) return;
+  titleFocusTarget = field instanceof HTMLElement ? field : null;
+}
+
+/** Hand focus to the registered field. Call once the pane is in the document. */
+export function flushTitleFocus(key) {
+  const field = titleFocusTarget;
+  if (titleFocusKey == null || titleFocusKey !== key || !field) return;
+  titleFocusTarget = null;
+  if (field.isConnected) {
+    try {
+      field.focus({ preventScroll: true });
+      const end = field.value?.length ?? 0;
+      if (end && field instanceof HTMLInputElement) field.setSelectionRange(end, end);
+    } catch {
+      /* ignore */
+    }
+  }
+  dropTitleFocusPrimer();
+  window.clearTimeout(titleFocusTimer);
+  titleFocusTimer = null;
+  titleFocusKey = null;
+}
+
+/** Drop an armed request when the create flow bails out. */
+export function cancelTitleFocus() {
+  window.clearTimeout(titleFocusTimer);
+  titleFocusTimer = null;
+  titleFocusKey = null;
+  titleFocusTarget = null;
+  dropTitleFocusPrimer();
+}
+
 /**
  * Header title `<input>` with edit affordance.
  * @returns {{ el: HTMLElement, input: HTMLInputElement }}
