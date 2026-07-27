@@ -89,6 +89,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         --nav-icon: rgba(0, 0, 0, 0.45);
         --nav-icon-hover: rgba(0, 0, 0, 0.72);
         --nav-icon-active: #0f172a;
+        --nav-chevron: rgba(0, 0, 0, 0.8);
+        --nav-chevron-hover: #000;
         --nav-indicator-bg: rgba(0, 0, 0, 0.05);
         --footer-nav-glass-border: 1px solid rgba(0, 0, 0, 0.08);
         --footer-nav-glass-bg: transparent;
@@ -259,6 +261,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
           --nav-icon: rgba(255, 255, 255, 0.58);
           --nav-icon-hover: rgba(255, 255, 255, 0.88);
           --nav-icon-active: #ffffff;
+          --nav-chevron: rgba(255, 255, 255, 0.8);
+          --nav-chevron-hover: #fff;
           --nav-indicator-bg: rgba(255, 255, 255, 0.05);
           --footer-nav-glass-border: 1px solid rgba(255, 255, 255, 0.08);
           --badge-ring: rgba(10, 13, 20, 0.55);
@@ -2678,11 +2682,12 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         width: 1.25rem;
         height: 1.25rem;
       }
-      /* Back/forward nav chevrons — darker and bolder than blue action icons */
+      /* Back/forward nav chevrons — 80% black, full black on hover */
       .ios-icon-btn.nav-chevron-btn {
-        color: var(--fg);
+        color: var(--nav-chevron);
       }
       .ios-icon-btn.nav-chevron-btn:hover {
+        color: var(--nav-chevron-hover);
         background: var(--surface-hover);
       }
       .de-header .de-share-btn {
