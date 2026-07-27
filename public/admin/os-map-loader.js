@@ -6099,17 +6099,26 @@ function beginCreateDrawer(opts) {
   };
 }
 
+/** Strip drawer styling and injected chrome from a pane. */
+function stripCreateDrawerChrome(pane) {
+  if (!pane) return;
+  pane.classList.remove('de-pane--drawer', 'de-pane--drawer-open', 'de-pane--drawer-keyboard');
+  pane.style.removeProperty('transform');
+  pane.style.removeProperty('transition');
+  pane.querySelector(':scope > .de-drawer-grabber')?.remove();
+  pane.querySelector(':scope > .de-drawer-bar')?.remove();
+}
+
 /** Build the grabber + Cancel/title/Add bar at the top of the drawer pane. */
 function mountCreateDrawerChrome(pane) {
+  // Panes are reused across renders, and one create flow can hand off to
+  // another panel's (a new to-do that spawns a project), so scrub every other
+  // pane: `getCreateDrawerPane` resolves to the first match in the document.
+  for (const stale of document.querySelectorAll('.de-pane--drawer')) {
+    if (stale !== pane) stripCreateDrawerChrome(stale);
+  }
   if (!createDrawer) {
-    // Panes are reused across renders, so scrub any chrome left by a past drawer.
-    pane.classList.remove(
-      'de-pane--drawer',
-      'de-pane--drawer-open',
-      'de-pane--drawer-keyboard',
-    );
-    pane.style.removeProperty('transform');
-    pane.style.removeProperty('transition');
+    stripCreateDrawerChrome(pane);
     return;
   }
   pane.classList.add('de-pane--drawer');
@@ -6197,6 +6206,9 @@ function showCreateDrawer(pane) {
     const scrim = document.getElementById('create-drawer-scrim');
     const root = pane.parentElement;
     if (root && scrim) {
+      for (const el of document.querySelectorAll('.de-drawer-host')) {
+        if (el !== root) el.classList.remove('de-drawer-host');
+      }
       root.classList.add('de-drawer-host');
       if (scrim.parentElement !== root) root.appendChild(scrim);
       scrim.hidden = false;
@@ -6230,13 +6242,7 @@ function parkCreateDrawerScrim(scrim) {
 }
 
 function clearCreateDrawerPaneChrome() {
-  const pane = getCreateDrawerPane();
-  if (!pane) return;
-  pane.classList.remove('de-pane--drawer', 'de-pane--drawer-open', 'de-pane--drawer-keyboard');
-  pane.style.removeProperty('transform');
-  pane.style.removeProperty('transition');
-  pane.querySelector(':scope > .de-drawer-grabber')?.remove();
-  pane.querySelector(':scope > .de-drawer-bar')?.remove();
+  stripCreateDrawerChrome(getCreateDrawerPane());
 }
 
 /** Tear the drawer down without animating — the caller is replacing the pane. */
