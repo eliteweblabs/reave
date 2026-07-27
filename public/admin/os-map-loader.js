@@ -6096,6 +6096,7 @@ function beginCreateDrawer(opts) {
     onSubmit: opts.onSubmit || null,
     onDismiss: opts.onDismiss || null,
     submitBtn: null,
+    baseline: null,
   };
 }
 
@@ -6152,6 +6153,7 @@ function mountCreateDrawerChrome(pane) {
   bar.append(cancel, heading, submit);
   pane.prepend(grabber, bar);
 
+  createDrawer.baseline = createDrawerFieldSignature(pane);
   bindCreateDrawerDrag(pane, [grabber, bar]);
   showCreateDrawer(pane);
 }
@@ -6187,7 +6189,7 @@ function bindCreateDrawerDismissControls() {
   if (createDrawerDismissBound) return;
   createDrawerDismissBound = true;
   document.getElementById('create-drawer-scrim')?.addEventListener('click', () => {
-    dismissCreateDrawer();
+    dismissCreateDrawer({ confirmEdits: true });
   });
   document.addEventListener('keydown', (ev) => {
     if (ev.key !== 'Escape' || !isCreateDrawerOpen()) return;
@@ -6254,10 +6256,40 @@ function finishCreateDrawer() {
   parkCreateDrawerScrim(fadeCreateDrawerScrim());
 }
 
-/** Slide the drawer away, then let the owner reset its state and re-render. */
-function dismissCreateDrawer() {
+/** Snapshot of everything typed into the drawer, taken as it is rendered. */
+function createDrawerFieldSignature(pane) {
+  if (!pane) return null;
+  const values = [];
+  for (const el of pane.querySelectorAll('input, textarea, select, [contenteditable="true"]')) {
+    values.push(el.isContentEditable ? el.textContent || '' : el.value ?? '');
+  }
+  return values.join('\u0000');
+}
+
+function createDrawerHasEdits() {
+  if (createDrawer?.baseline == null) return false;
+  const current = createDrawerFieldSignature(getCreateDrawerPane());
+  return current != null && current !== createDrawer.baseline;
+}
+
+/**
+ * Slide the drawer away, then let the owner reset its state and re-render.
+ * Nothing here is autosaved, so incidental dismissals (a tap on the scrim, a
+ * swipe down) check before throwing away work the user has typed.
+ */
+function dismissCreateDrawer({ confirmEdits = false } = {}) {
   const drawer = createDrawer;
   if (!drawer) return;
+  if (confirmEdits && createDrawerHasEdits()) {
+    void confirmDiscardChanges().then((ok) => {
+      if (ok && createDrawer === drawer) closeCreateDrawer(drawer);
+    });
+    return;
+  }
+  closeCreateDrawer(drawer);
+}
+
+function closeCreateDrawer(drawer) {
   const onDismiss = drawer.onDismiss;
   const pane = getCreateDrawerPane();
   createDrawer = null;
@@ -6284,7 +6316,8 @@ function bindCreateDrawerDrag(pane, handles) {
     dragging = false;
     pane.style.transition = '';
     if (offset > 100) {
-      dismissCreateDrawer();
+      pane.style.transform = '';
+      dismissCreateDrawer({ confirmEdits: true });
     } else {
       pane.style.transform = '';
     }
