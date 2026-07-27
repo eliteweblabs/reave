@@ -9,6 +9,7 @@ import type { APIRoute } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -35,7 +36,9 @@ function titleFromHtml(html: string, slug: string): string {
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   const dir = docsDir();
   if (!existsSync(dir)) {
     return new Response(JSON.stringify([]), {
@@ -61,7 +64,10 @@ export const GET: APIRoute = async () => {
   }
 };
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { request } = context;
   let body: { slug?: unknown; html?: unknown };
   try {
     body = (await request.json()) as typeof body;

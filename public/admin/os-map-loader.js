@@ -9846,7 +9846,7 @@ async function loadDocumentsTab() {
     docState.templates = await templatesRes.json();
     docState.shortcodes = shortcodesRes.ok ? await shortcodesRes.json() : [];
   } catch (e) {
-    root.innerHTML = `<div class="de-loading de-error">Failed to load templates: ${e.message}</div>`;
+    root.innerHTML = `<div class="de-loading de-error">Failed to load templates: ${escHtml(e.message)}</div>`;
     return;
   }
   docState.activeSlug = null;
@@ -10101,7 +10101,7 @@ function renderEditForm(pane) {
       });
     })
     .catch((e) => {
-      pane.innerHTML = `<div class="de-loading de-error">Failed to load: ${e.message}</div>`;
+      pane.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     });
 }
 

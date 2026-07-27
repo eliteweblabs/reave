@@ -185,9 +185,14 @@ export const POST: APIRoute = async ({ request }) => {
   // Respond 200 immediately so Telnyx doesn't retry; process the event async.
   const rawBody = await request.text();
 
-  // Validate signature if public key is configured.
+  // Validate signature — required in production.
   const publicKey = serverEnv('TELNYX_WEBHOOK_PUBLIC_KEY')?.trim();
-  if (publicKey) {
+  if (!publicKey) {
+    if (import.meta.env.PROD) {
+      console.error('[voice] TELNYX_WEBHOOK_PUBLIC_KEY not configured');
+      return new Response('Unauthorized', { status: 401 });
+    }
+  } else {
     const sig = request.headers.get('telnyx-signature-ed25519') ?? '';
     const ts = request.headers.get('telnyx-timestamp') ?? '';
     if (!sig || !ts) {

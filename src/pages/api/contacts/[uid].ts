@@ -6,13 +6,14 @@ import {
   blockersToJson,
 } from '../../../lib/contactDeleteGuard';
 import { serverEnv } from '../../../lib/serverEnv';
+import { secretsEqual } from '../../../lib/timingSafeSecret';
 
 export const prerender = false;
 
 function isDashboardAuthed(request: Request): boolean {
   const expected = serverEnv('DASHBOARD_KEY')?.trim();
   if (!expected) return false;
-  return request.headers.get('x-dashboard-key')?.trim() === expected;
+  return secretsEqual(request.headers.get('x-dashboard-key')?.trim(), expected);
 }
 
 const json = (body: object, status = 200) =>

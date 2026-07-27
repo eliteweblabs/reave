@@ -8,6 +8,7 @@ import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
   computeInboxDigest,
   isEmailInboxActive,
+  storeEmailInboxDigest,
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
 import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
@@ -92,16 +93,16 @@ export async function GET(context: APIContext): Promise<Response> {
 
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
-  const [events, inboxForCount, jobs, threads, deploy] = await Promise.all([
+  const [events, inboxDigest, jobs, threads, deploy] = await Promise.all([
     storeListEmailInbox(100, { hideJunk: true }),
-    storeListEmailInbox(10_000, { hideJunk: true, forDigest: true }),
+    storeEmailInboxDigest(true),
     storeListWork(),
     storeListChatThreads(userId, { archivedOnly: false }),
     getDeployStatus().catch(() => null),
   ]);
 
   const digest = computeInboxDigest(events, true);
-  const emailsTotal = computeInboxDigest(inboxForCount, true).visible;
+  const emailsTotal = inboxDigest.visible;
   const projectsTotal = jobs.length;
   const [
     emailNotifications,

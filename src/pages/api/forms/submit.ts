@@ -1,15 +1,42 @@
 import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
+import { checkRateLimit, clientIp } from '../../../lib/rateLimit';
+
+export const prerender = false;
+
+const MAX_FIELD_LEN = 10_000;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function truncate(s: string, max = MAX_FIELD_LEN): string {
+  return s.length > max ? s.slice(0, max) : s;
+}
 
 export const POST: APIRoute = async ({ request }) => {
+  const rate = checkRateLimit(`forms:${clientIp(request)}`, {
+    windowMs: 15 * 60 * 1000,
+    maxPerWindow: 10,
+  });
+  if (!rate.ok) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(rate.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   try {
     const formData = await request.json();
-    const name = String(
-      formData.name || formData.fullName || formData.full_name || '',
-    ).trim();
-    const email = String(formData.email || '').trim();
-    const company = String(formData.company || '').trim();
-    const phone = String(formData.phone || formData.tel || '').trim();
+    const name = truncate(
+      String(formData.name || formData.fullName || formData.full_name || '').trim(),
+    );
+    const email = truncate(String(formData.email || '').trim());
+    const company = truncate(String(formData.company || '').trim());
+    const phone = truncate(String(formData.phone || formData.tel || '').trim());
     const smsRaw = formData.sms_opt_in ?? formData.smsOptIn;
     const smsOptIn =
       smsRaw === 'yes' || smsRaw === true
@@ -17,13 +44,23 @@ export const POST: APIRoute = async ({ request }) => {
         : smsRaw === 'no' || smsRaw === false
           ? false
           : null;
-    const message = String(formData.message || '').trim();
-    const subject = String(formData.subject || 'New form submission').trim();
-    const to = formData.to != null ? String(formData.to).trim() : undefined;
+    const message = truncate(String(formData.message || '').trim());
+    const subject = truncate(String(formData.subject || 'New form submission').trim());
+    const to = formData.to != null ? truncate(String(formData.to).trim()) : undefined;
 
     if (!name && !email && !message) {
       return new Response(
         JSON.stringify({ success: false, error: 'Empty submission' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+    }
+
+    if (email && !EMAIL_RE.test(email)) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid email address' }),
         {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -46,9 +83,7 @@ export const POST: APIRoute = async ({ request }) => {
       console.warn('[Form Submission] warnings:', result.warnings.join(', '));
     }
     console.log('[Form Submission]', {
-      contactUid: result.contactUid,
       contactCreated: result.contactCreated,
-      jobSlug: result.jobSlug,
       companyEmailSent: result.companyEmailSent,
       submitterEmailSent: result.submitterEmailSent,
       noticeCreated: result.noticeCreated,
@@ -58,9 +93,6 @@ export const POST: APIRoute = async ({ request }) => {
       JSON.stringify({
         success: true,
         message: 'Form submitted successfully',
-        contactUid: result.contactUid,
-        jobSlug: result.jobSlug,
-        contactCreated: result.contactCreated,
       }),
       {
         headers: { 'Content-Type': 'application/json' },

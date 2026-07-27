@@ -4,6 +4,7 @@
  */
 
 import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
 import {
   listKnowledgeSlugs,
   parseKnowledgeMarkdown,
@@ -50,31 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_search ON knowledge USING GIN(
 );
 `;
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
-let _seedReady: Promise<void> | null = null;
-
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
 
 async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
   const { rows } = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM knowledge');
@@ -95,7 +72,7 @@ async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
 }
 
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool

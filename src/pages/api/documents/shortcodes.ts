@@ -10,6 +10,7 @@
 import type { APIRoute } from 'astro';
 import { SHORTCODES, type Shortcode } from '../../../lib/documentTemplates';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -26,7 +27,9 @@ function camelToWords(s: string): string {
     .trim();
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   const shortcodes: Shortcode[] = [...SHORTCODES];
 
   if (isContactApiConfigured()) {

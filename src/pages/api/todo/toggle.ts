@@ -12,6 +12,7 @@ import type { APIRoute } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -33,7 +34,10 @@ function todoDir(): string {
 const ITEM_RE = /^- \[([ xX])\] /;
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { request } = context;
   let body: { slug?: unknown; lineIndex?: unknown; checked?: unknown };
   try {
     body = await request.json() as typeof body;

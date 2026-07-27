@@ -4,6 +4,7 @@
 import { postToSystemAlertsThread } from './adminAgentAlert';
 import { listContacts, type ClientPortal } from './contactApi';
 import { hasFeature } from './features';
+import { secretsEqual } from './timingSafeSecret';
 import { isKinstaConfigured, kinstaCollectMonitorUrls } from './kinstaClient';
 import { isRailwayConfigured, railwayCollectMonitorUrls } from './railwayClient';
 import {
@@ -1088,10 +1089,10 @@ export function validateUptimeWebhookAuth(opts: {
 }): boolean {
   const expected = uptimeWebhookSecret();
   if (!expected) return false;
-  if (opts.queryKey && opts.queryKey === expected) return true;
+  if (secretsEqual(opts.queryKey, expected)) return true;
   const auth = opts.authHeader?.trim();
-  if (auth === `Bearer ${expected}`) return true;
-  if (auth === expected) return true;
+  if (auth && secretsEqual(auth, `Bearer ${expected}`)) return true;
+  if (secretsEqual(auth, expected)) return true;
   return false;
 }
 

@@ -3,6 +3,7 @@ import { markDeployFailed } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
+import { secretsEqual } from './timingSafeSecret';
 
 type RailwayWebhookBody = {
   type?: string;
@@ -75,7 +76,7 @@ export async function handleRailwayWebhook(opts: {
   if (!expectedKey?.trim()) {
     return { ok: false, status: 503, message: 'RAILWAY_WEBHOOK_INGRESS_KEY not configured' };
   }
-  if (!ingressKey || ingressKey !== expectedKey.trim()) {
+  if (!secretsEqual(ingressKey, expectedKey.trim())) {
     return { ok: false, status: 401, message: 'invalid key' };
   }
 

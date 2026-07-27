@@ -7,6 +7,7 @@
 import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
 import { runUptimePoll, uptimePollSecret, ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
+import { secretsEqual } from '../../../lib/timingSafeSecret';
 
 export const prerender = false;
 
@@ -19,7 +20,7 @@ function json(data: unknown, status = 200): Response {
 
 function authorizedByKey(key: string | null): boolean {
   const expected = uptimePollSecret();
-  return Boolean(expected && key && key === expected);
+  return secretsEqual(key, expected);
 }
 
 export const GET: APIRoute = async ({ url, locals }) => {

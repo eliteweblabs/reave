@@ -14,6 +14,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import type { NewsletterAutomationOverride } from './newsletterAutomations';
 
@@ -58,34 +59,7 @@ export interface NewsletterEnqueueInput {
 
 // ─────────────────────────── pool + schema ───────────────────────────
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
-
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-export function newsletterStorageBackend(): 'postgres' | 'files' {
-  return databaseUrl() ? 'postgres' : 'files';
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
 
 const QUEUE_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS newsletter_queue (
@@ -136,7 +110,7 @@ const QUEUE_SELECT = `id, template_id, source, trigger, contact_uid, to_email, f
   status, due_at, sent_at, job_slug, context, dedup_key, resend_id, error, created_at`;
 
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = (async () => {

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { serverEnv } from '../../../lib/serverEnv';
+import { secretsEqual } from '../../../lib/timingSafeSecret';
 
 export const prerender = false;
 
@@ -8,7 +9,7 @@ function isDashboardAuthed(request: Request): boolean {
   const expected = serverEnv('DASHBOARD_KEY')?.trim();
   if (!expected) return false;
   const auth = request.headers.get('x-dashboard-key')?.trim();
-  return auth === expected;
+  return secretsEqual(auth, expected);
 }
 
 export const POST: APIRoute = async ({ request }) => {

@@ -38,6 +38,7 @@ import {
 import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
+import { secretsEqual } from '../../../lib/timingSafeSecret';
 
 export const prerender = false;
 
@@ -78,7 +79,7 @@ function isAuthenticated(context: APIContext): boolean {
   const siriKey = serverEnv('SIRI_API_KEY')?.trim();
   if (siriKey) {
     const providedKey = context.request.headers.get('X-Siri-Key');
-    if (providedKey === siriKey) return true;
+    if (secretsEqual(providedKey, siriKey)) return true;
   }
 
   return false;

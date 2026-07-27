@@ -1,25 +1,26 @@
-FROM node:22-slim
-
+# Build stage
+FROM node:22-slim AS build
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install all dependencies (devDependencies required for astro build)
 RUN npm ci
-
-# Copy source
 COPY . .
-
-# Build the app
 RUN npm run build
 
-# Expose port
-EXPOSE 4321
-
-# Set environment variables at runtime (Railway will inject these)
+# Production stage
+FROM node:22-slim AS production
+WORKDIR /app
+ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=4321
 
-# Start the server
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/public ./public
+
+RUN chown -R node:node /app
+USER node
+
+EXPOSE 4321
 CMD ["node", "./dist/server/entry.mjs"]
