@@ -5634,6 +5634,17 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
          A new project/client/to-do/etc. opens as an iOS bottom drawer over its
          list. The drawer *is* the detail pane, restyled — that keeps every
          `#<panel> .de-pane …` rule below working inside it. */
+      /* Panel roots are their own stacking context, so the scrim has to live
+         inside the one hosting the drawer — and that root has to outrank the
+         floating topbar and footer nav (both z-index 2000). */
+      #doc-editor.de-drawer-host,
+      #knowledge-editor.de-drawer-host,
+      #work-editor.de-drawer-host,
+      #todo-editor.de-drawer-host,
+      #clients-editor.de-drawer-host,
+      #rule-editor.de-drawer-host {
+        z-index: 4800;
+      }
       .create-drawer-scrim {
         position: fixed;
         inset: 0;
@@ -5688,10 +5699,16 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       .de-pane--drawer.de-pane--drawer-open {
         transform: translateY(0);
       }
-      /* Lift the drawer above the software keyboard (visualViewport inset). */
+      /* Lift the drawer above the software keyboard (visualViewport inset).
+         The max-height stays capped at the resting value so the chrome does not
+         jump under the user's finger when the inset appears or clears. */
       .de-pane--drawer.de-pane--drawer-keyboard {
         bottom: var(--create-drawer-keyboard-inset, 0px);
-        max-height: calc(100dvh - var(--create-drawer-keyboard-inset, 0px) - 0.5rem);
+        max-height: min(
+          92dvh,
+          780px,
+          calc(100dvh - var(--create-drawer-keyboard-inset, 0px) - 0.5rem)
+        );
         transition:
           transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
           bottom 0.25s ease;
@@ -8865,6 +8882,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727c"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727d"></script>
   </body>
 </html>

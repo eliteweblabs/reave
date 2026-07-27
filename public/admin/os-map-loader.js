@@ -6188,20 +6188,45 @@ function bindCreateDrawerDismissControls() {
 }
 
 function showCreateDrawer(pane) {
-  const scrim = document.getElementById('create-drawer-scrim');
   bindCreateDrawerDismissControls();
   bindCreateDrawerKeyboardLayout();
-  if (createDrawerVisible) {
-    // Re-rendered while already up — skip the entrance so it doesn't replay.
-    pane.classList.add('de-pane--drawer-open');
-    return;
-  }
+  // Re-rendered while already up — skip the entrance so it doesn't replay.
+  const entering = !createDrawerVisible;
   createDrawerVisible = true;
-  if (scrim) scrim.hidden = false;
   requestAnimationFrame(() => {
-    scrim?.classList.add('open');
-    pane.classList.add('de-pane--drawer-open');
+    const scrim = document.getElementById('create-drawer-scrim');
+    const root = pane.parentElement;
+    if (root && scrim) {
+      root.classList.add('de-drawer-host');
+      if (scrim.parentElement !== root) root.appendChild(scrim);
+      scrim.hidden = false;
+    }
+    if (!entering) {
+      scrim?.classList.add('open');
+      pane.classList.add('de-pane--drawer-open');
+      return;
+    }
+    requestAnimationFrame(() => {
+      scrim?.classList.add('open');
+      pane.classList.add('de-pane--drawer-open');
+    });
   });
+}
+
+function fadeCreateDrawerScrim() {
+  const scrim = document.getElementById('create-drawer-scrim');
+  scrim?.classList.remove('open');
+  return scrim;
+}
+
+/** Park the scrim back on the body so the next drawer can re-home it. */
+function parkCreateDrawerScrim(scrim) {
+  for (const el of document.querySelectorAll('.de-drawer-host')) {
+    el.classList.remove('de-drawer-host');
+  }
+  if (!scrim) return;
+  scrim.hidden = true;
+  document.body.appendChild(scrim);
 }
 
 function clearCreateDrawerPaneChrome() {
@@ -6220,9 +6245,7 @@ function finishCreateDrawer() {
   createDrawerVisible = false;
   releaseCreateDrawerKeyboardLayout();
   clearCreateDrawerPaneChrome();
-  const scrim = document.getElementById('create-drawer-scrim');
-  scrim?.classList.remove('open');
-  if (scrim) scrim.hidden = true;
+  parkCreateDrawerScrim(fadeCreateDrawerScrim());
 }
 
 /** Slide the drawer away, then let the owner reset its state and re-render. */
@@ -6234,12 +6257,11 @@ function dismissCreateDrawer() {
   createDrawer = null;
   createDrawerVisible = false;
   releaseCreateDrawerKeyboardLayout();
-  const scrim = document.getElementById('create-drawer-scrim');
-  scrim?.classList.remove('open');
+  const scrim = fadeCreateDrawerScrim();
   pane?.classList.remove('de-pane--drawer-open');
   window.setTimeout(() => {
     if (createDrawerVisible) return; // another create flow started mid-animation
-    if (scrim) scrim.hidden = true;
+    parkCreateDrawerScrim(scrim);
     clearCreateDrawerPaneChrome();
     onDismiss?.();
   }, CREATE_DRAWER_EXIT_MS);
@@ -6294,24 +6316,21 @@ function bindCreateDrawerDrag(pane, handles) {
   }
 }
 
+/** Keyboard inset below which the viewport is just browser chrome, not a keyboard. */
+const CREATE_DRAWER_KEYBOARD_MIN_PX = 80;
+
 function syncCreateDrawerKeyboardLayout() {
   const pane = getCreateDrawerPane();
   const vv = window.visualViewport;
-  const active = document.activeElement;
-  const focusedInDrawer =
-    pane != null &&
-    active instanceof HTMLElement &&
-    pane.contains(active) &&
-    (active instanceof HTMLInputElement ||
-      active instanceof HTMLTextAreaElement ||
-      active instanceof HTMLSelectElement ||
-      active.isContentEditable);
-  if (!pane || !focusedInDrawer || !vv) {
+  // Measure the viewport rather than what has focus: tying this to focus makes
+  // the drawer resize on the mousedown that precedes a Cancel/Add tap, which
+  // moves the button out from under the finger before the click lands.
+  const inset = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+  if (!pane || inset < CREATE_DRAWER_KEYBOARD_MIN_PX) {
     pane?.classList.remove('de-pane--drawer-keyboard');
     document.documentElement.style.removeProperty('--create-drawer-keyboard-inset');
     return;
   }
-  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   pane.classList.add('de-pane--drawer-keyboard');
   document.documentElement.style.setProperty('--create-drawer-keyboard-inset', `${inset}px`);
 }
