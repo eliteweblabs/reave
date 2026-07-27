@@ -21883,7 +21883,7 @@ function renderEmailPanel() {
   const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summary;
   if (bodyHtmlSource) {
     detailHtml +=
-      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="" title="Email message"></iframe></div>`;
+      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" title="Email message"></iframe></div>`;
   } else if (showPlainBody) {
     detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
   } else if (!attachments.length && !summary) {
