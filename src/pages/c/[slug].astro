@@ -416,10 +416,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         <main class="wrap">
           <header class="hero">
             {logoUrl ? (
-              <>
-                <img class="client-logo" src={logoUrl} alt={brandTitle} width="160" height="64" loading="eager" />
-                <p class="client-brand-name">{brandTitle}</p>
-              </>
+              <img class="client-logo" src={logoUrl} alt={brandTitle} width="160" height="64" loading="eager" />
             ) : (
               <h1>{brandTitle}</h1>
             )}
@@ -908,12 +905,6 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         height: auto;
         margin: 18px auto 10px;
         object-fit: contain;
-      }
-      .client-brand-name {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: 700;
-        line-height: 1.2;
       }
       .overview-intro {
         margin-bottom: 20px;
