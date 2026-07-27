@@ -31,7 +31,7 @@ const SYSTEM_NODES = [
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
   { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
-  { id: 'portal', title: 'Client portal', sub: '/c/:uid · vault · comments · tracked shares', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
+  { id: 'portal', title: 'Client portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · contact form · home banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
@@ -41,7 +41,7 @@ const SYSTEM_NODES = [
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
 
   // External APIs
-  { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
+  { id: 'anthropic', title: 'Anthropic', sub: 'agent · SMS AI · email triage · voice · portal help chat', icon: '🤖', brand: 'anthropic', hue: 265, status: true, group: 'external', x: 1160, y: 100 },
   { id: 'railway_gql', title: 'Railway GraphQL', sub: 'outbound · projectCreate · domains', icon: '🚆', brand: 'railway', hue: 185, status: true, group: 'external', x: 1160, y: 220 },
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
   { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
@@ -75,6 +75,7 @@ const SYSTEM_EDGES = [
   { from: 'portal', to: 'contact_api', label: 'portal link (read/write)' },
   { from: 'portal', to: 'crater', label: 'billing', dashed: true },
   { from: 'portal', to: 'changedetection', label: 'site watch sync', dashed: true },
+  { from: 'portal', to: 'anthropic', label: 'speed-dial help chat (FEATURES: portal_assistant)', dashed: true },
   { from: 'astro', to: 'telnyx', label: 'SMS send · call control', dashed: true },
   { from: 'telnyx', to: 'astro', label: 'SMS · voice webhooks', dashed: true },
   { from: 'telnyx', to: 'anthropic', label: 'voice agent', dashed: true },

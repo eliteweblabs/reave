@@ -66,6 +66,26 @@ credentials. **These are sensitive** — they live in `contact-postgres` (the
 portal `metadata`) and are visible to anyone with the unguessable link, so only
 share creds you intend the client to have, and rotate the link if leaked.
 
+## Speed-dial help chat (`portal_assistant`)
+
+A fixed circular button in the bottom-right corner of every portal page opens
+a small chat for the everyday questions clients otherwise call/email about —
+"I can't get into my Gmail", "what's my login", "what do I owe", "what's the
+status of my project". It is a **separate, scoped-down assistant** from the
+admin agent:
+
+- No tools, no other clients' data, no destructive actions — it can only see
+  this one contact's Overview fields, Vault entries, active project statuses,
+  and billing total, plus general troubleshooting knowledge baked into the
+  model. See `src/lib/portalAssistant.ts` for the system prompt.
+- Public endpoint `POST /api/c/<uid>/assistant` (same access model as the
+  rest of the portal — the unguessable link is the token). Rate-limited
+  per contact+IP.
+- Gated behind the `portal_assistant` feature flag (in addition to
+  `client_portal`) and requires `ANTHROPIC_API_KEY`.
+- Chat history is kept client-side only (`sessionStorage`), never persisted
+  server-side.
+
 ## Send the link to a client
 
 Use **`send_client_portal`** ("send the client link to <name>") to deliver the
