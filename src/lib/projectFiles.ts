@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import pg from 'pg';
-import type { ChatImageAttachment } from './chatTypes';
+import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { isSafeWorkSlug, workDir } from './workStore';
 import { serverEnv } from './serverEnv';
 
@@ -42,6 +42,8 @@ const IMAGE_MEDIA_TYPES = new Set([
 export const PROJECT_UPLOAD_MEDIA_TYPES = new Set([
   ...IMAGE_MEDIA_TYPES,
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'image/svg+xml',
 ]);
 
 /** Additional types allowed when importing from inbound email attachments. */
@@ -182,6 +184,10 @@ function extensionForMediaType(mediaType: string): string {
       return 'webp';
     case 'application/pdf':
       return 'pdf';
+    case 'image/svg+xml':
+      return 'svg';
+    case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+      return 'pptx';
     default:
       return 'bin';
   }
@@ -578,6 +584,50 @@ export async function promoteChatImagesToLinkedProjects(
   const uniqueSlugs = [...new Set(jobSlugs.map((s) => s.trim()).filter(isSafeWorkSlug))];
   for (const slug of uniqueSlugs) {
     const files = await storeAddChatImagesToProject(slug, images, {
+      uploadedBy,
+      sourceRef: threadId,
+      source: 'chat',
+    });
+    if (files.length) out[slug] = files;
+  }
+  return out;
+}
+
+export async function storeAddChatDocsToProject(
+  slug: string,
+  docs: ChatDocAttachment[],
+  opts: {
+    uploadedBy?: string | null;
+    sourceRef?: string | null;
+    source?: ProjectFileSource;
+  } = {},
+): Promise<ProjectFileSummary[]> {
+  const saved: ProjectFileSummary[] = [];
+  for (const doc of docs) {
+    const result = await storeAddProjectFile(slug, {
+      filename: doc.filename,
+      mediaType: doc.mediaType,
+      dataBase64: doc.data,
+      uploadedBy: opts.uploadedBy,
+      source: opts.source ?? 'chat',
+      sourceRef: opts.sourceRef,
+    });
+    if (result.ok) saved.push(result.file);
+  }
+  return saved;
+}
+
+export async function promoteChatDocsToLinkedProjects(
+  threadId: string,
+  docs: ChatDocAttachment[],
+  jobSlugs: string[],
+  uploadedBy?: string | null,
+): Promise<Record<string, ProjectFileSummary[]>> {
+  const out: Record<string, ProjectFileSummary[]> = {};
+  if (!docs.length || !jobSlugs.length) return out;
+  const uniqueSlugs = [...new Set(jobSlugs.map((s) => s.trim()).filter(isSafeWorkSlug))];
+  for (const slug of uniqueSlugs) {
+    const files = await storeAddChatDocsToProject(slug, docs, {
       uploadedBy,
       sourceRef: threadId,
       source: 'chat',

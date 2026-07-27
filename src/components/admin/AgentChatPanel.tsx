@@ -4,6 +4,7 @@ import {
   AttachmentPrimitive,
   AuiIf,
   ComposerPrimitive,
+  CompositeAttachmentAdapter,
   MessagePrimitive,
   ThreadPrimitive,
   generateId,
@@ -31,6 +32,7 @@ import {
   parseStoredChatContent,
   storedChatPlainText,
   userMessageDisplayText,
+  type StoredChatDoc,
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
@@ -43,18 +45,46 @@ import './agent-chat.css';
 const MAX_CHAT_IMAGES = 5;
 const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
 const CHAT_IMAGE_ACCEPT =
-  'image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp';
+  'image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.jpg,.jpeg,.png,.gif,.webp,.svg';
+
+const MAX_CHAT_DOCS = 3;
+const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
+const PPTX_MEDIA_TYPE =
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+const CHAT_DOC_ACCEPT = `application/pdf,${PPTX_MEDIA_TYPE},.pdf,.pptx`;
 
 function normalizeChatImageMediaType(file: File): string {
   const type = (file.type || '').toLowerCase();
   if (type === 'image/jpg' || type === 'image/jpeg') return 'image/jpeg';
-  if (type === 'image/png' || type === 'image/gif' || type === 'image/webp') return type;
+  if (
+    type === 'image/png' ||
+    type === 'image/gif' ||
+    type === 'image/webp' ||
+    type === 'image/svg+xml'
+  )
+    return type;
   const ext = file.name.split('.').pop()?.toLowerCase();
   if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
   if (ext === 'png') return 'image/png';
   if (ext === 'gif') return 'image/gif';
   if (ext === 'webp') return 'image/webp';
+  if (ext === 'svg') return 'image/svg+xml';
   return type || 'image/png';
+}
+
+function normalizeChatDocMediaType(file: File): string {
+  const type = (file.type || '').toLowerCase();
+  if (type === 'application/pdf' || type === PPTX_MEDIA_TYPE) return type;
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return 'application/pdf';
+  if (ext === 'pptx') return PPTX_MEDIA_TYPE;
+  return type || 'application/octet-stream';
+}
+
+function fileLabelForMimeType(mimeType?: string): string {
+  if (mimeType === 'application/pdf') return 'PDF';
+  if (mimeType === PPTX_MEDIA_TYPE) return 'PowerPoint file';
+  return 'File';
 }
 
 function fileToDataURL(file: File): Promise<string> {
@@ -108,7 +138,46 @@ class ChatImageAttachmentAdapter implements AttachmentAdapter {
   }
 }
 
-function useCapComposerAttachments(max = MAX_CHAT_IMAGES) {
+/** PDF / PowerPoint (pptx) adapter — sent to the model as a `file` part (base64 data URL). */
+class ChatDocAttachmentAdapter implements AttachmentAdapter {
+  public accept = CHAT_DOC_ACCEPT;
+
+  public async add(state: { file: File }): Promise<PendingAttachment> {
+    if (state.file.size > MAX_CHAT_DOC_BYTES) {
+      throw new Error('File must be 10 MB or smaller');
+    }
+    const mediaType = normalizeChatDocMediaType(state.file);
+    return {
+      id: generateId(),
+      type: 'file',
+      name: state.file.name,
+      contentType: mediaType,
+      file: state.file,
+      status: { type: 'requires-action', reason: 'composer-send' },
+    };
+  }
+
+  public async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    return {
+      ...attachment,
+      status: { type: 'complete' },
+      content: [
+        {
+          type: 'file',
+          data: await fileToDataURL(attachment.file),
+          mimeType: attachment.contentType || 'application/octet-stream',
+          filename: attachment.name,
+        },
+      ],
+    };
+  }
+
+  public async remove() {
+    // noop
+  }
+}
+
+function useCapComposerAttachments(max = MAX_CHAT_IMAGES + MAX_CHAT_DOCS) {
   const composer = useComposerRuntime();
   useAuiEvent('composer.attachmentAdd', () => {
     const { attachments } = composer.getState();
@@ -358,7 +427,7 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
       content: [{ type: 'text', text: storedChatPlainText(message.content) }],
     };
   }
-  const { text, images } = parseStoredChatContent(message.content);
+  const { text, images, docs } = parseStoredChatContent(message.content);
   const displayText = message.role === 'user' ? userMessageDisplayText(text) : text;
   const content: Extract<ThreadMessageLike['content'], readonly unknown[]>[number][] = [];
   if (displayText) content.push({ type: 'text', text: displayText });
@@ -366,6 +435,14 @@ function storedToThreadMessage(message: StoredChatMessage): ThreadMessageLike {
     content.push({
       type: 'image',
       image: `data:${img.mediaType};base64,${img.data}`,
+    });
+  }
+  for (const doc of docs) {
+    content.push({
+      type: 'file',
+      data: `data:${doc.mediaType};base64,${doc.data}`,
+      mimeType: doc.mediaType,
+      filename: doc.filename,
     });
   }
   if (!content.length) content.push({ type: 'text', text: '' });
@@ -395,6 +472,32 @@ function extractImagesFromUserMessage(message: ThreadMessage): StoredChatImage[]
     }
   }
   return images;
+}
+
+function extractDocsFromUserMessage(message: ThreadMessage): StoredChatDoc[] {
+  const docs: StoredChatDoc[] = [];
+  const scan = (
+    parts: readonly { type: string; data?: string; mimeType?: string; filename?: string }[],
+  ) => {
+    for (const part of parts) {
+      if (part.type !== 'file') continue;
+      const src = typeof part.data === 'string' ? part.data : '';
+      const match = /^data:([^;]+);base64,(.+)$/.exec(src);
+      if (!match) continue;
+      docs.push({
+        mediaType: part.mimeType || match[1],
+        filename: part.filename || 'attachment',
+        data: match[2],
+      });
+    }
+  };
+  scan(message.content ?? []);
+  if (message.role === 'user') {
+    for (const att of message.attachments ?? []) {
+      scan(att.content ?? []);
+    }
+  }
+  return docs;
 }
 
 /**
@@ -554,6 +657,7 @@ function createChatAdapter(
         .trim();
 
       const images = extractImagesFromUserMessage(lastUser);
+      const docs = extractDocsFromUserMessage(lastUser);
       const model = propsRef.current?.getModel?.();
       const runStartedAt = Date.now();
 
@@ -579,6 +683,7 @@ function createChatAdapter(
           body: JSON.stringify({
             message: text,
             images,
+            docs,
             stream: true,
             ...(model ? { model } : {}),
           }),
@@ -790,6 +895,56 @@ function UserMessageImageAttachment() {
   const imagePart = attachment?.content?.find((part) => part.type === 'image');
   if (!imagePart || imagePart.type !== 'image') return null;
   return <UserImagePart image={imagePart.image} alt={attachment?.name} />;
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M6 2h7.17a2 2 0 0 1 1.41.59l3.83 3.83A2 2 0 0 1 19 7.83V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm7 1.5V7h3.5L13 3.5ZM6 3.5a.5.5 0 0 0-.5.5v16a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5V8.5h-4a1 1 0 0 1-1-1v-4H6Z"
+      />
+    </svg>
+  );
+}
+
+function UserFileChip(props: { filename?: string; mimeType?: string }) {
+  return (
+    <div className="aui-file-chip">
+      <FileIcon />
+      <div className="aui-file-chip-meta">
+        <span className="aui-file-chip-name">{props.filename || 'Attachment'}</span>
+        <span className="aui-file-chip-type">{fileLabelForMimeType(props.mimeType)}</span>
+      </div>
+    </div>
+  );
+}
+
+function UserFilePart(props: { filename?: string; mimeType?: string }) {
+  return <UserFileChip filename={props.filename} mimeType={props.mimeType} />;
+}
+
+function UserMessageFileAttachment() {
+  const attachment = useAuiState((s) => s.attachment);
+  const filePart = attachment?.content?.find((part) => part.type === 'file');
+  if (!filePart || filePart.type !== 'file') return null;
+  return <UserFileChip filename={attachment?.name} mimeType={filePart.mimeType} />;
+}
+
+function ComposerFileAttachmentPreview() {
+  const attachment = useAuiState((s) => s.attachment);
+  return (
+    <div className="aui-composer-attachment aui-composer-attachment-file">
+      <FileIcon />
+      <span className="aui-composer-attachment-file-name">{attachment?.name}</span>
+      <AttachmentPrimitive.Remove
+        className="aui-composer-attachment-remove"
+        aria-label="Remove attachment"
+      >
+        ×
+      </AttachmentPrimitive.Remove>
+    </div>
+  );
 }
 
 function ComposerAttachmentPreview() {
@@ -1127,7 +1282,9 @@ function ClaudeComposer({
         <ComposerPrimitive.Root className="aui-composer-card">
           <AuiIf condition={(s) => s.composer.attachments.length > 0}>
             <div className="aui-composer-attachments">
-              <ComposerPrimitive.Attachments components={{ Image: ComposerAttachmentPreview }} />
+              <ComposerPrimitive.Attachments
+                components={{ Image: ComposerAttachmentPreview, File: ComposerFileAttachmentPreview }}
+              />
             </div>
           </AuiIf>
           <ComposerPrimitive.Input
@@ -1148,13 +1305,13 @@ function ClaudeComposer({
           <div className="aui-composer-toolbar">
             <ComposerPrimitive.AddAttachment
               className="aui-composer-attach"
-              aria-label="Attach images"
+              aria-label="Attach images, SVGs, PDFs, or PowerPoint files"
               multiple
             >
               <AttachIcon />
             </ComposerPrimitive.AddAttachment>
             <span className="aui-composer-hint">
-              Type / for commands · paste or drag images
+              Type / for commands · paste or drag images, SVGs, PDFs, or PowerPoint files
             </span>
             <ComposerPrimitive.Send
               className="aui-composer-send"
@@ -1183,10 +1340,11 @@ function ChatMessages() {
                     components={{
                       Text: UserTextPart,
                       Image: UserImagePart,
+                      File: UserFilePart,
                     }}
                   />
                   <MessagePrimitive.Attachments
-                    components={{ Image: UserMessageImageAttachment }}
+                    components={{ Image: UserMessageImageAttachment, File: UserMessageFileAttachment }}
                   />
                 </div>
                 {/* Per-message Copy/Share action bar intentionally omitted: its autohide-on-hover
@@ -1562,11 +1720,14 @@ function AgentChatThread({
     [threadId, propsRef],
   );
 
-  const imageAttachmentAdapter = useMemo(() => new ChatImageAttachmentAdapter(), []);
+  const attachmentAdapter = useMemo(
+    () => new CompositeAttachmentAdapter([new ChatImageAttachmentAdapter(), new ChatDocAttachmentAdapter()]),
+    [],
+  );
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages: propsRef.current?.initialMessages.map(storedToThreadMessage),
-    adapters: { attachments: imageAttachmentAdapter },
+    adapters: { attachments: attachmentAdapter },
   });
 
   return (

@@ -1,37 +1,56 @@
 export type StoredChatImage = { mediaType: string; data: string };
+export type StoredChatDoc = { mediaType: string; filename: string; data: string };
 
-export function parseStoredChatContent(content: string): { text: string; images: StoredChatImage[] } {
+const DOC_LABELS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint file',
+};
+
+function labelForDoc(mediaType: string): string {
+  return DOC_LABELS[mediaType] ?? 'file';
+}
+
+export function parseStoredChatContent(
+  content: string
+): { text: string; images: StoredChatImage[]; docs: StoredChatDoc[] } {
   if (typeof content !== 'string' || !content.startsWith('{"v":')) {
-    return { text: content || '', images: [] };
+    return { text: content || '', images: [], docs: [] };
   }
   try {
     const parsed = JSON.parse(content) as {
       v?: number;
       text?: string;
       images?: StoredChatImage[];
+      docs?: StoredChatDoc[];
     };
     if (parsed?.v === 1) {
       const images = Array.isArray(parsed.images)
         ? parsed.images.filter((img) => img?.mediaType && img?.data)
         : [];
-      return { text: String(parsed.text ?? ''), images };
+      const docs = Array.isArray(parsed.docs)
+        ? parsed.docs.filter((doc) => doc?.mediaType && doc?.data)
+        : [];
+      return { text: String(parsed.text ?? ''), images, docs };
     }
   } catch {
     /* fall through */
   }
-  return { text: content, images: [] };
+  return { text: content, images: [], docs: [] };
 }
 
 export function storedChatPlainText(content: string): string {
-  const { text, images } = parseStoredChatContent(content);
+  const { text, images, docs } = parseStoredChatContent(content);
   const displayText = userMessageDisplayText(text);
-  if (images.length && !displayText.trim()) {
-    return images.length === 1 ? '[Image]' : `[${images.length} images]`;
-  }
-  if (images.length && displayText.trim()) {
-    return `${displayText}\n[${images.length} image${images.length === 1 ? '' : 's'} attached]`;
-  }
-  return displayText;
+  const parts: string[] = [];
+  const svgCount = images.filter((img) => img.mediaType === 'image/svg+xml').length;
+  const imageCount = images.length - svgCount;
+  if (imageCount > 0) parts.push(imageCount === 1 ? 'image' : `${imageCount} images`);
+  if (svgCount > 0) parts.push(svgCount === 1 ? 'SVG' : `${svgCount} SVGs`);
+  for (const doc of docs) parts.push(labelForDoc(doc.mediaType));
+  if (!parts.length) return displayText;
+  const summary = parts.join(', ');
+  if (!displayText.trim()) return `[${summary}]`;
+  return `${displayText}\n[${summary} attached]`;
 }
 
 /** Collapse legacy verbose email dumps to a short reference for chat display. */
@@ -67,11 +86,16 @@ export function userMessageDisplayText(text: string): string {
   return text.length > 280 ? `${text.slice(0, 277)}…` : text;
 }
 
-export function serializeStoredChatContent(text: string, images: StoredChatImage[]): string {
-  if (!images.length) return text;
+export function serializeStoredChatContent(
+  text: string,
+  images: StoredChatImage[],
+  docs: StoredChatDoc[] = []
+): string {
+  if (!images.length && !docs.length) return text;
   return JSON.stringify({
     v: 1,
     text,
     images: images.map(({ mediaType, data }) => ({ mediaType, data })),
+    docs: docs.map(({ mediaType, filename, data }) => ({ mediaType, filename, data })),
   });
 }

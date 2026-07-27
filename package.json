@@ -42,7 +42,8 @@
     "styled-components": "^4.4.1",
     "three": "^0.160.0",
     "web-push": "^3.6.7",
-    "whois-json": "^2.0.4"
+    "whois-json": "^2.0.4",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
@@ -52,6 +53,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.160.0",
     "@types/web-push": "^3.6.4",
+    "@types/yauzl": "^3.4.0",
     "typescript": "^5.9.3"
   }
 }

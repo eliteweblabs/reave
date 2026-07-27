@@ -15,10 +15,12 @@ import { prependDeployBanner } from './deployStatus';
 import { isRailwayConfigured } from './railwayClient';
 import { isKinstaConfigured } from './kinstaClient';
 import { serverEnv } from './serverEnv';
-import type { ChatImageAttachment } from './chatTypes';
+import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { parseChatMessageContent, serializeChatMessageContent } from './chatTypes';
 import type { ChatTurn } from './chatTypes';
 import { userMessageDisplayText } from './chatMessageFormat';
+import { extractPptxText } from './pptxText';
+import { rasterizeSvgToPng } from './svgRaster';
 import {
   ANTHROPIC_PROMPT_CACHE,
   cachedSystemBlocks,
@@ -50,8 +52,15 @@ type AnthropicContentBlock =
       type: 'image';
       source: { type: 'base64'; media_type: string; data: string };
     }
+  | {
+      type: 'document';
+      source: { type: 'base64'; media_type: string; data: string };
+    }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string };
+
+const PPTX_MEDIA_TYPE =
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation';
 
 type AnthropicMessage = {
   role: 'user' | 'assistant';
@@ -71,29 +80,78 @@ function buildAnthropicTools(brand: Awaited<ReturnType<typeof getCompanyBrandCon
   }));
 }
 
-function buildUserContentBlocks(
+async function buildUserContentBlocks(
   text: string,
-  images: ChatImageAttachment[] = []
-): string | AnthropicContentBlock[] {
-  if (!images.length) return text;
-  const blocks: AnthropicContentBlock[] = images.map((img) => ({
-    type: 'image',
-    source: { type: 'base64', media_type: img.mediaType, data: img.data },
-  }));
+  images: ChatImageAttachment[] = [],
+  docs: ChatDocAttachment[] = []
+): Promise<string | AnthropicContentBlock[]> {
+  if (!images.length && !docs.length) return text;
+  const blocks: AnthropicContentBlock[] = [];
+  const extraTextParts: string[] = [];
+
+  for (const img of images) {
+    if (img.mediaType === 'image/svg+xml') {
+      const svgSource = Buffer.from(img.data, 'base64').toString('utf8');
+      try {
+        const raster = await rasterizeSvgToPng(svgSource);
+        blocks.push({
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/png', data: raster.pngBase64 },
+        });
+      } catch (err) {
+        console.error('[agentRunner] SVG rasterization failed', err);
+      }
+      const truncatedSource =
+        svgSource.length > 20_000 ? `${svgSource.slice(0, 20_000)}\n<!-- …truncated… -->` : svgSource;
+      extraTextParts.push(`Attached SVG source:\n\`\`\`svg\n${truncatedSource}\n\`\`\``);
+      continue;
+    }
+    blocks.push({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mediaType, data: img.data },
+    });
+  }
+
+  for (const doc of docs) {
+    if (doc.mediaType === 'application/pdf') {
+      blocks.push({
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: doc.data },
+      });
+      continue;
+    }
+    if (doc.mediaType === PPTX_MEDIA_TYPE) {
+      try {
+        const extracted = await extractPptxText(Buffer.from(doc.data, 'base64'));
+        extraTextParts.push(
+          `Attached PowerPoint file "${doc.filename}" (${extracted.slideCount} slide${extracted.slideCount === 1 ? '' : 's'}) — extracted text:\n${extracted.text || '(no text found)'}`,
+        );
+      } catch (err) {
+        console.error('[agentRunner] PPTX text extraction failed', err);
+        extraTextParts.push(
+          `Attached PowerPoint file "${doc.filename}" — could not extract its text (${err instanceof Error ? err.message : 'unknown error'}).`,
+        );
+      }
+    }
+  }
+
   const trimmed = text.trim();
-  if (trimmed) blocks.push({ type: 'text', text: trimmed });
-  else blocks.push({ type: 'text', text: 'What can you tell me about this image?' });
+  const combinedText = [trimmed, ...extraTextParts].filter(Boolean).join('\n\n');
+  blocks.push({
+    type: 'text',
+    text: combinedText || 'What can you tell me about the attached file(s)?',
+  });
   return blocks;
 }
 
-function anthropicContentFromStored(
+async function anthropicContentFromStored(
   content: string,
   role: ChatTurn['role']
-): string | AnthropicContentBlock[] {
+): Promise<string | AnthropicContentBlock[]> {
   if (role === 'assistant') return content;
-  const { text, images } = parseChatMessageContent(content);
-  if (!images.length) return content;
-  return buildUserContentBlocks(text, images);
+  const { text, images, docs } = parseChatMessageContent(content);
+  if (!images.length && !docs.length) return content;
+  return buildUserContentBlocks(text, images, docs);
 }
 
 function currentDateTimeLine(): string {
@@ -288,22 +346,50 @@ function agentMaxToolRounds(): number {
 
 function turnHasAnthropicContent(turn: ChatTurn): boolean {
   if (turn.role === 'assistant') return !!turn.content.trim();
-  const { text, images } = parseChatMessageContent(turn.content);
-  return !!userMessageDisplayText(text).trim() || images.length > 0;
+  const { text, images, docs } = parseChatMessageContent(turn.content);
+  return !!userMessageDisplayText(text).trim() || images.length > 0 || docs.length > 0;
 }
 
+/**
+ * How many *past* user turns are allowed to replay their images/docs in full.
+ * Attachments (especially PDFs/PPTX) can be several MB of base64 — resending
+ * them on every subsequent turn would blow past Anthropic's 32MB request cap
+ * and burn a lot of tokens for little benefit once the conversation has moved
+ * on. Older turns keep their text but drop attachments; the *current* turn's
+ * own attachments (appended separately below) are never affected by this.
+ */
+const MAX_HISTORY_ATTACHMENT_TURNS = 2;
+
 function trimTurnsForAgent(turns: ChatTurn[]): ChatTurn[] {
+  const keepAttachmentsAt = new Set<number>();
+  let attachmentBudget = MAX_HISTORY_ATTACHMENT_TURNS;
+  for (let i = turns.length - 1; i >= 0 && attachmentBudget > 0; i--) {
+    const turn = turns[i];
+    if (turn.role !== 'user') continue;
+    const { images, docs } = parseChatMessageContent(turn.content);
+    if (images.length || docs.length) {
+      keepAttachmentsAt.add(i);
+      attachmentBudget--;
+    }
+  }
+
   let out = turns
-    .map((turn) => {
+    .map((turn, i) => {
       let content = turn.content;
+      let hasAttachments = false;
       if (turn.role === 'user') {
-        const { text, images } = parseChatMessageContent(content);
+        const { text, images, docs } = parseChatMessageContent(content);
         const displayText = userMessageDisplayText(text);
-        content = images.length
-          ? serializeChatMessageContent(displayText, images)
+        const keepAttachments = keepAttachmentsAt.has(i);
+        hasAttachments = keepAttachments && (images.length > 0 || docs.length > 0);
+        content = hasAttachments
+          ? serializeChatMessageContent(displayText, images, docs)
           : displayText;
       }
-      if (content.length > MAX_TURN_CHARS) {
+      // Attachment-bearing content is base64 and can legitimately exceed
+      // MAX_TURN_CHARS; truncating it mid-JSON would corrupt the payload, so
+      // only apply the char cap to plain text turns.
+      if (!hasAttachments && content.length > MAX_TURN_CHARS) {
         content = `${content.slice(0, MAX_TURN_CHARS)}\n…[turn truncated]`;
       }
       return { role: turn.role, content };
@@ -353,6 +439,7 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
 export async function runKnowledgeAgent(opts: {
   userText: string;
   images?: ChatImageAttachment[];
+  docs?: ChatDocAttachment[];
   priorTurns?: ChatTurn[];
   model?: string | null;
   context?: AgentRunContext;
@@ -364,6 +451,7 @@ export async function runKnowledgeAgent(opts: {
       {
         userText: opts.userText,
         images: opts.images,
+        docs: opts.docs,
         priorTurns: opts.priorTurns,
         model: opts.model,
         deadline: opts.deadline,
@@ -399,6 +487,7 @@ type AgentStreamCallbacks = {
 type AgentStreamingOpts = {
   userText: string;
   images?: ChatImageAttachment[];
+  docs?: ChatDocAttachment[];
   priorTurns?: ChatTurn[];
   model?: string | null;
   context?: AgentRunContext;
@@ -436,6 +525,7 @@ async function* runKnowledgeAgentStreamingBridge(
       {
         userText: opts.userText,
         images: opts.images,
+        docs: opts.docs,
         priorTurns: opts.priorTurns,
         model: opts.model,
         deadline: opts.deadline,
@@ -474,13 +564,14 @@ async function runKnowledgeAgentInner(
   opts: {
     userText: string;
     images?: ChatImageAttachment[];
+    docs?: ChatDocAttachment[];
     priorTurns?: ChatTurn[];
     model?: string | null;
     deadline?: AgentDeadline;
   },
   stream?: AgentStreamCallbacks,
 ): Promise<string> {
-  const { userText, images = [], priorTurns = [], model: modelOverride } = opts;
+  const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {
     return 'LLM is not configured. Set ANTHROPIC_API_KEY.';
@@ -496,7 +587,8 @@ async function runKnowledgeAgentInner(
     'You receive prior turns from this chat. Treat short follow-ups ("yes", "build that", "do it") as continuing the thread — do not ask what to build if the user is agreeing to something you just offered.',
     'Ground answers in tools: call list_knowledge if you need playbooks; call resolve_contact when the user mentions a client/person name or asks who they are (typos, nicknames). resolve_contact accepts name, email, phone (last 4 ok), or q for free-text search across company, notes, and website. To browse or show the full client list (e.g. "list my contacts"), call list_contacts (optionally with a search term) — do not claim you can only do fuzzy lookups.',
     'Work/jobs: project notes live separately from playbooks (list_work / read_work / create_work / update_work / delete_work). resolve_contact returns work_jobs summaries for that client — call read_work with a slug when you need full job details. When creating a project and the client is unclear, call create_work with title only (or resolve_contact first with any hints from the chat). create_work returns needs_client when you must ask the user who it is; needs_selection + candidates when fuzzy — list the options and ask the user to confirm, then re-call create_work with contact_uid. Never guess a client on ambiguous matches. After create_work or when filing mail to an existing job, call link_to_work so the email/chat stays linked on the project page. Only call delete_work when the user explicitly asks to remove a job. Do not assume job content without reading it.',
-    'Project files: each job has a file repository (list_project_files / add_file_to_project). Images uploaded in a chat linked to a project are saved there automatically. When the user asks to add/save an image to a specific client project (e.g. "add this to Reggie\'s newest project"), call add_file_to_project with client name or slug — images from the current message are used automatically. read_work includes a files list.',
+    'Project files: each job has a file repository (list_project_files / add_file_to_project). Images/SVGs/PDFs/PowerPoint files uploaded in a chat linked to a project are saved there automatically. When the user asks to add/save an attachment to a specific client project (e.g. "add this to Reggie\'s newest project"), call add_file_to_project with client name or slug — attachments from the current message are used automatically. read_work includes a files list.',
+    'Chat attachments: users can drop images (jpg/png/gif/webp), SVGs, PDFs, and PowerPoint (.pptx) files into chat. SVGs arrive as both a rasterized image (so you can see them) and their raw markup (so you can read/edit the actual SVG code — quote it back with edits rather than describing changes). PDFs arrive as native documents — you can read their text and see their visual layout/charts directly. PowerPoint files arrive as plain text extracted per slide (formatting, images, and speaker notes are not included, and slide order follows the file\'s internal order, which usually matches on-screen order).',
     'Project checklists: action items in job notes use markdown checkboxes (`- [ ]` / `- [x]`). Use toggle_work_item to check off completed work (by item_text or line_index). When invoicing for completed project work, call get_work_invoice_suggestions and use each item\'s description field on Crater line items (user provides price).',
     'Personal to-dos: separate from jobs (create_todo / list_todos / update_todo / mark_todo_done / delete_todo). When the user asks to add something to "the to-do list" or mentions a personal task, decide whether it is a client job (has a client), a project, or a personal task. Personal tasks use the to-do tools — never create_work for them. If to-do tools are unavailable (DATABASE_URL not set), say you do not have a to-do list tool yet and ask whether to build it or handle it manually — do not fake it with a job.',
     'After tools, answer in plain text (short paragraphs, avoid huge markdown tables).',
@@ -633,13 +725,16 @@ async function runKnowledgeAgentInner(
 
   const system = cachedSystemBlocks(sysParts.join('\n'), runtimeContextLine(model));
   const cachedTools = withToolPromptCaching(tools);
-  const messages: AnthropicMessage[] = [
-    ...trimTurnsForAgent(priorTurns).map((turn) => ({
+  const messages: AnthropicMessage[] = await Promise.all([
+    ...trimTurnsForAgent(priorTurns).map(async (turn) => ({
       role: turn.role,
-      content: anthropicContentFromStored(turn.content, turn.role),
+      content: await anthropicContentFromStored(turn.content, turn.role),
     })),
-    { role: 'user', content: buildUserContentBlocks(userText, images) },
-  ];
+    (async () => ({
+      role: 'user' as const,
+      content: await buildUserContentBlocks(userText, images, docs),
+    }))(),
+  ]);
 
   const maxRounds = agentMaxToolRounds();
   const maxOutputTokens = agentMaxOutputTokens();

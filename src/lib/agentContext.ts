@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { ChatImageAttachment } from './chatTypes';
+import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import type { OwnerContactRecord } from './ownerContact';
 
 export interface AgentRunContext {
@@ -8,8 +8,10 @@ export interface AgentRunContext {
   emailId?: string;
   /** Automated System alerts thread — do not replay chat history or "wait for instructions". */
   systemAlert?: boolean;
-  /** Images attached to the current user message (for filing to projects). */
+  /** Images (including SVGs) attached to the current user message (for filing to projects). */
   messageImages?: ChatImageAttachment[];
+  /** PDF/PPTX documents attached to the current user message (for filing to projects). */
+  messageDocs?: ChatDocAttachment[];
   /**
    * The logged-in admin user's own contact-api record.
    * Injected at request time so the agent can assign internal projects to the

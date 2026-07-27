@@ -3,10 +3,27 @@ export type ChatTurn = {
   content: string;
 };
 
-export type ChatImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+export type ChatImageMediaType =
+  | 'image/jpeg'
+  | 'image/png'
+  | 'image/gif'
+  | 'image/webp'
+  | 'image/svg+xml';
 
 export interface ChatImageAttachment {
   mediaType: ChatImageMediaType;
+  /** Base64 payload without a data: URL prefix. For SVG, this is the raw XML source, base64-encoded. */
+  data: string;
+}
+
+/** Non-image documents the agent can read (PDF: native vision+text; PPTX: extracted slide text). */
+export type ChatDocMediaType =
+  | 'application/pdf'
+  | 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+export interface ChatDocAttachment {
+  mediaType: ChatDocMediaType;
+  filename: string;
   /** Base64 payload without a data: URL prefix. */
   data: string;
 }
@@ -14,6 +31,7 @@ export interface ChatImageAttachment {
 export interface ParsedChatContent {
   text: string;
   images: ChatImageAttachment[];
+  docs: ChatDocAttachment[];
 }
 
 const CHAT_CONTENT_JSON_V = 1;
@@ -22,7 +40,21 @@ const CHAT_IMAGE_MEDIA_TYPES = new Set<string>([
   'image/png',
   'image/gif',
   'image/webp',
+  'image/svg+xml',
 ]);
+const CHAT_DOC_MEDIA_TYPES = new Set<string>([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+]);
+
+const DOC_LABELS: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint file',
+};
+
+export function labelForDocMediaType(mediaType: string): string {
+  return DOC_LABELS[mediaType] ?? 'file';
+}
 
 export interface LinkedJobRef {
   slug: string;
@@ -54,16 +86,17 @@ export interface ChatThreadDetail extends ChatThreadSummary {
 
 export function parseChatMessageContent(content: string): ParsedChatContent {
   if (!content.startsWith('{"v":')) {
-    return { text: content, images: [] };
+    return { text: content, images: [], docs: [] };
   }
   try {
     const parsed = JSON.parse(content) as {
       v?: number;
       text?: unknown;
       images?: unknown;
+      docs?: unknown;
     };
     if (parsed.v !== CHAT_CONTENT_JSON_V) {
-      return { text: content, images: [] };
+      return { text: content, images: [], docs: [] };
     }
     const images: ChatImageAttachment[] = [];
     if (Array.isArray(parsed.images)) {
@@ -76,29 +109,50 @@ export function parseChatMessageContent(content: string): ParsedChatContent {
         images.push({ mediaType: mediaType as ChatImageMediaType, data });
       }
     }
-    return { text: String(parsed.text ?? ''), images };
+    const docs: ChatDocAttachment[] = [];
+    if (Array.isArray(parsed.docs)) {
+      for (const item of parsed.docs) {
+        if (!item || typeof item !== 'object') continue;
+        const rec = item as Record<string, unknown>;
+        const mediaType = String(rec.mediaType ?? rec.media_type ?? '').toLowerCase();
+        const data = String(rec.data ?? '').replace(/^data:[^;]+;base64,/, '');
+        const filename = String(rec.filename ?? '').trim();
+        if (!CHAT_DOC_MEDIA_TYPES.has(mediaType) || !data) continue;
+        docs.push({ mediaType: mediaType as ChatDocMediaType, filename: filename || 'attachment', data });
+      }
+    }
+    return { text: String(parsed.text ?? ''), images, docs };
   } catch {
-    return { text: content, images: [] };
+    return { text: content, images: [], docs: [] };
   }
 }
 
 export function serializeChatMessageContent(
   text: string,
-  images: ChatImageAttachment[] = []
+  images: ChatImageAttachment[] = [],
+  docs: ChatDocAttachment[] = []
 ): string {
-  if (!images.length) return text;
-  return JSON.stringify({ v: CHAT_CONTENT_JSON_V, text, images });
+  if (!images.length && !docs.length) return text;
+  return JSON.stringify({ v: CHAT_CONTENT_JSON_V, text, images, docs });
+}
+
+function attachmentSummary(images: ChatImageAttachment[], docs: ChatDocAttachment[]): string | null {
+  const parts: string[] = [];
+  const svgCount = images.filter((img) => img.mediaType === 'image/svg+xml').length;
+  const imageCount = images.length - svgCount;
+  if (imageCount > 0) parts.push(imageCount === 1 ? 'image' : `${imageCount} images`);
+  if (svgCount > 0) parts.push(svgCount === 1 ? 'SVG' : `${svgCount} SVGs`);
+  for (const doc of docs) parts.push(labelForDocMediaType(doc.mediaType));
+  if (!parts.length) return null;
+  return parts.join(', ');
 }
 
 export function chatMessagePlainText(content: string): string {
-  const { text, images } = parseChatMessageContent(content);
-  if (images.length && !text.trim()) {
-    return images.length === 1 ? '[Image]' : `[${images.length} images]`;
-  }
-  if (images.length && text.trim()) {
-    return `${text}\n[${images.length} image${images.length === 1 ? '' : 's'} attached]`;
-  }
-  return text;
+  const { text, images, docs } = parseChatMessageContent(content);
+  const summary = attachmentSummary(images, docs);
+  if (!summary) return text;
+  if (!text.trim()) return `[${summary}]`;
+  return `${text}\n[${summary} attached]`;
 }
 
 export const DEFAULT_CHAT_TITLE = 'New chat';
@@ -107,10 +161,12 @@ export function isDefaultChatTitle(title: string): boolean {
   return title.trim() === DEFAULT_CHAT_TITLE;
 }
 
-export function titleFromMessage(text: string, imageCount = 0): string {
+export function titleFromMessage(text: string, imageCount = 0, docCount = 0): string {
   const oneLine = text.replace(/\s+/g, ' ').trim();
   if (oneLine) return oneLine.length > 60 ? `${oneLine.slice(0, 57)}…` : oneLine;
-  if (imageCount > 0) return imageCount === 1 ? 'Image' : `${imageCount} images`;
+  const attachmentCount = imageCount + docCount;
+  if (attachmentCount === 1) return docCount === 1 ? 'File' : 'Image';
+  if (attachmentCount > 1) return `${attachmentCount} attachments`;
   return DEFAULT_CHAT_TITLE;
 }
 
@@ -121,8 +177,8 @@ export function deriveChatTitleFromThread(thread: ChatThreadDetail): string | nu
   for (const role of ['user', 'assistant'] as const) {
     const msg = thread.messages.find((m) => m.role === role);
     if (!msg) continue;
-    const { text, images } = parseChatMessageContent(msg.content);
-    const title = titleFromMessage(text, images.length);
+    const { text, images, docs } = parseChatMessageContent(msg.content);
+    const title = titleFromMessage(text, images.length, docs.length);
     if (!isDefaultChatTitle(title)) return title;
   }
 

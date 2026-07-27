@@ -6,7 +6,12 @@
  */
 
 import type { APIContext } from 'astro';
-import type { ChatImageAttachment, ChatImageMediaType } from '../../../lib/chatTypes';
+import type {
+  ChatDocAttachment,
+  ChatDocMediaType,
+  ChatImageAttachment,
+  ChatImageMediaType,
+} from '../../../lib/chatTypes';
 import {
   isDefaultChatTitle,
   serializeChatMessageContent,
@@ -39,7 +44,10 @@ import { pumpAgentStream } from '../../../lib/chatAgentPump';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
 import { serverEnv } from '../../../lib/serverEnv';
-import { promoteChatImagesToLinkedProjects } from '../../../lib/projectFiles';
+import {
+  promoteChatDocsToLinkedProjects,
+  promoteChatImagesToLinkedProjects,
+} from '../../../lib/projectFiles';
 
 export const prerender = false;
 
@@ -65,9 +73,17 @@ const ALLOWED_IMAGE_MEDIA = new Set<ChatImageMediaType>([
   'image/png',
   'image/gif',
   'image/webp',
+  'image/svg+xml',
 ]);
 const MAX_CHAT_IMAGES = 5;
 const MAX_CHAT_IMAGE_BYTES = 5 * 1024 * 1024;
+
+const ALLOWED_DOC_MEDIA = new Set<ChatDocMediaType>([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+]);
+const MAX_CHAT_DOCS = 3;
+const MAX_CHAT_DOC_BYTES = 10 * 1024 * 1024;
 
 function parseChatImages(body: Record<string, unknown>): ChatImageAttachment[] {
   const raw = body.images;
@@ -82,6 +98,24 @@ function parseChatImages(body: Record<string, unknown>): ChatImageAttachment[] {
     const bytes = Math.floor((data.length * 3) / 4);
     if (bytes < 1 || bytes > MAX_CHAT_IMAGE_BYTES) continue;
     out.push({ mediaType: mediaType as ChatImageMediaType, data });
+  }
+  return out;
+}
+
+function parseChatDocs(body: Record<string, unknown>): ChatDocAttachment[] {
+  const raw = body.docs;
+  if (!Array.isArray(raw)) return [];
+  const out: ChatDocAttachment[] = [];
+  for (const item of raw.slice(0, MAX_CHAT_DOCS)) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const mediaType = String(rec.mediaType ?? rec.media_type ?? '').toLowerCase();
+    const data = String(rec.data ?? '').replace(/^data:[^;]+;base64,/, '');
+    const filename = String(rec.filename ?? '').trim() || 'attachment';
+    if (!ALLOWED_DOC_MEDIA.has(mediaType as ChatDocMediaType) || !data) continue;
+    const bytes = Math.floor((data.length * 3) / 4);
+    if (bytes < 1 || bytes > MAX_CHAT_DOC_BYTES) continue;
+    out.push({ mediaType: mediaType as ChatDocMediaType, filename, data });
   }
   return out;
 }
@@ -114,6 +148,7 @@ async function persistUserMessage(
   thread: NonNullable<Awaited<ReturnType<typeof storeGetChatThread>>>,
   message: string,
   images: ChatImageAttachment[],
+  docs: ChatDocAttachment[],
   userContent: string,
   isFirstMessage: boolean,
 ): Promise<{
@@ -127,7 +162,7 @@ async function persistUserMessage(
 
   let title = thread.title;
   if (isFirstMessage || isDefaultChatTitle(title)) {
-    title = titleFromMessage(message, images.length);
+    title = titleFromMessage(message, images.length, docs.length);
     await storeUpdateChatTitle(userId, id, title);
   }
 
@@ -207,8 +242,9 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const message = String(body.message ?? '').trim();
   const images = parseChatImages(body);
-  if (!message && !images.length) {
-    return json({ ok: false, error: 'message or images required' }, 400);
+  const docs = parseChatDocs(body);
+  if (!message && !images.length && !docs.length) {
+    return json({ ok: false, error: 'message, images, or docs required' }, 400);
   }
   const modelOverride =
     body.model == null || body.model === '' ? undefined : String(body.model);
@@ -217,17 +253,24 @@ export async function POST(context: APIContext): Promise<Response> {
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
 
   const isFirstMessage = thread.messages.length === 0;
-  const userContent = serializeChatMessageContent(message, images);
+  const userContent = serializeChatMessageContent(message, images, docs);
   const linked_jobs = await listJobsForItem('chat', id);
   let promoted_files: Record<string, { id: string; filename: string; url: string }[]> = {};
-  if (images.length && linked_jobs.length) {
-    const promoted = await promoteChatImagesToLinkedProjects(
-      id,
-      images,
-      linked_jobs.map((j) => j.slug),
-      userId,
-    );
-    for (const [slug, files] of Object.entries(promoted)) {
+  if ((images.length || docs.length) && linked_jobs.length) {
+    const jobSlugs = linked_jobs.map((j) => j.slug);
+    const [promotedImages, promotedDocs]: [
+      Record<string, { id: string; filename: string; url: string }[]>,
+      Record<string, { id: string; filename: string; url: string }[]>,
+    ] = await Promise.all([
+      images.length
+        ? promoteChatImagesToLinkedProjects(id, images, jobSlugs, userId)
+        : Promise.resolve({}),
+      docs.length
+        ? promoteChatDocsToLinkedProjects(id, docs, jobSlugs, userId)
+        : Promise.resolve({}),
+    ]);
+    for (const slug of new Set([...Object.keys(promotedImages), ...Object.keys(promotedDocs)])) {
+      const files = [...(promotedImages[slug] ?? []), ...(promotedDocs[slug] ?? [])];
       promoted_files[slug] = files.map((f) => ({
         id: f.id,
         filename: f.filename,
@@ -248,6 +291,7 @@ export async function POST(context: APIContext): Promise<Response> {
       thread,
       message,
       images,
+      docs,
       userContent,
       isFirstMessage,
     );
@@ -266,6 +310,7 @@ export async function POST(context: APIContext): Promise<Response> {
     threadId: id,
     emailId: thread.source_email_id ?? undefined,
     messageImages: images.length ? images : undefined,
+    messageDocs: docs.length ? docs : undefined,
   };
 
   if (wantsEventStream(context, body)) {
@@ -314,6 +359,7 @@ export async function POST(context: APIContext): Promise<Response> {
           stream: runKnowledgeAgentStreaming({
             userText: message,
             images,
+            docs,
             priorTurns: priorTurns(thread.messages),
             model: modelOverride,
             context: agentContext,
@@ -386,6 +432,7 @@ export async function POST(context: APIContext): Promise<Response> {
       runKnowledgeAgent({
         userText: message,
         images,
+        docs,
         priorTurns: priorTurns(thread.messages),
         model: modelOverride,
         context: agentContext,

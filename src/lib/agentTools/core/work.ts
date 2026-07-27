@@ -113,6 +113,7 @@ import { assignEmailToJob, linkProjectItem, linkWorkFromAgentContext } from '../
 import { markInboxEmailAsProject } from '../../emailProjectCategory';
 import { importEmailAttachmentsToProject } from '../../emailProjectAttachments';
 import {
+  storeAddChatDocsToProject,
   storeAddChatImagesToProject,
   storeListProjectFiles,
 } from '../../projectFiles';
@@ -347,9 +348,10 @@ async function handle_list_project_files(args: Record<string, unknown>, _ctx: To
 async function handle_add_file_to_project(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const ctx = getAgentContext();
   const images = ctx.messageImages ?? [];
-  if (!images.length) {
+  const docs = ctx.messageDocs ?? [];
+  if (!images.length && !docs.length) {
     return JSON.stringify({
-      error: 'no images in the current message — attach an image first',
+      error: 'no images or files in the current message — attach one first',
     });
   }
 
@@ -386,11 +388,21 @@ async function handle_add_file_to_project(args: Record<string, unknown>, _ctx: T
   const doc = await storeReadWork(slug);
   if (!doc) return JSON.stringify({ error: 'not found', slug });
 
-  const saved = await storeAddChatImagesToProject(slug, images, {
-    uploadedBy: ctx.userId,
-    sourceRef: ctx.threadId,
-    source: 'agent',
-  });
+  const savedImages = images.length
+    ? await storeAddChatImagesToProject(slug, images, {
+        uploadedBy: ctx.userId,
+        sourceRef: ctx.threadId,
+        source: 'agent',
+      })
+    : [];
+  const savedDocs = docs.length
+    ? await storeAddChatDocsToProject(slug, docs, {
+        uploadedBy: ctx.userId,
+        sourceRef: ctx.threadId,
+        source: 'agent',
+      })
+    : [];
+  const saved = [...savedImages, ...savedDocs];
   if (!saved.length) return JSON.stringify({ error: 'failed to save files' });
 
   if (ctx.threadId) await linkProjectItem(slug, 'chat', ctx.threadId);
@@ -699,7 +711,7 @@ export const workModule: AgentToolModule = {
             function: {
               name: 'add_file_to_project',
               description:
-                'Save image(s) from the current chat message to a project file repository. Use when the user says to add/save/file an image to a client project (e.g. "add this to Reggie\'s newest project"). Provide slug directly, or client name to target their most recently updated job. Images come from the current message automatically — no need to pass base64.',
+                'Save image(s)/SVG(s)/PDF(s)/PowerPoint file(s) from the current chat message to a project file repository. Use when the user says to add/save/file an attachment to a client project (e.g. "add this to Reggie\'s newest project"). Provide slug directly, or client name to target their most recently updated job. Attachments come from the current message automatically — no need to pass base64.',
               parameters: {
                 type: 'object',
                 properties: {
