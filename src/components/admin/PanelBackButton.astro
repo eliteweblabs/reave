@@ -11,18 +11,18 @@ interface Props {
 }
 
 const { label = 'Back', href, class: className = '', id } = Astro.props;
-const cls = ['ios-icon-btn', 'de-back-btn', 'panel-back-btn', className].filter(Boolean).join(' ');
+const cls = ['ios-icon-btn', 'nav-chevron-btn', 'de-back-btn', 'panel-back-btn', className].filter(Boolean).join(' ');
 ---
 
 {href ? (
   <a href={href} class={cls} aria-label={label} title={label} id={id}>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m15 18-6-6 6-6" />
     </svg>
   </a>
 ) : (
   <button type="button" class={cls} aria-label={label} title={label} id={id}>
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="m15 18-6-6 6-6" />
     </svg>
   </button>

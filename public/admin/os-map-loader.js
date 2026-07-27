@@ -14690,7 +14690,7 @@ function renderScheduleDetailWhenNav(booking) {
   const prevBtn = createIosIconBtn({
     iconKey: 'chevron-left',
     label: 'Previous meeting',
-    className: 'ios-icon-btn schedule-detail-when-nav-btn',
+    className: 'ios-icon-btn nav-chevron-btn schedule-detail-when-nav-btn',
     onClick: () => navigateScheduleBooking(-1),
   });
   prevBtn.disabled = !scheduleAdjacentBooking(booking.uid, -1);
@@ -14708,7 +14708,7 @@ function renderScheduleDetailWhenNav(booking) {
   const nextBtn = createIosIconBtn({
     iconKey: 'chevron-right',
     label: 'Next meeting',
-    className: 'ios-icon-btn schedule-detail-when-nav-btn',
+    className: 'ios-icon-btn nav-chevron-btn schedule-detail-when-nav-btn',
     onClick: () => navigateScheduleBooking(1),
   });
   nextBtn.disabled = !scheduleAdjacentBooking(booking.uid, 1);
@@ -14884,6 +14884,7 @@ function renderScheduleToolbar() {
   const prevBtn = createIosIconBtn({
     iconKey: 'chevron-left',
     label: 'Previous',
+    className: 'ios-icon-btn nav-chevron-btn',
     onClick: () => scheduleShiftFocus(-1),
   });
   nav.appendChild(prevBtn);
@@ -14896,6 +14897,7 @@ function renderScheduleToolbar() {
   const nextBtn = createIosIconBtn({
     iconKey: 'chevron-right',
     label: 'Next',
+    className: 'ios-icon-btn nav-chevron-btn',
     onClick: () => scheduleShiftFocus(1),
   });
   nav.appendChild(nextBtn);
