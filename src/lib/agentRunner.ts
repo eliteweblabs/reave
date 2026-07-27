@@ -23,6 +23,7 @@ import {
   ANTHROPIC_PROMPT_CACHE,
   cachedSystemBlocks,
   createAnthropicMessage,
+  formatAnthropicApiError,
   streamAnthropicMessage,
   withToolPromptCaching,
 } from './anthropicMessages';
@@ -591,14 +592,14 @@ async function runKnowledgeAgentInner(
         },
       });
       if (!result.ok) {
-        return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
+        return formatAnthropicApiError(result.status, result.text);
       }
       stopReason = result.data.stop_reason;
       content = result.data.content as AnthropicContentBlock[];
     } else {
       const result = await createAnthropicMessage(apiBody, stream?.signal);
       if (!result.ok) {
-        return `Anthropic error (${result.status}): ${result.text.slice(0, 500)}`;
+        return formatAnthropicApiError(result.status, result.text);
       }
       const data = result.data as {
         stop_reason?: string;

@@ -1,4 +1,5 @@
 import { serverEnv } from './serverEnv';
+import { renderButton } from './chatResponseRenderer';
 
 export type AnthropicCacheControl = { type: 'ephemeral'; ttl?: '5m' | '1h' };
 
@@ -16,6 +17,24 @@ export type AnthropicMessagesResponse = {
   content?: unknown[];
   usage?: AnthropicUsage;
 };
+
+const LOW_CREDIT_BALANCE_RE = /credit balance is too low/i;
+
+/**
+ * Turn a failed Anthropic API response into chat-friendly text. The "credit
+ * balance is too low" error is common (prepaid credits ran out) and useless
+ * as raw JSON, so swap it for a plain message plus a button straight to the
+ * billing page instead of the generic `Anthropic error (400): {...}` dump.
+ */
+export function formatAnthropicApiError(status: number, text: string): string {
+  if (LOW_CREDIT_BALANCE_RE.test(text)) {
+    return [
+      "Your Anthropic API credit balance is too low, so the agent can't respond right now.",
+      renderButton('Add Anthropic credits', 'https://console.anthropic.com/settings/billing'),
+    ].join('\n\n');
+  }
+  return `Anthropic error (${status}): ${text.slice(0, 500)}`;
+}
 
 export function anthropicApiHeaders(apiKey: string): Record<string, string> {
   return {
