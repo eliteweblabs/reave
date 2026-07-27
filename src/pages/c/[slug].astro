@@ -643,34 +643,36 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
             <section class={`panel ${initialTab === 'vault' ? 'active' : ''}`} data-tab-panel="vault">
               <p class="data-note">Account details &amp; credentials for your project. Keep this link private.</p>
               {dataEntries.map((e) => (
-                <div class="data-card">
-                  <div class="data-label">{e.label}</div>
-                  {e.url && (
-                    <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
-                  )}
-                  {e.username && (
-                    <div class="cred">
-                      <span class="cred-key">User</span>
-                      <code class="cred-val">{e.username}</code>
-                      <button class="mini mini-icon" data-copy type="button" aria-label="Copy username">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  {e.password && (
-                    <div class="cred">
-                      <span class="cred-key">Pass</span>
-                      <code class="cred-val secret">{e.password}</code>
-                      <button class="mini mini-icon" data-reveal type="button" aria-label="Show password">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
-                      </button>
-                      <button class="mini mini-icon" data-copy type="button" aria-label="Copy password">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                      </button>
-                    </div>
-                  )}
-                  {e.value && <div class="data-value">{e.value}</div>}
-                </div>
+                <details class="data-card">
+                  <summary class="data-label"><span class="data-label-text">{e.label}</span></summary>
+                  <div class="data-card-body">
+                    {e.url && (
+                      <a class="data-url" href={e.url} target="_blank" rel="noopener noreferrer">{e.url}</a>
+                    )}
+                    {e.username && (
+                      <div class="cred">
+                        <span class="cred-key">User</span>
+                        <code class="cred-val">{e.username}</code>
+                        <button class="mini mini-icon" data-copy type="button" aria-label="Copy username">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        </button>
+                      </div>
+                    )}
+                    {e.password && (
+                      <div class="cred">
+                        <span class="cred-key">Pass</span>
+                        <code class="cred-val secret">{e.password}</code>
+                        <button class="mini mini-icon" data-reveal type="button" aria-label="Show password">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button class="mini mini-icon" data-copy type="button" aria-label="Copy password">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                        </button>
+                      </div>
+                    )}
+                    {e.value && <div class="data-value">{e.value}</div>}
+                  </div>
+                </details>
               ))}
             </section>
           )}
@@ -1108,10 +1110,51 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
 
       .data-note { color: rgba(255, 255, 255, 0.5); font-size: 13px; margin: 0 0 14px; }
       .data-card {
-        padding: 14px 16px; margin-bottom: 12px; border-radius: 14px;
+        margin-bottom: 12px; border-radius: 14px;
         border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.04);
+        overflow: hidden;
       }
-      .data-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+      .data-card > summary.data-label {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 16px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .data-card > summary.data-label::-webkit-details-marker { display: none; }
+      .data-card > summary.data-label::marker { content: ''; }
+      .data-label-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .data-card > summary.data-label::after {
+        content: '';
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid rgba(255, 255, 255, 0.45);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+        transform: rotate(45deg);
+        transition: transform 0.2s;
+        margin-top: -2px;
+      }
+      .data-card[open] > summary.data-label {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .data-card[open] > summary.data-label::after {
+        transform: rotate(-135deg);
+        margin-top: 2px;
+      }
+      .data-card-body { padding: 12px 16px 14px; }
+      .data-card-body > :first-child { margin-top: 0; }
       .data-url { display: block; color: var(--portal-accent, #d8b4fe); font-size: 14px; margin-bottom: 8px; word-break: break-all; }
       .data-value { font-size: 14px; color: rgba(255, 255, 255, 0.85); white-space: pre-wrap; word-break: break-word; }
       .cred { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
