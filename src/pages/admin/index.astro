@@ -8196,11 +8196,26 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         z-index: 10;
         overflow: hidden;
       }
+      /*
+       * Every settings/account page (everything reached from the profile menu
+       * in the top-right — Profile, Company, Socials, Industries, Vapi) is a
+       * full-screen takeover with no sidebar to fall back to, on desktop or
+       * mobile. So unlike the split-view .de-back-btn (mobile-only, for
+       * "back to list"), this back control needs to stay visible at every
+       * viewport size.
+       */
+      .settings-subheader {
+        flex: 0 0 auto;
+        padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px));
+      }
+      #settings-panel .de-back-btn.ios-icon-btn {
+        display: inline-flex;
+      }
       .profile-panel-scroll {
         flex: 1;
         overflow-x: hidden;
         overflow-y: auto;
-        padding: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 1rem) 1rem var(--footer-scroll-pad);
+        padding: 1rem 1rem var(--footer-scroll-pad);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -8883,6 +8898,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727d"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727e"></script>
   </body>
 </html>

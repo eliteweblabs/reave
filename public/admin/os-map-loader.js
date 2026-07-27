@@ -5050,26 +5050,7 @@ function bindCompanyIconUpload(root, companyAlert) {
   });
 }
 
-let destroyProfileAddressAutocomplete = null;
-
 function bindProfileForm(root) {
-  if (destroyProfileAddressAutocomplete) {
-    destroyProfileAddressAutocomplete();
-    destroyProfileAddressAutocomplete = null;
-  }
-
-  const addressInput = root.querySelector('#profile-address');
-  if (addressInput) {
-    destroyProfileAddressAutocomplete = mountAddressAutocomplete(
-      addressInput,
-      root.closest('.profile-panel-scroll') || document.getElementById('settings-panel'),
-      (pickedAddress) => {
-        addressInput.value = pickedAddress;
-        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
-      },
-    );
-  }
-
   bindAutosaveForm(root, {
     formSelector: '#profile-form',
     alertEl: root.querySelector('#profile-alert'),
@@ -5504,9 +5485,6 @@ function renderProfileOnlyPanel(profile) {
             `<div class="prof-field"><label for="profile-timezone">Time Zone</label>` +
             `<select id="profile-timezone" name="timezone">${profileTimezoneOptions(p.timezone || '')}</select></div>` +
           `</div>` +
-          `<div class="prof-field"><label for="profile-address">Address</label>` +
-          `<input id="profile-address" name="address" type="text" value="${escHtml(p.address || '')}" placeholder="123 Main St, Boston, MA 02108" autocomplete="street-address" autocapitalize="words" />` +
-          `<span class="prof-hint prof-hint--block">Included on the public contact card (/contact.vcf) and sales deck download.</span></div>` +
         `</form>` +
       `</div>` +
     `</div>`
@@ -5854,21 +5832,36 @@ function renderVapiPanel(company) {
   );
 }
 
+/**
+ * Every settings/account page (Profile, Company, Socials, Industries, Vapi —
+ * everything reached from the profile menu in the top-right) fully replaces
+ * root.innerHTML per tab load, so the back control has to be re-prepended
+ * after every render, including loading/error states. Unlike the mobile-only
+ * .de-back-btn used for split-view "back to list" panes, this back button is
+ * shown at every viewport size (#settings-panel is a full-screen takeover
+ * with no adjacent sidebar to fall back to on desktop).
+ */
+function prependSettingsBackHeader(root) {
+  const { header } = createPaneSubheader({
+    back: { label: 'Back', onClick: () => setActiveMap('home', { force: true }) },
+    className: 'settings-subheader',
+  });
+  root.prepend(header);
+}
+
 async function loadProfileTab() {
   await flushSettingsAutosave();
-  if (destroyProfileAddressAutocomplete) {
-    destroyProfileAddressAutocomplete();
-    destroyProfileAddressAutocomplete = null;
-  }
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
+  prependSettingsBackHeader(root);
 
   try {
     const profileRes = await fetch('/api/admin/profile', { cache: 'no-store' });
     const profileData = await profileRes.json();
     if (!profileRes.ok || !profileData.ok) throw new Error(profileData.error || `HTTP ${profileRes.status}`);
     root.innerHTML = renderProfileOnlyPanel(profileData.profile);
+    prependSettingsBackHeader(root);
     bindProfileForm(root);
   } catch (e) {
     root.innerHTML =
@@ -5876,6 +5869,7 @@ async function loadProfileTab() {
         `<div class="prof-card"><h1 class="prof-title">Profile</h1>` +
         `<p class="dash-empty">Could not load profile: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+    prependSettingsBackHeader(root);
   }
 }
 
@@ -5885,12 +5879,14 @@ async function loadCompanyTab() {
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
+  prependSettingsBackHeader(root);
 
   try {
     const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
     root.innerHTML = renderCompanyPanel(companyData.company);
+    prependSettingsBackHeader(root);
     bindCompanyForm(root, companyData.company);
   } catch (e) {
     root.innerHTML =
@@ -5898,6 +5894,7 @@ async function loadCompanyTab() {
         `<div class="prof-card"><h1 class="prof-title">Company</h1>` +
         `<p class="dash-empty">Could not load company details: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+    prependSettingsBackHeader(root);
   }
 }
 
@@ -5906,6 +5903,7 @@ async function loadSocialsTab() {
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
+  prependSettingsBackHeader(root);
 
   try {
     const [companyRes, connRes, catalogRes] = await Promise.all([
@@ -5937,6 +5935,7 @@ async function loadSocialsTab() {
     }
 
     root.innerHTML = renderSocialsPanel(companyData.company, connections);
+    prependSettingsBackHeader(root);
     bindSocialsForm(root);
   } catch (e) {
     root.innerHTML =
@@ -5944,6 +5943,7 @@ async function loadSocialsTab() {
         `<div class="prof-card"><h1 class="prof-title">Socials</h1>` +
         `<p class="dash-empty">Could not load social links: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+    prependSettingsBackHeader(root);
   }
 }
 
@@ -5952,6 +5952,7 @@ async function loadIndustriesTab() {
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading industries…</div></div>';
+  prependSettingsBackHeader(root);
 
   try {
     const industriesRes = await fetch('/api/admin/deck-industries', { cache: 'no-store' });
@@ -5960,6 +5961,7 @@ async function loadIndustriesTab() {
       throw new Error(industriesData.error || `HTTP ${industriesRes.status}`);
     }
     root.innerHTML = renderIndustriesPanel(industriesData.industries);
+    prependSettingsBackHeader(root);
     bindIndustriesEditor(root);
   } catch (e) {
     root.innerHTML =
@@ -5967,6 +5969,7 @@ async function loadIndustriesTab() {
         `<div class="prof-card"><h1 class="prof-title">Industries</h1>` +
         `<p class="dash-empty">Could not load industries: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+    prependSettingsBackHeader(root);
   }
 }
 
@@ -6017,12 +6020,14 @@ async function loadVapiTab() {
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading Vapi…</div></div>';
+  prependSettingsBackHeader(root);
 
   try {
     const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
     root.innerHTML = renderVapiPanel(companyData.company);
+    prependSettingsBackHeader(root);
     bindVapiForm(root);
   } catch (e) {
     root.innerHTML =
@@ -6030,6 +6035,7 @@ async function loadVapiTab() {
         `<div class="prof-card"><h1 class="prof-title">Vapi</h1>` +
         `<p class="dash-empty">Could not load Vapi settings: ${escHtml(e.message)}</p></div>` +
       `</div>`;
+    prependSettingsBackHeader(root);
   }
 }
 
