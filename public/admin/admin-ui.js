@@ -747,10 +747,15 @@ function dropTitleFocusPrimer() {
  * synchronously from the tap that starts the record.
  */
 export function armTitleFocus(key) {
-  cancelTitleFocus();
+  // Some flows re-enter (a deep link lands on the tab and starts the record
+  // again); tearing the primer down there would drop the keyboard mid-flight.
+  const reArm = titleFocusKey != null && titleFocusKey === key;
+  if (!reArm) cancelTitleFocus();
   titleFocusKey = key;
+  titleFocusTarget = null;
+  window.clearTimeout(titleFocusTimer);
   titleFocusTimer = window.setTimeout(cancelTitleFocus, TITLE_FOCUS_TIMEOUT);
-  if (!usesSoftwareKeyboard()) return;
+  if (reArm || !usesSoftwareKeyboard()) return;
   const primer = document.createElement('input');
   primer.type = 'text';
   primer.tabIndex = -1;
