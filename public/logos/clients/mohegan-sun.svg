@@ -1,14 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60" fill="none">
-  <!-- Sun burst mark -->
-  <circle cx="30" cy="30" r="14" fill="#000"/>
-  <line x1="30" y1="2" x2="30" y2="10" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="30" y1="50" x2="30" y2="58" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="2" y1="30" x2="10" y2="30" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="50" y1="30" x2="58" y2="30" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="9.5" y1="9.5" x2="15.6" y2="15.6" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="44.4" y1="44.4" x2="50.5" y2="50.5" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="50.5" y1="9.5" x2="44.4" y2="15.6" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <line x1="15.6" y1="44.4" x2="9.5" y2="50.5" stroke="#000" stroke-width="3" stroke-linecap="round"/>
-  <!-- Wordmark -->
-  <text x="72" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700" letter-spacing="1" fill="#000">MOHEGAN SUN</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" fill="none">
+  <!-- Mohegan Sun emblem: circle enclosed by 4 inward-pointing triangles with outer ray/feather pattern -->
+  <!-- Outer feather rays (8 rays radiating from center) -->
+  <g transform="translate(36,36)">
+    <!-- North ray -->
+    <polygon points="0,-28 -4,-18 4,-18" fill="#000"/>
+    <!-- NE ray -->
+    <polygon points="19.8,-19.8 11.3,-14.1 14.1,-11.3" fill="#000"/>
+    <!-- East ray -->
+    <polygon points="28,0 18,-4 18,4" fill="#000"/>
+    <!-- SE ray -->
+    <polygon points="19.8,19.8 14.1,11.3 11.3,14.1" fill="#000"/>
+    <!-- South ray -->
+    <polygon points="0,28 4,18 -4,18" fill="#000"/>
+    <!-- SW ray -->
+    <polygon points="-19.8,19.8 -11.3,14.1 -14.1,11.3" fill="#000"/>
+    <!-- West ray -->
+    <polygon points="-28,0 -18,4 -18,-4" fill="#000"/>
+    <!-- NW ray -->
+    <polygon points="-19.8,-19.8 -14.1,-11.3 -11.3,-14.1" fill="#000"/>
+
+    <!-- 4 cardinal triangles pointing inward toward center -->
+    <!-- Top triangle (pointing down) -->
+    <polygon points="0,-22 -10,-10 10,-10" fill="#000"/>
+    <!-- Right triangle (pointing left) -->
+    <polygon points="22,0 10,-10 10,10" fill="#000"/>
+    <!-- Bottom triangle (pointing up) -->
+    <polygon points="0,22 10,10 -10,10" fill="#000"/>
+    <!-- Left triangle (pointing right) -->
+    <polygon points="-22,0 -10,10 -10,-10" fill="#000"/>
+
+    <!-- Inner circle -->
+    <circle cx="0" cy="0" r="8" fill="#000"/>
+    <!-- Center dot -->
+    <circle cx="0" cy="0" r="3.5" fill="white"/>
+  </g>
+
+  <!-- Wordmark: MOHEGAN SUN -->
+  <text
+    x="78"
+    y="30"
+    font-family="'Arial Narrow', Arial, Helvetica, sans-serif"
+    font-size="15"
+    font-weight="700"
+    letter-spacing="2.5"
+    fill="#000"
+  >MOHEGAN</text>
+  <text
+    x="78"
+    y="50"
+    font-family="'Arial Narrow', Arial, Helvetica, sans-serif"
+    font-size="15"
+    font-weight="700"
+    letter-spacing="2.5"
+    fill="#000"
+  >SUN</text>
 </svg>
