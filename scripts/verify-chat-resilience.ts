@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import {
   AgentTimeoutError,
   agentToolTimeoutMs,
+  canRunToolsConcurrently,
   createAgentDeadline,
   fetchWithDeadline,
   guardToolCall,
@@ -367,6 +368,50 @@ await test('user cancellation is not swallowed as a tool error', async () => {
 await test('per-tool ceilings exist and slow tools get more room', () => {
   assert.ok(agentToolTimeoutMs('lighthouse_audit') >= agentToolTimeoutMs('list_todos'));
   assert.ok(agentToolTimeoutMs('some_future_tool') > 0, 'unknown tools must still be bounded');
+});
+
+// ------------------------------------------------------- tool concurrency gate
+
+await test('a batch of read-only audit tools may run concurrently', () => {
+  assert.equal(
+    canRunToolsConcurrently(['lighthouse_audit', 'ssl_check', 'check_links', 'dns_check']),
+    true,
+  );
+  assert.equal(canRunToolsConcurrently(['fetch_url', 'brave_search']), true);
+  assert.equal(canRunToolsConcurrently(['read_work', 'list_contacts', 'read_knowledge']), true);
+});
+
+await test('any writing tool in the batch forces sequential execution', () => {
+  for (const writer of [
+    'write_github_file',
+    'write_file',
+    'exec_command',
+    'create_invoice',
+    'delete_work',
+    'send_email',
+    'mark_email_junk',
+    'sync_resend_dns',
+    'set_client_portal',
+    'delete_kinsta_site',
+    'update_contact',
+    'reset_invoices',
+  ]) {
+    assert.equal(
+      canRunToolsConcurrently(['lighthouse_audit', writer]),
+      false,
+      `${writer} must never be parallelised`,
+    );
+  }
+});
+
+await test('a single call and unknown tools are never parallelised', () => {
+  assert.equal(canRunToolsConcurrently(['lighthouse_audit']), false, 'nothing to parallelise');
+  assert.equal(canRunToolsConcurrently([]), false);
+  assert.equal(
+    canRunToolsConcurrently(['lighthouse_audit', 'some_future_tool']),
+    false,
+    'unclassified tools must be assumed to write',
+  );
 });
 
 console.log(`\nchat resilience checks\n${results.join('\n')}\n`);

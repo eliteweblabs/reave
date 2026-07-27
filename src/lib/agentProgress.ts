@@ -5,6 +5,8 @@ export type AgentProgress = {
   tool?: string;
   toolLabel?: string;
   round?: number;
+  /** How many read-only tools are running at once, when a batch runs in parallel. */
+  concurrent?: number;
   startedAt: number;
   updatedAt: number;
   partialText?: string;

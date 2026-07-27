@@ -16,6 +16,7 @@ export type AgentProgressEvent = {
   round?: number;
   tool?: string;
   toolLabel?: string;
+  concurrent?: number;
 };
 
 export type AgentTextEvent = { type: 'text'; text: string };

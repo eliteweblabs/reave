@@ -42,6 +42,76 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   create_kinsta_site: 180_000,
 };
 
+/**
+ * Tools that only read: safe to execute concurrently when the model asks for
+ * several in one turn, because they cannot interfere with each other or care
+ * about ordering. Anything that writes (files, commits, invoices, mail, DNS,
+ * contacts, hosting) is absent on purpose and stays strictly sequential.
+ *
+ * This is what makes a full site audit finish in the time of its slowest check
+ * instead of the sum of all of them — and makes the model's own narration
+ * ("running the remaining audit tools in parallel") actually true.
+ */
+const READ_ONLY_TOOLS = new Set([
+  // Site audits and research
+  'fetch_url',
+  'lighthouse_audit',
+  'ssl_check',
+  'check_links',
+  'dns_check',
+  'brave_search',
+  'detect_tech_stack',
+  'get_site_monitoring',
+  // Knowledge and project reads
+  'list_knowledge',
+  'read_knowledge',
+  'search_knowledge',
+  'list_work',
+  'read_work',
+  'list_project_files',
+  'get_work_invoice_suggestions',
+  // Contacts and portals
+  'list_contacts',
+  'resolve_contact',
+  'get_client_portal',
+  'get_client_submit_link',
+  // To-dos, mail, scheduling
+  'list_todos',
+  'list_email_inbox',
+  'read_email_inbox',
+  'list_email_filter_rules',
+  'list_bookings',
+  'get_booking',
+  'get_booking_link',
+  // Billing reads
+  'list_recent_invoices',
+  'list_recurring_invoices',
+  'get_invoice',
+  'search_customers',
+  'search_line_items',
+  // Dev/infra reads
+  'get_git_status',
+  'get_recent_commits',
+  'check_deployment_status',
+  'list_open_branches',
+  'list_railway_domains',
+  'list_kinsta_sites',
+  'list_kinsta_backups',
+  'get_kinsta_operation',
+  'list_files',
+  'read_file',
+  'run_terminal_command',
+]);
+
+/**
+ * Whether a batch of tool calls from a single turn can run concurrently. All of
+ * them must be read-only: one write in the batch and the whole batch runs in
+ * order, since the model may well be relying on that order.
+ */
+export function canRunToolsConcurrently(names: string[]): boolean {
+  return names.length > 1 && names.every((name) => READ_ONLY_TOOLS.has(name));
+}
+
 export class AgentTimeoutError extends Error {
   readonly timeoutMs: number;
   readonly label: string;

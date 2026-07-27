@@ -5,6 +5,7 @@ export type ChatAgentSseEvent =
       round?: number;
       tool?: string;
       toolLabel?: string;
+      concurrent?: number;
     }
   | { type: 'text'; text: string }
   | {

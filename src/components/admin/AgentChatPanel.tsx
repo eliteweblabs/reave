@@ -129,6 +129,7 @@ type AgentProgress = {
   tool?: string;
   toolLabel?: string;
   round?: number;
+  concurrent?: number;
   startedAt: number;
   updatedAt: number;
   partialText?: string;
@@ -224,9 +225,12 @@ function useAgentRunStatus(
   const showRunning = isRunning || useExternalProgress;
   const label = statusLabelFromProgress(activeProgress);
   const elapsed = formatElapsed(elapsedMs);
+  const concurrent = activeProgress?.concurrent ?? 0;
   const detailText =
     activeProgress?.phase === 'tool' && activeProgress.tool
-      ? `Running ${activeProgress.tool.replace(/_/g, ' ')}`
+      ? concurrent > 1
+        ? `Running ${concurrent} checks at once`
+        : `Running ${activeProgress.tool.replace(/_/g, ' ')}`
       : activeProgress?.round && activeProgress.round > 1
         ? `Step ${activeProgress.round}`
         : 'Working on your request';
@@ -482,6 +486,7 @@ async function* recoverTurnFromServer(
         tool: status.progress.tool,
         toolLabel: status.progress.toolLabel,
         round: status.progress.round,
+        concurrent: status.progress.concurrent,
       });
       const partial = status.progress.partialText ?? '';
       if (partial.length > shown.length) {
@@ -595,6 +600,7 @@ function createChatAdapter(
                   tool: typeof data.tool === 'string' ? data.tool : undefined,
                   toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
                   round: typeof data.round === 'number' ? data.round : undefined,
+                  concurrent: typeof data.concurrent === 'number' ? data.concurrent : undefined,
                 });
               } else if (event === 'text' && typeof data.text === 'string') {
                 // Ignore shrinking updates (e.g. a new Anthropic round starting with "").

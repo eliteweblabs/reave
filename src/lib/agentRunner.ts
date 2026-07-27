@@ -33,6 +33,7 @@ import { throwIfAborted } from './agentRunControl';
 import {
   agentLlmTurnTimeoutMs,
   agentToolTimeoutMs,
+  canRunToolsConcurrently,
   createAgentDeadline,
   formatSeconds,
   isAgentTimeoutError,
@@ -287,6 +288,7 @@ export type AgentStreamEvent =
       round?: number;
       tool?: string;
       toolLabel?: string;
+      concurrent?: number;
     }
   | { type: 'text'; text: string };
 
@@ -298,6 +300,7 @@ type AgentStreamCallbacks = {
     round?: number;
     tool?: string;
     toolLabel?: string;
+    concurrent?: number;
   }) => void;
 };
 
@@ -556,6 +559,7 @@ async function runKnowledgeAgentInner(
       round: update.round,
       tool: update.tool,
       toolLabel: update.toolLabel,
+      concurrent: update.concurrent,
     });
   };
 
@@ -679,9 +683,41 @@ async function runKnowledgeAgentInner(
     if (stopReason === 'tool_use') {
       if (stream) finishRoundStream(assistantTextFromContent(content));
       messages.push({ role: 'assistant', content });
-      const toolResults: AnthropicContentBlock[] = [];
-      for (const block of content) {
-        if (block.type === 'tool_use') {
+
+      const calls = content.filter(
+        (b): b is Extract<AnthropicContentBlock, { type: 'tool_use' }> => b.type === 'tool_use',
+      );
+      // runTool always resolves, and never later than the budget we give it, so
+      // every tool_use block is guaranteed a matching tool_result either way.
+      const invoke = (block: (typeof calls)[number]) =>
+        runTool(block.name, JSON.stringify(block.input ?? {}), {
+          signal: stream?.signal,
+          timeoutMs: Math.max(5_000, deadline.clamp(agentToolTimeoutMs(block.name))),
+        }).then((out) => ({
+          type: 'tool_result' as const,
+          tool_use_id: block.id,
+          content: truncateToolResult(out),
+        }));
+
+      let toolResults: AnthropicContentBlock[] = [];
+      throwIfAborted(stream?.signal);
+
+      if (canRunToolsConcurrently(calls.map((c) => c.name))) {
+        // Progress can only name one tool at a time, so report the slowest of the
+        // batch — it is the one the user is really waiting on.
+        const headline = [...calls].sort(
+          (a, b) => agentToolTimeoutMs(b.name) - agentToolTimeoutMs(a.name),
+        )[0];
+        emitProgress({
+          phase: 'tool',
+          round: round + 1,
+          tool: headline.name,
+          toolLabel: labelForAgentTool(headline.name),
+          concurrent: calls.length,
+        });
+        toolResults = await Promise.all(calls.map(invoke));
+      } else {
+        for (const block of calls) {
           throwIfAborted(stream?.signal);
           emitProgress({
             phase: 'tool',
@@ -689,17 +725,10 @@ async function runKnowledgeAgentInner(
             tool: block.name,
             toolLabel: labelForAgentTool(block.name),
           });
-          // runTool always resolves, and never later than the budget we give it,
-          // so every tool_use block is guaranteed a matching tool_result.
-          const out = truncateToolResult(
-            await runTool(block.name, JSON.stringify(block.input ?? {}), {
-              signal: stream?.signal,
-              timeoutMs: Math.max(5_000, deadline.clamp(agentToolTimeoutMs(block.name))),
-            }),
-          );
-          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
+          toolResults.push(await invoke(block));
         }
       }
+
       if (!toolResults.length) {
         return finalizeAgentReply(
           'The model requested a tool call but returned no usable tool blocks. Try sending your message again.',
