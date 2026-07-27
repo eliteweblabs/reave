@@ -98,11 +98,26 @@ export async function GET(context: APIContext): Promise<Response> {
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      return json({
-        status: 'REQUEST_DENIED',
-        predictions: [],
-        errorMessage: data.error?.message || `Google Places API error (${response.status})`,
-      });
+      // Surface the real Google error (e.g. "Places API (New) has not been
+      // used in this project" / "API key not authorized") to the caller with
+      // a non-2xx status. This used to always return 200 here, so the admin
+      // UI's `if (!res.ok)` check never fired — auth/config failures were
+      // silently swallowed and just looked like "no matching addresses",
+      // making it impossible to tell a bad API key from a genuinely empty
+      // result. Use Google's own status when it looks like a real HTTP
+      // status; otherwise fall back to 502 (upstream error).
+      const upstreamStatus =
+        Number.isInteger(response.status) && response.status >= 400 && response.status < 600
+          ? response.status
+          : 502;
+      return json(
+        {
+          status: 'REQUEST_DENIED',
+          predictions: [],
+          errorMessage: data.error?.message || `Google Places API error (${response.status})`,
+        },
+        upstreamStatus,
+      );
     }
 
     const allPredictions =
