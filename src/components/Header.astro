@@ -272,9 +272,18 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     --nav-icon: rgba(0, 0, 0, 0.45);
     --nav-icon-hover: rgba(0, 0, 0, 0.72);
     --nav-icon-active: #0f172a;
-    /* Default dark — matches Layout.astro; admin shell overrides per color scheme. */
-    --dropdown-bg: rgba(14, 17, 24, 0.98);
-    --dropdown-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    /*
+     * --dropdown-bg / --dropdown-shadow are intentionally NOT declared here.
+     * This block and the admin shell's <style> (src/pages/admin/index.astro)
+     * both target :root with equal specificity, and this component's style
+     * ends up later in the cascade — so a value declared here always beat
+     * the admin shell's light/dark-aware override, pinning the profile
+     * dropdown to dark even on a light-themed admin page. Pages that don't
+     * define these variables (the dark-only marketing site, client portal)
+     * still get the correct dark look via the `var(--x, <fallback>)` used at
+     * the point of use below — only the admin shell (which needs both
+     * themes) actually needs to own this variable.
+     */
   }
 
   @media (prefers-color-scheme: dark) {
