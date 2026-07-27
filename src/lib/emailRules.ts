@@ -32,6 +32,12 @@ export interface EmailRule {
   /** Whether a match should send a push/inbox alert. */
   notify: boolean;
   enabled: boolean;
+  /**
+   * Canned one-line summary used for the notification/summary when no better
+   * summary is available (e.g. AI triage is disabled or fails). Lets known,
+   * boilerplate-heavy alerts show a clean TL;DR instead of a raw text snippet.
+   */
+  summaryOverride?: string;
 }
 
 export interface InboundEmail {
@@ -72,6 +78,24 @@ export interface Classification {
  */
 export const DEFAULT_RULES: EmailRule[] = [
   // ── 1. OPERATIONAL ALERTS ───────────────────────────────────────────────
+
+  {
+    status: 'ANTHROPIC_BILLING',
+    description:
+      'Anthropic/Claude API disabled for lack of usage credits — also means AI email triage/summaries are degraded until fixed. Canned summary avoids dumping the raw boilerplate email as the notification preview.',
+    phrases: [
+      'Claude API access is turned off',
+      'access to the Claude API has been disabled',
+      'is out of usage credits',
+      'out of usage credits',
+    ],
+    matchMode: 'any',
+    fields: ['subject', 'body'],
+    notify: true,
+    enabled: true,
+    summaryOverride:
+      'Claude API access is off — Anthropic org is out of usage credits. Add credits at console.anthropic.com/settings/billing to restore AI email triage.',
+  },
 
   {
     status: 'RAILWAY_ALERT',

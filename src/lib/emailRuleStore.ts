@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS email_rules (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE email_rules ADD COLUMN IF NOT EXISTS summary_override TEXT;
 CREATE INDEX IF NOT EXISTS email_rules_sort_idx ON email_rules (sort_order ASC, created_at ASC);
 `;
 
@@ -200,6 +201,7 @@ function rowToRecord(row: {
   expires_at?: Date | string | null;
   created_at?: Date | string | null;
   updated_at?: Date | string | null;
+  summary_override?: string | null;
 }): EmailRuleRecord {
   return {
     id: row.id,
@@ -215,6 +217,7 @@ function rowToRecord(row: {
     expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
     updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
+    summaryOverride: row.summary_override ?? undefined,
   };
 }
 
@@ -242,6 +245,7 @@ function parseConfig(raw: string): EmailRulesConfig | null {
         expiresAt: r.expiresAt ? String(r.expiresAt) : null,
         createdAt: r.createdAt ? String(r.createdAt) : undefined,
         updatedAt: r.updatedAt ? String(r.updatedAt) : undefined,
+        summaryOverride: r.summaryOverride ? String(r.summaryOverride) : undefined,
       })),
     };
   } catch {
@@ -300,7 +304,7 @@ async function loadFromPg(): Promise<EmailRulesConfig | null> {
 
     const { rows } = await pool.query(
       `SELECT id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-              expires_at, created_at, updated_at
+              expires_at, created_at, updated_at, summary_override
        FROM email_rules ORDER BY sort_order ASC, created_at ASC`
     );
 
@@ -338,8 +342,8 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
       await pool.query(
         `INSERT INTO email_rules
           (id, sort_order, title, status, description, phrases, match_mode, fields, notify, enabled,
-           expires_at, created_at, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()))`,
+           expires_at, created_at, updated_at, summary_override)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, COALESCE($12, now()), COALESCE($13, now()), $14)`,
         [
           r.id,
           r.sortOrder,
@@ -354,6 +358,7 @@ async function saveToPg(config: EmailRulesConfig): Promise<boolean> {
           r.expiresAt ? new Date(r.expiresAt) : null,
           r.createdAt ? new Date(r.createdAt) : null,
           r.updatedAt ? new Date(r.updatedAt) : null,
+          r.summaryOverride ?? null,
         ]
       );
     }

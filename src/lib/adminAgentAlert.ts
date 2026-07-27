@@ -28,6 +28,10 @@ export function isRailwayAlertStatus(status: string): boolean {
   return status.toUpperCase().startsWith('RAILWAY');
 }
 
+export function isAnthropicBillingAlertStatus(status: string): boolean {
+  return status.toUpperCase() === 'ANTHROPIC_BILLING';
+}
+
 async function getOrCreateAlertThread(userId: string): Promise<string | null> {
   const threads = await storeListChatThreads(userId);
   const existing = threads.find((t) => t.title === ALERT_THREAD_TITLE);
@@ -101,9 +105,12 @@ async function formatAlertMessage(opts: {
   emailId?: string;
 }): Promise<string> {
   const railway = isRailwayAlertStatus(opts.status);
+  const anthropicBilling = isAnthropicBillingAlertStatus(opts.status);
   const intro = railway
     ? 'Railway alert email received (deploy/build crash notification). You run inside this app on Railway — use your tools first, not manual dashboard/CLI steps.'
-    : 'Inbound alert email received.';
+    : anthropicBilling
+      ? 'Anthropic Claude API is out of usage credits — AI email triage/summaries (and this very alert reply, if attempted) will fail until credits are added.'
+      : 'Inbound alert email received.';
 
   const lines = [
     intro,
@@ -111,7 +118,9 @@ async function formatAlertMessage(opts: {
     `Status: ${opts.status}`,
     railway
       ? 'Call check_deployment_status and get_git_status now. Distinguish rollout teardown vs a real crash, summarize what you found, and suggest next steps. You cannot fetch Railway logs via API — only mention dashboard logs if tools leave the cause unclear.'
-      : 'Read the linked email below and suggest concrete next steps.',
+      : anthropicBilling
+        ? 'Add credits at console.anthropic.com/settings/billing to restore Claude API access and AI email triage.'
+        : 'Read the linked email below and suggest concrete next steps.',
   ];
 
   if (opts.emailId) {
@@ -439,6 +448,9 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   await postToSystemAlertsThread({
     message,
     emailId: opts.emailId,
+    // The agent's auto-reply itself needs the Claude API — skip it here so we
+    // don't burn a doomed-to-fail call and can just show the canned summary.
+    autoRun: !isAnthropicBillingAlertStatus(opts.status),
     push: {
       title: isRailwayAlertStatus(opts.status)
         ? `Railway: ${opts.subject.slice(0, 50) || 'deploy alert'}`

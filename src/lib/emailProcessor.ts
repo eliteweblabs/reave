@@ -59,7 +59,8 @@ function ruleCategory(status: string): EmailCategory {
   if (s === 'DELETE') return 'junk';
   if (s === 'AUTO_ARCHIVED') return 'junk';
   if (s === 'RECEIPT') return 'receipt';
-  if (s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK') return 'alert';
+  if (s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK' || s === 'ANTHROPIC_BILLING')
+    return 'alert';
   return 'review';
 }
 
@@ -281,6 +282,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
   let category: EmailCategory = ruleCategory(ruleResult.status);
   let summary =
+    ruleResult.matched?.summaryOverride ||
     snippet(bodyText) ||
     attachmentSummaryFallback(attachments) ||
     email.subject ||
