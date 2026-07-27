@@ -87,23 +87,6 @@ import {
   sendSms,
 } from '../../outbound';
 import { DEV_TASK_NAMES, isDevTaskName, runDevTask } from '../../devTaskRunner';
-import {
-  formatRailwayNetworkingSummary,
-  isRailwayConfigured,
-  railwayListProjectNetworking,
-} from '../../railwayClient';
-import {
-  formatKinstaSitesSummary,
-  isKinstaConfigured,
-  kinstaClearCache,
-  kinstaCreateManualBackup,
-  kinstaCreateSite,
-  kinstaDeleteSite,
-  kinstaGetOperation,
-  kinstaGetSite,
-  kinstaListBackups,
-  kinstaListSites,
-} from '../../kinstaClient';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../devStatus';
 import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from '../../githubClient';
 import { describeSafeShell, runSafeShellCommand } from '../../safeShell';
@@ -152,11 +135,7 @@ import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient
 import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../dnsCheckClient';
-import { syncAllResendDnsToCloudflare, syncResendDnsToCloudflare } from '../../resendDnsSync';
 import { hasFeature } from '../../features';
-import { syncUptimeMonitorsFromApi } from '../../uptimeMonitoring';
-import { isUptimeRobotConfigured } from '../../uptimerobotClient';
-import { isUptimeDbConfigured } from '../../pgUptime';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,
