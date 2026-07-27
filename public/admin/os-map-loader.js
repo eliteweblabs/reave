@@ -17616,25 +17616,28 @@ function createChatListItem(t) {
   const archivedIcon = t.archived
     ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
     : '';
-  // Always render the running-icon slot (fixed size, visibility toggled via
-  // the `is-active` class) and the unread dot as an absolutely-positioned
-  // sibling — neither ever gets inserted/removed from the DOM, so toggling
-  // them on and off can never reflow or "jump" the row.
   const linkedSub = formatLinkedJobsSub(t.linked_jobs);
   const subLine = linkedSub
     ? `<span class="ch-item-sub project-link-sub">${escHtml(linkedSub)}</span>`
     : '';
+  // One absolutely-positioned slot shared by both indicators (no reflow ever,
+  // no extra placeholder in the row) — CSS shows the spinner when
+  // ch-list-item--running is set, otherwise the dot when --unread is set.
+  const statusIndicator =
+    `<span class="ch-item-status" aria-hidden="true">` +
+      `<span class="ch-item-status-spinner">${CH_SPINNER_SVG}</span>` +
+      `<span class="ch-item-status-dot"></span>` +
+    `</span>`;
   item.innerHTML =
     SIDEBAR_LIST_GRIP +
-    `<span class="ch-item-unread-dot" title="New response" aria-label="New response"></span>` +
+    statusIndicator +
     `<span class="ch-list-content">` +
       `<span class="ch-item-row">` +
         archivedIcon +
-        `<span class="ch-item-running${isRunning ? ' is-active' : ''}" title="Working…" aria-label="Working">${CH_SPINNER_SVG}</span>` +
         `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
-        `<span class="ch-item-date">${escHtml(formatChatDate(t.updated_at))}</span>` +
       `</span>` +
       subLine +
+      `<span class="ch-item-date ch-item-date--bottom">${escHtml(formatChatDate(t.updated_at))}</span>` +
     `</span>`;
   item.addEventListener('click', () => {
     if (t.id === chatState.activeId) return;
@@ -17644,18 +17647,15 @@ function createChatListItem(t) {
 }
 
 /**
- * Patch running-spinner state directly on existing sidebar DOM nodes (called
- * on every running-poll tick) instead of rebuilding the whole list. Only
- * toggles classes on an always-present, fixed-size slot — never
- * inserts/removes elements — so it can't reflow or "jump" the row.
+ * Patch running state directly on existing sidebar DOM nodes (called on
+ * every running-poll tick) instead of rebuilding the whole list — just a
+ * class toggle on the item, so it can't reflow or "jump" the row.
  */
 function applyChatRunningIndicators() {
   const root = getChatPanel();
   if (!root) return;
   root.querySelectorAll('.ch-sidebar .ch-list-item[data-id]').forEach((el) => {
-    const running = chatState.runningIds.has(el.dataset.id);
-    el.classList.toggle('ch-list-item--running', running);
-    el.querySelector('.ch-item-running')?.classList.toggle('is-active', running);
+    el.classList.toggle('ch-list-item--running', chatState.runningIds.has(el.dataset.id));
   });
 }
 

@@ -3326,6 +3326,12 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         font-size: 0.68rem;
         color: var(--muted);
       }
+      /* Chats sidebar puts the date on its own line at the bottom, right-aligned. */
+      .ch-item-date--bottom {
+        display: block;
+        width: 100%;
+        text-align: right;
+      }
       .ch-item-sub {
         font-size: 0.69rem;
         color: var(--muted);
@@ -3355,27 +3361,35 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         display: block;
       }
       /*
-       * Both indicators are designed to never shift layout when they toggle
-       * on/off: the running icon is a permanent fixed-size slot (only its
-       * visibility/opacity is toggled, so it never changes box size), and the
-       * unread dot is fully removed from flow via absolute positioning.
+       * Running spinner and unread dot share one fixed spot (top-right corner
+       * of the item, absolutely positioned so it's fully out of flow) and are
+       * never inserted/removed from the DOM — only opacity/visibility toggles
+       * via the parent's --running/--unread class — so neither can ever
+       * reflow or "jump" the row.
        */
-      .ch-item-running {
-        flex-shrink: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+      .ch-item-status {
+        position: absolute;
+        top: 5px;
+        right: 6px;
         width: 12px;
         height: 12px;
-        color: #0a84ff;
+        pointer-events: none;
+      }
+      .ch-item-status-spinner,
+      .ch-item-status-dot {
+        position: absolute;
+        inset: 0;
+        margin: auto;
         opacity: 0;
         visibility: hidden;
       }
-      .ch-item-running.is-active {
-        opacity: 1;
-        visibility: visible;
+      .ch-item-status-spinner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #0a84ff;
       }
-      .ch-item-running svg {
+      .ch-item-status-spinner svg {
         display: block;
         animation: ch-item-spin 0.8s linear infinite;
         transform-origin: 50% 50%;
@@ -3385,20 +3399,18 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
           transform: rotate(360deg);
         }
       }
-      .ch-item-unread-dot {
-        position: absolute;
-        top: 5px;
-        right: 6px;
+      .ch-item-status-dot {
         width: 7px;
         height: 7px;
         border-radius: 999px;
         background: #0a84ff;
         box-shadow: 0 0 0 3px color-mix(in srgb, #0a84ff 20%, transparent);
-        pointer-events: none;
-        opacity: 0;
-        visibility: hidden;
       }
-      .ch-list-item--unread .ch-item-unread-dot {
+      .ch-list-item--running .ch-item-status-spinner {
+        opacity: 1;
+        visibility: visible;
+      }
+      .ch-list-item--unread:not(.ch-list-item--running) .ch-item-status-dot {
         opacity: 1;
         visibility: visible;
         animation: ch-item-unread-pulse 2s ease-in-out infinite;
@@ -8693,6 +8705,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260726a"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260726b"></script>
   </body>
 </html>
