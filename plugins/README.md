@@ -24,6 +24,7 @@ plugins/{id}/
 | `code-dev/` | `code_dev` | install-scoped `code-dev-tools.md` | yes |
 | `dev-infra/` | `dev_infra` | github, kinsta, railway playbooks | yes |
 | `email-marketing/` | `email_marketing` | `newsletter.md` | — |
+| `namecom-dns/` | `namecom_dns` | — | yes |
 | `scheduling/` | `scheduling` | — | yes |
 | `site-audits/` | `site_audits` | — | yes |
 | `site-monitoring/` | `site_monitoring` | — | yes |

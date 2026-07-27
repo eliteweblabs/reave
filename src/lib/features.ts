@@ -27,6 +27,7 @@ export const FEATURE_IDS = [
   'email_marketing',
   'fleet_tracking',
   'dealership_wizard',
+  'namecom_dns',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -97,6 +98,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   email_marketing: 'Newsletter & email automation (welcome, follow-ups, review requests, broadcasts)',
   fleet_tracking: 'Fleet tracking (multi-vehicle GPS via fleet-api)',
   dealership_wizard: 'Dealership inventory & deal wizard (paulino-wizard)',
+  namecom_dns: 'DNS record management (Name.com) — agency/ops installs only',
 };
 
 export const CORE_FEATURE_NOTE =
