@@ -21,3 +21,13 @@ export function isStaffSession(locals: StaffLocals): boolean {
 export function isOwnerPreviewRequest(request: Request): boolean {
   return new URL(request.url).searchParams.get('preview') === '1';
 }
+
+/** Link unfurlers / preview bots — must not count as a client "view". */
+export function isLinkPreviewRequest(request: Request): boolean {
+  if (request.method === 'HEAD') return true;
+  const ua = (request.headers.get('user-agent') || '').toLowerCase();
+  if (!ua) return false;
+  return /bot|crawler|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|linkedin|twitter|embed|linkpreview|vkshare|pinterest/i.test(
+    ua,
+  );
+}

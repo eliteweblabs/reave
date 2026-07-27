@@ -2515,8 +2515,14 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         margin: 0 0 0.35rem;
         text-align: center;
       }
+      #clients-editor .wk-link-track {
+        margin: 0.35rem 1rem 0;
+      }
+      .wk-link-track-pill,
       .wk-link-track-status {
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
         font-size: 0.72rem;
         line-height: 1.35;
         color: var(--muted);
@@ -2525,10 +2531,40 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         background: var(--surface-subtle);
         border: 1px solid var(--panel-border);
       }
+      .wk-link-track-pill--viewed,
       .wk-link-track-status--opened {
         color: var(--accent, #3b82f6);
         border-color: color-mix(in srgb, var(--accent, #3b82f6) 35%, var(--panel-border));
         background: color-mix(in srgb, var(--accent, #3b82f6) 8%, var(--surface-subtle));
+        padding-right: 0.25rem;
+      }
+      .wk-link-track-label {
+        line-height: 1.35;
+      }
+      .wk-link-track-dismiss {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25rem;
+        height: 1.25rem;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: inherit;
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.75;
+      }
+      .wk-link-track-dismiss:hover {
+        opacity: 1;
+        background: color-mix(in srgb, currentColor 12%, transparent);
+      }
+      .wk-link-track-dismiss:disabled {
+        opacity: 0.35;
+        cursor: default;
       }
       .cl-archived {
         font-size: 0.62rem;

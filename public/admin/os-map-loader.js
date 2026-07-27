@@ -13081,7 +13081,7 @@ function renderEditWorkForm(pane) {
       };
       clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
-      renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links);
+      renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links, slug);
 
       statusPill = createSlidingPillSelect({
         label: 'Status',
@@ -16330,10 +16330,15 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
+      const linkTrackEl = document.createElement('div');
+      linkTrackEl.className = 'wk-link-track';
+      linkTrackEl.hidden = true;
+
       const shareBtn = clientState.draft.personal
         ? null
         : createPortalShareBtn(uid, {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
+        trackEl: linkTrackEl,
         recipient: {
           contactUid: uid,
           name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Client',
@@ -16365,6 +16370,11 @@ function renderEditClientForm(pane) {
         ].filter(Boolean),
       });
       pane.appendChild(header);
+
+      if (!clientState.draft.personal) {
+        pane.appendChild(linkTrackEl);
+        renderClientLinkTrackStatus(linkTrackEl, data.tracked_links, uid);
+      }
 
       mountClientDetailTabs(pane, clientState.detailTab, (tabId) => {
         clientState.detailTab = tabId;
@@ -17183,7 +17193,29 @@ function formatLinkTrackWhen(iso) {
   }
 }
 
-function renderWorkLinkTrackStatus(container, links) {
+async function dismissLinkTrackView(opts = {}) {
+  const { token, jobSlug, contactUid } = opts;
+  if (!token) return false;
+  try {
+    const url = jobSlug
+      ? `/api/work/${encodeURIComponent(jobSlug)}/link`
+      : contactUid
+        ? `/api/clients/${encodeURIComponent(contactUid)}/link`
+        : '';
+    if (!url) return false;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    return res.ok && data.ok;
+  } catch {
+    return false;
+  }
+}
+
+function renderLinkTrackStatus(container, links, opts = {}) {
   if (!container) return;
   container.innerHTML = '';
   const latest = Array.isArray(links) && links.length ? links[0] : null;
@@ -17194,14 +17226,53 @@ function renderWorkLinkTrackStatus(container, links) {
   container.hidden = false;
   const sent = formatLinkTrackWhen(latest.sent_at);
   const opened = latest.first_clicked_at ? formatLinkTrackWhen(latest.first_clicked_at) : '';
-  const status = document.createElement('span');
-  status.className = 'wk-link-track-status' + (opened ? ' wk-link-track-status--opened' : '');
+  const wrap = document.createElement('span');
+  wrap.className = 'wk-link-track-pill' + (opened ? ' wk-link-track-pill--viewed' : '');
+
   if (opened) {
-    status.textContent = `Link opened ${opened}${latest.click_count > 1 ? ` (${latest.click_count}×)` : ''}`;
+    const label = document.createElement('span');
+    label.className = 'wk-link-track-label';
+    label.textContent = `Viewed ${opened}${latest.click_count > 1 ? ` (${latest.click_count}×)` : ''}`;
+    wrap.appendChild(label);
+
+    const dismissBtn = document.createElement('button');
+    dismissBtn.type = 'button';
+    dismissBtn.className = 'wk-link-track-dismiss';
+    dismissBtn.setAttribute('aria-label', 'Dismiss viewed tag');
+    dismissBtn.title = 'Dismiss';
+    dismissBtn.textContent = '×';
+    dismissBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void (async () => {
+        dismissBtn.disabled = true;
+        const ok = await dismissLinkTrackView({
+          token: latest.token,
+          jobSlug: opts.jobSlug,
+          contactUid: opts.contactUid,
+        });
+        if (ok) {
+          if (opts.jobSlug) void refreshWorkLinkTrackStatus(container, opts.jobSlug);
+          else if (opts.contactUid) void refreshClientLinkTrackStatus(container, opts.contactUid);
+          else container.hidden = true;
+        } else {
+          dismissBtn.disabled = false;
+          showChatToast('Could not dismiss');
+        }
+      })();
+    });
+    wrap.appendChild(dismissBtn);
   } else {
-    status.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
+    wrap.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
   }
-  container.appendChild(status);
+  container.appendChild(wrap);
+}
+
+function renderWorkLinkTrackStatus(container, links, jobSlug) {
+  renderLinkTrackStatus(container, links, { jobSlug });
+}
+
+function renderClientLinkTrackStatus(container, links, contactUid) {
+  renderLinkTrackStatus(container, links, { contactUid });
 }
 
 async function refreshWorkLinkTrackStatus(container, jobSlug) {
@@ -17209,7 +17280,18 @@ async function refreshWorkLinkTrackStatus(container, jobSlug) {
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, { cache: 'no-store' });
     const data = await res.json();
-    if (res.ok && data.ok) renderWorkLinkTrackStatus(container, data.links);
+    if (res.ok && data.ok) renderWorkLinkTrackStatus(container, data.links, jobSlug);
+  } catch {
+    /* ignore */
+  }
+}
+
+async function refreshClientLinkTrackStatus(container, contactUid) {
+  if (!container || !contactUid) return;
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(contactUid)}/link`, { cache: 'no-store' });
+    const data = await res.json();
+    if (res.ok && data.ok) renderClientLinkTrackStatus(container, data.links, contactUid);
   } catch {
     /* ignore */
   }
@@ -17277,11 +17359,10 @@ function reaveShareKindLabel(kind) {
 
 async function resolveReaveShareUrl(state) {
   if (state.url) return state.url;
-  if (state.kind === 'work' && state.jobSlug && state.recipient?.contactUid) {
-    return createTrackedProjectShareUrl(state.jobSlug, state.recipient.contactUid, state.tab || 'work');
-  }
+  // Copy/preview/share use direct portal URLs — tracked links are created server-side
+  // on send only, so link-preview bots don't mark shares as viewed prematurely.
   if (state.recipient?.contactUid) {
-    return clientPortalShareUrl(state.recipient.contactUid, state.tab);
+    return clientPortalShareUrl(state.recipient.contactUid, state.tab || (state.kind === 'work' ? 'work' : undefined));
   }
   if (state.kind === 'booking') return scheduleShareBookingUrl(state.booking);
   return '';
@@ -17327,6 +17408,9 @@ async function sendViaReaveShare(channel, state) {
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     setReaveShareStatus(`Sent via ${data.channel} to ${data.dest}`, 'ok');
     if (state.jobSlug && state.trackEl) void refreshWorkLinkTrackStatus(state.trackEl, state.jobSlug);
+    if (!state.jobSlug && state.recipient?.contactUid && state.trackEl) {
+      void refreshClientLinkTrackStatus(state.trackEl, state.recipient.contactUid);
+    }
     state.onSent?.(data);
   } catch (e) {
     setReaveShareStatus(e?.message || 'Send failed', 'err');

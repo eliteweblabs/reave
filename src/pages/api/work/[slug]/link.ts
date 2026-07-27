@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { isSafeWorkSlug, storeReadWork } from '../../../../lib/workStore';
 import {
   createTrackedProjectLink,
+  dismissTrackedLinkView,
   listTrackedLinksForJob,
   type TrackedLinkChannel,
 } from '../../../../lib/linkTracking';
@@ -70,4 +71,32 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!created.ok) return json({ ok: false, error: created.error }, 400);
   return json({ ok: true, link: created.link, url: created.url });
+}
+
+export async function PATCH(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const slug = context.params.slug?.trim() ?? '';
+  if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
+  if (!(await storeReadWork(slug))) return json({ ok: false, error: 'Not found' }, 404);
+
+  let body: Record<string, unknown>;
+  try {
+    body = await context.request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON' }, 400);
+  }
+
+  const token = String(body.token ?? '').trim();
+  if (!token) return json({ ok: false, error: 'token is required' }, 400);
+
+  const links = await listTrackedLinksForJob(slug, { limit: 50 });
+  if (!links.some((l) => l.token === token)) {
+    return json({ ok: false, error: 'Link not found for this project' }, 404);
+  }
+
+  const result = await dismissTrackedLinkView(token);
+  if (!result.ok) return json({ ok: false, error: result.error }, 404);
+  return json({ ok: true, link: result.link });
 }
