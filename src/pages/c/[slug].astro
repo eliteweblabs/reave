@@ -976,7 +976,11 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
         transition: background 0.2s, color 0.2s;
       }
-      .tab.active { background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)); color: #fff; }
+      .tab.active {
+        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+        border: 1px solid var(--portal-brand-fill-border, transparent);
+        color: #fff;
+      }
 
       .panel { display: none; }
       .panel.active { display: block; }
@@ -1096,7 +1100,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .inv-due.upcoming { color: #fcd34d; }
       .pay {
         padding: 7px 16px; border-radius: 999px;
-        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+        border: 1px solid var(--portal-brand-fill-border, transparent);
         color: #fff; text-decoration: none; font-size: 13px; font-weight: 600;
       }
       .pay:active { opacity: 0.85; }
@@ -1242,8 +1247,9 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       .add-btn:hover { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.5); color: rgba(255, 255, 255, 0.8); }
       .submit-btn {
         width: 100%; padding: 16px;
-        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
-        border: none; border-radius: 14px; color: #fff;
+        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+        border: 1px solid var(--portal-brand-fill-border, transparent);
+        border-radius: 14px; color: #fff;
         font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
         transition: opacity 0.2s, transform 0.15s;
       }
@@ -1256,7 +1262,8 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
       }
       .success-icon {
         font-size: 36px; width: 64px; height: 64px; border-radius: 50%;
-        background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+        background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+        border: 1px solid var(--portal-brand-fill-border, transparent);
         display: flex; align-items: center; justify-content: center;
         margin: 0 auto 20px; color: #fff;
       }

@@ -99,12 +99,12 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     width: 58px;
     height: 58px;
     border-radius: 50%;
-    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
     box-shadow: 0 8px 24px rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
     cursor: pointer;
     transition: transform 0.18s ease;
@@ -179,7 +179,8 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     align-items: center;
     justify-content: center;
     color: #fff;
-    background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
   }
   .pa-header-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .pa-header-name { font-size: 14px; font-weight: 700; color: #fff; }
@@ -228,7 +229,8 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     border-bottom-left-radius: 4px;
   }
   .pa-msg-user .pa-bubble {
-    background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
     color: #fff;
     border-bottom-right-radius: 4px;
   }
@@ -292,12 +294,12 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    border: none;
+    border: 1px solid var(--portal-brand-fill-border, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
-    background: var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
     cursor: pointer;
     transition: opacity 0.15s ease, transform 0.1s ease;
   }

@@ -28,6 +28,24 @@ export const DEFAULT_PORTAL_BRAND: PortalBrandColors = {
   secondaryRgb: '236, 72, 153',
 };
 
+/** White/neutral logos on the always-dark portal (#0a0a0a). */
+export const WHITE_PORTAL_BRAND: PortalBrandColors = {
+  primary: '#ffffff',
+  secondary: '#e4e4e7',
+  accent: '#fafafa',
+  primaryRgb: '255, 255, 255',
+  secondaryRgb: '228, 228, 231',
+};
+
+export function isLightPortalBrand(colors: PortalBrandColors): boolean {
+  const rgb = parseHexColor(colors.primary);
+  if (!rgb) return false;
+  const max = Math.max(rgb.r, rgb.g, rgb.b);
+  const min = Math.min(rgb.r, rgb.g, rgb.b);
+  const lum = (max + min) / (2 * 255);
+  return lum > 0.85;
+}
+
 type Rgb = { r: number; g: number; b: number };
 
 function clampByte(n: number): number {
@@ -149,10 +167,12 @@ export async function extractBrandColorsFromBuffer(buf: Buffer): Promise<PortalB
       .toBuffer({ resolveWithObject: true });
 
     const buckets = new Map<number, { weight: number; r: number; g: number; b: number }>();
+    let hasVisiblePixels = false;
 
     for (let i = 0; i < data.length; i += info.channels) {
       const alpha = info.channels === 4 ? data[i + 3] : 255;
       if (alpha < 120) continue;
+      hasVisiblePixels = true;
       const rgb = { r: data[i], g: data[i + 1], b: data[i + 2] };
       if (isNeutral(rgb)) continue;
 
@@ -175,7 +195,7 @@ export async function extractBrandColorsFromBuffer(buf: Buffer): Promise<PortalB
       }
     }
 
-    if (buckets.size === 0) return null;
+    if (buckets.size === 0) return hasVisiblePixels ? WHITE_PORTAL_BRAND : null;
 
     const top = [...buckets.values()].sort((a, b) => b.weight - a.weight)[0];
     const primaryRgb = {
@@ -232,17 +252,22 @@ export async function resolvePortalBrandColors(uid: string, portal: ClientPortal
 }
 
 export function portalBrandCssVars(colors: PortalBrandColors): Record<string, string> {
+  const gradient = `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`;
+  const light = isLightPortalBrand(colors);
   return {
     '--portal-primary': colors.primary,
     '--portal-secondary': colors.secondary,
     '--portal-accent': colors.accent,
     '--portal-primary-rgb': colors.primaryRgb,
     '--portal-secondary-rgb': colors.secondaryRgb,
-    '--portal-brand-gradient': `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+    '--portal-brand-gradient': gradient,
+    // Filled controls sit on #0a0a0a — light brands use glass fills, not solid white blocks.
+    '--portal-brand-fill': light ? 'rgba(255, 255, 255, 0.14)' : gradient,
+    '--portal-brand-fill-border': light ? 'rgba(255, 255, 255, 0.38)' : 'transparent',
     '--brand-pink': colors.primary,
     '--brand-magenta': colors.secondary,
     '--brand-indigo': colors.secondary,
-    '--brand-gradient': `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+    '--brand-gradient': gradient,
   };
 }
 
