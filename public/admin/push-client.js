@@ -54,6 +54,20 @@ function isIos() {
   );
 }
 
+function isAndroid() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+/**
+ * Unlike iOS Safari (push only works for a home-screen-installed app),
+ * Android Chrome (and other Chromium browsers there) can subscribe to and
+ * receive Web Push from a normal browser tab — no install required.
+ */
+function canEnablePushWithoutInstall() {
+  return isAndroid();
+}
+
 function isMobileViewport() {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(max-width: 768px)').matches;
@@ -68,7 +82,9 @@ function isDesktopSafari() {
 export function needsPwaInstall() {
   if (isStandalonePwa()) return false;
   if (!isAdminSpa()) return false;
-  // iOS requires home-screen install for push; mobile + Chromium desktop (install prompt) too.
+  // iOS requires home-screen install for push; mobile + Chromium desktop
+  // (install prompt) too — though on Android this doesn't block push itself,
+  // see canEnablePushWithoutInstall().
   if (isIos() || isMobileViewport()) return true;
   if (deferredInstallPrompt) return true;
   // Safari macOS: File → Add to Dock (no beforeinstallprompt).
@@ -123,7 +139,7 @@ export async function isAdminPushEnabled() {
 export async function needsPushEnable() {
   if (!('Notification' in window) || !('PushManager' in window)) return false;
   if (!isAdminSpa()) return false;
-  if (needsPwaInstall()) return false;
+  if (needsPwaInstall() && !canEnablePushWithoutInstall()) return false;
   if (await isAdminPushEnabled()) return false;
   return true;
 }
@@ -253,7 +269,12 @@ export async function syncAdminSetupAlerts() {
 
   clearSetupAlerts();
 
-  if (needsPwaInstall() && !isDismissed('pwa')) {
+  // Platforms that can receive push without installing first (Android) get
+  // the push-enable offer even while an unrelated install nag is pending —
+  // installing isn't a prerequisite there like it is on iOS.
+  const pushCanLeadInstall = canEnablePushWithoutInstall();
+
+  if (!pushCanLeadInstall && needsPwaInstall() && !isDismissed('pwa')) {
     renderSetupAlert('pwa');
     return 'pwa';
   }
@@ -261,6 +282,11 @@ export async function syncAdminSetupAlerts() {
   if ((await needsPushEnable()) && !isDismissed('push')) {
     renderSetupAlert('push');
     return 'push';
+  }
+
+  if (pushCanLeadInstall && needsPwaInstall() && !isDismissed('pwa')) {
+    renderSetupAlert('pwa');
+    return 'pwa';
   }
 
   return null;
