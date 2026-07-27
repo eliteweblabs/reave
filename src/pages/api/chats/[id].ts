@@ -23,9 +23,16 @@ import {
 import { runKnowledgeAgent, runKnowledgeAgentStreaming } from '../../../lib/agentRunner';
 import { clearAgentProgress, setAgentProgress } from '../../../lib/agentProgress';
 import {
+  cancelAgentRun,
   clearAgentRun,
   registerAgentRun,
 } from '../../../lib/agentRunControl';
+import {
+  createAgentDeadline,
+  formatSeconds,
+  isAgentTimeoutError,
+  withDeadline,
+} from '../../../lib/agentWatchdog';
 import { getAgentProgress } from '../../../lib/agentProgress';
 import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import type { ChatTurn } from '../../../lib/chatTypes';
@@ -126,45 +133,45 @@ async function persistUserMessage(
   };
 }
 
-async function persistAssistantReply(
-  userId: string,
-  id: string,
-  reply: string,
-): Promise<{ assistantMessage: { role: 'assistant'; content: string } }> {
-  const saved = await storeAppendChatMessages(userId, id, [
-    { role: 'assistant', content: reply },
-  ]);
-  if (!saved) throw new Error('Failed to save reply');
-
-  return {
-    assistantMessage: { role: 'assistant', content: reply },
-  };
-}
-
 /**
- * Build (and best-effort persist) a record of a turn that never produced a
- * normal reply — cancelled, errored, or the process died mid-run. Without
- * this, an interrupted run leaves the user's question saved with NO answer
- * at all, so the next time they ask "how's it going?" the assistant has zero
- * memory of ever having started the task. Whatever text had streamed so far
- * (tracked via agentProgress) is preserved so the model has real context on
- * the next turn instead of drawing a blank.
+ * Text for a turn that never produced a normal reply — cancelled, timed out, or
+ * failed mid-run. Whatever had already streamed (tracked via agentProgress) is
+ * kept so the thread shows the work that did happen, and so the model has real
+ * context next turn instead of drawing a blank on a task it started.
  */
-async function persistInterruptedReply(
+function interruptedReplyText(
   userId: string,
   id: string,
   opts: { cancelled: boolean; errorMessage?: string },
-): Promise<void> {
+): string {
   const partial = getAgentProgress(userId, id)?.partialText?.trim() ?? '';
   const note = opts.cancelled
     ? '_(This response was stopped before it finished.)_'
     : `_(This response did not finish — the run failed: ${opts.errorMessage || 'unknown error'}.)_`;
-  const reply = partial ? `${partial}\n\n${note}` : note;
-  try {
-    await storeAppendChatMessages(userId, id, [{ role: 'assistant', content: reply }]);
-  } catch {
-    /* best-effort — do not throw from an error/cancel path */
+  return partial ? `${partial}\n\n${note}` : note;
+}
+
+/**
+ * Persist an assistant message, retrying once. A transient database blip on the
+ * write is the one remaining way a completed answer could still vanish, and the
+ * reply is already fully computed by this point, so it is worth a second try.
+ */
+async function persistAssistantReply(
+  userId: string,
+  id: string,
+  reply: string,
+): Promise<{ ok: boolean; assistantMessage: { role: 'assistant'; content: string } }> {
+  const assistantMessage = { role: 'assistant' as const, content: reply };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const saved = await storeAppendChatMessages(userId, id, [assistantMessage]);
+      if (saved) return { ok: true, assistantMessage };
+    } catch {
+      /* fall through to retry */
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 250));
   }
+  return { ok: false, assistantMessage };
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -265,7 +272,39 @@ export async function POST(context: APIContext): Promise<Response> {
     // The only way to actually stop it early is the explicit /cancel route.
     return createChatAgentSseResponse(async (emit) => {
       const runSignal = registerAgentRun(userId, id);
-      let reply = '';
+      const deadline = createAgentDeadline();
+      // Outer ceiling: the agent enforces `deadline` itself and normally bails
+      // out gracefully well inside it. This grace window only exists for the
+      // pathological case where the run wedges somewhere the agent loop cannot
+      // see (a hung DB call before the first round, say) — then we abandon it
+      // rather than let the turn hang.
+      const hardDeadlineAt = deadline.startedAt + deadline.totalMs + 45_000;
+
+      // Every exit path funnels through here, so the turn always ends with a
+      // persisted assistant message AND a single `done` event carrying it.
+      let settled = false;
+      const settle = async (reply: string, opts: { interrupted?: boolean } = {}) => {
+        if (settled) return;
+        settled = true;
+        const text = reply.trim() || interruptedReplyText(userId, id, { cancelled: false });
+        const persisted = await persistAssistantReply(userId, id, text);
+        try {
+          const ensuredTitle = await storeEnsureChatTitle(userId, id);
+          if (ensuredTitle) title = ensuredTitle;
+        } catch {
+          /* title is cosmetic — never block the reply on it */
+        }
+        emit({
+          type: 'done',
+          ok: true,
+          title,
+          userMessage,
+          assistantMessage: persisted.assistantMessage,
+          ...(opts.interrupted ? { interrupted: true } : {}),
+          ...(persisted.ok ? {} : { error: 'Reply could not be saved to this thread.' }),
+        });
+      };
+
       try {
         const stream = runKnowledgeAgentStreaming({
           userText: message,
@@ -274,11 +313,16 @@ export async function POST(context: APIContext): Promise<Response> {
           model: modelOverride,
           context: agentContext,
           signal: runSignal,
+          deadline,
         });
         while (true) {
-          const next = await stream.next();
+          const next = await withDeadline(
+            stream.next(),
+            Math.max(1_000, hardDeadlineAt - Date.now()),
+            'Agent run',
+          );
           if (next.done) {
-            reply = next.value;
+            await settle(next.value);
             break;
           }
           const event = next.value;
@@ -294,27 +338,48 @@ export async function POST(context: APIContext): Promise<Response> {
             emit({ type: 'text', text: event.text });
           }
         }
-
-        const persisted = await persistAssistantReply(userId, id, reply);
-        const ensuredTitle = await storeEnsureChatTitle(userId, id);
-        if (ensuredTitle) title = ensuredTitle;
-        emit({
-          type: 'done',
-          ok: true,
-          title,
-          userMessage,
-          assistantMessage: persisted.assistantMessage,
-        });
       } catch (err) {
-        if (runSignal.aborted) {
-          await persistInterruptedReply(userId, id, { cancelled: true });
-          emit({ type: 'error', error: 'Stopped' });
-          return;
+        if (isAgentTimeoutError(err)) {
+          // Stop the wedged work so it cannot keep burning resources or write
+          // to this thread after we have already answered for it.
+          cancelAgentRun(userId, id);
+          await settle(
+            interruptedReplyText(userId, id, {
+              cancelled: false,
+              errorMessage: `no response after ${formatSeconds(deadline.totalMs)}`,
+            }),
+            { interrupted: true },
+          );
+        } else if (runSignal.aborted) {
+          await settle(interruptedReplyText(userId, id, { cancelled: true }), {
+            interrupted: true,
+          });
+        } else {
+          const msg = err instanceof Error ? err.message : 'Agent run failed';
+          await settle(interruptedReplyText(userId, id, { cancelled: false, errorMessage: msg }), {
+            interrupted: true,
+          });
         }
-        const msg = err instanceof Error ? err.message : 'Agent run failed';
-        await persistInterruptedReply(userId, id, { cancelled: false, errorMessage: msg });
-        emit({ type: 'error', error: msg });
       } finally {
+        // Last line of defence: if even `settle` threw, still close the turn so
+        // the client is not left waiting on a stream that will never resolve.
+        if (!settled) {
+          settled = true;
+          emit({
+            type: 'done',
+            ok: true,
+            interrupted: true,
+            title,
+            userMessage,
+            assistantMessage: {
+              role: 'assistant',
+              content: interruptedReplyText(userId, id, {
+                cancelled: false,
+                errorMessage: 'the reply could not be finalized',
+              }),
+            },
+          });
+        }
         clearAgentProgress(userId, id);
         clearAgentRun(userId, id);
       }
@@ -325,41 +390,54 @@ export async function POST(context: APIContext): Promise<Response> {
   // request's own connection lifetime, so it can finish and persist even if
   // the caller goes away before the response comes back.
   const runSignal = registerAgentRun(userId, id);
+  const deadline = createAgentDeadline();
   let reply: string;
+  let interrupted = false;
   try {
-    reply = await runKnowledgeAgent({
-      userText: message,
-      images,
-      priorTurns: priorTurns(thread.messages),
-      model: modelOverride,
-      context: agentContext,
-      signal: runSignal,
-    });
+    reply = await withDeadline(
+      runKnowledgeAgent({
+        userText: message,
+        images,
+        priorTurns: priorTurns(thread.messages),
+        model: modelOverride,
+        context: agentContext,
+        signal: runSignal,
+        deadline,
+      }),
+      deadline.totalMs + 45_000,
+      'Agent run',
+    );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Agent run failed';
-    await persistInterruptedReply(userId, id, { cancelled: runSignal.aborted, errorMessage: msg });
-    return json({ ok: false, error: msg }, runSignal.aborted ? 499 : 500);
+    // The turn still gets an answer: a notice plus whatever streamed before the
+    // failure, saved to the thread the same way a normal reply would be.
+    interrupted = true;
+    if (isAgentTimeoutError(err)) cancelAgentRun(userId, id);
+    const msg = isAgentTimeoutError(err)
+      ? `no response after ${formatSeconds(deadline.totalMs)}`
+      : err instanceof Error
+        ? err.message
+        : 'Agent run failed';
+    reply = interruptedReplyText(userId, id, { cancelled: runSignal.aborted, errorMessage: msg });
   } finally {
     clearAgentProgress(userId, id);
     clearAgentRun(userId, id);
   }
 
-  let assistantMessage = { role: 'assistant' as const, content: reply };
+  const persisted = await persistAssistantReply(userId, id, reply);
   try {
-    const persisted = await persistAssistantReply(userId, id, reply);
-    assistantMessage = persisted.assistantMessage;
     const ensuredTitle = await storeEnsureChatTitle(userId, id);
     if (ensuredTitle) title = ensuredTitle;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to save messages';
-    return json({ ok: false, error: msg }, 500);
+  } catch {
+    /* title is cosmetic */
   }
 
   return json({
     ok: true,
     title,
     userMessage,
-    assistantMessage,
+    assistantMessage: persisted.assistantMessage,
+    ...(interrupted ? { interrupted: true } : {}),
+    ...(persisted.ok ? {} : { save_error: 'Reply could not be saved to this thread.' }),
     promoted_files: Object.keys(promoted_files).length ? promoted_files : undefined,
   });
 }

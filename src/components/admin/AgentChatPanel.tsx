@@ -34,7 +34,7 @@ import {
   type StoredChatImage,
 } from '../../lib/chatMessageFormat';
 import { getButtonProps, parseAssistantChatButtons } from '../../lib/chatResponseRenderer';
-import { readSseStream } from '../../lib/chatAgentSse';
+import { isSseStalledError, readSseStream } from '../../lib/chatAgentSse';
 import { useChatRenderer } from '../../hooks/useChatRenderer';
 import { ChatButton } from '../ChatButton';
 import './agent-chat.css';
@@ -393,6 +393,145 @@ function extractImagesFromUserMessage(message: ThreadMessage): StoredChatImage[]
   return images;
 }
 
+/**
+ * The server heartbeats every 10s while a run is alive, so silence for this long
+ * means the connection is gone — not that the agent is thinking hard.
+ */
+const STREAM_IDLE_TIMEOUT_MS = 40_000;
+/** How long to keep following a run from the server after the stream dies. */
+const RECOVERY_MAX_MS = 15 * 60_000;
+const RECOVERY_POLL_MS = 1_500;
+
+const CONNECTION_LOST_NOTE =
+  'The connection to the server dropped and I could not recover this reply. The work may ' +
+  'have finished server-side — reopen this chat to check, or send the message again.';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+}
+
+function isAbortError(err: unknown): boolean {
+  return (err as { name?: string })?.name === 'AbortError';
+}
+
+async function fetchRunProgress(
+  threadId: string,
+): Promise<{ running: boolean; progress: AgentProgress | null } | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { running?: boolean; progress?: AgentProgress | null };
+    return { running: Boolean(data.running), progress: data.progress ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The reply the server actually persisted for this turn, or null if the thread
+ * still ends on the user's message (the run died without writing anything).
+ */
+async function fetchPersistedReply(threadId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      thread?: { messages?: { role: string; content: string }[] };
+    };
+    const messages = data.thread?.messages ?? [];
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant') return null;
+    return storedChatPlainText(last.content);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Take over a turn whose SSE stream died, and always end with something to show.
+ *
+ * The run itself is deliberately not tied to the HTTP connection, so it is
+ * almost certainly still going. We follow it via the progress API (surfacing its
+ * partial text and tool status as it goes), then read the reply it persisted.
+ * Yields the text to display, most recent last.
+ */
+async function* recoverTurnFromServer(
+  threadId: string,
+  streamedText: string,
+  emitProgress: (update: Omit<AgentProgress, 'startedAt' | 'updatedAt'>) => void,
+  onRecovered: () => void,
+  signal?: AbortSignal,
+): AsyncGenerator<string, void> {
+  const giveUpAt = Date.now() + RECOVERY_MAX_MS;
+  let shown = streamedText;
+
+  while (Date.now() < giveUpAt) {
+    throwIfAborted(signal);
+    const status = await fetchRunProgress(threadId);
+    if (!status || (!status.running && !status.progress)) break;
+
+    if (status.progress) {
+      emitProgress({
+        phase: status.progress.phase === 'tool' ? 'tool' : 'thinking',
+        tool: status.progress.tool,
+        toolLabel: status.progress.toolLabel,
+        round: status.progress.round,
+      });
+      const partial = status.progress.partialText ?? '';
+      if (partial.length > shown.length) {
+        shown = partial;
+        yield shown;
+      }
+    }
+    await sleep(RECOVERY_POLL_MS);
+  }
+
+  throwIfAborted(signal);
+
+  const persisted = await fetchPersistedReply(threadId);
+  if (persisted?.trim()) {
+    onRecovered();
+    yield persisted;
+    return;
+  }
+
+  // Nothing persisted and nothing running: the run died without writing a reply
+  // (typically a container restart mid-run). Have the server record that, so the
+  // thread is not left permanently unanswered.
+  const note = await reconcileDeadTurn(threadId);
+  if (note?.trim()) {
+    onRecovered();
+    yield note;
+    return;
+  }
+
+  yield shown.trim() ? `${shown}\n\n_(${CONNECTION_LOST_NOTE})_` : `_(${CONNECTION_LOST_NOTE})_`;
+}
+
+/** Ask the server to close out a turn whose run vanished (e.g. a deploy restart). */
+async function reconcileDeadTurn(threadId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/reconcile`, {
+      method: 'POST',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      reconciled?: boolean;
+      assistantMessage?: { content?: string };
+    };
+    const content = data.assistantMessage?.content;
+    return content ? storedChatPlainText(content) : null;
+  } catch {
+    return null;
+  }
+}
+
 function createChatAdapter(
   threadId: string,
   propsRef: RefObject<AgentChatPanelProps>,
@@ -444,42 +583,64 @@ function createChatAdapter(
         const contentType = res.headers.get('Content-Type') ?? '';
         if (contentType.includes('text/event-stream') && res.body) {
           let streamedText = '';
-          for await (const { event, data } of readSseStream(res.body, options.abortSignal)) {
-            if (event === 'progress') {
-              emitProgress({
-                phase: data.phase === 'tool' ? 'tool' : 'thinking',
-                tool: typeof data.tool === 'string' ? data.tool : undefined,
-                toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
-                round: typeof data.round === 'number' ? data.round : undefined,
-              });
-            } else if (event === 'text' && typeof data.text === 'string') {
-              // Ignore shrinking updates (e.g. a new Anthropic round starting with "").
-              if (data.text.length >= streamedText.length) {
-                streamedText = data.text;
-                yield { content: [{ type: 'text', text: streamedText }] };
+          let resolved = false;
+
+          try {
+            for await (const { event, data } of readSseStream(res.body, options.abortSignal, {
+              idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS,
+            })) {
+              if (event === 'progress') {
+                emitProgress({
+                  phase: data.phase === 'tool' ? 'tool' : 'thinking',
+                  tool: typeof data.tool === 'string' ? data.tool : undefined,
+                  toolLabel: typeof data.toolLabel === 'string' ? data.toolLabel : undefined,
+                  round: typeof data.round === 'number' ? data.round : undefined,
+                });
+              } else if (event === 'text' && typeof data.text === 'string') {
+                // Ignore shrinking updates (e.g. a new Anthropic round starting with "").
+                if (data.text.length >= streamedText.length) {
+                  streamedText = data.text;
+                  yield { content: [{ type: 'text', text: streamedText }] };
+                }
+              } else if (event === 'done') {
+                if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
+                propsRef.current?.onLinkedJobsRefresh?.();
+                const userMsg = data.userMessage as { content?: string } | undefined;
+                const assistantMsg = data.assistantMessage as { content?: string } | undefined;
+                if (userMsg?.content && assistantMsg?.content) {
+                  propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
+                }
+                const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
+                if (assistantText && assistantText !== streamedText) {
+                  streamedText = assistantText;
+                  yield { content: [{ type: 'text', text: assistantText }] };
+                }
+                resolved = Boolean(assistantText.trim());
+                break;
               }
-            } else if (event === 'done') {
-              if (data.ok === false) {
-                throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
-              }
-              if (typeof data.title === 'string') propsRef.current?.onTitleUpdate?.(data.title);
-              propsRef.current?.onLinkedJobsRefresh?.();
-              const userMsg = data.userMessage as { content?: string } | undefined;
-              const assistantMsg = data.assistantMessage as { content?: string } | undefined;
-              if (userMsg?.content && assistantMsg?.content) {
-                propsRef.current?.onMessagesPersist?.(userMsg.content, assistantMsg.content);
-              }
-              const assistantText = storedChatPlainText(assistantMsg?.content ?? streamedText);
-              if (assistantText !== streamedText) {
-                yield { content: [{ type: 'text', text: assistantText }] };
-              }
-              return;
-            } else if (event === 'error') {
-              throw new Error(typeof data.error === 'string' ? data.error : 'Agent failed');
+              // An `error` event (or a stream that just ends) is not the end of
+              // the turn: the run may well have finished and persisted its reply
+              // on the server. Fall through to recovery rather than dead-ending.
             }
+          } catch (err) {
+            if (isAbortError(err) && options.abortSignal?.aborted) throw err;
+            if (!isSseStalledError(err) && !(err instanceof TypeError)) throw err;
+            // Stalled or network-level failure: the server is still working.
           }
-          if (streamedText) {
-            yield { content: [{ type: 'text', text: streamedText }] };
+
+          if (resolved) return;
+
+          // The stream ended without delivering a reply. Follow the run through
+          // the progress API and read whatever it persists, so a dropped socket
+          // costs the user a few seconds instead of the whole answer.
+          for await (const text of recoverTurnFromServer(
+            threadId,
+            streamedText,
+            emitProgress,
+            () => void propsRef.current?.onRefreshMessages?.(),
+            options.abortSignal,
+          )) {
+            yield { content: [{ type: 'text', text }] };
           }
           return;
         }
@@ -488,9 +649,8 @@ function createChatAdapter(
         try {
           data = await res.json();
         } catch {
-          throw new Error(res.ok ? 'Invalid server response' : `HTTP ${res.status}`);
+          data = {};
         }
-        if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
         if (data.title) propsRef.current?.onTitleUpdate?.(data.title);
         propsRef.current?.onLinkedJobsRefresh?.();
@@ -502,7 +662,52 @@ function createChatAdapter(
         }
 
         const assistantText = storedChatPlainText(data.assistantMessage?.content ?? '');
-        yield { content: [{ type: 'text', text: assistantText }] };
+        if (assistantText.trim()) {
+          yield { content: [{ type: 'text', text: assistantText }] };
+          return;
+        }
+
+        // No usable reply in the JSON response either — same recovery path as a
+        // broken stream, so the turn still ends with something on screen.
+        for await (const recovered of recoverTurnFromServer(
+          threadId,
+          '',
+          emitProgress,
+          () => void propsRef.current?.onRefreshMessages?.(),
+          options.abortSignal,
+        )) {
+          yield { content: [{ type: 'text', text: recovered }] };
+        }
+      } catch (err) {
+        if (isAbortError(err) && options.abortSignal?.aborted) throw err;
+        // A thrown error puts assistant-ui into its error state, which reads as a
+        // dead chat. Try the server one more time, and failing that say what
+        // happened in the message itself.
+        try {
+          let recoveredAny = false;
+          for await (const recovered of recoverTurnFromServer(
+            threadId,
+            '',
+            emitProgress,
+            () => void propsRef.current?.onRefreshMessages?.(),
+            options.abortSignal,
+          )) {
+            recoveredAny = true;
+            yield { content: [{ type: 'text', text: recovered }] };
+          }
+          if (recoveredAny) return;
+        } catch {
+          /* fall through to the plain message below */
+        }
+        const detail = err instanceof Error ? err.message : String(err);
+        yield {
+          content: [
+            {
+              type: 'text',
+              text: `_(That message failed to send: ${detail}. Nothing was lost — try again.)_`,
+            },
+          ],
+        };
       } finally {
         onStreamedProgress(null);
         propsRef.current?.onAgentProgress?.(null);
@@ -882,7 +1087,18 @@ function ClaudeComposer({
                 Stop
               </button>
             ) : (
-              <ComposerPrimitive.Cancel className="aui-composer-stop" aria-label="Stop generating">
+              <ComposerPrimitive.Cancel
+                className="aui-composer-stop"
+                aria-label="Stop generating"
+                // Cancelling only ends the local stream; without this the run keeps
+                // working server-side and the thread later gains a reply the user
+                // already told us to abandon.
+                onClick={() => {
+                  void fetch(`/api/chats/${encodeURIComponent(threadId)}/cancel`, {
+                    method: 'POST',
+                  }).catch(() => {});
+                }}
+              >
                 Stop
               </ComposerPrimitive.Cancel>
             )}
@@ -993,11 +1209,31 @@ function ChatMessages() {
   );
 }
 
-function useRecoverInFlightRun(threadId: string, propsRef: RefObject<AgentChatPanelProps>) {
+/** Poll cadence while following a server-side run vs. while idle. */
+const RECOVERY_ACTIVE_POLL_MS = 900;
+const RECOVERY_IDLE_POLL_MS = 5_000;
+
+/**
+ * Adopt a run that this tab is not streaming.
+ *
+ * Covers the cases where the browser is not the one holding the stream: the chat
+ * was reopened while a run is still going, the SSE connection was killed by the
+ * OS or a proxy, or the process that owned the run died. Polling continues for as
+ * long as the panel is mounted (slowly when idle) so a turn that loses its stream
+ * gets picked back up instead of sitting on a spinner, and a turn whose run
+ * disappeared entirely gets closed out with a note.
+ */
+function useRecoverInFlightRun(
+  threadId: string,
+  propsRef: RefObject<AgentChatPanelProps>,
+  localRunning: boolean,
+) {
   const [recovering, setRecovering] = useState(false);
   const [recoveryProgress, setRecoveryProgress] = useState<AgentProgress | null>(null);
   const [recoveryText, setRecoveryText] = useState('');
   const recoveringRef = useRef(false);
+  const localRunningRef = useRef(localRunning);
+  localRunningRef.current = localRunning;
 
   const stopRecovery = useCallback(async () => {
     try {
@@ -1010,52 +1246,75 @@ function useRecoverInFlightRun(threadId: string, propsRef: RefObject<AgentChatPa
     setRecoveryProgress(null);
     setRecoveryText('');
     propsRef.current?.onAgentRunChange?.(false);
+    await propsRef.current?.onRefreshMessages?.();
   }, [propsRef, threadId]);
 
   useEffect(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = (delay: number) => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void poll(), delay);
+    };
+
+    const finishRecovery = async () => {
+      recoveringRef.current = false;
+      setRecovering(false);
+      setRecoveryProgress(null);
+      setRecoveryText('');
+      propsRef.current?.onAgentRunChange?.(false);
+      await propsRef.current?.onRefreshMessages?.();
+    };
 
     const poll = async () => {
-      try {
-        const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/progress`, {
-          cache: 'no-store',
-        });
-        if (!res.ok || cancelled) return;
-        const data = (await res.json()) as { running?: boolean; progress?: AgentProgress | null };
-        const active = Boolean(data.running || data.progress);
-        if (!active) {
-          if (recoveringRef.current) {
-            recoveringRef.current = false;
-            setRecovering(false);
-            setRecoveryProgress(null);
-            setRecoveryText('');
-            propsRef.current?.onAgentRunChange?.(false);
-            await propsRef.current?.onRefreshMessages?.();
-          }
-          if (timer) {
-            window.clearInterval(timer);
-            timer = null;
-          }
-          return;
-        }
+      // While this tab is streaming the run itself, the adapter owns the UI (and
+      // has its own recovery); a second spinner here would just duplicate it.
+      if (localRunningRef.current) {
+        schedule(RECOVERY_IDLE_POLL_MS);
+        return;
+      }
+
+      const status = await fetchRunProgress(threadId);
+      if (cancelled) return;
+
+      const active = Boolean(status && (status.running || status.progress));
+      if (active && status) {
         recoveringRef.current = true;
         setRecovering(true);
         propsRef.current?.onAgentRunChange?.(true);
-        if (data.progress) {
-          setRecoveryProgress(data.progress);
-          if (data.progress.partialText) setRecoveryText(data.progress.partialText);
+        if (status.progress) {
+          setRecoveryProgress(status.progress);
+          if (status.progress.partialText) setRecoveryText(status.progress.partialText);
         }
-        if (!timer) timer = window.setInterval(() => void poll(), 900);
-      } catch {
-        /* ignore */
+        schedule(RECOVERY_ACTIVE_POLL_MS);
+        return;
       }
+
+      if (recoveringRef.current) {
+        // The run we were following ended: pull its persisted reply in, and if it
+        // left none, have the server close the turn out.
+        const persisted = await fetchPersistedReply(threadId);
+        if (!persisted?.trim()) await reconcileDeadTurn(threadId);
+        if (cancelled) return;
+        await finishRecovery();
+      }
+      schedule(RECOVERY_IDLE_POLL_MS);
     };
 
     void poll();
+
+    // Returning to a backgrounded tab is exactly when a stream has usually died.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') schedule(0);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       cancelled = true;
-      if (timer) window.clearInterval(timer);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [propsRef, threadId]);
 
@@ -1159,6 +1418,7 @@ function AgentChatThreadBody({
   const { recovering, recoveryProgress, recoveryText, stopRecovery } = useRecoverInFlightRun(
     threadId,
     propsRef,
+    isRunning,
   );
   const showThreadStatus = isRunning || recovering;
   const inFlightAssistantText = useAuiState((s) =>

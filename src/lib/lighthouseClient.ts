@@ -1,6 +1,14 @@
+import { fetchWithDeadline, isAbortError, isAgentTimeoutError } from './agentWatchdog';
 import { serverEnv } from './serverEnv';
 
 const PSI_ENDPOINT = 'https://www.googleapis.com/pagespeedonline/v5/runPagespeed';
+
+/**
+ * PageSpeed Insights renders the target page in a real browser on Google's
+ * side, so it is slow by nature and occasionally never answers at all. One
+ * strategy gets 60s; the caller runs at most two.
+ */
+const PSI_TIMEOUT_MS = 60_000;
 
 const CATEGORIES = ['performance', 'accessibility', 'best-practices', 'seo'] as const;
 const STRATEGIES = ['mobile', 'desktop'] as const;
@@ -112,7 +120,21 @@ async function runOne(
   const apiKey = serverEnv('GOOGLE_PAGESPEED_API_KEY')?.trim();
   if (apiKey) apiUrl.searchParams.set('key', apiKey);
 
-  const res = await fetch(apiUrl.toString(), { headers: { Accept: 'application/json' } });
+  let res: Response;
+  try {
+    res = await fetchWithDeadline(apiUrl.toString(), {
+      headers: { Accept: 'application/json' },
+      timeoutMs: PSI_TIMEOUT_MS,
+    });
+  } catch (e) {
+    const reason =
+      isAbortError(e) || isAgentTimeoutError(e)
+        ? `PageSpeed Insights did not respond within ${PSI_TIMEOUT_MS / 1000}s`
+        : e instanceof Error
+          ? e.message
+          : String(e);
+    return { error: reason };
+  }
   const text = await res.text();
 
   if (!res.ok) {

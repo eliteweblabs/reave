@@ -30,6 +30,15 @@ import {
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
 import { appendAgentPartialText, setAgentProgress } from './agentProgress';
 import { throwIfAborted } from './agentRunControl';
+import {
+  agentLlmTurnTimeoutMs,
+  agentToolTimeoutMs,
+  createAgentDeadline,
+  formatSeconds,
+  isAgentTimeoutError,
+  withDeadline,
+  type AgentDeadline,
+} from './agentWatchdog';
 import { labelForAgentTool } from './agentToolLabels';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
@@ -255,6 +264,7 @@ export async function runKnowledgeAgent(opts: {
   model?: string | null;
   context?: AgentRunContext;
   signal?: AbortSignal;
+  deadline?: AgentDeadline;
 }): Promise<string> {
   return runWithAgentContext(opts.context ?? {}, () =>
     runKnowledgeAgentInner(
@@ -263,6 +273,7 @@ export async function runKnowledgeAgent(opts: {
         images: opts.images,
         priorTurns: opts.priorTurns,
         model: opts.model,
+        deadline: opts.deadline,
       },
       opts.signal ? { signal: opts.signal } : undefined,
     ),
@@ -290,26 +301,26 @@ type AgentStreamCallbacks = {
   }) => void;
 };
 
-/** Stream agent progress + cumulative assistant text (for SSE chat UI). */
-export function runKnowledgeAgentStreaming(opts: {
+type AgentStreamingOpts = {
   userText: string;
   images?: ChatImageAttachment[];
   priorTurns?: ChatTurn[];
   model?: string | null;
   context?: AgentRunContext;
   signal?: AbortSignal;
-}): AsyncGenerator<AgentStreamEvent, string> {
+  deadline?: AgentDeadline;
+};
+
+/** Stream agent progress + cumulative assistant text (for SSE chat UI). */
+export function runKnowledgeAgentStreaming(
+  opts: AgentStreamingOpts,
+): AsyncGenerator<AgentStreamEvent, string> {
   return runKnowledgeAgentStreamingBridge(opts);
 }
 
-async function* runKnowledgeAgentStreamingBridge(opts: {
-  userText: string;
-  images?: ChatImageAttachment[];
-  priorTurns?: ChatTurn[];
-  model?: string | null;
-  context?: AgentRunContext;
-  signal?: AbortSignal;
-}): AsyncGenerator<AgentStreamEvent, string> {
+async function* runKnowledgeAgentStreamingBridge(
+  opts: AgentStreamingOpts,
+): AsyncGenerator<AgentStreamEvent, string> {
   const events: AgentStreamEvent[] = [];
   let resolveWait: (() => void) | null = null;
   const emit = (event: AgentStreamEvent) => {
@@ -332,6 +343,7 @@ async function* runKnowledgeAgentStreamingBridge(opts: {
         images: opts.images,
         priorTurns: opts.priorTurns,
         model: opts.model,
+        deadline: opts.deadline,
       },
       {
         signal: opts.signal,
@@ -369,6 +381,7 @@ async function runKnowledgeAgentInner(
     images?: ChatImageAttachment[];
     priorTurns?: ChatTurn[];
     model?: string | null;
+    deadline?: AgentDeadline;
   },
   stream?: AgentStreamCallbacks,
 ): Promise<string> {
@@ -530,7 +543,10 @@ async function runKnowledgeAgentInner(
 
   const maxRounds = agentMaxToolRounds();
   const maxOutputTokens = agentMaxOutputTokens();
+  const deadline = opts.deadline ?? createAgentDeadline();
+  const llmTurnTimeoutMs = agentLlmTurnTimeoutMs();
   let stallNudges = 0;
+  let llmTimeouts = 0;
 
   const emitProgress = (update: Parameters<typeof setAgentProgress>[2]) => {
     const { userId, threadId } = getAgentContext();
@@ -567,8 +583,36 @@ async function runKnowledgeAgentInner(
     emitStreamedText();
   };
 
+  /** Everything the model has said so far this turn, for graceful bail-outs. */
+  const partialSoFar = () =>
+    [...completedStreamTexts, activeRoundStreamText]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+
+  /**
+   * End the turn with real content even though the run did not reach a natural
+   * finish. The user always gets a reply; the note tells them (and the model, on
+   * the next turn) exactly how far it got.
+   */
+  const bailOut = (note: string) => {
+    const partial = partialSoFar();
+    return finalizeAgentReply(partial ? `${partial}\n\n${note}` : note, userText);
+  };
+
   for (let round = 0; round < maxRounds; round++) {
     throwIfAborted(stream?.signal);
+
+    // A run that has burned its whole budget stops here with whatever it has,
+    // rather than starting another round that cannot finish either.
+    if (deadline.expired()) {
+      return bailOut(
+        `_(I ran out of time on this one after ${formatSeconds(deadline.totalMs)} and stopped here. ` +
+          'Ask me to continue and I\'ll pick up from this point, or narrow the request to one step.)_',
+      );
+    }
+
     emitProgress({ phase: 'thinking', round: round + 1 });
 
     const apiBody = {
@@ -583,30 +627,53 @@ async function runKnowledgeAgentInner(
     let stopReason: string | undefined;
     let content: AnthropicContentBlock[] = [];
 
-    if (stream) {
-      const result = await streamAnthropicMessage(apiBody, {
-        signal: stream.signal,
-        onText: (text) => {
-          activeRoundStreamText = text;
-          emitStreamedText();
-        },
-      });
-      if (!result.ok) {
-        return formatAnthropicApiError(result.status, result.text);
+    const turnBudgetMs = deadline.clamp(llmTurnTimeoutMs);
+    try {
+      if (stream) {
+        const result = await withDeadline(
+          streamAnthropicMessage(apiBody, {
+            signal: stream.signal,
+            onText: (text) => {
+              activeRoundStreamText = text;
+              emitStreamedText();
+            },
+          }),
+          turnBudgetMs,
+          'Model response',
+        );
+        if (!result.ok) {
+          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+        }
+        stopReason = result.data.stop_reason;
+        content = result.data.content as AnthropicContentBlock[];
+      } else {
+        const result = await withDeadline(
+          createAnthropicMessage(apiBody),
+          turnBudgetMs,
+          'Model response',
+        );
+        if (!result.ok) {
+          return finalizeAgentReply(formatAnthropicApiError(result.status, result.text), userText);
+        }
+        const data = result.data as {
+          stop_reason?: string;
+          content?: AnthropicContentBlock[];
+        };
+        stopReason = data.stop_reason;
+        content = data.content ?? [];
       }
-      stopReason = result.data.stop_reason;
-      content = result.data.content as AnthropicContentBlock[];
-    } else {
-      const result = await createAnthropicMessage(apiBody, stream?.signal);
-      if (!result.ok) {
-        return formatAnthropicApiError(result.status, result.text);
+    } catch (err) {
+      if (!isAgentTimeoutError(err)) throw err;
+      // The model stopped sending mid-turn. Retry once from the same state —
+      // a stalled stream is usually transient — then give up gracefully.
+      llmTimeouts++;
+      activeRoundStreamText = '';
+      if (llmTimeouts > 1 || deadline.remainingMs() < 20_000) {
+        return bailOut(
+          '_(The model stopped responding partway through, so I ended the turn here. Please send that again.)_',
+        );
       }
-      const data = result.data as {
-        stop_reason?: string;
-        content?: AnthropicContentBlock[];
-      };
-      stopReason = data.stop_reason;
-      content = data.content ?? [];
+      continue;
     }
 
     if (stopReason === 'tool_use') {
@@ -622,7 +689,14 @@ async function runKnowledgeAgentInner(
             tool: block.name,
             toolLabel: labelForAgentTool(block.name),
           });
-          const out = truncateToolResult(await runTool(block.name, JSON.stringify(block.input ?? {})));
+          // runTool always resolves, and never later than the budget we give it,
+          // so every tool_use block is guaranteed a matching tool_result.
+          const out = truncateToolResult(
+            await runTool(block.name, JSON.stringify(block.input ?? {}), {
+              signal: stream?.signal,
+              timeoutMs: Math.max(5_000, deadline.clamp(agentToolTimeoutMs(block.name))),
+            }),
+          );
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: out });
         }
       }
@@ -672,22 +746,41 @@ async function runKnowledgeAgentInner(
 
     return finalizeAgentReply(
       text ||
+        partialSoFar() ||
         'Sorry — I hit an internal snag and didn\'t generate a reply to that. Please try asking again.',
       userText,
     );
   }
 
-  return finalizeAgentReply(
+  return bailOut(
     'I ran out of tool calls trying to solve this. This usually means:\n\n' +
     '1. The question requires reading very large files that get truncated\n' +
     '2. The task is too complex for a single conversation\n' +
     '3. I\'m stuck in a loop trying different approaches\n\n' +
     'Try breaking this down into smaller, more specific questions, or ask me to focus on one aspect at a time.',
-    userText
   );
 }
 
+export const AGENT_EMPTY_REPLY_FALLBACK =
+  'I finished that turn without producing any text, which is a bug on my side. Ask me again — ' +
+  'if it keeps happening, say "what went wrong?" and I\'ll check the run.';
+
+/**
+ * Last stop before the reply is persisted and streamed. Guarantees a non-empty
+ * string, and never lets an optional decoration (the deploy banner, which hits
+ * GitHub/Railway) turn a good answer into a failed turn.
+ */
 async function finalizeAgentReply(text: string, userText: string): Promise<string> {
-  if (!hasFeature('dev_infra')) return text;
-  return prependDeployBanner(text, { userText });
+  const body = text?.trim() ? text : AGENT_EMPTY_REPLY_FALLBACK;
+  if (!hasFeature('dev_infra')) return body;
+  try {
+    const withBanner = await withDeadline(
+      prependDeployBanner(body, { userText }),
+      15_000,
+      'Deploy status banner',
+    );
+    return withBanner?.trim() ? withBanner : body;
+  } catch {
+    return body;
+  }
 }

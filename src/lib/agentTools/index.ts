@@ -1,5 +1,12 @@
 /** Admin agent tools — core + feature-gated plugins. */
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../companyConfig';
+import {
+  agentToolTimeoutMs,
+  formatSeconds,
+  isAbortError,
+  withDeadline,
+  isAgentTimeoutError,
+} from '../agentWatchdog';
 import { AGENT_TOOL_MODULES } from './registry';
 import type { AgentToolDef, ToolContext } from './types';
 
@@ -14,19 +21,58 @@ export function exportToolConfigJson(): string {
   return JSON.stringify(buildTools(), null, 2);
 }
 
-export async function runTool(name: string, argsJson: string): Promise<string> {
+/**
+ * Execute one tool call.
+ *
+ * Two guarantees, because the agent loop cannot make progress without a
+ * `tool_result` for every `tool_use` block:
+ *
+ * 1. It always resolves to a string. A handler that throws (or whose promise
+ *    rejects) becomes a JSON error the model can read and route around.
+ * 2. It always resolves *eventually*. Every handler races a hard deadline, so a
+ *    third-party API that accepts the connection and then never answers — the
+ *    classic "Running Lighthouse audit…" that sits there forever — turns into a
+ *    timeout result after a bounded wait instead of wedging the whole chat.
+ */
+export async function runTool(
+  name: string,
+  argsJson: string,
+  opts: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<string> {
+  const timeoutMs = opts.timeoutMs ?? agentToolTimeoutMs(name);
+  try {
+    return await withDeadline(invokeTool(name, argsJson), timeoutMs, `Tool ${name}`);
+  } catch (e) {
+    if (isAgentTimeoutError(e)) {
+      return JSON.stringify({
+        error: `${name} timed out after ${formatSeconds(timeoutMs)} and was abandoned`,
+        timed_out: true,
+        tool: name,
+        hint: 'The upstream service did not respond. Report this to the user and continue with the other steps — do not retry the same call more than once.',
+      });
+    }
+    if (isAbortError(e)) throw e;
+    const msg = e instanceof Error ? e.message : String(e);
+    return JSON.stringify({ error: msg, tool: name });
+  }
+}
+
+async function invokeTool(name: string, argsJson: string): Promise<string> {
   const brand = await getCompanyBrandContext();
   const ctx: ToolContext = { brand };
+  let args: Record<string, unknown>;
   try {
-    const args = JSON.parse(argsJson) as Record<string, unknown>;
-    for (const mod of AGENT_TOOL_MODULES) {
-      if (!mod.enabled(ctx)) continue;
-      const handler = mod.handlers[name];
-      if (handler) return handler(args, ctx);
-    }
-    return JSON.stringify({ error: `unknown tool ${name}` });
+    args = JSON.parse(argsJson) as Record<string, unknown>;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return JSON.stringify({ error: msg });
+    return JSON.stringify({ error: `invalid tool arguments: ${msg}`, tool: name });
   }
+  for (const mod of AGENT_TOOL_MODULES) {
+    if (!mod.enabled(ctx)) continue;
+    const handler = mod.handlers[name];
+    // Awaited (not returned) so a rejecting handler is caught by runTool's
+    // wrapper rather than escaping as a rejected promise and failing the run.
+    if (handler) return await handler(args, ctx);
+  }
+  return JSON.stringify({ error: `unknown tool ${name}` });
 }

@@ -3,6 +3,7 @@
  */
 import { Resolver } from 'node:dns/promises';
 import whois from 'whois-json';
+import { withDeadline } from './agentWatchdog';
 import { normalizeDomain } from './publicUrl';
 
 const PUBLIC_RESOLVERS = [
@@ -54,8 +55,12 @@ export type DnsCheckResponse =
     }
   | { ok: false; error: string };
 
+/** Per-query ceiling so a black-holed nameserver can't stall the audit. */
+const DNS_QUERY_TIMEOUT_MS = 5_000;
+const WHOIS_TIMEOUT_MS = 15_000;
+
 function resolverFor(servers?: string[]): Resolver {
-  const r = new Resolver();
+  const r = new Resolver({ timeout: DNS_QUERY_TIMEOUT_MS, tries: 2 });
   if (servers?.length) r.setServers(servers);
   return r;
 }
@@ -130,7 +135,13 @@ async function checkDkim(domain: string): Promise<EmailAuthResult['dkim']> {
 
 async function lookupWhois(domain: string): Promise<WhoisBasics> {
   try {
-    const data = (await whois(domain)) as Record<string, unknown>;
+    // whois speaks raw TCP with no built-in timeout: some registries accept the
+    // connection and never reply, which would otherwise hang the whole audit.
+    const data = (await withDeadline(
+      whois(domain) as Promise<Record<string, unknown>>,
+      WHOIS_TIMEOUT_MS,
+      'WHOIS lookup',
+    )) as Record<string, unknown>;
     const registrar =
       pickString(data, ['registrar', 'Registrar', 'registrarName', 'registrar_name']) ??
       pickString(data, ['registrantOrganization']);

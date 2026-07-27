@@ -14,8 +14,21 @@ export type ChatAgentSseEvent =
       userMessage?: { role: 'user'; content: string };
       assistantMessage?: { role: 'assistant'; content: string };
       error?: string;
+      /** True when the reply is a partial/failure notice rather than a real answer. */
+      interrupted?: boolean;
     }
-  | { type: 'error'; error: string };
+  | { type: 'error'; error: string }
+  /**
+   * Liveness only. Long tool calls (a two-strategy Lighthouse run takes a
+   * minute) produce no output, and an idle HTTP response gets dropped by mobile
+   * radios and reverse proxies. A heartbeat keeps bytes flowing and lets the
+   * client tell "still working" apart from "socket is dead".
+   */
+  | { type: 'heartbeat'; t: number; elapsedMs: number };
+
+const TERMINAL_EVENT_TYPES = new Set(['done', 'error']);
+
+export const CHAT_SSE_HEARTBEAT_MS = 10_000;
 
 export function encodeChatAgentSseEvent(event: ChatAgentSseEvent): Uint8Array {
   const payload = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
@@ -34,15 +47,32 @@ export function encodeChatAgentSseEvent(event: ChatAgentSseEvent): Uint8Array {
  * back, instead of the run silently vanishing with nothing saved. The only
  * way to actually stop the run early is an explicit cancellation signal
  * passed by the caller (e.g. from a "Stop" button), not client disconnect.
+ *
+ * Two invariants this wrapper enforces on behalf of every caller:
+ *  - the stream emits a heartbeat at least every `CHAT_SSE_HEARTBEAT_MS`, so it
+ *    is never idle long enough for an intermediary to hang up on it;
+ *  - the stream never closes without a terminal (`done`/`error`) event, so the
+ *    client is never left holding an open spinner with nothing to resolve it.
  */
 export function createChatAgentSseResponse(
   run: (emit: (event: ChatAgentSseEvent) => void) => Promise<void>,
+  opts: { heartbeatMs?: number } = {},
 ): Response {
+  const heartbeatMs = opts.heartbeatMs ?? CHAT_SSE_HEARTBEAT_MS;
   let clientGone = false;
+  let sentTerminal = false;
+  const startedAt = Date.now();
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const emit = (event: ChatAgentSseEvent) => {
         if (clientGone) return;
+        if (TERMINAL_EVENT_TYPES.has(event.type)) {
+          // Exactly one terminal event per stream: a second one would make the
+          // client resolve a turn it has already finished.
+          if (sentTerminal) return;
+          sentTerminal = true;
+        }
         try {
           controller.enqueue(encodeChatAgentSseEvent(event));
         } catch {
@@ -52,12 +82,34 @@ export function createChatAgentSseResponse(
           clientGone = true;
         }
       };
+
+      // Flush immediately so the browser sees headers + first bytes without
+      // waiting on the first real event (proxies buffer until something lands).
+      emit({ type: 'heartbeat', t: Date.now(), elapsedMs: 0 });
+      const heartbeat = setInterval(() => {
+        if (clientGone || sentTerminal) return;
+        emit({ type: 'heartbeat', t: Date.now(), elapsedMs: Date.now() - startedAt });
+      }, heartbeatMs);
+      (heartbeat as unknown as { unref?: () => void }).unref?.();
+
       try {
         await run(emit);
+        if (!sentTerminal) {
+          // `run` returned without resolving the turn. Rather than closing on a
+          // spinner, tell the client the turn is over so it can fall back to
+          // reading the persisted thread.
+          emit({
+            type: 'done',
+            ok: true,
+            interrupted: true,
+            error: 'The response ended without a result.',
+          });
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Agent run failed';
         emit({ type: 'error', error: message });
       } finally {
+        clearInterval(heartbeat);
         if (!clientGone) {
           try {
             controller.close();
@@ -80,6 +132,9 @@ export function createChatAgentSseResponse(
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       Connection: 'keep-alive',
+      // Tell nginx-style proxies (and Railway's edge) not to buffer the body:
+      // buffering would swallow the heartbeats this design depends on.
+      'X-Accel-Buffering': 'no',
     },
   });
 }
@@ -104,18 +159,66 @@ export function parseSseBlock(block: string): ParsedSseEvent | null {
   }
 }
 
-/** Consume a fetch SSE body; yields parsed { event, data } blocks. */
+/**
+ * The stream went quiet for longer than the server's heartbeat interval allows,
+ * which means the connection is dead even though nothing reported an error.
+ * Callers should stop reading and recover from the server's persisted state.
+ */
+export class SseStalledError extends Error {
+  constructor(idleMs: number) {
+    super(`No data from the server for ${Math.round(idleMs / 1000)}s`);
+    this.name = 'SseStalledError';
+  }
+}
+
+export function isSseStalledError(err: unknown): err is SseStalledError {
+  return (err as { name?: string })?.name === 'SseStalledError';
+}
+
+/**
+ * Consume a fetch SSE body; yields parsed { event, data } blocks.
+ *
+ * With `idleTimeoutMs` set, a connection that stops delivering bytes (mobile
+ * network handoff, proxy hang-up, laptop sleep) raises `SseStalledError`
+ * instead of blocking forever on a read that will never resolve.
+ */
 export async function* readSseStream(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
+  opts: { idleTimeoutMs?: number } = {},
 ): AsyncGenerator<ParsedSseEvent, void> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
+  const idleTimeoutMs = opts.idleTimeoutMs ?? 0;
   let buffer = '';
+  let stalled = false;
+
+  const read = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+    if (idleTimeoutMs <= 0) return reader.read();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        reader.read(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new SseStalledError(idleTimeoutMs)), idleTimeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  };
+
   try {
     while (true) {
       throwIfClientAborted(signal);
-      const { done, value } = await reader.read();
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await read();
+      } catch (err) {
+        if (isSseStalledError(err)) stalled = true;
+        throw err;
+      }
+      const { done, value } = chunk;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const blocks = buffer.split('\n\n');
@@ -133,7 +236,12 @@ export async function* readSseStream(
       if (parsed) yield parsed;
     }
   } finally {
-    reader.releaseLock();
+    if (stalled) {
+      // Abandoning a pending read would keep the socket and its lock alive.
+      void reader.cancel().catch(() => {});
+    } else {
+      reader.releaseLock();
+    }
   }
 }
 
