@@ -1252,11 +1252,27 @@ function useRecoverInFlightRun(
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let checkedForOrphanedTurn = false;
 
     const schedule = (delay: number) => {
       if (cancelled) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void poll(), delay);
+    };
+
+    /**
+     * Heal a thread that was already broken when we opened it: a question with no
+     * answer and no run behind it, left by a crash, a deploy, or a send that
+     * failed while offline. Checked once, since it needs to read the thread.
+     */
+    const healOrphanedTurn = async () => {
+      if (checkedForOrphanedTurn) return;
+      checkedForOrphanedTurn = true;
+      const reply = await fetchPersistedReply(threadId);
+      if (cancelled || reply?.trim()) return;
+      const note = await reconcileDeadTurn(threadId);
+      if (cancelled || !note) return;
+      await propsRef.current?.onRefreshMessages?.();
     };
 
     const finishRecovery = async () => {
@@ -1281,6 +1297,7 @@ function useRecoverInFlightRun(
 
       const active = Boolean(status && (status.running || status.progress));
       if (active && status) {
+        checkedForOrphanedTurn = true;
         recoveringRef.current = true;
         setRecovering(true);
         propsRef.current?.onAgentRunChange?.(true);
@@ -1299,6 +1316,9 @@ function useRecoverInFlightRun(
         if (!persisted?.trim()) await reconcileDeadTurn(threadId);
         if (cancelled) return;
         await finishRecovery();
+      } else {
+        await healOrphanedTurn();
+        if (cancelled) return;
       }
       schedule(RECOVERY_IDLE_POLL_MS);
     };
