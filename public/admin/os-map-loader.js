@@ -6113,7 +6113,7 @@ function stripCreateDrawerChrome(pane) {
 /** Build the grabber + Cancel/title/Add bar at the top of the drawer pane. */
 function mountCreateDrawerChrome(pane) {
   // Panes are reused across renders, and one create flow can hand off to
-  // another panel's (a new to-do that spawns a project), so scrub every other
+  // another panel (a new to-do that spawns a project), so scrub every other
   // pane: `getCreateDrawerPane` resolves to the first match in the document.
   for (const stale of document.querySelectorAll('.de-pane--drawer')) {
     if (stale !== pane) stripCreateDrawerChrome(stale);
@@ -6315,13 +6315,17 @@ function bindCreateDrawerDrag(pane, handles) {
     if (!dragging) return;
     dragging = false;
     pane.style.transition = '';
-    if (offset > 100) {
+    const dismissing = offset > 100;
+    offset = 0;
+    if (dismissing && createDrawerHasEdits()) {
+      // Settle back up so the discard prompt is answered over an open drawer.
       pane.style.transform = '';
       dismissCreateDrawer({ confirmEdits: true });
-    } else {
-      pane.style.transform = '';
+      return;
     }
-    offset = 0;
+    // Carry the swipe through to the closed position rather than snapping back.
+    pane.style.transform = dismissing ? 'translateY(100%)' : '';
+    if (dismissing) dismissCreateDrawer();
   };
 
   // Touch events stay bound to the element the gesture started on, so the whole
