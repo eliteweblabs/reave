@@ -3,9 +3,6 @@
  */
 
 import type { APIContext } from 'astro';
-import { existsSync, readdirSync, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
 import { storeListChatThreads } from '../../../lib/chatStore';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
@@ -49,32 +46,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function projectRoot(): string {
-  let dir = dirname(fileURLToPath(import.meta.url));
-  for (let i = 0; i < 10; i++) {
-    if (existsSync(join(dir, 'package.json'))) return dir;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return process.cwd();
-}
-
-function countOpenTodos(): number {
-  const dir = process.env.TODO_DIR?.trim() || join(projectRoot(), 'src', 'knowledge', 'todo');
-  if (!existsSync(dir)) return 0;
-  const itemRe = /^- \[([ xX])\] /;
-  let open = 0;
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
-    const content = readFileSync(join(dir, file), 'utf8');
-    for (const line of content.split('\n')) {
-      const m = line.match(itemRe);
-      if (m && m[1].toLowerCase() !== 'x') open += 1;
-    }
-  }
-  return open;
 }
 
 async function loadEventsToday(): Promise<DashboardEvent[]> {
@@ -180,6 +151,13 @@ export async function GET(context: APIContext): Promise<Response> {
   const upcomingTodos = await loadUpcomingTodos(4);
   const schedulingConfigured = isBookingConfigured();
 
+  // Count open todos from DB (not legacy markdown files)
+  let todosOpen = 0;
+  if (isTodoDbConfigured()) {
+    const allOpen = await storeListTodos({ status: 'open' });
+    todosOpen = allOpen.length;
+  }
+
   let meetingsTotal: number | null = null;
   if (schedulingConfigured) {
     const [upcomingRes, pastRes] = await Promise.all([
@@ -234,7 +212,7 @@ export async function GET(context: APIContext): Promise<Response> {
       projectsPending,
       projectsActive,
       projectsTotal,
-      todosOpen: countOpenTodos(),
+      todosOpen,
       clients: clientsTotal,
       chats: threads.filter((t) => !t.archived).length,
       deployState: deploy?.state ?? 'unknown',
