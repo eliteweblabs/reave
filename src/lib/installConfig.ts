@@ -13,6 +13,7 @@ import { serverEnv } from './serverEnv.ts';
 const FEATURE_IDS_LIST = [
   'client_portal',
   'web_handoff',
+  'portal_assistant',
   'billing',
   'site_audits',
   'site_monitoring',

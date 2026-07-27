@@ -13,6 +13,7 @@ const log = createLogger('features');
 export const FEATURE_IDS = [
   'client_portal',
   'web_handoff',
+  'portal_assistant',
   'billing',
   'site_audits',
   'site_monitoring',
@@ -84,6 +85,7 @@ export function clearFeatureCache(): void {
 export const FEATURE_LABELS: Record<FeatureId, string> = {
   client_portal: 'Client portal (/c/:uid)',
   web_handoff: 'Portal Data tab (handoff creds)',
+  portal_assistant: 'Client portal help chat (speed-dial support assistant)',
   billing: 'Crater billing & invoices',
   site_audits: 'Site audits (Lighthouse, SSL, DNS, links)',
   site_monitoring: 'Site change monitoring (ChangeDetection.io)',
