@@ -5630,6 +5630,158 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         }
       }
 
+      /* ── New-record drawer ──
+         A new project/client/to-do/etc. opens as an iOS bottom drawer over its
+         list. The drawer *is* the detail pane, restyled — that keeps every
+         `#<panel> .de-pane …` rule below working inside it. */
+      .create-drawer-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 4800;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px) saturate(1.1);
+        -webkit-backdrop-filter: blur(10px) saturate(1.1);
+        opacity: 0;
+        transition: opacity 0.28s ease;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .create-drawer-scrim[hidden] {
+        display: none;
+      }
+      .create-drawer-scrim.open {
+        opacity: 1;
+      }
+
+      .de-pane--drawer {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: 0 auto;
+        width: 100%;
+        max-width: 560px;
+        height: auto;
+        max-height: min(92dvh, 780px);
+        z-index: 4900;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-bottom: none;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        transform: translateY(100%);
+        transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+      }
+      /* Outranks the split-view show/hide and topbar-clearance rules above. */
+      #doc-editor .de-pane.de-pane--drawer,
+      #knowledge-editor .de-pane.de-pane--drawer,
+      #work-editor .de-pane.de-pane--drawer,
+      #todo-editor .de-pane.de-pane--drawer,
+      #clients-editor .de-pane.de-pane--drawer,
+      #rule-editor .de-pane.de-pane--drawer {
+        display: flex;
+        flex: 0 0 auto;
+        padding-top: 0;
+      }
+      .de-pane--drawer.de-pane--drawer-open {
+        transform: translateY(0);
+      }
+      /* Lift the drawer above the software keyboard (visualViewport inset). */
+      .de-pane--drawer.de-pane--drawer-keyboard {
+        bottom: var(--create-drawer-keyboard-inset, 0px);
+        max-height: calc(100dvh - var(--create-drawer-keyboard-inset, 0px) - 0.5rem);
+        transition:
+          transform 0.38s cubic-bezier(0.32, 0.72, 0, 1),
+          bottom 0.25s ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .de-pane--drawer {
+          transition: none;
+        }
+      }
+
+      .de-drawer-grabber {
+        position: relative;
+        flex: 0 0 auto;
+        width: 36px;
+        height: 5px;
+        margin: 8px auto 4px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--muted) 55%, transparent);
+        touch-action: none;
+      }
+      /* Widen the grab target without widening the pill. */
+      .de-drawer-grabber::before {
+        content: '';
+        position: absolute;
+        left: -40vw;
+        right: -40vw;
+        top: -14px;
+        bottom: -10px;
+      }
+      .de-drawer-bar {
+        flex: 0 0 auto;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 44px;
+        padding: 0 0.5rem;
+        border-bottom: 1px solid var(--panel-border);
+        touch-action: none;
+      }
+      .de-drawer-title {
+        grid-column: 2;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .de-drawer-btn {
+        font: inherit;
+        font-size: max(16px, 0.92rem);
+        padding: 0.45rem 0.55rem;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #0a84ff;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .de-drawer-btn:hover:not(:disabled) {
+        background: var(--surface-hover);
+      }
+      .de-drawer-btn:disabled {
+        opacity: 0.45;
+        cursor: default;
+      }
+      .de-drawer-cancel {
+        grid-column: 1;
+        justify-self: start;
+      }
+      .de-drawer-submit {
+        grid-column: 3;
+        justify-self: end;
+        font-weight: 700;
+      }
+
+      /* The drawer floats free of the app chrome, so drop the topbar clearance
+         and the floating-footer scroll padding the pane normally carries. */
+      .de-pane--drawer > .de-header {
+        border-bottom: none;
+        padding-top: 0.35rem;
+      }
+      .de-pane--drawer .re-form-scroll {
+        padding-bottom: 1rem;
+      }
+      .de-pane--drawer .de-header-title-input {
+        font-size: max(16px, 1.05rem);
+        font-weight: 700;
+      }
+
       /* Reave share sheet */
       #reave-share-backdrop {
         z-index: 5500;
@@ -8636,6 +8788,8 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
 
     <div id="todo-editor" style="display:none"></div>
 
+    <div id="create-drawer-scrim" class="create-drawer-scrim" role="presentation" hidden></div>
+
     <div id="os-dialog-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="false">
       <div class="ios-sheet os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">
         <div class="ios-sheet-grabber" aria-hidden="true"></div>
@@ -8711,6 +8865,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727b"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727c"></script>
   </body>
 </html>

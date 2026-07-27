@@ -6066,6 +6066,277 @@ function footerNavActiveKey() {
   return null;
 }
 
+// ── New-record drawer ───────────────────────────────────────────────────────
+// New records open as an iOS bottom drawer over their list rather than taking
+// over the detail pane, so there is nothing to unwind and no back chevron. The
+// drawer *is* the detail pane with `.de-pane--drawer` on it, which keeps every
+// `#<panel> .de-pane …` style rule working inside it.
+
+const CREATE_DRAWER_EXIT_MS = 320;
+
+let createDrawer = null;
+let createDrawerVisible = false;
+let createDrawerKeyboardBound = false;
+
+function isCreateDrawerOpen(key) {
+  if (!createDrawer) return false;
+  return key == null || createDrawer.key === key;
+}
+
+function getCreateDrawerPane() {
+  return document.querySelector('.de-pane--drawer');
+}
+
+/** Start a create flow. Call from the tap handler, before the panel re-renders. */
+function beginCreateDrawer(opts) {
+  createDrawer = {
+    key: opts.key,
+    title: opts.title,
+    submitLabel: opts.submitLabel || 'Add',
+    onSubmit: opts.onSubmit || null,
+    onDismiss: opts.onDismiss || null,
+    submitBtn: null,
+  };
+}
+
+/** Build the grabber + Cancel/title/Add bar at the top of the drawer pane. */
+function mountCreateDrawerChrome(pane) {
+  if (!createDrawer) {
+    // Panes are reused across renders, so scrub any chrome left by a past drawer.
+    pane.classList.remove(
+      'de-pane--drawer',
+      'de-pane--drawer-open',
+      'de-pane--drawer-keyboard',
+    );
+    pane.style.removeProperty('transform');
+    pane.style.removeProperty('transition');
+    return;
+  }
+  pane.classList.add('de-pane--drawer');
+  pane.style.removeProperty('transform');
+  pane.style.removeProperty('transition');
+
+  const grabber = document.createElement('div');
+  grabber.className = 'de-drawer-grabber';
+  grabber.setAttribute('aria-hidden', 'true');
+
+  const bar = document.createElement('div');
+  bar.className = 'de-drawer-bar';
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'de-drawer-btn de-drawer-cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => dismissCreateDrawer());
+
+  const heading = document.createElement('span');
+  heading.className = 'de-drawer-title';
+  heading.textContent = createDrawer.title;
+
+  const submit = document.createElement('button');
+  submit.type = 'button';
+  submit.className = 'de-drawer-btn de-drawer-submit';
+  submit.textContent = createDrawer.submitLabel;
+  submit.addEventListener('click', () => void runCreateDrawerSubmit());
+  createDrawer.submitBtn = submit;
+
+  bar.append(cancel, heading, submit);
+  pane.prepend(grabber, bar);
+
+  bindCreateDrawerDrag(pane, [grabber, bar]);
+  showCreateDrawer(pane);
+}
+
+function setCreateDrawerSubmit(submitFn) {
+  if (!createDrawer) return;
+  createDrawer.onSubmit = submitFn || null;
+}
+
+/** Point the user at the empty title field when a create is missing one. */
+function flagCreateDrawerTitleMissing() {
+  const field = getCreateDrawerPane()?.querySelector('.de-header-title-input, .cl-title-input');
+  if (!(field instanceof HTMLElement)) return;
+  setFormFieldState(field, 'invalid');
+  field.focus({ preventScroll: true });
+}
+
+async function runCreateDrawerSubmit() {
+  const drawer = createDrawer;
+  if (!drawer || typeof drawer.onSubmit !== 'function') return;
+  const btn = drawer.submitBtn;
+  if (btn) btn.disabled = true;
+  try {
+    await drawer.onSubmit();
+  } finally {
+    if (btn?.isConnected) btn.disabled = false;
+  }
+}
+
+let createDrawerDismissBound = false;
+
+function bindCreateDrawerDismissControls() {
+  if (createDrawerDismissBound) return;
+  createDrawerDismissBound = true;
+  document.getElementById('create-drawer-scrim')?.addEventListener('click', () => {
+    dismissCreateDrawer();
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape' || !isCreateDrawerOpen()) return;
+    ev.stopPropagation();
+    dismissCreateDrawer();
+  });
+}
+
+function showCreateDrawer(pane) {
+  const scrim = document.getElementById('create-drawer-scrim');
+  bindCreateDrawerDismissControls();
+  bindCreateDrawerKeyboardLayout();
+  if (createDrawerVisible) {
+    // Re-rendered while already up — skip the entrance so it doesn't replay.
+    pane.classList.add('de-pane--drawer-open');
+    return;
+  }
+  createDrawerVisible = true;
+  if (scrim) scrim.hidden = false;
+  requestAnimationFrame(() => {
+    scrim?.classList.add('open');
+    pane.classList.add('de-pane--drawer-open');
+  });
+}
+
+function clearCreateDrawerPaneChrome() {
+  const pane = getCreateDrawerPane();
+  if (!pane) return;
+  pane.classList.remove('de-pane--drawer', 'de-pane--drawer-open', 'de-pane--drawer-keyboard');
+  pane.style.removeProperty('transform');
+  pane.style.removeProperty('transition');
+  pane.querySelector(':scope > .de-drawer-grabber')?.remove();
+  pane.querySelector(':scope > .de-drawer-bar')?.remove();
+}
+
+/** Tear the drawer down without animating — the caller is replacing the pane. */
+function finishCreateDrawer() {
+  createDrawer = null;
+  createDrawerVisible = false;
+  releaseCreateDrawerKeyboardLayout();
+  clearCreateDrawerPaneChrome();
+  const scrim = document.getElementById('create-drawer-scrim');
+  scrim?.classList.remove('open');
+  if (scrim) scrim.hidden = true;
+}
+
+/** Slide the drawer away, then let the owner reset its state and re-render. */
+function dismissCreateDrawer() {
+  const drawer = createDrawer;
+  if (!drawer) return;
+  const onDismiss = drawer.onDismiss;
+  const pane = getCreateDrawerPane();
+  createDrawer = null;
+  createDrawerVisible = false;
+  releaseCreateDrawerKeyboardLayout();
+  const scrim = document.getElementById('create-drawer-scrim');
+  scrim?.classList.remove('open');
+  pane?.classList.remove('de-pane--drawer-open');
+  window.setTimeout(() => {
+    if (createDrawerVisible) return; // another create flow started mid-animation
+    if (scrim) scrim.hidden = true;
+    clearCreateDrawerPaneChrome();
+    onDismiss?.();
+  }, CREATE_DRAWER_EXIT_MS);
+}
+
+/** Pull the drawer down by its grabber or title bar to dismiss it. */
+function bindCreateDrawerDrag(pane, handles) {
+  let startY = 0;
+  let offset = 0;
+  let dragging = false;
+
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    pane.style.transition = '';
+    if (offset > 100) {
+      dismissCreateDrawer();
+    } else {
+      pane.style.transform = '';
+    }
+    offset = 0;
+  };
+
+  // Touch events stay bound to the element the gesture started on, so the whole
+  // drag lives on the handles — the pane itself is reused across renders.
+  for (const handle of handles) {
+    handle.addEventListener(
+      'touchstart',
+      (ev) => {
+        const touch = ev.touches[0];
+        if (!touch || ev.target.closest('button')) return;
+        startY = touch.clientY;
+        offset = 0;
+        dragging = true;
+        pane.style.transition = 'none';
+      },
+      { passive: true },
+    );
+    handle.addEventListener(
+      'touchmove',
+      (ev) => {
+        if (!dragging) return;
+        const touch = ev.touches[0];
+        if (!touch) return;
+        offset = Math.max(0, touch.clientY - startY);
+        pane.style.transform = `translateY(${offset}px)`;
+      },
+      { passive: true },
+    );
+    handle.addEventListener('touchend', end, { passive: true });
+    handle.addEventListener('touchcancel', end, { passive: true });
+  }
+}
+
+function syncCreateDrawerKeyboardLayout() {
+  const pane = getCreateDrawerPane();
+  const vv = window.visualViewport;
+  const active = document.activeElement;
+  const focusedInDrawer =
+    pane != null &&
+    active instanceof HTMLElement &&
+    pane.contains(active) &&
+    (active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement ||
+      active instanceof HTMLSelectElement ||
+      active.isContentEditable);
+  if (!pane || !focusedInDrawer || !vv) {
+    pane?.classList.remove('de-pane--drawer-keyboard');
+    document.documentElement.style.removeProperty('--create-drawer-keyboard-inset');
+    return;
+  }
+  const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  pane.classList.add('de-pane--drawer-keyboard');
+  document.documentElement.style.setProperty('--create-drawer-keyboard-inset', `${inset}px`);
+}
+
+function bindCreateDrawerKeyboardLayout() {
+  if (createDrawerKeyboardBound) {
+    syncCreateDrawerKeyboardLayout();
+    return;
+  }
+  createDrawerKeyboardBound = true;
+  document.addEventListener('focusin', syncCreateDrawerKeyboardLayout, true);
+  window.visualViewport?.addEventListener('resize', syncCreateDrawerKeyboardLayout);
+  window.visualViewport?.addEventListener('scroll', syncCreateDrawerKeyboardLayout);
+}
+
+function releaseCreateDrawerKeyboardLayout() {
+  getCreateDrawerPane()?.classList.remove('de-pane--drawer-keyboard');
+  document.documentElement.style.removeProperty('--create-drawer-keyboard-inset');
+  if (!createDrawerKeyboardBound) return;
+  createDrawerKeyboardBound = false;
+  document.removeEventListener('focusin', syncCreateDrawerKeyboardLayout, true);
+  window.visualViewport?.removeEventListener('resize', syncCreateDrawerKeyboardLayout);
+  window.visualViewport?.removeEventListener('scroll', syncCreateDrawerKeyboardLayout);
+}
+
 let footerSaveHandler = null;
 let footerSaveNav = null;
 
@@ -6083,6 +6354,12 @@ function footerSaveNavForEditor() {
 }
 
 function setEditorFooterSave(submitFn) {
+  // While a create drawer is up the footer is behind the scrim, so its save
+  // action belongs to the drawer's own button instead.
+  if (isCreateDrawerOpen()) {
+    setCreateDrawerSubmit(submitFn);
+    return;
+  }
   footerSaveNav = footerSaveNavForEditor();
   footerSaveHandler = footerSaveNav && submitFn ? submitFn : null;
   if (!footerSaveHandler) footerSaveNav = null;
@@ -6090,6 +6367,7 @@ function setEditorFooterSave(submitFn) {
 }
 
 function clearEditorFooterSave() {
+  if (isCreateDrawerOpen()) return;
   footerSaveHandler = null;
   footerSaveNav = null;
   syncFooterNav();
@@ -7763,6 +8041,7 @@ function renderRulesEditor() {
   pane.className = 'de-pane';
   if (activeId) {
     renderRuleEditPane(pane);
+    mountCreateDrawerChrome(pane);
   } else {
     clearEditorFooterSave();
     appendEmptyDetailPane(pane, {
@@ -7784,7 +8063,7 @@ async function openRuleEditor(id) {
   }
   ruleState.activeId = id;
   ruleState.dirty = false;
-  getRuleEditor()?.classList.add('de-pane-active');
+  if (!isCreateDrawerOpen('rules')) getRuleEditor()?.classList.add('de-pane-active');
   renderRulesEditor();
 }
 
@@ -7813,17 +8092,20 @@ function renderRuleEditPane(pane) {
   agentBtn.innerHTML = navIcon('agent', 16);
   agentBtn.addEventListener('click', () => askAgentAboutRule(rule));
 
+  const inDrawer = isCreateDrawerOpen('rules');
   const header = createPaneSubheader({
-    back: { label: 'Back to rules', onClick: () => closeRuleEditor() },
+    back: inDrawer ? null : { label: 'Back to rules', onClick: () => closeRuleEditor() },
     title: rule.title || rule.status || 'Rule',
     subtitle: rule.status || '',
     beforeIcons: [agentBtn],
-    icons: [
-      paneDeleteIcon({
-        label: 'Delete rule',
-        onClick: () => deleteRule(rule.id),
-      }),
-    ],
+    icons: inDrawer
+      ? []
+      : [
+          paneDeleteIcon({
+            label: 'Delete rule',
+            onClick: () => deleteRule(rule.id),
+          }),
+        ],
   }).header;
   pane.appendChild(header);
 
@@ -8182,10 +8464,27 @@ async function startNewRule() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    ruleState.activeId = data.rule.id;
+    const newId = data.rule.id;
+    ruleState.activeId = newId;
     ruleState.dirty = false;
+    // The rule row has to exist before its form can be edited, so Cancel here
+    // means "delete the placeholder I just made".
+    beginCreateDrawer({
+      key: 'rules',
+      title: 'New Rule',
+      submitLabel: 'Add',
+      onSubmit: async () => {
+        await flushRuleAutosave();
+        finishCreateDrawer();
+        getRuleEditor()?.classList.add('de-pane-active');
+        renderRulesEditor();
+      },
+      onDismiss: () => {
+        void deleteRule(newId);
+      },
+    });
     await loadRulesTab();
-    openRuleEditor(data.rule.id);
+    openRuleEditor(newId);
   } catch (e) {
     cancelTitleFocus();
     alert(`Could not create rule: ${e.message}`);
@@ -8407,7 +8706,7 @@ async function loadTodoTab(opts = {}) {
   const deepId = opts.todoId ?? pendingTodoDeepLinkId;
   pendingTodoDeepLinkId = null;
 
-  if (preserveNew) {
+  if (preserveNew && !isCreateDrawerOpen('todo')) {
     getTodoEditor()?.classList.add('de-pane-active');
     renderTodoEditor();
     return;
@@ -8443,6 +8742,36 @@ async function loadTodoTab(opts = {}) {
 
 function startNewTodo(opts = {}) {
   armTitleFocus('todo');
+  beginCreateDrawer({
+    key: 'todo',
+    title: 'New To‑do',
+    submitLabel: 'Add',
+    onSubmit: async () => {
+      if (!todoState.draft?.title?.trim()) {
+        flagCreateDrawerTitleMissing();
+        return;
+      }
+      if (!(await saveActiveTodoDraft())) return;
+      finishCreateDrawer();
+      getTodoEditor()?.classList.add('de-pane-active');
+      renderTodoEditor();
+    },
+    onDismiss: () => {
+      const returnSlug = todoState.returnToWorkSlug;
+      todoState.activeId = null;
+      todoState.draft = null;
+      todoState.linkedJob = null;
+      todoState.dirty = false;
+      todoState.returnToWorkSlug = null;
+      getTodoEditor()?.classList.remove('de-pane-active');
+      if (returnSlug) {
+        navigateToWork(returnSlug);
+        return;
+      }
+      renderTodoEditor();
+      syncFooterNav();
+    },
+  });
   if (!opts.keepReturnSlug) todoState.returnToWorkSlug = null;
   todoState.activeId = '__new__';
   todoState.dirty = false;
@@ -8461,7 +8790,6 @@ function startNewTodo(opts = {}) {
   if (todoState.draft.job_slug) {
     void refreshTodoLinkedJob(todoState.draft.job_slug);
   }
-  getTodoEditor()?.classList.add('de-pane-active');
   renderTodoEditor();
   syncFooterNav();
 }
@@ -8556,6 +8884,7 @@ function renderTodoEditor() {
   pane.className = 'de-pane';
   if (activeId === '__new__') {
     renderTodoEditPane(pane, true);
+    mountCreateDrawerChrome(pane);
   } else if (activeId) {
     renderTodoEditPane(pane, false);
   } else {
@@ -8803,11 +9132,14 @@ function renderTodoEditPane(pane, isNew) {
     );
   }
 
+  const inDrawer = isNew && isCreateDrawerOpen('todo');
   const { header, titleInput } = createPaneSubheader({
-    back: {
-      label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
-      onClick: () => closeTodoEditor(),
-    },
+    back: inDrawer
+      ? null
+      : {
+          label: todoState.returnToWorkSlug ? 'Back to project' : 'Back to to‑dos',
+          onClick: () => closeTodoEditor(),
+        },
     editableTitle: {
       value: draft.title,
       placeholder: 'To‑do title',
@@ -8825,6 +9157,9 @@ function renderTodoEditPane(pane, isNew) {
 
   const markDirty = () => {
     todoState.dirty = true;
+    // In the create drawer the Add button is the save; autosaving as the user
+    // types would leave a to-do behind after Cancel.
+    if (inDrawer) return;
     scheduleTodoAutosave(() => saveActiveTodoDraft(true));
   };
 
@@ -8920,6 +9255,7 @@ function renderTodoEditPane(pane, isNew) {
     markDirty();
   });
   titleInput.addEventListener('blur', () => {
+    if (inDrawer) return;
     void saveActiveTodoDraft(true);
   });
 }
@@ -9537,6 +9873,7 @@ function renderDocEditor() {
 
   if (activeSlug === '__new__') {
     renderNewForm(pane);
+    mountCreateDrawerChrome(pane);
   } else if (activeSlug) {
     renderEditForm(pane);
   } else {
@@ -9556,12 +9893,14 @@ function renderDocEditor() {
 
 function renderNewForm(pane) {
   pane.innerHTML = '';
-  pane.appendChild(
-    createPaneSubheader({
-      back: { label: 'Back to documents', onClick: () => backToList() },
-      title: 'New Document',
-    }).header,
-  );
+  if (!isCreateDrawerOpen('documents')) {
+    pane.appendChild(
+      createPaneSubheader({
+        back: { label: 'Back to documents', onClick: () => backToList() },
+        title: 'New Document',
+      }).header,
+    );
+  }
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
@@ -9770,12 +10109,22 @@ async function startNewDocument() {
     cancelTitleFocus();
     return;
   }
+  beginCreateDrawer({
+    key: 'documents',
+    title: 'New Document',
+    submitLabel: 'Create',
+    onDismiss: () => {
+      docState.activeSlug = null;
+      docState.dirty = false;
+      getDocEditor()?.classList.remove('de-pane-active');
+      renderDocEditor();
+    },
+  });
   docState.activeSlug = '__new__';
   docState.dirty = false;
   docState.savedHtml = '';
   docState.autosaveGetHtml = null;
   renderDocEditor();
-  getDocEditor()?.classList.add('de-pane-active');
 }
 
 async function backToList() {
@@ -9803,8 +10152,10 @@ async function createDocument(slug, html) {
     if (res.status === 409) { alert('A template with that slug already exists.'); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     docState.dirty = false;
+    finishCreateDrawer();
     await loadDocumentsTab();
     docState.activeSlug = slug;
+    getDocEditor()?.classList.add('de-pane-active');
     renderDocEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
@@ -10239,6 +10590,7 @@ function renderKnowledgePane() {
 
   if (activeSlug === '__new__') {
     renderNewKnowledgeForm(pane);
+    mountCreateDrawerChrome(pane);
   } else if (activeSlug) {
     renderEditKnowledgeForm(pane);
   } else {
@@ -10300,6 +10652,18 @@ function renderKnowledgeEditor() {
 
 function startNewKnowledge() {
   armTitleFocus('knowledge');
+  beginCreateDrawer({
+    key: 'knowledge',
+    title: 'New Knowledge Doc',
+    submitLabel: 'Create',
+    onDismiss: () => {
+      knowledgeState.activeSlug = null;
+      knowledgeState.dirty = false;
+      getKnowledgeEditor()?.classList.remove('de-pane-active');
+      syncKnowledgeSidebarActiveState();
+      renderKnowledgePane();
+    },
+  });
   knowledgeState.activeSlug = '__new__';
   knowledgeState.dirty = false;
   syncKnowledgeSidebarActiveState();
@@ -10308,20 +10672,23 @@ function startNewKnowledge() {
 
 function renderNewKnowledgeForm(pane) {
   pane.innerHTML = '';
-  pane.appendChild(
-    createPaneSubheader({
-      back: {
-        label: 'Back to knowledge',
-        onClick: () => {
-          knowledgeState.activeSlug = null;
-          getKnowledgeEditor()?.classList.remove('de-pane-active');
-          syncKnowledgeSidebarActiveState();
-          renderKnowledgePane();
+  const inDrawer = isCreateDrawerOpen('knowledge');
+  if (!inDrawer) {
+    pane.appendChild(
+      createPaneSubheader({
+        back: {
+          label: 'Back to knowledge',
+          onClick: () => {
+            knowledgeState.activeSlug = null;
+            getKnowledgeEditor()?.classList.remove('de-pane-active');
+            syncKnowledgeSidebarActiveState();
+            renderKnowledgePane();
+          },
         },
-      },
-      title: 'New knowledge doc',
-    }).header,
-  );
+        title: 'New knowledge doc',
+      }).header,
+    );
+  }
 
   const fields = document.createElement('div');
   fields.className = 'de-fields';
@@ -10343,7 +10710,7 @@ function renderNewKnowledgeForm(pane) {
   pane.appendChild(ta);
 
   setEditorFooterSave(() => createKnowledge(slugInput.value.trim(), ta.value));
-  getKnowledgeEditor()?.classList.add('de-pane-active');
+  if (!inDrawer) getKnowledgeEditor()?.classList.add('de-pane-active');
 }
 
 function renderEditKnowledgeForm(pane) {
@@ -10445,8 +10812,10 @@ async function createKnowledge(slug, content) {
     const data = await res.json();
     if (res.status === 409) { alert('That slug already exists.'); return; }
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    finishCreateDrawer();
     await loadKnowledgeTab();
     knowledgeState.activeSlug = slug;
+    getKnowledgeEditor()?.classList.add('de-pane-active');
     syncKnowledgeSidebarActiveState({ scroll: true });
     renderKnowledgePane();
   } catch (e) {
@@ -11399,8 +11768,47 @@ async function loadWorkTab(opts = {}) {
   renderWorkEditor();
 }
 
+function beginNewProjectDrawer() {
+  beginCreateDrawer({
+    key: 'work',
+    title: 'New Project',
+    submitLabel: 'Add',
+    onSubmit: async () => {
+      const pane = getCreateDrawerPane();
+      if (!pane?.querySelector('.de-header-title-input')?.value.trim()) {
+        flagCreateDrawerTitleMissing();
+        return;
+      }
+      // The form's save path is its autosave, so flushing it creates the project.
+      await flushWorkAutosave();
+      const slug = workState.activeSlug;
+      if (!slug || slug === '__new__') {
+        await osAlert({
+          title: 'Pick a client',
+          bodyHtml: 'A project needs a client before it can be created.',
+        });
+        return;
+      }
+      finishCreateDrawer();
+      workState.draft = null;
+      getWorkEditor()?.classList.add('de-pane-active');
+      await openWork(slug);
+    },
+    onDismiss: () => {
+      const returnTodoId = workState.returnToTodoId;
+      workState.activeSlug = null;
+      workState.draft = null;
+      workState.returnToTodoId = null;
+      getWorkEditor()?.classList.remove('de-pane-active');
+      if (returnTodoId) navigateToTodo(returnTodoId);
+      else renderWorkEditor();
+    },
+  });
+}
+
 function startNewProject() {
   armTitleFocus('work');
+  beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = null;
   workState.activeSlug = '__new__';
@@ -11422,6 +11830,17 @@ function startNewProject() {
 
 function startNewClient() {
   armTitleFocus('clients');
+  beginCreateDrawer({
+    key: 'clients',
+    title: 'New Client',
+    submitLabel: 'Add',
+    onDismiss: () => {
+      clientState.activeUid = null;
+      clientState.draft = null;
+      getClientsEditor()?.classList.remove('de-pane-active');
+      renderClientsEditor();
+    },
+  });
   clientState.activeUid = '__new__';
   clientState.dirty = false;
   clientState.draft = {
@@ -11433,7 +11852,6 @@ function startNewClient() {
     notes: '',
     personal: false,
   };
-  getClientsEditor()?.classList.add('de-pane-active');
   renderClientsEditor();
 }
 
@@ -11505,6 +11923,7 @@ function renderWorkEditor() {
 
   if (activeSlug === '__new__') {
     renderNewWorkForm(pane);
+    mountCreateDrawerChrome(pane);
   } else if (activeSlug) {
     renderEditWorkForm(pane);
   } else {
@@ -12185,26 +12604,29 @@ function createWorkFormScroll(pane) {
 
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
+  const inDrawer = isCreateDrawerOpen('work');
   const returnTodoId = workState.returnToTodoId;
   const { header, titleInput } = createPaneSubheader({
-    back: {
-      label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
-      onClick: async () => {
-        await flushWorkAutosave();
-        if (returnTodoId) {
-          workState.returnToTodoId = null;
-          workState.activeSlug = null;
-          workState.draft = null;
-          getWorkEditor()?.classList.remove('de-pane-active');
-          navigateToTodo(returnTodoId);
-          return;
-        }
-        workState.activeSlug = null;
-        workState.draft = null;
-        getWorkEditor()?.classList.remove('de-pane-active');
-        renderWorkEditor();
-      },
-    },
+    back: inDrawer
+      ? null
+      : {
+          label: returnTodoId ? 'Back to to‑do' : 'Back to projects',
+          onClick: async () => {
+            await flushWorkAutosave();
+            if (returnTodoId) {
+              workState.returnToTodoId = null;
+              workState.activeSlug = null;
+              workState.draft = null;
+              getWorkEditor()?.classList.remove('de-pane-active');
+              navigateToTodo(returnTodoId);
+              return;
+            }
+            workState.activeSlug = null;
+            workState.draft = null;
+            getWorkEditor()?.classList.remove('de-pane-active');
+            renderWorkEditor();
+          },
+        },
     editableTitle: {
       value: workState.draft?.title || '',
       placeholder: 'New project',
@@ -12254,6 +12676,9 @@ function renderNewWorkForm(pane) {
     markDirty();
     const payloadFn = () => getWorkPayload() || { title: '', contact_uid: '', body: '' };
     workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
+    // In the create drawer the Add button is the save; autosaving as the user
+    // types would leave a project behind after Cancel.
+    if (inDrawer) return;
     scheduleWorkAutosave(payloadFn, workActiveEl);
   };
   const flushWorkField = () => {
@@ -12271,7 +12696,10 @@ function renderNewWorkForm(pane) {
     },
     onInput: () => queueWorkAutosave(bodyEditor.el),
   });
-  bodyEditor.el.addEventListener('blur', () => { workActiveEl = bodyEditor.el; void flushWorkField(); });
+  bodyEditor.el.addEventListener('blur', () => {
+    workActiveEl = bodyEditor.el;
+    if (!inDrawer) void flushWorkField();
+  });
 
   clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl));
 
@@ -12284,7 +12712,10 @@ function renderNewWorkForm(pane) {
       if (hint) clientPicker.searchWithHint(hint);
     }, 400);
   });
-  titleInput.addEventListener('blur', () => { workActiveEl = titleInput; void flushWorkField(); });
+  titleInput.addEventListener('blur', () => {
+    workActiveEl = titleInput;
+    if (!inDrawer) void flushWorkField();
+  });
   const initialHint = extractClientHintFromTitle(workState.draft?.title || titleInput.value);
   if (initialHint) clientPicker.searchWithHint(initialHint);
 
@@ -12300,14 +12731,17 @@ function renderNewWorkForm(pane) {
   metaFields = appendWorkMetaFields(fields, workState.draft, queueWorkAutosave);
 
   for (const el of fields.querySelectorAll('.de-input')) {
-    el.addEventListener('blur', () => { workActiveEl = el; void flushWorkField(); });
+    el.addEventListener('blur', () => {
+      workActiveEl = el;
+      if (!inDrawer) void flushWorkField();
+    });
   }
 
   scroll.appendChild(fields);
   scroll.appendChild(bodyEditor.wrap);
 
   clearEditorFooterSave();
-  getWorkEditor()?.classList.add('de-pane-active');
+  if (!inDrawer) getWorkEditor()?.classList.add('de-pane-active');
 }
 
 function mountWorkCommentsSection(pane, slug) {
@@ -15194,6 +15628,7 @@ function renderClientsEditor() {
 
   if (activeUid === '__new__') {
     renderNewClientForm(pane);
+    mountCreateDrawerChrome(pane);
   } else if (activeUid) {
     renderEditClientForm(pane);
   } else {
@@ -15665,17 +16100,20 @@ function renderNewClientForm(pane) {
   syncClTitleInputWidth(companyInput);
   companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
+  const inDrawer = isCreateDrawerOpen('clients');
   pane.appendChild(
     createPaneSubheader({
-      back: {
-        label: 'Back to clients',
-        onClick: () => {
-          clientState.activeUid = null;
-          clientState.draft = null;
-          getClientsEditor()?.classList.remove('de-pane-active');
-          renderClientsEditor();
-        },
-      },
+      back: inDrawer
+        ? null
+        : {
+            label: 'Back to clients',
+            onClick: () => {
+              clientState.activeUid = null;
+              clientState.draft = null;
+              getClientsEditor()?.classList.remove('de-pane-active');
+              renderClientsEditor();
+            },
+          },
       titleNode: titleWrap,
     }).header,
   );
@@ -15754,7 +16192,7 @@ function renderNewClientForm(pane) {
       personal: personalInput.checked,
     });
   });
-  getClientsEditor()?.classList.add('de-pane-active');
+  if (!inDrawer) getClientsEditor()?.classList.add('de-pane-active');
 }
 
 function renderEditClientForm(pane) {
@@ -16077,8 +16515,10 @@ async function createClient(payload) {
         body: JSON.stringify({ website: payload.website.trim() }),
       });
     }
+    finishCreateDrawer();
     await loadClientsTab();
     clientState.activeUid = uid;
+    getClientsEditor()?.classList.add('de-pane-active');
     renderClientsEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
@@ -18301,6 +18741,7 @@ async function navigateToNewWorkFromTodo(opts = {}) {
     }
     todoId = todoState.activeId;
   }
+  beginNewProjectDrawer();
   workState.returnToEmailId = null;
   workState.returnToTodoId = todoId;
   workState.activeSlug = '__new__';
