@@ -8502,8 +8502,9 @@ async function startNewRule() {
         void deleteRule(newId);
       },
     });
+    // `loadRulesTab` renders the pane for the id set above; opening the editor
+    // on top of that would re-render and drop the auto-focused title field.
     await loadRulesTab();
-    openRuleEditor(newId);
   } catch (e) {
     cancelTitleFocus();
     alert(`Could not create rule: ${e.message}`);
