@@ -5046,7 +5046,26 @@ function bindCompanyIconUpload(root, companyAlert) {
   });
 }
 
+let destroyProfileAddressAutocomplete = null;
+
 function bindProfileForm(root) {
+  if (destroyProfileAddressAutocomplete) {
+    destroyProfileAddressAutocomplete();
+    destroyProfileAddressAutocomplete = null;
+  }
+
+  const addressInput = root.querySelector('#profile-address');
+  if (addressInput) {
+    destroyProfileAddressAutocomplete = mountAddressAutocomplete(
+      addressInput,
+      root.closest('.profile-panel-scroll') || document.getElementById('settings-panel'),
+      (pickedAddress) => {
+        addressInput.value = pickedAddress;
+        addressInput.dispatchEvent(new Event('input', { bubbles: true }));
+      },
+    );
+  }
+
   bindAutosaveForm(root, {
     formSelector: '#profile-form',
     alertEl: root.querySelector('#profile-alert'),
@@ -5833,6 +5852,10 @@ function renderVapiPanel(company) {
 
 async function loadProfileTab() {
   await flushSettingsAutosave();
+  if (destroyProfileAddressAutocomplete) {
+    destroyProfileAddressAutocomplete();
+    destroyProfileAddressAutocomplete = null;
+  }
   const root = settingsPanelRoot();
   if (!root) return;
   root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
