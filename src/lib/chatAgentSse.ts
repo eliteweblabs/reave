@@ -191,20 +191,37 @@ export async function* readSseStream(
   const decoder = new TextDecoder();
   const idleTimeoutMs = opts.idleTimeoutMs ?? 0;
   let buffer = '';
-  let stalled = false;
+  let abandoned = false;
 
+  // A read already in flight cannot be interrupted by checking the signal on the
+  // next pass, so both the idle deadline and cancellation race the read itself.
   const read = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-    if (idleTimeoutMs <= 0) return reader.read();
+    const racers: Promise<ReadableStreamReadResult<Uint8Array>>[] = [reader.read()];
     let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      return await Promise.race([
-        reader.read(),
+    let onAbort: (() => void) | undefined;
+
+    if (idleTimeoutMs > 0) {
+      racers.push(
         new Promise<never>((_resolve, reject) => {
           timer = setTimeout(() => reject(new SseStalledError(idleTimeoutMs)), idleTimeoutMs);
         }),
-      ]);
+      );
+    }
+    if (signal) {
+      racers.push(
+        new Promise<never>((_resolve, reject) => {
+          onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+          if (signal.aborted) onAbort();
+          else signal.addEventListener('abort', onAbort, { once: true });
+        }),
+      );
+    }
+
+    try {
+      return await Promise.race(racers);
     } finally {
       if (timer) clearTimeout(timer);
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   };
 
@@ -215,7 +232,9 @@ export async function* readSseStream(
       try {
         chunk = await read();
       } catch (err) {
-        if (isSseStalledError(err)) stalled = true;
+        // We are walking away from an in-flight read, so the reader has to be
+        // cancelled rather than merely released.
+        abandoned = true;
         throw err;
       }
       const { done, value } = chunk;
@@ -236,8 +255,8 @@ export async function* readSseStream(
       if (parsed) yield parsed;
     }
   } finally {
-    if (stalled) {
-      // Abandoning a pending read would keep the socket and its lock alive.
+    if (abandoned) {
+      // Leaving a pending read would keep the socket and its lock alive.
       void reader.cancel().catch(() => {});
     } else {
       reader.releaseLock();

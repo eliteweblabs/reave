@@ -35,6 +35,7 @@ import {
 } from '../../../lib/agentWatchdog';
 import { getAgentProgress } from '../../../lib/agentProgress';
 import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
+import { pumpAgentStream } from '../../../lib/chatAgentPump';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
 import { promoteChatImagesToLinkedProjects } from '../../../lib/projectFiles';
@@ -306,42 +307,26 @@ export async function POST(context: APIContext): Promise<Response> {
       };
 
       try {
-        const stream = runKnowledgeAgentStreaming({
-          userText: message,
-          images,
-          priorTurns: priorTurns(thread.messages),
-          model: modelOverride,
-          context: agentContext,
-          signal: runSignal,
-          deadline,
+        const outcome = await pumpAgentStream({
+          stream: runKnowledgeAgentStreaming({
+            userText: message,
+            images,
+            priorTurns: priorTurns(thread.messages),
+            model: modelOverride,
+            context: agentContext,
+            signal: runSignal,
+            deadline,
+          }),
+          emit,
+          hardDeadlineAt,
+          isCancelled: () => runSignal.aborted,
         });
-        while (true) {
-          const next = await withDeadline(
-            stream.next(),
-            Math.max(1_000, hardDeadlineAt - Date.now()),
-            'Agent run',
-          );
-          if (next.done) {
-            await settle(next.value);
-            break;
-          }
-          const event = next.value;
-          if (event.type === 'progress') {
-            emit({
-              type: 'progress',
-              phase: event.phase,
-              round: event.round,
-              tool: event.tool,
-              toolLabel: event.toolLabel,
-            });
-          } else if (event.type === 'text') {
-            emit({ type: 'text', text: event.text });
-          }
-        }
-      } catch (err) {
-        if (isAgentTimeoutError(err)) {
-          // Stop the wedged work so it cannot keep burning resources or write
-          // to this thread after we have already answered for it.
+
+        if (outcome.status === 'complete') {
+          await settle(outcome.reply);
+        } else if (outcome.status === 'timeout') {
+          // Stop the wedged work so it cannot keep burning resources or write to
+          // this thread after we have already answered for it.
           cancelAgentRun(userId, id);
           await settle(
             interruptedReplyText(userId, id, {
@@ -350,15 +335,15 @@ export async function POST(context: APIContext): Promise<Response> {
             }),
             { interrupted: true },
           );
-        } else if (runSignal.aborted) {
+        } else if (outcome.status === 'cancelled') {
           await settle(interruptedReplyText(userId, id, { cancelled: true }), {
             interrupted: true,
           });
         } else {
-          const msg = err instanceof Error ? err.message : 'Agent run failed';
-          await settle(interruptedReplyText(userId, id, { cancelled: false, errorMessage: msg }), {
-            interrupted: true,
-          });
+          await settle(
+            interruptedReplyText(userId, id, { cancelled: false, errorMessage: outcome.error }),
+            { interrupted: true },
+          );
         }
       } finally {
         // Last line of defence: if even `settle` threw, still close the turn so

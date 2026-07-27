@@ -13,6 +13,7 @@
     "prebuild": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "build": "astro build",
     "check": "astro check",
+    "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",

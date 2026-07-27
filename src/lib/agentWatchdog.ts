@@ -95,14 +95,6 @@ export function agentToolTimeoutMs(toolName?: string): number {
 }
 
 /**
- * Timers must not keep the Node event loop (or a Railway container) alive on
- * their own; every deadline here is a safety net, never a reason to stay up.
- */
-function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
-  (timer as unknown as { unref?: () => void }).unref?.();
-}
-
-/**
  * Reject with `AgentTimeoutError` if `promise` has not settled within `ms`.
  *
  * The losing side is always given a no-op catch: a wedged promise that rejects
@@ -116,12 +108,14 @@ export function withDeadline<T>(promise: Promise<T>, ms: number, label: string):
   }
   return new Promise<T>((resolve, reject) => {
     let settled = false;
+    // Deliberately not unref'd: a deadline that the event loop is allowed to
+    // skip is no deadline at all. Every one of these is cleared the moment the
+    // promise settles, so it can only ever hold the process for its own window.
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
       reject(new AgentTimeoutError(label, ms));
     }, ms);
-    unrefTimer(timer);
     promise.then(
       (value) => {
         if (settled) return;
@@ -151,6 +145,38 @@ export async function withDeadlineFallback<T>(
   } catch (err) {
     if (isAgentTimeoutError(err)) return onTimeout(err);
     throw err;
+  }
+}
+
+/**
+ * Wrap a single tool invocation so the agent loop can always make progress.
+ *
+ * The loop is blocked until every `tool_use` block has a matching `tool_result`,
+ * so this guarantees `dispatch` produces a string, and produces one within
+ * `timeoutMs` no matter how badly the tool or its upstream misbehaves. Genuine
+ * cancellation (the user pressed Stop) is the one thing allowed through.
+ */
+export async function guardToolCall(
+  name: string,
+  timeoutMs: number,
+  dispatch: () => Promise<string>,
+): Promise<string> {
+  try {
+    return await withDeadline(dispatch(), timeoutMs, `Tool ${name}`);
+  } catch (err) {
+    if (isAgentTimeoutError(err)) {
+      return JSON.stringify({
+        error: `${name} timed out after ${formatSeconds(timeoutMs)} and was abandoned`,
+        timed_out: true,
+        tool: name,
+        hint: 'The upstream service did not respond. Report this to the user and continue with the other steps — do not retry the same call more than once.',
+      });
+    }
+    if (isAbortError(err)) throw err;
+    return JSON.stringify({
+      error: err instanceof Error ? err.message : String(err),
+      tool: name,
+    });
   }
 }
 
@@ -187,8 +213,10 @@ export async function fetchWithDeadline(
 ): Promise<Response> {
   const { timeoutMs = 30_000, signal, ...rest } = init;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new AgentTimeoutError('Request', timeoutMs)), timeoutMs);
-  unrefTimer(timer);
+  const timer = setTimeout(
+    () => controller.abort(new AgentTimeoutError('Request', timeoutMs)),
+    timeoutMs,
+  );
   const onOuterAbort = () => controller.abort(signal?.reason);
   if (signal) {
     if (signal.aborted) controller.abort(signal.reason);

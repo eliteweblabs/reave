@@ -1,12 +1,6 @@
 /** Admin agent tools — core + feature-gated plugins. */
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../companyConfig';
-import {
-  agentToolTimeoutMs,
-  formatSeconds,
-  isAbortError,
-  withDeadline,
-  isAgentTimeoutError,
-} from '../agentWatchdog';
+import { agentToolTimeoutMs, guardToolCall } from '../agentWatchdog';
 import { AGENT_TOOL_MODULES } from './registry';
 import type { AgentToolDef, ToolContext } from './types';
 
@@ -39,22 +33,9 @@ export async function runTool(
   argsJson: string,
   opts: { signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<string> {
-  const timeoutMs = opts.timeoutMs ?? agentToolTimeoutMs(name);
-  try {
-    return await withDeadline(invokeTool(name, argsJson), timeoutMs, `Tool ${name}`);
-  } catch (e) {
-    if (isAgentTimeoutError(e)) {
-      return JSON.stringify({
-        error: `${name} timed out after ${formatSeconds(timeoutMs)} and was abandoned`,
-        timed_out: true,
-        tool: name,
-        hint: 'The upstream service did not respond. Report this to the user and continue with the other steps — do not retry the same call more than once.',
-      });
-    }
-    if (isAbortError(e)) throw e;
-    const msg = e instanceof Error ? e.message : String(e);
-    return JSON.stringify({ error: msg, tool: name });
-  }
+  return guardToolCall(name, opts.timeoutMs ?? agentToolTimeoutMs(name), () =>
+    invokeTool(name, argsJson),
+  );
 }
 
 async function invokeTool(name: string, argsJson: string): Promise<string> {
