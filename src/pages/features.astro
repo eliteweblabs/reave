@@ -18,6 +18,7 @@ import {
   Palette,
   Smartphone,
   MessageSquare,
+  TrendingUp,
   Car,
   Truck,
   FileSignature,
@@ -336,11 +337,13 @@ const plugins: Plugin[] = [
     title: "Newsletter & Lifecycle Email",
     teaser:
       "Welcome emails, follow-ups, review requests, and win-back campaigns — sent automatically, on a schedule you set once.",
-    body: "Built-in templates cover the emails every business sends and usually forgets to: welcome, check-in, thank-you, review request, re-engagement. One-off broadcasts go out to your whole list in a click, fully compliant.",
+    body: "Every lifecycle and broadcast email renders through a shared branded HTML wrapper — your logo, styled CTA, optional QR code — then sends server-side via Resend from your domain. Built-in templates cover welcome, check-in, thank-you, review request, and re-engagement without a separate ESP login.",
     bullets: [
+      "HTML templates built for real inboxes — table layout, inline fallbacks, prefers-color-scheme dark mode",
+      "Resend API delivery from your domain (DKIM/SPF synced from admin) — not a no-reply@ vendor address",
       "Automations fire on new contact, project complete, and timed follow-ups — no Zapier chain",
       "Broadcast to all clients or a hand-picked list from the admin Newsletter tab",
-      "CAN-SPAM footer and one-click unsubscribe on every send",
+      "CAN-SPAM footer and one-click unsubscribe on every marketing send",
       "Send log shows queued, sent, and skipped — with dedup so nobody gets spammed twice",
     ],
   },
