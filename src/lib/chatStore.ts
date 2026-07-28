@@ -10,6 +10,7 @@ import {
   fileGetChatSummaryById,
   fileGetChatThread,
   fileListChatThreads,
+  fileMarkChatSeen,
   fileSetChatArchived,
   fileUpdateChatTitle,
 } from './fileChats';
@@ -22,6 +23,7 @@ import {
   pgGetChatThread,
   pgListChatThreadOwners,
   pgListChatThreads,
+  pgMarkChatSeen,
   pgReassignChatThreads,
   pgSetChatArchived,
   pgUpdateChatTitle,
@@ -102,6 +104,19 @@ export async function storeEnsureChatTitle(
 export async function storeDeleteChatThread(userId: string, threadId: string): Promise<boolean> {
   if (chatStorageBackend() === 'postgres') return pgDeleteChatThread(userId, threadId);
   return fileDeleteChatThread(userId, threadId);
+}
+
+/**
+ * Persist "seen up to `seenAt`" for a thread server-side, so the unread dot
+ * agrees across every device signed in as this user (see pgMarkChatSeen).
+ */
+export async function storeMarkChatSeen(
+  userId: string,
+  threadId: string,
+  seenAt?: string,
+): Promise<string | null> {
+  if (chatStorageBackend() === 'postgres') return pgMarkChatSeen(userId, threadId, seenAt);
+  return fileMarkChatSeen(userId, threadId, seenAt);
 }
 
 export async function storeSetChatArchived(

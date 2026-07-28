@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 const MIGRATE_COLUMNS = [
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false`,
   `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS source_email_id TEXT`,
+  `ALTER TABLE chat_threads ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`,
 ];
 
 const INDEX_SQL = [
@@ -88,6 +89,7 @@ type ThreadRow = ChatThreadSummary & {
   archived?: boolean;
   source_email_id?: string | null;
   last_role?: 'user' | 'assistant' | null;
+  last_seen_at?: string | null;
 };
 
 function rowToSummary(row: ThreadRow): ChatThreadSummary {
@@ -99,6 +101,7 @@ function rowToSummary(row: ThreadRow): ChatThreadSummary {
     archived: !!row.archived,
     source_email_id: row.source_email_id ?? null,
     last_role: row.last_role ?? null,
+    last_seen_at: row.last_seen_at ?? null,
   };
 }
 
@@ -111,7 +114,7 @@ export async function pgListChatThreads(
     if (!pool) return null;
     const archivedFilter = opts?.archivedOnly ? 'AND t.archived = true' : 'AND t.archived = false';
     const { rows } = await pool.query<ThreadRow>(
-      `SELECT t.id, t.title, t.updated_at, t.created_at, t.archived, t.source_email_id,
+      `SELECT t.id, t.title, t.updated_at, t.created_at, t.archived, t.source_email_id, t.last_seen_at,
               (SELECT m.role FROM chat_messages m
                 WHERE m.thread_id = t.id
                 ORDER BY m.created_at DESC LIMIT 1) AS last_role
@@ -155,7 +158,7 @@ export async function pgGetChatThread(
     const pool = await ensureSchema();
     if (!pool) return null;
     const threadRes = await pool.query<ThreadRow>(
-      `SELECT id, title, updated_at, created_at, archived, source_email_id
+      `SELECT id, title, updated_at, created_at, archived, source_email_id, last_seen_at
        FROM chat_threads WHERE id = $1 AND user_id = $2`,
       [threadId, userId],
     );
@@ -227,6 +230,36 @@ export async function pgAppendChatMessages(
   } catch (e) {
     console.error('[chats:pg] append error:', e);
     return false;
+  }
+}
+
+/**
+ * Record that `userId` has seen `threadId` as of `seenAt` (defaults to now).
+ * Stored server-side (not localStorage) so the sidebar "unread" dot agrees
+ * across every device signed in as this user, instead of each browser/app
+ * tracking its own private read state. Uses GREATEST so an out-of-order
+ * request (e.g. a stale retry) can never move the timestamp backwards.
+ */
+export async function pgMarkChatSeen(
+  userId: string,
+  threadId: string,
+  seenAt?: string,
+): Promise<string | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const at = seenAt && !Number.isNaN(Date.parse(seenAt)) ? seenAt : new Date().toISOString();
+    const { rows } = await pool.query<{ last_seen_at: string }>(
+      `UPDATE chat_threads
+          SET last_seen_at = GREATEST(last_seen_at, $3::timestamptz)
+        WHERE id = $1 AND user_id = $2
+        RETURNING last_seen_at`,
+      [threadId, userId, at],
+    );
+    return rows[0]?.last_seen_at ?? null;
+  } catch (e) {
+    console.error('[chats:pg] mark seen error:', e);
+    return null;
   }
 }
 

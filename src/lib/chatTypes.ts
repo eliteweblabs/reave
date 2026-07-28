@@ -71,6 +71,12 @@ export interface ChatThreadSummary {
   linked_jobs?: LinkedJobRef[];
   /** Role of the most recent message, if any — drives the sidebar "unread" dot. */
   last_role?: ChatTurn['role'] | null;
+  /**
+   * Server-side "I have seen the latest message" timestamp, shared across every
+   * device signed in as this user. Compared against `updated_at` to decide the
+   * unread dot, so opening a thread on one device also clears it everywhere else.
+   */
+  last_seen_at?: string | null;
 }
 
 export interface ChatMessage {

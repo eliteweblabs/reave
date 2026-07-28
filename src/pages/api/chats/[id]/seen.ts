@@ -1,0 +1,40 @@
+import type { APIContext } from 'astro';
+import { storeMarkChatSeen } from '../../../../lib/chatStore';
+
+export const prerender = false;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+/**
+ * POST /api/chats/:id/seen — record that the signed-in user has seen this
+ * thread as of `seenAt` (defaults to now). Stored server-side so the sidebar
+ * "unread" dot agrees across every device signed in as this user, instead of
+ * each browser/app tracking its own private (localStorage) read state.
+ */
+export async function POST(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  const id = context.params.id?.trim();
+  if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
+
+  let seenAt: string | undefined;
+  try {
+    const text = await context.request.text();
+    if (text.trim()) {
+      const body = JSON.parse(text) as Record<string, unknown>;
+      const raw = String(body.seenAt ?? '').trim();
+      if (raw) seenAt = raw;
+    }
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON' }, 400);
+  }
+
+  const lastSeenAt = await storeMarkChatSeen(userId, id, seenAt);
+  return json({ ok: true, id, last_seen_at: lastSeenAt });
+}

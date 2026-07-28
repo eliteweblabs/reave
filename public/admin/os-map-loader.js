@@ -17861,15 +17861,32 @@ function readChatSeenMap() {
   }
 }
 
+/**
+ * Marks a thread seen both locally (instant, works offline) and on the
+ * server (so the unread dot agrees on every device signed in as this user —
+ * without the server round trip, opening a chat on desktop would leave it
+ * showing unread on the mobile app, and vice versa, since localStorage is
+ * private to each browser/app instance).
+ */
 function markChatSeen(threadId, atIso) {
   if (!threadId) return;
+  const at = atIso || new Date().toISOString();
   try {
     const map = readChatSeenMap();
-    map[threadId] = atIso || new Date().toISOString();
+    map[threadId] = at;
     localStorage.setItem(CHAT_LAST_SEEN_KEY, JSON.stringify(map));
   } catch {
     /* ignore quota / private mode */
   }
+  const thread = chatState.threads.find((t) => t.id === threadId);
+  if (thread) thread.last_seen_at = at;
+  fetch(`/api/chats/${encodeURIComponent(threadId)}/seen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seenAt: at }),
+  }).catch(() => {
+    /* best-effort — local state above already covers this device/tab */
+  });
 }
 
 /** True when a thread's latest message is an unseen assistant reply. */
@@ -17878,10 +17895,17 @@ function isChatUnread(t) {
   if (t.last_role !== 'assistant') return false;
   const updated = Date.parse(t.updated_at || '');
   if (!Number.isFinite(updated)) return false;
-  const seenAt = readChatSeenMap()[t.id];
-  if (!seenAt) return true;
-  const seen = Date.parse(seenAt);
-  return !Number.isFinite(seen) || updated > seen;
+  // Later of the server-synced value (agrees across devices) and this
+  // device's own localStorage record (instant, no round trip needed).
+  const localSeenAt = readChatSeenMap()[t.id];
+  const localSeen = localSeenAt ? Date.parse(localSeenAt) : NaN;
+  const serverSeen = t.last_seen_at ? Date.parse(t.last_seen_at) : NaN;
+  const seen = Math.max(
+    Number.isFinite(localSeen) ? localSeen : -Infinity,
+    Number.isFinite(serverSeen) ? serverSeen : -Infinity,
+  );
+  if (!Number.isFinite(seen)) return true;
+  return updated > seen;
 }
 
 const CH_SPINNER_SVG =

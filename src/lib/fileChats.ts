@@ -15,7 +15,7 @@ import { titleFromMessage } from './chatTypes';
 
 export { titleFromMessage };
 
-const META_RE = /^<!--\s*(id|user|created|updated|archived):\s*(.+?)\s*-->$/;
+const META_RE = /^<!--\s*(id|user|created|updated|archived|last_seen):\s*(.+?)\s*-->$/;
 const MSG_HEADING_RE = /^##\s+(user|assistant)\s*$/i;
 
 function projectRoot(): string {
@@ -40,7 +40,14 @@ function threadPath(id: string): string {
 }
 
 interface ParsedThread {
-  meta: { id: string; user: string; created: string; updated: string; archived?: boolean };
+  meta: {
+    id: string;
+    user: string;
+    created: string;
+    updated: string;
+    archived?: boolean;
+    last_seen?: string | null;
+  };
   title: string;
   messages: ChatMessage[];
 }
@@ -98,6 +105,7 @@ function parseThreadFile(content: string): ParsedThread | null {
       created: meta.created,
       updated: meta.updated,
       archived: meta.archived === 'true',
+      last_seen: meta.last_seen ?? null,
     },
     title,
     messages,
@@ -117,6 +125,7 @@ function serializeThread(
     `<!-- updated: ${meta.updated} -->`,
   ];
   if (meta.archived) out.push(`<!-- archived: true -->`);
+  if (meta.last_seen) out.push(`<!-- last_seen: ${meta.last_seen} -->`);
   out.push('');
   for (const m of messages) {
     out.push(`## ${m.role}`, m.content, '');
@@ -147,6 +156,7 @@ export function fileListChatThreads(
         last_role: parsed.messages.length
           ? parsed.messages[parsed.messages.length - 1].role
           : null,
+        last_seen_at: parsed.meta.last_seen ?? null,
       });
     } catch (e) {
       console.error('[chats:file] parse error:', file, e);
@@ -191,6 +201,7 @@ export function fileGetChatThread(userId: string, threadId: string): ChatThreadD
     created_at: parsed.meta.created,
     updated_at: parsed.meta.updated,
     archived: !!parsed.meta.archived,
+    last_seen_at: parsed.meta.last_seen ?? null,
     messages: parsed.messages,
   };
 }
@@ -220,6 +231,7 @@ export function fileAppendChatMessages(
     created: thread.created_at,
     updated: now,
     archived: thread.archived,
+    last_seen: thread.last_seen_at ?? null,
   };
   writeFileSync(threadPath(threadId), serializeThread(meta, thread.title, nextMessages), 'utf8');
   return true;
@@ -232,6 +244,7 @@ function threadMetaFromDetail(thread: ChatThreadDetail, userId: string, updated:
     created: thread.created_at,
     updated,
     archived: thread.archived,
+    last_seen: thread.last_seen_at ?? null,
   };
 }
 
@@ -241,6 +254,23 @@ export function fileUpdateChatTitle(userId: string, threadId: string, title: str
   const meta = threadMetaFromDetail(thread, userId, new Date().toISOString());
   writeFileSync(threadPath(threadId), serializeThread(meta, title, thread.messages), 'utf8');
   return true;
+}
+
+/** File-backend counterpart to `pgMarkChatSeen` — see its doc comment. */
+export function fileMarkChatSeen(
+  userId: string,
+  threadId: string,
+  seenAt?: string,
+): string | null {
+  const thread = fileGetChatThread(userId, threadId);
+  if (!thread) return null;
+  const at = seenAt && !Number.isNaN(Date.parse(seenAt)) ? seenAt : new Date().toISOString();
+  const prev = thread.last_seen_at ? Date.parse(thread.last_seen_at) : NaN;
+  const next = Number.isFinite(prev) && prev > Date.parse(at) ? thread.last_seen_at! : at;
+  const meta = threadMetaFromDetail(thread, userId, thread.updated_at);
+  meta.last_seen = next;
+  writeFileSync(threadPath(threadId), serializeThread(meta, thread.title, thread.messages), 'utf8');
+  return next;
 }
 
 export function fileSetChatArchived(userId: string, threadId: string, archived: boolean): boolean {
