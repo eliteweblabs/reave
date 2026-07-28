@@ -5,6 +5,7 @@
  */
 import Layout from "../layouts/Layout.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import BrandLogoGrid from "../components/BrandLogoGrid.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
@@ -43,32 +44,6 @@ const supportMail = company.supportEmail || (company.domain ? `hello@${company.d
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
 const showSiteAssistant =
   hasFeature("portal_assistant") && isSiteAssistantConfigured();
-
-/** Familiar SaaS logos — what {company.name} consolidates for clients. */
-type ReplacedApp = { slug: string; name: string; color: string };
-
-const replacedApps: ReplacedApp[] = [
-  { slug: "gmail", name: "Gmail", color: "#EA4335" },
-  { slug: "microsoftoutlook", name: "Outlook", color: "#0078D4" },
-  { slug: "googlecalendar", name: "Google Calendar", color: "#4285F4" },
-  { slug: "openai", name: "ChatGPT", color: "#412991" },
-  { slug: "quickbooks", name: "QuickBooks", color: "#2CA01C" },
-  { slug: "slack", name: "Slack", color: "#4A154B" },
-  { slug: "zoom", name: "Zoom", color: "#0B5CFF" },
-  { slug: "microsoftteams", name: "Teams", color: "#6264A7" },
-  { slug: "notion", name: "Notion", color: "#FFFFFF" },
-  { slug: "trello", name: "Trello", color: "#0052CC" },
-  { slug: "asana", name: "Asana", color: "#F06A6A" },
-  { slug: "monday", name: "Monday.com", color: "#FF3D57" },
-  { slug: "hubspot", name: "HubSpot", color: "#FF7A59" },
-  { slug: "salesforce", name: "Salesforce", color: "#00A1E0" },
-  { slug: "stripe", name: "Stripe", color: "#635BFF" },
-  { slug: "calendly", name: "Calendly", color: "#006BFF" },
-  { slug: "docusign", name: "DocuSign", color: "#FFCC22" },
-  { slug: "mailchimp", name: "Mailchimp", color: "#FFE01B" },
-  { slug: "dropbox", name: "Dropbox", color: "#0061FF" },
-  { slug: "googledrive", name: "Google Drive", color: "#4285F4" },
-];
 
 const SIMPLE_ICONS_CDN = (slug: string) =>
   `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
@@ -541,20 +516,7 @@ const customPrompts: PromptExample[] = [
         AI, file storage, e-sign, and project tools. {company.name} is built to
         absorb that whole layer — so your clients stop juggling logins and line items.
       </p>
-      <ul class="fx-stack-grid">
-        {
-          replacedApps.map((app) => (
-            <li class="fx-stack-item">
-              <span
-                class="fx-stack-logo"
-                style={`--brand-color: ${app.color}; --brand-icon: url(${SIMPLE_ICONS_CDN(app.slug)})`}
-                aria-hidden="true"
-              />
-              <span class="fx-stack-name">{app.name}</span>
-            </li>
-          ))
-        }
-      </ul>
+      <BrandLogoGrid folder="replaced-apps" />
       <p class="fx-stack-note">
         Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
         billing, projects, scheduling, AI, and the client portal that used to
@@ -1204,46 +1166,8 @@ const customPrompts: PromptExample[] = [
     color: rgba(255, 255, 255, 0.62);
   }
 
-  .fx-stack-grid {
-    list-style: none;
-    margin: 0 0 20px;
-    padding: 0;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .fx-stack-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 14px 8px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    background: rgba(0, 0, 0, 0.22);
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-
-  .fx-stack-item:hover {
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-  .fx-stack-logo {
-    width: 28px;
-    height: 28px;
-    background-color: var(--brand-color);
-    mask: var(--brand-icon) center / contain no-repeat;
-    -webkit-mask: var(--brand-icon) center / contain no-repeat;
-  }
-
-  .fx-stack-name {
-    font-size: 0.68rem;
-    font-weight: 600;
-    line-height: 1.25;
-    color: rgba(255, 255, 255, 0.72);
-    text-align: center;
+  .fx-stack :global(.blg-grid) {
+    margin-bottom: 20px;
   }
 
   .fx-stack-note {
@@ -1252,22 +1176,6 @@ const customPrompts: PromptExample[] = [
     font-size: 0.82rem;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.42);
-  }
-
-  @media (max-width: 720px) {
-    .fx-stack-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 480px) {
-    .fx-stack-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .fx-stack-name {
-      font-size: 0.62rem;
-    }
   }
 
   /* ---------- Installation pricing ---------- */
