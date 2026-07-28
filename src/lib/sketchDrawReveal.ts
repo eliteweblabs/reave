@@ -212,6 +212,26 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
       canvas.hidden = false;
       root.dataset.sketchDrawReady = "1";
 
+      const drawCompletedImage = () => {
+        const nextLayout = layoutCanvas();
+        const completedCtx = canvas.getContext("2d");
+        if (!completedCtx) return;
+        const nextCover = getCoverRect(image.naturalWidth, image.naturalHeight, nextLayout.width, nextLayout.height);
+        completedCtx.setTransform(nextLayout.dpr, 0, 0, nextLayout.dpr, 0, 0);
+        completedCtx.clearRect(0, 0, nextLayout.width, nextLayout.height);
+        completedCtx.drawImage(
+          image,
+          nextCover.sx,
+          nextCover.sy,
+          nextCover.sw,
+          nextCover.sh,
+          nextCover.dx,
+          nextCover.dy,
+          nextCover.dw,
+          nextCover.dh,
+        );
+      };
+
       const durationMs = 5200;
       const batchSize = Math.max(24, Math.ceil(segments.length / (durationMs / 16)));
       let index = 0;
@@ -240,6 +260,10 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
           rafId = requestAnimationFrame(drawBatch);
         } else {
           root.dataset.sketchDrawComplete = "1";
+          // The sketch pass only inks dark edge pixels, so it never fully
+          // covers the photo on its own — paint the real image now so the
+          // background actually becomes visible once the reveal finishes.
+          drawCompletedImage();
         }
       };
 
@@ -262,26 +286,6 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
       } else {
         play();
       }
-
-      const drawCompletedImage = () => {
-        const nextLayout = layoutCanvas();
-        const completedCtx = canvas.getContext("2d");
-        if (!completedCtx) return;
-        const nextCover = getCoverRect(image.naturalWidth, image.naturalHeight, nextLayout.width, nextLayout.height);
-        completedCtx.setTransform(nextLayout.dpr, 0, 0, nextLayout.dpr, 0, 0);
-        completedCtx.clearRect(0, 0, nextLayout.width, nextLayout.height);
-        completedCtx.drawImage(
-          image,
-          nextCover.sx,
-          nextCover.sy,
-          nextCover.sw,
-          nextCover.sh,
-          nextCover.dx,
-          nextCover.dy,
-          nextCover.dw,
-          nextCover.dh,
-        );
-      };
 
       const onResize = () => {
         if (root.dataset.sketchDrawComplete !== "1") return;
