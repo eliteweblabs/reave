@@ -94,6 +94,7 @@ import {
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
   workState,

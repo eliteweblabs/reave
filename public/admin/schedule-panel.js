@@ -36,6 +36,15 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import {
+  registerOsDialogDropdownRepositioner,
+  scheduleOsDialogFieldFocus,
+  openOsDialogBackdrop,
+  closeOsDialogBackdrop,
+  bindOsDialogDismiss,
+  bindOsDialogKeyboardLayout,
+  releaseOsDialogKeyboardLayout,
+} from './os-dialog.js?v=20260728j';
 import { navigateToWork } from './work-panel.js?v=20260728i';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
@@ -816,7 +825,6 @@ function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
 }
 
 const SCHED_DROPDOWN_MAX_HEIGHT = 220;
-const osDialogDropdownRepositioners = new Set();
 
 function getDropdownViewportBounds() {
   const vv = window.visualViewport;
@@ -885,8 +893,7 @@ function bindDropdownReposition(anchorInput, repositionFn) {
   let unregisterDialogReposition = null;
   const backdrop = document.getElementById('os-dialog-backdrop');
   if (backdrop?.contains(anchorInput)) {
-    osDialogDropdownRepositioners.add(handler);
-    unregisterDialogReposition = () => osDialogDropdownRepositioners.delete(handler);
+    unregisterDialogReposition = registerOsDialogDropdownRepositioner(handler);
   }
 
   requestAnimationFrame(handler);
@@ -903,16 +910,6 @@ function bindDropdownReposition(anchorInput, repositionFn) {
     }
     unregisterDialogReposition?.();
   };
-}
-
-function repositionOpenOsDialogDropdowns() {
-  for (const fn of osDialogDropdownRepositioners) {
-    try {
-      fn();
-    } catch {
-      /* ignore */
-    }
-  }
 }
 
 function mountAddressAutocomplete(addressInput, dropdownPortal, onPick) {
