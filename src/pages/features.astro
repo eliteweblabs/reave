@@ -24,6 +24,7 @@ import {
   PhoneCall,
   Contact,
   Send,
+  Puzzle,
   ArrowRight,
   ChevronDown,
 } from "lucide-astro";
@@ -408,10 +409,63 @@ const portalTabs = [
 
     <section class="fx-list" aria-label="Core features">
       <p class="fx-list-intro">
-        Every section below is live in the product today — tap to open.
+        Start with the 90% — then open any section below. Every feature is live today.
       </p>
 
       <div class="acc-list" data-acc-list>
+        <div class="acc-item acc-item--ninety" data-acc-item id="feature-ninety">
+          <button type="button" class="acc-trigger" aria-expanded="true">
+            <span class="acc-icon acc-icon--ninety"><Puzzle size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+            <span class="acc-heading">
+              <span class="acc-title">
+                A 90% app — everything you need to run the business
+                <span class="acc-badge">90%</span>
+              </span>
+              <span class="acc-teaser">
+                Day one: CRM, portal, billing, inbox, scheduling, AI, and mobile — live.
+                The last 10% is whatever makes this client uniquely theirs, and it bolts on
+                without a rewrite.
+              </span>
+            </span>
+            <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+          </button>
+          <div class="acc-panel">
+            <div class="acc-panel-inner">
+              <div class="ninety-meter" role="img" aria-label="90 percent core platform, 10 percent custom additions">
+                <div class="ninety-meter-track">
+                  <div class="ninety-meter-core">
+                    <span class="ninety-meter-label">90%</span>
+                    <span class="ninety-meter-name">Core OS</span>
+                  </div>
+                  <div class="ninety-meter-custom">
+                    <span class="ninety-meter-label">+10%</span>
+                    <span class="ninety-meter-name">Bolt-ons</span>
+                  </div>
+                </div>
+              </div>
+              <p>
+                Most platforms hand you a blank canvas and a monthly bill. {company.name}
+                ships the opposite: a complete operating system for running a service
+                business — contacts, projects, client portal, billing, smart inbox,
+                scheduling, AI agent, Siri, white-label branding, and mobile push — all
+                wired together on install.
+              </p>
+              <p>
+                That covers what nearly every client actually needs to operate. The
+                remaining slice is industry-specific or client-specific: a dealership
+                inventory wizard, fleet GPS, a custom intake flow, a one-off integration.
+                Those pieces snap onto the same core instead of replacing it.
+              </p>
+              <ul class="acc-bullets">
+                <li>Go live with the full core stack — not a phased rollout of "phase two features"</li>
+                <li>Enable industry plugins in one config line when this business needs them</li>
+                <li>Custom workflows and integrations build on the same APIs, agent tools, and knowledge base</li>
+                <li>No forked codebase — your 10% ships as plugins and config, not a separate product</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {
           before.map((s) => {
             const Icon = s.icon;
@@ -503,12 +557,13 @@ const portalTabs = [
     </section>
 
     <section class="fx-plugins" aria-label="Plugins">
-      <p class="fx-plugins-kicker">Plugins</p>
-      <h2 class="fx-plugins-h2">Snap in only what this client needs.</h2>
+      <p class="fx-plugins-kicker">The last 10%</p>
+      <h2 class="fx-plugins-h2">Bolt on what makes this client 100%.</h2>
       <p class="fx-plugins-lead">
-        The core OS above ships everywhere. Everything below is opt-in — flipped on
-        per install, per client, in one config line. No forked codebase, no "well
-        for THIS client we hacked in a workaround."
+        The core OS above is the 90% — it ships everywhere. Everything below is
+        opt-in: flipped on per install, per client, in one config line. Dealership
+        inventory, fleet tracking, e-sign, voice routing — built once, reused on the
+        next install that needs it.
       </p>
 
       <div class="acc-list acc-list--plugins" data-acc-list>
@@ -864,6 +919,98 @@ const portalTabs = [
   .acc-item.open {
     border-color: rgba(192, 38, 211, 0.28);
     background: rgba(255, 255, 255, 0.035);
+  }
+
+  .acc-item--ninety {
+    border-color: rgba(56, 189, 248, 0.22);
+    background:
+      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.08), transparent 60%),
+      rgba(255, 255, 255, 0.03);
+  }
+
+  .acc-item--ninety.open {
+    border-color: rgba(56, 189, 248, 0.42);
+    background:
+      radial-gradient(ellipse 90% 80% at 0% 0%, rgba(56, 189, 248, 0.12), transparent 60%),
+      rgba(255, 255, 255, 0.04);
+  }
+
+  .acc-icon--ninety {
+    background: rgba(56, 189, 248, 0.16);
+    color: #7dd3fc;
+  }
+
+  .acc-item--ninety.open .acc-chev {
+    color: #7dd3fc;
+  }
+
+  .acc-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+    color: #0c4a6e;
+    background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 100%);
+  }
+
+  .ninety-meter {
+    margin-bottom: 18px;
+  }
+
+  .ninety-meter-track {
+    display: flex;
+    height: 52px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .ninety-meter-core,
+  .ninety-meter-custom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .ninety-meter-core {
+    flex: 9;
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35) 0%, rgba(99, 102, 241, 0.45) 100%);
+    border-right: 1px dashed rgba(255, 255, 255, 0.2);
+  }
+
+  .ninety-meter-custom {
+    flex: 1;
+    min-width: 72px;
+    background: rgba(56, 189, 248, 0.12);
+  }
+
+  .ninety-meter-label {
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .ninety-meter-name {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .acc-item--ninety .acc-teaser {
+    color: rgba(255, 255, 255, 0.58);
   }
 
   .acc-trigger {
