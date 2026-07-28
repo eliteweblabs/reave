@@ -26,6 +26,7 @@ import {
 import { portalSiteUrl } from './siteMonitoring';
 import { normalizeMonitorHost } from './publicUrl';
 import { serverEnv } from './serverEnv';
+import { secureCompareStrings } from './secureCompare';
 import {
   classifyUptimeRobotError,
   isUptimeRobotConfigured,
@@ -1088,10 +1089,10 @@ export function validateUptimeWebhookAuth(opts: {
 }): boolean {
   const expected = uptimeWebhookSecret();
   if (!expected) return false;
-  if (opts.queryKey && opts.queryKey === expected) return true;
+  if (opts.queryKey && secureCompareStrings(opts.queryKey, expected)) return true;
   const auth = opts.authHeader?.trim();
-  if (auth === `Bearer ${expected}`) return true;
-  if (auth === expected) return true;
+  if (auth && secureCompareStrings(auth, `Bearer ${expected}`)) return true;
+  if (auth && secureCompareStrings(auth, expected)) return true;
   return false;
 }
 

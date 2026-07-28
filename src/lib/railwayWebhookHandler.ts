@@ -3,6 +3,7 @@ import { markDeployFailed } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
+import { secureCompareStrings } from './secureCompare';
 
 /**
  * The model used for autonomous Railway failure investigation.
@@ -93,7 +94,7 @@ export async function handleRailwayWebhook(opts: {
   if (!expectedKey?.trim()) {
     return { ok: false, status: 503, message: 'RAILWAY_WEBHOOK_INGRESS_KEY not configured' };
   }
-  if (!ingressKey || ingressKey !== expectedKey.trim()) {
+  if (!ingressKey || !secureCompareStrings(ingressKey, expectedKey.trim())) {
     return { ok: false, status: 401, message: 'invalid key' };
   }
 

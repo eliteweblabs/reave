@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { serverEnv } from '../../../lib/serverEnv';
 import { hasFeature } from '../../../lib/features';
+import { secureCompareStrings } from '../../../lib/secureCompare';
 import {
   handleSiteChangeAlert,
   parseChangeDetectionWebhook,
@@ -34,7 +35,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   if (!expected) {
     return json({ ok: false, error: 'CHANGEDETECTION_WEBHOOK_SECRET not configured' }, 503);
   }
-  if (!key || key !== expected) {
+  if (!key || !secureCompareStrings(key, expected)) {
     return json({ ok: false, error: 'invalid key' }, 401);
   }
 

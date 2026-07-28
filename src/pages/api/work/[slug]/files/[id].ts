@@ -4,7 +4,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeDeleteProjectFile, storeGetProjectFile } from '../../../../../lib/projectFiles';
+import { storeDeleteProjectFile, storeGetProjectFile, projectFileResponseHeaders } from '../../../../../lib/projectFiles';
 import { isSafeWorkSlug, storeReadWork } from '../../../../../lib/workStore';
 
 export const prerender = false;
@@ -30,18 +30,10 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!file) return json({ ok: false, error: 'File not found' }, 404);
 
   const buffer = Buffer.from(file.dataBase64, 'base64');
-  const disposition = file.mediaType.startsWith('image/')
-    ? 'inline'
-    : `inline; filename="${file.filename.replace(/"/g, '')}"`;
 
   return new Response(buffer, {
     status: 200,
-    headers: {
-      'Content-Type': file.mediaType,
-      'Content-Disposition': disposition,
-      'Cache-Control': 'private, max-age=3600',
-      'Content-Length': String(buffer.length),
-    },
+    headers: projectFileResponseHeaders(file.mediaType, file.filename, buffer.length),
   });
 }
 

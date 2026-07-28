@@ -1,17 +1,17 @@
-/**
- * GET /api/documents/shortcodes
- *
- * Returns the list of available document shortcodes, sourced from the
- * SHORTCODES registry in documentTemplates.ts (the authoritative list of what
- * fillTemplate() resolves). If the contact-api is reachable, the response is
- * live-enriched with any additional fields present on a real contact record so
- * that new DB columns appear in the directory automatically.
- */
 import type { APIRoute } from 'astro';
 import { SHORTCODES, type Shortcode } from '../../../lib/documentTemplates';
 import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
+
+function featureBlocked(): Response {
+  return new Response(JSON.stringify({ ok: false, error: 'Not found' }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
 
 // Fields that are structural / internal and shouldn't become template tokens.
 const SKIP_FIELDS = new Set(['uid', 'archived', 'links', 'createdAt', 'updatedAt', 'notes']);
@@ -26,7 +26,11 @@ function camelToWords(s: string): string {
     .trim();
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  if (!hasFeature('documents')) return featureBlocked();
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
   const shortcodes: Shortcode[] = [...SHORTCODES];
 
   if (isContactApiConfigured()) {

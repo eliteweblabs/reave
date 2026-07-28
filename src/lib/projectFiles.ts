@@ -73,6 +73,37 @@ export function isAllowedProjectFileMediaType(
   return false;
 }
 
+/** SVG can embed scripts — never serve inline in the browser. */
+export function projectFileContentDisposition(mediaType: string, filename: string): string {
+  const normalized = mediaType.trim().toLowerCase();
+  const safeName = filename.replace(/"/g, '');
+  if (normalized === 'image/svg+xml') {
+    return `attachment; filename="${safeName}"`;
+  }
+  if (normalized.startsWith('image/')) {
+    return 'inline';
+  }
+  return `inline; filename="${safeName}"`;
+}
+
+export function projectFileResponseHeaders(
+  mediaType: string,
+  filename: string,
+  sizeBytes: number,
+): Record<string, string> {
+  const normalized = mediaType.trim().toLowerCase();
+  const headers: Record<string, string> = {
+    'Content-Type': mediaType,
+    'Content-Disposition': projectFileContentDisposition(mediaType, filename),
+    'Cache-Control': 'private, max-age=3600',
+    'Content-Length': String(sizeBytes),
+  };
+  if (normalized === 'image/svg+xml') {
+    headers['Content-Security-Policy'] = "default-src 'none'; sandbox";
+  }
+  return headers;
+}
+
 const FILENAME_MEDIA_TYPE: Record<string, string> = {
   pdf: 'application/pdf',
   jpg: 'image/jpeg',

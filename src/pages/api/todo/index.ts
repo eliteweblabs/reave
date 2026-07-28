@@ -1,17 +1,8 @@
-/**
- * GET /api/todo — list all todo markdown files and their parsed checkbox items.
- *
- * Files live in src/knowledge/todo/*.md (one file = one accordion section).
- * Each file must have a # H1 heading (accordion title) and GFM checkboxes:
- *   - [ ] unchecked item
- *   - [x] checked item
- *
- * Override the directory with TODO_DIR env var.
- */
 import type { APIRoute } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, readFileSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -73,7 +64,10 @@ function parseFile(slug: string, content: string): TodoSection {
   return { slug, title, description: descLines.join(' '), items };
 }
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
   const dir = todoDir();
 
   if (!existsSync(dir)) {

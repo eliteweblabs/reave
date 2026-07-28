@@ -1,14 +1,18 @@
-/**
- * GET    /api/documents/:slug — read a template's full HTML.
- * PUT    /api/documents/:slug — overwrite a template { html }.
- * DELETE /api/documents/:slug — delete a template.
- */
 import type { APIRoute } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { hasFeature } from '../../../lib/features';
 
 export const prerender = false;
+
+function featureBlocked(): Response {
+  return new Response(JSON.stringify({ ok: false, error: 'Not found' }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
 
 function projectRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));
@@ -27,7 +31,12 @@ function docsDir(): string {
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async (context) => {
+  if (!hasFeature('documents')) return featureBlocked();
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { params } = context;
   const { slug } = params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   const filePath = join(docsDir(), `${slug}.html`);
@@ -45,7 +54,12 @@ export const GET: APIRoute = async ({ params }) => {
   }
 };
 
-export const PUT: APIRoute = async ({ params, request }) => {
+export const PUT: APIRoute = async (context) => {
+  if (!hasFeature('documents')) return featureBlocked();
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { params, request } = context;
   const { slug } = params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   let body: { html?: unknown };
@@ -72,7 +86,12 @@ export const PUT: APIRoute = async ({ params, request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async (context) => {
+  if (!hasFeature('documents')) return featureBlocked();
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { params } = context;
   const { slug } = params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   const filePath = join(docsDir(), `${slug}.html`);

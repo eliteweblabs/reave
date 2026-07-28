@@ -1,7 +1,23 @@
 import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
+import { clientIp } from '../../../lib/clientIp';
+import { checkRateLimit } from '../../../lib/rateLimit';
+
+const FORM_RATE_WINDOW_MS = 10 * 60 * 1000;
+const FORM_RATE_MAX = 10;
 
 export const POST: APIRoute = async ({ request }) => {
+  const rate = checkRateLimit(`form:${clientIp(request)}`, {
+    windowMs: FORM_RATE_WINDOW_MS,
+    maxPerWindow: FORM_RATE_MAX,
+  });
+  if (!rate.ok) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Too many submissions — please wait and try again.' }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
   try {
     const formData = await request.json();
     const name = String(

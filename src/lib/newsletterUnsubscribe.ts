@@ -8,12 +8,16 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { serverEnv } from './serverEnv';
 
 function secret(): string {
-  return (
-    serverEnv('NEWSLETTER_UNSUB_SECRET') ||
-    serverEnv('RESEND_WEBHOOK_SECRET') ||
-    serverEnv('CLERK_SECRET_KEY') ||
-    'reave-newsletter-unsub'
-  );
+  const configured =
+    serverEnv('NEWSLETTER_UNSUB_SECRET')?.trim() ||
+    serverEnv('RESEND_WEBHOOK_SECRET')?.trim() ||
+    serverEnv('CLERK_SECRET_KEY')?.trim();
+  if (configured) return configured;
+  if (import.meta.env.PROD) {
+    console.error('[newsletter] NEWSLETTER_UNSUB_SECRET not configured in production');
+    return '';
+  }
+  return 'reave-newsletter-unsub-dev-only';
 }
 
 function b64urlEncode(input: string): string {
@@ -35,11 +39,14 @@ function sign(email: string): string {
 }
 
 export function makeUnsubscribeToken(email: string): string {
+  const key = secret();
+  if (!key) return '';
   const normalized = email.toLowerCase().trim();
   return `${b64urlEncode(normalized)}.${sign(normalized)}`;
 }
 
 export function verifyUnsubscribeToken(token: string): string | null {
+  if (!secret()) return null;
   const trimmed = (token || '').trim();
   const dot = trimmed.lastIndexOf('.');
   if (dot <= 0) return null;

@@ -1,17 +1,8 @@
-/**
- * POST /api/todo/toggle — toggle a GFM checkbox in a todo markdown file.
- *
- * Body: { slug: string, lineIndex: number, checked: boolean }
- * Response: { ok: true } or error
- *
- * Note: writes happen in-place on the filesystem. On Railway, changes persist
- * until the next deploy (which ships the committed state of the file).
- * Commit the file after checking off important items to make it permanent.
- */
 import type { APIRoute } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -33,7 +24,11 @@ function todoDir(): string {
 const ITEM_RE = /^- \[([ xX])\] /;
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { request } = context;
   let body: { slug?: unknown; lineIndex?: unknown; checked?: unknown };
   try {
     body = await request.json() as typeof body;

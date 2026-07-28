@@ -14,6 +14,7 @@ import {
   type SiteAssistantTurn,
 } from '../../../lib/siteAssistant';
 import { checkPortalAssistantRateLimit } from '../../../lib/portalAssistantRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -26,12 +27,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
-}
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]?.trim() || 'unknown';
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
 }
 
 function parseHistory(raw: unknown): SiteAssistantTurn[] {
