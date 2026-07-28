@@ -1,10 +1,4 @@
 {
   "version": 1,
-  "hooks": {
-    "stop": [
-      {
-        "command": ".cursor/hooks/auto-commit-push.sh"
-      }
-    ]
-  }
+  "hooks": {}
 }
