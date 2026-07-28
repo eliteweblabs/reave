@@ -1,6 +1,6 @@
 /**
  * Regenerate square brand mark PNGs (OG image, favicons, apple-touch-icon).
- * Pure #000 background with the AV triangle mark in the brand gradient.
+ * Favicons use a pure #000 background; the header/profile avatar uses transparency.
  *
  * Usage: node scripts/generate-brand-icons.mjs
  */
@@ -13,10 +13,11 @@ const OUTPUTS = [
   { out: 'public/apple-touch-icon.png', size: 180 },
   { out: 'public/favicon-32x32.png', size: 32 },
   { out: 'public/favicon-16x16.png', size: 16 },
+  { out: 'public/logo-icon-avatar.png', size: 192, transparent: true },
 ];
 
 /** AV triangles only — same paths as ReaveLogoMark / qrCode.ts (no R or E bars). */
-function buildAvMarkSvg(size) {
+function buildAvMarkSvg(size, { transparent = false } = {}) {
   const pad = size * 0.22;
   const markW = size - pad * 2;
   const markH = markW * (100 / 137);
@@ -25,8 +26,12 @@ function buildAvMarkSvg(size) {
   const sx = markW / 137;
   const sy = markH / 100;
 
+  const background = transparent
+    ? ''
+    : `<rect width="${size}" height="${size}" fill="#000000"/>`;
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" fill="#000000"/>
+  ${background}
   <defs>
     <linearGradient id="brand" gradientUnits="userSpaceOnUse" x1="${ox}" y1="${oy + markH}" x2="${ox + markW}" y2="${oy}">
       <stop offset="0%" stop-color="#f472b6"/>
@@ -41,8 +46,8 @@ function buildAvMarkSvg(size) {
 </svg>`;
 }
 
-for (const { out, size } of OUTPUTS) {
-  const svg = buildAvMarkSvg(size);
+for (const { out, size, transparent = false } of OUTPUTS) {
+  const svg = buildAvMarkSvg(size, { transparent });
   await sharp(Buffer.from(svg)).png().toFile(out);
-  console.log(`Wrote ${out} (${size}×${size})`);
+  console.log(`Wrote ${out} (${size}×${size}${transparent ? ', transparent' : ''})`);
 }

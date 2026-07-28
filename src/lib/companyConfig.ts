@@ -4,7 +4,7 @@
  */
 import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
-import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH } from './companyLogo';
+import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH, LOGO_ICON_AVATAR_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { serverEnv } from './serverEnv';
@@ -267,9 +267,12 @@ export function companyFaviconUrls(company: CompanyConfig): typeof SITE.favicons
   return SITE.favicons;
 }
 
-/** Staff / team avatar for comments — custom icon or default favicon. */
+/** Staff / team avatar for comments — custom icon or transparent default mark. */
 export function companyStaffAvatarUrl(company: CompanyConfig): string {
-  return companyLogoUrl(company.iconPath, company.iconVersion);
+  if (company.iconSource === 'admin') {
+    return companyLogoUrl(company.iconPath, company.iconVersion);
+  }
+  return LOGO_ICON_AVATAR_PATH;
 }
 
 /** Homepage quantum mask — custom admin logo, default silhouette, or hidden. */

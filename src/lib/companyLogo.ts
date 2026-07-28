@@ -4,6 +4,9 @@ export const BRANDING_LOGO_PATH = '/api/branding/logo';
 /** Square brand mark for Open Graph / Twitter cards — safe to replace without touching favicons or the header logo. */
 export const LOGO_ICON_OG_PATH = '/logo-icon-og.png';
 
+/** Transparent AV mark for header profile icon and staff comment avatars. */
+export const LOGO_ICON_AVATAR_PATH = '/logo-icon-avatar.png';
+
 /** Public URL for uploaded square brand icons (favicons, avatars, PWA). */
 export const BRANDING_ICON_PATH = '/api/branding/icon';
 

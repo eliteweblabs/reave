@@ -5070,11 +5070,13 @@ function companyIconPreviewUrl(company) {
 }
 
 function companyStaffAvatarPreviewUrl(company) {
-  if (!company?.iconPath) return window.__companyStaffAvatarUrl || '';
-  const path = String(company.iconPath);
-  const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
-  if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
-  return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+  if (company?.iconSource === 'admin' && company?.iconPath) {
+    const path = String(company.iconPath);
+    const v = company.iconVersion ? `?v=${encodeURIComponent(company.iconVersion)}` : '';
+    if (/^https?:\/\//i.test(path)) return path + (company.iconVersion ? v : '');
+    return `${path.startsWith('/') ? path : `/${path}`}${v}`;
+  }
+  return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
 }
 
 function hasCustomCompanyLogo(company) {
