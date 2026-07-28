@@ -10,16 +10,19 @@ import TestimonialsCarousel from "../TestimonialsCarousel.astro";
   aria-labelledby="about-title"
 >
   <div class="marketing-bg" aria-hidden="true">
-    <img
-      class="marketing-bg-photo"
-      src="/images/about-office.png"
-      alt=""
-      width="1600"
-      height="2400"
-      loading="lazy"
-      decoding="async"
-      fetchpriority="low"
-    />
+    <div class="sketch-draw-reveal marketing-bg-photo" data-sketch-draw>
+      <img
+        class="sketch-draw-reveal__fallback"
+        src="/images/about-office.png"
+        alt=""
+        width="1024"
+        height="768"
+        loading="lazy"
+        decoding="async"
+        fetchpriority="low"
+      />
+      <canvas class="sketch-draw-reveal__canvas" hidden aria-hidden="true"></canvas>
+    </div>
     <div class="marketing-bg-grain"></div>
     <div class="marketing-bg-scrim"></div>
   </div>
@@ -63,3 +66,7 @@ import TestimonialsCarousel from "../TestimonialsCarousel.astro";
     <TestimonialsCarousel />
   </div>
 </section>
+
+<script>
+  import "../../lib/sketchDrawReveal.ts";
+</script>

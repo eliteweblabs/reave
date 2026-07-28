@@ -49,6 +49,37 @@ html {
   filter: grayscale(100%) contrast(1.08) brightness(0.82);
 }
 
+.sketch-draw-reveal {
+  overflow: hidden;
+}
+
+.sketch-draw-reveal__fallback,
+.sketch-draw-reveal__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.sketch-draw-reveal__canvas {
+  display: block;
+  pointer-events: none;
+}
+
+.sketch-draw-reveal[data-sketch-draw-ready="1"] .sketch-draw-reveal__fallback[hidden],
+.sketch-draw-reveal[data-sketch-draw-ready="1"] .sketch-draw-reveal__canvas:not([hidden]) {
+  opacity: 0.5;
+  filter: grayscale(100%) contrast(1.08) brightness(0.82);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sketch-draw-reveal__canvas {
+    display: none !important;
+  }
+}
+
 .marketing-bg-grain {
   position: absolute;
   inset: 0;
