@@ -230,7 +230,7 @@ Created project Website redesign for Tony Vello. Status: active.
 
 ### Create Proposal (full research audit)
 
-**What it does**: The big one. Give it whatever you have — a URL, business name, and/or phone number — and it hands the job to the full research agent: looks up or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence (Lighthouse, SSL, broken links, DNS, web search for their Google Business Profile/social presence), and files an "inquiry" project with a complete audit write-up. This is the same research playbook the admin chat agent runs, triggered hands-free.
+**What it does**: The big one. Say a business name — add street or town if the name is common — and it hands the job to the full research agent: finds the real business and website, looks up or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence (Lighthouse, SSL, broken links, DNS, web search for their Google Business Profile/social presence), and files an "inquiry" project with a complete audit write-up. This is the same research playbook the admin chat agent runs, triggered hands-free.
 
 Because a full audit can take a couple of minutes (Lighthouse alone budgets up to 150 seconds), this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
 
@@ -239,24 +239,20 @@ Because a full audit can take a couple of minutes (Lighthouse alone budgets up t
 ```json
 {
   "action": "create_proposal",
-  "url": "https://example-plumbing.com",
-  "business": "Example Plumbing Co",
-  "phone": "+19876543210",
+  "business": "Example Plumbing Co on Oak Street in Portland",
   "format": "text"
 }
 ```
 
-**Parameters** (give as many as you have — at least one is required):
-- `url` (optional): Website to audit. If omitted, the agent tries to find it via web search from the business name/phone.
-- `business` (optional): Business/company name (aliases: `business_name`, `company`, `name`)
-- `phone` (optional): Phone number
-- `email` (optional): Email address
-- `notes` (optional): Anything else you know (referral source, what they need, etc.)
+**Parameters**:
+- `business` (required): Business name or freeform description. Aliases: `business_name`, `company`, `name`, `query`. Include street, town, or neighborhood when the name alone isn't enough to find the right place.
+- `url` (optional): Website if you already know it — usually omitted; the agent finds it via web search.
+- `phone`, `email`, `notes` (optional): Extra context if you have it.
 
 **Example response** (immediate ack — the real result comes later via push notification):
 
 ```
-Researching Example Plumbing Co now. You'll get an alert in Admin when the audit and project are ready.
+Researching Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
 ```
 
 **Siri phrase**: "create proposal" or "research this business"

@@ -30,6 +30,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 ### 2. Resolve the URL
 
 - Prefer contact record website/domain
+- **Siri "Create Proposal"**: the user may only give a freeform business description (name + optional street/town). Use `brave_search` with the full string to find the correct business and website before auditing.
 - Normalize: `https://` + apex or `www` — follow redirects (`fetch_url` or `ssl_check` shows final host)
 - Note platform: Shopify, Squarespace, Square Online, WordPress, etc.
 

@@ -12,11 +12,12 @@
  * - create_work: { action: "create_work", title: string, client: string, status?, priority?, body? }
  * - find_client: { action: "find_client", client?: string, query?: string } — lookup for Shortcuts conditionals
  * - create_project: { action: "create_project", title: string, client?, first_name?, last_name?, company?, email? }
- * - create_proposal: { action: "create_proposal", url?, business?, phone?, email?, notes? } — hands whatever you have
- *   (URL, business name, phone, email) to the full research agent: it looks up or creates the client, runs the
- *   complete site/SEO/SSL/DNS audit tool sequence, and files a project with a full audit body. Runs in the
- *   background (this returns immediately) — the finished result posts to the "System alerts" chat with a push
- *   notification. Requires ANTHROPIC_API_KEY and AGENT_ALERT_USER_ID for the notification/chat log.
+ * - create_proposal: { action: "create_proposal", business, url?, phone?, email?, notes? } — pass a business
+ *   description (name alone, or name + street/town for disambiguation); the research agent finds the real business
+ *   and website, resolves or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence, and
+ *   files a project with a full audit body. Runs in the background (this returns immediately) — the finished
+ *   result posts to the "System alerts" chat with a push notification. Requires ANTHROPIC_API_KEY and
+ *   AGENT_ALERT_USER_ID for the notification/chat log.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  *
@@ -489,12 +490,11 @@ async function handleCreateProject(params: Record<string, unknown>): Promise<Sir
 }
 
 /**
- * "Siri, create proposal" — give it whatever you have (URL, business name,
- * phone, email) and it hands the job to the full research agent: resolve or
- * create the client, run the whole audit tool sequence (fetch_url,
- * lighthouse_audit, ssl_check, check_links, dns_check, brave_search), and file
- * an inquiry project with a complete audit body — the same "inquiry-website-
- * audit" playbook the admin chat agent already follows.
+ * "Siri, create proposal" — pass a business description (name, or name + street/town)
+ * and the full research agent finds the real business, resolves or creates the client,
+ * runs the whole audit tool sequence (fetch_url, lighthouse_audit, ssl_check,
+ * check_links, dns_check, brave_search), and files an inquiry project with a complete
+ * audit body — the same "inquiry-website-audit" playbook the admin chat agent follows.
  *
  * This can take minutes (Lighthouse alone budgets up to 150s, plus DNS/SSL/link
  * checks and multiple LLM turns), far longer than a Siri Shortcut should sit
@@ -509,18 +509,18 @@ async function handleCreateProposal(params: Record<string, unknown>): Promise<Si
 
   const url = String(params.url ?? params.website ?? params.link ?? '').trim();
   const business = String(
-    params.business ?? params.business_name ?? params.company ?? params.name ?? '',
+    params.business ?? params.business_name ?? params.company ?? params.name ?? params.query ?? '',
   ).trim();
   const phone = String(params.phone ?? '').trim();
   const email = String(params.email ?? '').trim();
   const notes = String(params.notes ?? params.context ?? '').trim();
 
-  if (!url && !business && !phone && !email) {
-    const msg = 'Give me at least a URL, business name, phone number, or email to research.';
+  if (!business) {
+    const msg = 'Business name is required — include street or town if the name is common.';
     return { ok: false, error: msg, text: msg };
   }
 
-  const label = business || url || phone || email;
+  const label = business;
 
   runProposalResearch({ url, business, phone, email, notes, label }).catch((e) => {
     log.error('background research failed', e);
@@ -554,11 +554,16 @@ async function runProposalResearch(input: {
       'here to ask follow-up questions, so proceed autonomously and make reasonable, clearly-noted assumptions ' +
       'instead of stopping to ask.',
     '',
+    'The business description may be just a name or include street, town, or other disambiguating details ' +
+      '(e.g. "Joe\'s Pizza on Main Street in Portland"). Treat the full string as your search query.',
+    '',
     ...givenLines,
     '',
     'Follow the full inquiry-website-audit playbook (read_knowledge slug "inquiry-website-audit" first):',
-    "1. If no URL was given, use brave_search to find the business's real website from its name/phone/email; " +
-      'if none can be found, say so in the audit and skip to step 3 with whatever public info you can find.',
+    '1. If no URL was given, use brave_search with the full business description (plus phone/email if provided) ' +
+      'to identify the correct business and find its website; use any location hints in the description to ' +
+      'disambiguate common names. If no website can be found, say so in the audit and continue with whatever ' +
+      'public info you can find.',
     '2. resolve_contact for the client; create_contact if there is no match — use the business name as the ' +
       'contact name when no personal name is known, and save whatever phone/email/company was given.',
     '3. Run the full audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, check_links, ' +

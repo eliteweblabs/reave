@@ -267,48 +267,40 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ## Example 6b: "Create Proposal" (full research audit)
 
-**What it does**: Give it whatever you have on a prospect — a URL, business name, and/or phone number — and it kicks off the full research agent in the background: resolves/creates the client, runs the complete audit tool sequence (Lighthouse, SSL, DNS, broken links, web search for their online presence), and files a project with a full write-up. Siri gets an immediate "researching now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
+**What it does**: Say a business name — add street or town if needed — and it kicks off the full research agent in the background: finds the business and website, resolves/creates the client, runs the complete audit tool sequence (Lighthouse, SSL, DNS, broken links, web search for their online presence), and files a project with a full write-up. Siri gets an immediate "researching now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
 
 **Siri phrase**: "create proposal" or "research this business"
 
 **Shortcut steps**:
 
 1. **Ask for Input**
-   - Prompt: `Website URL? (leave blank if you don't have one)`
-   - Variable: `Url`
-
-2. **Ask for Input**
-   - Prompt: `Business name?`
+   - Prompt: `Which business? Add street or town if the name is common.`
    - Variable: `Business`
 
-3. **Ask for Input**
-   - Prompt: `Phone number? (optional)`
-   - Default Answer: ""
-   - Variable: `Phone`
-
-4. **Text** (build JSON — insert each variable as a blue pill, not typed text)
+2. **Text** (build JSON — insert the variable as a blue pill, not typed text)
    ```json
    {
      "action": "create_proposal",
-     "url": "Url",
      "business": "Business",
-     "phone": "Phone",
      "format": "text"
    }
    ```
 
-5. **Get Contents of URL**
+3. **Get Contents of URL**
    - URL: `https://reave.app/api/siri`
    - Method: POST
    - Headers: `X-Siri-Key` + `Content-Type: application/json`
-   - Request Body: Text (from step 4)
+   - Request Body: Text (from step 2)
 
-6. **Speak Text** → Text: Contents of URL
+4. **Speak Text** → Text: Contents of URL
 
-**Tip**: Share Sheet variant — from Safari, tap Share → this shortcut, and use "Shortcut Input" as the `Url` value instead of asking for it, so you can kick off research on a competitor/prospect site straight from their homepage.
+**Examples of what to say**:
+- "Example Plumbing"
+- "Joe's Barber on Main Street"
+- "The Corner Cafe in Springfield"
 
 **Notes**:
-- Give it as little as a business name and phone number, or as much as a full URL + name + phone + email — it works with whatever you provide.
+- One prompt is enough — the research agent finds the website and contact details from the name/description.
 - This does NOT reply with the finished audit — that comes later via push notification (needs `AGENT_ALERT_USER_ID` + web push configured). The immediate Siri response only confirms the research has started.
 - The new client and project both land in the admin dashboard as soon as the research finishes, even before the push notification arrives.
 
