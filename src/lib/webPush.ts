@@ -8,6 +8,7 @@ import { getReviewsPendingCount } from './reviewsPendingCount';
 import { inferPushAlertKind, storeCreatePushAlert } from './pushAlertStore';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
+import { isPushQuietHoursActive } from './pushQuietHours';
 
 let _configured = false;
 let _configuredSubject: string | null = null;
@@ -45,9 +46,18 @@ export async function sendPushNotification(payload: {
   badgeCount?: number;
   /** When true, skip creating a dismissible dashboard alert (default false). */
   skipDashboardAlert?: boolean;
+  /** When true, deliver even during sleep mode / quiet hours. */
+  bypassQuietHours?: boolean;
+  /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
+  urgent?: boolean;
 }): Promise<void> {
   const tag = payload.tag ?? 'inbox';
   const url = payload.url ?? '/admin?tab=email';
+
+  const quiet = await isPushQuietHoursActive({
+    bypassQuietHours: payload.bypassQuietHours,
+    urgent: payload.urgent,
+  });
 
   let alertId: string | undefined;
   if (!payload.skipDashboardAlert) {
@@ -60,6 +70,8 @@ export async function sendPushNotification(payload: {
     }).catch(() => null);
     alertId = alert?.id;
   }
+
+  if (quiet) return;
 
   if (!isPushConfigured() || !(await configureWebPush())) return;
 
@@ -108,6 +120,7 @@ export async function sendInboxPushNotification(payload: {
   tag?: string;
   /** Inbox record id — opens that message when the notification is tapped. */
   emailId?: string;
+  urgent?: boolean;
 }): Promise<void> {
   const url = payload.emailId
     ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`

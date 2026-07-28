@@ -875,6 +875,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       body: pushBody,
       tag: inboxRecord.id,
       emailId: inboxRecord.id,
+      urgent: isProjectReply,
     }).catch((e) => console.warn('[email] push failed', e));
   }
 

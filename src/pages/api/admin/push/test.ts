@@ -76,6 +76,7 @@ export async function POST(context: APIContext): Promise<Response> {
     tag: 'demo-test',
     url,
     badgeCount: 3,
+    bypassQuietHours: true,
   });
 
   return json({

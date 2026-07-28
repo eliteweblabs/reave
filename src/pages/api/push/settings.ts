@@ -1,0 +1,90 @@
+/**
+ * GET/PATCH /api/push/settings — sleep mode / quiet hours for Web Push.
+ */
+
+import type { APIContext } from 'astro';
+import {
+  formatQuietHoursLabel,
+  getPushQuietHoursSettings,
+  isPushQuietHoursActive,
+  isWithinQuietWindow,
+  normalizeHm,
+  savePushQuietHoursSettings,
+} from '../../../lib/pushQuietHours';
+
+export const prerender = false;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+export async function GET(_context: APIContext): Promise<Response> {
+  const settings = await getPushQuietHoursSettings();
+  const active = settings.sleepModeEnabled && isWithinQuietWindow(settings);
+  return json({
+    ok: true,
+    settings,
+    active,
+    label: formatQuietHoursLabel(settings),
+  });
+}
+
+export async function PATCH(context: APIContext): Promise<Response> {
+  const { userId } = context.locals.auth();
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
+  let body: unknown;
+  try {
+    body = await context.request.json();
+  } catch {
+    return json({ ok: false, error: 'Invalid JSON' }, 400);
+  }
+
+  const rec = body as Record<string, unknown>;
+  const patch: Parameters<typeof savePushQuietHoursSettings>[0] = {};
+
+  if (rec.sleepModeEnabled !== undefined) {
+    patch.sleepModeEnabled = Boolean(rec.sleepModeEnabled);
+  }
+  if (rec.quietStart !== undefined) {
+    const start = normalizeHm(String(rec.quietStart));
+    if (!start) return json({ ok: false, error: 'Invalid quietStart (use HH:MM)' }, 400);
+    patch.quietStart = start;
+  }
+  if (rec.quietEnd !== undefined) {
+    const end = normalizeHm(String(rec.quietEnd));
+    if (!end) return json({ ok: false, error: 'Invalid quietEnd (use HH:MM)' }, 400);
+    patch.quietEnd = end;
+  }
+  if (rec.timezone !== undefined) {
+    const tz = String(rec.timezone).trim();
+    if (!tz) return json({ ok: false, error: 'Invalid timezone' }, 400);
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: tz });
+    } catch {
+      return json({ ok: false, error: 'Unknown timezone' }, 400);
+    }
+    patch.timezone = tz;
+  }
+  if (rec.allowUrgentDuringSleep !== undefined) {
+    patch.allowUrgentDuringSleep = Boolean(rec.allowUrgentDuringSleep);
+  }
+
+  if (!Object.keys(patch).length) {
+    return json({ ok: false, error: 'Nothing to update' }, 400);
+  }
+
+  const settings = await savePushQuietHoursSettings(patch);
+  if (!settings) return json({ ok: false, error: 'Save failed' }, 500);
+
+  const active = await isPushQuietHoursActive();
+  return json({
+    ok: true,
+    settings,
+    active,
+    label: formatQuietHoursLabel(settings),
+  });
+}

@@ -425,6 +425,168 @@ export async function sendTestPushNotification(opts = {}) {
   return data;
 }
 
+let sleepModeCache = null;
+
+async function fetchSleepModeSettings() {
+  const res = await fetch('/api/push/settings', { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Could not load sleep mode');
+  sleepModeCache = data;
+  return data;
+}
+
+function formatSleepMenuLabel(data) {
+  const active = data?.active ? ' · on now' : '';
+  const label = data?.label || '11 PM – 7 AM';
+  return data?.settings?.sleepModeEnabled ? `Sleep mode (${label})${active}` : 'Sleep mode (off)';
+}
+
+function openSleepDialogBackdrop() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (backdrop) {
+    backdrop.hidden = false;
+    backdrop.classList.add('open');
+    document.body.classList.add('os-dialog-open');
+  }
+}
+
+function closeSleepDialogBackdrop() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  if (backdrop) {
+    backdrop.hidden = true;
+    backdrop.classList.remove('open');
+    document.body.classList.remove('os-dialog-open');
+  }
+}
+
+async function openSleepModeDialog() {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
+    alert('Sleep mode settings are only available on the admin dashboard.');
+    return;
+  }
+
+  let data;
+  try {
+    data = await fetchSleepModeSettings();
+  } catch (e) {
+    alert(e.message || String(e));
+    return;
+  }
+
+  const s = data.settings || {};
+  const tz =
+    s.timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    'America/New_York';
+
+  titleEl.textContent = 'Sleep mode';
+  bodyEl.innerHTML =
+    '<p class="em-hint">Pause phone push overnight. Mail still triages — review on the home dashboard in the morning.</p>' +
+    '<label class="re-check" style="display:flex;gap:8px;margin:12px 0 8px">' +
+    `<input type="checkbox" id="sleep-mode-enabled" ${s.sleepModeEnabled ? 'checked' : ''} />` +
+    '<span>Pause notifications overnight</span></label>' +
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0">' +
+    '<label style="flex:1;min-width:120px">From<br><input type="time" id="sleep-mode-start" value="' +
+    (s.quietStart || '23:00') +
+    '" style="width:100%"></label>' +
+    '<label style="flex:1;min-width:120px">Until<br><input type="time" id="sleep-mode-end" value="' +
+    (s.quietEnd || '07:00') +
+    '" style="width:100%"></label></div>' +
+    '<label style="display:block;margin:8px 0">Timezone<br>' +
+    `<input type="text" id="sleep-mode-tz" value="${tz.replace(/"/g, '&quot;')}" style="width:100%" placeholder="America/New_York"></label>` +
+    '<label class="re-check" style="display:flex;gap:8px;margin:12px 0 0">' +
+    `<input type="checkbox" id="sleep-mode-urgent" ${s.allowUrgentDuringSleep !== false ? 'checked' : ''} />` +
+    '<span>Still push urgent client replies</span></label>';
+
+  actionsEl.innerHTML = '';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => closeSleepDialogBackdrop());
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'os-dialog-btn os-dialog-btn--primary';
+  saveBtn.textContent = 'Save';
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/push/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? false,
+          quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
+          quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
+          timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
+          allowUrgentDuringSleep: document.getElementById('sleep-mode-urgent')?.checked ?? true,
+        }),
+      });
+      const saved = await res.json().catch(() => ({}));
+      if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
+      sleepModeCache = saved;
+      updateSleepModeMenuItem(saved);
+      closeSleepDialogBackdrop();
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+    }
+  });
+
+  actionsEl.append(cancelBtn, saveBtn);
+  openSleepDialogBackdrop();
+  saveBtn.focus();
+}
+
+function updateSleepModeMenuItem(data) {
+  const btn = document.getElementById('topbar-sleep-mode-link');
+  if (!btn) return;
+  btn.textContent = formatSleepMenuLabel(data || sleepModeCache);
+  btn.classList.toggle('topbar-dropdown-item--active', Boolean(data?.active));
+}
+
+function ensureSleepModeMenuItem() {
+  const menu = document.getElementById('topbar-profile-menu');
+  if (!menu || document.getElementById('topbar-sleep-mode-link')) return;
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'topbar-sleep-mode-link';
+  btn.className = 'topbar-dropdown-item';
+  btn.setAttribute('role', 'menuitem');
+  btn.textContent = 'Sleep mode';
+  btn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    void openSleepModeDialog();
+  });
+
+  const testBtn = document.getElementById('topbar-test-push-link');
+  if (testBtn) testBtn.insertAdjacentElement('afterend', btn);
+  else {
+    const divider = menu.querySelector('.topbar-dropdown-divider');
+    if (divider) menu.insertBefore(btn, divider);
+    else menu.appendChild(btn);
+  }
+
+  void fetchSleepModeSettings()
+    .then(updateSleepModeMenuItem)
+    .catch(() => {});
+}
+
+function removeSleepModeMenuItem() {
+  document.getElementById('topbar-sleep-mode-link')?.remove();
+  sleepModeCache = null;
+}
+
 function ensureTestPushMenuItem() {
   const menu = document.getElementById('topbar-profile-menu');
   if (!menu || document.getElementById('topbar-test-push-link')) return;
@@ -455,10 +617,12 @@ function ensureTestPushMenuItem() {
 
   if (divider) menu.insertBefore(btn, divider);
   else menu.appendChild(btn);
+  ensureSleepModeMenuItem();
 }
 
 function removeTestPushMenuItem() {
   document.getElementById('topbar-test-push-link')?.remove();
+  removeSleepModeMenuItem();
 }
 
 async function maybeOfferTestPushAfterSubscribe() {

@@ -102,6 +102,16 @@ interface ImportMetaEnv {
   VAPID_SUBJECT?: string;
   /** Set to 0 to disable Web Push notifications */
   PUSH_ENABLED?: string;
+  /** Set to 0 to disable scheduled quiet hours (sleep mode). Default on when unset. */
+  PUSH_QUIET_HOURS_ENABLED?: string;
+  /** Quiet-hours start HH:MM local (default 23:00) */
+  PUSH_QUIET_START?: string;
+  /** Quiet-hours end HH:MM local (default 07:00) */
+  PUSH_QUIET_END?: string;
+  /** IANA timezone for quiet hours (default America/New_York) */
+  PUSH_QUIET_TIMEZONE?: string;
+  /** Set to 0 to block urgent client-reply pushes during quiet hours too */
+  PUSH_QUIET_ALLOW_URGENT?: string;
   /** Clerk user id — inbound alert emails post to admin "System alerts" chat */
   AGENT_ALERT_USER_ID?: string;
   /** Set to 0 to skip auto agent reply on alert emails (default: run agent) */
