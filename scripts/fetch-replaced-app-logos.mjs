@@ -61,6 +61,22 @@ const ICONS = [
   { slug: "mailchimp", version: CURRENT, file: "18-mailchimp.svg", name: "Mailchimp", color: "#FFE01B" },
   { slug: "dropbox", version: CURRENT, file: "19-dropbox.svg", name: "Dropbox", color: "#0061FF" },
   { slug: "googledrive", version: CURRENT, file: "20-google-drive.svg", name: "Google Drive", color: "#4285F4" },
+  { slug: "airtable", version: CURRENT, file: "21-airtable.svg", name: "Airtable", color: "#18BFFF" },
+  { slug: "clickup", version: CURRENT, file: "22-clickup.svg", name: "ClickUp", color: "#7B68EE" },
+  { slug: "xero", version: CURRENT, file: "23-xero.svg", name: "Xero", color: "#13B5EA" },
+  { slug: "typeform", version: CURRENT, file: "24-typeform.svg", name: "Typeform", color: "#FFFFFF" },
+  { slug: "intercom", version: CURRENT, file: "25-intercom.svg", name: "Intercom", color: "#6AFDEF" },
+  { slug: "zendesk", version: CURRENT, file: "26-zendesk.svg", name: "Zendesk", color: "#FFFFFF" },
+  { slug: "zapier", version: CURRENT, file: "27-zapier.svg", name: "Zapier", color: "#FF4F00" },
+  { slug: "zoho", version: CURRENT, file: "28-zoho.svg", name: "Zoho", color: "#E42527" },
+  { slug: "square", version: CURRENT, file: "29-square.svg", name: "Square", color: "#FFFFFF" },
+  { slug: "paypal", version: CURRENT, file: "30-paypal.svg", name: "PayPal", color: "#009CDE" },
+  { slug: "googleanalytics", version: CURRENT, file: "31-google-analytics.svg", name: "Google Analytics", color: "#E37400" },
+  { slug: "buffer", version: CURRENT, file: "32-buffer.svg", name: "Buffer", color: "#FFFFFF" },
+  { slug: "hootsuite", version: CURRENT, file: "33-hootsuite.svg", name: "Hootsuite", color: "#FF4C46" },
+  { slug: "wordpress", version: CURRENT, file: "34-wordpress.svg", name: "WordPress", color: "#21759B" },
+  { slug: "basecamp", version: CURRENT, file: "35-basecamp.svg", name: "Basecamp", color: "#1D2D35" },
+  { slug: "make", version: CURRENT, file: "36-make.svg", name: "Make", color: "#6D00CC" },
 ];
 
 function bakeIcon(rawSvg, { name, color }) {
