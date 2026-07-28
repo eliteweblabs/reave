@@ -691,6 +691,7 @@ export type EmailInboxPatch = Partial<
 > & {
   markSeen?: boolean;
   markAutomationAck?: boolean;
+  rejectProjectMatch?: boolean;
 };
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {

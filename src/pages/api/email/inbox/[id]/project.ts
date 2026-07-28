@@ -112,6 +112,7 @@ export async function POST(context: APIContext): Promise<Response> {
     });
     const event = await markEmailLinked(id, job.title);
     if (!event) return json({ ok: false, error: 'Failed to update inbox' }, 500);
+    const acked = await storeUpdateEmailInbox(id, { markAutomationAck: true, automationKind: null });
 
     return json({
       ok: true,
@@ -121,7 +122,7 @@ export async function POST(context: APIContext): Promise<Response> {
       usedAi,
       attachmentsImported: attachments.imported.length,
       attachmentsSkipped: attachments.skipped,
-      event,
+      event: acked ?? event,
     });
   }
 

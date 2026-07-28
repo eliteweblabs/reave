@@ -14,6 +14,7 @@ import {
 import type { EmailCategory } from '../../../../lib/emailProcessor';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { unlinkProjectItem } from '../../../../lib/projectLinks';
 
 export const prerender = false;
 
@@ -38,6 +39,9 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   if (!body || typeof body !== 'object') return null;
   const rec = body as Record<string, unknown>;
   const patch: EmailInboxPatch = {};
+  if (rec.rejectProjectMatch === true) {
+    return { rejectProjectMatch: true };
+  }
   if (rec.category != null) {
     const cat = String(rec.category).toLowerCase() as EmailCategory;
     if (!CATEGORIES.has(cat)) return null;
@@ -97,7 +101,33 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const patch = parsePatch(body);
   if (!patch) return json({ ok: false, error: 'Nothing to update' }, 400);
 
-  const event = await storeUpdateEmailInbox(id, patch);
+  const existing = await storeGetEmailInbox(id);
+  if (!existing) return json({ ok: false, error: 'Not found' }, 404);
+
+  if (patch.rejectProjectMatch) {
+    const slug = existing.jobSlug?.trim();
+    if (slug) {
+      await unlinkProjectItem(slug, 'email', id).catch(() => undefined);
+    }
+    const event = await storeUpdateEmailInbox(id, {
+      jobSlug: null,
+      jobTitle: null,
+      automationKind: null,
+      action: 'review',
+      status: 'UNMATCHED',
+      routeNote: 'Project match dismissed',
+      markAutomationAck: true,
+    });
+    if (!event) return json({ ok: false, error: 'Not found' }, 404);
+    const monetaryAmount = extractMonetaryAmountFromEmail(event);
+    return json({
+      ok: true,
+      event: { ...event, monetaryAmount, hasMonetaryValue: monetaryAmount != null },
+    });
+  }
+
+  const { rejectProjectMatch: _reject, ...storePatch } = patch;
+  const event = await storeUpdateEmailInbox(id, storePatch);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   return json({

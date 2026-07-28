@@ -39,6 +39,21 @@ export type ProjectReviewNotification = {
   contactName: string | null;
 };
 
+export type ProjectMatchSuggestedReviewNotification = {
+  id: string;
+  type: 'project_match';
+  title: string;
+  detail: string;
+  subject: string;
+  from: string;
+  receivedAt: string;
+  emailId: string;
+  jobSlug: string;
+  jobTitle: string;
+  contactName: string | null;
+  attachmentCount: number;
+};
+
 export type MeetingFollowupReviewNotification = {
   id: string;
   type: 'meeting_followup';
@@ -74,7 +89,29 @@ export type ReviewNotification =
   | MeetingReviewNotification
   | MeetingFollowupReviewNotification
   | MeetingRequestReviewNotification
-  | ProjectReviewNotification;
+  | ProjectReviewNotification
+  | ProjectMatchSuggestedReviewNotification;
+
+/** Inbound mail likely belongs on an existing project — owner should confirm merge. */
+export function isSuggestedProjectMatch(
+  record: Pick<EmailInboxRecord, 'action' | 'jobSlug' | 'category' | 'automationKind'>,
+): boolean {
+  if (!record.jobSlug?.trim()) return false;
+  const action = String(record.action || '').toLowerCase();
+  if (action === 'filed' || action === 'project_reply') return false;
+  if (record.automationKind === 'project_created') return false;
+  if (action === 'matched') return true;
+  return action === 'review' && record.category === 'client';
+}
+
+export function isProjectMatchSuggestedPendingReview(
+  record: Pick<
+    EmailInboxRecord,
+    'action' | 'jobSlug' | 'category' | 'automationKind' | 'automationAckAt'
+  >,
+): boolean {
+  return isSuggestedProjectMatch(record) && !record.automationAckAt;
+}
 
 export function isAutoBookedMeetingPendingReview(
   record: Pick<EmailInboxRecord, 'action' | 'bookingUid' | 'automationAckAt'>,
@@ -152,7 +189,8 @@ export function isPendingReviewNotification(record: EmailInboxRecord): boolean {
     isAutoBookedMeetingPendingReview(record) ||
     isMeetingFollowupPendingReview(record) ||
     isMeetingRequestPendingReview(record) ||
-    isAutoProjectPendingReview(record)
+    isAutoProjectPendingReview(record) ||
+    isProjectMatchSuggestedPendingReview(record)
   );
 }
 
@@ -258,6 +296,31 @@ export function toMeetingRequestReviewNotification(
   };
 }
 
+export function toProjectMatchSuggestedReviewNotification(
+  record: EmailInboxRecord,
+): ProjectMatchSuggestedReviewNotification {
+  const jobTitle = record.jobTitle || record.jobSlug || 'Project';
+  const attachmentCount = Array.isArray(record.attachments) ? record.attachments.length : 0;
+  const attachmentBit =
+    attachmentCount > 0
+      ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}`
+      : 'no attachments';
+  return {
+    id: record.id,
+    type: 'project_match',
+    title: `Possible match: ${jobTitle}`,
+    detail: `Add this email's content and ${attachmentBit} to the project?`,
+    subject: record.subject || '(no subject)',
+    from: record.from || '',
+    receivedAt: record.receivedAt,
+    emailId: record.id,
+    jobSlug: record.jobSlug!,
+    jobTitle,
+    contactName: record.contactName,
+    attachmentCount,
+  };
+}
+
 export function toProjectReviewNotification(record: EmailInboxRecord): ProjectReviewNotification {
   const title = buildAutoProjectNotificationTitle({
     contactName: record.contactName,
@@ -308,6 +371,8 @@ export function listReviewNotifications(
       out.push(toMeetingRequestReviewNotification(record));
     } else if (isAutoProjectPendingReview(record)) {
       out.push(toProjectReviewNotification(record));
+    } else if (isProjectMatchSuggestedPendingReview(record)) {
+      out.push(toProjectMatchSuggestedReviewNotification(record));
     }
   }
   return out;

@@ -2942,6 +2942,7 @@ function reviewAlertVariant(type) {
   if (type === 'meeting_conflict') return 'confirm';
   if (
     type === 'project' ||
+    type === 'project_match' ||
     type === 'project_comment' ||
     type === 'vault_entry' ||
     type === 'share_open' ||
@@ -2965,6 +2966,8 @@ function reviewAlertIconName(type) {
       return 'mail';
     case 'project':
       return 'briefcase';
+    case 'project_match':
+      return 'link';
     case 'project_comment':
       return 'message-circle';
     case 'vault_entry':
@@ -3002,6 +3005,7 @@ function openReviewNotificationTarget(item) {
   }
   if (
     (item.type === 'project' ||
+      item.type === 'project_match' ||
       item.type === 'project_comment' ||
       item.type === 'share_open' ||
       item.type === 'contact_form') &&
@@ -3047,6 +3051,7 @@ function buildReviewAlertBanner(item) {
   actions.className = 'admin-setup-alert-actions';
 
   const isProject = item.type === 'project';
+  const isProjectMatch = item.type === 'project_match';
   const isProjectComment = item.type === 'project_comment';
   const isVaultEntry = item.type === 'vault_entry';
   const isShareOpen = item.type === 'share_open';
@@ -3084,6 +3089,16 @@ function buildReviewAlertBanner(item) {
       label: 'View client',
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
+    });
+  } else if (isProjectMatch) {
+    appendReviewAlertAction(actions, {
+      label: 'Add to project',
+      primary: true,
+      onClick: (btn) => void confirmSuggestedProjectMatch(item, btn),
+    });
+    appendReviewAlertAction(actions, {
+      label: 'Not this project',
+      onClick: (btn) => void rejectSuggestedProjectMatch(item, btn),
     });
   } else if (isProject) {
     appendReviewAlertAction(actions, {
@@ -16906,6 +16921,16 @@ function syncTopbarPanelContext() {
   clearTopbarPanelContext();
 }
 
+function isProjectMatchSuggested(ev) {
+  if (!ev || ev.automationAckAt) return false;
+  if (!ev.jobSlug) return false;
+  const action = String(ev.action || '').toLowerCase();
+  if (action === 'filed' || action === 'project_reply') return false;
+  if (ev.automationKind === 'project_created') return false;
+  if (action === 'matched') return true;
+  return action === 'review' && ev.category === 'client';
+}
+
 function isPendingReviewNotification(ev) {
   if (!ev || ev.automationAckAt) return false;
   const action = String(ev.action || '').toLowerCase();
@@ -16929,6 +16954,7 @@ function isPendingReviewNotification(ev) {
     if (mentionsMeeting && mentionsTime) return true;
   }
   if (ev.automationKind === 'project_created' && ev.jobSlug) return true;
+  if (isProjectMatchSuggested(ev)) return true;
   return false;
 }
 
@@ -17652,6 +17678,30 @@ async function mountEmailScheduleActions(container, ev) {
   const primaryBtn = container.querySelector('.em-schedule-action-primary');
   const altBtn = container.querySelector('.em-schedule-action-secondary');
 
+  if (container.querySelector('.em-project-match-add')) {
+    primaryBtn?.addEventListener('click', () => {
+      void confirmSuggestedProjectMatch(
+        {
+          emailId: ev.id,
+          jobSlug: ev.jobSlug,
+          jobTitle: ev.jobTitle,
+          type: 'project_match',
+        },
+        primaryBtn,
+      );
+    });
+    altBtn?.addEventListener('click', () => {
+      void rejectSuggestedProjectMatch(
+        {
+          emailId: ev.id,
+          type: 'project_match',
+        },
+        altBtn,
+      );
+    });
+    return;
+  }
+
   if (container.classList.contains('em-schedule-actions-confirm')) {
     primaryBtn?.addEventListener('click', () => {
       const attendee = attendeeFromEmailEvent(ev);
@@ -17763,6 +17813,68 @@ async function runEmailProjectAction(ev, payload, errorTitle) {
     await postEmailProject(ev, payload);
   } catch (e) {
     await osAlert({ title: errorTitle, bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function confirmSuggestedProjectMatch(item, btn) {
+  const emailId = item?.emailId;
+  const slug = item?.jobSlug;
+  if (!emailId || !slug) return;
+  let ev = emailState.allEvents.find((e) => e.id === emailId);
+  if (!ev) {
+    setActiveMap('email', { force: true, emailId });
+    return;
+  }
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+  }
+  try {
+    await postEmailProject(ev, { mode: 'link', slug }, { skipNavigate: true });
+    removeReviewAlertBanner(emailId);
+    updateInboxBadgesFromState();
+    if (emailState.activeId === emailId) renderEmailPanel();
+  } catch (e) {
+    await osAlert({ title: 'Could not add to project', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
+  }
+}
+
+async function rejectSuggestedProjectMatch(item, btn) {
+  const emailId = item?.emailId;
+  if (!emailId) return;
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(emailId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rejectProjectMatch: true }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    removeReviewAlertBanner(emailId);
+    updateInboxBadgesFromState();
+    if (emailState.activeId === emailId) renderEmailPanel();
+  } catch (e) {
+    await osAlert({ title: 'Could not dismiss match', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
   }
 }
 
@@ -19191,6 +19303,22 @@ function renderEmailPanel() {
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
         `<button type="button" class="em-schedule-action-primary de-new-btn">Confirm</button>` +
         `<button type="button" class="em-schedule-action-secondary de-new-btn">Reschedule</button>` +
+      `</div>`;
+  } else if (isProjectMatchSuggested(ev)) {
+    const attachmentCount = Array.isArray(ev.attachments) ? ev.attachments.length : 0;
+    const attachmentHint =
+      attachmentCount > 0
+        ? `${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'} will be added to the project.`
+        : 'No attachments on this message.';
+    detailHtml +=
+      `<div class="em-book-card em-project-match-card">` +
+        `<div class="em-book-card-title">Possible project match</div>` +
+        `<div class="em-book-card-when">${escHtml(ev.jobTitle || ev.jobSlug || 'Project')}</div>` +
+        `<div class="em-book-card-note">Add this email's content to the project notes? ${escHtml(attachmentHint)}</div>` +
+      `</div>` +
+      `<div class="em-schedule-actions em-schedule-actions-confirm">` +
+        `<button type="button" class="em-schedule-action-primary de-new-btn em-project-match-add">Add to project</button>` +
+        `<button type="button" class="em-schedule-action-secondary de-new-btn em-project-match-reject">Not this project</button>` +
       `</div>`;
   } else if (isEmailSchedulingRequest(ev) && !isEmailBooked(ev)) {
     detailHtml +=

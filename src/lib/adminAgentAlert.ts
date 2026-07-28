@@ -209,6 +209,7 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
 
   const headers: Record<string, string> = {
     project_created: '📁 New project created automatically',
+    project_match_suggested: '📎 Possible project match — review needed',
     meeting_booked: '📅 Meeting auto-booked from email',
     meeting_request: '📅 Meeting request — review needed',
     meeting_conflict: '⚠️ Meeting time conflict',
@@ -226,6 +227,11 @@ export async function notifyAdminAgentOfEmailAutomation(opts: {
     messageLines.push(
       '',
       'A project was created automatically from this inbound email. Review it on the home dashboard or Email tab — a branded acknowledgment was sent to the client.',
+    );
+  } else if (kind === 'project_match_suggested') {
+    messageLines.push(
+      '',
+      'This inbound email may belong on an existing project. Open the home dashboard or Email tab to add the message content and any attachments, or dismiss if it is not a match.',
     );
   } else if (kind === 'meeting_booked') {
     messageLines.push(

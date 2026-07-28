@@ -31,6 +31,7 @@ import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
 import { detectProjectClientReply } from './emailProjectReply';
+import { isSuggestedProjectMatch } from './emailAutomation';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import { extractVerificationCodeFromEmail } from './emailOtpParser';
 import { findPriorInboxInThread, shouldSuppressDuplicateMeetingAlert } from './emailThreadDedup';
@@ -216,7 +217,16 @@ export function shouldSendInboxPush(opts: {
   automationKind?: string | null;
 }): boolean {
   if (opts.isProjectReply) return true;
-  if (opts.automationKind === 'meeting_booked' || opts.automationKind === 'project_created' || opts.automationKind === 'meeting_followup' || opts.automationKind === 'meeting_request' || opts.automationKind === 'meeting_conflict') return true;
+  if (
+    opts.automationKind === 'meeting_booked' ||
+    opts.automationKind === 'project_created' ||
+    opts.automationKind === 'project_match_suggested' ||
+    opts.automationKind === 'meeting_followup' ||
+    opts.automationKind === 'meeting_request' ||
+    opts.automationKind === 'meeting_conflict'
+  ) {
+    return true;
+  }
 
   const action = opts.action.toLowerCase();
   const status = opts.ruleStatus.toUpperCase();
@@ -483,6 +493,13 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     inboxStatus = 'RECEIPT';
   }
 
+  if (
+    !automationKind &&
+    isSuggestedProjectMatch({ action, jobSlug, category, automationKind: null })
+  ) {
+    automationKind = 'project_match_suggested';
+  }
+
   let skipAutoBook = false;
 
   if (!suppressedAsJunk && hasFeature('scheduling') && action !== 'project_reply' && senderEmail.includes('@')) {
@@ -694,7 +711,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       console.warn('[email] project link failed', e),
     );
 
-    if (email.resendEmailId) {
+    const deferAttachments = automationKind === 'project_match_suggested';
+    if (email.resendEmailId && !deferAttachments) {
       void importEmailAttachmentsToProject({
         emailId: inboxRecord.id,
         resendEmailId: email.resendEmailId,
@@ -822,7 +840,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
-      : automationKind === 'project_created'
+      : automationKind === 'project_match_suggested'
+        ? `Possible project match: ${jobTitle ?? contactName ?? senderEmail}`
+        : automationKind === 'project_created'
         ? `New project: ${contactName ?? jobTitle ?? senderEmail}`
         : automationKind === 'meeting_followup'
           ? 'Meeting follow-up'
@@ -837,9 +857,15 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
             : category === 'client'
               ? `Client: ${contactName ?? senderEmail}`
               : summary.slice(0, 60);
+    const attachmentCount = attachments.length;
     const pushBody = isProjectReply
       ? `${jobTitle ? `${jobTitle} — ` : ''}${summary}`.slice(0, 240)
-      : automationKind === 'project_created'
+      : automationKind === 'project_match_suggested'
+        ? `Looks like "${jobTitle ?? 'a project'}" — add content${attachmentCount ? ` and ${attachmentCount} attachment${attachmentCount === 1 ? '' : 's'}` : ''}?`.slice(
+            0,
+            240,
+          )
+        : automationKind === 'project_created'
         ? `${contactName ?? senderEmail} emailed requesting work. Review the new project.`.slice(0, 240)
         : automationKind === 'meeting_followup'
           ? summary.slice(0, 240)

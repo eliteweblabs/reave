@@ -94,6 +94,26 @@ async function jobTitle(slug: string): Promise<string> {
   return doc?.title ?? slug;
 }
 
+export async function unlinkProjectItem(
+  jobSlug: string,
+  linkType: ProjectLinkType,
+  linkId: string,
+): Promise<boolean> {
+  if (!jobSlug?.trim() || !linkId?.trim()) return false;
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return false;
+    await pool.query(
+      `DELETE FROM project_links WHERE job_slug = $1 AND link_type = $2 AND link_id = $3`,
+      [jobSlug.trim(), linkType, linkId.trim()],
+    );
+    return true;
+  } catch (e) {
+    console.error('[project-links] unlink failed', e);
+    return false;
+  }
+}
+
 export async function linkProjectItem(
   jobSlug: string,
   linkType: ProjectLinkType,
