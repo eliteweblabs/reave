@@ -66,9 +66,25 @@ function ruleCategory(status: string): EmailCategory {
   if (s === 'DELETE') return 'junk';
   if (s === 'AUTO_ARCHIVED') return 'junk';
   if (s === 'RECEIPT') return 'receipt';
-  if (s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK' || s === 'ANTHROPIC_BILLING')
-    return 'alert';
+  if (isOperationalAlertStatus(s)) return 'alert';
   return 'review';
+}
+
+function isOperationalAlertStatus(status: string): boolean {
+  const s = status.toUpperCase();
+  return s.startsWith('RAILWAY') || s === 'DOWN' || s === 'NEEDS_CHECK' || s === 'ANTHROPIC_BILLING';
+}
+
+function shouldSkipAutoReceipt(opts: {
+  category: EmailCategory;
+  ruleStatus: string;
+  isProjectReply: boolean;
+}): boolean {
+  if (opts.isProjectReply) return true;
+  if (opts.category === 'junk') return true;
+  if (opts.category === 'alert') return true;
+  if (isOperationalAlertStatus(opts.ruleStatus)) return true;
+  return false;
 }
 
 type AiTriage = {
@@ -469,7 +485,13 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   let inboxStatus = isProjectReply ? 'PROJECT_REPLY' : ruleResult.status;
-  if (!isProjectReply && category !== 'junk') {
+  if (
+    !shouldSkipAutoReceipt({
+      category,
+      ruleStatus: ruleResult.status,
+      isProjectReply,
+    })
+  ) {
     const autoReceipt = shouldAutoFileAsReceipt({
       from,
       subject: email.subject ?? '',

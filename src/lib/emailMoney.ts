@@ -56,9 +56,17 @@ export function formatUsdAmount(amount: number): string {
   return amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
+/** Newsletter / notification boilerplate — not payment receipts. */
+const NEWSLETTER_RECEIVED_BOILERPLATE =
+  /\byou\s+received\s+this\s+(?:email|message|notification)\s+because\b/i;
+
 /** Payment/receipt language — used with a detected dollar amount to auto-file tax receipts. */
 const RECEIPT_HINT =
-  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|payment\s+of|received\s+a\s+payment|you\s+(?:just\s+)?received(?:\s+a\s+payment)?|order\s+confirm(?:ation)?|paid|purchase|purchased|transaction|charged|billing\s+statement|amount\s+paid|you\s+paid)\b/i;
+  /\b(?:receipt|invoice|invoiced|payment\s+confirm(?:ation|ed)?|payment\s+of|received\s+a\s+payment|you\s+(?:just\s+)?received\s+a\s+payment|amount\s+paid|you\s+paid|billing\s+statement|your\s+receipt\s+from|your\s+invoice\s+from)\b/i;
+
+/** Strong payment wording that overrides newsletter boilerplate in the same message. */
+const STRONG_RECEIPT_HINT =
+  /\b(?:receipt|invoice|payment\s+confirm(?:ation|ed)?|payment\s+of|amount\s+paid|you\s+paid|received\s+a\s+payment)\b/i;
 
 const PAYMENT_PROCESSOR_FROM =
   /@(?:[\w.-]+\.)?(?:stripe|paypal|squareup|square|cash\.app)\.com\b/i;
@@ -94,7 +102,13 @@ export function shouldAutoFileAsReceipt(ev: {
   const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
   const amount = extractMonetaryAmountFromText(text);
   if (amount == null) return null;
-  if (looksLikePaymentNotification(ev) || RECEIPT_HINT.test(text)) {
+  if (looksLikePaymentNotification(ev)) {
+    return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
+  }
+  if (NEWSLETTER_RECEIVED_BOILERPLATE.test(text) && !STRONG_RECEIPT_HINT.test(text)) {
+    return null;
+  }
+  if (RECEIPT_HINT.test(text)) {
     return { amount, routeNote: `Tax receipt — ${formatUsdAmount(amount)}` };
   }
   return null;

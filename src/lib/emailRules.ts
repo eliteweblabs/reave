@@ -161,8 +161,6 @@ export const DEFAULT_RULES: EmailRule[] = [
       'Your invoice from',
       'You paid',
       'Amount paid',
-      'Transaction complete',
-      'Order confirmation',
     ],
     matchMode: 'any',
     fields: ['subject', 'body'],
