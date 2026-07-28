@@ -252,6 +252,8 @@ const expandProjectSlug = (() => {
   return clientJobs.some((j) => j.slug === raw) ? raw : '';
 })();
 
+const trackToken = Astro.url.searchParams.get('track')?.trim() || '';
+
 let clientUptimeMonitors: Awaited<ReturnType<typeof getClientUptimeView>>['monitors'] = [];
 let clientUptimeIncidents: Awaited<ReturnType<typeof getClientUptimeView>>['incidents'] = [];
 if (contact && uid && hasFeature('uptime_monitoring')) {
@@ -524,6 +526,7 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
               active={initialTab === 'work'}
               autoExpand={clientJobs.length === 1}
               expandSlug={expandProjectSlug}
+              trackToken={trackToken}
             />
           )}
 

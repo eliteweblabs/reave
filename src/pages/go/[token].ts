@@ -1,60 +1,38 @@
 /**
- * GET /go/:token — record a client click and redirect to the destination URL.
- * Clicks by signed-in users (owner previewing before sending) are not counted.
+ * GET /go/:token — redirect to the share destination. View tracking happens on the
+ * portal after deep-link dwell time or when the client expands a project accordion.
  */
 import type { APIRoute } from 'astro';
-import { getContact } from '../../lib/contactApi';
-import { recordShareOpenEngagement } from '../../lib/engagementNotifications';
-import { getTrackedLink, recordTrackedLinkClick } from '../../lib/linkTracking';
-import { isLinkPreviewRequest, isOwnerPreviewRequest, isStaffSession } from '../../lib/staffSession';
-import { storeReadWork } from '../../lib/workStore';
+import { getTrackedLink } from '../../lib/linkTracking';
+import { requestOrigin } from '../../lib/requestOrigin';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params, request, locals }) => {
+function redirectUrlWithTrack(destination: string, token: string, request: Request): string {
+  try {
+    const base = destination.startsWith('http') ? undefined : requestOrigin(request);
+    const url = new URL(destination, base);
+    url.searchParams.set('track', token);
+    return url.toString();
+  } catch {
+    const sep = destination.includes('?') ? '&' : '?';
+    return `${destination}${sep}track=${encodeURIComponent(token)}`;
+  }
+}
+
+export const GET: APIRoute = async ({ params, request }) => {
   const token = (params.token ?? '').trim();
   if (!token) return new Response('Not found', { status: 404 });
 
   const existing = await getTrackedLink(token);
   if (!existing) return new Response('Not found', { status: 404 });
 
-  // Don't count/mark as viewed for staff preview, ?preview=1, or link unfurl bots.
-  const skipTracking =
-    isStaffSession(locals) || isOwnerPreviewRequest(request) || isLinkPreviewRequest(request);
-  if (!skipTracking) {
-    const wasUnopened = !existing.first_clicked_at;
-    await recordTrackedLinkClick(token, {
-      userAgent: request.headers.get('user-agent'),
-      referer: request.headers.get('referer'),
-    });
-
-    if (wasUnopened) {
-      void (async () => {
-        const [contactRes, job] = await Promise.all([
-          getContact(existing.contact_uid).catch(() => null),
-          storeReadWork(existing.job_slug).catch(() => null),
-        ]);
-        const contactName =
-          contactRes && contactRes.ok
-            ? contactRes.data.name?.trim() || 'Client'
-            : 'Client';
-        const jobTitle = job?.title?.trim() || existing.job_slug;
-        await recordShareOpenEngagement({
-          contactUid: existing.contact_uid,
-          contactName,
-          jobSlug: existing.job_slug,
-          jobTitle,
-          linkToken: token,
-          destination: existing.destination,
-        });
-      })();
-    }
-  }
+  const location = redirectUrlWithTrack(existing.destination, token, request);
 
   // Mutable headers — Response.redirect() is immutable and Astro appends
   // Set-Cookie on GET (not HEAD), which would otherwise 500 the request.
   return new Response(null, {
     status: 302,
-    headers: { Location: existing.destination },
+    headers: { Location: location },
   });
 };

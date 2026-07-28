@@ -267,6 +267,52 @@ export async function recordTrackedLinkClick(
   return row;
 }
 
+export async function findLatestUnopenedTrackedLink(
+  jobSlug: string,
+  contactUid: string,
+): Promise<TrackedLinkRecord | null> {
+  const slug = jobSlug.trim();
+  const uid = contactUid.trim();
+  if (!slug || !uid) return null;
+  const links = await listTrackedLinksForJob(slug, { limit: 20 });
+  return links.find((l) => l.contact_uid === uid && !l.first_clicked_at) ?? null;
+}
+
+export type RecordProjectShareViewResult =
+  | { ok: true; recorded: true; link: TrackedLinkRecord; wasFirstOpen: boolean }
+  | { ok: true; recorded: false };
+
+/** Mark a project share as viewed from the client portal (accordion or deep-link dwell). */
+export async function recordProjectShareView(opts: {
+  jobSlug: string;
+  contactUid: string;
+  token?: string | null;
+  meta?: TrackedLinkClickMeta;
+}): Promise<RecordProjectShareViewResult> {
+  const jobSlug = opts.jobSlug.trim();
+  const contactUid = opts.contactUid.trim();
+  if (!jobSlug || !contactUid) return { ok: true, recorded: false };
+
+  let token = opts.token?.trim() || '';
+  if (token) {
+    const link = await getTrackedLink(token);
+    if (!link || link.job_slug !== jobSlug || link.contact_uid !== contactUid) {
+      return { ok: true, recorded: false };
+    }
+  } else {
+    const pending = await findLatestUnopenedTrackedLink(jobSlug, contactUid);
+    if (!pending) return { ok: true, recorded: false };
+    token = pending.token;
+  }
+
+  const existing = await getTrackedLink(token);
+  if (!existing) return { ok: true, recorded: false };
+  const wasFirstOpen = !existing.first_clicked_at;
+  const updated = await recordTrackedLinkClick(token, opts.meta);
+  if (!updated) return { ok: true, recorded: false };
+  return { ok: true, recorded: true, link: updated, wasFirstOpen };
+}
+
 export async function listTrackedLinksForJob(
   jobSlug: string,
   opts?: { limit?: number },

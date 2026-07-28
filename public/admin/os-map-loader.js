@@ -17438,7 +17438,7 @@ function reaveShareKindLabel(kind) {
 async function resolveReaveShareUrl(state) {
   if (state.url) return state.url;
   // Copy/preview/share use direct portal URLs — tracked links are created server-side
-  // on send only, so link-preview bots don't mark shares as viewed prematurely.
+  // on send only. Views are recorded on the portal after deep-link dwell or accordion expand.
   if (state.recipient?.contactUid) {
     return clientPortalShareUrl(state.recipient.contactUid, state.tab || (state.kind === 'work' ? 'work' : undefined));
   }
