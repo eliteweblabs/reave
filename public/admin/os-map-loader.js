@@ -10427,6 +10427,139 @@ async function unmarkEmailReceipt(ev) {
   }
 }
 
+function renderFindMissingReceiptsBar() {
+  const bar = document.createElement('div');
+  bar.className = 'em-find-receipts-bar';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'em-find-receipts-btn';
+  btn.textContent = 'Find missing receipts';
+  btn.title = 'Scan Review and other tabs for tax receipts that were unmarked or mis-filed';
+  btn.addEventListener('click', () => void findMissingReceipts());
+  bar.appendChild(btn);
+  return bar;
+}
+
+function showMissingReceiptsDialog(candidates) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) {
+    return Promise.resolve([]);
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') finish([]);
+    };
+
+    titleEl.textContent = 'Restore missing receipts';
+    bodyEl.innerHTML =
+      `<p class="em-receipt-recover-intro">` +
+      `${candidates.length} message${candidates.length === 1 ? '' : 's'} look like tax receipts but ${candidates.length === 1 ? 'is' : 'are'} not filed under Receipts. ` +
+      `Messages deleted from the inbox log cannot be recovered here — check Proton/Gmail for those.` +
+      `</p>` +
+      `<div class="em-receipt-pick-list" role="list">` +
+      candidates
+        .map(
+          (c) =>
+            `<label class="em-receipt-pick" role="listitem">` +
+            `<input type="checkbox" checked data-id="${escHtml(c.id)}" />` +
+            `<span class="em-receipt-pick-copy">` +
+            `<strong>${escHtml(c.amountLabel)}</strong>` +
+            `<span class="em-receipt-pick-meta">${escHtml(formatChatDate(c.receivedAt))} · ${escHtml(parseSenderEmail(c.from) || c.from)}</span>` +
+            `<span class="em-receipt-pick-summary">${escHtml(c.summary || c.subject || '(no summary)')}</span>` +
+            `<span class="em-receipt-pick-reason">${escHtml(c.reason)}</span>` +
+            `</span>` +
+            `</label>`,
+        )
+        .join('') +
+      `</div>`;
+
+    actionsEl.innerHTML = '';
+    const mkBtn = (label, cls, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `os-dialog-btn ${cls}`.trim();
+      btn.textContent = label;
+      btn.addEventListener('click', onClick);
+      actionsEl.appendChild(btn);
+      return btn;
+    };
+
+    mkBtn('Cancel', 'os-dialog-btn--ghost', () => finish([]));
+    mkBtn('File selected', 'os-dialog-btn--primary', () => {
+      const ids = [...bodyEl.querySelectorAll('input[type="checkbox"]:checked')]
+        .map((el) => el.getAttribute('data-id'))
+        .filter(Boolean);
+      finish(ids);
+    });
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, () => finish([]), true);
+    document.addEventListener('keydown', onKey);
+    bindOsDialogKeyboardLayout();
+  });
+}
+
+async function findMissingReceipts() {
+  closeOpenSwipeRow();
+  try {
+    const res = await fetch('/api/email/inbox/suggest-receipts?days=30', { cache: 'no-store' });
+    const data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+    if (!data.candidates?.length) {
+      await osAlert({
+        title: 'No missing receipts found',
+        bodyHtml:
+          '<p>No messages in the last 30 days look like tax receipts.</p>' +
+          '<p class="em-hint">If you deleted messages from the Receipts tab, they are gone from the inbox log — the originals should still be in Proton/Gmail.</p>',
+      });
+      return;
+    }
+
+    const ids = await showMissingReceiptsDialog(data.candidates);
+    if (!ids.length) return;
+
+    const fileRes = await fetch('/api/email/inbox/suggest-receipts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const fileData = await readApiJson(fileRes);
+    if (!fileRes.ok) throw new Error(fileData.error || `HTTP ${fileRes.status}`);
+
+    emailState.inboxFilter = 'receipt';
+    emailState.activeId = null;
+    emailState.composing = false;
+    getEmailPanel()?.classList.remove('em-pane-active');
+    await loadEmailTab(true);
+
+    const filedCount = fileData.filed?.length ?? 0;
+    await osAlert({
+      title: filedCount ? 'Receipts restored' : 'Nothing filed',
+      bodyHtml:
+        filedCount > 0
+          ? `<p>Filed ${filedCount} message${filedCount === 1 ? '' : 's'} under Receipts.</p>`
+          : '<p>No messages were updated.</p>',
+    });
+  } catch (e) {
+    await osAlert({ title: 'Receipt scan failed', bodyHtml: escHtml(e.message) });
+  }
+}
+
 /** Prefer the next (older) message in the current filter; else the previous (newer). */
 function adjacentEmailIdAfterRemove(id) {
   const list = filteredInboxEvents();
@@ -10830,7 +10963,10 @@ function renderEmailSidebar(savedFilterScroll = 0) {
         renderEmailPanel();
       },
     },
-    below: renderEmailFilterTabs(savedFilterScroll),
+    below:
+      emailState.inboxFilter === 'receipt' || emailState.inboxFilter === 'review'
+        ? [renderEmailFilterTabs(savedFilterScroll), renderFindMissingReceiptsBar()]
+        : renderEmailFilterTabs(savedFilterScroll),
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
@@ -10858,7 +10994,8 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     } else if (emailState.inboxFilter === 'routed') {
       emptyBody = 'No archived messages yet.';
     } else if (emailState.inboxFilter === 'receipt') {
-      emptyBody = 'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt.';
+      emptyBody =
+        'No tax receipts filed yet. Swipe a message with a dollar amount and tap Receipt, or use <strong>Find missing receipts</strong> above.';
     } else {
       emptyBody =
         'No inbound email yet.<br><span class="em-hint">Forward or BCC copies to your Resend address (e.g. ' +

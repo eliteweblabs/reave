@@ -663,6 +663,52 @@ export async function storeListEmailInbox(
   return listFromFile(limit, hideJunk);
 }
 
+const RECEIPT_SCAN_SELECT = `${INBOX_LIST_SELECT}, body_text`;
+
+async function listReceiptScanFromPg(limit: number, since?: Date): Promise<EmailInboxRecord[]> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const sinceFilter = since ? 'AND received_at >= $2' : '';
+    const params: unknown[] = since ? [limit, since.toISOString()] : [limit];
+    const { rows } = await pool.query(
+      `SELECT ${RECEIPT_SCAN_SELECT}
+       FROM email_inbox
+       WHERE category NOT IN ('receipt', 'junk') ${sinceFilter}
+       ORDER BY received_at DESC
+       LIMIT $1`,
+      params,
+    );
+    return rows.map(rowToRecord);
+  } catch (e) {
+    console.error('[email-inbox] receipt scan list failed', e);
+    return [];
+  }
+}
+
+function listReceiptScanFromFile(limit: number, since?: Date): EmailInboxRecord[] {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return [];
+  const sinceMs = since ? since.getTime() : null;
+  return parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => {
+      if (e.category === 'receipt' || e.category === 'junk') return false;
+      if (sinceMs != null && new Date(e.receivedAt).getTime() < sinceMs) return false;
+      return true;
+    })
+    .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+    .slice(0, limit);
+}
+
+/** Inbox rows (with body text) that are not already filed as receipts — for recovery scan. */
+export async function storeListEmailInboxReceiptScan(
+  limit = 500,
+  since?: Date,
+): Promise<EmailInboxRecord[]> {
+  if (databaseUrl()) return listReceiptScanFromPg(limit, since);
+  return listReceiptScanFromFile(limit, since);
+}
+
 export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
   if (databaseUrl()) return appendToPg(input);
   return appendToFile(input);

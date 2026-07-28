@@ -113,3 +113,86 @@ export function shouldAutoFileAsReceipt(ev: {
   }
   return null;
 }
+
+export type ReceiptCandidate = {
+  amount: number;
+  routeNote: string;
+  reason: string;
+  score: number;
+};
+
+function isOperationalAlertRecord(ev: { category?: string; status?: string }): boolean {
+  const category = String(ev.category || '').toLowerCase();
+  if (category === 'alert') return true;
+  const status = String(ev.status || '').toUpperCase();
+  return (
+    status.startsWith('RAILWAY') ||
+    status === 'DOWN' ||
+    status === 'NEEDS_CHECK' ||
+    status === 'ANTHROPIC_BILLING'
+  );
+}
+
+/** Score an inbox row for manual receipt recovery (Review/All messages not already filed). */
+export function suggestReceiptCandidate(ev: {
+  from?: string;
+  subject?: string;
+  summary?: string;
+  bodySnippet?: string;
+  bodyText?: string;
+  category?: string;
+  status?: string;
+  routeNote?: string;
+}): ReceiptCandidate | null {
+  const category = String(ev.category || '').toLowerCase();
+  if (category === 'receipt' || category === 'junk') return null;
+
+  const auto = shouldAutoFileAsReceipt(ev);
+  if (auto) {
+    return {
+      amount: auto.amount,
+      routeNote: auto.routeNote,
+      reason: 'Payment/receipt language with dollar amount',
+      score: 90,
+    };
+  }
+
+  if (isOperationalAlertRecord(ev) && !PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
+    return null;
+  }
+
+  const amount = extractMonetaryAmountFromEmail(ev);
+  if (amount == null) return null;
+
+  const text = [ev.subject, ev.summary, ev.bodyText, ev.bodySnippet].filter(Boolean).join('\n');
+  const subject = String(ev.subject || '');
+
+  if (PAYMENT_PROCESSOR_FROM.test(ev.from ?? '')) {
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      reason: 'Payment processor sender',
+      score: 85,
+    };
+  }
+
+  if (/\b(receipt|invoice|payment confirmation|amount paid|you paid)\b/i.test(subject)) {
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      reason: 'Receipt or invoice in subject',
+      score: 80,
+    };
+  }
+
+  if (STRONG_RECEIPT_HINT.test(text) && !NEWSLETTER_RECEIVED_BOILERPLATE.test(text)) {
+    return {
+      amount,
+      routeNote: `Tax receipt — ${formatUsdAmount(amount)}`,
+      reason: 'Strong payment wording in message',
+      score: 75,
+    };
+  }
+
+  return null;
+}

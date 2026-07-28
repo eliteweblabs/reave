@@ -5372,6 +5372,66 @@ const githubRepo = githubRepoSlug();
       .em-cat-internal { --em-item-accent: #a78bfa; color: #a78bfa; background: rgba(167,139,250,0.12); }
       .em-cat-review { --em-item-accent: #fbbf24; color: #fbbf24; background: rgba(251,191,36,0.12); }
       .em-cat-receipt { --em-item-accent: #34d399; color: #34d399; background: rgba(52,211,153,0.14); }
+      .em-find-receipts-bar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 0 12px 8px;
+      }
+      .em-find-receipts-btn {
+        border: 1px solid rgba(52,211,153,0.35);
+        background: rgba(52,211,153,0.1);
+        color: #34d399;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .em-find-receipts-btn:hover {
+        background: rgba(52,211,153,0.18);
+      }
+      .em-receipt-recover-intro {
+        margin: 0 0 12px;
+        color: var(--text-muted, #94a3b8);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+      .em-receipt-pick-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: min(52vh, 420px);
+        overflow: auto;
+      }
+      .em-receipt-pick {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(148,163,184,0.06);
+        cursor: pointer;
+      }
+      .em-receipt-pick input {
+        margin-top: 3px;
+        flex: 0 0 auto;
+      }
+      .em-receipt-pick-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+      .em-receipt-pick-meta,
+      .em-receipt-pick-reason {
+        font-size: 12px;
+        color: var(--text-muted, #94a3b8);
+      }
+      .em-receipt-pick-summary {
+        font-size: 13px;
+        line-height: 1.35;
+      }
       .em-cat-project { --em-item-accent: #c084fc; color: #c084fc; background: rgba(192,132,252,0.14); }
       .em-money-hint { color: #6ee7b7; background: rgba(52,211,153,0.1); font-variant-numeric: tabular-nums; }
       .em-book-pending { color: #2dd4bf; background: rgba(45,212,191,0.14); }
@@ -9118,6 +9178,6 @@ const githubRepo = githubRepoSlug();
       window.__craterFinanceUrl = craterFinanceUrl;
       window.__githubRepo = githubRepo;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728m"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728n"></script>
   </body>
 </html>
