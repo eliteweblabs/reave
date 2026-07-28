@@ -113,6 +113,11 @@ html {
   overflow: hidden;
 }
 
+.home-section--photo[data-home-section="about"] {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
 .home-section-inner {
   position: relative;
   z-index: 1;
