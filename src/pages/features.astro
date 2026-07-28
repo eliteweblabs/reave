@@ -617,8 +617,11 @@ const portalTabs = [
     </section>
 
     <section class="fx-list scroll-fade-in" aria-label="Core features">
-      <p class="fx-list-intro">
-        Start with the 90% — then open any section below. Every feature is live today.
+      <h2 class="fx-list-h2">Baseline baked in</h2>
+      <p class="fx-list-lead">
+        {company.name} comes with 90% of what you need on day zero. We customize the
+        other 10% to bridge the gaps in a spaghetti network of services — giving you
+        a truly unified, all-in-one business operating system.
       </p>
 
       <div class="acc-list" data-acc-list>
@@ -1371,11 +1374,24 @@ const portalTabs = [
 
   /* ---------- Section intros ---------- */
 
-  .fx-list-intro {
+  .fx-list-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
     text-align: center;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.45);
-    margin: 0 0 20px;
+  }
+
+  .fx-list-lead {
+    margin: 0 auto 28px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+    text-align: center;
+    font-family: var(--font-content);
   }
 
   /* ---------- Accordion ---------- */
