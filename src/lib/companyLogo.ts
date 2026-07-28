@@ -1,6 +1,9 @@
 /** Public URL for uploaded company logos (served from Postgres / local config). */
 export const BRANDING_LOGO_PATH = '/api/branding/logo';
 
+/** Square brand mark for Open Graph / Twitter cards — safe to replace without touching favicons or the header logo. */
+export const LOGO_ICON_OG_PATH = '/logo-icon-og.png';
+
 /** Public URL for uploaded square brand icons (favicons, avatars, PWA). */
 export const BRANDING_ICON_PATH = '/api/branding/icon';
 

@@ -2,6 +2,7 @@
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
 import { SITE } from "../config/site";
+import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { requestOrigin } from "../lib/requestOrigin";
 import "../styles/brand.css";
@@ -48,6 +49,10 @@ const canonical =
 const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
   : `${origin}${ogImage}`;
+/** Animated GIFs are a poor OG preview — fall back to the static logo mark. */
+const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
+  ? `${origin}${LOGO_ICON_OG_PATH}`
+  : ogImageAbsolute;
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
@@ -79,14 +84,14 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
-		<meta property="og:image" content={ogImageAbsolute} />
+		<meta property="og:image" content={ogImageSafe} />
 		<meta property="og:site_name" content={company.name} />
 
 		<!-- Twitter Card -->
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={pageTitle} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={ogImageAbsolute} />
+		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body>
 		<Header homepageLogoReveal={isIndexPage} homeAdminEntry={isIndexPage} />
