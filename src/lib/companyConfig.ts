@@ -323,7 +323,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   );
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
-  const fonts = resolveBrandFonts(stored?.fontDisplay, stored?.fontBody);
+  const fonts = resolveBrandFonts(stored);
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
     serverEnv('VAPI_ASSISTANT_ID'),
@@ -428,8 +428,9 @@ export type CompanyConfigInput = {
   socialYelp?: string;
   socialGoogleBusiness?: string;
   socialHiddenPlatforms?: string[] | string;
-  fontDisplay?: string;
-  fontBody?: string;
+  fontPrimary?: string;
+  fontSecondary?: string;
+  fontContent?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -482,11 +483,14 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
       out.socialHiddenPlatforms = parseHiddenSocialPlatforms(raw);
     }
   }
-  if (input.fontDisplay !== undefined) {
-    out.fontDisplay = normalizeBrandFontInput(input.fontDisplay, 'display');
+  if (input.fontPrimary !== undefined) {
+    out.fontPrimary = normalizeBrandFontInput(input.fontPrimary, 'primary');
   }
-  if (input.fontBody !== undefined) {
-    out.fontBody = normalizeBrandFontInput(input.fontBody, 'body');
+  if (input.fontSecondary !== undefined) {
+    out.fontSecondary = normalizeBrandFontInput(input.fontSecondary, 'secondary');
+  }
+  if (input.fontContent !== undefined) {
+    out.fontContent = normalizeBrandFontInput(input.fontContent, 'content');
   }
   return out;
 }

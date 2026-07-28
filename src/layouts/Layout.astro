@@ -5,6 +5,7 @@ import BrandFontHead from "../components/BrandFontHead.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { brandFontCssVars } from "../lib/brandFonts";
 import { requestOrigin } from "../lib/requestOrigin";
 import "../styles/brand.css";
 
@@ -61,10 +62,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 ---
 
 <!doctype html>
-<html
-	lang="en"
-	style={`--font-display: ${company.fonts.fontDisplay}; --font-body: ${company.fonts.fontBody};`}
->
+<html lang="en" style={brandFontCssVars(company.fonts)}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -114,7 +112,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		margin: 0;
 		width: 100%;
 		height: 100%;
-		font-family: var(--font-body);
+		font-family: var(--font-content);
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 		/*
@@ -134,7 +132,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 	h4,
 	h5,
 	h6 {
-		font-family: var(--font-display);
+		font-family: var(--font-primary);
 	}
 
 	.sr-only {

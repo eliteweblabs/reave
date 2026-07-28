@@ -5094,7 +5094,7 @@ function bindCompanyForm(root, company, fontCatalog) {
 
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
-  bindCompanyFontPreview(root, fontCatalog, company);
+  bindCompanyFontPreview(root, fontCatalog);
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -5435,8 +5435,12 @@ function brandFontsForRole(catalog, role) {
 
 function renderBrandFontOptions(catalog, role, selectedId) {
   const options = brandFontsForRole(catalog, role);
-  const fallback = role === 'display' ? 'space-grotesk' : 'mozilla-text';
-  const selected = selectedId || fallback;
+  const fallbacks = {
+    primary: 'space-grotesk',
+    secondary: 'space-grotesk',
+    content: 'mozilla-text',
+  };
+  const selected = selectedId || fallbacks[role] || 'space-grotesk';
   return options
     .map(
       (entry) =>
@@ -5445,24 +5449,38 @@ function renderBrandFontOptions(catalog, role, selectedId) {
     .join('');
 }
 
-function buildBrandFontsHref(catalog, displayId, bodyId) {
-  const display = (catalog || []).find((entry) => entry.id === displayId);
-  const body = (catalog || []).find((entry) => entry.id === bodyId);
-  if (!display || !body) return '';
+function buildBrandFontsHref(catalog, primaryId, secondaryId, contentId) {
+  const ids = [primaryId, secondaryId, contentId].filter(Boolean);
+  const entries = ids
+    .map((id) => (catalog || []).find((entry) => entry.id === id))
+    .filter(Boolean);
+  if (!entries.length) return '';
   const specs = new Map();
-  specs.set(display.family, display.googleSpec);
-  specs.set(body.family, body.googleSpec);
+  for (const entry of entries) {
+    specs.set(entry.family, entry.googleSpec);
+  }
   return `https://fonts.googleapis.com/css2?${[...specs.values()]
     .map((spec) => `family=${spec}`)
     .join('&')}&display=swap`;
 }
 
-function bindCompanyFontPreview(root, catalog, company) {
-  const displaySelect = root.querySelector('#company-fontDisplay');
-  const bodySelect = root.querySelector('#company-fontBody');
-  const previewDisplay = root.querySelector('.prof-font-preview-display');
-  const previewBody = root.querySelector('.prof-font-preview-body');
-  if (!displaySelect || !bodySelect || !previewDisplay || !previewBody) return;
+function bindCompanyFontPreview(root, catalog) {
+  const primarySelect = root.querySelector('#company-fontPrimary');
+  const secondarySelect = root.querySelector('#company-fontSecondary');
+  const contentSelect = root.querySelector('#company-fontContent');
+  const previewPrimary = root.querySelector('.prof-font-preview-primary');
+  const previewSecondary = root.querySelector('.prof-font-preview-secondary');
+  const previewContent = root.querySelector('.prof-font-preview-content');
+  if (
+    !primarySelect ||
+    !secondarySelect ||
+    !contentSelect ||
+    !previewPrimary ||
+    !previewSecondary ||
+    !previewContent
+  ) {
+    return;
+  }
 
   let fontLink = document.getElementById('company-font-preview-link');
   if (!(fontLink instanceof HTMLLinkElement)) {
@@ -5472,23 +5490,26 @@ function bindCompanyFontPreview(root, catalog, company) {
     document.head.appendChild(fontLink);
   }
 
+  const sansFallback = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+  const contentFallback = 'Georgia, "Times New Roman", serif';
+
   const update = () => {
-    const displayId = displaySelect.value;
-    const bodyId = bodySelect.value;
-    const display = (catalog || []).find((entry) => entry.id === displayId);
-    const body = (catalog || []).find((entry) => entry.id === bodyId);
-    const href = buildBrandFontsHref(catalog, displayId, bodyId);
+    const primaryId = primarySelect.value;
+    const secondaryId = secondarySelect.value;
+    const contentId = contentSelect.value;
+    const primary = (catalog || []).find((entry) => entry.id === primaryId);
+    const secondary = (catalog || []).find((entry) => entry.id === secondaryId);
+    const content = (catalog || []).find((entry) => entry.id === contentId);
+    const href = buildBrandFontsHref(catalog, primaryId, secondaryId, contentId);
     if (href) fontLink.href = href;
-    previewDisplay.style.fontFamily = display
-      ? `"${display.family}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-      : '';
-    previewBody.style.fontFamily = body
-      ? `"${body.family}", Georgia, "Times New Roman", serif`
-      : '';
+    previewPrimary.style.fontFamily = primary ? `"${primary.family}", ${sansFallback}` : '';
+    previewSecondary.style.fontFamily = secondary ? `"${secondary.family}", ${sansFallback}` : '';
+    previewContent.style.fontFamily = content ? `"${content.family}", ${contentFallback}` : '';
   };
 
-  displaySelect.addEventListener('change', update);
-  bodySelect.addEventListener('change', update);
+  primarySelect.addEventListener('change', update);
+  secondarySelect.addEventListener('change', update);
+  contentSelect.addEventListener('change', update);
   update();
 }
 
@@ -5546,21 +5567,26 @@ function renderCompanyPanel(company, fontCatalog) {
             `</div>` +
           `</div>` +
           `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
-          `<div class="prof-field-row">` +
-            `<div class="prof-field"><label for="company-fontDisplay">Heading font</label>` +
-            `<select id="company-fontDisplay" name="fontDisplay" aria-describedby="company-font-hint">` +
-              renderBrandFontOptions(fontCatalog, 'display', fonts.fontDisplayId) +
+          `<div class="prof-field-row prof-field-row--fonts">` +
+            `<div class="prof-field"><label for="company-fontPrimary">Primary font</label>` +
+            `<select id="company-fontPrimary" name="fontPrimary" aria-describedby="company-font-hint">` +
+              renderBrandFontOptions(fontCatalog, 'primary', fonts.fontPrimaryId) +
             `</select></div>` +
-            `<div class="prof-field"><label for="company-fontBody">Body font</label>` +
-            `<select id="company-fontBody" name="fontBody" aria-describedby="company-font-hint">` +
-              renderBrandFontOptions(fontCatalog, 'body', fonts.fontBodyId) +
+            `<div class="prof-field"><label for="company-fontSecondary">Secondary font</label>` +
+            `<select id="company-fontSecondary" name="fontSecondary" aria-describedby="company-font-hint">` +
+              renderBrandFontOptions(fontCatalog, 'secondary', fonts.fontSecondaryId) +
+            `</select></div>` +
+            `<div class="prof-field"><label for="company-fontContent">Content font</label>` +
+            `<select id="company-fontContent" name="fontContent" aria-describedby="company-font-hint">` +
+              renderBrandFontOptions(fontCatalog, 'content', fonts.fontContentId) +
             `</select></div>` +
           `</div>` +
           `<div class="prof-font-preview" aria-hidden="true">` +
-            `<p class="prof-font-preview-display">Runs the whole business</p>` +
-            `<p class="prof-font-preview-body">Contacts, billing, projects, and AI — one platform.</p>` +
+            `<p class="prof-font-preview-secondary">THE BUSINESS OS</p>` +
+            `<p class="prof-font-preview-primary">Runs the whole business</p>` +
+            `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
           `</div>` +
-          `<span id="company-font-hint" class="prof-hint prof-hint--block">Typography for public pages — headings, marketing copy, and feature lists. Changes apply after save.</span>` +
+          `<span id="company-font-hint" class="prof-hint prof-hint--block">Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as global <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>.</span>` +
           `<div class="prof-field"><label for="company-domain">Website domain</label>` +
           `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
           `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +

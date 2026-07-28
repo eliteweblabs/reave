@@ -64,10 +64,12 @@ export type StoredCompanyConfig = {
   socialYelp?: string | null;
   socialGoogleBusiness?: string | null;
   socialHiddenPlatforms?: string[] | null;
-  /** Admin-selected heading font id — see brandFonts.ts */
-  fontDisplay?: string | null;
-  /** Admin-selected body font id — see brandFonts.ts */
-  fontBody?: string | null;
+  /** Admin-selected primary (headline) font id — see brandFonts.ts */
+  fontPrimary?: string | null;
+  /** Admin-selected secondary (labels/UI) font id */
+  fontSecondary?: string | null;
+  /** Admin-selected content (body) font id */
+  fontContent?: string | null;
   updatedAt?: string | null;
 };
 
@@ -125,6 +127,9 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_place_id TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_geocoded_at TIMESTAMPTZ;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_display TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_body TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_primary TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_secondary TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_content TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -262,8 +267,9 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     socialYelp: str('socialYelp') || null,
     socialGoogleBusiness: str('socialGoogleBusiness') || null,
     socialHiddenPlatforms: parseHiddenSocialPlatforms(o.socialHiddenPlatforms),
-    fontDisplay: str('fontDisplay') || null,
-    fontBody: str('fontBody') || null,
+    fontPrimary: str('fontPrimary') || str('fontDisplay') || null,
+    fontSecondary: str('fontSecondary') || null,
+    fontContent: str('fontContent') || str('fontBody') || null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -338,6 +344,9 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     geo_geocoded_at: Date | string | null;
     font_display: string | null;
     font_body: string | null;
+    font_primary: string | null;
+    font_secondary: string | null;
+    font_content: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -349,7 +358,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_snapchat, social_discord, social_reddit, social_github, social_twitch,
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
-            font_display, font_body, updated_at
+            font_display, font_body, font_primary, font_secondary, font_content, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -401,8 +410,9 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             geocodedAt: row.geo_geocoded_at ? String(row.geo_geocoded_at) : null,
           }
         : null,
-    fontDisplay: row.font_display,
-    fontBody: row.font_body,
+    fontPrimary: row.font_primary ?? row.font_display,
+    fontSecondary: row.font_secondary ?? row.font_primary ?? row.font_display,
+    fontContent: row.font_content ?? row.font_body,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -455,6 +465,9 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        geo_geocoded_at = $41,
        font_display = $42,
        font_body = $43,
+       font_primary = $44,
+       font_secondary = $45,
+       font_content = $46,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -501,8 +514,11 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.geo?.lng ?? null,
       config.geo?.placeId ?? null,
       config.geo?.geocodedAt ? new Date(config.geo.geocodedAt) : null,
-      config.fontDisplay ?? null,
-      config.fontBody ?? null,
+      config.fontPrimary ?? null,
+      config.fontContent ?? null,
+      config.fontPrimary ?? null,
+      config.fontSecondary ?? null,
+      config.fontContent ?? null,
     ],
   );
   return true;

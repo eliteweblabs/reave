@@ -144,7 +144,7 @@ html {
 }
 
 .marketing-label {
-  font-family: var(--font-display);
+  font-family: var(--font-secondary);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.1em;
@@ -154,7 +154,7 @@ html {
 }
 
 .marketing-lead {
-  font-family: var(--font-body);
+  font-family: var(--font-content);
   font-size: 16px;
   line-height: 1.65;
   color: rgba(255, 255, 255, 0.62);
@@ -206,7 +206,7 @@ html {
 .home-section-inner p,
 .home-section-inner li,
 .home-section-inner blockquote {
-  font-family: var(--font-body);
+  font-family: var(--font-content);
   font-size: 15px;
   line-height: 1.7;
   color: rgba(255, 255, 255, 0.75);
