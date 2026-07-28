@@ -1,7 +1,7 @@
 /**
  * GET    /api/chats/:id — thread + messages
  * POST   /api/chats/:id — send a message { message } → runs Claude agent, persists reply
- * PATCH  /api/chats/:id — rename thread { title } or archive { archived: boolean }
+ * PATCH  /api/chats/:id — rename { title }, archive { archived }, link project { linkJobSlug }, finalize title { finalizeTitle }
  * DELETE /api/chats/:id — delete thread and all messages
  */
 
@@ -42,7 +42,7 @@ import { getAgentProgress } from '../../../lib/agentProgress';
 import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import { pumpAgentStream } from '../../../lib/chatAgentPump';
 import type { ChatTurn } from '../../../lib/chatTypes';
-import { listJobsForItem } from '../../../lib/projectLinks';
+import { listJobsForItem, linkProjectItem } from '../../../lib/projectLinks';
 import { serverEnv } from '../../../lib/serverEnv';
 import {
   promoteChatDocsToLinkedProjects,
@@ -494,13 +494,21 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const title = body.title == null ? '' : String(body.title).trim();
   const hasArchived = typeof body.archived === 'boolean';
   const hasFinalizeTitle = body.finalizeTitle === true;
+  const linkJobSlug = String(body.linkJobSlug ?? body.link_job_slug ?? '').trim() || null;
 
-  if (!title && !hasArchived && !hasFinalizeTitle) {
-    return json({ ok: false, error: 'title, archived, or finalizeTitle is required' }, 400);
+  if (!title && !hasArchived && !hasFinalizeTitle && !linkJobSlug) {
+    return json({ ok: false, error: 'title, archived, linkJobSlug, or finalizeTitle is required' }, 400);
   }
 
   const thread = await storeGetChatThread(userId, id);
   if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+
+  if (linkJobSlug) {
+    const linked = await linkProjectItem(linkJobSlug, 'chat', id);
+    if (!linked) return json({ ok: false, error: 'Failed to link project' }, 500);
+    const linked_jobs = await listJobsForItem('chat', id);
+    return json({ ok: true, id, linked_jobs });
+  }
 
   let currentTitle = thread.title;
 

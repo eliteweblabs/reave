@@ -1,0 +1,417 @@
+/**
+ * Alternate focus chat skin — minimal full-screen chats with a speed-dial FAB.
+ * Uses the same agent chat React panel as admin (`window.__reaveAgentChat`).
+ */
+(function focusChatBoot() {
+  const root = document.getElementById('focus-root');
+  if (!root) return;
+
+  const companyName = root.dataset.companyName || 'Assistant';
+  const initialChatId = (root.dataset.chatId || '').trim();
+
+  /** @type {{ activeId: string|null, messages: any[], linkedJobs: {slug:string,title:string}[], threads: any[], dialOpen: boolean, recentOpen: boolean }} */
+  const state = {
+    activeId: null,
+    messages: [],
+    linkedJobs: [],
+    threads: [],
+    dialOpen: false,
+    recentOpen: false,
+  };
+
+  const els = {
+    idle: document.getElementById('focus-idle'),
+    chat: document.getElementById('focus-chat'),
+    threadHost: document.getElementById('focus-thread-root'),
+    header: document.getElementById('focus-header'),
+    projectChips: document.getElementById('focus-project-chips'),
+    backBtn: document.getElementById('focus-back'),
+    addProjectBtn: document.getElementById('focus-add-project'),
+    dial: document.getElementById('focus-dial'),
+    fab: document.getElementById('focus-fab'),
+    dialActions: /** @type {NodeListOf<HTMLButtonElement>} */ (
+      document.querySelectorAll('[data-focus-dial-action]')
+    ),
+    projectPrompt: document.getElementById('focus-project-prompt'),
+    projectPicker: document.getElementById('focus-project-picker'),
+    projectSearch: /** @type {HTMLInputElement|null} */ (document.getElementById('focus-project-search')),
+    projectList: document.getElementById('focus-project-list'),
+    recentSheet: document.getElementById('focus-recent'),
+    recentList: document.getElementById('focus-recent-list'),
+    overlayBackdrop: document.getElementById('focus-overlay-backdrop'),
+  };
+
+  /** @type {(() => void)|null} */
+  let pickerResolve = null;
+  /** @type {'new'|'existing'|null} */
+  let pendingProjectKind = null;
+
+  async function readApiJson(res) {
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = typeof data.error === 'string' ? data.error : `Request failed (${res.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  function setDialOpen(open) {
+    state.dialOpen = open;
+    els.dial?.classList.toggle('open', open);
+    els.fab?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function showOverlay(el) {
+    els.overlayBackdrop?.removeAttribute('hidden');
+    el?.removeAttribute('hidden');
+    requestAnimationFrame(() => el?.classList.add('open'));
+  }
+
+  function hideOverlay(el) {
+    el?.classList.remove('open');
+    els.projectPrompt?.setAttribute('hidden', '');
+    els.projectPicker?.setAttribute('hidden', '');
+    els.recentSheet?.setAttribute('hidden', '');
+    state.recentOpen = false;
+    els.overlayBackdrop?.setAttribute('hidden', '');
+    pickerResolve = null;
+    pendingProjectKind = null;
+  }
+
+  function renderProjectChips() {
+    if (!els.projectChips) return;
+    els.projectChips.replaceChildren();
+    for (const job of state.linkedJobs) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'focus-project-chip';
+      chip.textContent = job.title || job.slug;
+      chip.title = job.slug;
+      chip.addEventListener('click', () => {
+        window.location.href = `/admin/?tab=work&slug=${encodeURIComponent(job.slug)}`;
+      });
+      els.projectChips.appendChild(chip);
+    }
+  }
+
+  function unmountThread() {
+    if (els.threadHost) window.__reaveAgentChat?.unmount(els.threadHost);
+  }
+
+  function mountThread() {
+    const chatApi = window.__reaveAgentChat;
+    if (!chatApi || !els.threadHost || !state.activeId) return;
+    chatApi.mount(els.threadHost, {
+      threadId: state.activeId,
+      companyName,
+      variant: 'focus',
+      initialMessages: state.messages,
+      onAgentRunChange: () => {},
+      onRefreshMessages: async () => {
+        if (!state.activeId) return;
+        try {
+          const res = await fetch(`/api/chats/${encodeURIComponent(state.activeId)}`, {
+            cache: 'no-store',
+          });
+          const data = await readApiJson(res);
+          state.messages = data.thread.messages || [];
+          state.linkedJobs = data.thread.linked_jobs || [];
+          renderProjectChips();
+          unmountThread();
+          mountThread();
+        } catch {
+          /* keep current view */
+        }
+      },
+      onTitleUpdate: (title) => {
+        const thread = state.threads.find((t) => t.id === state.activeId);
+        if (thread) thread.title = title;
+        syncRecentList();
+      },
+      onMessagesPersist: (userContent, assistantContent) => {
+        state.messages.push({ role: 'user', content: userContent });
+        state.messages.push({ role: 'assistant', content: assistantContent });
+      },
+      onLinkedJobsRefresh: () => {
+        void refreshLinkedJobs();
+      },
+    });
+  }
+
+  async function refreshLinkedJobs() {
+    if (!state.activeId) return;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(state.activeId)}`, {
+        cache: 'no-store',
+      });
+      const data = await readApiJson(res);
+      state.linkedJobs = data.thread.linked_jobs || [];
+      renderProjectChips();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function showChatView(show) {
+    els.idle?.toggleAttribute('hidden', show);
+    els.chat?.toggleAttribute('hidden', !show);
+    els.header?.toggleAttribute('hidden', !show);
+    document.body.classList.toggle('focus-chat-active', show);
+  }
+
+  async function openChat(threadId, threadMeta) {
+    state.activeId = threadId;
+    setDialOpen(false);
+    hideOverlay(els.projectPrompt);
+    hideOverlay(els.projectPicker);
+
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      state.messages = data.thread.messages || [];
+      state.linkedJobs = data.thread.linked_jobs || [];
+      if (threadMeta && !state.threads.some((t) => t.id === threadId)) {
+        state.threads.unshift(threadMeta);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not open chat');
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set('chat', threadId);
+    history.replaceState(null, '', url.pathname + url.search);
+
+    showChatView(true);
+    renderProjectChips();
+    unmountThread();
+    mountThread();
+  }
+
+  function closeChatView() {
+    unmountThread();
+    state.activeId = null;
+    state.messages = [];
+    state.linkedJobs = [];
+    showChatView(false);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('chat');
+    history.replaceState(null, '', url.pathname + url.search);
+  }
+
+  async function loadThreads() {
+    try {
+      const res = await fetch('/api/chats', { cache: 'no-store' });
+      const data = await readApiJson(res);
+      state.threads = data.threads || [];
+    } catch {
+      state.threads = [];
+    }
+  }
+
+  function syncRecentList() {
+    if (!els.recentList) return;
+    els.recentList.replaceChildren();
+    const items = state.threads.filter((t) => !t.archived).slice(0, 30);
+    if (!items.length) {
+      const empty = document.createElement('p');
+      empty.className = 'focus-recent-empty';
+      empty.textContent = 'No chats yet — tap + to start one.';
+      els.recentList.appendChild(empty);
+      return;
+    }
+    for (const t of items) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'focus-recent-item';
+      if (t.id === state.activeId) btn.classList.add('active');
+      const title = document.createElement('span');
+      title.className = 'focus-recent-title';
+      title.textContent = t.title?.trim() || 'New chat';
+      btn.appendChild(title);
+      if (t.linked_jobs?.length) {
+        const sub = document.createElement('span');
+        sub.className = 'focus-recent-sub';
+        sub.textContent =
+          t.linked_jobs.length === 1
+            ? t.linked_jobs[0].title || t.linked_jobs[0].slug
+            : `${t.linked_jobs.length} projects`;
+        btn.appendChild(sub);
+      }
+      btn.addEventListener('click', () => {
+        hideOverlay(els.recentSheet);
+        void openChat(t.id, t);
+      });
+      els.recentList.appendChild(btn);
+    }
+  }
+
+  async function createThread(sourceJobSlug) {
+    const payload = sourceJobSlug ? { sourceJobSlug } : {};
+    const res = await fetch('/api/chats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await readApiJson(res);
+    const thread = data.thread;
+    state.threads.unshift(thread);
+    return thread;
+  }
+
+  function beginNewChatFlow() {
+    setDialOpen(false);
+    pendingProjectKind = null;
+    showOverlay(els.projectPrompt);
+  }
+
+  async function finishNewChatWithProject(slug) {
+    try {
+      const thread = await createThread(slug || undefined);
+      await openChat(thread.id, thread);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not create chat');
+    }
+  }
+
+  async function linkProjectToActiveChat(slug) {
+    if (!state.activeId || !slug) return;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(state.activeId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linkJobSlug: slug }),
+      });
+      const data = await readApiJson(res);
+      state.linkedJobs = data.linked_jobs || [];
+      renderProjectChips();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Could not link project');
+    }
+  }
+
+  async function openProjectPicker(mode) {
+    /** @type {'pick'|'link'} */
+    const pickerMode = mode;
+    showOverlay(els.projectPicker);
+
+    let jobs = [];
+    try {
+      const res = await fetch('/api/work', { cache: 'no-store' });
+      const data = await readApiJson(res);
+      jobs = data.jobs || [];
+    } catch {
+      jobs = [];
+    }
+
+    function renderList(filter) {
+      if (!els.projectList) return;
+      els.projectList.replaceChildren();
+      const q = (filter || '').trim().toLowerCase();
+      const filtered = jobs.filter((j) => {
+        if (!q) return true;
+        const hay = `${j.title || ''} ${j.slug || ''} ${j.client || ''}`.toLowerCase();
+        return hay.includes(q);
+      });
+      if (!filtered.length) {
+        const empty = document.createElement('p');
+        empty.className = 'focus-picker-empty';
+        empty.textContent = q ? 'No matching projects.' : 'No projects yet.';
+        els.projectList.appendChild(empty);
+        return;
+      }
+      for (const job of filtered.slice(0, 80)) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'focus-picker-item';
+        const title = document.createElement('span');
+        title.className = 'focus-picker-title';
+        title.textContent = job.title || job.slug;
+        btn.appendChild(title);
+        if (job.client) {
+          const sub = document.createElement('span');
+          sub.className = 'focus-picker-sub';
+          sub.textContent = job.client;
+          btn.appendChild(sub);
+        }
+        btn.addEventListener('click', () => {
+          hideOverlay(els.projectPicker);
+          if (pickerMode === 'link') void linkProjectToActiveChat(job.slug);
+          else void finishNewChatWithProject(job.slug);
+        });
+        els.projectList.appendChild(btn);
+      }
+    }
+
+    renderList('');
+    if (els.projectSearch) {
+      els.projectSearch.value = '';
+      els.projectSearch.oninput = () => renderList(els.projectSearch?.value || '');
+      els.projectSearch.focus();
+    }
+  }
+
+  els.fab?.addEventListener('click', () => setDialOpen(!state.dialOpen));
+
+  els.dialActions.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.focusDialAction;
+      if (action === 'new') beginNewChatFlow();
+      else if (action === 'recent') {
+        setDialOpen(false);
+        syncRecentList();
+        showOverlay(els.recentSheet);
+        state.recentOpen = true;
+      } else if (action === 'admin') {
+        window.location.href = '/admin/?tab=chats';
+      }
+    });
+  });
+
+  els.backBtn?.addEventListener('click', () => closeChatView());
+
+  els.addProjectBtn?.addEventListener('click', () => {
+    void openProjectPicker('link');
+  });
+
+  document.querySelectorAll('[data-focus-project-kind]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const kind = btn.getAttribute('data-focus-project-kind');
+      if (kind === 'new') {
+        hideOverlay(els.projectPrompt);
+        void finishNewChatWithProject('');
+      } else if (kind === 'existing') {
+        hideOverlay(els.projectPrompt);
+        void openProjectPicker('pick');
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-focus-overlay-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      hideOverlay(els.projectPrompt);
+      hideOverlay(els.projectPicker);
+      hideOverlay(els.recentSheet);
+    });
+  });
+
+  els.overlayBackdrop?.addEventListener('click', () => {
+    hideOverlay(els.projectPrompt);
+    hideOverlay(els.projectPicker);
+    hideOverlay(els.recentSheet);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (state.dialOpen) setDialOpen(false);
+      else hideOverlay(els.projectPrompt);
+      hideOverlay(els.projectPicker);
+      hideOverlay(els.recentSheet);
+    }
+  });
+
+  void loadThreads().then(() => {
+    if (initialChatId) void openChat(initialChatId);
+  });
+})();

@@ -77,11 +77,13 @@ export type InstallConfig = {
   profileMenu: ProfileMenuKey[];
   /** Override homepage Vapi voice widget (else uses env / legacy rules). */
   homepageVoice?: boolean;
+  /** Minimal full-screen chat skin at `/focus` (speed-dial FAB, project-first new chats). */
+  chatFocusSkin?: boolean;
 };
 
 export type InstallConfigClient = Pick<
   InstallConfig,
-  'features' | 'footerNav' | 'profileMenu' | 'homepageVoice'
+  'features' | 'footerNav' | 'profileMenu' | 'homepageVoice' | 'chatFocusSkin'
 >;
 
 export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
@@ -235,6 +237,7 @@ function parseInstallConfig(raw: unknown): InstallConfig {
     footerNav: normalizeFooterNav(o.footerNav),
     profileMenu: normalizeProfileMenu(o.profileMenu),
     homepageVoice: typeof o.homepageVoice === 'boolean' ? o.homepageVoice : undefined,
+    chatFocusSkin: typeof o.chatFocusSkin === 'boolean' ? o.chatFocusSkin : undefined,
   };
 }
 
@@ -275,6 +278,7 @@ export function getInstallConfigClient(): InstallConfigClient {
     footerNav: config.footerNav,
     profileMenu: config.profileMenu,
     homepageVoice: config.homepageVoice,
+    chatFocusSkin: config.chatFocusSkin,
   };
 }
 

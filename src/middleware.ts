@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
+import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
@@ -30,6 +31,9 @@ function isFeatureBlockedPath(pathname: string): boolean {
       pathname.startsWith("/api/admin/doc/")) &&
     !hasFeature("documents")
   ) {
+    return true;
+  }
+  if ((pathname === "/focus" || pathname.startsWith("/focus/")) && !isChatFocusSkinEnabled()) {
     return true;
   }
   return false;

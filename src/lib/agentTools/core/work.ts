@@ -136,7 +136,6 @@ import { formatLighthouseResults, lighthouseAudit } from '../../lighthouseClient
 import { sslCheck, formatSslCheckResults } from '../../sslCheckClient';
 import { checkLinks, formatCheckLinksResults } from '../../checkLinksClient';
 import { dnsCheck, formatDnsCheckResults } from '../../dnsCheckClient';
-import { hasFeature } from '../../features';
 import {
   isChangeDetectionConfigured,
   cdGetWatch,

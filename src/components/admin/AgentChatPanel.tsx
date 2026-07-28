@@ -401,6 +401,8 @@ export type AgentChatPanelProps = {
   initialMessages: StoredChatMessage[];
   pendingDraft?: string | null;
   pendingAutoSend?: boolean;
+  /** `focus` — minimal full-screen skin at `/focus` (no footer nav padding). */
+  variant?: 'default' | 'focus';
   getModel?: () => string | undefined;
   onComposeFocus?: (focused: boolean) => void;
   onComposeDirty?: (dirty: boolean) => void;
@@ -1756,12 +1758,14 @@ export function AgentChatPanel(props: AgentChatPanelProps) {
   const propsRef = useRef(props);
   propsRef.current = props;
 
+  const isFocus = props.variant === 'focus';
   const style = {
     '--aui-composer-stack': '6.25rem',
+    ...(isFocus ? { '--footer-nav-h': '0px' } : {}),
   } as CSSProperties;
 
   return (
-    <div className="aui-root" style={style}>
+    <div className={isFocus ? 'aui-root aui-root--focus' : 'aui-root'} style={style}>
       <AgentChatThread
         key={props.threadId}
         threadId={props.threadId}

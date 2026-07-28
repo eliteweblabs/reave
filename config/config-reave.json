@@ -45,5 +45,6 @@
     "industries",
     "vapi"
   ],
-  "homepageVoice": true
+  "homepageVoice": true,
+  "chatFocusSkin": true
 }

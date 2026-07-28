@@ -1,0 +1,534 @@
+---
+/**
+ * Alternate focus chat skin — minimal full-screen agent chats with a speed-dial
+ * FAB. Gated by install config `chatFocusSkin: true` (see `src/lib/chatFocusSkin.ts`).
+ *
+ * New chats ask "Is this a new or existing project?" before opening. Existing
+ * projects can be linked for reference; the full admin chat UI is unchanged.
+ */
+import Favicon from '../components/Favicon.astro';
+import BrandFontHead from '../components/BrandFontHead.astro';
+import { getCompanyConfig, companyToBrandContext } from '../lib/companyConfig';
+import { brandFontCssVars } from '../lib/brandFonts';
+import { isChatFocusSkinEnabled } from '../lib/chatFocusSkin';
+import '../styles/brand.css';
+
+export const prerender = false;
+
+const { userId } = Astro.locals.auth();
+if (!isChatFocusSkinEnabled()) {
+  return Astro.redirect('/admin/', 302);
+}
+if (!userId) {
+  const returnTo = encodeURIComponent('/focus' + Astro.url.search);
+  return Astro.redirect(`/admin/?auth=sign-in&returnTo=${returnTo}`, 302);
+}
+
+const company = await getCompanyConfig(Astro.request);
+const companyBrand = companyToBrandContext(company, Astro.request);
+const chatId = Astro.url.searchParams.get('chat')?.trim() || '';
+---
+
+<!doctype html>
+<html lang="en" style={brandFontCssVars(company.fonts)}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
+    <title>Chat — {company.name}</title>
+    <Favicon />
+    <BrandFontHead fonts={company.fonts} />
+  </head>
+  <body class="focus-body">
+    <div
+      id="focus-root"
+      class="focus-root"
+      data-company-name={companyBrand.name}
+      data-chat-id={chatId}
+    >
+      <div id="focus-idle" class="focus-idle">
+        <p class="focus-idle-kicker">{companyBrand.name}</p>
+        <h1 class="focus-idle-heading">What are we working on?</h1>
+        <p class="focus-idle-sub">Tap <strong>+</strong> to start a chat. Link a project anytime for context.</p>
+      </div>
+
+      <header id="focus-header" class="focus-header" hidden>
+        <button id="focus-back" class="focus-icon-btn" type="button" aria-label="Back">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <div id="focus-project-chips" class="focus-project-chips"></div>
+        <button id="focus-add-project" class="focus-icon-btn" type="button" aria-label="Add project reference">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+      </header>
+
+      <main id="focus-chat" class="focus-chat" hidden>
+        <div id="focus-thread-root" class="focus-thread-root"></div>
+      </main>
+
+      <div id="focus-overlay-backdrop" class="focus-overlay-backdrop" hidden></div>
+
+      <div id="focus-project-prompt" class="focus-overlay focus-project-prompt" hidden role="dialog" aria-modal="true" aria-labelledby="focus-project-prompt-title">
+        <div class="focus-overlay-card">
+          <button class="focus-overlay-close" type="button" data-focus-overlay-close aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <h2 id="focus-project-prompt-title" class="focus-overlay-title">Is this a new or existing project?</h2>
+          <p class="focus-overlay-sub">Linking a project gives the agent files, notes, and history for reference.</p>
+          <div class="focus-prompt-actions">
+            <button type="button" class="focus-prompt-btn" data-focus-project-kind="new">New project</button>
+            <button type="button" class="focus-prompt-btn focus-prompt-btn-primary" data-focus-project-kind="existing">Existing project</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="focus-project-picker" class="focus-overlay focus-project-picker" hidden role="dialog" aria-modal="true" aria-labelledby="focus-picker-title">
+        <div class="focus-overlay-card focus-picker-card">
+          <button class="focus-overlay-close" type="button" data-focus-overlay-close aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <h2 id="focus-picker-title" class="focus-overlay-title">Choose a project</h2>
+          <input id="focus-project-search" class="focus-project-search" type="search" placeholder="Search projects…" autocomplete="off" />
+          <div id="focus-project-list" class="focus-project-list"></div>
+        </div>
+      </div>
+
+      <div id="focus-recent" class="focus-overlay focus-recent" hidden role="dialog" aria-modal="true" aria-labelledby="focus-recent-title">
+        <div class="focus-overlay-card focus-recent-card">
+          <button class="focus-overlay-close" type="button" data-focus-overlay-close aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <h2 id="focus-recent-title" class="focus-overlay-title">Recent chats</h2>
+          <div id="focus-recent-list" class="focus-recent-list"></div>
+        </div>
+      </div>
+
+      <nav id="focus-dial" class="focus-dial" aria-label="Chat actions">
+        <button type="button" class="focus-dial-action" data-focus-dial-action="new">
+          <span class="focus-dial-action-label">New chat</span>
+        </button>
+        <button type="button" class="focus-dial-action" data-focus-dial-action="recent">
+          <span class="focus-dial-action-label">Recent</span>
+        </button>
+        <button type="button" class="focus-dial-action" data-focus-dial-action="admin">
+          <span class="focus-dial-action-label">Full dashboard</span>
+        </button>
+        <button id="focus-fab" class="focus-fab" type="button" aria-haspopup="menu" aria-expanded="false" aria-label="Chat menu">
+          <svg class="focus-fab-icon-plus" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <svg class="focus-fab-icon-close" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </nav>
+    </div>
+
+    <script>
+      import '../admin/agent-chat-mount.tsx';
+    </script>
+    <script src="/focus/focus-chat.js" defer></script>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #0f172a;
+    --muted: #64748b;
+    --card-border: #e2e8f0;
+    --surface-hover: rgba(0, 0, 0, 0.05);
+    --footer-nav-h: 0px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0d14;
+      --fg: #f1f5f9;
+      --muted: #94a3b8;
+      --card-border: rgba(255, 255, 255, 0.1);
+      --surface-hover: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  html,
+  body.focus-body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-primary, system-ui, sans-serif);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .focus-root {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .focus-idle {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1.5rem calc(env(safe-area-inset-bottom) + 6rem);
+    text-align: center;
+  }
+
+  body.focus-chat-active .focus-idle {
+    display: none;
+  }
+
+  .focus-idle-kicker {
+    margin: 0 0 0.5rem;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .focus-idle-heading {
+    margin: 0 0 0.75rem;
+    font-size: clamp(1.75rem, 5vw, 2.35rem);
+    font-weight: 500;
+    line-height: 1.2;
+  }
+
+  .focus-idle-sub {
+    margin: 0;
+    max-width: 22rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .focus-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: max(env(safe-area-inset-top), 0.65rem) 0.75rem 0.5rem;
+    border-bottom: 1px solid var(--card-border);
+    background: var(--bg);
+    z-index: 2;
+  }
+
+  .focus-icon-btn {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .focus-icon-btn:active {
+    background: var(--surface-hover);
+  }
+
+  .focus-project-chips {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: center;
+  }
+
+  .focus-project-chip {
+    max-width: 100%;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--card-border);
+    background: var(--surface-hover);
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .focus-chat {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .focus-thread-root {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .focus-overlay-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .focus-overlay-backdrop:not([hidden]) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .focus-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 1rem;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease;
+  }
+
+  .focus-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (min-width: 640px) {
+    .focus-overlay {
+      align-items: center;
+    }
+  }
+
+  .focus-overlay-card {
+    position: relative;
+    width: min(420px, 100%);
+    padding: 1.25rem 1.25rem 1.35rem;
+    border-radius: 20px;
+    background: var(--bg);
+    border: 1px solid var(--card-border);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    transform: translateY(12px);
+    transition: transform 0.18s ease;
+  }
+
+  .focus-overlay.open .focus-overlay-card {
+    transform: translateY(0);
+  }
+
+  .focus-picker-card,
+  .focus-recent-card {
+    max-height: min(70vh, 520px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .focus-overlay-close {
+    position: absolute;
+    top: 0.85rem;
+    right: 0.85rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .focus-overlay-title {
+    margin: 0 2rem 0.35rem 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .focus-overlay-sub {
+    margin: 0 0 1.1rem;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .focus-prompt-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .focus-prompt-btn {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--card-border);
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .focus-prompt-btn-primary {
+    background: var(--create-fab-bg, linear-gradient(135deg, #a855f7, #ec4899));
+    border-color: transparent;
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .focus-project-search {
+    width: 100%;
+    margin-bottom: 0.65rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.95rem;
+  }
+
+  .focus-project-list,
+  .focus-recent-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .focus-picker-item,
+  .focus-recent-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .focus-picker-item:hover,
+  .focus-recent-item:hover,
+  .focus-picker-item:focus-visible,
+  .focus-recent-item:focus-visible {
+    background: var(--surface-hover);
+    border-color: var(--card-border);
+  }
+
+  .focus-recent-item.active {
+    border-color: color-mix(in srgb, var(--brand-magenta, #c026d3) 40%, var(--card-border));
+  }
+
+  .focus-picker-title,
+  .focus-recent-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+
+  .focus-picker-sub,
+  .focus-recent-sub {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .focus-picker-empty,
+  .focus-recent-empty {
+    margin: 0.5rem 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .focus-dial {
+    position: fixed;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: calc(env(safe-area-inset-bottom) + 20px);
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.55rem;
+  }
+
+  .focus-dial-action {
+    display: flex;
+    align-items: center;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--card-border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 0.85rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+
+  .focus-dial.open .focus-dial-action {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  .focus-dial.open .focus-dial-action:nth-child(1) { transition-delay: 0.02s; }
+  .focus-dial.open .focus-dial-action:nth-child(2) { transition-delay: 0.05s; }
+  .focus-dial.open .focus-dial-action:nth-child(3) { transition-delay: 0.08s; }
+
+  .focus-fab {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--create-fab-bg, var(--brand-gradient));
+    border: none;
+    box-shadow: var(--create-fab-shadow, 0 8px 24px rgba(192, 38, 211, 0.45));
+    cursor: pointer;
+    transition: transform 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .focus-fab:active {
+    transform: scale(0.93);
+  }
+
+  .focus-fab-icon-close {
+    display: none;
+  }
+
+  .focus-dial.open .focus-fab .focus-fab-icon-plus {
+    display: none;
+  }
+
+  .focus-dial.open .focus-fab .focus-fab-icon-close {
+    display: block;
+  }
+</style>
