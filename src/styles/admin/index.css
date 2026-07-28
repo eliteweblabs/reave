@@ -1,0 +1,11 @@
+@import './tokens.css';
+@import './shell.css';
+@import './panels/editor.css';
+@import './panels/chat.css';
+@import './panels/email.css';
+@import './panels/dialogs-drawer.css';
+@import './panels/home.css';
+@import './panels/schedule.css';
+@import './panels/social-analytics-fleet.css';
+@import './panels/settings.css';
+@import './panels/search.css';
