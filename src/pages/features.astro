@@ -5,6 +5,7 @@
  */
 import Layout from "../layouts/Layout.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { INSTALLATION_TIERS, formatInstallUsd } from "../lib/installationTiers";
 import {
   Users,
   PanelsTopLeft,
@@ -28,6 +29,10 @@ import {
   Puzzle,
   ArrowRight,
   ChevronDown,
+  Monitor,
+  Clock,
+  GitBranch,
+  Globe,
 } from "lucide-astro";
 
 const company = await getCompanyConfig(Astro.request);
@@ -84,25 +89,6 @@ const builtWithStack: StackTech[] = [
   { slug: "plausibleanalytics", name: "Plausible", color: "#5850EC", role: "Web analytics" },
   { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring" },
 ];
-
-/** Platform installation tiers — 50% scaling fee each month until month 4, then flat. */
-type PricingTier = {
-  tier: number;
-  month1: number;
-  month2: number;
-  month3: number;
-  month4Plus: number;
-};
-
-const pricingTiers: PricingTier[] = [
-  { tier: 1, month1: 5000, month2: 2500, month3: 1250, month4Plus: 625 },
-  { tier: 2, month1: 4000, month2: 2000, month3: 1000, month4Plus: 500 },
-  { tier: 3, month1: 3000, month2: 1500, month3: 750, month4Plus: 375 },
-  { tier: 4, month1: 2000, month2: 1000, month3: 500, month4Plus: 250 },
-];
-
-const formatUsd = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
 const deployModes = [
   {
@@ -165,6 +151,7 @@ const after: Section[] = [
       "Priorities from low to urgent so nothing quietly slips",
       "Link an email thread or chat straight to the project it belongs to",
       "Attach files, checklists, and comments — everything stays on the job",
+      "Optional time log with hours, notes, and invoice suggestions when billing is on",
     ],
   },
   {
@@ -407,6 +394,49 @@ const plugins: Plugin[] = [
       "Send log shows queued, sent, and skipped — with dedup so nobody gets spammed twice",
     ],
   },
+  {
+    id: "monitoring",
+    icon: Monitor,
+    title: "Site Monitoring & Audits",
+    teaser:
+      "Uptime checks, change detection, and Lighthouse-style audits — so you know before the client does.",
+    body: "Three layers watch client sites from the admin dashboard: UptimeRobot for downtime, ChangeDetection.io for content changes, and built-in audits for SSL, DNS, broken links, and Lighthouse scores. Alerts land in the smart inbox instead of a separate monitoring tab you'll forget to check.",
+    bullets: [
+      "UptimeRobot sync — auto-discover production domains and import monitors",
+      "Change detection watches key pages and diffs what changed",
+      "Site audits: Lighthouse performance, SSL expiry, DNS records, broken links",
+      "Agent tools can run audits and summarize results in chat",
+    ],
+  },
+  {
+    id: "time-tracking",
+    icon: Clock,
+    title: "Project Time Tracking",
+    teaser:
+      "Log hours and notes on any project — then bridge straight into invoicing.",
+    body: "Optional time log on each job: start/stop timers or manual entries with notes. When billing is enabled, the agent can suggest invoice line items from logged hours instead of reconstructing the week from memory.",
+    bullets: [
+      "Per-project time entries with hours and optional notes",
+      "Invoice suggestions pull unbilled hours into Crater line items",
+      "Enabled per install — off by default for businesses that don't bill hourly",
+    ],
+  },
+  {
+    id: "dev-infra",
+    icon: GitBranch,
+    title: "Dev & Deploy Infrastructure",
+    teaser:
+      "Git, Railway, Kinsta, and deploy status — for agency installs that ship code, not just configure.",
+    body: "Agency-facing tooling: inspect repos, trigger deploys, read Railway logs, and manage hosting from the same admin the client never sees. The agent can check deploy status and answer \"did my push go live?\" without opening four dashboards.",
+  },
+  {
+    id: "namecom-dns",
+    icon: Globe,
+    title: "DNS Record Management",
+    teaser:
+      "Add and edit Name.com DNS records from admin — no separate registrar login during launch week.",
+    body: "For agency installs managing client domains: list, create, and update DNS records through agent tools or admin flows. Credentials can come from the client vault when no global registrar token is configured.",
+  },
 ];
 
 const portalTabs = [
@@ -462,7 +492,7 @@ const portalTabs = [
         <span class="fx-chip">White labeled</span>
         <span class="fx-chip">Read receipts & engagement</span>
         <span class="fx-chip">Plug in only what you need</span>
-        <a class="fx-chip fx-chip--link" href="#pricing">Tiered installation pricing</a>
+        <a class="fx-chip fx-chip--link" href="#plan">Installation tiers &amp; pricing</a>
       </div>
     </section>
 
@@ -497,14 +527,19 @@ const portalTabs = [
       </p>
     </section>
 
-    <section class="fx-pricing scroll-fade-in" aria-label="Installation pricing" id="pricing">
-      <p class="fx-pricing-kicker">Installation pricing</p>
-      <h2 class="fx-pricing-h2">Tiered pricing with a 50% scaling fee.</h2>
+    <section
+      class="fx-pricing scroll-fade-in"
+      aria-label="Installation plan and pricing"
+      id="plan"
+    >
+      <span id="pricing" hidden aria-hidden="true"></span>
+      <p class="fx-pricing-kicker">Installation plan</p>
+      <h2 class="fx-pricing-h2">Four tiers — mapped to the features below.</h2>
       <p class="fx-pricing-lead">
         Every install starts at full tier price for month one. Each month after
         that, the fee drops by half until month four — then it holds steady for
-        as long as you run the platform. Which tier fits depends on scope; we'll
-        map features to tiers as we go.
+        as long as you run the platform. Higher tiers include everything in the
+        tiers below, plus the modules listed for that tier.
       </p>
 
       <div class="fx-pricing-table-wrap">
@@ -512,6 +547,7 @@ const portalTabs = [
           <thead>
             <tr>
               <th scope="col">Tier</th>
+              <th scope="col">Plan</th>
               <th scope="col">Month 1</th>
               <th scope="col">Month 2</th>
               <th scope="col">Month 3</th>
@@ -520,13 +556,14 @@ const portalTabs = [
           </thead>
           <tbody>
             {
-              pricingTiers.map((t) => (
+              [...INSTALLATION_TIERS].reverse().map((t) => (
                 <tr>
                   <th scope="row">Tier {t.tier}</th>
-                  <td>{formatUsd(t.month1)}</td>
-                  <td>{formatUsd(t.month2)}</td>
-                  <td>{formatUsd(t.month3)}</td>
-                  <td>{formatUsd(t.month4Plus)}/mo</td>
+                  <td class="fx-pricing-plan-name">{t.name}</td>
+                  <td>{formatInstallUsd(t.month1)}</td>
+                  <td>{formatInstallUsd(t.month2)}</td>
+                  <td>{formatInstallUsd(t.month3)}</td>
+                  <td>{formatInstallUsd(t.month4Plus)}/mo</td>
                 </tr>
               ))
             }
@@ -534,11 +571,44 @@ const portalTabs = [
         </table>
       </div>
 
+      <div class="fx-tier-grid">
+        {
+          [...INSTALLATION_TIERS].reverse().map((t) => (
+            <article class="fx-tier-card">
+              <header class="fx-tier-card-head">
+                <p class="fx-tier-card-kicker">Tier {t.tier}</p>
+                <h3 class="fx-tier-card-title">{t.name}</h3>
+                <p class="fx-tier-card-summary">{t.summary}</p>
+                <p class="fx-tier-card-price">
+                  {formatInstallUsd(t.month1)} → {formatInstallUsd(t.month4Plus)}/mo
+                </p>
+              </header>
+              <ul class="fx-tier-feature-list">
+                {
+                  t.features.map((f) => (
+                    <li>
+                      {
+                        f.href ? (
+                          <a href={f.href}>{f.label}</a>
+                        ) : (
+                          f.label
+                        )
+                      }
+                    </li>
+                  ))
+                }
+              </ul>
+            </article>
+          ))
+        }
+      </div>
+
       <p class="fx-pricing-note">
-        Example: Tier 1 is {formatUsd(5000)} the first month, {formatUsd(2500)} the
-        second, {formatUsd(1250)} the third, then {formatUsd(625)} every month after
-        that. Tier 2 starts at {formatUsd(4000)}, Tier 3 at {formatUsd(3000)}, Tier 4
-        at {formatUsd(2000)} — same 50% step-down each month.
+        Example: Tier 1 (Full platform) is {formatInstallUsd(5000)} the first month,
+        {formatInstallUsd(2500)} the second, {formatInstallUsd(1250)} the third, then{" "}
+        {formatInstallUsd(625)} every month after that. Tier 4 (Core OS) starts at{" "}
+        {formatInstallUsd(2000)} — same 50% step-down each month. Industry plugins
+        and agency tools are Tier 1; most service businesses land on Tier 2 or 3.
       </p>
 
       <div class="fx-cta-row">
@@ -1135,7 +1205,7 @@ const portalTabs = [
 
   .fx-pricing-table {
     width: 100%;
-    min-width: 480px;
+    min-width: 560px;
     border-collapse: collapse;
     font-size: 0.88rem;
     text-align: center;
@@ -1180,6 +1250,105 @@ const portalTabs = [
     font-size: 0.82rem;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.42);
+  }
+
+  .fx-pricing-plan-name {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .fx-tier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  .fx-tier-card {
+    padding: 18px 18px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .fx-tier-card-kicker {
+    margin: 0 0 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(74, 222, 128, 0.82);
+  }
+
+  .fx-tier-card-title {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .fx-tier-card-summary {
+    margin: 0 0 10px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .fx-tier-card-price {
+    margin: 0 0 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #bbf7d0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fx-tier-feature-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .fx-tier-feature-list li {
+    position: relative;
+    padding-left: 14px;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .fx-tier-feature-list li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(74, 222, 128, 0.75);
+  }
+
+  .fx-tier-feature-list a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.22);
+    text-underline-offset: 2px;
+  }
+
+  .fx-tier-feature-list a:hover {
+    color: #fff;
+    text-decoration-color: rgba(255, 255, 255, 0.45);
+  }
+
+  @media (max-width: 720px) {
+    .fx-tier-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* ---------- Section intros ---------- */
