@@ -47,6 +47,7 @@ const TOOL_LABELS: Record<string, string> = {
   write_file: 'Writing file',
   list_files: 'Listing files',
   exec_command: 'Running command',
+  create_github_repo: 'Creating repository',
   create_github_branch: 'Creating branch',
   write_github_file: 'Writing file',
   create_pull_request: 'Creating pull request',

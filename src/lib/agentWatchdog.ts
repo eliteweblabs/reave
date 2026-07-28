@@ -34,6 +34,7 @@ const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   exec_command: 180_000,
   run_terminal_command: 60_000,
   run_dev_task: 120_000,
+  create_github_repo: 90_000,
   write_github_file: 90_000,
   sync_resend_dns: 120_000,
   sync_vapi_assistant: 90_000,

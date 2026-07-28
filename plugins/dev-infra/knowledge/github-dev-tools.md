@@ -18,6 +18,7 @@ The Claude tool loop can **write files** on the Reave repo via the GitHub REST A
 - Read status: **Contents** (read) + **Metadata**
 - `write_github_file`: **Contents** (read + write)
 - `create_pull_request` (only if a PR is ever explicitly requested): **Pull requests** (read + write)
+- `create_github_repo`: **repo** scope (classic PAT) or **Administration** write on the org (fine-grained PAT)
 
 Classic PAT alternative: `repo` scope covers both.
 
@@ -45,6 +46,21 @@ Ask the bot: **"run a service status check"** (or `run_dev_task` → `service_st
 - `can_write_files: false` → upgrade `GITHUB_TOKEN` on Railway (Contents write + Pull requests write on `eliteweblabs/reave`)
 
 ## Tools
+
+### `create_github_repo`
+
+Create a new GitHub repository under a user or org account.
+
+| Param | Required | Notes |
+|-------|----------|-------|
+| `repo` | yes | `owner/name`, e.g. `eliteweblabs/my-client-site` |
+| `description` | no | Short repo description |
+| `private` | no | Defaults to **true** |
+| `auto_init` | no | Initialize with an empty README so a default branch exists (default **false**) |
+
+Returns: `repo`, `url`, `clone_url`, `private`, `created`.
+
+**Tip:** If you need to commit files immediately after creation, pass `auto_init: true` (or create a branch with `create_github_branch` once the repo exists).
 
 ### `create_github_branch`
 
@@ -90,6 +106,7 @@ Returns: PR `number`, `url`, `state`, `head`, `base`.
 
 ## Example owner phrases
 
+- “Create a new GitHub repo for …” → `create_github_repo` (use `auto_init: true` if you will `write_github_file` right away)
 - “Add a file `docs/notes.md` with …” → `write_github_file` on `main`
 - “Update `src/lib/foo.ts` and push it” → `write_github_file` on `main`
 - “Commit this change to GitHub” → `write_github_file` on `main`

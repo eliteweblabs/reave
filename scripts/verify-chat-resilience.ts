@@ -383,6 +383,7 @@ await test('a batch of read-only audit tools may run concurrently', () => {
 
 await test('any writing tool in the batch forces sequential execution', () => {
   for (const writer of [
+    'create_github_repo',
     'write_github_file',
     'write_file',
     'exec_command',

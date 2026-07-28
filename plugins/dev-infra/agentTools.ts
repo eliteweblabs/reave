@@ -105,7 +105,14 @@ import {
   kinstaListSites,
 } from '../../src/lib/kinstaClient';
 import { getGitStatus, getRecentCommits, listOpenBranches, checkDeploymentStatus } from '../../src/lib/devStatus';
-import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githubRepoSlug, githubWriteFile } from '../../src/lib/githubClient';
+import {
+  githubCreateBranch,
+  githubCreatePullRequest,
+  githubCreateRepo,
+  githubDefaultBranch,
+  githubRepoSlug,
+  githubWriteFile,
+} from '../../src/lib/githubClient';
 import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
@@ -386,6 +393,17 @@ async function handle_run_terminal_command(args: Record<string, unknown>, _ctx: 
   const result = await runSafeShellCommand(command);
   if (!result.ok) return JSON.stringify({ error: result.error, allowed: describeSafeShell() });
   return JSON.stringify(result);
+}
+
+async function handle_create_github_repo(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const result = await githubCreateRepo({
+    repo: String(args.repo ?? '').trim(),
+    description: typeof args.description === 'string' ? args.description : undefined,
+    private: typeof args.private === 'boolean' ? args.private : undefined,
+    auto_init: typeof args.auto_init === 'boolean' ? args.auto_init : undefined,
+  });
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify(result.data);
 }
 
 async function handle_create_github_branch(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
@@ -696,6 +714,35 @@ export const devInfraModule: AgentToolModule = {
           {
             type: 'function',
             function: {
+              name: 'create_github_repo',
+              description:
+                'Create a new GitHub repository under a user or org account. Requires GITHUB_TOKEN with repo creation permission (classic PAT: repo scope; fine-grained: Administration write on the org). Use auto_init:true when you need a default branch before write_github_file.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  repo: {
+                    type: 'string',
+                    description: 'owner/name for the new repo, e.g. eliteweblabs/my-client-site',
+                  },
+                  description: { type: 'string', description: 'Short repo description' },
+                  private: {
+                    type: 'boolean',
+                    description: 'Whether the repo is private (default true)',
+                  },
+                  auto_init: {
+                    type: 'boolean',
+                    description:
+                      'Initialize with an empty README so the repo has a default branch (default false)',
+                  },
+                },
+                required: ['repo'],
+                additionalProperties: false,
+              },
+            },
+          },
+          {
+            type: 'function',
+            function: {
               name: 'create_github_branch',
               description:
                 `Create a new branch from an existing branch (default from_branch: ${githubDefaultBranch()}). Use before write_github_file when no feature branch exists yet. Requires GITHUB_TOKEN with Contents write.`,
@@ -792,6 +839,7 @@ export const devInfraModule: AgentToolModule = {
     'check_deployment_status': handle_check_deployment_status,
     'list_open_branches': handle_list_open_branches,
     'run_terminal_command': handle_run_terminal_command,
+    'create_github_repo': handle_create_github_repo,
     'create_github_branch': handle_create_github_branch,
     'write_github_file': handle_write_github_file,
     'create_pull_request': handle_create_pull_request,

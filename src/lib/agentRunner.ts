@@ -634,7 +634,7 @@ async function runKnowledgeAgentInner(
     );
     if (isGithubConfigured()) {
       sysParts.push(
-        'GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Report the commit SHA/URL. Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed. Committing to main triggers a Railway deploy automatically.',
+        'GitHub edits: this project NEVER uses pull requests — always commit straight to main. Call write_github_file with branch:"main" (each call = one commit directly on main); do NOT call create_github_branch or create_pull_request unless the user explicitly asks for a branch/PR. Use create_github_repo to provision a new owner/name repo (auto_init:true when you need a default branch before writing files). Report the commit SHA/URL. Call read_knowledge slug "github-dev-tools" if unsure of the workflow. Do not claim code was pushed unless tools succeed. Committing to main triggers a Railway deploy automatically.',
       );
     } else {
       sysParts.push(
