@@ -9,6 +9,7 @@
  */
 
 import type { APIRoute } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   getActiveExternalPlugins,
   syncExternalPlugins,
@@ -16,24 +17,16 @@ import {
   type ExternalPluginManifest,
 } from '../../../lib/externalPluginRegistry';
 
-function requireAuth(request: Request): boolean {
-  // Reuse the same cookie/session auth as other admin routes
-  // (Astro locals.auth() is set by middleware — we check it via header or
-  //  rely on the middleware 401 guard that already protects /api/admin/*).
-  return true; // middleware handles auth; this is belt-and-suspenders
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
 
-export const GET: APIRoute = async ({ request, locals }) => {
-  const auth = (locals as Record<string, unknown>).auth as
-    | (() => { userId?: string | null })
-    | undefined;
-  const userId = auth?.()?.userId;
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   try {
     const plugins = await getActiveExternalPlugins();
@@ -108,17 +101,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
   }
 };
 
-export const POST: APIRoute = async ({ locals }) => {
-  const auth = (locals as Record<string, unknown>).auth as
-    | (() => { userId?: string | null })
-    | undefined;
-  const userId = auth?.()?.userId;
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+export const POST: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   try {
     invalidateExternalPluginCache();

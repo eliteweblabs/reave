@@ -5,6 +5,7 @@
 import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../../lib/features';
 import { fleetDeleteVehicle, fleetUpdateVehicle, isFleetApiConfigured } from '../../../../lib/fleetClient';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -26,8 +27,9 @@ function featureGate(): Response | null {
 }
 
 export const PATCH: APIRoute = async ({ locals, params, request }) => {
-  const { userId } = locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const blocked = featureGate();
   if (blocked) return blocked;
@@ -60,8 +62,9 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
 };
 
 export const DELETE: APIRoute = async ({ locals, params }) => {
-  const { userId } = locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const blocked = featureGate();
   if (blocked) return blocked;

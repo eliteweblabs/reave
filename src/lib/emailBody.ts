@@ -1,4 +1,4 @@
-/** Normalize inbound email body for storage and agent context. */
+import { sanitizeEmailHtml } from './sanitizeEmailHtml';
 
 export const MAX_STORED_EMAIL_BODY = 100_000;
 export const MAX_STORED_EMAIL_HTML = 500_000;
@@ -52,7 +52,7 @@ export function normalizeEmailBody(text?: string, html?: string, max = MAX_STORE
 }
 
 function stripScriptTags(html: string): string {
-  return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  return sanitizeEmailHtml(html);
 }
 
 /** Store inbound HTML for inbox rendering (scripts stripped). */

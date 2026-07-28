@@ -218,6 +218,14 @@ function rankContacts(contacts: ScoredContact[]): ScoredContact[] {
   return [...contacts].sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
 }
 
+/** True when the query may match fields only present in a full contact list. */
+function needsBroadContactSearch(q: string, terms: string[]): boolean {
+  if (terms.length > 1) return true;
+  if (phoneDigits(q).length >= 4) return true;
+  if (/\./.test(q) && !q.includes('@')) return true;
+  return false;
+}
+
 /**
  * Search contacts by name/email (via contact-api) plus company (local filter).
  * contact-api GET /api/contacts only searches name + email.
@@ -233,13 +241,15 @@ export async function searchClientsEnhanced(
   const terms = extractClientSearchTerms(q);
   const searchQ = primaryClientSearchTerm(q);
 
-  const [nameResult, broadResult] = await Promise.all([
-    listContacts({ q: searchQ, limit }),
-    listContacts({ limit: 200 }),
-  ]);
-
+  const nameResult = await listContacts({ q: searchQ, limit });
   if (!nameResult.ok) return nameResult;
-  if (!broadResult.ok) return broadResult;
+
+  let broadContacts: ContactRecord[] = [];
+  if (needsBroadContactSearch(q, terms)) {
+    const broadResult = await listContacts({ limit: 200 });
+    if (!broadResult.ok) return broadResult;
+    broadContacts = broadResult.data.contacts;
+  }
 
   const byUid = new Map<string, ScoredContact>();
 
@@ -249,7 +259,7 @@ export async function searchClientsEnhanced(
   }
 
   for (const term of terms) {
-    for (const c of broadResult.data.contacts) {
+    for (const c of broadContacts) {
       if (c.archived) continue;
 
       const checks: Array<[number, string]> = [

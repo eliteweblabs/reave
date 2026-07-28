@@ -5,6 +5,7 @@
 import type { APIContext } from 'astro';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import {
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
   getNewsletterTemplate,
   renderNewsletterEmail,
   type NewsletterTemplateContext,
@@ -29,8 +30,9 @@ function toParagraphs(raw: unknown): string[] | undefined {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: Record<string, unknown>;
   try {

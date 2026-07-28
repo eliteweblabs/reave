@@ -1,6 +1,7 @@
 import type { APIContext } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { parseVCard } from '../../../lib/carddav/vcard';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -94,8 +95,9 @@ export async function POST(context: APIContext): Promise<Response> {
   const json = (body: object, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);

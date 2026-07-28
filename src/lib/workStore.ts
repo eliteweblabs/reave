@@ -622,6 +622,21 @@ export async function storeDeleteWork(slug: string): Promise<boolean> {
   return fileDeleteWork(slug);
 }
 
+export async function storeDeleteWorkByClientUid(clientUid: string): Promise<number> {
+  const uid = clientUid.trim();
+  if (!uid) return 0;
+  if (isWorkDbConfigured()) {
+    const { dbDeleteWorkByClientUid } = await import('./pgJobs');
+    return dbDeleteWorkByClientUid(uid);
+  }
+  const jobs = await storeListWork({ contact_uid: uid });
+  let deleted = 0;
+  for (const job of jobs ?? []) {
+    if (fileDeleteWork(job.slug)) deleted++;
+  }
+  return deleted;
+}
+
 export async function storeListWorkForContact(contactUid: string): Promise<WorkJobSummary[]> {
   return storeListWork({ contact_uid: contactUid });
 }

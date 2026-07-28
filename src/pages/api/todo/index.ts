@@ -75,7 +75,7 @@ function parseFile(slug: string, content: string): TodoSection {
 }
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const dir = todoDir();
 

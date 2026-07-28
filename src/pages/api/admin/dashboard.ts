@@ -39,6 +39,7 @@ import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -88,8 +89,9 @@ async function loadUpcomingTodos(limit = 4): Promise<DashboardUpcomingTodo[]> {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 

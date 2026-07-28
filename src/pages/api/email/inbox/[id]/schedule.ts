@@ -38,6 +38,7 @@ import { siteBaseUrl } from '../../../../../lib/contactApi';
 import { scheduleFormUrl } from '../../../../../lib/inboundEmailReply';
 import { storeListWork } from '../../../../../lib/workStore';
 import { isEmailSendConfigured } from '../../../../../lib/outbound';
+import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -189,8 +190,9 @@ async function resolveBookingLocation(uid: string | null | undefined): Promise<s
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!schedulingEnabled()) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
@@ -221,8 +223,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!schedulingEnabled()) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);

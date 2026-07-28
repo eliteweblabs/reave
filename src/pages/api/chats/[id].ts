@@ -45,6 +45,7 @@ import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem } from '../../../lib/projectLinks';
 import { serverEnv } from '../../../lib/serverEnv';
 import {
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
   promoteChatDocsToLinkedProjects,
   promoteChatImagesToLinkedProjects,
 } from '../../../lib/projectFiles';
@@ -214,8 +215,9 @@ async function persistAssistantReply(
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
@@ -227,8 +229,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
@@ -478,8 +481,9 @@ export async function POST(context: APIContext): Promise<Response> {
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
@@ -525,8 +529,9 @@ export async function PATCH(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);

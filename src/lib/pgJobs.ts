@@ -410,6 +410,36 @@ export async function dbDeleteWork(slug: string): Promise<{ ok: boolean; error?:
   }
 }
 
+/** Delete all jobs (and comments) linked to a contact uid in one transaction. */
+export async function dbDeleteWorkByClientUid(clientUid: string): Promise<number> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return 0;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const slugs = await client.query<{ slug: string }>(
+        `SELECT slug FROM jobs WHERE client_uid = $1`,
+        [clientUid],
+      );
+      for (const row of slugs.rows) {
+        await client.query(`DELETE FROM job_comments WHERE job_slug = $1`, [row.slug]);
+      }
+      const { rowCount } = await client.query(`DELETE FROM jobs WHERE client_uid = $1`, [clientUid]);
+      await client.query('COMMIT');
+      return rowCount ?? 0;
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    console.error('[jobs:pg] delete by client_uid error:', e);
+    return 0;
+  }
+}
+
 export interface JobCommentRow {
   id: string;
   job_slug: string;

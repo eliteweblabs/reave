@@ -5,6 +5,7 @@ import {
   setStoredCompanyIcon,
 } from '../../../../lib/companyConfigStore';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -16,8 +17,9 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let form: FormData;
   try {
@@ -51,8 +53,9 @@ export async function POST(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const ok = await clearStoredCompanyIcon();
   if (!ok) return json({ error: 'Failed to remove icon' }, 500);

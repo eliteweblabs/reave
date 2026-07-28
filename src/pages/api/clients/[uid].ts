@@ -26,6 +26,7 @@ import {
 } from '../../../lib/clientBranding';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 import { listTrackedLinksForContact } from '../../../lib/linkTracking';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -163,8 +164,9 @@ async function clientPortalBranding(uid: string) {
 }
 
 export const GET: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
@@ -228,8 +230,9 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 };
 
 export const PATCH: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
@@ -284,8 +287,9 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
 };
 
 export const PUT: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
@@ -340,8 +344,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 };
 
 export const DELETE: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }

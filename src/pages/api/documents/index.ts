@@ -37,7 +37,7 @@ function titleFromHtml(html: string, slug: string): string {
 }
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const dir = docsDir();
   if (!existsSync(dir)) {
@@ -65,7 +65,7 @@ export const GET: APIRoute = async (context) => {
 };
 
 export const POST: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   const { request } = context;
   let body: { slug?: unknown; html?: unknown };

@@ -8,6 +8,7 @@ import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
 import { runUptimePoll, uptimePollSecret, ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { secretsEqual } from '../../../lib/timingSafeSecret';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -23,11 +24,11 @@ function authorizedByKey(key: string | null): boolean {
   return secretsEqual(key, expected);
 }
 
-export const GET: APIRoute = async ({ url, locals }) => {
+export const GET: APIRoute = async (context) => {
   const key = url.searchParams.get('key')?.trim() ?? null;
-  const { userId } = locals.auth();
-  if (!userId && !authorizedByKey(key)) {
-    return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!authorizedByKey(key)) {
+    const auth = await requireDashboardUser(context);
+    if (auth instanceof Response) return auth;
   }
   if (!hasFeature('uptime_monitoring')) {
     return json({ ok: false, error: 'uptime_monitoring not enabled' }, 404);

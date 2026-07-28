@@ -39,6 +39,7 @@ import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
 import { secretsEqual } from '../../../lib/timingSafeSecret';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -72,9 +73,9 @@ function textResponse(text: string, status = 200): Response {
 /**
  * Check authentication: Clerk session token or X-Siri-Key header.
  */
-function isAuthenticated(context: APIContext): boolean {
-  const { userId } = context.locals.auth();
-  if (userId) return true;
+async function isAuthenticated(context: APIContext): Promise<boolean> {
+  const auth = await requireDashboardUser(context);
+  if (!(auth instanceof Response)) return true;
 
   const siriKey = serverEnv('SIRI_API_KEY')?.trim();
   if (siriKey) {
@@ -86,7 +87,7 @@ function isAuthenticated(context: APIContext): boolean {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  if (!isAuthenticated(context)) {
+  if (!(await isAuthenticated(context))) {
     return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or use Clerk session.' }, 401);
   }
 

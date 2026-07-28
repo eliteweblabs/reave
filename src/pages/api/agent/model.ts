@@ -11,6 +11,7 @@ import {
 } from '../../../lib/agentModel';
 import { agentModelStorageBackend, setStoredAgentModel } from '../../../lib/agentModelStore';
 import { getAnthropicBalance, type AnthropicBalance } from '../../../lib/anthropicBalance';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -36,8 +37,9 @@ function payload(settings: AgentModelSettings, anthropicBalance: AnthropicBalanc
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   const [settings, anthropicBalance] = await Promise.all([
     getAgentModelSettings(),
     getAnthropicBalance(),
@@ -46,8 +48,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: Record<string, unknown>;
   try {

@@ -1,5 +1,6 @@
 import type { APIContext } from 'astro';
 import { clerkClient } from '@clerk/astro/server';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -11,8 +12,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   try {
     const user = await clerkClient(context).users.getUser(userId);
@@ -26,8 +28,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: { tabOrder?: unknown };
   try {
