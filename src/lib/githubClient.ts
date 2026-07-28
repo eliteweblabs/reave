@@ -614,3 +614,70 @@ export async function githubCreateBranch(opts: {
     },
   };
 }
+
+export type GithubRepoCreateResult = {
+  repo: string;
+  url: string;
+  clone_url: string;
+  private: boolean;
+  created: boolean;
+};
+
+/**
+ * Create a new GitHub repository under a user or org account.
+ * Uses POST /user/repos for personal accounts, POST /orgs/{org}/repos for orgs.
+ * The token must have the `repo` scope (classic PAT) or repo creation permission
+ * (fine-grained PAT with Administration: write on the org).
+ */
+export async function githubCreateRepo(opts: {
+  /** owner/repo — if owner is an org, uses the orgs endpoint */
+  repo: string;
+  description?: string;
+  private?: boolean;
+  /** Auto-init with an empty README so the repo has a default branch */
+  auto_init?: boolean;
+}): Promise<GithubResult<GithubRepoCreateResult>> {
+  if (!token()) {
+    return { ok: false, error: 'GITHUB_TOKEN is required for create_github_repo' };
+  }
+
+  const parts = opts.repo.trim().split('/');
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return { ok: false, error: 'repo must be owner/name, e.g. eliteweblabs/my-site' };
+  }
+  const [owner, name] = parts;
+
+  // Detect whether owner is an org or the authenticated user.
+  const userRes = await ghFetch<{ login?: string }>('/user');
+  const isOrg = userRes.ok && userRes.data.login?.toLowerCase() !== owner.toLowerCase();
+
+  const endpoint = isOrg ? `/orgs/${owner}/repos` : '/user/repos';
+
+  const body: Record<string, unknown> = {
+    name,
+    private: opts.private ?? true,
+    auto_init: opts.auto_init ?? false,
+  };
+  if (opts.description) body.description = opts.description;
+
+  const res = await ghFetch<{
+    full_name?: string;
+    html_url?: string;
+    clone_url?: string;
+    private?: boolean;
+  }>(endpoint, { method: 'POST', body });
+
+  if (!res.ok) return res;
+
+  const fullName = res.data.full_name ?? opts.repo;
+  return {
+    ok: true,
+    data: {
+      repo: fullName,
+      url: res.data.html_url ?? `https://github.com/${fullName}`,
+      clone_url: res.data.clone_url ?? `https://github.com/${fullName}.git`,
+      private: res.data.private ?? true,
+      created: true,
+    },
+  };
+}
