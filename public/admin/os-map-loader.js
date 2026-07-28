@@ -369,6 +369,103 @@ function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'C
   pane.appendChild(body);
 }
 
+function scrollSidebarListItemIntoView(list, itemEl) {
+  const row = itemEl.closest('.swipe-row') || itemEl;
+  const listRect = list.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const padding = 8;
+  if (rowRect.top >= listRect.top + padding && rowRect.bottom <= listRect.bottom - padding) return;
+  if (rowRect.top < listRect.top) {
+    list.scrollTop += rowRect.top - listRect.top - padding;
+  } else if (rowRect.bottom > listRect.bottom) {
+    list.scrollTop += rowRect.bottom - listRect.bottom + padding;
+  }
+}
+
+/** Scroll a filter tab into the tab strip only when it is clipped. No-op if fully visible. */
+function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
+  if (!nav || !tabEl) return;
+  const navRect = nav.getBoundingClientRect();
+  const tabRect = tabEl.getBoundingClientRect();
+  if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  if (tabRect.left < navRect.left) {
+    nav.scrollLeft += tabRect.left - navRect.left;
+  } else if (tabRect.right > navRect.right) {
+    nav.scrollLeft += tabRect.right - navRect.right;
+  }
+}
+
+function captureFilterTabsScroll(root) {
+  return root?.querySelector('.em-filter-tabs')?.scrollLeft ?? 0;
+}
+
+function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
+  if (!nav) return;
+  requestAnimationFrame(() => {
+    nav.scrollLeft = savedScrollLeft;
+    scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
+  });
+}
+
+function captureSidebarListScroll(root) {
+  return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
+}
+
+function finishSidebarListScroll(root, savedScrollTop = 0) {
+  const list = root?.querySelector('.ch-sidebar .ch-list');
+  if (!list) return;
+  if (savedScrollTop > 0) list.scrollTop = savedScrollTop;
+  requestAnimationFrame(() => {
+    const activeEl = list.querySelector('.ch-list-item.active, .em-list-item.active');
+    if (activeEl) scrollSidebarListItemIntoView(list, activeEl);
+  });
+}
+
+// Shared arrow-key navigation for autosuggest dropdowns.
+function attachAutosuggestKeyboardNav(input, dropdown, options = {}) {
+  if (!input || !dropdown) return () => {};
+  const optionSelector = options.optionSelector || 'button';
+  const onClose = typeof options.onClose === 'function' ? options.onClose : null;
+
+  function isOpen() {
+    return dropdown.style.display !== 'none' && dropdown.offsetParent !== null;
+  }
+  function getOptions() {
+    return [...dropdown.querySelectorAll(optionSelector)].filter(
+      (el) => !el.disabled && el.offsetParent !== null,
+    );
+  }
+  function setActive(opts, idx) {
+    opts.forEach((el, i) => el.classList.toggle('active', i === idx));
+    if (idx >= 0) opts[idx]?.scrollIntoView({ block: 'nearest' });
+  }
+  const onKeyDown = (ev) => {
+    if (!isOpen()) return;
+    const opts = getOptions();
+    if (!opts.length) return;
+    const currentIdx = opts.findIndex((el) => el.classList.contains('active'));
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      setActive(opts, currentIdx < 0 ? 0 : (currentIdx + 1) % opts.length);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      setActive(opts, currentIdx <= 0 ? opts.length - 1 : currentIdx - 1);
+    } else if (ev.key === 'Enter') {
+      if (currentIdx >= 0) {
+        ev.preventDefault();
+        opts[currentIdx].click();
+      }
+    } else if (ev.key === 'Escape') {
+      if (onClose) {
+        ev.preventDefault();
+        onClose();
+      }
+    }
+  };
+  input.addEventListener('keydown', onKeyDown);
+  return () => input.removeEventListener('keydown', onKeyDown);
+}
+
 function todoChipHtml(checked) {
   return navIcon(checked ? 'check-square' : 'square', 14);
 }
