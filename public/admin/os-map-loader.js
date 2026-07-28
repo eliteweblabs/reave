@@ -16695,7 +16695,6 @@ function buildChatPaneHeader() {
     className: 'ch-pane-header',
     back: { label: 'Back to chats', onClick: () => closeActiveChat() },
     titleNode: main,
-    afterTitle: createChatModelSwitcher(),
     icons: [
       createIosIconBtn({
         iconKey: 'copy',
