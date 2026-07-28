@@ -75,12 +75,34 @@ export function renderButton(
   return `\`\`\`json\n${JSON.stringify({ type: 'button', label, href, variant })}\n\`\`\``;
 }
 
+/** True when a structured button just re-opens admin chat — useless inside chat. */
+export function isRedundantInChatButton(href: string): boolean {
+  const trimmed = href.trim();
+  if (!trimmed) return false;
+
+  try {
+    const url = new URL(trimmed, 'https://reave.local');
+    const path = url.pathname.replace(/\/+$/, '') || '/';
+    if (path !== '/admin') return false;
+
+    const tab = url.searchParams.get('tab')?.toLowerCase();
+    if (tab === 'chats' || tab === 'chat' || tab === '__chat__') return true;
+    if (url.searchParams.has('chat')) return true;
+    return false;
+  } catch {
+    return /\/admin\b.*(?:tab=chats?\b|[?&]chat=)/i.test(trimmed);
+  }
+}
+
 export function parseAssistantChatButtons(text: string): {
   text: string;
   buttons: ChatButtonResponse[];
 } {
   const structured = extractStructuredResponses(text);
-  const buttons = structured.filter(isButtonResponse);
+  const buttons = structured.filter(
+    (item): item is ChatButtonResponse =>
+      isButtonResponse(item) && !isRedundantInChatButton(item.href),
+  );
   return {
     text: stripStructuredJsonBlocks(text),
     buttons,

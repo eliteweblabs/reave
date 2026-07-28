@@ -19914,8 +19914,25 @@ function isProjectReplyEmail(ev) {
 async function askAgentWithPrompt(prompt, opts = {}) {
   closeOpenSwipeRow();
   try {
+    const emailId = opts.sourceEmailId?.trim?.() || null;
+
+    if (emailId) {
+      let existing = chatState.threads.find((t) => t.source_email_id === emailId);
+      if (!existing) {
+        chatState.threads = await fetchChatThreads();
+        existing = chatState.threads.find((t) => t.source_email_id === emailId);
+      }
+      if (existing) {
+        chatState.pendingDraft = null;
+        chatState.pendingAutoSend = false;
+        if (activeKey === 'chats' && chatState.activeId === existing.id) return;
+        await openChat(existing.id, { force: true });
+        return;
+      }
+    }
+
     const payload = {};
-    if (opts.sourceEmailId) payload.sourceEmailId = opts.sourceEmailId;
+    if (emailId) payload.sourceEmailId = emailId;
     if (opts.sourceJobSlug) payload.sourceJobSlug = opts.sourceJobSlug;
     const res = await fetch('/api/chats', {
       method: 'POST',
@@ -21894,16 +21911,22 @@ function renderEmailPanel() {
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
 
   const beforeIcons = [];
-  if (shouldShowEmailProjectActions(ev)) {
-    agentBtn.className = 'em-btn-group-segment em-agent-btn';
-    const group = document.createElement('div');
-    group.className = 'em-btn-group';
-    group.appendChild(agentBtn);
-    group.appendChild(createEmailProjectDropdown(ev));
-    beforeIcons.push(group);
-  } else {
-    agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-    beforeIcons.push(agentBtn);
+  const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
+  const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
+  if (!alreadyInLinkedChat) {
+    if (shouldShowEmailProjectActions(ev)) {
+      agentBtn.className = 'em-btn-group-segment em-agent-btn';
+      const group = document.createElement('div');
+      group.className = 'em-btn-group';
+      group.appendChild(agentBtn);
+      group.appendChild(createEmailProjectDropdown(ev));
+      beforeIcons.push(group);
+    } else {
+      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
+      beforeIcons.push(agentBtn);
+    }
+  } else if (shouldShowEmailProjectActions(ev)) {
+    beforeIcons.push(createEmailProjectDropdown(ev));
   }
 
   pane.appendChild(
