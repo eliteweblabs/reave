@@ -36,7 +36,19 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
-import { navigateToWork, refreshWorkLinkTrackStatus } from './work-panel.js?v=20260728i';
+import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
+import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
+import { formatPhoneInput } from './clients-panel.js?v=20260728l';
+import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260728l';
+import {
+  navIcon,
+  placeholderHtml,
+  scrollSidebarListItemIntoView,
+  agentModelState,
+  chatHasConversation,
+  buildChatPaneHeader,
+  clearTopbarPanelContext,
+} from './os-map-loader.js?v=20260728l';
 
 /** Injected by os-map-loader via initChatPanel(). */
 let shell = {};
@@ -1876,4 +1888,14 @@ export {
   renderLinkTrackStatus,
   sharePortalLink,
   queueChatDeepLink,
+  startNewChat,
+  getChatPanel,
+  clearChatLastActiveId,
+  chatMsgPlainText,
+  shareChatText,
+  archiveChat,
+  openChat,
+  openReaveShareSheet,
+  refreshChatSidebarList,
+  openDocumentShareSheet,
 };

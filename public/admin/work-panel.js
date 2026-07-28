@@ -27,6 +27,7 @@ import {
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { clientState, clientMapController } from './clients-panel.js?v=20260728l';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -3351,4 +3352,10 @@ export {
   workStatusLabel,
   workStatusClass,
   isWorkArchivedStatus,
+  workClientSubline,
+  mountClientDetailTabs,
+  showClientDetailPanel,
+  createClientDetailPanel,
+  mountClientVaultSection,
+  flushClientVaultSave,
 };

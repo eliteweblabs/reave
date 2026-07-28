@@ -36,6 +36,9 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260728l';
+import { navIcon, AUTOSAVE_DEBOUNCE_MS, userId } from './os-map-loader.js?v=20260728l';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};
@@ -609,4 +612,5 @@ export {
   createKnowledgeListItem,
   createKnowledgeSwipeRow,
   askAgentAboutKnowledge,
+  refreshKnowledgeSidebarList,
 };

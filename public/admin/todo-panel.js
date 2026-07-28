@@ -36,7 +36,10 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
-import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728i';
+import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260728l';
+import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260728l';
+import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728l';
 
 /** Injected by os-map-loader via initTodoPanel(). */
 let shell = {};
@@ -1234,5 +1237,12 @@ export {
   todoSubline,
   flushTodoAutosave,
   saveActiveTodoDraft,
+  parseTodoDueInstant,
+  isUtcDateOnlyInstant,
+  formatTodoDueTime,
+  TODO_PRIORITY_LABELS,
+  attachSidebarListReorder,
+  persistChatOrder,
+  persistKnowledgeOrder,
   formatTodoDueDate,
 };

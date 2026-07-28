@@ -45,7 +45,9 @@ import {
   bindOsDialogKeyboardLayout,
   releaseOsDialogKeyboardLayout,
 } from './os-dialog.js?v=20260728j';
-import { navigateToWork } from './work-panel.js?v=20260728i';
+import { navigateToWork, workClientSubline } from './work-panel.js?v=20260728l';
+import { navigateToClient } from './clients-panel.js?v=20260728l';
+import { openReaveShareSheet } from './chat-panel.js?v=20260728l';
 
 /** Injected by os-map-loader via initSchedulePanel(). */
 let shell = {};
@@ -2065,4 +2067,19 @@ function renderSchedulePanel() {
 export {
   scheduleState,
   loadScheduleTab,
+  scheduleShareBookingUrl,
+  formatScheduleRange,
+  mountAddressAutocomplete,
+  formatScheduleWhen,
+  openScheduleTab,
+  scheduleTodayKey,
+  scheduleEnsureFocusDate,
+  scheduleOpenCreateDialog,
+  readScheduleLastAddress,
+  rememberScheduleAddress,
+  mountScheduleAddressAutocomplete,
+  isScheduleAddressError,
+  ensureScheduleAddress,
+  scheduleDateKey,
+  openScheduleCreateDialog,
 };

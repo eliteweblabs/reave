@@ -105,7 +105,9 @@ import {
   refreshWorkLinkTrackStatus,
   mountClientWorkSection,
   queueWorkDeepLink,
-} from './work-panel.js?v=20260728i';
+  workStatusLabel,
+  workClientSubline,
+} from './work-panel.js?v=20260728l';
 import {
   initTodoPanel,
   todoState,
@@ -117,28 +119,49 @@ import {
   flushTodoAutosave,
   saveActiveTodoDraft,
   formatTodoDueDate,
-} from './todo-panel.js?v=20260728i';
+  parseTodoDueInstant,
+  isUtcDateOnlyInstant,
+  formatTodoDueTime,
+  TODO_PRIORITY_LABELS,
+  startNewTodo,
+} from './todo-panel.js?v=20260728l';
 import {
   initDocumentsPanel,
   docState,
   loadDocumentsTab,
-} from './documents-panel.js?v=20260728i';
+} from './documents-panel.js?v=20260728l';
 import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260728i';
+} from './knowledge-panel.js?v=20260728l';
 import {
   initSchedulePanel,
   scheduleState,
   loadScheduleTab,
-} from './schedule-panel.js?v=20260728i';
+  formatScheduleWhen,
+  openScheduleTab,
+  scheduleTodayKey,
+  scheduleEnsureFocusDate,
+  scheduleOpenCreateDialog,
+  readScheduleLastAddress,
+  rememberScheduleAddress,
+  mountScheduleAddressAutocomplete,
+  isScheduleAddressError,
+  ensureScheduleAddress,
+  scheduleDateKey,
+  openScheduleCreateDialog,
+  mountAddressAutocomplete,
+} from './schedule-panel.js?v=20260728l';
 import {
   initClientsPanel,
   clientState,
   loadClientsTab,
   navigateToClient,
-} from './clients-panel.js?v=20260728i';
+  geocodeClientAddressPreview,
+  startNewClient,
+  confirmDiscardChanges,
+} from './clients-panel.js?v=20260728l';
 import {
   initChatPanel,
   chatState,
@@ -159,7 +182,14 @@ import {
   renderLinkTrackStatus,
   sharePortalLink,
   queueChatDeepLink,
-} from './chat-panel.js?v=20260728i';
+  startNewChat,
+  getChatPanel,
+  clearChatLastActiveId,
+  chatMsgPlainText,
+  shareChatText,
+  archiveChat,
+  openChat,
+} from './chat-panel.js?v=20260728l';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -169,7 +199,7 @@ const SYSTEM_MAP_SET = new Set(SYSTEM_MAP_KEYS);
 const CHAT_MAP_SET = new Set(CHAT_MAP_KEYS);
 const MOBILE_TABS_MQ = window.matchMedia('(max-width: 639px)');
 const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
-const userId = document.body?.dataset?.userId?.trim() || '';
+export const userId = document.body?.dataset?.userId?.trim() || '';
 const isDeploymentOwnerClient = document.body?.dataset?.isOwner === '1';
 const KNOWLEDGE_API = '/api/admin/knowledge';
 const SIDEBAR_LIST_GRIP =
@@ -309,7 +339,7 @@ const NAV_ICON_PATHS = {
     '<circle cx="7" cy="18" r="3"/>',
 };
 
-function navIcon(name, size = 20) {
+export function navIcon(name, size = 20) {
   const paths = NAV_ICON_PATHS[name];
   if (!paths) return '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
@@ -335,7 +365,7 @@ function chipHtml(n) {
   return `<span class="chip">${n.icon ?? '•'}</span>`;
 }
 
-function placeholderHtml(iconName, bodyHtml) {
+export function placeholderHtml(iconName, bodyHtml) {
   return `<div class="de-placeholder-icon">${navIcon(iconName, 40)}</div>${bodyHtml}`;
 }
 
@@ -369,7 +399,7 @@ function appendEmptyDetailPane(pane, { mapKey, iconName, bodyHtml, btnLabel = 'C
   pane.appendChild(body);
 }
 
-function scrollSidebarListItemIntoView(list, itemEl) {
+export function scrollSidebarListItemIntoView(list, itemEl) {
   const row = itemEl.closest('.swipe-row') || itemEl;
   const listRect = list.getBoundingClientRect();
   const rowRect = row.getBoundingClientRect();
@@ -827,7 +857,7 @@ function updateChecked() {
 // ---- agent model picker (System tab legacy select; chats use pane subheader) ----
 const MODEL_NODE_IDS = ['anthropic', 'tc_claude', 'tc_svc_anthropic'];
 
-let agentModelState = {
+export let agentModelState = {
   model: 'claude-sonnet-4-6',
   source: 'default',
   options: [],
@@ -4806,10 +4836,10 @@ function profileTimezoneOptions(selected) {
   }).join('');
 }
 
-const AUTOSAVE_DEBOUNCE_MS = 650;
+export const AUTOSAVE_DEBOUNCE_MS = 650;
 const FORM_FIELD_SAVING = 'form-field--saving';
-const FORM_FIELD_SAVED = 'form-field--saved';
-const FORM_FIELD_INVALID = 'form-field--invalid';
+export const FORM_FIELD_SAVED = 'form-field--saved';
+export const FORM_FIELD_INVALID = 'form-field--invalid';
 
 let settingsAutosaveFlush = null;
 
@@ -9092,7 +9122,7 @@ function filteredInboxEvents() {
   );
 }
 
-function clearTopbarPanelContext() {
+export function clearTopbarPanelContext() {
   const slot = document.getElementById('topbar-panel-context');
   const topbar = document.getElementById('topbar');
   document.querySelector('.topbar-end .topbar-panel-actions')?.remove();
@@ -9126,7 +9156,7 @@ function chatTranscriptText() {
     .join('\n\n');
 }
 
-function chatHasConversation() {
+export function chatHasConversation() {
   return chatState.messages.length > 0 || chatState.sending;
 }
 
@@ -9148,7 +9178,7 @@ function buildChatPaneNavHeader() {
   return header;
 }
 
-function buildChatPaneHeader() {
+export function buildChatPaneHeader() {
   const main = document.createElement('div');
   main.className = 'ch-pane-header-main';
   main.appendChild(createHeaderChatTitle(chatState.activeId, chatState.title));
