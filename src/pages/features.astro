@@ -4,7 +4,10 @@
  * Accordion sections, dark brand theme, plugins called out separately at the end.
  */
 import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import { INSTALLATION_TIERS, formatInstallUsd } from "../lib/installationTiers";
 import {
   Users,
@@ -38,6 +41,8 @@ import {
 const company = await getCompanyConfig(Astro.request);
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 
 /** Familiar SaaS logos — what {company.name} consolidates for clients. */
 type ReplacedApp = { slug: string; name: string; color: string };
@@ -934,6 +939,16 @@ const customPrompts: PromptExample[] = [
       </div>
     </section>
   </div>
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
 </Layout>
 
 <script>

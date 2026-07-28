@@ -1,0 +1,568 @@
+---
+/**
+ * Public marketing-site "speed dial" help button — same floating chat pattern
+ * as `PortalAssistantWidget.astro`, wired to `/api/site/assistant`.
+ *
+ * Slides up from below on first page scroll; if the page doesn't scroll,
+ * reveals on load instead.
+ */
+import IosBottomSheet from './IosBottomSheet.astro';
+
+export interface Props {
+  brandTitle: string;
+  supportPhone?: string;
+  supportEmail?: string;
+  /** Lift the FAB above the homepage footer nav pill. */
+  offsetFooterNav?: boolean;
+}
+
+const {
+  brandTitle,
+  supportPhone = '',
+  supportEmail = '',
+  offsetFooterNav = false,
+} = Astro.props;
+
+const endpoint = '/api/site/assistant';
+const storageKey = 'sa-chat-site';
+
+const greeting = `Hi! I can answer questions about ${brandTitle}, our services, and how to get started. What would you like to know?`;
+
+const contactBits = [
+  supportPhone ? `call/text ${supportPhone}` : '',
+  supportEmail ? `email ${supportEmail}` : '',
+].filter(Boolean);
+const footerNote = contactBits.length ? `Prefer a person? ${contactBits.join(' · ')}` : '';
+---
+
+<div
+  id="sa-root"
+  class="sa-root"
+  data-endpoint={endpoint}
+  data-storage-key={storageKey}
+  data-offset-footer-nav={offsetFooterNav ? 'true' : undefined}
+>
+  <button
+    id="sa-fab"
+    class="sa-fab"
+    type="button"
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    aria-label={`Chat with ${brandTitle}`}
+  >
+    <svg class="sa-fab-icon-chat" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <svg class="sa-fab-icon-close" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+    </svg>
+  </button>
+
+  <IosBottomSheet id="sa-sheet" sheetOnly={true} dismissible={true} class="sa-sheet">
+    <div class="sa-chat">
+      <header class="sa-header">
+        <div class="sa-header-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.955 9.955 0 0 0 12 22Z"/></svg>
+        </div>
+        <div class="sa-header-title">
+          <span class="sa-header-name">Questions?</span>
+          <span class="sa-header-sub">{brandTitle}</span>
+        </div>
+        <button class="sa-close" type="button" data-ios-sheet-close aria-label="Close chat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+
+      <div id="sa-messages" class="sa-messages">
+        <div class="sa-msg sa-msg-assistant">
+          <div class="sa-bubble" data-greeting>{greeting}</div>
+        </div>
+      </div>
+
+      <div id="sa-typing" class="sa-typing" hidden aria-hidden="true"><span></span><span></span><span></span></div>
+
+      <form id="sa-form" class="sa-form">
+        <textarea
+          id="sa-input"
+          class="sa-input"
+          rows="1"
+          placeholder="Ask a question…"
+          autocomplete="off"
+          autocorrect="on"
+          spellcheck="true"
+          maxlength="2000"
+        ></textarea>
+        <button id="sa-send" class="sa-send" type="submit" aria-label="Send message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        </button>
+      </form>
+
+      {footerNote && <p class="sa-footer">{footerNote}</p>}
+    </div>
+  </IosBottomSheet>
+</div>
+
+<script src="/ios-sheet.js" defer></script>
+
+<style>
+  .sa-root { position: relative; }
+
+  .sa-fab {
+    position: fixed;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: calc(env(safe-area-inset-bottom) + 20px);
+    z-index: 70;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    border: 1px solid transparent;
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  .sa-root[data-offset-footer-nav='true'] .sa-fab {
+    bottom: calc(var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom) + 20px);
+  }
+
+  .sa-fab.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .sa-fab:active { transform: translateY(0) scale(0.93); }
+  .sa-fab[aria-expanded='true'] { z-index: 6001; }
+  .sa-fab-icon-close { display: none; }
+  .sa-fab[aria-expanded='true'] .sa-fab-icon-chat { display: none; }
+  .sa-fab[aria-expanded='true'] .sa-fab-icon-close { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sa-fab {
+      transform: none;
+      opacity: 1;
+      visibility: visible;
+      transition: none;
+    }
+  }
+
+  .sa-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .sa-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 14px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .sa-header-icon {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+  }
+  .sa-header-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sa-header-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .sa-header-sub { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+  .sa-close {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+  }
+  .sa-close:active { background: rgba(255, 255, 255, 0.14); }
+
+  .sa-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sa-msg { display: flex; }
+  .sa-msg-user { justify-content: flex-end; }
+  .sa-msg-assistant { justify-content: flex-start; }
+  .sa-bubble {
+    max-width: 84%;
+    padding: 10px 13px;
+    border-radius: 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .sa-msg-assistant .sa-bubble {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    border-bottom-left-radius: 4px;
+  }
+  .sa-msg-user .sa-bubble {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .sa-bubble a { color: #d8b4fe; text-decoration: underline; }
+  .sa-msg-user .sa-bubble a { color: #fff; }
+  .sa-bubble strong { font-weight: 700; }
+  .sa-bubble.sa-bubble-error {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #fca5a5;
+  }
+
+  .sa-typing {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 20px 8px;
+  }
+  .sa-typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    animation: sa-bounce 1.2s infinite ease-in-out;
+  }
+  .sa-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .sa-typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes sa-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  .sa-form {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .sa-input {
+    flex: 1;
+    resize: none;
+    max-height: 110px;
+    padding: 10px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font: inherit;
+    font-size: 14.5px;
+    line-height: 1.4;
+    outline: none;
+  }
+  .sa-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .sa-input:focus { border-color: rgba(168, 85, 247, 0.6); }
+  .sa-send {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+  }
+  .sa-send:active { transform: scale(0.92); }
+  .sa-send:disabled { opacity: 0.45; cursor: default; }
+
+  .sa-footer {
+    flex: none;
+    margin: 0;
+    padding: 0 16px 12px;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+  }
+</style>
+
+<style is:global>
+  #sa-sheet {
+    --ios-sheet-bg: #121016;
+    --ios-sheet-fg: #fff;
+    --ios-sheet-muted: rgba(255, 255, 255, 0.55);
+    --ios-sheet-border: rgba(255, 255, 255, 0.1);
+    --ios-sheet-grabber: rgba(255, 255, 255, 0.28);
+    color-scheme: dark;
+  }
+
+  #sa-sheet .ios-sheet-header {
+    display: none;
+  }
+
+  #sa-sheet .ios-sheet {
+    height: min(85dvh, 640px);
+    max-height: min(85dvh, 640px);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  #sa-sheet .ios-sheet-body {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+</style>
+
+<script>
+  type Turn = { role: 'user' | 'assistant'; content: string };
+
+  declare global {
+    interface Window {
+      IosSheet?: {
+        open: (target: string | HTMLElement, opts?: { onClose?: () => void }) => void;
+        close: (target?: string | HTMLElement) => void;
+      };
+    }
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatReply(raw: string): string {
+    let out = escapeHtml(raw);
+    out = out.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+      const clean = url.replace(/[.,)]+$/, '');
+      const trail = url.slice(clean.length);
+      return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+    });
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return out.replace(/\n/g, '<br />');
+  }
+
+  function initFabReveal(fab: HTMLElement) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      fab.classList.add('is-visible');
+      return;
+    }
+
+    let revealed = false;
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
+      fab.classList.add('is-visible');
+      window.removeEventListener('scroll', onScroll);
+    };
+
+    const onScroll = () => {
+      if (window.scrollY > 24) reveal();
+    };
+
+    const checkNoScroll = () => {
+      const doc = document.documentElement;
+      if (doc.scrollHeight <= doc.clientHeight + 2) reveal();
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    checkNoScroll();
+    window.addEventListener('load', checkNoScroll, { once: true });
+    window.addEventListener('resize', checkNoScroll, { passive: true });
+  }
+
+  function initSiteAssistant(root: HTMLElement) {
+    const endpoint = root.dataset.endpoint || '/api/site/assistant';
+    const storageKey = root.dataset.storageKey || 'sa-chat-site';
+    const sheetId = 'sa-sheet';
+
+    const fab = root.querySelector<HTMLButtonElement>('#sa-fab');
+    const sheet = document.getElementById(sheetId);
+    const messagesEl = root.querySelector<HTMLDivElement>('#sa-messages');
+    const typingEl = root.querySelector<HTMLDivElement>('#sa-typing');
+    const form = root.querySelector<HTMLFormElement>('#sa-form');
+    const input = root.querySelector<HTMLTextAreaElement>('#sa-input');
+    const sendBtn = root.querySelector<HTMLButtonElement>('#sa-send');
+    if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn) return;
+
+    initFabReveal(fab);
+
+    let history: Turn[] = [];
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) history = parsed;
+      }
+    } catch {
+      /* ignore corrupt/blocked storage */
+    }
+
+    function persist() {
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(history.slice(-40)));
+      } catch {
+        /* storage may be unavailable */
+      }
+    }
+
+    function scrollToBottom() {
+      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+    }
+
+    function renderMessage(role: 'user' | 'assistant', text: string, isError = false) {
+      const row = document.createElement('div');
+      row.className = `sa-msg sa-msg-${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = `sa-bubble${isError ? ' sa-bubble-error' : ''}`;
+      bubble.innerHTML = role === 'assistant' ? formatReply(text) : escapeHtml(text).replace(/\n/g, '<br />');
+      row.appendChild(bubble);
+      messagesEl!.appendChild(row);
+      scrollToBottom();
+    }
+
+    if (history.length) {
+      const greetingEl = messagesEl.querySelector('[data-greeting]');
+      if (greetingEl) greetingEl.closest('.sa-msg')?.remove();
+      for (const turn of history) renderMessage(turn.role, turn.content);
+      scrollToBottom();
+    }
+
+    function isOpen() {
+      return sheet!.classList.contains('open');
+    }
+
+    function setExpanded(expanded: boolean) {
+      fab!.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function openPanel() {
+      window.IosSheet?.open(sheetId);
+      setExpanded(true);
+      setTimeout(() => input!.focus(), 280);
+    }
+
+    function closePanel() {
+      window.IosSheet?.close(sheetId);
+      setExpanded(false);
+    }
+
+    fab.addEventListener('click', () => (isOpen() ? closePanel() : openPanel()));
+    sheet.addEventListener('ios-sheet-close', () => setExpanded(false));
+
+    function autosize() {
+      input!.style.height = 'auto';
+      input!.style.height = `${Math.min(input!.scrollHeight, 110)}px`;
+    }
+    input.addEventListener('input', autosize);
+
+    let sending = false;
+    async function sendMessage(rawText: string) {
+      const text = rawText.trim();
+      if (sending || !text) return;
+      sending = true;
+      sendBtn!.disabled = true;
+
+      renderMessage('user', text);
+      const priorHistory = history.slice(-20);
+      history.push({ role: 'user', content: text });
+      persist();
+
+      input!.value = '';
+      autosize();
+      typingEl!.hidden = false;
+      scrollToBottom();
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history: priorHistory }),
+        });
+        let data: { ok?: boolean; reply?: string; error?: string } = {};
+        try {
+          data = await res.json();
+        } catch {
+          /* fall through */
+        }
+        typingEl!.hidden = true;
+
+        if (res.ok && data.ok && data.reply) {
+          renderMessage('assistant', data.reply);
+          history.push({ role: 'assistant', content: data.reply });
+        } else {
+          const msg = data.error || 'Something went wrong. Please try again in a moment.';
+          renderMessage('assistant', msg, true);
+          history.push({ role: 'assistant', content: msg });
+        }
+        persist();
+      } catch {
+        typingEl!.hidden = true;
+        const msg = 'Network error — please check your connection and try again.';
+        renderMessage('assistant', msg, true);
+        history.push({ role: 'assistant', content: msg });
+        persist();
+      } finally {
+        sending = false;
+        sendBtn!.disabled = false;
+        scrollToBottom();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      void sendMessage(input.value);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        void sendMessage(input.value);
+      }
+    });
+  }
+
+  const root = document.getElementById('sa-root');
+  if (root) initSiteAssistant(root);
+</script>

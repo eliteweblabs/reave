@@ -1,17 +1,22 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import QuantumLogo from "../components/QuantumLogo.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
 import HomeAboutSection from "../components/home/HomeAboutSection.astro";
 import HomeServicesSection from "../components/home/HomeServicesSection.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import "../styles/marketing-sections.css";
 
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
 
 <Layout>
@@ -41,6 +46,17 @@ const heroLogo = homepageHeroLogo(company);
   </div>
 
   <SiteFooterNav active="home" />
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+        offsetFooterNav={true}
+      />
+    )
+  }
 </Layout>
 
 <script>
