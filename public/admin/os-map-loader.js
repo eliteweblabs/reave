@@ -10623,7 +10623,7 @@ function finishSidebarListScroll(root, savedScrollTop = 0) {
   if (!list) return;
   if (savedScrollTop > 0) list.scrollTop = savedScrollTop;
   requestAnimationFrame(() => {
-    const activeEl = list.querySelector('.ch-list-item.active');
+    const activeEl = list.querySelector('.ch-list-item.active, .em-list-item.active');
     if (activeEl) scrollSidebarListItemIntoView(list, activeEl);
   });
 }
@@ -19465,10 +19465,41 @@ async function openEmailFromDeepLink(id) {
   return true;
 }
 
+function syncAdminDeepLinkUrl(url) {
+  try {
+    const u = new URL(url, window.location.origin);
+    if (u.origin !== window.location.origin) return;
+    history.replaceState({}, '', u.pathname + u.search + u.hash);
+  } catch {}
+}
+
+/** Mobile inbox is list-only until em-pane-active — ensure detail opens after deep links. */
+function ensureEmailMobilePaneOpen() {
+  if (!isMobileTabs() || !emailState.activeId) return;
+  getEmailPanel()?.classList.add('em-pane-active');
+}
+
+function resumeEmailDeepLinkFromUrl() {
+  const emailId = parseEmailDeepLinkFromUrl();
+  if (!emailId) return;
+  if (MAP?.type !== 'email') {
+    pendingEmailDeepLinkId = emailId;
+    setActiveMap('email', { force: true, emailId });
+    return;
+  }
+  if (emailState.activeId === emailId) {
+    ensureEmailMobilePaneOpen();
+    return;
+  }
+  if (emailState.allEvents.length) void openEmailFromDeepLink(emailId);
+  else pendingEmailDeepLinkId = emailId;
+}
+
 function handleNotificationOpen(url) {
   if (!url) return;
   try {
     const u = new URL(url, window.location.origin);
+    syncAdminDeepLinkUrl(u.href);
     const tab = u.searchParams.get('tab');
     const emailId = u.searchParams.get('email')?.trim();
     if (tab === 'email' && emailId) {
@@ -21085,6 +21116,7 @@ async function loadEmailTab(quiet) {
     getEmailPanel()?.classList.remove('em-pane-active');
   }
   renderEmailPanel();
+  ensureEmailMobilePaneOpen();
   syncInboxAppBadge(emailState.allEvents);
 }
 
@@ -21813,6 +21845,7 @@ function openEmailEvent(id) {
   emailState.composing = false;
   emailState.replyToId = null;
   renderEmailPanel();
+  ensureEmailMobilePaneOpen();
 }
 
 function renderEmailPanel() {
@@ -22136,10 +22169,7 @@ async function boot() {
 boot().catch(showBootError);
 
 window.addEventListener('pageshow', () => {
-  const emailId = parseEmailDeepLinkFromUrl();
-  if (!emailId || MAP?.type !== 'email' || emailState.activeId === emailId) return;
-  if (emailState.allEvents.length) void openEmailFromDeepLink(emailId);
-  else pendingEmailDeepLinkId = emailId;
+  resumeEmailDeepLinkFromUrl();
 });
 
 if ('serviceWorker' in navigator) {
@@ -22168,5 +22198,6 @@ document.addEventListener('visibilitychange', () => {
     syncInboxBadgePoll();
     syncChatRunningPoll();
     startDeployPoll();
+    resumeEmailDeepLinkFromUrl();
   }
 });
