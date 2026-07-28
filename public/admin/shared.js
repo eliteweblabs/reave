@@ -63,3 +63,22 @@ export function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+const LINKIFY_TRAILING_PUNCT = /[.,;:!?)]+$/;
+
+/** Turn plain-text URLs into safe anchor tags (used by work, documents, email panels). */
+export function linkifyPlainText(str) {
+  const escaped = escHtml(str);
+  return escaped.replace(/https?:\/\/[^\s<]+/g, (raw) => {
+    let url = raw;
+    let trailing = '';
+    if (!raw.endsWith('...')) {
+      const m = raw.match(LINKIFY_TRAILING_PUNCT);
+      if (m) {
+        trailing = m[0];
+        url = raw.slice(0, -trailing.length);
+      }
+    }
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
+  });
+}

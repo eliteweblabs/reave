@@ -25,8 +25,8 @@ import {
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
-} from './admin-ui.js?v=20260728h';
-import { escHtml, adminFetch, readAdminJson, readApiJson } from './shared.js?v=20260728h';
+} from './admin-ui.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -1878,7 +1878,7 @@ function workMarkdownToHtml(markdown) {
     } else if (trimmed === '') {
       parts.push('<div class="wk-md-line"><br></div>');
     } else {
-      parts.push(`<div class="wk-md-line">${shell.linkifyPlainText(trimmed)}</div>`);
+      parts.push(`<div class="wk-md-line">${linkifyPlainText(trimmed)}</div>`);
     }
   }
   return parts.join('');
