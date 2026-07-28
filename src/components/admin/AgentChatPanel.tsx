@@ -1316,7 +1316,17 @@ function ClaudeComposer({
             <ComposerPrimitive.Send
               className="aui-composer-send"
               aria-label="Send message"
+              // iOS Safari fires `blur` on the composer textarea before `click` on
+              // whatever was tapped. Without this, the first tap on Send just closes
+              // the keyboard (and can shift the layout enough to eat the tap), so a
+              // second tap is needed to actually send. Preventing the default action
+              // of mousedown/pointerdown stops the browser from moving focus off the
+              // textarea, so the keyboard stays open and the tap sends immediately.
+              // Both handlers are needed: iOS's pointer-event support has been
+              // inconsistent about suppressing the compatibility mousedown it's
+              // supposed to when pointerdown is cancelled.
               onPointerDown={(e) => e.preventDefault()}
+              onMouseDown={(e) => e.preventDefault()}
             >
               <SendIcon />
             </ComposerPrimitive.Send>
