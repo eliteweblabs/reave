@@ -2081,8 +2081,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
-      #work-editor .re-form-scroll.wk-form-scroll .de-fields > .wk-client-picker {
-        grid-column: 1 / -1;
+      #work-editor .re-form-scroll.wk-form-scroll > .wk-client-picker {
         margin-bottom: 0;
       }
       #work-editor .de-fields .de-label {
@@ -2465,6 +2464,35 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .wk-client-readonly-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.4rem 0.1rem;
+        background: var(--card);
+        position: sticky;
+        top: 0;
+        z-index: 3;
+      }
+      .wk-client-readonly-bar .wk-client-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: left;
+      }
+      .wk-client-readonly-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.15rem;
+        flex: none;
+      }
+      .wk-client-readonly-actions .wk-client-action-btn:disabled {
+        opacity: 0.32;
+        cursor: default;
+        pointer-events: none;
       }
       .wk-client-search-wrap { position: relative; }
       .wk-client-dropdown {

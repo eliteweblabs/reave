@@ -12142,6 +12142,8 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
         uid: initial.contact_uid,
         name: initial.contact_name || initial.client || '',
         logoUrl: initial.contact_logo_url || '',
+        email: initial.contact_email || '',
+        phone: initial.contact_phone || '',
       }
     : null;
   let changing = false;
@@ -12152,6 +12154,10 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
 
   let profileLink = null;
   let clientNameEl = null;
+  let emailActionBtn = null;
+  let callActionBtn = null;
+  let smsActionBtn = null;
+  let readonlyBar = null;
   const selectedEl = document.createElement('div');
   selectedEl.className = 'wk-client-selected';
   const selectedName = document.createElement('span');
@@ -12161,16 +12167,58 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   changeBtn.textContent = 'Change';
 
   if (readOnly) {
-    profileLink = document.createElement('button');
-    profileLink.type = 'button';
-    profileLink.className = 'wk-client-selected wk-client-profile-link';
-    profileLink.addEventListener('click', () => {
-      if (selected?.uid) navigateToClient(selected.uid);
-    });
+    readonlyBar = document.createElement('div');
+    readonlyBar.className = 'wk-client-readonly-bar';
+
     clientNameEl = document.createElement('span');
     clientNameEl.className = 'wk-client-name';
-    profileLink.appendChild(clientNameEl);
-    wrap.appendChild(profileLink);
+    readonlyBar.appendChild(clientNameEl);
+
+    const actions = document.createElement('div');
+    actions.className = 'wk-client-readonly-actions';
+
+    profileLink = createIosIconBtn({
+      iconKey: 'user',
+      label: 'Open profile',
+      className: 'ios-icon-btn wk-client-action-btn',
+      onClick: () => {
+        if (selected?.uid) navigateToClient(selected.uid);
+      },
+    });
+    actions.appendChild(profileLink);
+
+    emailActionBtn = createIosIconBtn({
+      iconKey: 'mail',
+      label: 'Email client',
+      className: 'ios-icon-btn wk-client-action-btn',
+      onClick: () => {
+        if (selected?.email) window.location.href = `mailto:${selected.email}`;
+      },
+    });
+    actions.appendChild(emailActionBtn);
+
+    callActionBtn = createIosIconBtn({
+      iconKey: 'phone',
+      label: 'Call client',
+      className: 'ios-icon-btn wk-client-action-btn',
+      onClick: () => {
+        if (selected?.phone) window.location.href = `tel:${selected.phone.replace(/[^\d+]/g, '')}`;
+      },
+    });
+    actions.appendChild(callActionBtn);
+
+    smsActionBtn = createIosIconBtn({
+      iconKey: 'message',
+      label: 'Text client',
+      className: 'ios-icon-btn wk-client-action-btn',
+      onClick: () => {
+        if (selected?.phone) window.location.href = `sms:${selected.phone.replace(/[^\d+]/g, '')}`;
+      },
+    });
+    actions.appendChild(smsActionBtn);
+
+    readonlyBar.appendChild(actions);
+    wrap.appendChild(readonlyBar);
   } else {
     selectedEl.appendChild(selectedName);
     selectedEl.appendChild(changeBtn);
@@ -12225,16 +12273,25 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
     const has = !!selected?.uid;
     searchWrap.style.display = 'none';
     newForm.style.display = 'none';
-    profileLink.style.display = !showingNew && !changing ? 'flex' : 'none';
-    if (has) {
-      clientNameEl.textContent = selected.name;
-      profileLink.disabled = false;
-      profileLink.title = `Open ${selected.name} profile`;
-    } else {
-      clientNameEl.textContent = 'No client';
-      profileLink.disabled = true;
-      profileLink.removeAttribute('title');
-    }
+    readonlyBar.style.display = !showingNew && !changing ? 'flex' : 'none';
+
+    const name = selected?.name || 'No client';
+    clientNameEl.textContent = name;
+
+    profileLink.disabled = !has;
+    if (has) profileLink.title = `Open ${name} profile`;
+    else profileLink.removeAttribute('title');
+
+    const email = selected?.email || '';
+    emailActionBtn.disabled = !email;
+    emailActionBtn.title = email ? `Email ${name} at ${email}` : 'No email on file';
+
+    const phone = selected?.phone || '';
+    callActionBtn.disabled = !phone;
+    callActionBtn.title = phone ? `Call ${name} at ${phone}` : 'No phone on file';
+
+    smsActionBtn.disabled = !phone;
+    smsActionBtn.title = phone ? `Text ${name} at ${phone}` : 'No phone on file';
   }
 
   function syncView() {
@@ -12421,6 +12478,19 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
   });
 
   syncView();
+
+  if (readOnly && selected?.uid) {
+    const uid = selected.uid;
+    fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.ok || selected?.uid !== uid) return;
+        selected.email = data.email || '';
+        selected.phone = data.phone || '';
+        syncReadOnlyClientLink();
+      })
+      .catch(() => {});
+  }
 
   return {
     getPayload() {
@@ -12959,6 +13029,8 @@ function renderEditWorkForm(pane) {
         body: data.body || '',
         contact_uid: data.contact_uid,
         contact_name: data.contact_name || data.client,
+        contact_email: data.contact_email || '',
+        contact_phone: data.contact_phone || '',
       };
       workState.dirty = false;
       pane.innerHTML = '';
@@ -13093,7 +13165,7 @@ function renderEditWorkForm(pane) {
         workAutosaveFlush = () => autosaveWorkQuiet(payloadFn, workActiveEl);
         return autosaveWorkQuiet(payloadFn, workActiveEl);
       };
-      clientPicker = mountWorkClientPicker(fields, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
+      clientPicker = mountWorkClientPicker(scroll, workState.draft, () => queueWorkAutosave(workActiveEl), { readOnly: true });
       fields.insertBefore(linkTrackEl, fields.firstChild);
       renderWorkLinkTrackStatus(linkTrackEl, data.tracked_links, slug);
 
