@@ -17,7 +17,7 @@ export const SITE = {
   /** Fallback logo path (root-relative, under /public). Override in admin → Company details. */
   logoPath: "/reave-logo.png",
 
-  /** Default OG / Twitter card image — static PNG (edit /public/logo-icon-og.png). */
+  /** Default OG / Twitter card image — regenerate with `npm run icons:generate`. */
   ogImage: LOGO_ICON_OG_PATH,
 
   /** Default og:type. */
