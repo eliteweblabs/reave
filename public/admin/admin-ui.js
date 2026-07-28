@@ -1452,6 +1452,49 @@ if (typeof document !== 'undefined' && !contextMenuDismissBound) {
   });
 }
 
+export function deBtnIconSvg(iconKey, size = 16) {
+  const svg = IOS_ICONS[iconKey];
+  if (!svg) return '';
+  return svg.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
+}
+
+export function setDeBtnLabel(btn, label, iconKey) {
+  const key = iconKey ?? btn.dataset.deBtnIcon ?? '';
+  if (iconKey) btn.dataset.deBtnIcon = iconKey;
+  btn.innerHTML =
+    (key ? `<span class="de-btn-icon" aria-hidden="true">${deBtnIconSvg(key)}</span>` : '') +
+    `<span class="de-btn-label">${label}</span>`;
+}
+
+export function getDeBtnLabel(btn) {
+  return btn.querySelector('.de-btn-label')?.textContent?.trim() || '';
+}
+
+export function updateDeBtnLabel(btn, label) {
+  const el = btn.querySelector('.de-btn-label');
+  if (el) el.textContent = label;
+  else btn.textContent = label;
+}
+
+export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
+  return createIosIconBtn({
+    iconKey: 'trash',
+    label,
+    className: 'ios-icon-btn ch-delete-btn',
+    confirmDelete,
+    onClick,
+  });
+}
+
+export function paneShareIcon({ label, onClick }) {
+  return createIosIconBtn({
+    iconKey: 'share',
+    label,
+    className: 'ios-icon-btn de-share-btn',
+    onClick,
+  });
+}
+
 if (typeof document !== 'undefined' && !document.documentElement.dataset.swipeDismissBound) {
   document.documentElement.dataset.swipeDismissBound = '1';
   document.addEventListener('click', (e) => {

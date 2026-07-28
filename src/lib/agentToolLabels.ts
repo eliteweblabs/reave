@@ -43,6 +43,7 @@ const TOOL_LABELS: Record<string, string> = {
   list_open_branches: 'Listing branches',
   run_terminal_command: 'Running command',
   read_file: 'Reading file',
+  grep_code: 'Searching code',
   write_file: 'Writing file',
   list_files: 'Listing files',
   exec_command: 'Running command',

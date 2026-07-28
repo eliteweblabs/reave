@@ -100,6 +100,7 @@ const READ_ONLY_TOOLS = new Set([
   'get_kinsta_operation',
   'list_files',
   'read_file',
+  'grep_code',
   'run_terminal_command',
 ]);
 

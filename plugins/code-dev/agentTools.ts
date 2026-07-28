@@ -109,6 +109,7 @@ import { githubCreateBranch, githubCreatePullRequest, githubDefaultBranch, githu
 import { describeSafeShell, runSafeShellCommand } from '../../src/lib/safeShell';
 import {
   codeDevExecCommand,
+  codeDevGrep,
   codeDevListFiles,
   codeDevReadFile,
   codeDevWriteFile,
@@ -183,7 +184,10 @@ import {
 
 async function handle_read_file(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
-  const result = codeDevReadFile(String(args.path ?? ''));
+  const result = codeDevReadFile(String(args.path ?? ''), {
+    offset: typeof args.offset === 'number' ? args.offset : undefined,
+    limit: typeof args.limit === 'number' ? args.limit : undefined,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -203,6 +207,16 @@ async function handle_list_files(args: Record<string, unknown>, _ctx: ToolContex
     typeof args.path === 'string' && args.path.trim() ? args.path.trim() : '.',
     args.recursive === true,
   );
+  if (!result.ok) return JSON.stringify({ error: result.error });
+  return JSON.stringify(result.data);
+}
+
+async function handle_grep_code(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  if (!hasFeature('code_dev')) return JSON.stringify({ error: 'code_dev feature not enabled' });
+  const result = await codeDevGrep(String(args.pattern ?? ''), String(args.path ?? '.'), {
+    glob: typeof args.glob === 'string' ? args.glob : undefined,
+    ignoreCase: args.ignore_case === true,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -227,13 +241,21 @@ export const codeDevModule: AgentToolModule = {
               function: {
                 name: 'read_file',
                 description:
-                  'Read a file from the local project filesystem (path relative to repo root). Use before editing. Reave code_dev only.',
+                  'Read a file from the local project filesystem (path relative to repo root). Use before editing. For files over 512KB or very long files, pass offset (1-based line) and limit (max lines) instead of reading the whole file. Reave code_dev only.',
                 parameters: {
                   type: 'object',
                   properties: {
                     path: {
                       type: 'string',
                       description: 'Repo-relative path, e.g. src/components/Chat.tsx',
+                    },
+                    offset: {
+                      type: 'number',
+                      description: 'Optional 1-based start line when reading a slice of a long file',
+                    },
+                    limit: {
+                      type: 'number',
+                      description: 'Optional max lines to return (use with offset for large files)',
                     },
                   },
                   required: ['path'],
@@ -295,6 +317,37 @@ export const codeDevModule: AgentToolModule = {
             {
               type: 'function',
               function: {
+                name: 'grep_code',
+                description:
+                  'Search the repo for a regex pattern (ripgrep/grep). Returns matching file:line:text rows. Use to find where CSS classes, functions, or strings live before read_file. Reave code_dev only.',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    pattern: {
+                      type: 'string',
+                      description: 'Regex pattern, e.g. "mountWorkClientPicker" or "wk-comment-author"',
+                    },
+                    path: {
+                      type: 'string',
+                      description: 'Repo-relative file or directory to search (default ".")',
+                    },
+                    glob: {
+                      type: 'string',
+                      description: 'Optional glob filter, e.g. "public/admin/*.js"',
+                    },
+                    ignore_case: {
+                      type: 'boolean',
+                      description: 'Case-insensitive search (default false)',
+                    },
+                  },
+                  required: ['pattern'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            {
+              type: 'function',
+              function: {
                 name: 'exec_command',
                 description:
                   'Execute a shell command in the project root (git, npm, node, etc.). Prefer this over run_terminal_command when you need writes, installs, or tests. Reave code_dev only. Commit and push after successful code changes.',
@@ -317,6 +370,7 @@ export const codeDevModule: AgentToolModule = {
     'read_file': handle_read_file,
     'write_file': handle_write_file,
     'list_files': handle_list_files,
+    'grep_code': handle_grep_code,
     'exec_command': handle_exec_command,
   },
 };

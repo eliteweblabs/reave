@@ -649,7 +649,7 @@ async function runKnowledgeAgentInner(
       );
     } else {
       sysParts.push(
-        'Local code development (Reave code_dev): you CAN edit this repo on disk. Use list_files / read_file / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add, commit, and push — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
+        'Local code development (Reave code_dev): you CAN edit this repo on disk. Use grep_code to find symbols/paths, then read_file (with offset/limit for large files) / write_file / exec_command. Read before write. Test with exec_command when possible. After every change commit straight to main — NEVER open a pull request: git add, commit, and push — invoke write_file and exec_command in this turn; never reply "Let me commit and push" and stop. Call read_knowledge slug "code-dev-tools" for the playbook. Prefer these over run_terminal_command (read-only sandbox) and over write_github_file when working in a local checkout. Do not claim success unless tools succeed.',
       );
     }
   }

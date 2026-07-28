@@ -21,6 +21,8 @@ const MAX_READ_BYTES = 512 * 1024;
 const MAX_WRITE_BYTES = 512 * 1024;
 const MAX_LIST_ENTRIES = 500;
 const MAX_EXEC_OUTPUT = 32_000;
+const MAX_GREP_MATCHES = 200;
+const MAX_GREP_LINE_LEN = 500;
 const EXEC_TIMEOUT_MS = 60_000;
 
 function projectRoot(): string {
@@ -57,19 +59,57 @@ export type CodeDevResult =
   | { ok: true; data: Record<string, unknown> }
   | { ok: false; error: string };
 
-export function codeDevReadFile(path: string): CodeDevResult {
+export function codeDevReadFile(
+  path: string,
+  opts: { offset?: number; limit?: number } = {},
+): CodeDevResult {
   const resolved = resolveSafePath(path);
   if (!resolved.ok) return resolved;
   if (!existsSync(resolved.abs)) return { ok: false, error: `not found: ${resolved.rel}` };
   const st = statSync(resolved.abs);
   if (!st.isFile()) return { ok: false, error: `not a file: ${resolved.rel}` };
   if (st.size > MAX_READ_BYTES) {
-    return { ok: false, error: `file too large (${st.size} bytes; max ${MAX_READ_BYTES})` };
+    const offset = Math.max(1, Math.floor(opts.offset ?? 1));
+    const limit = Math.min(500, Math.max(1, Math.floor(opts.limit ?? 200)));
+    const content = readFileSync(resolved.abs, 'utf8');
+    const lineArr = content.split('\n');
+    const slice = lineArr.slice(offset - 1, offset - 1 + limit);
+    return {
+      ok: true,
+      data: {
+        path: resolved.rel,
+        bytes: st.size,
+        total_lines: lineArr.length,
+        offset,
+        limit,
+        truncated_file: true,
+        content: slice
+          .map((line, i) => `${offset + i}|${line.slice(0, MAX_GREP_LINE_LEN)}`)
+          .join('\n'),
+      },
+    };
   }
   const content = readFileSync(resolved.abs, 'utf8');
+  const lineArr = content.split('\n');
+  const offset = Math.max(1, Math.floor(opts.offset ?? 1));
+  const limit = Math.floor(opts.limit ?? 0);
+  if (limit > 0 && (offset > 1 || limit < lineArr.length)) {
+    const slice = lineArr.slice(offset - 1, offset - 1 + limit);
+    return {
+      ok: true,
+      data: {
+        path: resolved.rel,
+        bytes: Buffer.byteLength(content, 'utf8'),
+        total_lines: lineArr.length,
+        offset,
+        limit,
+        content: slice.map((line, i) => `${offset + i}|${line}`).join('\n'),
+      },
+    };
+  }
   return {
     ok: true,
-    data: { path: resolved.rel, bytes: Buffer.byteLength(content, 'utf8'), content },
+    data: { path: resolved.rel, bytes: Buffer.byteLength(content, 'utf8'), total_lines: lineArr.length, content },
   };
 }
 
@@ -170,6 +210,89 @@ export function codeDevListFiles(path: string, recursive = false): CodeDevResult
       recursive,
       truncated: entries.length >= MAX_LIST_ENTRIES,
       entries,
+    },
+  };
+}
+
+export async function codeDevGrep(
+  pattern: string,
+  searchPath = '.',
+  opts: { glob?: string; ignoreCase?: boolean } = {},
+): Promise<CodeDevResult> {
+  const rawPattern = (pattern || '').trim();
+  if (!rawPattern) return { ok: false, error: 'pattern is required' };
+  if (rawPattern.length > 300) return { ok: false, error: 'pattern too long' };
+
+  const resolved = resolveSafePath(searchPath.trim() || '.');
+  if (!resolved.ok) return resolved;
+
+  const root = projectRoot();
+  const rgArgs = [
+    '--line-number',
+    '--no-heading',
+    '--color=never',
+    '--max-count',
+    String(Math.ceil(MAX_GREP_MATCHES / 10)),
+    '--glob=!.git/**',
+    '--glob=!node_modules/**',
+    '--glob=!dist/**',
+    '--glob=!.astro/**',
+  ];
+  if (opts.ignoreCase) rgArgs.push('-i');
+  if (opts.glob?.trim()) rgArgs.push(`--glob=${opts.glob.trim()}`);
+  rgArgs.push(rawPattern, resolved.rel === '.' ? '.' : resolved.rel);
+
+  const runRg = () =>
+    new Promise<{ ok: true; stdout: string } | { ok: false; error: string }>((resolvePromise) => {
+      execFile('rg', rgArgs, { cwd: root, timeout: 30_000, maxBuffer: 512 * 1024 }, (err, stdout) => {
+        if (err && !stdout) {
+          const code = (err as { code?: unknown }).code;
+          if (code === 1) return resolvePromise({ ok: true, stdout: '' });
+          return resolvePromise({ ok: false, error: err.message });
+        }
+        resolvePromise({ ok: true, stdout: stdout ?? '' });
+      });
+    });
+
+  let stdout: string;
+  const rg = await runRg();
+  if (rg.ok) {
+    stdout = rg.stdout;
+  } else {
+    const grepArgs = ['-rn', '--binary-files=without-match', rawPattern, resolved.rel === '.' ? '.' : resolved.rel];
+    const grep = await new Promise<{ ok: boolean; stdout: string; error?: string }>((resolvePromise) => {
+      execFile(
+        'grep',
+        grepArgs,
+        { cwd: root, timeout: 30_000, maxBuffer: 512 * 1024 },
+        (err, out) => {
+          if (err && !out) {
+            const code = (err as { code?: unknown }).code;
+            if (code === 1) return resolvePromise({ ok: true, stdout: '' });
+            return resolvePromise({ ok: false, stdout: '', error: err.message });
+          }
+          resolvePromise({ ok: true, stdout: out ?? '' });
+        },
+      );
+    });
+    if (!grep.ok) return { ok: false, error: grep.error ?? 'grep failed' };
+    stdout = grep.stdout;
+  }
+
+  const lines = stdout
+    .split('\n')
+    .filter(Boolean)
+    .slice(0, MAX_GREP_MATCHES)
+    .map((line) => (line.length > MAX_GREP_LINE_LEN ? `${line.slice(0, MAX_GREP_LINE_LEN)}…` : line));
+
+  return {
+    ok: true,
+    data: {
+      pattern: rawPattern,
+      path: resolved.rel,
+      match_count: lines.length,
+      truncated: stdout.split('\n').filter(Boolean).length > lines.length,
+      matches: lines,
     },
   };
 }
