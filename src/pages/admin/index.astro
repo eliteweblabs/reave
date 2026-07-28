@@ -8980,7 +8980,7 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         });
         window.addEventListener('unhandledrejection', function (e) {
           var msg = String((e.reason && e.reason.message) || e.reason || '');
-          if (msg.indexOf('admin-ui') === -1 && msg.indexOf('os-map-loader') === -1) return;
+          if (msg.indexOf('admin-ui') === -1 && msg.indexOf('os-map-loader') === -1 && msg.indexOf('work-panel') === -1) return;
           showAdminLoadError(msg);
         });
       })();
@@ -8996,6 +8996,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728g"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728h"></script>
   </body>
 </html>

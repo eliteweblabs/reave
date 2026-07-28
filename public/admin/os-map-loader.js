@@ -77,9 +77,9 @@ import {
   deBtnIconSvg,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260728a';
+} from './admin-ui.js?v=20260728h';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson } from './shared.js?v=20260728a';
+import { escHtml, adminFetch, readAdminJson, readApiJson } from './shared.js?v=20260728h';
 import {
   initWorkPanel,
   workState,
@@ -90,7 +90,7 @@ import {
   refreshWorkLinkTrackStatus,
   mountClientWorkSection,
   queueWorkDeepLink,
-} from './work-panel.js?v=20260728a';
+} from './work-panel.js?v=20260728h';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -16985,10 +16985,12 @@ initWorkPanel({
   navigateToChat,
   navigateToTodo,
   navigateToClient,
+  navigateToNewTodoForProject,
   askAgentWithPrompt,
   createPortalShareBtn,
   renderLinkTrackStatus,
   formatChatDate,
+  formatTodoDueDate,
   sharePortalLink,
   loadHomeDashboard,
   reviewsPendingCount,
@@ -16998,6 +17000,7 @@ initWorkPanel({
   captureSidebarListScroll,
   finishSidebarListScroll,
   captureFilterTabsScroll,
+  mountFilterTabsScroll,
   beginCreateDrawer,
   finishCreateDrawer,
   flagCreateDrawerTitleMissing,
@@ -17013,6 +17016,12 @@ initWorkPanel({
   flushTodoAutosave,
   saveActiveTodoDraft,
   cancelTitleFocus,
+  setFormFieldState,
+  flashFormFieldSaved,
+  linkifyPlainText,
+  isCreateDrawerOpen,
+  showChatToast,
+  copyChatText,
 });
 
 function buildAgentContentPrompt(intro, metaLines, body) {

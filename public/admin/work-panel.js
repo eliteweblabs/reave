@@ -25,8 +25,8 @@ import {
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
-} from './admin-ui.js?v=20260728a';
-import { escHtml, adminFetch, readAdminJson, readApiJson } from './shared.js?v=20260728a';
+} from './admin-ui.js?v=20260728h';
+import { escHtml, adminFetch, readAdminJson, readApiJson } from './shared.js?v=20260728h';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};
@@ -51,6 +51,15 @@ const WORK_PRIORITY_LABELS = {
 };
 
 const WORK_SOURCE_SUGGESTIONS = ['instagram', 'email', 'referral', 'phone'];
+
+const AUTOSAVE_DEBOUNCE_MS = 650;
+
+const TODO_PRIORITY_LABELS = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+};
 
 let workState = {
   jobs: [],
@@ -141,13 +150,13 @@ async function linkWorkToReturnTodoIfNeeded(slug) {
 async function autosaveWorkQuiet(getPayload, activeEl) {
   const payload = getPayload();
   if (!payload?.title || !payload?.contact_uid) {
-    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
     return false;
   }
   const isNew = workState.activeSlug === '__new__';
   const slug = isNew ? slugifyTitle(payload.title) : workState.activeSlug;
   if (!slug) {
-    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
     return false;
   }
   const draft = workState.draft;
@@ -155,7 +164,7 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
     workState.dirty = false;
     return true;
   }
-  if (activeEl) setFormFieldState(activeEl, 'saving');
+  if (activeEl) shell.setFormFieldState(activeEl, 'saving');
   try {
     let data;
     if (isNew) {
@@ -221,11 +230,11 @@ async function autosaveWorkQuiet(getPayload, activeEl) {
     workState.dirty = false;
     syncWorkSidebarTitle(slug, payload.title);
     syncWorkSidebarStatus(slug, payload.status);
-    if (activeEl) flashFormFieldSaved(activeEl);
+    if (activeEl) shell.flashFormFieldSaved(activeEl);
     return true;
   } catch (e) {
     console.warn('[work] autosave failed', e);
-    if (activeEl) setFormFieldState(activeEl, 'invalid');
+    if (activeEl) shell.setFormFieldState(activeEl, 'invalid');
     return false;
   }
 }
@@ -327,7 +336,7 @@ function renderWorkFilterTabs(savedScrollLeft = 0) {
     nav.appendChild(btn);
   }
 
-  mountFilterTabsScroll(nav, savedScrollLeft);
+  shell.mountFilterTabsScroll(nav, savedScrollLeft);
   return nav;
 }
 
@@ -659,7 +668,7 @@ function scheduleClientVaultSave(uid, getData) {
       await saveClientVaultData(uid, getData());
     } catch (e) {
       console.warn('[clients] vault save failed', e);
-      showChatToast(e.message || 'Vault save failed');
+      shell.showChatToast(e.message || 'Vault save failed');
     }
   }, 650);
 }
@@ -687,7 +696,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     copySubmitBtn.className = 'de-btn de-btn-secondary';
     copySubmitBtn.textContent = 'Copy submit link';
     copySubmitBtn.addEventListener('click', () => {
-      void copyChatText(submitUrl, copySubmitBtn);
+      void shell.copyChatText(submitUrl, copySubmitBtn);
     });
     actions.appendChild(copySubmitBtn);
   }
@@ -776,7 +785,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
       copyBtn.className = 'de-btn de-btn-secondary';
       copyBtn.textContent = 'Copy';
       copyBtn.addEventListener('click', () => {
-        void copyChatText(input.value, copyBtn);
+        void shell.copyChatText(input.value, copyBtn);
       });
       actions.appendChild(copyBtn);
     }
@@ -784,7 +793,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
     input.addEventListener('input', queueSave);
     input.addEventListener('blur', () => {
       void saveClientVaultData(uid, readRowsFromDom()).catch((e) => {
-        showChatToast(e.message || 'Vault save failed');
+        shell.showChatToast(e.message || 'Vault save failed');
       });
     });
     card.appendChild(row);
@@ -820,7 +829,7 @@ function mountClientVaultSection(parent, uid, entries, opts = {}) {
         try {
           await saveClientVaultData(uid, readRowsFromDom());
         } catch (e) {
-          showChatToast(e.message || 'Vault save failed');
+          shell.showChatToast(e.message || 'Vault save failed');
         }
       });
       head.appendChild(cardTitle);
@@ -1585,8 +1594,8 @@ const WORK_BODY_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', '
 const WORK_BODY_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
 function showWorkEditorToast(message) {
-  if (typeof showChatToast === 'function') {
-    showChatToast(message);
+  if (typeof shell.showChatToast === 'function') {
+    shell.showChatToast(message);
     return;
   }
   console.warn('[work]', message);
@@ -1608,7 +1617,7 @@ function workMarkdownToHtml(markdown) {
     } else if (trimmed === '') {
       parts.push('<div class="wk-md-line"><br></div>');
     } else {
-      parts.push(`<div class="wk-md-line">${linkifyPlainText(trimmed)}</div>`);
+      parts.push(`<div class="wk-md-line">${shell.linkifyPlainText(trimmed)}</div>`);
     }
   }
   return parts.join('');
@@ -1816,7 +1825,7 @@ function createWorkFormScroll(pane) {
 
 function renderNewWorkForm(pane) {
   pane.innerHTML = '';
-  const inDrawer = isCreateDrawerOpen('work');
+  const inDrawer = shell.isCreateDrawerOpen('work');
   const returnTodoId = workState.returnToTodoId;
   const { header, titleInput } = createPaneSubheader({
     back: inDrawer
@@ -2799,7 +2808,7 @@ function mountWorkTodosSection(container, jobSlug) {
   newBtn.type = 'button';
   newBtn.className = 'de-btn de-btn-ghost';
   newBtn.textContent = 'New';
-  newBtn.addEventListener('click', () => navigateToNewTodoForProject(jobSlug));
+  newBtn.addEventListener('click', () => shell.navigateToNewTodoForProject(jobSlug));
   head.appendChild(newBtn);
   section.appendChild(head);
 
@@ -2847,7 +2856,7 @@ function createWorkTodoRow(todo, jobSlug) {
   if (todo.priority && todo.priority !== 'normal') {
     metaBits.push(TODO_PRIORITY_LABELS[todo.priority] || todo.priority);
   }
-  if (todo.due_date) metaBits.push(formatTodoDueDate(todo.due_date));
+  if (todo.due_date) metaBits.push(shell.formatTodoDueDate(todo.due_date));
   else if (todo.status === 'done') metaBits.push('Done');
   row.innerHTML =
     `<span class="wk-related-kind">${todo.status === 'done' ? 'Done' : 'To‑do'}</span>` +
