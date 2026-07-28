@@ -2,6 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
+import { serverEnv } from "./lib/serverEnv";
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
 const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
@@ -51,11 +52,15 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   const url = new URL(context.request.url);
   const { pathname } = url;
 
-  // Canonical host: www → apex (works once DNS for www exists).
+  // Canonical host: www → apex when COMPANY_DOMAIN / PUBLIC_SITE_DOMAIN is set.
   const host = (context.request.headers.get("host") || url.host).split(":")[0];
-  if (host === "www.reave.app") {
+  const configuredDomain =
+    serverEnv("COMPANY_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
+    serverEnv("PUBLIC_SITE_DOMAIN")?.trim().replace(/^https?:\/\//, "").split("/")[0] ||
+    "";
+  if (configuredDomain && host === `www.${configuredDomain}`) {
     const target = new URL(url.href);
-    target.host = "reave.app";
+    target.host = configuredDomain;
     target.protocol = "https:";
     return applySecurityHeaders(
       new Response(null, {

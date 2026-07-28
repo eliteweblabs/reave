@@ -1,6 +1,7 @@
 /**
  * Calendar (.ics) and maps links for meeting confirmation emails.
  */
+import { cachedCompanyBrandName, headerSafe } from './companyConfig';
 import { siteBaseUrl } from './contactApi';
 
 /** Fold iCalendar lines to 75 octets (RFC 5545). */
@@ -56,14 +57,17 @@ export function buildBookingIcs(input: {
   const dtStamp = toIcsUtc(new Date().toISOString());
   if (!dtStart || !dtEnd || !dtStamp) return null;
 
+  const brandSlug = headerSafe(cachedCompanyBrandName()).replace(/\s+/g, '') || 'App';
+  const uidHost = brandSlug.toLowerCase().replace(/[^a-z0-9.-]/g, '') || 'app';
+
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Reave//Meeting//EN',
+    `PRODID:-//${brandSlug}//Meeting//EN`,
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${icsEscape(`${input.uid}@reave`)}`,
+    `UID:${icsEscape(`${input.uid}@${uidHost}`)}`,
     `DTSTAMP:${dtStamp}`,
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,

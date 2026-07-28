@@ -18,23 +18,37 @@ function applyCompanyBrandingToMaps() {
   const brand = companyBrand();
   const domain = brand.domain || window.location.hostname;
   const projectLabel = brand.projectLabel || `${brand.name} App`;
+  const domainPlaceholder = /(?:reave|example)\.app/g;
   for (const map of Object.values(MAPS)) {
     for (const node of map.nodes || []) {
       if (typeof node.sub === 'string') {
         node.sub = node.sub
-          .replace(/reave\.app/g, domain)
-          .replace(/ap\.reave\.app/g, domain ? `ap.${domain}` : 'ap.example.com')
-          .replace(/cal\.reave\.app/g, domain ? `cal.${domain}` : 'cal.example.com');
+          .replace(domainPlaceholder, domain)
+          .replace(/ap\.(?:reave|example)\.app/g, domain ? `ap.${domain}` : 'ap.example.com')
+          .replace(/cal\.(?:reave|example)\.app/g, domain ? `cal.${domain}` : 'cal.example.com');
+        const githubRepo = window.__githubRepo?.trim();
+        if (githubRepo) {
+          node.sub = node.sub.replace(/[\w.-]+\/[\w.-]+(?= · REST)/, githubRepo);
+        }
       }
       if (typeof node.title === 'string') {
-        node.title = node.title.replace(/Reave App/g, projectLabel);
+        node.title = node.title
+          .replace(/Reave App/g, projectLabel)
+          .replace(/^Production app$/, projectLabel);
       }
     }
     for (const group of map.groups || []) {
       if (typeof group.title === 'string') {
-        group.title = group.title.replace(/Reave App/g, projectLabel);
+        group.title = group.title
+          .replace(/Reave App/g, projectLabel)
+          .replace(/^Railway — App$/, `Railway — ${projectLabel}`);
       }
     }
+  }
+  if (MAPS.finance) {
+    const crater = window.__craterFinanceUrl?.trim().replace(/\/$/, '');
+    if (crater) MAPS.finance.link = crater;
+    else if (domain) MAPS.finance.link = `https://ap.${domain}`;
   }
 }
 
@@ -3743,7 +3757,9 @@ function showLinkUptimeMonitorDialog() {
     bodyEl.innerHTML =
       '<p class="em-book-dialog-lead">After creating a monitor in the ' +
       '<a href="https://uptimerobot.com/dashboard" target="_blank" rel="noopener noreferrer">UptimeRobot dashboard</a>, ' +
-      'enter its numeric ID here to import it into Reave. You can also use <strong>Sync status</strong> to pull all monitors at once.</p>' +
+      'enter its numeric ID here to import it into ' +
+      escHtml(companyBrand().name) +
+      '. You can also use <strong>Sync status</strong> to pull all monitors at once.</p>' +
       '<label class="de-label sched-create-field">' +
         '<span>Monitor ID</span>' +
         '<div class="control-field">' +
@@ -4509,7 +4525,7 @@ function renderFleetDashboard(root, data) {
     `<aside class="fl-sidebar">` +
     `<h2 class="fl-sidebar-title">Vehicles</h2>` +
     `<ul class="fl-vehicle-list">${listHtml}</ul>` +
-    `<p class="fl-hint">Assign a Clerk user id to each vehicle. When that user is signed into Reave App, their device reports GPS automatically.</p>` +
+    `<p class="fl-hint">Assign a Clerk user id to each vehicle. When that user is signed into ${escHtml(companyBrand().projectLabel)}, their device reports GPS automatically.</p>` +
     `</aside></div></div>`;
 
   const mapHost = root.querySelector('#fleet-map-host');
@@ -4559,7 +4575,7 @@ async function showAddFleetVehicleDialog(onSaved) {
       `<input id="fl-add-plate" class="de-input" type="text" placeholder="ABC-1234" />` +
       `<label class="de-label" for="fl-add-user">Clerk user id (optional)</label>` +
       `<input id="fl-add-user" class="de-input" type="text" placeholder="user_…" />` +
-      `<p class="fl-hint">Assign a driver so their Reave App session reports GPS for this vehicle.</p>` +
+      `<p class="fl-hint">Assign a driver so their ${escHtml(companyBrand().projectLabel)} session reports GPS for this vehicle.</p>` +
       `</div>`;
     actionsEl.innerHTML = '';
 

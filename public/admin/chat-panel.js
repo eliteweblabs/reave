@@ -467,7 +467,7 @@ function buildReaveShareActions(state, opts = {}) {
 
   const recipient = state.recipient || {};
   const name = recipient.name?.trim() || 'recipient';
-  const brandName = window.__companyBrand?.name || 'Reave';
+  const brandName = window.__companyBrand?.name || 'Assistant';
   const email = recipient.email?.trim();
   const phone = recipient.phone?.trim();
   const phoneDisplay = phone ? formatPhoneInput(phone) : '';
@@ -569,7 +569,7 @@ async function openReaveShareSheet(opts = {}) {
   const name = recipient.name?.trim() || 'Guest';
   recipient.name = name;
   const kind = opts.kind || 'portal';
-  const brandName = window.__companyBrand?.name || 'Reave';
+  const brandName = window.__companyBrand?.name || 'Assistant';
 
   const state = {
     kind,
@@ -613,7 +613,7 @@ async function openDocumentShareSheet(opts = {}) {
   const slug = opts.slug;
   if (!slug) return;
 
-  const brandName = window.__companyBrand?.name || 'Reave';
+  const brandName = window.__companyBrand?.name || 'Assistant';
   const docTitle = opts.title || slug;
 
   const state = {

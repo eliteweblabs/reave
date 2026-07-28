@@ -14,6 +14,8 @@ import { brandFontCssVars } from "../../lib/brandFonts";
 import { getInstallConfigClient, PROFILE_MENU_LABELS } from "../../lib/installConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
+import { serverEnv } from "../../lib/serverEnv";
+import { githubRepoSlug } from "../../lib/githubClient";
 import "../../styles/brand.css";
 
 export const prerender = false;
@@ -25,6 +27,8 @@ const staffAvatarUrl = companyStaffAvatarUrl(company);
 const installConfigClient = getInstallConfigClient();
 const isOwner = userId ? await isDeploymentOwner(Astro) : false;
 const mapboxAccessToken = getPublicMapboxAccessToken() || '';
+const craterFinanceUrl = serverEnv('CRATER_API_BASE_URL')?.trim().replace(/\/$/, '') || '';
+const githubRepo = githubRepoSlug();
 ---
 
 <!doctype html>
@@ -9090,7 +9094,13 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         });
         window.addEventListener('unhandledrejection', function (e) {
           var msg = String((e.reason && e.reason.message) || e.reason || '');
-          if (msg.indexOf('admin-ui') === -1 && msg.indexOf('os-map-loader') === -1 && msg.indexOf('work-panel') === -1) return;
+          if (
+            msg.indexOf('admin-ui') === -1 &&
+            msg.indexOf('os-map-loader') === -1 &&
+            msg.indexOf('work-panel') === -1 &&
+            msg.indexOf('-panel.js') === -1
+          )
+            return;
           showAdminLoadError(msg);
         });
       })();
@@ -9100,11 +9110,13 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
     </script>
     <script is:inline type="module" src="/admin/push-client.js?v=20260728a"></script>
     <script src="/ios-sheet.js" defer></script>
-    <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken }}>
+    <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo }}>
       window.__companyBrand = companyBrand;
       window.__companyStaffAvatarUrl = staffAvatarUrl;
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
+      window.__craterFinanceUrl = craterFinanceUrl;
+      window.__githubRepo = githubRepo;
     </script>
     <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728i"></script>
   </body>

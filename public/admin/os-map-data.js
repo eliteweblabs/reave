@@ -1,4 +1,6 @@
-// Reave Business OS — map data (single source of truth for the canvas).
+// Business OS map data (single source of truth for the admin canvas).
+// Node `sub` fields use example.com placeholders; os-map-loader rewrites them
+// from admin Company branding + env-injected URLs at boot.
 // ⚠️ KEEP CURRENT: add/edit nodes + edges here whenever a feature, service,
 //    API route, integration, bot command, MCP server, or CLI changes.
 //    Rendered at /admin/ (tabbed: "System" runtime + "MCP & CLI" tooling).
@@ -17,28 +19,28 @@
 // ───────────────────────── SYSTEM (runtime architecture) ─────────────────────────
 const SYSTEM_NODES = [
   // Clients / entry points
-  { id: 'web', title: 'Web visitors', sub: 'reave.app · /form/* · /doc/* · /deck · /go', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
+  { id: 'web', title: 'Web visitors', sub: 'example.com · /form/* · /doc/* · /deck · /go', icon: '🌐', hue: 285, group: 'clients', x: 60, y: 130 },
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
   { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 520 },
   { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
 
-  // Reave App (Railway) — the hub
-  { id: 'astro', title: 'Astro / API', sub: 'reave.app · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
+  // App hub (Railway / hosting)
+  { id: 'astro', title: 'Astro / API', sub: 'example.com · /api/* · middleware · FEATURES', icon: '🔺', brand: 'astro', hue: 150, status: true, group: 'reave', x: 400, y: 280 },
   { id: 'app_pg', title: 'App Postgres', sub: 'chats · knowledge · jobs · project_files · email', icon: '🗃️', brand: 'postgresql', hue: 215, status: true, group: 'reave', x: 400, y: 430 },
   { id: 'web_push', title: 'Web Push', sub: 'admin PWA · inbox · comments · vault · share/deck views', icon: '🔔', hue: 45, status: true, group: 'reave', x: 640, y: 120 },
   { id: 'contacts_dash', title: 'Clients editor', sub: '/admin/ · Clients tab · Clerk', icon: '📊', hue: 195, status: true, group: 'reave', x: 400, y: 120 },
   { id: 'contact_api', title: 'contact-api', sub: 'contacts · portals · CardDAV backend', icon: '🧩', hue: 30, status: true, group: 'reave', x: 880, y: 120 },
   { id: 'contact_pg', title: 'contact-postgres', sub: 'volume', icon: '🗄️', brand: 'postgresql', hue: 48, status: true, group: 'reave', x: 880, y: 264 },
-  { id: 'crater', title: 'Crater', sub: 'ap.reave.app · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
+  { id: 'crater', title: 'Crater', sub: 'ap.example.com · invoicing (FEATURES: billing)', icon: '🧾', hue: 0, status: true, group: 'reave', x: 880, y: 408 },
   { id: 'portal', title: 'Client portal', sub: '/c/:uid · vault · comments · tracked shares · help chat', icon: '📇', hue: 320, status: true, group: 'reave', x: 640, y: 408 },
   { id: 'engagement', title: 'Engagement alerts', sub: 'vault · share opens · deck views · contact form · home banners', icon: '👀', hue: 200, status: true, group: 'reave', x: 640, y: 300 },
   { id: 'carddav', title: 'CardDAV', sub: '/carddav · iOS sync (FEATURES: carddav)', icon: '📲', hue: 275, status: true, group: 'reave', x: 640, y: 264 },
   { id: 'materials_api', title: 'materials-api', sub: 'Home Depot pricing · search · quotes', icon: '🧱', hue: 18, status: true, group: 'reave', x: 880, y: 552 },
   { id: 'fleet_api', title: 'fleet-api', sub: 'multi-vehicle GPS · location history (FEATURES: fleet_tracking)', icon: '🚚', hue: 55, status: true, group: 'reave', x: 880, y: 696 },
   { id: 'calcom_api', title: 'calcom-booking-api', sub: 'availability · create · list (FEATURES: scheduling)', icon: '📅', hue: 120, status: true, group: 'reave', x: 640, y: 520 },
-  { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev · Reave only)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
+  { id: 'code_dev', title: 'Code tools', sub: 'read/write/list/exec (FEATURES: code_dev)', icon: '🛠️', hue: 200, status: true, group: 'reave', x: 400, y: 560 },
   { id: 'newsletter', title: 'Newsletter engine', sub: 'lifecycle + broadcasts · /api/newsletter/* (FEATURES: email_marketing)', icon: '📰', hue: 340, status: true, group: 'reave', x: 640, y: 660 },
 
   // External APIs
@@ -47,12 +49,12 @@ const SYSTEM_NODES = [
   { id: 'railway_webhook', title: 'Railway webhooks', sub: 'inbound deploy alerts · /api/railway/webhook', icon: '🚦', brand: 'railway', hue: 25, status: true, group: 'external', x: 1160, y: 340 },
   { id: 'kinsta_api', title: 'Kinsta API', sub: 'outbound · list_kinsta_sites · clear cache', icon: '🟣', brand: 'kinsta', hue: 280, status: true, group: 'external', x: 1160, y: 460 },
   { id: 'resend', title: 'Resend', sub: 'inbound webhook · outbound portal/forms/docs', icon: '✉️', brand: 'resend', hue: 330, status: true, group: 'external', x: 1160, y: 580 },
-  { id: 'github', title: 'GitHub', sub: 'eliteweblabs/reave · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
+  { id: 'github', title: 'GitHub', sub: 'owner/repo · REST · create repo · write/PR', icon: '🐙', brand: 'github', hue: 235, status: true, group: 'external', x: 1160, y: 700 },
   { id: 'telnyx', title: 'Telnyx', sub: 'SMS · AI voice agent (FEATURES: voice)', icon: '📲', hue: 175, status: true, group: 'external', x: 1160, y: 820 },
   { id: 'changedetection', title: 'ChangeDetection.io', sub: 'site watches (FEATURES: site_monitoring)', icon: '👁️', hue: 55, status: true, group: 'external', x: 1160, y: 940 },
   { id: 'uptimerobot', title: 'UptimeRobot', sub: 'uptime API + webhooks (FEATURES: uptime_monitoring)', icon: '📈', hue: 70, status: true, group: 'external', x: 1160, y: 1060 },
   { id: 'clerk', title: 'Clerk', sub: 'auth · /admin/* · chats · profile', icon: '🔐', brand: 'clerk', hue: 290, status: true, group: 'external', x: 1160, y: 1180 },
-  { id: 'calcom_web', title: 'Cal.com', sub: 'cal.reave.app · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
+  { id: 'calcom_web', title: 'Cal.com', sub: 'cal.example.com · admin UI · event types', icon: '🗓️', brand: 'caldotcom', hue: 105, status: true, group: 'external', x: 1160, y: 1300 },
   { id: 'plausible', title: 'Plausible Analytics', sub: 'self-hosted on Railway · web stats', icon: '📈', brand: 'plausibleanalytics', hue: 130, status: true, group: 'external', x: 1160, y: 1420 },
 ];
 
@@ -117,7 +119,7 @@ const SYSTEM_EDGES = [
 
 const SYSTEM_GROUPS = [
   { id: 'clients', title: 'Entry points', hue: 300, members: ['web', 'sms_caller', 'dev', 'focus_chat', 'vapi', 'siri'] },
-  { id: 'reave', title: 'Railway — Reave App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
+  { id: 'reave', title: 'Railway — App', hue: 150, members: ['astro', 'app_pg', 'web_push', 'engagement', 'contact_api', 'contact_pg', 'crater', 'materials_api', 'fleet_api', 'portal', 'carddav', 'contacts_dash', 'calcom_api', 'code_dev', 'newsletter'] },
   { id: 'external', title: 'External APIs', hue: 240, members: ['anthropic', 'railway_gql', 'railway_webhook', 'kinsta_api', 'resend', 'github', 'telnyx', 'changedetection', 'uptimerobot', 'clerk', 'calcom_web', 'plausible'] },
 ];
 
@@ -160,7 +162,7 @@ const TOOLING_NODES = [
   { id: 'svc_bstack', title: 'BrowserStack', sub: 'device cloud', icon: '🧪', hue: 35, group: 't_svc', x: 980, y: 800 },
 
   // Production target (ties tooling back to the live app)
-  { id: 't_prod', title: 'Reave App', sub: 'reave.app (prod)', icon: '🔺', brand: 'astro', hue: 150, group: 't_prod', x: 1320, y: 300 },
+  { id: 't_prod', title: 'Production app', sub: 'example.com (prod)', icon: '🔺', brand: 'astro', hue: 150, group: 't_prod', x: 1320, y: 300 },
 ];
 
 const TOOLING_EDGES = [
@@ -241,7 +243,7 @@ export const MAPS = {
   socials:   { id: 'socials',   title: 'Socials',    icon: '🔗',  type: 'socials',       nodes: [],             edges: [],             groups: [] },
   industries:{ id: 'industries',title: 'Industries', icon: '🎯',  type: 'industries',    nodes: [],             edges: [],             groups: [] },
   vapi:      { id: 'vapi',      title: 'Vapi',       icon: '🎙️',  type: 'vapi',          nodes: [],             edges: [],             groups: [] },
-  finance:   { id: 'finance',   title: 'Finance',    icon: '💰',  link: 'https://ap.reave.app' },
+  finance:   { id: 'finance',   title: 'Finance',    icon: '💰' },
 };
 
 /** Canvas maps grouped under the header "System" dropdown. */

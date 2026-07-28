@@ -47,6 +47,7 @@ import { runKnowledgeAgent } from '../../../lib/agentRunner';
 import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../../lib/adminAgentAlert';
 import { storeAppendChatMessages, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
 import { createLogger } from '../../../lib/logger';
+import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 
 const log = createLogger('siri-proposal');
 
@@ -666,7 +667,7 @@ async function handleStatus(): Promise<SiriResponse> {
   const statusWord = (up: boolean) => (up ? 'online' : 'offline');
 
   const lines = [
-    'Reave Status',
+    `${cachedCompanyBrandName()} Status`,
     '',
     `Contact API: ${statusWord(checks.contactApi)}`,
     `Telnyx: ${statusWord(checks.telnyx)}`,

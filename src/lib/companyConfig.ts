@@ -284,7 +284,7 @@ export function homepageHeroMask(company: CompanyConfig): string | null {
 /** Static logo image for the quantum intro resolve (default /logo.png). */
 export function homepageHeroLogo(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
-  return companyLogoUrl(company.logoPath, company.logoVersion) || '/reave-logo.png';
+  return companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;
 }
 
 function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | undefined {
