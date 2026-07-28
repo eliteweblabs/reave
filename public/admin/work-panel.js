@@ -27,7 +27,7 @@ import {
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
-import { clientState, clientMapController } from './clients-panel.js?v=20260728l';
+import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initWorkPanel(). */
 let shell = {};

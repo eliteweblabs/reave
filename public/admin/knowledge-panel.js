@@ -37,8 +37,7 @@ import {
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
 import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260728l';
-import { navIcon, AUTOSAVE_DEBOUNCE_MS, userId } from './os-map-loader.js?v=20260728m';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
 let shell = {};
@@ -80,7 +79,7 @@ function scheduleKnowledgeAutosave(slug, ta) {
   knowledgeAutosaveTimer = setTimeout(() => {
     knowledgeAutosaveTimer = null;
     void autosaveKnowledgeQuiet(slug, ta.value, ta);
-  }, AUTOSAVE_DEBOUNCE_MS);
+  }, shell.AUTOSAVE_DEBOUNCE_MS);
 }
 
 async function flushKnowledgeAutosave() {
@@ -133,7 +132,7 @@ function getKnowledgeEditor() { return document.getElementById('knowledge-editor
 async function loadKnowledgeTab() {
   const root = getKnowledgeEditor();
   if (!root) return;
-  if (!userId) {
+  if (!shell.userId) {
     root.innerHTML = '<div class="de-loading de-error">Sign in required to view knowledge.</div>';
     return;
   }
@@ -424,7 +423,7 @@ function renderEditKnowledgeForm(pane) {
       agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
       agentBtn.setAttribute('aria-label', 'Agent');
       agentBtn.title = 'Agent';
-      agentBtn.innerHTML = navIcon('agent', 16);
+      agentBtn.innerHTML = shell.navIcon('agent', 16);
       agentBtn.addEventListener('click', () => askAgentAboutKnowledge(entry || { slug, title: data.title }));
 
       const { header } = createPaneSubheader({

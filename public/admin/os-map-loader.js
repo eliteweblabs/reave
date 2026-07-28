@@ -130,7 +130,7 @@ import {
   initKnowledgePanel,
   knowledgeState,
   loadKnowledgeTab,
-} from './knowledge-panel.js?v=20260728l';
+} from './knowledge-panel.js?v=20260728p';
 import {
   initSchedulePanel,
   scheduleState,
@@ -157,7 +157,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260728l';
+} from './clients-panel.js?v=20260728p';
 import {
   initChatPanel,
   chatState,
@@ -185,7 +185,7 @@ import {
   shareChatText,
   archiveChat,
   openChat,
-} from './chat-panel.js?v=20260728l';
+} from './chat-panel.js?v=20260728p';
 
 const GRID = 12;
 const STORE = 'os-map-pos-v2';
@@ -9537,6 +9537,9 @@ initKnowledgePanel({
   KNOWLEDGE_API,
   MAP,
   activeKey,
+  navIcon,
+  AUTOSAVE_DEBOUNCE_MS,
+  userId,
 });
 
 initSchedulePanel({
@@ -9571,6 +9574,9 @@ initClientsPanel({
   isMobileTabs,
   MAP,
   activeKey,
+  navIcon,
+  FORM_FIELD_INVALID,
+  FORM_FIELD_SAVED,
 });
 
 initChatPanel({
@@ -9588,6 +9594,13 @@ initChatPanel({
   SIDEBAR_LIST_GRIP,
   MAP,
   activeKey,
+  navIcon,
+  placeholderHtml,
+  scrollSidebarListItemIntoView,
+  agentModelState,
+  chatHasConversation,
+  buildChatPaneHeader,
+  clearTopbarPanelContext,
 });
 
 initWorkPanel({

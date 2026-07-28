@@ -47,8 +47,7 @@ import {
   flushClientVaultSave,
 } from './work-panel.js?v=20260728l';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260728l';
-import { createPortalShareBtn } from './chat-panel.js?v=20260728l';
-import { navIcon, FORM_FIELD_INVALID, FORM_FIELD_SAVED } from './os-map-loader.js?v=20260728m';
+import { createPortalShareBtn } from './chat-panel.js?v=20260728p';
 import { createClientMap } from '/admin/client-map.js';
 
 /** Injected by os-map-loader via initClientsPanel(). */
@@ -136,10 +135,10 @@ function isValidClientPhone(value) {
 }
 
 function setClientFieldValidationState(el, show, valid) {
-  el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID, FORM_FIELD_INVALID, FORM_FIELD_SAVED);
+  el.classList.remove(CLIENT_FIELD_VALID, CLIENT_FIELD_INVALID, shell.FORM_FIELD_INVALID, shell.FORM_FIELD_SAVED);
   if (!show) return;
   if (!valid) {
-    el.classList.add(CLIENT_FIELD_INVALID, FORM_FIELD_INVALID);
+    el.classList.add(CLIENT_FIELD_INVALID, shell.FORM_FIELD_INVALID);
   }
 }
 
@@ -611,7 +610,7 @@ function mountClientWebsiteField(parent, value) {
   openBtn.className = 'ios-icon-btn cl-website-open-btn';
   openBtn.setAttribute('aria-label', 'Open website');
   openBtn.title = 'Open website';
-  openBtn.innerHTML = navIcon('external-link', 18);
+  openBtn.innerHTML = shell.navIcon('external-link', 18);
   openBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!isOpenableWebsiteUrl(input.value)) return;

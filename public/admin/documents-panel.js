@@ -36,8 +36,8 @@ import {
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
-import { openDocumentShareSheet } from './chat-panel.js?v=20260728l';
-import { confirmDiscardChanges } from './clients-panel.js?v=20260728l';
+import { openDocumentShareSheet } from './chat-panel.js?v=20260728p';
+import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initDocumentsPanel(). */
 let shell = {};

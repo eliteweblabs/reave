@@ -38,17 +38,8 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
-import { formatPhoneInput } from './clients-panel.js?v=20260728l';
+import { formatPhoneInput } from './clients-panel.js?v=20260728p';
 import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260728l';
-import {
-  navIcon,
-  placeholderHtml,
-  scrollSidebarListItemIntoView,
-  agentModelState,
-  chatHasConversation,
-  buildChatPaneHeader,
-  clearTopbarPanelContext,
-} from './os-map-loader.js?v=20260728m';
 
 /** Injected by os-map-loader via initChatPanel(). */
 let shell = {};
@@ -1310,7 +1301,7 @@ function syncChatSidebarActiveState(opts = {}) {
   if (scroll && activeEl) {
     const list = root.querySelector('.ch-sidebar .ch-list');
     if (list) {
-      requestAnimationFrame(() => scrollSidebarListItemIntoView(list, activeEl));
+      requestAnimationFrame(() => shell.scrollSidebarListItemIntoView(list, activeEl));
     }
   }
 }
@@ -1330,7 +1321,7 @@ function createChatListItem(t) {
   item.dataset.id = t.id;
   if (isActive) item.setAttribute('aria-current', 'page');
   const archivedIcon = t.archived
-    ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${navIcon('archive', 13)}</span>`
+    ? `<span class="ch-item-archived-icon" title="Archived" aria-label="Archived">${shell.navIcon('archive', 13)}</span>`
     : '';
   const linkedSub = formatLinkedJobsSub(t.linked_jobs);
   const subLine = linkedSub
@@ -1511,7 +1502,7 @@ function renderChatMessages(container, composeInput) {
   if (chatState.messages.length === 0 && !chatState.sending) {
     const ph = document.createElement('div');
     ph.className = 'de-placeholder';
-    ph.innerHTML = placeholderHtml('agent', 'Send a message to start.');
+    ph.innerHTML = shell.placeholderHtml('agent', 'Send a message to start.');
     container.appendChild(ph);
     return;
   }
@@ -1578,7 +1569,7 @@ function scrollChatToBottom(container, smooth = true) {
 }
 
 function getAgentModelForChat() {
-  return agentModelState.model || undefined;
+  return shell.agentModelState.model || undefined;
 }
 
 async function refreshChatLinkedJobs() {
@@ -1679,8 +1670,8 @@ function mountChatThreadRoot(threadHost) {
     onLinkedJobsRefresh: () => {
       void refreshChatLinkedJobs().then(() => {
         const header = getChatPanel()?.querySelector('.ch-pane-header');
-        if (header && chatHasConversation()) {
-          const next = buildChatPaneHeader();
+        if (header && shell.chatHasConversation()) {
+          const next = shell.buildChatPaneHeader();
           header.replaceWith(next);
         }
       });
@@ -1709,14 +1700,14 @@ function renderChatPanel() {
       onCreate: () => void startNewChat(),
     });
     root.appendChild(pane);
-    clearTopbarPanelContext();
+    shell.clearTopbarPanelContext();
     shell.setChatComposeFocused(false);
     shell.syncFooterNav();
     shell.finishSidebarListScroll(root, savedSidebarScroll);
     return;
   }
 
-  if (chatState.activeId) pane.appendChild(buildChatPaneHeader());
+  if (chatState.activeId) pane.appendChild(shell.buildChatPaneHeader());
 
   const threadHost = document.createElement('div');
   threadHost.className = 'ch-thread-root';
