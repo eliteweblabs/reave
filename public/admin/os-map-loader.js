@@ -5095,7 +5095,7 @@ function bindCompanyForm(root, company, fontCatalog) {
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
   bindCompanyFontPreview(root, fontCatalog);
-  bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'));
+  bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -5529,14 +5529,18 @@ function rebuildCompanyFontSelects(root, catalog, fonts) {
   content.value = fonts?.fontContentId || content.value;
 }
 
-function bindCompanyFontScrape(root, fontCatalog, alertEl) {
+function bindCompanyFontScrape(root, fontCatalog, alertEl, company) {
   const btn = root.querySelector('#company-font-scrape');
   const domainInput = root.querySelector('#company-domain');
   if (!(btn instanceof HTMLButtonElement)) return;
 
+  const hasWebsite = () => {
+    const typed = domainInput instanceof HTMLInputElement ? domainInput.value.trim() : '';
+    return !!(typed || (company?.domain || '').trim());
+  };
+
   const syncBtn = () => {
-    const domain = domainInput instanceof HTMLInputElement ? domainInput.value.trim() : '';
-    btn.disabled = !domain;
+    btn.disabled = !hasWebsite();
   };
 
   syncBtn();
@@ -5544,7 +5548,7 @@ function bindCompanyFontScrape(root, fontCatalog, alertEl) {
 
   btn.addEventListener('click', async () => {
     const domain = domainInput instanceof HTMLInputElement ? domainInput.value.trim() : '';
-    if (!domain) return;
+    if (!hasWebsite()) return;
 
     btn.disabled = true;
     const prevLabel = btn.textContent;
@@ -5553,7 +5557,7 @@ function bindCompanyFontScrape(root, fontCatalog, alertEl) {
       const res = await fetch('/api/admin/company/scrape-fonts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ website: domain }),
+        body: JSON.stringify(domain ? { website: domain } : {}),
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
