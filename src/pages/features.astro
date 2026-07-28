@@ -63,6 +63,43 @@ const replacedApps: ReplacedApp[] = [
 const SIMPLE_ICONS_CDN = (slug: string) =>
   `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
 
+/** Production stack — shown in the "Built with" footer on /features. */
+type StackTech = { slug: string; name: string; color: string; role: string };
+
+const builtWithStack: StackTech[] = [
+  { slug: "astro", name: "Astro", color: "#BC52EE", role: "App & API" },
+  { slug: "react", name: "React", color: "#61DAFB", role: "Admin UI" },
+  { slug: "typescript", name: "TypeScript", color: "#3178C6", role: "Language" },
+  { slug: "nodedotjs", name: "Node.js", color: "#5FA04E", role: "Runtime" },
+  { slug: "railway", name: "Railway", color: "#FFFFFF", role: "Hosting & deploy" },
+  { slug: "postgresql", name: "PostgreSQL", color: "#4169E1", role: "App database" },
+  { slug: "supabase", name: "Supabase", color: "#3FCF8E", role: "Postgres & migrations" },
+  { slug: "clerk", name: "Clerk", color: "#6C47FF", role: "Admin auth" },
+  { slug: "resend", name: "Resend", color: "#FFFFFF", role: "Email in + out" },
+  { slug: "anthropic", name: "Anthropic", color: "#D4A574", role: "AI agent" },
+  { slug: "telnyx", name: "Telnyx", color: "#00E3AA", role: "SMS & voice" },
+  { slug: "github", name: "GitHub", color: "#FFFFFF", role: "Source control" },
+  { slug: "cloudflare", name: "Cloudflare", color: "#F38020", role: "DNS & edge" },
+  { slug: "caldotcom", name: "Cal.com", color: "#FFFFFF", role: "Scheduling" },
+  { slug: "plausibleanalytics", name: "Plausible", color: "#5850EC", role: "Web analytics" },
+  { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring" },
+];
+
+const deployModes = [
+  {
+    title: "Full website package",
+    desc: "Public marketing site — homepage, deck, forms, booking — on your domain, fully wired into the OS underneath.",
+  },
+  {
+    title: "Standalone app",
+    desc: "Admin dashboard and client portal only. Skip the public frontend if you already have a site elsewhere.",
+  },
+  {
+    title: "Both",
+    desc: "The usual setup: a branded front door for prospects plus the operating system behind it, all on one domain.",
+  },
+];
+
 type IconComponent = typeof Users;
 
 type Section = {
@@ -630,6 +667,45 @@ const portalTabs = [
       </div>
     </section>
 
+    <section class="fx-built-with" aria-label="Technology stack and deployment options">
+      <p class="fx-built-with-kicker">Under the hood</p>
+      <h2 class="fx-built-with-h2">Built with a modern, production-grade stack.</h2>
+      <p class="fx-built-with-lead">
+        Not a no-code wrapper — a real codebase on Railway, Postgres, and the
+        services below. Ship it as a complete website package with a public frontend
+        and integrations, as a standalone admin + portal app, or both on the same
+        domain.
+      </p>
+
+      <div class="fx-deploy-modes">
+        {
+          deployModes.map((mode) => (
+            <div class="fx-deploy-mode">
+              <h3 class="fx-deploy-mode-title">{mode.title}</h3>
+              <p class="fx-deploy-mode-desc">{mode.desc}</p>
+            </div>
+          ))
+        }
+      </div>
+
+      <p class="fx-built-with-sub">This app is built with</p>
+      <ul class="fx-built-grid">
+        {
+          builtWithStack.map((tech) => (
+            <li class="fx-built-item">
+              <span
+                class="fx-built-logo"
+                style={`--brand-color: ${tech.color}; --brand-icon: url(${SIMPLE_ICONS_CDN(tech.slug)})`}
+                aria-hidden="true"
+              />
+              <span class="fx-built-name">{tech.name}</span>
+              <span class="fx-built-role">{tech.role}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
     <section class="fx-closing">
       <h2 class="fx-closing-h2">Ready to see it running?</h2>
       <p class="fx-closing-lead">
@@ -716,12 +792,14 @@ const portalTabs = [
   .fx-stack,
   .fx-list,
   .fx-plugins,
+  .fx-built-with,
   .fx-closing {
     width: 100%;
     max-width: 760px;
   }
 
-  .fx-stack {
+  .fx-stack,
+  .fx-built-with {
     max-width: 920px;
   }
 
@@ -1245,6 +1323,145 @@ const portalTabs = [
 
   .acc-item--plugin.open .acc-chev {
     color: #7dd3fc;
+  }
+
+  /* ---------- Built-with stack ---------- */
+
+  .fx-built-with {
+    margin-top: 56px;
+    margin-bottom: 48px;
+    text-align: center;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 100%, rgba(99, 102, 241, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-with-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a78bfa;
+    margin: 0 0 12px;
+  }
+
+  .fx-built-with-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.6vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-built-with-lead {
+    margin: 0 auto 24px;
+    max-width: 640px;
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-deploy-modes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 28px;
+    text-align: left;
+  }
+
+  .fx-deploy-mode {
+    padding: 14px 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .fx-deploy-mode-title {
+    margin: 0 0 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-deploy-mode-desc {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.52);
+  }
+
+  .fx-built-with-sub {
+    margin: 0 0 14px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.38);
+  }
+
+  .fx-built-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fx-built-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-built-logo {
+    width: 26px;
+    height: 26px;
+    background-color: var(--brand-color);
+    mask: var(--brand-icon) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon) center / contain no-repeat;
+  }
+
+  .fx-built-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+  }
+
+  .fx-built-role {
+    font-size: 0.58rem;
+    font-weight: 500;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .fx-deploy-modes {
+      grid-template-columns: 1fr;
+    }
+
+    .fx-built-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .fx-built-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 
   /* ---------- Closing ---------- */
