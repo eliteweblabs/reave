@@ -25,7 +25,6 @@ import {
   resolveClientLogoUrl,
 } from '../../../lib/clientBranding';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
-import { listTrackedLinksForContact } from '../../../lib/linkTracking';
 
 export const prerender = false;
 
@@ -204,8 +203,6 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     websiteFromNotes(contact.notes ?? '') ||
     '';
 
-  const tracked_links = await listTrackedLinksForContact(uid, { limit: 5 });
-
   return json({
     ok: true,
     ...contactSummary(contact),
@@ -223,7 +220,6 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     archived: !!contact.archived,
     createdAt: contact.createdAt ?? null,
     data: portal?.data ?? [],
-    tracked_links,
   });
 };
 

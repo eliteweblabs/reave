@@ -11,7 +11,7 @@ import {
   type ContactRecord,
 } from './contactApi';
 import { brandedEmailHtml } from './emailTemplates';
-import { createTrackedPortalLink, createTrackedProjectLink } from './linkTracking';
+import { createTrackedProjectLink } from './linkTracking';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
@@ -185,18 +185,6 @@ async function resolveShareUrl(
         url = created.url;
         tracked = { token: created.link.token, job_slug: jobSlug };
       }
-    }
-  } else if (input.kind === 'portal') {
-    const created = await createTrackedPortalLink({
-      contactUid,
-      tab: tab || undefined,
-      channel: input.channel,
-      sentBy: input.sentBy ?? null,
-      request: input.request,
-    });
-    if (created.ok) {
-      url = created.url;
-      tracked = { token: created.link.token, job_slug: created.link.job_slug };
     }
   }
 

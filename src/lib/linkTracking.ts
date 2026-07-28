@@ -14,9 +14,6 @@ import { serverEnv } from './serverEnv';
 
 export type TrackedLinkChannel = 'share' | 'email' | 'sms' | 'manual';
 
-/** Sentinel job_slug for client-portal-only shares (no project). */
-export const PORTAL_ONLY_JOB_SLUG = '__portal__';
-
 export type TrackedLinkRecord = {
   token: string;
   job_slug: string;
@@ -295,31 +292,6 @@ export async function listTrackedLinksForJob(
   return readFileLinks().filter((l) => l.job_slug === slug).slice(0, limit);
 }
 
-export async function listTrackedLinksForContact(
-  contactUid: string,
-  opts?: { limit?: number },
-): Promise<TrackedLinkRecord[]> {
-  const uid = contactUid.trim();
-  if (!uid) return [];
-  const limit = Math.min(Math.max(opts?.limit ?? 10, 1), 50);
-
-  const pool = await ensureSchema();
-  if (pool) {
-    const res = await pool.query(
-      `SELECT token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-              click_count, first_clicked_at, last_clicked_at
-       FROM project_tracked_links
-       WHERE contact_uid = $1
-       ORDER BY sent_at DESC
-       LIMIT $2`,
-      [uid, limit],
-    );
-    return res.rows.map(rowToRecord);
-  }
-
-  return readFileLinks().filter((l) => l.contact_uid === uid).slice(0, limit);
-}
-
 /** Remove a tracked link notice (staff dismissed "link sent" reminder). */
 export async function deleteTrackedLink(
   token: string,
@@ -377,28 +349,4 @@ export async function dismissTrackedLinkView(
   links[idx] = row;
   writeFileLinks(links);
   return { ok: true, link: row };
-}
-
-export async function createTrackedPortalLink(input: {
-  contactUid: string;
-  destination?: string;
-  tab?: string;
-  channel?: TrackedLinkChannel;
-  sentBy?: string | null;
-  request?: Request;
-}): Promise<{ ok: true; link: TrackedLinkRecord; url: string } | { ok: false; error: string }> {
-  const contactUid = input.contactUid.trim();
-  if (!contactUid) return { ok: false, error: 'contactUid is required' };
-  const destination =
-    input.destination?.trim() ||
-    clientPortalUrl(contactUid, input.tab?.trim() ? { tab: input.tab.trim() } : undefined);
-  return createTrackedProjectLink({
-    jobSlug: PORTAL_ONLY_JOB_SLUG,
-    contactUid,
-    destination,
-    tab: input.tab?.trim() || undefined,
-    channel: input.channel,
-    sentBy: input.sentBy,
-    request: input.request,
-  });
 }

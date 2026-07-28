@@ -16344,15 +16344,10 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
-      const linkTrackEl = document.createElement('div');
-      linkTrackEl.className = 'wk-link-track';
-      linkTrackEl.hidden = true;
-
       const shareBtn = clientState.draft.personal
         ? null
         : createPortalShareBtn(uid, {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
-        trackEl: linkTrackEl,
         recipient: {
           contactUid: uid,
           name: joinClientFullName(firstName, lastName, clientState.draft.company) || 'Client',
@@ -16384,11 +16379,6 @@ function renderEditClientForm(pane) {
         ].filter(Boolean),
       });
       pane.appendChild(header);
-
-      if (!clientState.draft.personal) {
-        pane.appendChild(linkTrackEl);
-        renderClientLinkTrackStatus(linkTrackEl, data.tracked_links, uid);
-      }
 
       mountClientDetailTabs(pane, clientState.detailTab, (tabId) => {
         clientState.detailTab = tabId;
@@ -17208,16 +17198,10 @@ function formatLinkTrackWhen(iso) {
 }
 
 async function dismissLinkTrackView(opts = {}) {
-  const { token, jobSlug, contactUid } = opts;
-  if (!token) return false;
+  const { token, jobSlug } = opts;
+  if (!token || !jobSlug) return false;
   try {
-    const url = jobSlug
-      ? `/api/work/${encodeURIComponent(jobSlug)}/link`
-      : contactUid
-        ? `/api/clients/${encodeURIComponent(contactUid)}/link`
-        : '';
-    if (!url) return false;
-    const res = await fetch(url, {
+    const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
@@ -17230,16 +17214,10 @@ async function dismissLinkTrackView(opts = {}) {
 }
 
 async function dismissLinkTrackSent(opts = {}) {
-  const { token, jobSlug, contactUid } = opts;
-  if (!token) return false;
+  const { token, jobSlug } = opts;
+  if (!token || !jobSlug) return false;
   try {
-    const url = jobSlug
-      ? `/api/work/${encodeURIComponent(jobSlug)}/link`
-      : contactUid
-        ? `/api/clients/${encodeURIComponent(contactUid)}/link`
-        : '';
-    if (!url) return false;
-    const res = await fetch(url, {
+    const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token, dismiss: 'sent' }),
@@ -17251,10 +17229,9 @@ async function dismissLinkTrackSent(opts = {}) {
   }
 }
 
-function refreshLinkTrackStatusAfterDismiss(container, opts = {}) {
-  if (opts.jobSlug) void refreshWorkLinkTrackStatus(container, opts.jobSlug);
-  else if (opts.contactUid) void refreshClientLinkTrackStatus(container, opts.contactUid);
-  else container.hidden = true;
+function refreshLinkTrackStatusAfterDismiss(container, jobSlug) {
+  if (jobSlug) void refreshWorkLinkTrackStatus(container, jobSlug);
+  else if (container) container.hidden = true;
 }
 
 function renderLinkTrackStatus(container, links, opts = {}) {
@@ -17294,15 +17271,13 @@ function renderLinkTrackStatus(container, links, opts = {}) {
         ? await dismissLinkTrackView({
             token: latest.token,
             jobSlug: opts.jobSlug,
-            contactUid: opts.contactUid,
           })
         : await dismissLinkTrackSent({
             token: latest.token,
             jobSlug: opts.jobSlug,
-            contactUid: opts.contactUid,
           });
       if (ok) {
-        refreshLinkTrackStatusAfterDismiss(container, opts);
+        refreshLinkTrackStatusAfterDismiss(container, opts.jobSlug);
       } else {
         dismissBtn.disabled = false;
         showChatToast('Could not dismiss');
@@ -17317,27 +17292,12 @@ function renderWorkLinkTrackStatus(container, links, jobSlug) {
   renderLinkTrackStatus(container, links, { jobSlug });
 }
 
-function renderClientLinkTrackStatus(container, links, contactUid) {
-  renderLinkTrackStatus(container, links, { contactUid });
-}
-
 async function refreshWorkLinkTrackStatus(container, jobSlug) {
   if (!container || !jobSlug) return;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, { cache: 'no-store' });
     const data = await res.json();
     if (res.ok && data.ok) renderWorkLinkTrackStatus(container, data.links, jobSlug);
-  } catch {
-    /* ignore */
-  }
-}
-
-async function refreshClientLinkTrackStatus(container, contactUid) {
-  if (!container || !contactUid) return;
-  try {
-    const res = await fetch(`/api/clients/${encodeURIComponent(contactUid)}/link`, { cache: 'no-store' });
-    const data = await res.json();
-    if (res.ok && data.ok) renderClientLinkTrackStatus(container, data.links, contactUid);
   } catch {
     /* ignore */
   }
@@ -17454,9 +17414,6 @@ async function sendViaReaveShare(channel, state) {
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     setReaveShareStatus(`Sent via ${data.channel} to ${data.dest}`, 'ok');
     if (state.jobSlug && state.trackEl) void refreshWorkLinkTrackStatus(state.trackEl, state.jobSlug);
-    if (!state.jobSlug && state.recipient?.contactUid && state.trackEl) {
-      void refreshClientLinkTrackStatus(state.trackEl, state.recipient.contactUid);
-    }
     state.onSent?.(data);
   } catch (e) {
     setReaveShareStatus(e?.message || 'Send failed', 'err');
