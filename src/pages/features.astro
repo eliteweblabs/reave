@@ -438,10 +438,10 @@ const portalTabs = [
   description={`${company.name} replaces the SaaS stack most businesses pay for separately — Gmail, QuickBooks, ChatGPT, Calendly, HubSpot, Mailchimp, and more — with one platform: contacts, portal, billing, AI, newsletters, social metrics, analytics, and plugins.`}
 >
   <div class="fx-page">
-    <section class="fx-hero">
+    <section class="fx-hero scroll-fade-in">
       <p class="fx-kicker">The Business OS</p>
       <h1 class="fx-h1">
-        {company.name} runs the whole business — not a pile of separate apps.
+        Runs the whole business — not a pile of separate apps.
       </h1>
       <p class="fx-lead">
         Contacts, billing, projects, inbox, scheduling, newsletters, social metrics,
@@ -466,7 +466,7 @@ const portalTabs = [
       </div>
     </section>
 
-    <section class="fx-stack" aria-label="Apps this platform replaces">
+    <section class="fx-stack scroll-fade-in" aria-label="Apps this platform replaces">
       <p class="fx-stack-kicker">Replace the stack</p>
       <h2 class="fx-stack-h2">
         One platform instead of a dozen monthly subscriptions.
@@ -497,7 +497,7 @@ const portalTabs = [
       </p>
     </section>
 
-    <section class="fx-pricing" aria-label="Installation pricing" id="pricing">
+    <section class="fx-pricing scroll-fade-in" aria-label="Installation pricing" id="pricing">
       <p class="fx-pricing-kicker">Installation pricing</p>
       <h2 class="fx-pricing-h2">Tiered pricing with a 50% scaling fee.</h2>
       <p class="fx-pricing-lead">
@@ -546,13 +546,13 @@ const portalTabs = [
       </div>
     </section>
 
-    <section class="fx-list" aria-label="Core features">
+    <section class="fx-list scroll-fade-in" aria-label="Core features">
       <p class="fx-list-intro">
         Start with the 90% — then open any section below. Every feature is live today.
       </p>
 
       <div class="acc-list" data-acc-list>
-        <div class="acc-item acc-item--ninety" data-acc-item id="feature-ninety">
+        <div class="acc-item acc-item--ninety scroll-fade-in" data-acc-item id="feature-ninety">
           <button type="button" class="acc-trigger" aria-expanded="true">
             <span class="acc-icon acc-icon--ninety"><Puzzle size={20} strokeWidth={1.75} aria-hidden="true" /></span>
             <span class="acc-heading">
@@ -609,7 +609,7 @@ const portalTabs = [
           before.map((s) => {
             const Icon = s.icon;
             return (
-              <div class="acc-item" data-acc-item id={`feature-${s.id}`}>
+              <div class="acc-item scroll-fade-in" data-acc-item id={`feature-${s.id}`}>
                 <button type="button" class="acc-trigger" aria-expanded="true">
                   <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
                   <span class="acc-heading">
@@ -631,7 +631,7 @@ const portalTabs = [
           })
         }
 
-        <div class="acc-item" data-acc-item id="feature-portal">
+        <div class="acc-item scroll-fade-in" data-acc-item id="feature-portal">
           <button type="button" class="acc-trigger" aria-expanded="true">
             <span class="acc-icon"><PanelsTopLeft size={20} strokeWidth={1.75} aria-hidden="true" /></span>
             <span class="acc-heading">
@@ -671,7 +671,7 @@ const portalTabs = [
           after.map((s) => {
             const Icon = s.icon;
             return (
-              <div class="acc-item" data-acc-item id={`feature-${s.id}`}>
+              <div class="acc-item scroll-fade-in" data-acc-item id={`feature-${s.id}`}>
                 <button type="button" class="acc-trigger" aria-expanded="true">
                   <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
                   <span class="acc-heading">
@@ -695,7 +695,7 @@ const portalTabs = [
       </div>
     </section>
 
-    <section class="fx-plugins" aria-label="Plugins">
+    <section class="fx-plugins scroll-fade-in" aria-label="Plugins">
       <p class="fx-plugins-kicker">The last 10%</p>
       <h2 class="fx-plugins-h2">Bolt on what makes this client 100%.</h2>
       <p class="fx-plugins-lead">
@@ -710,7 +710,7 @@ const portalTabs = [
           plugins.map((p) => {
             const Icon = p.icon;
             return (
-              <div class="acc-item acc-item--plugin" data-acc-item id={`plugin-${p.id}`}>
+              <div class="acc-item acc-item--plugin scroll-fade-in" data-acc-item id={`plugin-${p.id}`}>
                 <button type="button" class="acc-trigger" aria-expanded="true">
                   <span class="acc-icon acc-icon--plugin"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
                   <span class="acc-heading">
@@ -736,7 +736,7 @@ const portalTabs = [
       </div>
     </section>
 
-    <section class="fx-built-with" aria-label="Technology stack and deployment options">
+    <section class="fx-built-with scroll-fade-in" aria-label="Technology stack and deployment options">
       <p class="fx-built-with-kicker">Under the hood</p>
       <h2 class="fx-built-with-h2">Built with a modern, production-grade stack.</h2>
       <p class="fx-built-with-lead">
@@ -775,7 +775,7 @@ const portalTabs = [
       </ul>
     </section>
 
-    <section class="fx-closing">
+    <section class="fx-closing scroll-fade-in">
       <h2 class="fx-closing-h2">Ready to see it running?</h2>
       <p class="fx-closing-lead">
         Every one of these is live in the product — not a mockup, not a roadmap slide.
