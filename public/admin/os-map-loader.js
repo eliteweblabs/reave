@@ -20754,17 +20754,13 @@ document.addEventListener('click', (e) => {
 
 function buildEmailAgentPrompt(ev) {
   const received = formatEmailWhen(ev.receivedAt) || ev.receivedAt || 'unknown';
-  const lines = [
+  return [
     `From: ${ev.from || '(unknown)'}`,
     `Subject: ${ev.subject || '(no subject)'}`,
     `Received: ${received}`,
-  ];
-  const body = (ev.bodyText || ev.bodySnippet || '').trim();
-  if (body) {
-    lines.push('', 'Body:', body);
-  }
-  lines.push('', 'Please wait for instructions on how to deal with this email.');
-  return lines.join('\n');
+    '',
+    'Please wait for instructions on how to deal with this email.',
+  ].join('\n');
 }
 
 async function fetchFullEmailRecord(ev) {

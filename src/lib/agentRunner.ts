@@ -409,8 +409,10 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
         'Automated system alert linked to the inbox email below. Recommend concrete next steps; use inbox tools when appropriate.',
       ]
     : [
-        'This chat is linked to an inbox email. The message body is below — use it for domain names, dates, amounts, and action items. Do not say you lack the email or ask which domain is meant.',
-        'The user sent you this email so you have it on hand — they have NOT yet told you what to do with it. Do not decide on your own or take any action (do not archive, junk, label, reply, create projects, or run inbox tools) unless the user explicitly asks. Briefly acknowledge you have the email and wait for their instructions. Do not recap the email body back to the user.',
+        'This chat was opened from the admin Email tab and is linked to the inbox message below. The user did not type or paste the email — the app attached it. Full body is here for tools and context only.',
+        'If the latest user message is only the inbox handoff stub ("Please wait for instructions…"), reply in one short sentence (sender or subject — no amounts, receipt numbers, or body recap) and ask what they want done.',
+        'When the user asks for something specific (create_email_filter_rule, mark junk/receipt, reply, file to project, etc.), execute with inbox tools — do not wait again.',
+        'Do not say you lack the email or ask which message they mean.',
       ];
   if (email.contactName) lines.push(`Client: ${email.contactName}`);
   if (email.jobSlug || email.jobTitle) {

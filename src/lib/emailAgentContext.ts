@@ -1,4 +1,5 @@
 import type { EmailInboxRecord } from './emailInboxStore';
+import { INBOX_EMAIL_WAIT_INSTRUCTION } from './chatMessageFormat';
 import {
   attachmentSummaryFallback,
   formatAttachmentListForPrompt,
@@ -42,6 +43,13 @@ export function formatEmailChatReference(
     `Subject: ${email.subject || '(no subject)'}`,
     `Received: ${formatReceivedAt(email.receivedAt)}`,
   ].join('\n');
+}
+
+/** User-visible stub when opening agent from the Email tab (body stays in system context). */
+export function buildInboxEmailOpenPrompt(
+  email: Pick<EmailInboxRecord, 'from' | 'subject' | 'receivedAt'>,
+): string {
+  return [formatEmailChatReference(email), '', INBOX_EMAIL_WAIT_INSTRUCTION].join('\n');
 }
 
 /** Body (+ optional summary) for agent prompts — skips headers already shown in chat. */

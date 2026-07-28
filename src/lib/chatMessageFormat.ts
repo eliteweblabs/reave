@@ -53,10 +53,41 @@ export function storedChatPlainText(content: string): string {
   return `${displayText}\n[${summary} attached]`;
 }
 
+export const INBOX_EMAIL_WAIT_INSTRUCTION =
+  'Please wait for instructions on how to deal with this email.';
+
+/** True for the auto-sent stub when opening agent from the admin Email tab. */
+export function isInboxEmailOpenPrompt(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.includes(INBOX_EMAIL_WAIT_INSTRUCTION)) return false;
+  return /^From:\s/m.test(trimmed) && /^Subject:\s/m.test(trimmed);
+}
+
+/** Strip body (and other noise) from inbox handoff messages for chat display. */
+export function collapseInboxEmailOpenPrompt(text: string): string {
+  if (!isInboxEmailOpenPrompt(text)) return text;
+
+  const from = text.match(/^From:\s*(.+)$/m)?.[1]?.trim();
+  const subject = text.match(/^Subject:\s*(.+)$/m)?.[1]?.trim();
+  const received = text.match(/^Received:\s*(.+)$/m)?.[1]?.trim();
+
+  const lines: string[] = [];
+  if (from) lines.push(`From: ${from}`);
+  if (subject) lines.push(`Subject: ${subject}`);
+  if (received) lines.push(`Received: ${received}`);
+
+  if (!lines.length) return text;
+  lines.push('', INBOX_EMAIL_WAIT_INSTRUCTION);
+  return lines.join('\n');
+}
+
 /** Collapse legacy verbose email dumps to a short reference for chat display. */
 export function userMessageDisplayText(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return text;
+
+  const inboxHandoff = collapseInboxEmailOpenPrompt(trimmed);
+  if (inboxHandoff !== trimmed) return inboxHandoff;
 
   const verboseEmail =
     trimmed.includes('[Email triage]') ||
@@ -79,7 +110,7 @@ export function userMessageDisplayText(text: string): string {
   if (received) lines.push(`Received: ${received}`);
 
   if (lines.length) {
-    lines.push('', 'Please wait for instructions on how to deal with this email.');
+    lines.push('', INBOX_EMAIL_WAIT_INSTRUCTION);
     return lines.join('\n');
   }
 
