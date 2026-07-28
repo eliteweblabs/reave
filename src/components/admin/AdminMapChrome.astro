@@ -1,0 +1,29 @@
+---
+/** OS map canvas chrome: hidden topbar utilities, zoom tools, legend, pan/zoom surface. */
+---
+
+<div id="topbar-utilities" hidden aria-hidden="true">
+  <div id="tabs-scroll"><div id="tabs"></div></div>
+  <div id="model-select" style="display:none"></div>
+  <span id="health-checked" class="tb-icon" data-tooltip="">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  </span>
+  <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+  </span>
+</div>
+
+<div id="tools">
+  <button data-act="in" title="Zoom in">+</button>
+  <button data-act="out" title="Zoom out">−</button>
+  <button data-act="fit" title="Fit to screen">⤢</button>
+  <button id="reset" title="Reset layout">↺</button>
+</div>
+
+<div id="legend"></div>
+
+<div id="wrap">
+  <div id="world">
+    <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>

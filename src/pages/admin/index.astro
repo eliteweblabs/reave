@@ -5,13 +5,17 @@
  * Tabs switch between the "System" runtime map and the "MCP & CLI" tooling map.
  * Drag cards (snap to grid), drag background to pan, wheel/±/Fit to zoom.
  */
-import Favicon from "../../components/Favicon.astro";
-import BrandFontHead from "../../components/BrandFontHead.astro";
 import Header from "../../components/Header.astro";
 import AdminFooterNav from "../../components/AdminFooterNav.astro";
+import AdminHead from "../../components/admin/AdminHead.astro";
+import AdminMapChrome from "../../components/admin/AdminMapChrome.astro";
+import AdminPanelMounts from "../../components/admin/AdminPanelMounts.astro";
+import AdminSearchOverlay from "../../components/admin/AdminSearchOverlay.astro";
+import AdminDialogs from "../../components/admin/AdminDialogs.astro";
+import AdminBootScripts from "../../components/admin/AdminBootScripts.astro";
 import { getCompanyConfig, companyToBrandContext, companyStaffAvatarUrl } from "../../lib/companyConfig";
 import { brandFontCssVars } from "../../lib/brandFonts";
-import { getInstallConfigClient, PROFILE_MENU_LABELS } from "../../lib/installConfig";
+import { getInstallConfigClient } from "../../lib/installConfig";
 import { isDeploymentOwner } from "../../lib/deploymentOwner";
 import { getPublicMapboxAccessToken } from "../../lib/mapboxAccessToken";
 import { serverEnv } from "../../lib/serverEnv";
@@ -34,23 +38,7 @@ const githubRepo = githubRepoSlug();
 
 <!doctype html>
 <html lang="en" style={brandFontCssVars(company.fonts)}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0d14" media="(prefers-color-scheme: dark)" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content={company.name || 'Business OS'} />
-    <meta name="application-name" content={company.name || 'Business OS'} />
-    <link rel="manifest" href="/admin/manifest.webmanifest" />
-    <title>{company.name} Admin</title>
-    <Favicon />
-    <BrandFontHead fonts={company.fonts} />
-    <link rel="stylesheet" href="/ios-sheet.css" />
-  </head>
+  <AdminHead companyName={company.name} fonts={company.fonts} />
   <body data-user-id={userId ?? ""} data-is-owner={isOwner ? "1" : ""}>
     <Header
       adminShell
@@ -58,175 +46,20 @@ const githubRepo = githubRepoSlug();
       signInAutoOpen={!userId}
     />
 
-    <div id="topbar-utilities" hidden aria-hidden="true">
-      <div id="tabs-scroll"><div id="tabs"></div></div>
-      <div id="model-select" style="display:none"></div>
-      <span id="health-checked" class="tb-icon" data-tooltip="">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      </span>
-      <span id="topbar-stale-warn" class="tb-icon tt-left" data-tooltip="Keep current — edit public/admin/os-map-data.js when the system changes.">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-      </span>
-    </div>
-
-    <div id="tools">
-      <button data-act="in" title="Zoom in">+</button>
-      <button data-act="out" title="Zoom out">−</button>
-      <button data-act="fit" title="Fit to screen">⤢</button>
-      <button id="reset" title="Reset layout">↺</button>
-    </div>
-
-    <div id="legend"></div>
-
-    <div id="wrap">
-      <div id="world">
-        <svg id="edges" xmlns="http://www.w3.org/2000/svg"></svg>
-      </div>
-    </div>
-
-    <div id="home-dashboard" style="display:none" aria-label="Dashboard"></div>
-
-    <div id="settings-panel" style="display:none" aria-label="Settings"></div>
-
-    <div id="search-overlay" aria-hidden="true">
-      <div class="search-overlay-bar">
-        <div class="control-field search-overlay-field">
-          <input
-            id="search-overlay-input"
-            class="search-overlay-input"
-            type="text"
-            placeholder="Search Sections And Clients…"
-            autocomplete="off"
-            aria-label="Search"
-          />
-          <button type="button" id="search-overlay-clear" class="search-overlay-clear panel-list-search-adornment is-search" data-mode="search" aria-label="Search">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="search-overlay-results" class="search-overlay-results"></div>
-    </div>
-
-    <!-- Documents tab panel (hidden unless documents tab is active) -->
-    <div id="doc-editor" style="display:none"></div>
-
-    <!-- Chats tab panel (hidden unless chats tab is active) -->
-    <div id="chat-panel" style="display:none"></div>
-
-    <!-- Email tab panel (hidden unless email tab is active) -->
-    <div id="email-panel" style="display:none"></div>
-
-    <!-- Knowledge tab panel (hidden unless knowledge tab is active) -->
-    <div id="knowledge-editor" style="display:none"></div>
-
-    <!-- Work tab panel (hidden unless work tab is active) -->
-    <div id="work-editor" style="display:none"></div>
-
-    <!-- Schedule tab panel (hidden unless schedule tab is active) -->
-    <div id="schedule-panel" style="display:none"></div>
-
-    <!-- Clients tab panel (hidden unless clients tab is active) -->
-    <div id="clients-editor" style="display:none"></div>
-
-    <!-- Social dashboard panel (hidden unless social tab is active) -->
-    <div id="social-panel" style="display:none" aria-label="Social"></div>
-
-    <!-- Analytics dashboard panel (hidden unless analytics tab is active) -->
-    <div id="analytics-panel" style="display:none" aria-label="Analytics"></div>
-
-    <div id="fleet-panel" style="display:none" aria-label="Fleet"></div>
-
-    <div id="rule-editor" style="display:none"></div>
-
-    <div id="newsletter-editor" style="display:none"></div>
-
-    <div id="todo-editor" style="display:none"></div>
-
-    <div id="create-drawer-scrim" class="create-drawer-scrim" role="presentation" hidden></div>
-
-    <div id="os-dialog-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="false">
-      <div class="ios-sheet os-dialog" role="dialog" aria-modal="true" aria-labelledby="os-dialog-title">
-        <div class="ios-sheet-grabber" aria-hidden="true"></div>
-        <header class="ios-sheet-header">
-          <button type="button" class="ios-sheet-close" data-os-dialog-close aria-label="Close" hidden>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
-          <h2 class="ios-sheet-title os-dialog-title" id="os-dialog-title"></h2>
-        </header>
-        <div class="ios-sheet-body os-dialog-sheet-body">
-          <div class="os-dialog-body" id="os-dialog-body"></div>
-          <div class="os-dialog-actions" id="os-dialog-actions"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="reave-share-backdrop" class="ios-sheet-backdrop" role="presentation" aria-hidden="true" data-sheet-dismiss="true">
-      <div class="ios-sheet reave-share-sheet" role="dialog" aria-modal="true" aria-labelledby="reave-share-title">
-        <div class="ios-sheet-grabber" aria-hidden="true"></div>
-        <header class="ios-sheet-header">
-          <h2 class="ios-sheet-title" id="reave-share-title">Share</h2>
-        </header>
-        <div class="ios-sheet-body reave-share-body">
-          <div class="reave-share-qr" id="reave-share-qr" hidden>
-            <img id="reave-share-qr-img" class="reave-share-qr-img" alt="Project page QR code" width="200" height="200" />
-          </div>
-          <p class="reave-share-sub" id="reave-share-sub"></p>
-          <label class="reave-share-note-label" for="reave-share-note">Personal note <span class="reave-share-optional">(optional)</span></label>
-          <textarea id="reave-share-note" class="reave-share-note" rows="2" placeholder="Add a short note for the recipient…"></textarea>
-          <div class="reave-share-actions" id="reave-share-actions"></div>
-          <p class="reave-share-status" id="reave-share-status" hidden role="status"></p>
-        </div>
-      </div>
-    </div>
+    <AdminMapChrome />
+    <AdminPanelMounts />
+    <AdminSearchOverlay />
+    <AdminDialogs />
 
     <AdminFooterNav />
 
-    <script is:inline>
-      (function () {
-        function showAdminLoadError(detail) {
-          if (document.getElementById('admin-boot-error')) return;
-          var banner = document.createElement('div');
-          banner.id = 'admin-boot-error';
-          banner.setAttribute('role', 'alert');
-          banner.style.cssText =
-            'position:fixed;inset:auto 0 0 0;z-index:99999;padding:0.75rem 1rem;background:#7f1d1d;color:#fecaca;font:600 0.85rem/1.45 ui-sans-serif,system-ui,sans-serif;border-top:1px solid #991b1b';
-          banner.textContent =
-            'Admin failed to start' +
-            (detail ? ': ' + detail : '') +
-            '. Hard-refresh (Shift+Reload). If it persists, clear site data for this domain.';
-          document.body.appendChild(banner);
-        }
-        window.addEventListener('error', function (e) {
-          var src = String(e.filename || '');
-          if (src.indexOf('/admin/') === -1) return;
-          showAdminLoadError(e.message || 'script error');
-        });
-        window.addEventListener('unhandledrejection', function (e) {
-          var msg = String((e.reason && e.reason.message) || e.reason || '');
-          if (
-            msg.indexOf('admin-ui') === -1 &&
-            msg.indexOf('os-map-loader') === -1 &&
-            msg.indexOf('work-panel') === -1 &&
-            msg.indexOf('-panel.js') === -1
-          )
-            return;
-          showAdminLoadError(msg);
-        });
-      })();
-    </script>
-    <script>
-      import '../../admin/agent-chat-mount.tsx';
-    </script>
-    <script is:inline type="module" src="/admin/push-client.js?v=20260728a"></script>
-    <script src="/ios-sheet.js" defer></script>
-    <script is:inline define:vars={{ companyBrand, staffAvatarUrl, installConfigClient, mapboxAccessToken, craterFinanceUrl, githubRepo }}>
-      window.__companyBrand = companyBrand;
-      window.__companyStaffAvatarUrl = staffAvatarUrl;
-      window.__installConfig = installConfigClient;
-      window.__mapboxAccessToken = mapboxAccessToken;
-      window.__craterFinanceUrl = craterFinanceUrl;
-      window.__githubRepo = githubRepo;
-    </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728o"></script>
+    <AdminBootScripts
+      companyBrand={companyBrand}
+      staffAvatarUrl={staffAvatarUrl}
+      installConfigClient={installConfigClient}
+      mapboxAccessToken={mapboxAccessToken}
+      craterFinanceUrl={craterFinanceUrl}
+      githubRepo={githubRepo}
+    />
   </body>
 </html>
