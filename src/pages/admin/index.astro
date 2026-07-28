@@ -3247,6 +3247,10 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         display: flex;
         align-items: center;
         justify-content: center;
+        /* Just the author's avatar (not the whole comment) stays pinned while a
+           long comment's text scrolls past underneath it. */
+        position: sticky;
+        top: 0;
       }
       .wk-comment-avatar img {
         width: 100%;
@@ -3254,14 +3258,30 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         object-fit: cover;
         display: block;
       }
+      .wk-comment-avatar--placeholder { background: color-mix(in srgb, var(--card) 75%, var(--muted) 25%); }
       .wk-comment-avatar-fallback {
-        font-size: 0.72rem;
-        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: var(--muted);
       }
+      .wk-comment-avatar-fallback svg { display: block; }
       .wk-comment-main { flex: 1; min-width: 0; }
       .wk-comment-staff { border-color: rgba(121, 192, 255, 0.25); background: rgba(121, 192, 255, 0.06); }
-      .wk-comment-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 0.35rem; }
+      .wk-comment-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 0.35rem;
+        /* Sticks alongside the avatar so the author's name/time stay visible
+           while the comment body scrolls; the body itself is not sticky. */
+        position: sticky;
+        top: 0;
+        background: var(--surface-muted);
+        z-index: 1;
+        border-radius: 4px;
+      }
+      .wk-comment-staff .wk-comment-head { background: rgba(121, 192, 255, 0.06); }
       .wk-comment-author { font-size: 0.78rem; font-weight: 600; }
       .wk-comment-time { font-size: 0.68rem; color: var(--muted); flex: none; }
       .wk-comment-text { font-size: 0.82rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
@@ -8951,6 +8971,6 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
       window.__installConfig = installConfigClient;
       window.__mapboxAccessToken = mapboxAccessToken;
     </script>
-    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260727f"></script>
+    <script is:inline type="module" src="/admin/os-map-loader.js?v=20260728a"></script>
   </body>
 </html>

@@ -12817,25 +12817,39 @@ function renderNewWorkForm(pane) {
   if (!inDrawer) getWorkEditor()?.classList.add('de-pane-active');
 }
 
-function mountWorkCommentsSection(pane, slug) {
+const WK_COMMENT_AVATAR_PLACEHOLDER =
+  '<span class="wk-comment-avatar-fallback" aria-hidden="true">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>' +
+  '<circle cx="12" cy="7" r="4"/>' +
+  '</svg></span>';
+
+function workCommentAvatarHtml(author, clientIconUrl) {
+  const url = author === 'staff' ? (window.__companyStaffAvatarUrl || '') : (clientIconUrl || '');
+  if (url) {
+    return `<div class="wk-comment-avatar" aria-hidden="true"><img src="${escHtml(url)}" alt="" loading="lazy" /></div>`;
+  }
+  return `<div class="wk-comment-avatar wk-comment-avatar--placeholder" aria-hidden="true">${WK_COMMENT_AVATAR_PLACEHOLDER}</div>`;
+}
+
+function mountWorkCommentsSection(pane, slug, contactUid) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-comments-section';
   wrap.innerHTML = '<div class="de-loading">Loading comments…</div>';
   pane.appendChild(wrap);
 
-  const workCommentAvatarHtml = (author, authorName) => {
-    const label = authorName || (author === 'staff' ? 'Team' : 'Client');
-    const url = author === 'staff' ? (window.__companyStaffAvatarUrl || '') : '';
-    if (url) {
-      return `<div class="wk-comment-avatar" aria-hidden="true"><img src="${escHtml(url)}" alt="" loading="lazy" /></div>`;
-    }
-    const initial = label.trim().charAt(0).toUpperCase() || '?';
-    return `<div class="wk-comment-avatar" aria-hidden="true"><span class="wk-comment-avatar-fallback">${escHtml(initial)}</span></div>`;
-  };
+  const clientIconPromise = contactUid
+    ? fetch(`/api/clients/${encodeURIComponent(contactUid)}`, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((c) => (c && c.ok ? c.iconUrl || c.logoUrl || '' : ''))
+        .catch(() => '')
+    : Promise.resolve('');
 
-  fetch(`/api/work/${encodeURIComponent(slug)}/comments`, { cache: 'no-store' })
-    .then((r) => r.json())
-    .then((data) => {
+  Promise.all([
+    fetch(`/api/work/${encodeURIComponent(slug)}/comments`, { cache: 'no-store' }).then((r) => r.json()),
+    clientIconPromise,
+  ])
+    .then(([data, clientIconUrl]) => {
       void fetch(`/api/work/${encodeURIComponent(slug)}/comments/ack`, { method: 'POST' })
         .then(() => {
           if (reviewsPendingCount > 0) void loadHomeDashboard();
@@ -12864,7 +12878,7 @@ function mountWorkCommentsSection(pane, slug) {
           const when = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
           row.innerHTML =
             `<div class="wk-comment-inner">` +
-            workCommentAvatarHtml(c.author, c.authorName) +
+            workCommentAvatarHtml(c.author, clientIconUrl) +
             `<div class="wk-comment-main">` +
             `<div class="wk-comment-head">` +
             `<span class="wk-comment-author">${escHtml(c.authorName || (c.author === 'staff' ? 'Team' : 'Client'))}</span>` +
@@ -12911,7 +12925,7 @@ function mountWorkCommentsSection(pane, slug) {
           replyTa.value = '';
           const parent = wrap.parentElement;
           wrap.remove();
-          if (parent) mountWorkCommentsSection(parent, slug);
+          if (parent) mountWorkCommentsSection(parent, slug, contactUid);
         } catch (e) {
           alert(`Failed to post reply: ${e.message}`);
         } finally {
@@ -13129,7 +13143,7 @@ function renderEditWorkForm(pane) {
       scroll.appendChild(checklistMount);
       scroll.appendChild(bodyEditor.wrap);
       renderWorkChecklistPanel(checklistMount, checklistOpts);
-      mountWorkCommentsSection(scroll, slug);
+      mountWorkCommentsSection(scroll, slug, data.contact_uid);
       mountWorkFilesSection(scroll, slug, data.files);
       mountWorkTodosSection(scroll, slug);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
