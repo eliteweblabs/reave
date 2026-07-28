@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { createCloudIconLayer, type CloudIconLayer } from "./quantumCloudIcons";
 
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
@@ -57,6 +58,8 @@ export interface QuantumEngineOptions {
   };
   /** Static logo PNG — colors, resolve plane, and intro sampling target. */
   logoImageUrl?: string;
+  /** App icons orbiting in the particle shell (e.g. /logos/replaced-apps/*.svg). */
+  cloudIconUrls?: string[];
 }
 
 const QUANTUM_PARTICLE_COUNT = 4000;
@@ -620,6 +623,19 @@ export function attachQuantumCoreOpticalEngine(
   particleGroup.scale.setScalar(PARTICLE_VIS_SCALE);
   particleGroup.add(particlesBack);
   particleGroup.add(particlesFront);
+
+  const cloudIconUrls = (options?.cloudIconUrls ?? [])
+    .map((u) => u.trim())
+    .filter(Boolean);
+  const cloudIcons: CloudIconLayer | null = createCloudIconLayer(
+    cloudIconUrls,
+    BALL_RADIUS,
+    isMobileLike,
+    introDurationSec,
+  );
+  if (cloudIcons) {
+    particleGroup.add(cloudIcons.group);
+  }
 
   function syncParticleMaterial(size: number, backOpacity: number): void {
     particlesMatBack.size = size;
@@ -1522,6 +1538,23 @@ export function attachQuantumCoreOpticalEngine(
     /* Look at hero center (not the lifted content) so the +20% lift reads on screen. */
     camera.lookAt(0, contentAnchorY, 0);
 
+    if (cloudIcons) {
+      const iconIdleAmp =
+        inIntro || isCompactStack || prefersReduced
+          ? 0
+          : 0.034 * motionScale * (1 - resolveMix * 0.22) * voiceMorphMul;
+      cloudIcons.update({
+        rawT,
+        introDurationSec,
+        globalIntroT,
+        inIntro,
+        resolveMix,
+        sceneT,
+        idleAmp: iconIdleAmp,
+        energy,
+      });
+    }
+
     composer.render();
   }
 
@@ -1614,6 +1647,7 @@ export function attachQuantumCoreOpticalEngine(
     particlesMatBack.dispose();
     particlesMatFront.dispose();
     particleSprite.dispose();
+    cloudIcons?.dispose();
     logoResolveGeo.dispose();
     const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
     logoMap?.dispose();
