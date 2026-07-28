@@ -95,6 +95,8 @@ export async function postToSystemAlertsThread(opts: {
   message: string;
   autoRun?: boolean;
   emailId?: string;
+  /** Optional model override — e.g. 'claude-opus-4-6' for high-priority auto-investigations. */
+  model?: string;
   push?: { title: string; body: string; tag?: string; url?: string };
 }): Promise<void> {
   const userId = agentAlertUserId();
@@ -116,6 +118,7 @@ export async function postToSystemAlertsThread(opts: {
       let reply = await runKnowledgeAgent({
         userText: opts.message,
         priorTurns,
+        model: opts.model ?? null,
         context: opts.emailId
           ? { userId, emailId: opts.emailId, systemAlert: true }
           : { userId, systemAlert: true },
@@ -503,15 +506,15 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
     // The agent's auto-reply itself needs the Claude API — skip it here so we
     // don't burn a doomed-to-fail call and can just show the canned summary.
     autoRun: !isAnthropicBillingAlertStatus(opts.status),
-    push: {
-      title: isRailwayAlertStatus(opts.status)
-        ? `Railway: ${opts.subject.slice(0, 50) || 'deploy alert'}`
-        : `Alert: ${opts.summary.slice(0, 60)}`,
-      body: opts.summary,
-      tag: opts.emailId ?? `email-${opts.status}`,
-      url: opts.emailId
-        ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
-        : '/admin?tab=email',
-    },
+    push: isRailwayAlertStatus(opts.status)
+      ? undefined // Railway alerts via email → no push (webhook handler manages those silently)
+      : {
+          title: `Alert: ${opts.summary.slice(0, 60)}`,
+          body: opts.summary,
+          tag: opts.emailId ?? `email-${opts.status}`,
+          url: opts.emailId
+            ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
+            : '/admin?tab=email',
+        },
   });
 }
