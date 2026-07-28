@@ -316,8 +316,11 @@ const manifestHref = uid ? `/c/${encodeURIComponent(uid)}/manifest.json` : '';
 const themeColor = '#0a0a0a';
 const portalUrl = uid ? `${origin}/c/${encodeURIComponent(uid)}` : origin;
 const ogDescription = clientTagline || `${brandTitle} client portal`;
-const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : SITE.ogImage;
+const ogImagePath = uid ? `/c/${encodeURIComponent(uid)}/og.png` : LOGO_ICON_OG_PATH;
 const ogImageAbsolute = ogImagePath.startsWith('http') ? ogImagePath : `${origin}${ogImagePath}`;
+const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
+  ? `${origin}${LOGO_ICON_OG_PATH}`
+  : ogImageAbsolute;
 
 // ?submit — show a focused data-submission form instead of the full portal.
 const submitMode = !notFound && Astro.url.searchParams.has('submit');
@@ -350,14 +353,14 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         <meta property="og:description" content={ogDescription} />
         <meta property="og:type" content="website" />
         <meta property="og:url" content={portalUrl} />
-        <meta property="og:image" content={ogImageAbsolute} />
+        <meta property="og:image" content={ogImageSafe} />
         <meta property="og:image:width" content={String(PORTAL_OG_WIDTH)} />
         <meta property="og:image:height" content={String(PORTAL_OG_HEIGHT)} />
         <meta property="og:image:alt" content={`${brandTitle} client portal`} />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={ogDescription} />
-        <meta name="twitter:image" content={ogImageAbsolute} />
+        <meta name="twitter:image" content={ogImageSafe} />
       </>
     )}
     <Favicon />
