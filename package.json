@@ -19,6 +19,7 @@
     "check:chat": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/verify-chat-resilience.ts",
     "deck:validate": "node --experimental-strip-types src/deck/validate-cli.ts",
     "icons:generate": "node scripts/generate-brand-icons.mjs",
+    "logos:replaced-apps": "node scripts/fetch-replaced-app-logos.mjs",
     "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
     "astro": "astro"

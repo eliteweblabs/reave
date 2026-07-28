@@ -1,0 +1,90 @@
+---
+/**
+ * Renders every logo found in public/logos/<folder>/ as a labeled tile grid.
+ * See src/lib/brandLogos.ts for how files are discovered, ordered, and named.
+ *
+ * Reusable anywhere a folder-backed logo wall is needed — e.g. the "apps this
+ * platform replaces" section on /features. Adding a new logo is just a file
+ * drop; no prop or array to edit here.
+ */
+import { listBrandLogos } from "../lib/brandLogos";
+
+interface Props {
+  /** Subfolder under public/logos/, e.g. "replaced-apps". */
+  folder: string;
+}
+
+const { folder } = Astro.props;
+const logos = listBrandLogos(folder);
+---
+
+{
+  logos.length > 0 && (
+    <ul class="blg-grid">
+      {logos.map((logo) => (
+        <li class="blg-item">
+          <img class="blg-logo" src={logo.src} alt="" loading="lazy" decoding="async" />
+          <span class="blg-name">{logo.name}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+<style>
+  .blg-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .blg-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.22);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .blg-item:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .blg-logo {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+
+  .blg-name {
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+  }
+
+  @media (max-width: 720px) {
+    .blg-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .blg-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .blg-name {
+      font-size: 0.62rem;
+    }
+  }
+</style>

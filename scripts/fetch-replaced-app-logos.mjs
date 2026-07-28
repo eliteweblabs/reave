@@ -1,0 +1,104 @@
+/**
+ * Populate public/logos/replaced-apps/ with real, self-contained brand SVGs
+ * for the "apps this platform replaces" wall on /features.
+ *
+ * Each file is fetched from a pinned Simple Icons release
+ * (https://simpleicons.org, CC0), then baked with the brand's fill color and
+ * an accessible <title> so the icon works as a plain static asset — no CDN,
+ * CSS mask, or JS color lookup needed at runtime. BrandLogoGrid.astro then
+ * just renders every file it finds in that folder, so a fresh
+ * `node scripts/fetch-replaced-app-logos.mjs` (or hand-placing any SVG with a
+ * <title> in the folder — no code change either way) is all it takes to add
+ * or refresh an icon.
+ *
+ * Some brands here (Outlook, Teams, Slack, Salesforce, DocuSign) were pulled
+ * from later Simple Icons releases after trademark takedown requests from
+ * Microsoft/Salesforce — see simple-icons/simple-icons#13503 and #11232. This
+ * script pins to the last release that still shipped each one so the wall
+ * keeps working instead of silently 404ing against the live CDN (which is
+ * what the old inline-array + jsDelivr version of this page was doing).
+ * Monday.com never had a Simple Icons entry, so it gets a small self-authored
+ * monogram instead of vendoring an official logo file.
+ *
+ * Prefix a filename with a two-digit number to control display order;
+ * unprefixed files sort alphabetically after the numbered ones.
+ */
+import { writeFile, mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "logos", "replaced-apps");
+
+/** Current release for icons Simple Icons still ships. */
+const CURRENT = "16.27.1";
+/** Last release before Microsoft-family icons (Outlook, Teams) and DocuSign were pulled. */
+const PRE_MS_REMOVAL = "12.0.0";
+/** Last release before the Salesforce-owned family (Slack, Salesforce, ...) and OpenAI were pulled. */
+const PRE_SALESFORCE_REMOVAL = "13.19.0";
+
+const SIMPLE_ICONS_CDN = (slug, version) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
+
+/** slug = Simple Icons filename, name = label shown on the card, color = brand hex. */
+const ICONS = [
+  { slug: "gmail", version: CURRENT, file: "01-gmail.svg", name: "Gmail", color: "#EA4335" },
+  { slug: "microsoftoutlook", version: PRE_MS_REMOVAL, file: "02-outlook.svg", name: "Outlook", color: "#0078D4" },
+  { slug: "googlecalendar", version: CURRENT, file: "03-google-calendar.svg", name: "Google Calendar", color: "#4285F4" },
+  { slug: "openai", version: PRE_SALESFORCE_REMOVAL, file: "04-chatgpt.svg", name: "ChatGPT", color: "#412991" },
+  { slug: "quickbooks", version: CURRENT, file: "05-quickbooks.svg", name: "QuickBooks", color: "#2CA01C" },
+  { slug: "slack", version: PRE_SALESFORCE_REMOVAL, file: "06-slack.svg", name: "Slack", color: "#4A154B" },
+  { slug: "zoom", version: CURRENT, file: "07-zoom.svg", name: "Zoom", color: "#0B5CFF" },
+  { slug: "microsoftteams", version: PRE_MS_REMOVAL, file: "08-teams.svg", name: "Teams", color: "#6264A7" },
+  { slug: "notion", version: CURRENT, file: "09-notion.svg", name: "Notion", color: "#FFFFFF" },
+  { slug: "trello", version: CURRENT, file: "10-trello.svg", name: "Trello", color: "#0052CC" },
+  { slug: "asana", version: CURRENT, file: "11-asana.svg", name: "Asana", color: "#F06A6A" },
+  { custom: "monogram", file: "12-monday.svg", name: "Monday.com", color: "#FF3D57" },
+  { slug: "hubspot", version: CURRENT, file: "13-hubspot.svg", name: "HubSpot", color: "#FF7A59" },
+  { slug: "salesforce", version: PRE_SALESFORCE_REMOVAL, file: "14-salesforce.svg", name: "Salesforce", color: "#00A1E0" },
+  { slug: "stripe", version: CURRENT, file: "15-stripe.svg", name: "Stripe", color: "#635BFF" },
+  { slug: "calendly", version: CURRENT, file: "16-calendly.svg", name: "Calendly", color: "#006BFF" },
+  { slug: "docusign", version: PRE_MS_REMOVAL, file: "17-docusign.svg", name: "DocuSign", color: "#FFCC22" },
+  { slug: "mailchimp", version: CURRENT, file: "18-mailchimp.svg", name: "Mailchimp", color: "#FFE01B" },
+  { slug: "dropbox", version: CURRENT, file: "19-dropbox.svg", name: "Dropbox", color: "#0061FF" },
+  { slug: "googledrive", version: CURRENT, file: "20-google-drive.svg", name: "Google Drive", color: "#4285F4" },
+];
+
+function bakeIcon(rawSvg, { name, color }) {
+  let svg = rawSvg.replace(/<title>.*?<\/title>/i, `<title>${name}</title>`);
+  // `fill` on the root <svg> cascades to the path(s), which ship with no
+  // fill of their own — this is what makes the file self-contained.
+  svg = svg.replace(/<svg /, `<svg fill="${color}" `);
+  return svg;
+}
+
+/** Self-authored monogram fallback for brands with no redistributable mark. */
+function monogramSvg({ name, color }) {
+  const letter = name.trim().charAt(0).toUpperCase();
+  return `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="${color}"><title>${name}</title><rect width="24" height="24" rx="6"/><text x="12" y="17" text-anchor="middle" font-family="system-ui, sans-serif" font-size="14" font-weight="700" fill="#0b0512">${letter}</text></svg>`;
+}
+
+async function main() {
+  await mkdir(OUT_DIR, { recursive: true });
+  for (const icon of ICONS) {
+    if (icon.custom === "monogram") {
+      await writeFile(join(OUT_DIR, icon.file), monogramSvg(icon), "utf8");
+      console.log(`Wrote ${icon.file} (monogram fallback)`);
+      continue;
+    }
+
+    const res = await fetch(SIMPLE_ICONS_CDN(icon.slug, icon.version));
+    if (!res.ok) {
+      console.error(`Failed to fetch ${icon.slug}@${icon.version}: ${res.status} ${res.statusText}`);
+      continue;
+    }
+    const raw = await res.text();
+    const baked = bakeIcon(raw, icon);
+    await writeFile(join(OUT_DIR, icon.file), baked, "utf8");
+    console.log(`Wrote ${icon.file}`);
+  }
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
