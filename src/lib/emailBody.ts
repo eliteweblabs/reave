@@ -55,6 +55,34 @@ function stripScriptTags(html: string): string {
   return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
 }
 
+/**
+ * Force every anchor to open in a new browsing context (`target="_blank"` + `rel="noopener
+ * noreferrer"`) instead of navigating in place. The inbox renders email HTML in a sandboxed
+ * iframe; without this, a plain `<a href>` click navigates the sandboxed frame itself (or, if
+ * the sandbox allows top navigation, the whole app shell) rather than escaping to the real
+ * browser, which looks like the link "does nothing" and the app goes blank.
+ */
+function forceExternalLinks(html: string): string {
+  return html.replace(/<a\b([^>]*)>/gi, (match, attrs: string) => {
+    if (!/\bhref\s*=/i.test(attrs)) return match;
+    let next = attrs;
+    next = /\btarget\s*=/i.test(next)
+      ? next.replace(/\btarget\s*=\s*(["']).*?\1/i, 'target="_blank"')
+      : `${next} target="_blank"`;
+    const relMatch = next.match(/\brel\s*=\s*(["'])(.*?)\1/i);
+    if (relMatch) {
+      const quote = relMatch[1];
+      const tokens = new Set(relMatch[2].split(/\s+/).filter(Boolean));
+      tokens.add('noopener');
+      tokens.add('noreferrer');
+      next = next.replace(/\brel\s*=\s*(["']).*?\1/i, `rel=${quote}${Array.from(tokens).join(' ')}${quote}`);
+    } else {
+      next += ' rel="noopener noreferrer"';
+    }
+    return `<a${next}>`;
+  });
+}
+
 /** Store inbound HTML for inbox rendering (scripts stripped). */
 export function normalizeEmailHtml(text?: string, html?: string, max = MAX_STORED_EMAIL_HTML): string {
   let raw = (html ?? '').trim();
@@ -68,9 +96,9 @@ export function normalizeEmailHtml(text?: string, html?: string, max = MAX_STORE
 /** HTML to render in the inbox detail view (stored html, or legacy html-in-text fallback). */
 export function resolveEmailHtmlForDisplay(bodyHtml?: string, bodyText?: string): string {
   const html = (bodyHtml ?? '').trim();
-  if (html) return stripScriptTags(html);
+  if (html) return forceExternalLinks(stripScriptTags(html));
   const text = (bodyText ?? '').trim();
-  if (text && looksLikeHtml(text)) return stripScriptTags(text);
+  if (text && looksLikeHtml(text)) return forceExternalLinks(stripScriptTags(text));
   return '';
 }
 

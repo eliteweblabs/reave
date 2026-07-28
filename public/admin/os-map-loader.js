@@ -11818,7 +11818,11 @@ function renderEmailPanel() {
   const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summary;
   if (bodyHtmlSource) {
     detailHtml +=
-      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" title="Email message"></iframe></div>`;
+      // Links are rewritten server-side (resolveEmailHtmlForDisplay) to target="_blank", so
+      // allow-popups + allow-popups-to-escape-sandbox lets them open in a real browser tab.
+      // Deliberately no allow-top-navigation(-by-user-activation): that let clicks hijack the
+      // top-level app window instead of escaping it, which looked like the email going blank.
+      `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Email message"></iframe></div>`;
   } else if (showPlainBody) {
     detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
   } else if (!attachments.length && !summary) {
