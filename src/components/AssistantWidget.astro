@@ -1,0 +1,618 @@
+---
+/**
+ * Shared floating "speed dial" help chat — used on the public marketing site
+ * and client portal. Callers pass endpoint, copy, and presentation; agent
+ * context (lead vs. client) lives in the API route, not here.
+ */
+import IosBottomSheet from './IosBottomSheet.astro';
+
+export interface Props {
+  /** Unique id for DOM nodes (e.g. "site" or a contact uid). */
+  instanceId: string;
+  endpoint: string;
+  storageKey: string;
+  brandTitle: string;
+  headerTitle: string;
+  greeting: string;
+  fabLabel: string;
+  footerPrefix?: string;
+  supportPhone?: string;
+  supportEmail?: string;
+  variant?: 'site' | 'portal';
+  /** Slide the FAB in on first scroll (marketing site). */
+  revealFabOnScroll?: boolean;
+  /** Lift the FAB above the homepage footer nav pill. */
+  offsetFooterNav?: boolean;
+}
+
+const {
+  instanceId,
+  endpoint,
+  storageKey,
+  brandTitle,
+  headerTitle,
+  greeting,
+  fabLabel,
+  footerPrefix = '',
+  supportPhone = '',
+  supportEmail = '',
+  variant = 'site',
+  revealFabOnScroll = false,
+  offsetFooterNav = false,
+} = Astro.props;
+
+const sheetId = `aw-sheet-${instanceId}`;
+
+const contactBits = [
+  supportPhone ? `call/text ${supportPhone}` : '',
+  supportEmail ? `email ${supportEmail}` : '',
+].filter(Boolean);
+const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${contactBits.join(' · ')}` : '';
+---
+
+<div
+  class:list={['aw-root', `aw-root--${variant}`]}
+  data-assistant-widget
+  data-endpoint={endpoint}
+  data-storage-key={storageKey}
+  data-sheet-id={sheetId}
+  data-reveal-fab={revealFabOnScroll ? 'true' : undefined}
+  data-offset-footer-nav={offsetFooterNav ? 'true' : undefined}
+>
+  <button
+    class="aw-fab"
+    type="button"
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    aria-label={fabLabel}
+  >
+    <svg class="aw-fab-icon-chat" xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <svg class="aw-fab-icon-close" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+    </svg>
+  </button>
+
+  <IosBottomSheet id={sheetId} sheetOnly={true} dismissible={true} class="aw-sheet">
+    <div class="aw-chat">
+      <header class="aw-header">
+        <div class="aw-header-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.955 9.955 0 0 0 12 22Z"/></svg>
+        </div>
+        <div class="aw-header-title">
+          <span class="aw-header-name">{headerTitle}</span>
+          <span class="aw-header-sub">{brandTitle}</span>
+        </div>
+        <button class="aw-close" type="button" data-ios-sheet-close aria-label="Close chat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+
+      <div class="aw-messages">
+        <div class="aw-msg aw-msg-assistant">
+          <div class="aw-bubble" data-greeting>{greeting}</div>
+        </div>
+      </div>
+
+      <div class="aw-typing" hidden aria-hidden="true"><span></span><span></span><span></span></div>
+
+      <form class="aw-form">
+        <textarea
+          class="aw-input"
+          rows="1"
+          placeholder="Ask a question…"
+          autocomplete="off"
+          autocorrect="on"
+          spellcheck="true"
+          maxlength="2000"
+        ></textarea>
+        <button class="aw-send" type="submit" aria-label="Send message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        </button>
+      </form>
+
+      {footerNote && <p class="aw-footer">{footerNote}</p>}
+    </div>
+  </IosBottomSheet>
+</div>
+
+<script src="/ios-sheet.js" defer></script>
+
+<style>
+  .aw-root { position: relative; }
+
+  .aw-fab {
+    position: fixed;
+    right: max(18px, env(safe-area-inset-right));
+    bottom: calc(env(safe-area-inset-bottom) + 20px);
+    z-index: 70;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .aw-root--site .aw-fab {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    border: 1px solid transparent;
+    box-shadow: var(--brand-gradient-shadow, 0 8px 24px rgba(168, 85, 247, 0.45)), 0 2px 8px rgba(0, 0, 0, 0.35);
+    transform: translateY(calc(100% + 28px));
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0.55s;
+  }
+
+  .aw-root--portal .aw-fab {
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
+    box-shadow: 0 8px 24px rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+    transition: transform 0.18s ease;
+  }
+
+  .aw-root[data-offset-footer-nav='true'] .aw-fab {
+    bottom: calc(var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom) + 20px);
+  }
+
+  .aw-root--site .aw-fab.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    transition:
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.4s ease,
+      visibility 0s linear 0s;
+  }
+
+  .aw-fab:active { transform: scale(0.93); }
+  .aw-root--site .aw-fab:active { transform: translateY(0) scale(0.93); }
+  .aw-root--site .aw-fab.is-visible:active { transform: translateY(0) scale(0.93); }
+  .aw-fab[aria-expanded='true'] { z-index: 6001; }
+  .aw-fab-icon-close { display: none; }
+  .aw-fab[aria-expanded='true'] .aw-fab-icon-chat { display: none; }
+  .aw-fab[aria-expanded='true'] .aw-fab-icon-close { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aw-root--site .aw-fab {
+      transform: none;
+      opacity: 1;
+      visibility: visible;
+      transition: none;
+    }
+  }
+
+  .aw-chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .aw-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 14px 16px;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .aw-header-icon {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  .aw-root--site .aw-header-icon {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+  }
+  .aw-root--portal .aw-header-icon {
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
+  }
+  .aw-header-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .aw-header-name { font-size: 14px; font-weight: 700; color: #fff; }
+  .aw-header-sub { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+  .aw-close {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+  }
+  .aw-close:active { background: rgba(255, 255, 255, 0.14); }
+
+  .aw-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .aw-msg { display: flex; }
+  .aw-msg-user { justify-content: flex-end; }
+  .aw-msg-assistant { justify-content: flex-start; }
+  .aw-bubble {
+    max-width: 84%;
+    padding: 10px 13px;
+    border-radius: 16px;
+    font-size: 14.5px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .aw-msg-assistant .aw-bubble {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.92);
+    border-bottom-left-radius: 4px;
+  }
+  .aw-root--site .aw-msg-user .aw-bubble {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .aw-root--portal .aw-msg-user .aw-bubble {
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+    border: 1px solid var(--portal-brand-fill-border, transparent);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .aw-root--site .aw-bubble a { color: #d8b4fe; text-decoration: underline; }
+  .aw-root--portal .aw-bubble a { color: var(--portal-accent, #d8b4fe); text-decoration: underline; }
+  .aw-msg-user .aw-bubble a { color: #fff; }
+  .aw-bubble strong { font-weight: 700; }
+  .aw-bubble.aw-bubble-error {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.3);
+    color: #fca5a5;
+  }
+
+  .aw-typing {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 20px 8px;
+  }
+  .aw-typing[hidden] {
+    display: none !important;
+  }
+  .aw-typing span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    animation: aw-bounce 1.2s infinite ease-in-out;
+  }
+  .aw-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .aw-typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes aw-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+
+  .aw-form {
+    flex: none;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .aw-input {
+    flex: 1;
+    resize: none;
+    max-height: 110px;
+    padding: 10px 13px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    font: inherit;
+    font-size: 14.5px;
+    line-height: 1.4;
+    outline: none;
+  }
+  .aw-input::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .aw-root--site .aw-input:focus { border-color: rgba(168, 85, 247, 0.6); }
+  .aw-root--portal .aw-input:focus { border-color: rgba(var(--portal-primary-rgb, 168, 85, 247), 0.6); }
+  .aw-send {
+    flex: none;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+  }
+  .aw-root--site .aw-send {
+    background: var(--brand-gradient, linear-gradient(135deg, #a855f7, #ec4899));
+  }
+  .aw-root--portal .aw-send {
+    border: 1px solid var(--portal-brand-fill-border, transparent);
+    background: var(--portal-brand-fill, var(--portal-brand-gradient, linear-gradient(135deg, #a855f7, #ec4899)));
+  }
+  .aw-send:active { transform: scale(0.92); }
+  .aw-send:disabled { opacity: 0.45; cursor: default; }
+
+  .aw-footer {
+    flex: none;
+    margin: 0;
+    padding: 0 16px 12px;
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+  }
+</style>
+
+<style is:global>
+  .aw-sheet {
+    --ios-sheet-bg: #121016;
+    --ios-sheet-fg: #fff;
+    --ios-sheet-muted: rgba(255, 255, 255, 0.55);
+    --ios-sheet-border: rgba(255, 255, 255, 0.1);
+    --ios-sheet-grabber: rgba(255, 255, 255, 0.28);
+    color-scheme: dark;
+  }
+
+  .aw-sheet .ios-sheet-header {
+    display: none;
+  }
+
+  .aw-sheet .ios-sheet {
+    height: min(85dvh, 640px);
+    max-height: min(85dvh, 640px);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  .aw-sheet .ios-sheet-body {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+</style>
+
+<script>
+  type Turn = { role: 'user' | 'assistant'; content: string };
+
+  declare global {
+    interface Window {
+      IosSheet?: {
+        open: (target: string | HTMLElement, opts?: { onClose?: () => void }) => void;
+        close: (target?: string | HTMLElement) => void;
+      };
+    }
+  }
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatReply(raw: string): string {
+    let out = escapeHtml(raw);
+    out = out.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+      const clean = url.replace(/[.,)]+$/, '');
+      const trail = url.slice(clean.length);
+      return `<a href="${clean}" target="_blank" rel="noopener noreferrer">${clean}</a>${trail}`;
+    });
+    out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return out.replace(/\n/g, '<br />');
+  }
+
+  function initFabReveal(fab: HTMLElement) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      fab.classList.add('is-visible');
+      return;
+    }
+
+    let revealed = false;
+    const reveal = () => {
+      if (revealed) return;
+      revealed = true;
+      fab.classList.add('is-visible');
+      window.removeEventListener('scroll', onScroll);
+    };
+
+    const onScroll = () => {
+      if (window.scrollY > 24) reveal();
+    };
+
+    const checkNoScroll = () => {
+      const doc = document.documentElement;
+      if (doc.scrollHeight <= doc.clientHeight + 2) reveal();
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    checkNoScroll();
+    window.addEventListener('load', checkNoScroll, { once: true });
+    window.addEventListener('resize', checkNoScroll, { passive: true });
+  }
+
+  function initAssistantWidget(root: HTMLElement) {
+    const endpoint = root.dataset.endpoint || '';
+    const storageKey = root.dataset.storageKey || '';
+    const sheetId = root.dataset.sheetId || '';
+    const revealFab = root.dataset.revealFab === 'true';
+
+    const fab = root.querySelector<HTMLButtonElement>('.aw-fab');
+    const sheet = sheetId ? document.getElementById(sheetId) : null;
+    const messagesEl = root.querySelector<HTMLDivElement>('.aw-messages');
+    const typingEl = root.querySelector<HTMLDivElement>('.aw-typing');
+    const form = root.querySelector<HTMLFormElement>('.aw-form');
+    const input = root.querySelector<HTMLTextAreaElement>('.aw-input');
+    const sendBtn = root.querySelector<HTMLButtonElement>('.aw-send');
+    if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn || !endpoint || !storageKey) return;
+
+    if (revealFab) initFabReveal(fab);
+
+    let history: Turn[] = [];
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) history = parsed;
+      }
+    } catch {
+      /* ignore corrupt/blocked storage */
+    }
+
+    function persist() {
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(history.slice(-40)));
+      } catch {
+        /* storage may be unavailable */
+      }
+    }
+
+    function scrollToBottom() {
+      messagesEl!.scrollTop = messagesEl!.scrollHeight;
+    }
+
+    function renderMessage(role: 'user' | 'assistant', text: string, isError = false) {
+      const row = document.createElement('div');
+      row.className = `aw-msg aw-msg-${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = `aw-bubble${isError ? ' aw-bubble-error' : ''}`;
+      bubble.innerHTML = role === 'assistant' ? formatReply(text) : escapeHtml(text).replace(/\n/g, '<br />');
+      row.appendChild(bubble);
+      messagesEl!.appendChild(row);
+      scrollToBottom();
+    }
+
+    if (history.length) {
+      const greetingEl = messagesEl.querySelector('[data-greeting]');
+      if (greetingEl) greetingEl.closest('.aw-msg')?.remove();
+      for (const turn of history) renderMessage(turn.role, turn.content);
+      scrollToBottom();
+    }
+
+    function isOpen() {
+      return sheet!.classList.contains('open');
+    }
+
+    function setExpanded(expanded: boolean) {
+      fab!.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function openPanel() {
+      window.IosSheet?.open(sheetId);
+      setExpanded(true);
+      setTimeout(() => input!.focus(), 280);
+    }
+
+    function closePanel() {
+      window.IosSheet?.close(sheetId);
+      setExpanded(false);
+    }
+
+    fab.addEventListener('click', () => (isOpen() ? closePanel() : openPanel()));
+    sheet.addEventListener('ios-sheet-close', () => setExpanded(false));
+
+    function autosize() {
+      input!.style.height = 'auto';
+      input!.style.height = `${Math.min(input!.scrollHeight, 110)}px`;
+    }
+    input.addEventListener('input', autosize);
+
+    let sending = false;
+    async function sendMessage(rawText: string) {
+      const text = rawText.trim();
+      if (sending || !text) return;
+      sending = true;
+      sendBtn!.disabled = true;
+
+      renderMessage('user', text);
+      const priorHistory = history.slice(-20);
+      history.push({ role: 'user', content: text });
+      persist();
+
+      input!.value = '';
+      autosize();
+      typingEl!.hidden = false;
+      scrollToBottom();
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history: priorHistory }),
+        });
+        let data: { ok?: boolean; reply?: string; error?: string } = {};
+        try {
+          data = await res.json();
+        } catch {
+          /* fall through */
+        }
+        typingEl!.hidden = true;
+
+        if (res.ok && data.ok && data.reply) {
+          renderMessage('assistant', data.reply);
+          history.push({ role: 'assistant', content: data.reply });
+        } else {
+          const msg = data.error || 'Something went wrong. Please try again in a moment.';
+          renderMessage('assistant', msg, true);
+          history.push({ role: 'assistant', content: msg });
+        }
+        persist();
+      } catch {
+        typingEl!.hidden = true;
+        const msg = 'Network error — please check your connection and try again.';
+        renderMessage('assistant', msg, true);
+        history.push({ role: 'assistant', content: msg });
+        persist();
+      } finally {
+        sending = false;
+        sendBtn!.disabled = false;
+        scrollToBottom();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      void sendMessage(input.value);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        void sendMessage(input.value);
+      }
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-assistant-widget]').forEach(initAssistantWidget);
+</script>
