@@ -320,6 +320,30 @@ export async function listTrackedLinksForContact(
   return readFileLinks().filter((l) => l.contact_uid === uid).slice(0, limit);
 }
 
+/** Remove a tracked link notice (staff dismissed "link sent" reminder). */
+export async function deleteTrackedLink(
+  token: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const id = token.trim();
+  if (!id) return { ok: false, error: 'Invalid token' };
+
+  const pool = await ensureSchema();
+  if (pool) {
+    const res = await pool.query(`DELETE FROM project_tracked_links WHERE token = $1 RETURNING token`, [
+      id,
+    ]);
+    if (!res.rows[0]) return { ok: false, error: 'Not found' };
+    return { ok: true };
+  }
+
+  const links = readFileLinks();
+  const idx = links.findIndex((l) => l.token === id);
+  if (idx < 0) return { ok: false, error: 'Not found' };
+  links.splice(idx, 1);
+  writeFileLinks(links);
+  return { ok: true };
+}
+
 /** Clear opened/viewed state on a tracked link (staff dismissed false positive). */
 export async function dismissTrackedLinkView(
   token: string,

@@ -1,10 +1,11 @@
 /**
  * GET   /api/clients/[uid]/link — list tracked portal share links for a client
- * PATCH /api/clients/[uid]/link — dismiss viewed state on a tracked link
+ * PATCH /api/clients/[uid]/link — dismiss viewed state or remove a sent-notice on a tracked link
  */
 import type { APIContext } from 'astro';
 import { getContact, isContactApiConfigured } from '../../../../lib/contactApi';
 import {
+  deleteTrackedLink,
   dismissTrackedLinkView,
   listTrackedLinksForContact,
 } from '../../../../lib/linkTracking';
@@ -61,6 +62,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const links = await listTrackedLinksForContact(uid, { limit: 50 });
   if (!links.some((l) => l.token === token)) {
     return json({ ok: false, error: 'Link not found for this client' }, 404);
+  }
+
+  const dismiss = String(body.dismiss ?? 'view').trim();
+  if (dismiss === 'sent') {
+    const result = await deleteTrackedLink(token);
+    if (!result.ok) return json({ ok: false, error: result.error }, 404);
+    return json({ ok: true });
   }
 
   const result = await dismissTrackedLinkView(token);

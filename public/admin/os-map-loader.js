@@ -17229,6 +17229,34 @@ async function dismissLinkTrackView(opts = {}) {
   }
 }
 
+async function dismissLinkTrackSent(opts = {}) {
+  const { token, jobSlug, contactUid } = opts;
+  if (!token) return false;
+  try {
+    const url = jobSlug
+      ? `/api/work/${encodeURIComponent(jobSlug)}/link`
+      : contactUid
+        ? `/api/clients/${encodeURIComponent(contactUid)}/link`
+        : '';
+    if (!url) return false;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, dismiss: 'sent' }),
+    });
+    const data = await res.json();
+    return res.ok && data.ok;
+  } catch {
+    return false;
+  }
+}
+
+function refreshLinkTrackStatusAfterDismiss(container, opts = {}) {
+  if (opts.jobSlug) void refreshWorkLinkTrackStatus(container, opts.jobSlug);
+  else if (opts.contactUid) void refreshClientLinkTrackStatus(container, opts.contactUid);
+  else container.hidden = true;
+}
+
 function renderLinkTrackStatus(container, links, opts = {}) {
   if (!container) return;
   container.innerHTML = '';
@@ -17243,41 +17271,45 @@ function renderLinkTrackStatus(container, links, opts = {}) {
   const wrap = document.createElement('span');
   wrap.className = 'wk-link-track-pill' + (opened ? ' wk-link-track-pill--viewed' : '');
 
+  const label = document.createElement('span');
+  label.className = 'wk-link-track-label';
   if (opened) {
-    const label = document.createElement('span');
-    label.className = 'wk-link-track-label';
     label.textContent = `Viewed ${opened}${latest.click_count > 1 ? ` (${latest.click_count}×)` : ''}`;
-    wrap.appendChild(label);
-
-    const dismissBtn = document.createElement('button');
-    dismissBtn.type = 'button';
-    dismissBtn.className = 'wk-link-track-dismiss';
-    dismissBtn.setAttribute('aria-label', 'Dismiss viewed tag');
-    dismissBtn.title = 'Dismiss';
-    dismissBtn.textContent = '×';
-    dismissBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void (async () => {
-        dismissBtn.disabled = true;
-        const ok = await dismissLinkTrackView({
-          token: latest.token,
-          jobSlug: opts.jobSlug,
-          contactUid: opts.contactUid,
-        });
-        if (ok) {
-          if (opts.jobSlug) void refreshWorkLinkTrackStatus(container, opts.jobSlug);
-          else if (opts.contactUid) void refreshClientLinkTrackStatus(container, opts.contactUid);
-          else container.hidden = true;
-        } else {
-          dismissBtn.disabled = false;
-          showChatToast('Could not dismiss');
-        }
-      })();
-    });
-    wrap.appendChild(dismissBtn);
   } else {
-    wrap.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
+    label.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
   }
+  wrap.appendChild(label);
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'wk-link-track-dismiss';
+  dismissBtn.setAttribute('aria-label', opened ? 'Dismiss viewed tag' : 'Dismiss link sent notice');
+  dismissBtn.title = 'Dismiss';
+  dismissBtn.textContent = '×';
+  dismissBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    void (async () => {
+      dismissBtn.disabled = true;
+      const ok = opened
+        ? await dismissLinkTrackView({
+            token: latest.token,
+            jobSlug: opts.jobSlug,
+            contactUid: opts.contactUid,
+          })
+        : await dismissLinkTrackSent({
+            token: latest.token,
+            jobSlug: opts.jobSlug,
+            contactUid: opts.contactUid,
+          });
+      if (ok) {
+        refreshLinkTrackStatusAfterDismiss(container, opts);
+      } else {
+        dismissBtn.disabled = false;
+        showChatToast('Could not dismiss');
+      }
+    })();
+  });
+  wrap.appendChild(dismissBtn);
   container.appendChild(wrap);
 }
 

@@ -6,6 +6,7 @@ import type { APIContext } from 'astro';
 import { isSafeWorkSlug, storeReadWork } from '../../../../lib/workStore';
 import {
   createTrackedProjectLink,
+  deleteTrackedLink,
   dismissTrackedLinkView,
   listTrackedLinksForJob,
   type TrackedLinkChannel,
@@ -94,6 +95,13 @@ export async function PATCH(context: APIContext): Promise<Response> {
   const links = await listTrackedLinksForJob(slug, { limit: 50 });
   if (!links.some((l) => l.token === token)) {
     return json({ ok: false, error: 'Link not found for this project' }, 404);
+  }
+
+  const dismiss = String(body.dismiss ?? 'view').trim();
+  if (dismiss === 'sent') {
+    const result = await deleteTrackedLink(token);
+    if (!result.ok) return json({ ok: false, error: result.error }, 404);
+    return json({ ok: true });
   }
 
   const result = await dismissTrackedLinkView(token);
