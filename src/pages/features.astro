@@ -85,6 +85,25 @@ const builtWithStack: StackTech[] = [
   { slug: "uptimerobot", name: "UptimeRobot", color: "#3BD671", role: "Uptime monitoring" },
 ];
 
+/** Platform installation tiers — 50% scaling fee each month until month 4, then flat. */
+type PricingTier = {
+  tier: number;
+  month1: number;
+  month2: number;
+  month3: number;
+  month4Plus: number;
+};
+
+const pricingTiers: PricingTier[] = [
+  { tier: 1, month1: 5000, month2: 2500, month3: 1250, month4Plus: 625 },
+  { tier: 2, month1: 4000, month2: 2000, month3: 1000, month4Plus: 500 },
+  { tier: 3, month1: 3000, month2: 1500, month3: 750, month4Plus: 375 },
+  { tier: 4, month1: 2000, month2: 1000, month3: 500, month4Plus: 250 },
+];
+
+const formatUsd = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
 const deployModes = [
   {
     title: "Full website package",
@@ -443,6 +462,7 @@ const portalTabs = [
         <span class="fx-chip">White labeled</span>
         <span class="fx-chip">Read receipts & engagement</span>
         <span class="fx-chip">Plug in only what you need</span>
+        <a class="fx-chip fx-chip--link" href="#pricing">Tiered installation pricing</a>
       </div>
     </section>
 
@@ -475,6 +495,55 @@ const portalTabs = [
         billing, projects, scheduling, AI, and the client portal that used to
         require all of the above.
       </p>
+    </section>
+
+    <section class="fx-pricing" aria-label="Installation pricing" id="pricing">
+      <p class="fx-pricing-kicker">Installation pricing</p>
+      <h2 class="fx-pricing-h2">Tiered pricing with a 50% scaling fee.</h2>
+      <p class="fx-pricing-lead">
+        Every install starts at full tier price for month one. Each month after
+        that, the fee drops by half until month four — then it holds steady for
+        as long as you run the platform. Which tier fits depends on scope; we'll
+        map features to tiers as we go.
+      </p>
+
+      <div class="fx-pricing-table-wrap">
+        <table class="fx-pricing-table">
+          <thead>
+            <tr>
+              <th scope="col">Tier</th>
+              <th scope="col">Month 1</th>
+              <th scope="col">Month 2</th>
+              <th scope="col">Month 3</th>
+              <th scope="col">Month 4+</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              pricingTiers.map((t) => (
+                <tr>
+                  <th scope="row">Tier {t.tier}</th>
+                  <td>{formatUsd(t.month1)}</td>
+                  <td>{formatUsd(t.month2)}</td>
+                  <td>{formatUsd(t.month3)}</td>
+                  <td>{formatUsd(t.month4Plus)}/mo</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <p class="fx-pricing-note">
+        Example: Tier 1 is {formatUsd(5000)} the first month, {formatUsd(2500)} the
+        second, {formatUsd(1250)} the third, then {formatUsd(625)} every month after
+        that. Tier 2 starts at {formatUsd(4000)}, Tier 3 at {formatUsd(3000)}, Tier 4
+        at {formatUsd(2000)} — same 50% step-down each month.
+      </p>
+
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Get a quote for your tier</a>
+      </div>
     </section>
 
     <section class="fx-list" aria-label="Core features">
@@ -790,6 +859,7 @@ const portalTabs = [
 
   .fx-hero,
   .fx-stack,
+  .fx-pricing,
   .fx-list,
   .fx-plugins,
   .fx-built-with,
@@ -799,7 +869,8 @@ const portalTabs = [
   }
 
   .fx-stack,
-  .fx-built-with {
+  .fx-built-with,
+  .fx-pricing {
     max-width: 920px;
   }
 
@@ -895,6 +966,19 @@ const portalTabs = [
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .fx-chip--link {
+    text-decoration: none;
+    color: rgba(187, 247, 208, 0.85);
+    border-color: rgba(74, 222, 128, 0.22);
+    background: rgba(74, 222, 128, 0.08);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .fx-chip--link:hover {
+    background: rgba(74, 222, 128, 0.14);
+    border-color: rgba(74, 222, 128, 0.36);
   }
 
   /* ---------- Replaced-app logo wall ---------- */
@@ -1000,6 +1084,102 @@ const portalTabs = [
     .fx-stack-name {
       font-size: 0.62rem;
     }
+  }
+
+  /* ---------- Installation pricing ---------- */
+
+  .fx-pricing {
+    text-align: center;
+    margin-bottom: 56px;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.1), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-pricing-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #4ade80;
+    margin: 0 0 12px;
+  }
+
+  .fx-pricing-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-pricing-lead {
+    margin: 0 auto 24px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-pricing-table-wrap {
+    overflow-x: auto;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.22);
+  }
+
+  .fx-pricing-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+
+  .fx-pricing-table th,
+  .fx-pricing-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .fx-pricing-table thead th {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.48);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .fx-pricing-table tbody th {
+    font-weight: 700;
+    color: #bbf7d0;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .fx-pricing-table tbody td {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .fx-pricing-table tbody tr:last-child th,
+  .fx-pricing-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .fx-pricing-note {
+    margin: 0 auto 20px;
+    max-width: 620px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.42);
   }
 
   /* ---------- Section intros ---------- */
