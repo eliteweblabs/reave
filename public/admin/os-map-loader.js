@@ -5095,6 +5095,7 @@ function bindCompanyForm(root, company, fontCatalog) {
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
   bindCompanyFontPreview(root, fontCatalog);
+  bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'));
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -5513,6 +5514,66 @@ function bindCompanyFontPreview(root, catalog) {
   update();
 }
 
+function rebuildCompanyFontSelects(root, catalog, fonts) {
+  const primary = root.querySelector('#company-fontPrimary');
+  const secondary = root.querySelector('#company-fontSecondary');
+  const content = root.querySelector('#company-fontContent');
+  if (!(primary instanceof HTMLSelectElement)) return;
+  if (!(secondary instanceof HTMLSelectElement)) return;
+  if (!(content instanceof HTMLSelectElement)) return;
+  primary.innerHTML = renderBrandFontOptions(catalog, 'primary', fonts?.fontPrimaryId);
+  secondary.innerHTML = renderBrandFontOptions(catalog, 'secondary', fonts?.fontSecondaryId);
+  content.innerHTML = renderBrandFontOptions(catalog, 'content', fonts?.fontContentId);
+  primary.value = fonts?.fontPrimaryId || primary.value;
+  secondary.value = fonts?.fontSecondaryId || secondary.value;
+  content.value = fonts?.fontContentId || content.value;
+}
+
+function bindCompanyFontScrape(root, fontCatalog, alertEl) {
+  const btn = root.querySelector('#company-font-scrape');
+  const domainInput = root.querySelector('#company-domain');
+  if (!(btn instanceof HTMLButtonElement)) return;
+
+  const syncBtn = () => {
+    const domain = domainInput instanceof HTMLInputElement ? domainInput.value.trim() : '';
+    btn.disabled = !domain;
+  };
+
+  syncBtn();
+  domainInput?.addEventListener('input', syncBtn);
+
+  btn.addEventListener('click', async () => {
+    const domain = domainInput instanceof HTMLInputElement ? domainInput.value.trim() : '';
+    if (!domain) return;
+
+    btn.disabled = true;
+    const prevLabel = btn.textContent;
+    btn.textContent = 'Fetching…';
+    try {
+      const res = await fetch('/api/admin/company/scrape-fonts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website: domain }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        showProfileAlert(alertEl, json.error || 'Could not fetch fonts from website.', 'error');
+        return;
+      }
+
+      const catalog = Array.isArray(json.fontCatalog) ? json.fontCatalog : fontCatalog;
+      rebuildCompanyFontSelects(root, catalog, json.company?.fonts);
+      root.querySelector('#company-fontPrimary')?.dispatchEvent(new Event('change'));
+      showProfileAlert(alertEl, json.message || 'Fonts imported from website.', 'success');
+    } catch {
+      showProfileAlert(alertEl, 'Network error — please try again.', 'error');
+    } finally {
+      syncBtn();
+      btn.textContent = prevLabel;
+    }
+  });
+}
+
 function renderCompanyPanel(company, fontCatalog) {
   const c = company || {};
   const fonts = c.fonts || {};
@@ -5567,6 +5628,12 @@ function renderCompanyPanel(company, fontCatalog) {
             `</div>` +
           `</div>` +
           `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
+          `<div class="prof-field prof-field--font-heading">` +
+            `<div class="prof-font-heading-row">` +
+              `<label>Typography</label>` +
+              `<button type="button" id="company-font-scrape" class="de-btn de-btn-secondary cl-branding-scrape-btn">Fetch fonts from website</button>` +
+            `</div>` +
+          `</div>` +
           `<div class="prof-field-row prof-field-row--fonts">` +
             `<div class="prof-field"><label for="company-fontPrimary">Primary font</label>` +
             `<select id="company-fontPrimary" name="fontPrimary" aria-describedby="company-font-hint">` +
@@ -5586,7 +5653,7 @@ function renderCompanyPanel(company, fontCatalog) {
             `<p class="prof-font-preview-primary">Runs the whole business</p>` +
             `<p class="prof-font-preview-content">Contacts, billing, projects, and AI — one platform.</p>` +
           `</div>` +
-          `<span id="company-font-hint" class="prof-hint prof-hint--block">Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as global <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>.</span>` +
+          `<span id="company-font-hint" class="prof-hint prof-hint--block">Primary = headlines. Secondary = labels and UI accents. Content = body copy. Saved as global <code>--font-primary</code>, <code>--font-secondary</code>, and <code>--font-content</code>. Uses the website domain below — same idea as fetching logos from the source site.</span>` +
           `<div class="prof-field"><label for="company-domain">Website domain</label>` +
           `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
           `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +

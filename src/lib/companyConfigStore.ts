@@ -70,6 +70,8 @@ export type StoredCompanyConfig = {
   fontSecondary?: string | null;
   /** Admin-selected content (body) font id */
   fontContent?: string | null;
+  /** Google Fonts `family=` specs for google:* font ids (survives restarts). */
+  fontGoogleSpecs?: Record<string, string> | null;
   updatedAt?: string | null;
 };
 
@@ -130,6 +132,7 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_body TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_primary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_secondary TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_content TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_google_specs TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -190,6 +193,23 @@ function configFilePath(): string {
   const override = serverEnv('COMPANY_CONFIG_FILE')?.trim();
   if (override) return override;
   return join(projectRoot(), 'src', 'knowledge', 'company-config.json');
+}
+
+function parseFontGoogleSpecs(raw: unknown): Record<string, string> | null {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try {
+      return parseFontGoogleSpecs(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
+  if (typeof raw !== 'object') return null;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === 'string' && value.trim()) out[key] = value.trim();
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function parseStoredGeo(raw: unknown): StoredCompanyGeo | null {
@@ -270,6 +290,7 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     fontPrimary: str('fontPrimary') || str('fontDisplay') || null,
     fontSecondary: str('fontSecondary') || null,
     fontContent: str('fontContent') || str('fontBody') || null,
+    fontGoogleSpecs: parseFontGoogleSpecs(o.fontGoogleSpecs ?? o.font_google_specs),
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -347,6 +368,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     font_primary: string | null;
     font_secondary: string | null;
     font_content: string | null;
+    font_google_specs: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -358,7 +380,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_snapchat, social_discord, social_reddit, social_github, social_twitch,
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
-            font_display, font_body, font_primary, font_secondary, font_content, updated_at
+            font_display, font_body, font_primary, font_secondary, font_content, font_google_specs, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -413,6 +435,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     fontPrimary: row.font_primary ?? row.font_display,
     fontSecondary: row.font_secondary ?? row.font_primary ?? row.font_display,
     fontContent: row.font_content ?? row.font_body,
+    fontGoogleSpecs: parseFontGoogleSpecs(row.font_google_specs),
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -468,6 +491,7 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        font_primary = $44,
        font_secondary = $45,
        font_content = $46,
+       font_google_specs = $47,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -519,6 +543,7 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.fontPrimary ?? null,
       config.fontSecondary ?? null,
       config.fontContent ?? null,
+      config.fontGoogleSpecs ? JSON.stringify(config.fontGoogleSpecs) : null,
     ],
   );
   return true;

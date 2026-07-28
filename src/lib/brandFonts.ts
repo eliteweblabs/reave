@@ -99,6 +99,7 @@ const SANS_FALLBACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sa
 const CONTENT_FALLBACK = 'Georgia, "Times New Roman", serif';
 
 const catalogById = new Map(BRAND_FONT_CATALOG.map((entry) => [entry.id, entry]));
+const runtimeCatalog = new Map<string, BrandFontOption>();
 
 const DEFAULTS: Record<BrandFontRole, string> = {
   primary: DEFAULT_FONT_PRIMARY_ID,
@@ -106,26 +107,62 @@ const DEFAULTS: Record<BrandFontRole, string> = {
   content: DEFAULT_FONT_CONTENT_ID,
 };
 
+export function ensureBrandFontEntry(family: string, googleSpec?: string): BrandFontOption {
+  const trimmed = family.trim();
+  const existing =
+    BRAND_FONT_CATALOG.find((entry) => entry.family.toLowerCase() === trimmed.toLowerCase()) ||
+    [...runtimeCatalog.values()].find((entry) => entry.family.toLowerCase() === trimmed.toLowerCase());
+  if (existing) return existing;
+
+  const id = `google:${trimmed}`;
+  const cached = runtimeCatalog.get(id);
+  if (cached) return cached;
+
+  const spec = googleSpec ?? `${trimmed.replace(/\s+/g, '+')}:wght@400;500;600;700`;
+  const entry: BrandFontOption = {
+    id,
+    label: trimmed,
+    googleSpec: spec,
+    family: trimmed,
+    roles: ALL_ROLES,
+  };
+  runtimeCatalog.set(id, entry);
+  catalogById.set(id, entry);
+  return entry;
+}
+
 export function brandFontById(id: string | null | undefined): BrandFontOption | undefined {
   const key = (id ?? '').trim();
   if (!key) return undefined;
-  return catalogById.get(key);
+  if (key.startsWith('google:')) {
+    return runtimeCatalog.get(key) ?? ensureBrandFontEntry(key.slice('google:'.length));
+  }
+  return catalogById.get(key) ?? runtimeCatalog.get(key);
 }
 
 export function brandFontsForRole(role: BrandFontRole): BrandFontOption[] {
-  return BRAND_FONT_CATALOG.filter((entry) => entry.roles.includes(role));
+  const merged = [...BRAND_FONT_CATALOG, ...runtimeCatalog.values()];
+  return merged.filter((entry) => entry.roles.includes(role) || entry.id.startsWith('google:'));
 }
 
 export function brandFontCatalogForAdmin(): Array<
   Pick<BrandFontOption, 'id' | 'label' | 'roles' | 'googleSpec' | 'family'>
 > {
-  return BRAND_FONT_CATALOG.map(({ id, label, roles, googleSpec, family }) => ({
-    id,
-    label,
-    roles,
-    googleSpec,
-    family,
-  }));
+  const merged = [...BRAND_FONT_CATALOG, ...runtimeCatalog.values()];
+  const seen = new Set<string>();
+  return merged
+    .filter((entry) => {
+      if (seen.has(entry.id)) return false;
+      seen.add(entry.id);
+      return true;
+    })
+    .map(({ id, label, roles, googleSpec, family }) => ({
+      id,
+      label,
+      roles,
+      googleSpec,
+      family,
+    }));
 }
 
 export function resolveBrandFontId(
@@ -133,7 +170,8 @@ export function resolveBrandFontId(
   role: BrandFontRole,
 ): string {
   const entry = brandFontById(id);
-  if (entry?.roles.includes(role)) return entry.id;
+  if (entry && entry.roles.includes(role)) return entry.id;
+  if (entry?.id.startsWith('google:')) return entry.id;
   return DEFAULTS[role];
 }
 
@@ -144,14 +182,31 @@ export function normalizeBrandFontInput(
   const trimmed = (id ?? '').trim();
   if (!trimmed) return null;
   const entry = brandFontById(trimmed);
-  if (!entry?.roles.includes(role)) return null;
+  if (!entry) return null;
+  if (!entry.roles.includes(role) && !entry.id.startsWith('google:')) return null;
   return entry.id;
+}
+
+export function rehydrateGoogleFont(id: string | null | undefined, googleSpec?: string | null): void {
+  if (!id?.startsWith('google:')) return;
+  ensureBrandFontEntry(id.slice('google:'.length), googleSpec ?? undefined);
+}
+
+export function rehydrateStoredGoogleFonts(
+  stored?: StoredBrandFontInput | null,
+  specs?: Record<string, string> | null,
+): void {
+  for (const id of [stored?.fontPrimary, stored?.fontSecondary, stored?.fontContent]) {
+    if (!id?.startsWith('google:')) continue;
+    rehydrateGoogleFont(id, specs?.[id] ?? null);
+  }
 }
 
 export type StoredBrandFontInput = {
   fontPrimary?: string | null;
   fontSecondary?: string | null;
   fontContent?: string | null;
+  fontGoogleSpecs?: Record<string, string> | null;
   /** @deprecated legacy column */
   fontDisplay?: string | null;
   /** @deprecated legacy column */
@@ -184,6 +239,7 @@ function googleFontsHrefForEntries(entries: BrandFontOption[]): string {
 }
 
 export function resolveBrandFonts(stored?: StoredBrandFontInput | null): ResolvedBrandFonts {
+  rehydrateStoredGoogleFonts(stored, stored?.fontGoogleSpecs);
   const primaryRaw = stored?.fontPrimary ?? stored?.fontDisplay;
   const contentRaw = stored?.fontContent ?? stored?.fontBody;
   const secondaryRaw = stored?.fontSecondary ?? primaryRaw;
@@ -192,9 +248,9 @@ export function resolveBrandFonts(stored?: StoredBrandFontInput | null): Resolve
   const fontSecondaryId = resolveBrandFontId(secondaryRaw, 'secondary');
   const fontContentId = resolveBrandFontId(contentRaw, 'content');
 
-  const primaryEntry = catalogById.get(fontPrimaryId)!;
-  const secondaryEntry = catalogById.get(fontSecondaryId)!;
-  const contentEntry = catalogById.get(fontContentId)!;
+  const primaryEntry = brandFontById(fontPrimaryId) ?? catalogById.get(DEFAULT_FONT_PRIMARY_ID)!;
+  const secondaryEntry = brandFontById(fontSecondaryId) ?? catalogById.get(DEFAULT_FONT_SECONDARY_ID)!;
+  const contentEntry = brandFontById(fontContentId) ?? catalogById.get(DEFAULT_FONT_CONTENT_ID)!;
 
   return {
     fontPrimaryId,

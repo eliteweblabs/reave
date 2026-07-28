@@ -188,7 +188,9 @@ async function fetchHtmlOnce(
   return { ok: false };
 }
 
-async function fetchHtml(urlInput: string): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false }> {
+export async function fetchHtml(
+  urlInput: string,
+): Promise<{ ok: true; html: string; finalUrl: string } | { ok: false }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
