@@ -14,6 +14,7 @@ import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
+import { hasFeature } from './features';
 import { createLogger } from './logger';
 
 const log = createLogger('admin-agent');
@@ -30,6 +31,18 @@ export function isRailwayAlertStatus(status: string): boolean {
 
 export function isAnthropicBillingAlertStatus(status: string): boolean {
   return status.toUpperCase() === 'ANTHROPIC_BILLING';
+}
+
+/** True when inbound email will post to System alerts and send its own push. */
+export function shouldAgentAlertForInboundEmail(opts: {
+  category: string;
+  status: string;
+  isUptimeRobot?: boolean;
+}): boolean {
+  if (!agentAlertUserId()) return false;
+  if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return false;
+  if (opts.isUptimeRobot && hasFeature('uptime_monitoring')) return false;
+  return true;
 }
 
 async function getOrCreateAlertThread(userId: string): Promise<string | null> {
@@ -475,8 +488,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   category: string;
   emailId?: string;
 }): Promise<void> {
-  if (!agentAlertUserId()) return;
-  if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return;
+  if (!shouldAgentAlertForInboundEmail({ category: opts.category, status: opts.status })) return;
 
   const message = await formatAlertMessage(opts);
   await postToSystemAlertsThread({

@@ -19,7 +19,13 @@ import { hasFeature } from './features';
 import { detectMeetingFollowUp } from './emailMeetingFollowup';
 import { attendeeFromEmail, buildNewProjectAckEmail, formatMeetingWhenLabel, parseProposedMeetingStart, resolveProposedMeetingStart, tryAutoBookInboundMeeting } from './emailScheduling';
 import { sendInboxPushNotification } from './webPush';
-import { notifyAdminAgentOfEmailAlert, notifyAdminAgentOfEmailAutomation, notifyAdminAgentOfProjectReply, isRailwayAlertStatus } from './adminAgentAlert';
+import {
+  notifyAdminAgentOfEmailAlert,
+  notifyAdminAgentOfEmailAutomation,
+  notifyAdminAgentOfProjectReply,
+  isRailwayAlertStatus,
+  shouldAgentAlertForInboundEmail,
+} from './adminAgentAlert';
 import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { siteBaseUrl } from './contactApi';
@@ -772,6 +778,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     automationKind,
   });
 
+  const agentWillAlert = shouldAgentAlertForInboundEmail({
+    category,
+    status: ruleResult.status,
+    isUptimeRobot: isUptimeRobotEmail(email),
+  });
+
   if (inboxRecord && (notify || verificationCode) && !inboxRecord.notified) {
     await storeUpdateEmailInbox(inboxRecord.id, { notified: true }).catch(() => {});
   }
@@ -783,7 +795,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] otp push failed', e));
-  } else if (inboxRecord && notify) {
+  } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
       ? `🚨 Client reply: ${contactName ?? senderEmail}`
       : automationKind === 'project_created'
@@ -841,10 +853,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       summary,
       emailId: inboxRecord.id,
     }).catch((e) => console.warn('[email] project reply agent alert failed', e));
-  } else if (
-    (category === 'alert' || isRailwayAlertStatus(ruleResult.status)) &&
-    !(hasFeature('uptime_monitoring') && isUptimeRobotEmail(email))
-  ) {
+  } else if (agentWillAlert) {
     notifyAdminAgentOfEmailAlert({
       status: ruleResult.status,
       from,
