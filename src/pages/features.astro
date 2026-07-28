@@ -461,6 +461,36 @@ const portalTabs = [
     desc: "Proposals and contracts, ready to review and sign.",
   },
 ];
+
+type PromptExample = { text: string; note?: string };
+
+/** Day-one questions the agent and Siri can answer from core data + knowledge. */
+const defaultPrompts: PromptExample[] = [
+  { text: "Hey Siri, how many hours did we bill last week?" },
+  { text: "What job is Sean currently at?" },
+  { text: "Who still owes us from March?" },
+  { text: "Summarize everything open on the Henderson project." },
+];
+
+/** Bespoke requests wired up in the custom 10% — plugins, tools, and one-off flows. */
+const customPrompts: PromptExample[] = [
+  {
+    text: "How much would it cost to remodel the house in this image to a craftsman style?",
+    note: "Vision + your pricing playbook + materials lookup",
+  },
+  {
+    text: "Pull every open permit for this address and draft a bid outline.",
+    note: "Municipal API + your estimate template",
+  },
+  {
+    text: "Which fleet truck is closest to the Johnson job site right now?",
+    note: "Live GPS + dispatch rules",
+  },
+  {
+    text: "Compare this trade-in VIN against our lot and text the customer three matches.",
+    note: "Dealership inventory wizard + SMS",
+  },
+];
 ---
 
 <Layout
@@ -769,6 +799,47 @@ const portalTabs = [
       </div>
     </section>
 
+    <section class="fx-examples scroll-fade-in" aria-label="Example questions out of the box">
+      <p class="fx-examples-kicker">Out of the box</p>
+      <h2 class="fx-examples-h2">{company.name} learns by default.</h2>
+      <p class="fx-examples-lead">
+        Every install ships with core knowledge, plugin playbooks, and live data from
+        your contacts, projects, time logs, and billing — so the agent and Siri can
+        answer real operational questions on day one. No custom build required.
+      </p>
+      <ul class="fx-prompt-grid">
+        {
+          defaultPrompts.map((p) => (
+            <li class="fx-prompt-card fx-prompt-card--default">
+              <Mic size={16} strokeWidth={2} aria-hidden="true" class="fx-prompt-icon" />
+              <blockquote class="fx-prompt-text">&ldquo;{p.text}&rdquo;</blockquote>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="fx-custom scroll-fade-in" aria-label="Custom wired-up requests">
+      <p class="fx-custom-kicker">The bespoke 10%</p>
+      <h2 class="fx-custom-h2">Requests we wire up for you.</h2>
+      <p class="fx-custom-lead">
+        The last slice is where your business gets weird — in a good way. We bolt on
+        custom tools, APIs, and workflows so the same agent can handle one-off asks
+        that no generic SaaS stack would ever understand.
+      </p>
+      <ul class="fx-prompt-grid">
+        {
+          customPrompts.map((p) => (
+            <li class="fx-prompt-card fx-prompt-card--custom">
+              <Sparkles size={16} strokeWidth={2} aria-hidden="true" class="fx-prompt-icon" />
+              <blockquote class="fx-prompt-text">&ldquo;{p.text}&rdquo;</blockquote>
+              {p.note && <p class="fx-prompt-note">{p.note}</p>}
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
     <section class="fx-plugins scroll-fade-in" aria-label="Plugins">
       <p class="fx-plugins-kicker">The last 10%</p>
       <h2 class="fx-plugins-h2">Bolt on what makes this client 100%.</h2>
@@ -935,6 +1006,8 @@ const portalTabs = [
   .fx-stack,
   .fx-pricing,
   .fx-list,
+  .fx-examples,
+  .fx-custom,
   .fx-plugins,
   .fx-built-with,
   .fx-closing {
@@ -959,6 +1032,8 @@ const portalTabs = [
   .fx-stack-kicker,
   .fx-pricing-kicker,
   .fx-tier-card-kicker,
+  .fx-examples-kicker,
+  .fx-custom-kicker,
   .fx-plugins-kicker,
   .fx-built-with-kicker {
     font-family: var(--font-secondary);
@@ -967,6 +1042,8 @@ const portalTabs = [
   .fx-lead,
   .fx-stack-lead,
   .fx-pricing-lead,
+  .fx-examples-lead,
+  .fx-custom-lead,
   .fx-plugins-lead,
   .fx-built-with-lead,
   .fx-closing-lead {
@@ -1393,6 +1470,109 @@ const portalTabs = [
     color: rgba(255, 255, 255, 0.62);
     text-align: center;
     font-family: var(--font-content);
+  }
+
+  /* ---------- Example prompts ---------- */
+
+  .fx-examples,
+  .fx-custom {
+    margin-top: 56px;
+    text-align: center;
+  }
+
+  .fx-examples-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #c4b5fd;
+    margin: 0 0 12px;
+  }
+
+  .fx-examples-h2,
+  .fx-custom-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-examples-lead,
+  .fx-custom-lead {
+    margin: 0 auto 24px;
+    max-width: 580px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.58);
+  }
+
+  .fx-custom-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #f472b6;
+    margin: 0 0 10px;
+  }
+
+  .fx-prompt-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .fx-prompt-card {
+    position: relative;
+    padding: 16px 18px 16px 44px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-card--default {
+    border-color: rgba(168, 85, 247, 0.18);
+    background:
+      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(168, 85, 247, 0.08), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-card--custom {
+    border-color: rgba(244, 114, 182, 0.2);
+    background:
+      radial-gradient(ellipse 80% 100% at 0% 50%, rgba(244, 114, 182, 0.08), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-prompt-icon {
+    position: absolute;
+    left: 16px;
+    top: 18px;
+    color: #d8b4fe;
+  }
+
+  .fx-prompt-card--custom .fx-prompt-icon {
+    color: #f9a8d4;
+  }
+
+  .fx-prompt-text {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.88);
+    font-style: normal;
+  }
+
+  .fx-prompt-note {
+    margin: 8px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.45);
   }
 
   /* ---------- Accordion ---------- */
