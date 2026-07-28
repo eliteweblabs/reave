@@ -325,6 +325,24 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
         )
       : [];
 
+  // ── Receipt override: a DELETE rule must not win over a monetary receipt. ──
+  // Check BEFORE suppressedAsJunk so a junk filter on a known vendor
+  // (e.g. Anthropic, Stripe) can't bury a legit tax receipt.
+  if (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE') {
+    const earlyReceipt = shouldAutoFileAsReceipt({
+      from,
+      subject: email.subject ?? '',
+      summary,
+      bodyText,
+      bodySnippet: snippet(bodyText),
+    });
+    if (earlyReceipt) {
+      category = 'receipt';
+      action = 'receipt';
+      routeNote = earlyReceipt.routeNote;
+    }
+  }
+
   let isProjectReply = false;
 
   if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
@@ -457,6 +475,12 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     } else if (category === 'receipt' && action === 'receipt' && !routeNote) {
       routeNote = 'Payment notification — filed as receipt';
     }
+  }
+
+  // Ensure inboxStatus reflects receipt even when the early-override fired
+  // (ruleResult.status would still be DELETE without this correction).
+  if (category === 'receipt' && action === 'receipt' && inboxStatus.toUpperCase() === 'DELETE') {
+    inboxStatus = 'RECEIPT';
   }
 
   let skipAutoBook = false;
