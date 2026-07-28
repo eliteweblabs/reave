@@ -83,13 +83,15 @@ const PARTICLE_SPIN_MAX = 1.35;
 const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
 
 /**
- * Non-touch "follow the cursor" tilt: a mouse (fine pointer) hovering the
- * page nudges the cloud toward it — no click/drag required. Composed on top
- * of the auto-spin/coast rotation, not accumulated, so it eases back to
- * center when the pointer returns to the middle of the screen.
+ * Non-touch "follow the cursor" trackball: a mouse (fine pointer) moving
+ * over the page — no click/drag required — nudges the cloud like a gentle
+ * swipe. Dampened vs. an explicit click-drag so ambient mouse movement
+ * doesn't overpower deliberate control.
  */
-const PARTICLE_CURSOR_TILT_MAX_RAD = THREE.MathUtils.degToRad(14);
-const PARTICLE_CURSOR_FOLLOW_LERP = 0.05;
+const PARTICLE_HOVER_RAD_PER_PX = PARTICLE_TRACKBALL_RAD_PER_PX * 0.6;
+/** Hover "stop" detection: no new pointermove within this window hands off
+ *  to the normal coast-to-cruise-in-last-direction logic below. */
+const PARTICLE_HOVER_IDLE_MS = 120;
 
 /** UV band for the A + V characters (3rd & 4th) — light glow trim only (keep brand vibrancy). */
 const LOGO_AV_DAMP_U0 = 0.36;
@@ -634,12 +636,6 @@ export function attachQuantumCoreOpticalEngine(
   const spinMat3 = new THREE.Matrix3();
   const trackballAxis = new THREE.Vector3();
   const trackballQuat = new THREE.Quaternion();
-  /**
-   * Accumulated auto-spin/drag rotation. `particleGroup.quaternion` is the
-   * *final* rendered orientation (this composed with the cursor-follow tilt
-   * below); this is the running state the spin/drag logic mutates.
-   */
-  const spinQuat = new THREE.Quaternion();
   /** Angular velocity in view space: x = pitch (rad/s), y = yaw (rad/s). */
   const spinVel = new THREE.Vector2(0, -PARTICLE_SPIN_CRUISE);
   /** False until the user swipes the cloud — auto Y-spin until then. */
@@ -661,38 +657,69 @@ export function attachQuantumCoreOpticalEngine(
     /* Swipe right → yaw about Y; swipe down → pitch about X. Follows the finger. */
     trackballAxis.set(dy, dx, 0).normalize();
     trackballQuat.setFromAxisAngle(trackballAxis, dist * radPerPx);
-    spinQuat.premultiply(trackballQuat);
-    spinQuat.normalize();
+    particleGroup.quaternion.premultiply(trackballQuat);
+    particleGroup.quaternion.normalize();
   }
 
   /**
-   * Cursor-follow tilt (non-touch only): smoothed normalized pointer position
-   * in [-1, 1], and the resulting small "look toward the cursor" quaternion
-   * recomputed fresh each frame (not accumulated).
+   * Non-touch hover trackball: mouse movement (no click needed) feeds the
+   * same swipe mechanic above, dampened, and imparts velocity into `spinVel`
+   * just like a drag does. Since there's no pointerup to end a "hover drag",
+   * a short idle timer clears `hoverDragging` once the cursor stops moving,
+   * handing off to the existing coast-to-cruise-in-last-direction logic in
+   * `animate()` — the cloud keeps spinning the way the cursor left it.
    */
   const hasFinePointer =
     typeof matchMedia !== "undefined" && matchMedia("(pointer: fine)").matches;
-  let cursorTargetNX = 0;
-  let cursorTargetNY = 0;
-  let cursorNX = 0;
-  let cursorNY = 0;
-  let hasCursorSample = false;
-  const cursorTiltAxis = new THREE.Vector3();
-  const cursorTiltQuat = new THREE.Quaternion();
+  let hoverDragging = false;
+  let hoverIdleTimer = 0;
+  let prevHoverX = 0;
+  let prevHoverY = 0;
+  let prevHoverT = 0;
+  let hasHoverSample = false;
 
   const onCursorFollowMove = (e: PointerEvent) => {
     if (e.pointerType === "touch") return;
-    cursorTargetNX = THREE.MathUtils.clamp(
-      (e.clientX / Math.max(1, window.innerWidth)) * 2 - 1,
-      -1,
-      1,
-    );
-    cursorTargetNY = THREE.MathUtils.clamp(
-      (e.clientY / Math.max(1, window.innerHeight)) * 2 - 1,
-      -1,
-      1,
-    );
-    hasCursorSample = true;
+    if ((e.buttons & 1) === 1) {
+      /* An explicit click-drag is already driving the cloud via its own handlers. */
+      hasHoverSample = false;
+      return;
+    }
+    const now = performance.now();
+    if (!hasHoverSample) {
+      prevHoverX = e.clientX;
+      prevHoverY = e.clientY;
+      prevHoverT = now;
+      hasHoverSample = true;
+      return;
+    }
+    const dtMs = now - prevHoverT;
+    const dx = e.clientX - prevHoverX;
+    const dy = e.clientY - prevHoverY;
+    prevHoverX = e.clientX;
+    prevHoverY = e.clientY;
+    prevHoverT = now;
+    if (dtMs <= 0 || dtMs > 90) return;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+
+    cloudDirected = true;
+    hoverDragging = true;
+    window.clearTimeout(hoverIdleTimer);
+    hoverIdleTimer = window.setTimeout(() => {
+      hoverDragging = false;
+    }, PARTICLE_HOVER_IDLE_MS);
+
+    applyTrackballDelta(dx, dy, PARTICLE_HOVER_RAD_PER_PX);
+
+    const velFromPx = (1000 / Math.max(dtMs, 8)) * PARTICLE_HOVER_RAD_PER_PX;
+    const nextX = dy * velFromPx;
+    const nextY = dx * velFromPx;
+    spinVel.x = THREE.MathUtils.lerp(spinVel.x, nextX, 0.45);
+    spinVel.y = THREE.MathUtils.lerp(spinVel.y, nextY, 0.45);
+    const mag = spinVel.length();
+    if (mag > PARTICLE_SPIN_MAX) {
+      spinVel.multiplyScalar(PARTICLE_SPIN_MAX / mag);
+    }
   };
   if (hasFinePointer) {
     window.addEventListener("pointermove", onCursorFollowMove, {
@@ -1254,7 +1281,7 @@ export function attachQuantumCoreOpticalEngine(
       ? PARTICLE_SPIN_CRUISE * 0.1
       : PARTICLE_SPIN_CRUISE;
     const spinSettle = inIntro ? 0.04 : 0.02;
-    if (!cloudDragging) {
+    if (!cloudDragging && !hoverDragging) {
       if (!cloudDirected) {
         spinVel.set(0, -spinCruise);
       } else {
@@ -1275,35 +1302,9 @@ export function attachQuantumCoreOpticalEngine(
           trackballAxis,
           speed * spinDt * particleSpeedMult * spinBoost,
         );
-        spinQuat.premultiply(trackballQuat);
-        spinQuat.normalize();
+        particleGroup.quaternion.premultiply(trackballQuat);
+        particleGroup.quaternion.normalize();
       }
-    }
-
-    /*
-     * Non-touch: ease the smoothed cursor position toward the latest sample,
-     * then rebuild the tilt quaternion fresh each frame (never accumulated)
-     * so it always reflects "where the cursor is right now", not a history.
-     */
-    if (hasFinePointer && hasCursorSample) {
-      const followLerp =
-        PARTICLE_CURSOR_FOLLOW_LERP * Math.max(motionScale, 0.35);
-      cursorNX += (cursorTargetNX - cursorNX) * followLerp;
-      cursorNY += (cursorTargetNY - cursorNY) * followLerp;
-    }
-    const cursorMag = Math.hypot(cursorNX, cursorNY);
-    if (cursorMag > 1e-4) {
-      cursorTiltAxis.set(cursorNY, cursorNX, 0).multiplyScalar(1 / cursorMag);
-      cursorTiltQuat.setFromAxisAngle(
-        cursorTiltAxis,
-        Math.min(cursorMag, 1) * PARTICLE_CURSOR_TILT_MAX_RAD * motionScale,
-      );
-    } else {
-      cursorTiltQuat.identity();
-    }
-    particleGroup.quaternion.copy(spinQuat);
-    if (hasFinePointer && !isCompactStack && !inIntro && !cloudDragging) {
-      particleGroup.quaternion.premultiply(cursorTiltQuat);
     }
     syncParticleSpin();
     const idleSizeWobble =
@@ -1581,6 +1582,7 @@ export function attachQuantumCoreOpticalEngine(
     if (hasFinePointer) {
       window.removeEventListener("pointermove", onCursorFollowMove);
     }
+    window.clearTimeout(hoverIdleTimer);
     window.removeEventListener("audioLevel", onAudioLevel);
     window.removeEventListener("vapi-call-start", onCallStart);
     window.removeEventListener("vapi-call-end", onCallEnd);
