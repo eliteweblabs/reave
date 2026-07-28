@@ -1,0 +1,929 @@
+---
+/**
+ * /features — sales-deck-style tour of the whole platform.
+ * Accordion sections, dark brand theme, plugins called out separately at the end.
+ */
+import Layout from "../layouts/Layout.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import {
+  Users,
+  PanelsTopLeft,
+  Briefcase,
+  Wallet,
+  Mail,
+  CalendarClock,
+  Sparkles,
+  Mic,
+  BookOpen,
+  SearchCheck,
+  Globe,
+  Server,
+  Car,
+  Truck,
+  FileSignature,
+  PhoneCall,
+  Contact,
+  Send,
+  Activity,
+  ArrowRight,
+  ChevronDown,
+} from "lucide-astro";
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
+
+type IconComponent = typeof Users;
+
+type Section = {
+  id: string;
+  icon: IconComponent;
+  title: string;
+  teaser: string;
+  body: string[];
+  bullets: string[];
+};
+
+const before: Section[] = [
+  {
+    id: "contacts",
+    icon: Users,
+    title: "One client list. Every channel already knows it.",
+    teaser:
+      "Every call, text, invoice, and portal visit ties back to the same record — stop pretending three spreadsheets are a CRM.",
+    body: [
+      "Contacts are the spine of the whole OS. Add someone once and they show up everywhere they're needed — billing, projects, the inbox, the portal — without a single copy-paste.",
+      "Fuzzy matching finds the right person even from a nickname, an old email address, or a company name typed three different ways, so duplicates never pile up.",
+    ],
+    bullets: [
+      "Matches by name, email, phone, notes, or company before it ever creates a duplicate",
+      "Every contact keeps its history — notes, aliases, past projects, past invoices",
+      "Syncs straight to iPhone Contacts over CardDAV — no Google or iCloud detour",
+      "Export a vCard from any client record in one tap",
+    ],
+  },
+];
+
+const after: Section[] = [
+  {
+    id: "projects",
+    icon: Briefcase,
+    title: "Delivery you — and your client — can actually see",
+    teaser:
+      "Quote, active, complete, paused: every project gets a real status, and it's the same status your client sees on their portal.",
+    body: [
+      "Projects replace the sticky notes and the \"let me check.\" Checklists, comments, and files live on the job, and anything you flip visible shows up for the client in real time.",
+    ],
+    bullets: [
+      "Statuses from inquiry through archived — filter and report on any of them",
+      "Priorities from low to urgent so nothing quietly slips",
+      "Link an email thread or chat straight to the project it belongs to",
+      "Full research audits auto-generate as a ready-to-pitch project from a single URL",
+    ],
+  },
+  {
+    id: "billing",
+    icon: Wallet,
+    title: "Invoices that send themselves, chase themselves",
+    teaser:
+      "Billing lives in the same dashboard as everything else — create an invoice in chat and it's already on the client's portal.",
+    body: [
+      "No separate billing login for you or your client. Outstanding, upcoming, and paid invoices are grouped automatically and matched to the right contact by email.",
+    ],
+    bullets: [
+      "One-tap Pay links on every outstanding invoice",
+      "Recurring invoices for retainers and hosting plans",
+      '"Send Acme $450 for the June retainer" — the agent builds and sends it',
+      "Payment history shows on the client's own Billing tab, not buried in your inbox",
+    ],
+  },
+  {
+    id: "email",
+    icon: Mail,
+    title: "Your inbox, triaged before you open it",
+    teaser:
+      "Forward or BCC your real mail in — it gets read, filed against the right project, and only surfaces if it actually needs you.",
+    body: [
+      "Keep using Gmail or Proton. A copy lands in the smart inbox, gets classified in seconds, and either files itself quietly or lands in front of you with a push notification.",
+    ],
+    bullets: [
+      "Sorted into client, alert, internal, review, or junk automatically",
+      "Attachments show up with one-tap download — no digging through threads",
+      "Deploy and uptime alert emails route straight to a System Alerts thread",
+      "Install to your Home Screen and get pushed the moment something needs a reply",
+    ],
+  },
+  {
+    id: "scheduling",
+    icon: CalendarClock,
+    title: "Booked, not \"let me check my calendar\"",
+    teaser:
+      "Real booking lives right on your site — prospects grab a real slot, you get a real meeting, no back-and-forth.",
+    body: [
+      "Availability, confirmations, and reschedules are handled the moment someone picks a time — and the same booking flow is one voice command away for you.",
+    ],
+    bullets: [
+      "Real-time availability, no double-booking, ever",
+      "Confirmation and reschedule/cancel links sent automatically",
+      "Bookable straight from the AI agent or a Siri Shortcut",
+      "Meetings show up next to the client's other project activity",
+    ],
+  },
+  {
+    id: "ai-assistant",
+    icon: Sparkles,
+    title: "The agent that actually runs the business with you",
+    teaser:
+      "One chat. Every tool. Contacts, invoices, projects, DNS, deploys, even dealership leads — described in plain English, executed for real.",
+    body: [
+      "This isn't a chatbot demo bolted onto a sidebar. The admin agent holds the same tools you'd use by hand — it creates the invoice, files the note, checks the DNS record, and tells you exactly what it did.",
+    ],
+    bullets: [
+      "Core tools are always on: contacts, projects, inbox, knowledge, to-dos",
+      "Every plugin you enable adds its own tools automatically — no extra setup",
+      "Runs a full research audit from a single URL and files the report as a project",
+      "Flags its own alerts — deploy failures, uptime incidents — in a dedicated thread",
+    ],
+  },
+  {
+    id: "siri",
+    icon: Mic,
+    title: '"Hey Siri, who\'s Tony Vello?"',
+    teaser:
+      "Your business, answerable out loud from the lock screen — no app to open, no dashboard to load.",
+    body: [
+      "A handful of Siri Shortcuts turn your voice into the same actions the dashboard can do — hands-free, from the car, from a job site, from bed.",
+    ],
+    bullets: [
+      "List or create clients and projects by voice",
+      '"Create a proposal for this URL" kicks off a full audit that lands via push when it\'s done',
+      "Send a quick SMS without touching a keyboard",
+      "Set up once with a copy-paste JSON payload — no code required",
+    ],
+  },
+  {
+    id: "learning",
+    icon: BookOpen,
+    title: "Teach it once. It remembers forever.",
+    teaser:
+      "Playbooks, SOPs, and this-client-is-different quirks live in a knowledge base the agent reads before it ever answers.",
+    body: [
+      "Every install ships with core knowledge, and every plugin you enable brings its own — the agent only loads what's relevant, so it never confuses one client's process for another's.",
+    ],
+    bullets: [
+      "Editable in plain markdown, versioned like real code",
+      "Keeps new hires — and future-you — aligned without a training doc nobody reads",
+      "Plugin-scoped, so DNS knowledge only loads for installs that actually use DNS tools",
+      "The agent works from what it read, not a guess",
+    ],
+  },
+  {
+    id: "audits",
+    icon: SearchCheck,
+    title: "A full audit before you ever say hello",
+    teaser:
+      "Point it at a URL — Lighthouse, SSL, DNS, broken links, and online presence come back as a real report, not three guessed bullet points.",
+    body: [
+      "This is the difference between a cold pitch and a warm one: show up already knowing exactly what's broken on their site, and exactly what fixing it is worth.",
+    ],
+    bullets: [
+      "Lighthouse performance, SEO, and accessibility scores — mobile and desktop",
+      "SSL grade, security headers, and a broken-link crawl",
+      "DNS, MX, and SPF/DKIM/DMARC health at a glance",
+      "Google Business Profile, Yelp, and social presence cross-checked automatically",
+      "Turns straight into a pitch-ready project with action items already written",
+    ],
+  },
+  {
+    id: "dns",
+    icon: Globe,
+    title: 'DNS changes without the 3am "is it propagated yet?"',
+    teaser:
+      "Read and write records straight from chat — no hunting through a registrar's control panel that redesigns itself every year.",
+    body: [
+      "Name.com integration puts A, CNAME, MX, and TXT records one sentence away, with per-client credentials so you're never one login away from touching the wrong domain.",
+    ],
+    bullets: [
+      "List, create, update, or delete records conversationally",
+      "Per-client credentials — not one shared login for every domain you touch",
+      "Pairs directly with the DNS and email findings from Website Audits",
+      "Built for agencies managing DNS across dozens of client domains",
+    ],
+  },
+  {
+    id: "hosting",
+    icon: Server,
+    title: 'Deploys, WordPress, and "is it down" — handled',
+    teaser:
+      "The app's own hosting and client WordPress sites are both one chat away from the same assistant that already knows your clients.",
+    body: [
+      "Backups before a risky change, a cache clear after a deploy, a live status light in your header — the boring-but-critical ops work, without switching tabs.",
+    ],
+    bullets: [
+      "One-click backups and cache clears for client WordPress sites",
+      "Live deploy status right in the dashboard header",
+      "Crash and downtime alerts land in System Alerts automatically — before a client notices",
+      "Uptime history and incident logs, no more digging through inbox alerts",
+    ],
+  },
+];
+
+type Plugin = {
+  id: string;
+  icon: IconComponent;
+  title: string;
+  teaser: string;
+  body: string;
+  bullets?: string[];
+};
+
+const plugins: Plugin[] = [
+  {
+    id: "dealership",
+    icon: Car,
+    title: "Dealership Inventory Wizard",
+    teaser:
+      "Swipe-to-browse inventory, a 6-step lead wizard, and test-drive booking — built for one dealership, ready for the next.",
+    body: "Inventory syncs straight in. A caller asks for \"a red SUV under $25k,\" gets a magic link, and can finish a deal — vehicle, trade-in, credit, documents, deposit — without ever calling back.",
+    bullets: [
+      "Public inventory search by make, price, and condition",
+      "Magic-link deal flow: Vehicle → Contact → Trade-In → Credit → Documents → Deposit",
+      "Test-drive booking tied straight to the lead",
+      "Voice widget on the inventory page for hands-free browsing",
+    ],
+  },
+  {
+    id: "fleet",
+    icon: Truck,
+    title: "Fleet Tracking",
+    teaser:
+      "Live GPS for every van, truck, and field crew — on a map dispatch can actually use.",
+    body: "Built for businesses running delivery vans or service trucks. Assign a vehicle to a driver's sign-in and location pings start the moment they open the app — no extra hardware.",
+  },
+  {
+    id: "documents",
+    icon: FileSignature,
+    title: "Document Signing",
+    teaser:
+      "Proposals and contracts that get signed on the same portal the client already trusts.",
+    body: "Templates for the paperwork that actually needs a signature, surfaced right on the client's Documents tab — no separate e-sign tool to log into.",
+  },
+  {
+    id: "voice",
+    icon: PhoneCall,
+    title: "Voice & Call Routing",
+    teaser:
+      "A voice widget on your homepage, plus real call routing — answer, qualify, hand off, or book, without anyone picking up the phone.",
+    body: "One layer handles the conversation, another routes the actual call. Together they cover a caller from \"hello\" all the way to \"booked.\"",
+  },
+  {
+    id: "carddav",
+    icon: Contact,
+    title: "CardDAV Contact Sync",
+    teaser:
+      "The master client list, live in the iPhone Contacts app — no Google account, no iCloud detour.",
+    body: "One CardDAV account, set up once in iOS Settings, and every contact you add in the dashboard shows up on your phone exactly the way it always has.",
+  },
+  {
+    id: "newsletter",
+    icon: Send,
+    title: "Newsletter & Lifecycle Email",
+    teaser:
+      "Welcome emails, follow-ups, review requests, and win-back campaigns — sent automatically, on a schedule you set once.",
+    body: "Built-in templates cover the emails every business sends and usually forgets to: welcome, check-in, thank-you, review request, re-engagement. One-off broadcasts go out to your whole list in a click, fully compliant.",
+  },
+  {
+    id: "uptime",
+    icon: Activity,
+    title: "Uptime & Site Monitoring",
+    teaser:
+      "Know a client's site is down before they email you about it — and let them see the same status on their portal.",
+    body: "Real API polling and webhooks replace the pile of alert emails nobody reads. Down/up events post straight to your alert feed and push to your phone.",
+  },
+];
+
+const portalTabs = [
+  {
+    name: "Overview",
+    desc: "Headline, notes, and any custom fields you want front and center.",
+  },
+  {
+    name: "Projects",
+    desc: "Live status on whatever you're building for them, synced from your dashboard.",
+  },
+  {
+    name: "Billing",
+    desc: "Outstanding, upcoming, and paid invoices with one-tap Pay links.",
+  },
+  {
+    name: "Vault",
+    desc: "Logins, DNS records, hosting creds — masked, with reveal/copy on tap.",
+  },
+  {
+    name: "Documents",
+    desc: "Proposals and contracts, ready to review and sign.",
+  },
+];
+---
+
+<Layout
+  title="Features"
+  description={`Everything ${company.name} runs on — contacts, client portals, billing, the AI assistant, Siri, website audits, DNS, hosting, and industry plugins, all in one platform.`}
+>
+  <div class="fx-page">
+    <section class="fx-hero">
+      <p class="fx-kicker">The Business OS</p>
+      <h1 class="fx-h1">
+        {company.name} runs the whole business — not just the website.
+      </h1>
+      <p class="fx-lead">
+        Contacts, billing, projects, inbox, scheduling, audits, DNS, and hosting —
+        one login, one AI agent, and a client portal that's already open on their
+        phone. Add industry plugins for the business you're actually in.
+      </p>
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--primary" href="/deck">
+          Watch the live demo
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Get a quote</a>
+      </div>
+      <div class="fx-chips">
+        <span class="fx-chip">Always-on AI agent</span>
+        <span class="fx-chip">Client portal, no login</span>
+        <span class="fx-chip">Plug in only what you need</span>
+      </div>
+    </section>
+
+    <section class="fx-list" aria-label="Core features">
+      <p class="fx-list-intro">
+        Every section below is live in the product today — tap to open.
+      </p>
+
+      <div class="acc-list" data-acc-list>
+        {
+          before.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div class="acc-item" data-acc-item id={`feature-${s.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{s.title}</span>
+                    <span class="acc-teaser">{s.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    {s.body.map((p) => <p>{p}</p>)}
+                    <ul class="acc-bullets">
+                      {s.bullets.map((b) => <li>{b}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+
+        <div class="acc-item" data-acc-item id="feature-portal">
+          <button type="button" class="acc-trigger" aria-expanded="true">
+            <span class="acc-icon"><PanelsTopLeft size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+            <span class="acc-heading">
+              <span class="acc-title">A branded home base for every client — zero setup</span>
+              <span class="acc-teaser">
+                The moment you add a contact, they have a private page that looks and feels like part of your brand.
+              </span>
+            </span>
+            <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+          </button>
+          <div class="acc-panel">
+            <div class="acc-panel-inner">
+              <p>
+                No account to create, no password to reset — the link itself is the
+                key. Add it to their Home Screen and it behaves like a real app with
+                their name on it.
+              </p>
+              <p>Five tabs show up automatically, only when there's something to show:</p>
+              <div class="portal-tabs">
+                {portalTabs.map((t) => (
+                  <div class="portal-tab">
+                    <span class="portal-tab-name">{t.name}</span>
+                    <span class="portal-tab-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <ul class="acc-bullets">
+                <li>Tap-to-call, text, or email your business straight from the page</li>
+                <li>A speed-dial help chat answers "what do I owe" and "what's my login" without a call to you</li>
+                <li>Revoke access anytime — the page just disappears</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {
+          after.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div class="acc-item" data-acc-item id={`feature-${s.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{s.title}</span>
+                    <span class="acc-teaser">{s.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    {s.body.map((p) => <p>{p}</p>)}
+                    <ul class="acc-bullets">
+                      {s.bullets.map((b) => <li>{b}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+    </section>
+
+    <section class="fx-plugins" aria-label="Plugins">
+      <p class="fx-plugins-kicker">Plugins</p>
+      <h2 class="fx-plugins-h2">Snap in only what this client needs.</h2>
+      <p class="fx-plugins-lead">
+        The core OS above ships everywhere. Everything below is opt-in — flipped on
+        per install, per client, in one config line. No forked codebase, no "well
+        for THIS client we hacked in a workaround."
+      </p>
+
+      <div class="acc-list acc-list--plugins" data-acc-list>
+        {
+          plugins.map((p) => {
+            const Icon = p.icon;
+            return (
+              <div class="acc-item acc-item--plugin" data-acc-item id={`plugin-${p.id}`}>
+                <button type="button" class="acc-trigger" aria-expanded="true">
+                  <span class="acc-icon acc-icon--plugin"><Icon size={20} strokeWidth={1.75} aria-hidden="true" /></span>
+                  <span class="acc-heading">
+                    <span class="acc-title">{p.title}</span>
+                    <span class="acc-teaser">{p.teaser}</span>
+                  </span>
+                  <span class="acc-chev" aria-hidden="true"><ChevronDown size={18} strokeWidth={2} /></span>
+                </button>
+                <div class="acc-panel">
+                  <div class="acc-panel-inner">
+                    <p>{p.body}</p>
+                    {p.bullets && (
+                      <ul class="acc-bullets">
+                        {p.bullets.map((b) => <li>{b}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        }
+      </div>
+    </section>
+
+    <section class="fx-closing">
+      <h2 class="fx-closing-h2">Ready to see it running?</h2>
+      <p class="fx-closing-lead">
+        Every one of these is live in the product — not a mockup, not a roadmap slide.
+      </p>
+      <div class="fx-cta-row">
+        <a class="fx-btn fx-btn--primary" href="/deck">
+          Watch the live demo
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="fx-btn fx-btn--ghost" href={quoteHref}>Talk to us</a>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  (function () {
+    const items = document.querySelectorAll<HTMLElement>("[data-acc-item]");
+    if (!items.length) return;
+
+    function setOpen(item: HTMLElement, open: boolean, animate: boolean) {
+      const trigger = item.querySelector<HTMLButtonElement>(".acc-trigger");
+      const panel = item.querySelector<HTMLElement>(".acc-panel");
+      if (!trigger || !panel) return;
+      trigger.setAttribute("aria-expanded", open ? "true" : "false");
+      item.classList.toggle("open", open);
+      if (!animate) {
+        panel.style.transition = "none";
+        panel.style.maxHeight = open ? panel.scrollHeight + "px" : "0px";
+        // Re-enable transitions on the next frame.
+        requestAnimationFrame(() => {
+          panel.style.transition = "";
+        });
+        return;
+      }
+      panel.style.maxHeight = open ? panel.scrollHeight + "px" : "0px";
+    }
+
+    // Progressive enhancement: content is visible without JS (for crawlers +
+    // no-JS clients); once JS runs, collapse everything except the first item.
+    items.forEach((item, idx) => {
+      setOpen(item, idx === 0, false);
+
+      const trigger = item.querySelector<HTMLButtonElement>(".acc-trigger");
+      trigger?.addEventListener("click", () => {
+        const isOpen = item.classList.contains("open");
+        setOpen(item, !isOpen, true);
+      });
+    });
+
+    // Deep-link support: /features#feature-billing opens that section.
+    if (location.hash) {
+      const target = document.querySelector<HTMLElement>(location.hash);
+      if (target && target.hasAttribute("data-acc-item")) {
+        setOpen(target, true, false);
+        target.scrollIntoView({ block: "start" });
+      }
+    }
+
+    window.addEventListener("resize", () => {
+      document.querySelectorAll<HTMLElement>("[data-acc-item].open").forEach((item) => {
+        const panel = item.querySelector<HTMLElement>(".acc-panel");
+        if (panel) panel.style.maxHeight = panel.scrollHeight + "px";
+      });
+    });
+  })();
+</script>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .fx-page {
+    min-height: 100vh;
+    padding: calc(64px + 40px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .fx-hero,
+  .fx-list,
+  .fx-plugins,
+  .fx-closing {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  /* ---------- Hero ---------- */
+
+  .fx-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .fx-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 14px;
+  }
+
+  .fx-h1 {
+    margin: 0 0 16px;
+    font-size: clamp(1.8rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .fx-lead {
+    margin: 0 auto 28px;
+    max-width: 560px;
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .fx-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .fx-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .fx-btn--primary {
+    color: #0b0512;
+    background: linear-gradient(145deg, #f472b6 0%, #c026d3 52%, #6366f1 100%);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .fx-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .fx-btn--ghost {
+    color: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  .fx-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.24);
+  }
+
+  .fx-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .fx-chip {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* ---------- Section intros ---------- */
+
+  .fx-list-intro {
+    text-align: center;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.45);
+    margin: 0 0 20px;
+  }
+
+  /* ---------- Accordion ---------- */
+
+  .acc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .acc-item {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    overflow: hidden;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .acc-item.open {
+    border-color: rgba(192, 38, 211, 0.28);
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .acc-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 18px;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .acc-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: rgba(168, 85, 247, 0.14);
+    color: #d8b4fe;
+  }
+
+  .acc-heading {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .acc-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .acc-teaser {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.52);
+    line-height: 1.45;
+  }
+
+  .acc-chev {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, 0.32);
+    transition: transform 0.25s ease, color 0.25s ease;
+  }
+
+  .acc-item.open .acc-chev {
+    transform: rotate(180deg);
+    color: #d8b4fe;
+  }
+
+  .acc-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .acc-panel-inner {
+    padding: 0 18px 22px 72px;
+  }
+
+  .acc-panel-inner p {
+    margin: 0 0 12px;
+    font-size: 0.93rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .acc-bullets {
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .acc-bullets li {
+    position: relative;
+    padding-left: 20px;
+    font-size: 0.87rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.64);
+  }
+
+  .acc-bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f472b6, #6366f1);
+  }
+
+  @media (max-width: 560px) {
+    .acc-panel-inner {
+      padding-left: 18px;
+    }
+  }
+
+  /* ---------- Portal tabs grid ---------- */
+
+  .portal-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin: 6px 0 16px;
+  }
+
+  .portal-tab {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .portal-tab-name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f3e8ff;
+    letter-spacing: 0.01em;
+  }
+
+  .portal-tab-desc {
+    font-size: 0.76rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* ---------- Plugins ---------- */
+
+  .fx-plugins {
+    margin-top: 56px;
+    padding: 32px clamp(16px, 4vw, 32px);
+    border: 1px dashed rgba(56, 189, 248, 0.32);
+    border-radius: 24px;
+    background: radial-gradient(
+        ellipse 120% 100% at 50% -10%,
+        rgba(56, 189, 248, 0.08) 0%,
+        transparent 60%
+      ),
+      rgba(255, 255, 255, 0.015);
+  }
+
+  .fx-plugins-kicker {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin: 0 0 10px;
+    text-align: center;
+  }
+
+  .fx-plugins-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.3rem, 3.4vw, 1.7rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+    text-align: center;
+  }
+
+  .fx-plugins-lead {
+    margin: 0 auto 26px;
+    max-width: 560px;
+    font-size: 0.92rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.58);
+    text-align: center;
+  }
+
+  .acc-item--plugin .acc-icon--plugin {
+    background: rgba(56, 189, 248, 0.14);
+    color: #7dd3fc;
+  }
+
+  .acc-item--plugin.open {
+    border-color: rgba(56, 189, 248, 0.32);
+  }
+
+  .acc-item--plugin.open .acc-chev {
+    color: #7dd3fc;
+  }
+
+  /* ---------- Closing ---------- */
+
+  .fx-closing {
+    margin-top: 56px;
+    text-align: center;
+  }
+
+  .fx-closing-h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.4rem, 3.6vw, 1.9rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #fff;
+  }
+
+  .fx-closing-lead {
+    margin: 0 0 24px;
+    font-size: 0.96rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+</style>
