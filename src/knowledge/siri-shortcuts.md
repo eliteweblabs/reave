@@ -256,7 +256,7 @@ Because a full audit can take a couple of minutes (Lighthouse alone budgets up t
 **Example response** (immediate ack — the real result comes later via push notification):
 
 ```
-Researching Example Plumbing Co now — full audit, client record, and project coming up. I'll notify you when it's ready.
+Researching Example Plumbing Co now. You'll get an alert in Admin when the audit and project are ready.
 ```
 
 **Siri phrase**: "create proposal" or "research this business"

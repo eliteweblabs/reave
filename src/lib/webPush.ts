@@ -46,11 +46,6 @@ export async function sendPushNotification(payload: {
   /** When true, skip creating a dismissible dashboard alert (default false). */
   skipDashboardAlert?: boolean;
 }): Promise<void> {
-  if (!isPushConfigured() || !(await configureWebPush())) return;
-
-  const subs = await listPushSubscriptions();
-  if (!subs.length) return;
-
   const tag = payload.tag ?? 'inbox';
   const url = payload.url ?? '/admin?tab=email';
 
@@ -65,6 +60,11 @@ export async function sendPushNotification(payload: {
     }).catch(() => null);
     alertId = alert?.id;
   }
+
+  if (!isPushConfigured() || !(await configureWebPush())) return;
+
+  const subs = await listPushSubscriptions();
+  if (!subs.length) return;
 
   const badgeCount =
     payload.badgeCount != null

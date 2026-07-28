@@ -43,6 +43,40 @@ async function getOrCreateAlertThread(userId: string): Promise<string | null> {
   return created.id;
 }
 
+/** Fire-and-forget — Siri "Create Proposal" finished (client + audit project filed). */
+export async function notifyAdminAgentOfSiriProposalComplete(opts: {
+  label: string;
+  reply: string;
+  jobSlug?: string | null;
+  threadId?: string;
+}): Promise<void> {
+  if (!agentAlertUserId()) return;
+
+  const slug = opts.jobSlug?.trim();
+  const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
+  const summary = opts.reply.trim().slice(0, 1200);
+
+  const message = [
+    'Proposal research complete (Siri shortcut)',
+    '',
+    `Prospect: ${opts.label}`,
+    slug ? `Project slug: ${slug}` : 'Project: see Work tab',
+    '',
+    summary || 'Research finished — open the project for the full audit.',
+  ].join('\n');
+
+  await postToSystemAlertsThread({
+    message,
+    autoRun: false,
+    push: {
+      title: `Proposal ready: ${opts.label}`,
+      body: summary.slice(0, 150) || `Project ready${slug ? `: ${slug}` : ''}`,
+      tag: `siri-proposal-${opts.threadId ?? slug ?? opts.label}`,
+      url: deepLinkUrl,
+    },
+  });
+}
+
 /** Fire-and-forget — logs failures, never throws to callers. */
 export async function postToSystemAlertsThread(opts: {
   message: string;

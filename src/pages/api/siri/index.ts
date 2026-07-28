@@ -44,9 +44,8 @@ import { parseWorkJobInput } from '../../../lib/workJobInput';
 import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
 import { runKnowledgeAgent } from '../../../lib/agentRunner';
-import { agentAlertUserId } from '../../../lib/adminAgentAlert';
+import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../../lib/adminAgentAlert';
 import { storeAppendChatMessages, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
-import { sendPushNotification } from '../../../lib/webPush';
 import { createLogger } from '../../../lib/logger';
 
 const log = createLogger('siri-proposal');
@@ -528,7 +527,7 @@ async function handleCreateProposal(params: Record<string, unknown>): Promise<Si
 
   return {
     ok: true,
-    text: `Researching ${label} now — full audit, client record, and project coming up. I'll notify you when it's ready.`,
+    text: `Researching ${label} now. You'll get an alert in Admin when the audit and project are ready.`,
     data: { started: true, label, url: url || null, business: business || null },
   };
 }
@@ -600,14 +599,13 @@ async function runProposalResearch(input: {
 
   const slugMatch = reply.match(/Project:\s*([a-z0-9._-]+)/i);
   const slug = slugMatch?.[1]?.trim();
-  const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
 
-  await sendPushNotification({
-    title: `Proposal ready: ${input.label}`,
-    body: reply.slice(0, 150),
-    tag: `siri-proposal-${threadId ?? input.label}`,
-    url: deepLinkUrl,
-  }).catch((e) => log.warn('push notification failed', e));
+  await notifyAdminAgentOfSiriProposalComplete({
+    label: input.label,
+    reply,
+    jobSlug: slug,
+    threadId,
+  }).catch((e) => log.warn('proposal notify failed', e instanceof Error ? e : new Error(String(e))));
 }
 
 async function handleCreateWork(params: Record<string, unknown>): Promise<SiriResponse> {
