@@ -24,7 +24,6 @@ import {
   PhoneCall,
   Contact,
   Send,
-  Activity,
   ArrowRight,
   ChevronDown,
 } from "lucide-astro";
@@ -92,7 +91,7 @@ const after: Section[] = [
     ],
     bullets: [
       "One-tap Pay links on every outstanding invoice",
-      "Recurring invoices for retainers and hosting plans",
+      "Recurring invoices for retainers and ongoing service plans",
       '"Send Acme $450 for the June retainer" — the agent builds and sends it',
       "Payment history shows on the client's own Billing tab, not buried in your inbox",
     ],
@@ -109,7 +108,7 @@ const after: Section[] = [
     bullets: [
       "Sorted into client, alert, internal, review, or junk automatically",
       "Attachments show up with one-tap download — no digging through threads",
-      "Deploy and uptime alert emails route straight to a System Alerts thread",
+      "Automated alert emails land in a dedicated System Alerts thread — not mixed with client mail",
       "Install to your Home Screen and get pushed the moment something needs a reply",
     ],
   },
@@ -118,7 +117,7 @@ const after: Section[] = [
     icon: CalendarClock,
     title: "Booked, not \"let me check my calendar\"",
     teaser:
-      "Real booking lives right on your site — prospects grab a real slot, you get a real meeting, no back-and-forth.",
+      "Real booking lives wherever clients find you — prospects grab a real slot, you get a real meeting, no back-and-forth.",
     body: [
       "Availability, confirmations, and reschedules are handled the moment someone picks a time — and the same booking flow is one voice command away for you.",
     ],
@@ -291,14 +290,6 @@ const plugins: Plugin[] = [
       "Welcome emails, follow-ups, review requests, and win-back campaigns — sent automatically, on a schedule you set once.",
     body: "Built-in templates cover the emails every business sends and usually forgets to: welcome, check-in, thank-you, review request, re-engagement. One-off broadcasts go out to your whole list in a click, fully compliant.",
   },
-  {
-    id: "uptime",
-    icon: Activity,
-    title: "Uptime & Site Monitoring",
-    teaser:
-      "Know a client's site is down before they email you about it — and let them see the same status on their portal.",
-    body: "Real API polling and webhooks replace the pile of alert emails nobody reads. Down/up events post straight to your alert feed and push to your phone.",
-  },
 ];
 
 const portalTabs = [
@@ -308,7 +299,7 @@ const portalTabs = [
   },
   {
     name: "Projects",
-    desc: "Live status on whatever you're building for them, synced from your dashboard.",
+    desc: "Live status on every job you're doing for them, synced from your dashboard.",
   },
   {
     name: "Billing",
@@ -333,7 +324,7 @@ const portalTabs = [
     <section class="fx-hero">
       <p class="fx-kicker">The Business OS</p>
       <h1 class="fx-h1">
-        {company.name} runs the whole business — not just the website.
+        {company.name} runs the whole business — not a pile of separate apps.
       </h1>
       <p class="fx-lead">
         Contacts, billing, projects, inbox, scheduling, Siri, and white-label branding —
