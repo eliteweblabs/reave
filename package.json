@@ -12,6 +12,7 @@
     "sync:vapi": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "seed:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-demo.ts",
     "seed:bookings": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/seed-bookings.ts",
+    "push:demo": "node --import ./scripts/ts-extensionless-resolve.mjs --experimental-strip-types scripts/send-demo-push.ts",
     "prebuild": "node --experimental-strip-types scripts/sync-vapi-assistant.ts",
     "build": "astro build",
     "check": "astro check",

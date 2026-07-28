@@ -10,6 +10,7 @@
  *   npm run seed:demo -- --dry-run
  *   npm run seed:demo -- --fresh          # remove prior demo rows first
  *   npm run seed:demo -- --with-bookings  # also run scripts/seed-bookings.ts
+ *   npm run seed:demo -- --push           # send a test push after seeding (phone must be subscribed)
  *
  * Required env (loads `.env` from repo root when present):
  *   DATABASE_URL              — app Postgres (chats, jobs, email inbox, todos, …)
@@ -54,6 +55,7 @@ const REPO_ROOT = join(ROOT, '..');
 const DRY_RUN = process.argv.includes('--dry-run');
 const FRESH = process.argv.includes('--fresh');
 const WITH_BOOKINGS = process.argv.includes('--with-bookings');
+const SEND_PUSH = process.argv.includes('--push');
 const FORCE_COMPANY = process.argv.includes('--force-company') || process.env.DEMO_FORCE_COMPANY === '1';
 
 loadDotEnv();
@@ -801,6 +803,35 @@ function runBookingsSeed(): void {
   }
 }
 
+async function sendDemoPush(): Promise<void> {
+  log('Sending demo push notification…');
+  if (DRY_RUN) return;
+
+  const { isPushConfigured, sendPushNotification } = await import('../src/lib/webPush.ts');
+  if (!isPushConfigured()) {
+    console.warn('⚠ VAPID keys not set — skipping push (set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY)');
+    return;
+  }
+
+  const { listPushSubscriptions } = await import('../src/lib/pushSubscriptionStore.ts');
+  const subs = await listPushSubscriptions();
+  if (!subs.length) {
+    console.warn(
+      '⚠ No push subscriptions yet. On your phone: open /admin → install to home screen (iOS) → Enable notifications.',
+    );
+    return;
+  }
+
+  await sendPushNotification({
+    title: 'Demo environment ready',
+    body: 'Sarah Chen replied about the deck railing — tap to open the inbox.',
+    tag: 'demo-seed',
+    url: '/admin?tab=email&email=demo-email-sarah-reply',
+    badgeCount: 4,
+  });
+  log(`Push sent to ${subs.length} device(s). Lock your phone to see it.`);
+}
+
 function printSummary(contacts: Map<string, SeededContact>): void {
   console.log('\n── Demo seed summary ──');
   console.log(`Fake contacts: ${DEMO_CONTACTS.length}`);
@@ -845,6 +876,7 @@ function printDryRunPlan(): void {
   log(`Would seed ${DEMO_TODOS.length} todos`);
   log(`Would seed ${DEMO_ENGAGEMENT.length} engagement events`);
   if (WITH_BOOKINGS) log('Would run scripts/seed-bookings.ts');
+  if (SEND_PUSH) log('Would send demo push notification');
   if (FRESH) log('Would delete prior demo rows first (--fresh)');
 }
 
@@ -876,6 +908,7 @@ async function main(): Promise<void> {
     await seedEngagement(pool, contacts);
 
     if (WITH_BOOKINGS) runBookingsSeed();
+    if (SEND_PUSH) await sendDemoPush();
 
     printSummary(contacts);
     log('\nDone.');

@@ -398,10 +398,82 @@ export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
 
   try {
     const enabled = await isAdminPushEnabled();
+    if (enabled) ensureTestPushMenuItem();
+    else removeTestPushMenuItem();
     // Keep the compact bell as a fallback when the inline alert was dismissed.
     btn.hidden = enabled || activeAlert === 'push' || activeAlert === 'pwa';
   } catch {
+    removeTestPushMenuItem();
     btn.hidden = activeAlert === 'push' || activeAlert === 'pwa';
+  }
+}
+
+export async function sendTestPushNotification(opts = {}) {
+  const res = await fetch('/api/admin/push/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: opts.title,
+      message: opts.message,
+      url: opts.url,
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || 'Test notification failed');
+  }
+  return data;
+}
+
+function ensureTestPushMenuItem() {
+  const menu = document.getElementById('topbar-profile-menu');
+  if (!menu || document.getElementById('topbar-test-push-link')) return;
+
+  const divider = menu.querySelector('.topbar-dropdown-divider');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'topbar-test-push-link';
+  btn.className = 'topbar-dropdown-item';
+  btn.setAttribute('role', 'menuitem');
+  btn.textContent = 'Test notification';
+  btn.addEventListener('click', async (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    btn.disabled = true;
+    try {
+      await sendTestPushNotification();
+      btn.textContent = 'Test sent';
+      setTimeout(() => {
+        btn.textContent = 'Test notification';
+        btn.disabled = false;
+      }, 2500);
+    } catch (e) {
+      btn.disabled = false;
+      alert(e.message || String(e));
+    }
+  });
+
+  if (divider) menu.insertBefore(btn, divider);
+  else menu.appendChild(btn);
+}
+
+function removeTestPushMenuItem() {
+  document.getElementById('topbar-test-push-link')?.remove();
+}
+
+async function maybeOfferTestPushAfterSubscribe() {
+  try {
+    const ok = await showAdminConfirmBanner({
+      title: 'Notifications enabled',
+      bodyHtml:
+        '<p>Send a test notification now? Lock your phone or switch apps to see it arrive like a real alert.</p>',
+      confirmLabel: 'Send test',
+      cancelLabel: 'Not now',
+    });
+    if (!ok) return;
+    await sendTestPushNotification();
+  } catch (e) {
+    console.warn('[push] test offer failed', e);
   }
 }
 
@@ -437,6 +509,8 @@ export async function subscribeAdminPush() {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Subscribe failed');
+  ensureTestPushMenuItem();
+  void maybeOfferTestPushAfterSubscribe();
   return sub;
 }
 
