@@ -4,24 +4,36 @@
 interface ClientLogo {
   name: string;
   src: string;
+  // Intrinsic aspect ratio (any consistent unit works — most are the
+  // source SVG's viewBox). Several of these SVGs have no width/height
+  // attribute of their own, so without this the <img> has no intrinsic
+  // size for the browser to size against once its container is
+  // content-sized rather than fixed-width, and it collapses to 0×0.
+  width: number;
+  height: number;
 }
 
 const logos: ClientLogo[] = [
-  { name: "Porsche", src: "/logos/clients/porsche.svg" },
-  { name: "The New York Times", src: "/logos/clients/newyorktimes.svg" },
-  { name: "Red Bull", src: "/logos/clients/redbull.svg" },
-  { name: "Chase Bank", src: "/logos/clients/chase.svg" },
-  { name: "Acura", src: "/logos/clients/acura.svg" },
-  { name: "Bombay Sapphire", src: "/logos/clients/bombay-sapphire.png" },
-  { name: "Live Nation", src: "/logos/clients/live-nation.svg" },
-  { name: "Johnnie Walker", src: "/logos/clients/johnnie-walker.svg" },
-  { name: "Worcester Polytechnic Institute", src: "/logos/clients/wpi.svg" },
-  { name: "Kingdom Trails", src: "/logos/clients/kingdom-trails.svg" },
-  { name: "UC Law San Francisco", src: "/logos/clients/uc-law-sf.svg" },
-  { name: "Mohegan Sun", src: "/logos/clients/mohegan-sun.svg" },
-  { name: "Sharpie", src: "/logos/clients/sharpie.svg" },
-  { name: "The Overlook", src: "/logos/clients/overlook.svg" },
-  { name: "Coinbase", src: "/logos/clients/coinbase.svg" },
+  { name: "Porsche", src: "/logos/clients/porsche.svg", width: 24, height: 24 },
+  { name: "The New York Times", src: "/logos/clients/newyorktimes.svg", width: 24, height: 24 },
+  { name: "Red Bull", src: "/logos/clients/redbull.svg", width: 24, height: 24 },
+  { name: "Chase Bank", src: "/logos/clients/chase.svg", width: 24, height: 24 },
+  { name: "Acura", src: "/logos/clients/acura.svg", width: 24, height: 24 },
+  { name: "Bombay Sapphire", src: "/logos/clients/bombay-sapphire.png", width: 3564, height: 765 },
+  { name: "Live Nation", src: "/logos/clients/live-nation.svg", width: 868.6, height: 96.1 },
+  { name: "Johnnie Walker", src: "/logos/clients/johnnie-walker.svg", width: 100.75, height: 10.3 },
+  {
+    name: "Worcester Polytechnic Institute",
+    src: "/logos/clients/wpi.svg",
+    width: 390.27,
+    height: 146.14,
+  },
+  { name: "Kingdom Trails", src: "/logos/clients/kingdom-trails.svg", width: 260, height: 60 },
+  { name: "UC Law San Francisco", src: "/logos/clients/uc-law-sf.svg", width: 340, height: 72 },
+  { name: "Mohegan Sun", src: "/logos/clients/mohegan-sun.svg", width: 185, height: 83 },
+  { name: "Sharpie", src: "/logos/clients/sharpie.svg", width: 1000, height: 332.43 },
+  { name: "The Overlook", src: "/logos/clients/overlook.svg", width: 280, height: 60 },
+  { name: "Coinbase", src: "/logos/clients/coinbase.svg", width: 240, height: 48 },
 ];
 
 const LOOP_COPIES = 3;
@@ -44,6 +56,8 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
             <img
               src={logo.src}
               alt={index < logos.length ? logo.name : ""}
+              width={logo.width}
+              height={logo.height}
               loading="eager"
               decoding="async"
               draggable="false"
@@ -126,10 +140,15 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   }
 
   .client-logo-item img {
-    max-width: 100%;
-    max-height: 34px;
+    /*
+     * A definite height (not max-height) plus the intrinsic width/height
+     * attributes' aspect-ratio is what lets the browser derive a width here.
+     * The item is content-sized (flex: 0 0 auto) with height:auto too, so
+     * without a definite height anywhere in the chain, "width: auto" has
+     * nothing to resolve against and the image collapses to 0×0.
+     */
+    height: 34px;
     width: auto;
-    height: auto;
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
