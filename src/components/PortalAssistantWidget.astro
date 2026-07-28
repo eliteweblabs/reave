@@ -9,6 +9,8 @@
  * Plain JS (no React) to match the rest of this page — it's a public,
  * iOS-first surface, and this keeps the extra bundle tiny.
  */
+import IosBottomSheet from './IosBottomSheet.astro';
+
 export interface Props {
   contactUid: string;
   brandTitle: string;
@@ -44,49 +46,51 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     </svg>
   </button>
 
-  <div id="pa-backdrop" class="pa-backdrop" hidden></div>
+  <IosBottomSheet id="pa-sheet" sheetOnly={true} dismissible={true} class="pa-sheet">
+    <div class="pa-chat">
+      <header class="pa-header">
+        <div class="pa-header-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.955 9.955 0 0 0 12 22Z"/></svg>
+        </div>
+        <div class="pa-header-title">
+          <span class="pa-header-name">Help &amp; Support</span>
+          <span class="pa-header-sub">{brandTitle}</span>
+        </div>
+        <button class="pa-close" type="button" data-ios-sheet-close aria-label="Close chat">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
 
-  <div id="pa-panel" class="pa-panel" role="dialog" aria-modal="true" aria-label={`Help from ${brandTitle}`} hidden>
-    <header class="pa-header">
-      <div class="pa-header-icon" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 1.821.487 3.53 1.338 5L2 22l5-1.338A9.955 9.955 0 0 0 12 22Z"/></svg>
+      <div id="pa-messages" class="pa-messages">
+        <div class="pa-msg pa-msg-assistant">
+          <div class="pa-bubble" data-greeting>{greeting}</div>
+        </div>
       </div>
-      <div class="pa-header-title">
-        <span class="pa-header-name">Help &amp; Support</span>
-        <span class="pa-header-sub">{brandTitle}</span>
-      </div>
-      <button id="pa-close" class="pa-close" type="button" aria-label="Close chat">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-      </button>
-    </header>
 
-    <div id="pa-messages" class="pa-messages">
-      <div class="pa-msg pa-msg-assistant">
-        <div class="pa-bubble" data-greeting>{greeting}</div>
-      </div>
+      <div id="pa-typing" class="pa-typing" hidden aria-hidden="true"><span></span><span></span><span></span></div>
+
+      <form id="pa-form" class="pa-form">
+        <textarea
+          id="pa-input"
+          class="pa-input"
+          rows="1"
+          placeholder="Ask a question…"
+          autocomplete="off"
+          autocorrect="on"
+          spellcheck="true"
+          maxlength="2000"
+        ></textarea>
+        <button id="pa-send" class="pa-send" type="submit" aria-label="Send message">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+        </button>
+      </form>
+
+      {footerNote && <p class="pa-footer">{footerNote}</p>}
     </div>
-
-    <div id="pa-typing" class="pa-typing" hidden aria-hidden="true"><span></span><span></span><span></span></div>
-
-    <form id="pa-form" class="pa-form">
-      <textarea
-        id="pa-input"
-        class="pa-input"
-        rows="1"
-        placeholder="Ask a question…"
-        autocomplete="off"
-        autocorrect="on"
-        spellcheck="true"
-        maxlength="2000"
-      ></textarea>
-      <button id="pa-send" class="pa-send" type="submit" aria-label="Send message">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-      </button>
-    </form>
-
-    {footerNote && <p class="pa-footer">{footerNote}</p>}
-  </div>
+  </IosBottomSheet>
 </div>
+
+<script src="/ios-sheet.js" defer></script>
 
 <style>
   .pa-root { position: relative; }
@@ -111,54 +115,16 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     -webkit-tap-highlight-color: transparent;
   }
   .pa-fab:active { transform: scale(0.93); }
+  .pa-fab[aria-expanded='true'] { z-index: 6001; }
   .pa-fab-icon-close { display: none; }
   .pa-fab[aria-expanded='true'] .pa-fab-icon-chat { display: none; }
   .pa-fab[aria-expanded='true'] .pa-fab-icon-close { display: block; }
 
-  .pa-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 65;
-    background: rgba(0, 0, 0, 0.45);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-  }
-  .pa-backdrop.open { opacity: 1; }
-
-  .pa-panel {
-    position: fixed;
-    z-index: 71;
-    right: max(18px, env(safe-area-inset-right));
-    bottom: calc(env(safe-area-inset-bottom) + 88px);
-    width: min(380px, calc(100vw - 32px));
-    height: min(600px, 72vh);
+  .pa-chat {
     display: flex;
     flex-direction: column;
-    border-radius: 20px;
-    overflow: hidden;
-    background: #121016;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
-    opacity: 0;
-    transform: translateY(16px) scale(0.98);
-    transform-origin: bottom right;
-    transition: opacity 0.18s ease, transform 0.18s ease;
-    pointer-events: none;
-  }
-  .pa-panel.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
-
-  @media (max-width: 640px) {
-    .pa-panel {
-      right: 0;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: min(85vh, 640px);
-      border-radius: 20px 20px 0 0;
-      transform: translateY(100%);
-      transform-origin: bottom center;
-    }
-    .pa-panel.open { transform: translateY(0); }
+    min-height: 0;
+    height: 100%;
   }
 
   .pa-header {
@@ -166,7 +132,7 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 14px 14px 14px 16px;
+    padding: 10px 14px 14px 16px;
     background: rgba(255, 255, 255, 0.04);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
@@ -316,8 +282,47 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
   }
 </style>
 
+<style is:global>
+  #pa-sheet {
+    --ios-sheet-bg: #121016;
+    --ios-sheet-fg: #fff;
+    --ios-sheet-muted: rgba(255, 255, 255, 0.55);
+    --ios-sheet-border: rgba(255, 255, 255, 0.1);
+    --ios-sheet-grabber: rgba(255, 255, 255, 0.28);
+    color-scheme: dark;
+  }
+
+  #pa-sheet .ios-sheet-header {
+    display: none;
+  }
+
+  #pa-sheet .ios-sheet {
+    height: min(85dvh, 640px);
+    max-height: min(85dvh, 640px);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.55);
+  }
+
+  #pa-sheet .ios-sheet-body {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+</style>
+
 <script>
   type Turn = { role: 'user' | 'assistant'; content: string };
+
+  declare global {
+    interface Window {
+      IosSheet?: {
+        open: (target: string | HTMLElement, opts?: { onClose?: () => void }) => void;
+        close: (target?: string | HTMLElement) => void;
+      };
+    }
+  }
 
   function escapeHtml(s: string): string {
     return s
@@ -344,17 +349,16 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
     const uid = root.dataset.uid || '';
     const endpoint = root.dataset.endpoint || '';
     const storageKey = root.dataset.storageKey || `pa-chat-${uid}`;
+    const sheetId = 'pa-sheet';
 
     const fab = root.querySelector<HTMLButtonElement>('#pa-fab');
-    const backdrop = root.querySelector<HTMLDivElement>('#pa-backdrop');
-    const panel = root.querySelector<HTMLDivElement>('#pa-panel');
-    const closeBtn = root.querySelector<HTMLButtonElement>('#pa-close');
+    const sheet = document.getElementById(sheetId);
     const messagesEl = root.querySelector<HTMLDivElement>('#pa-messages');
     const typingEl = root.querySelector<HTMLDivElement>('#pa-typing');
     const form = root.querySelector<HTMLFormElement>('#pa-form');
     const input = root.querySelector<HTMLTextAreaElement>('#pa-input');
     const sendBtn = root.querySelector<HTMLButtonElement>('#pa-send');
-    if (!fab || !panel || !closeBtn || !messagesEl || !typingEl || !form || !input || !sendBtn) return;
+    if (!fab || !sheet || !messagesEl || !typingEl || !form || !input || !sendBtn) return;
 
     let history: Turn[] = [];
     try {
@@ -398,37 +402,27 @@ const footerNote = contactBits.length ? `Urgent? ${contactBits.join(' · ')}` : 
       scrollToBottom();
     }
 
-    let open = false;
-    function openPanel() {
-      open = true;
-      panel!.hidden = false;
-      backdrop!.hidden = false;
-      fab!.setAttribute('aria-expanded', 'true');
-      requestAnimationFrame(() => {
-        panel!.classList.add('open');
-        backdrop!.classList.add('open');
-      });
-      setTimeout(() => input!.focus(), 220);
-    }
-    function closePanel() {
-      open = false;
-      panel!.classList.remove('open');
-      backdrop!.classList.remove('open');
-      fab!.setAttribute('aria-expanded', 'false');
-      setTimeout(() => {
-        if (!open) {
-          panel!.hidden = true;
-          backdrop!.hidden = true;
-        }
-      }, 220);
+    function isOpen() {
+      return sheet!.classList.contains('open');
     }
 
-    fab.addEventListener('click', () => (open ? closePanel() : openPanel()));
-    closeBtn.addEventListener('click', closePanel);
-    backdrop?.addEventListener('click', closePanel);
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && open) closePanel();
-    });
+    function setExpanded(expanded: boolean) {
+      fab!.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    }
+
+    function openPanel() {
+      window.IosSheet?.open(sheetId);
+      setExpanded(true);
+      setTimeout(() => input!.focus(), 280);
+    }
+
+    function closePanel() {
+      window.IosSheet?.close(sheetId);
+      setExpanded(false);
+    }
+
+    fab.addEventListener('click', () => (isOpen() ? closePanel() : openPanel()));
+    sheet.addEventListener('ios-sheet-close', () => setExpanded(false));
 
     function autosize() {
       input!.style.height = 'auto';
