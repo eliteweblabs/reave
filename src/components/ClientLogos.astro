@@ -57,8 +57,7 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
 <style>
   .client-logos-viewport {
-    --visible-count: 3;
-    --slide-width: calc(100vw / var(--visible-count));
+    --logo-gap: 34px;
     position: relative;
     width: 100%;
     overflow: hidden;
@@ -99,6 +98,8 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
    */
   .client-logos-track {
     display: flex;
+    align-items: center;
+    gap: var(--logo-gap);
     width: max-content;
     animation: client-logos-scroll var(--marquee-duration, 52s) linear infinite;
     will-change: transform;
@@ -114,12 +115,11 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
   }
 
   .client-logo-item {
-    flex: 0 0 var(--slide-width);
-    width: var(--slide-width);
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 21px;
+    padding: 8px 0;
     box-sizing: border-box;
     -webkit-user-select: none;
     user-select: none;
@@ -144,19 +144,19 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
 
   @media (min-width: 480px) {
     .client-logos-viewport {
-      --visible-count: 4;
+      --logo-gap: 44px;
     }
   }
 
   @media (min-width: 640px) {
     .client-logos-viewport {
-      --visible-count: 5;
+      --logo-gap: 52px;
     }
   }
 
   @media (min-width: 768px) {
     .client-logos-viewport {
-      --visible-count: 6;
+      --logo-gap: 64px;
     }
   }
 </style>
