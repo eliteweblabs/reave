@@ -131,16 +131,9 @@ html {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.home-section--photo .home-section-hero,
-.home-section--photo .home-section-inner .card {
-  background: rgba(5, 5, 5, 0.42);
-  backdrop-filter: blur(8px);
-}
-
 .home-section--photo .home-section-hero {
-  padding: 24px 24px 32px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .marketing-label {
