@@ -106,6 +106,7 @@ import {
   storeGetEmailInbox,
   type EmailInboxPatch,
 } from '../../emailInboxStore';
+import { dismissEmailRelatedNotifications } from '../../emailNotificationSync';
 import { extractMonetaryAmountFromEmail, formatUsdAmount } from '../../emailMoney';
 import { buildReplyEmailHeaders } from '../../emailReply';
 import { brandedPlainTextEmail } from '../../inboundEmailReply';
@@ -291,6 +292,7 @@ async function handle_mark_email_routed(args: Record<string, unknown>, _ctx: Too
 async function handle_delete_email(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const emailId = String(args.email_id ?? '').trim();
   if (!emailId) return JSON.stringify({ error: 'email_id is required' });
+  await dismissEmailRelatedNotifications(emailId, { markAutomationAck: false }).catch(() => undefined);
   const deleted = await storeDeleteEmailInbox(emailId);
   if (!deleted) return JSON.stringify({ error: 'not found', email_id: emailId });
   return JSON.stringify({ ok: true, email_id: emailId, deleted: true });

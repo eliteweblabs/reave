@@ -3221,6 +3221,7 @@ function buildReviewAlertBanner(item) {
   if (item.commentId) alert.setAttribute('data-review-comment-id', item.commentId);
   if (item.engagementId) alert.setAttribute('data-review-engagement-id', item.engagementId);
   if (item.alertId) alert.setAttribute('data-review-alert-id', item.alertId);
+  if (item.tag) alert.setAttribute('data-review-alert-tag', item.tag);
 
   const iconWrap = document.createElement('div');
   iconWrap.className = 'admin-setup-alert-icon';
@@ -3480,10 +3481,37 @@ function removeReviewAlertBanner(emailId, commentId, engagementId, alertId) {
       `.dash-review-alerts [data-review-email-id="${CSS.escape(emailKey)}"]`,
     );
   }
-  if (!banner) return;
+  if (!banner) return false;
   const wrap = banner.closest('.dash-review-alerts');
   banner.remove();
   if (wrap && wrap.children.length === 0) wrap.remove();
+  return true;
+}
+
+/** Remove automation and push-alert banners tied to an inbox message. */
+function removeEmailRelatedAlertBanners(emailId) {
+  const key = String(emailId || '').trim();
+  if (!key) return 0;
+  let removed = 0;
+  const seen = new Set();
+  const selectors = [
+    `.dash-review-alerts [data-review-email-id="${CSS.escape(key)}"]`,
+    `.dash-review-alerts [data-review-alert-tag="${CSS.escape(key)}"]`,
+    `.dash-review-alerts [data-review-alert-tag="${CSS.escape(`otp-${key}`)}"]`,
+  ];
+  for (const sel of selectors) {
+    const banner = document.querySelector(sel);
+    if (!banner || seen.has(banner)) continue;
+    seen.add(banner);
+    const wrap = banner.closest('.dash-review-alerts');
+    banner.remove();
+    if (wrap && wrap.children.length === 0) wrap.remove();
+    removed += 1;
+  }
+  if (removed > 0) {
+    syncReviewBadge(Math.max(0, reviewsPendingCount - removed));
+  }
+  return removed;
 }
 
 function renderHomeDashboard(data) {
@@ -10399,6 +10427,10 @@ function applyEmailPatchResult(id, event) {
   if (emailState.activeId === id && !filteredInboxEvents().some((e) => e.id === id)) {
     emailState.activeId = null;
   }
+  const action = String(event.action || '').toLowerCase();
+  if (event.category === 'junk' || action === 'filed' || action === 'junk') {
+    removeEmailRelatedAlertBanners(id);
+  }
   renderEmailPanel();
   syncInboxAppBadge(emailState.allEvents);
 }
@@ -10593,6 +10625,7 @@ async function deleteEmail(ev) {
     });
     await readApiJson(res);
     emailState.allEvents = emailState.allEvents.filter((e) => e.id !== ev.id);
+    removeEmailRelatedAlertBanners(ev.id);
     if (wasActive) {
       if (nextId && emailState.allEvents.some((e) => e.id === nextId)) {
         emailState.activeId = nextId;
@@ -10640,6 +10673,7 @@ async function bulkDeleteInboxCategory(tab) {
     });
     const data = await readApiJson(res);
     emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
+    for (const id of ids) removeEmailRelatedAlertBanners(id);
     if (emailState.activeId && idSet.has(emailState.activeId)) emailState.activeId = null;
     renderEmailPanel();
     syncInboxAppBadge(emailState.allEvents);

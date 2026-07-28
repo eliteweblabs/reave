@@ -11,6 +11,7 @@ import {
   storeUpdateEmailInbox,
   type EmailInboxPatch,
 } from '../../../../lib/emailInboxStore';
+import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
@@ -58,6 +59,12 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   if (rec.seen === true || rec.markSeen === true) patch.markSeen = true;
   if (rec.markAutomationAck === true || rec.automationAck === true) patch.markAutomationAck = true;
   return Object.keys(patch).length ? patch : null;
+}
+
+function isEmailArchivedOrRemoved(patch: EmailInboxPatch): boolean {
+  const action = String(patch.action || '').toLowerCase();
+  const status = String(patch.status || '').toLowerCase();
+  return patch.category === 'junk' || action === 'filed' || action === 'junk' || status === 'filed';
 }
 
 export async function GET(context: APIContext): Promise<Response> {
@@ -127,8 +134,14 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const { rejectProjectMatch: _reject, ...storePatch } = patch;
+  if (isEmailArchivedOrRemoved(storePatch)) {
+    storePatch.markAutomationAck = true;
+  }
   const event = await storeUpdateEmailInbox(id, storePatch);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
+  if (isEmailArchivedOrRemoved(storePatch)) {
+    await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
+  }
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
   return json({
     ok: true,
@@ -143,6 +156,7 @@ export async function DELETE(context: APIContext): Promise<Response> {
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing id' }, 400);
 
+  await dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined);
   const deleted = await storeDeleteEmailInbox(id);
   if (!deleted) return json({ ok: false, error: 'Not found' }, 404);
   return json({ ok: true });

@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { storeDeleteEmailInboxMany } from '../../../../lib/emailInboxStore';
+import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 
 export const prerender = false;
 
@@ -36,6 +37,12 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const ids = raw.map((id) => String(id).trim()).filter(Boolean);
   if (!ids.length) return json({ ok: false, error: 'No valid ids' }, 400);
+
+  await Promise.all(
+    ids.map((id) =>
+      dismissEmailRelatedNotifications(id, { markAutomationAck: false }).catch(() => undefined),
+    ),
+  );
 
   const deleted = await storeDeleteEmailInboxMany(ids);
   return json({ ok: true, deleted, requested: ids.length });
