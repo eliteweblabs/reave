@@ -29,6 +29,7 @@ export const FEATURE_IDS = [
   'fleet_tracking',
   'dealership_wizard',
   'namecom_dns',
+  'time_tracking',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -101,6 +102,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   fleet_tracking: 'Fleet tracking (multi-vehicle GPS via fleet-api)',
   dealership_wizard: 'Dealership inventory & deal wizard (paulino-wizard)',
   namecom_dns: 'DNS record management (Name.com) — agency/ops installs only',
+  time_tracking: 'Project time log (hours + notes → invoicing)',
 };
 
 export const CORE_FEATURE_NOTE =

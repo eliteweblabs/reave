@@ -2350,6 +2350,66 @@ const mapboxAccessToken = getPublicMapboxAccessToken() || '';
         color: var(--muted);
         line-height: 1.4;
       }
+      .wk-time-section {
+        margin: 0.5rem 0 0.75rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid var(--panel-border);
+        border-radius: var(--radius-input);
+        background: var(--card);
+      }
+      .wk-time-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.55rem;
+      }
+      .wk-time-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .wk-time-total {
+        font-size: 0.72rem;
+        color: #3fb950;
+        font-weight: 600;
+      }
+      .wk-time-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+      .wk-time-row {
+        display: grid;
+        grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+        gap: 0.45rem;
+        align-items: center;
+      }
+      .wk-time-hours {
+        min-width: 0;
+        text-align: center;
+      }
+      .wk-time-note {
+        min-width: 0;
+      }
+      .wk-time-empty {
+        padding: 0.35rem 0;
+      }
+      .wk-time-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-top: 0.65rem;
+      }
+      .wk-time-save-status {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .wk-time-billable {
+        margin-top: 0.75rem;
+      }
       .re-textarea {
         width: 100%;
         min-height: 4.5rem;

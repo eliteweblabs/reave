@@ -25,6 +25,12 @@ import {
   groupedInvoiceDescription,
   parseMarkdownCheckboxes,
 } from '../../workChecklist';
+import { hasFeature } from '../../features';
+import { storeListTimeEntries } from '../../timeEntries';
+import {
+  groupedTimeInvoiceDescription,
+  timeEntriesToInvoiceSuggestions,
+} from '../../workTimeBilling';
 import { findCheckboxByText } from '../../markdownCheckboxes';
 import {
   isTodoDbConfigured,
@@ -528,6 +534,15 @@ async function handle_get_work_invoice_suggestions(args: Record<string, unknown>
   const invoice_suggestions = completedItemsToInvoiceSuggestions(doc.body, doc.title);
   const grouped_line_item = groupedInvoiceDescription(doc.body, doc.title);
 
+  const timeEnabled = hasFeature('time_tracking');
+  const time_entries = timeEnabled ? await storeListTimeEntries(slug) : [];
+  const time_invoice_suggestions = timeEnabled
+    ? timeEntriesToInvoiceSuggestions(time_entries, doc.title)
+    : [];
+  const grouped_time_line_item = timeEnabled
+    ? groupedTimeInvoiceDescription(time_entries, doc.title)
+    : null;
+
   return JSON.stringify({
     ok: true,
     slug: doc.slug,
@@ -540,7 +555,14 @@ async function handle_get_work_invoice_suggestions(args: Record<string, unknown>
     })),
     invoice_suggestions,
     grouped_line_item,
-    hint: 'Use each suggestion description on a Crater line item (create_invoice / add_invoice_items). User still sets price.',
+    time_entries: time_entries.map((e) => ({
+      id: e.id,
+      hours: e.hours,
+      note: e.note,
+    })),
+    time_invoice_suggestions,
+    grouped_time_line_item,
+    hint: 'Use each suggestion description on a Crater line item (create_invoice / add_invoice_items). For time rows, set quantity to hours and price to your hourly rate. User still sets price when not using an hourly rate.',
   });
 }
 
@@ -805,7 +827,7 @@ export const workModule: AgentToolModule = {
             function: {
               name: 'get_work_invoice_suggestions',
               description:
-                'List completed project checklist items formatted as Crater invoice line-item suggestions (name + description). Use before create_invoice or add_invoice_items when billing for work tracked on a job.',
+                'List completed project checklist items and logged time rows formatted as Crater invoice line-item suggestions (name + description + quantity for time). Use before create_invoice or add_invoice_items when billing for work tracked on a job.',
               parameters: {
                 type: 'object',
                 properties: {

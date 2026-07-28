@@ -82,6 +82,16 @@ CREATE INDEX IF NOT EXISTS idx_job_comments_slug ON job_comments(job_slug);
 CREATE INDEX IF NOT EXISTS idx_job_comments_created ON job_comments(job_slug, created_at);
 ALTER TABLE job_comments ADD COLUMN IF NOT EXISTS staff_ack_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_job_comments_pending ON job_comments(staff_ack_at) WHERE staff_ack_at IS NULL;
+CREATE TABLE IF NOT EXISTS job_time_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  job_slug VARCHAR(255) NOT NULL,
+  hours NUMERIC(8,2) NOT NULL CHECK (hours > 0),
+  note TEXT NOT NULL DEFAULT '',
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_job_time_entries_slug ON job_time_entries(job_slug);
+CREATE INDEX IF NOT EXISTS idx_job_time_entries_sort ON job_time_entries(job_slug, sort_order);
 `;
 
 const MIGRATE_SQL = `
@@ -424,6 +434,7 @@ export async function dbDeleteWork(slug: string): Promise<{ ok: boolean; error?:
     if (!pool) return { ok: false, error: 'Work DB not configured — cannot save.' };
 
     await pool.query(`DELETE FROM job_comments WHERE job_slug = $1`, [slug]);
+    await pool.query(`DELETE FROM job_time_entries WHERE job_slug = $1`, [slug]);
     const { rowCount } = await pool.query(`DELETE FROM jobs WHERE slug = $1`, [slug]);
     if ((rowCount ?? 0) === 0) return { ok: false, error: 'Not found' };
     return { ok: true };
@@ -586,5 +597,82 @@ export async function dbAckJobCommentsForSlug(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
+  }
+}
+
+interface JobTimeEntryRow {
+  id: string;
+  job_slug: string;
+  hours: string | number;
+  note: string;
+  created_at: string;
+}
+
+function rowToTimeEntry(row: JobTimeEntryRow) {
+  return {
+    id: row.id,
+    slug: row.job_slug,
+    hours: Number(row.hours),
+    note: row.note ?? '',
+    createdAt: row.created_at,
+  };
+}
+
+export async function dbListJobTimeEntries(slug: string) {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<JobTimeEntryRow>(
+      `SELECT id, job_slug, hours, note, created_at
+       FROM job_time_entries
+       WHERE job_slug = $1
+       ORDER BY sort_order ASC, created_at ASC`,
+      [slug],
+    );
+    return rows.map(rowToTimeEntry);
+  } catch (e) {
+    console.error('[jobs:pg] list time entries error:', e);
+    return null;
+  }
+}
+
+export async function dbSaveJobTimeEntries(
+  slug: string,
+  entries: Array<{ id: string; slug: string; hours: number; note: string; createdAt: string }>,
+): Promise<{ ok: true; entries: ReturnType<typeof rowToTimeEntry>[]; totalHours: number } | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`DELETE FROM job_time_entries WHERE job_slug = $1`, [slug]);
+
+      const saved: ReturnType<typeof rowToTimeEntry>[] = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i]!;
+        const { rows } = await client.query<JobTimeEntryRow>(
+          `INSERT INTO job_time_entries (id, job_slug, hours, note, sort_order, created_at)
+           VALUES ($1::uuid, $2, $3, $4, $5, COALESCE($6::timestamptz, NOW()))
+           RETURNING id, job_slug, hours, note, created_at`,
+          [entry.id, slug, entry.hours, entry.note, i, entry.createdAt],
+        );
+        const row = rows[0];
+        if (row) saved.push(rowToTimeEntry(row));
+      }
+
+      await client.query('COMMIT');
+      const totalHours = saved.reduce((sum, e) => sum + e.hours, 0);
+      return { ok: true, entries: saved, totalHours: Math.round(totalHours * 100) / 100 };
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (e) {
+    console.error('[jobs:pg] save time entries error:', e);
+    return null;
   }
 }

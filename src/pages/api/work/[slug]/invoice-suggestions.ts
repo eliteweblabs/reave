@@ -3,12 +3,18 @@
  */
 
 import type { APIContext } from 'astro';
+import { hasFeature } from '../../../../lib/features';
 import { isSafeWorkSlug, storeReadWork } from '../../../../lib/workStore';
 import {
   completedItemsToInvoiceSuggestions,
   groupedInvoiceDescription,
   parseMarkdownCheckboxes,
 } from '../../../../lib/workChecklist';
+import { storeListTimeEntries } from '../../../../lib/timeEntries';
+import {
+  groupedTimeInvoiceDescription,
+  timeEntriesToInvoiceSuggestions,
+} from '../../../../lib/workTimeBilling';
 
 export const prerender = false;
 
@@ -33,6 +39,15 @@ export async function GET(context: APIContext): Promise<Response> {
   const suggestions = completedItemsToInvoiceSuggestions(doc.body, doc.title);
   const grouped = groupedInvoiceDescription(doc.body, doc.title);
 
+  const timeEnabled = hasFeature('time_tracking');
+  const timeEntries = timeEnabled ? await storeListTimeEntries(slug) : [];
+  const timeInvoiceSuggestions = timeEnabled
+    ? timeEntriesToInvoiceSuggestions(timeEntries, doc.title)
+    : [];
+  const groupedTimeLineItem = timeEnabled
+    ? groupedTimeInvoiceDescription(timeEntries, doc.title)
+    : null;
+
   return json({
     ok: true,
     slug: doc.slug,
@@ -41,5 +56,8 @@ export async function GET(context: APIContext): Promise<Response> {
     checklist,
     invoice_suggestions: suggestions,
     grouped_line_item: grouped,
+    time_entries: timeEntries,
+    time_invoice_suggestions: timeInvoiceSuggestions,
+    grouped_time_line_item: groupedTimeLineItem,
   });
 }

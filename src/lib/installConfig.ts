@@ -29,6 +29,7 @@ const FEATURE_IDS_LIST = [
   'fleet_tracking',
   'dealership_wizard',
   'namecom_dns',
+  'time_tracking',
 ] as const;
 
 export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
@@ -78,7 +79,10 @@ export type InstallConfig = {
   homepageVoice?: boolean;
 };
 
-export type InstallConfigClient = Pick<InstallConfig, 'footerNav' | 'profileMenu' | 'homepageVoice'>;
+export type InstallConfigClient = Pick<
+  InstallConfig,
+  'features' | 'footerNav' | 'profileMenu' | 'homepageVoice'
+>;
 
 export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   profile: 'Profile',
@@ -267,6 +271,7 @@ export async function getInstallConfig(): Promise<InstallConfig> {
 export function getInstallConfigClient(): InstallConfigClient {
   const config = getInstallConfigSync();
   return {
+    features: config.features,
     footerNav: config.footerNav,
     profileMenu: config.profileMenu,
     homepageVoice: config.homepageVoice,

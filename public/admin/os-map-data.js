@@ -83,7 +83,7 @@ const SYSTEM_EDGES = [
   { from: 'contact_api', to: 'contact_pg' },
   { from: 'astro', to: 'railway_gql', label: 'GraphQL · /railway' },
   { from: 'astro', to: 'kinsta_api', label: 'agent · Kinsta WP' },
-  { from: 'astro', to: 'crater', label: 'billing API' },
+  { from: 'astro', to: 'crater', label: 'billing · time → invoice' },
   { from: 'astro', to: 'materials_api', label: 'materials pricing', dashed: true },
   { from: 'astro', to: 'fleet_api', label: 'fleet GPS · map', dashed: true },
   { from: 'dev', to: 'astro', label: 'location ping (signed in)', dashed: true },

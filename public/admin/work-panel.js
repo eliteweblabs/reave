@@ -513,6 +513,267 @@ function renderWorkChecklistPanel(mountEl, opts) {
   mountEl.appendChild(section);
 }
 
+function hasInstallFeature(id) {
+  const features = window.__installConfig?.features;
+  return Array.isArray(features) && features.includes(id);
+}
+
+function newWorkTimeEntryId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return `time-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function formatWorkTimeHours(total) {
+  const rounded = Math.round(total * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function mountWorkTimeSection(pane, slug, opts = {}) {
+  if (!hasInstallFeature('time_tracking')) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'wk-time-section';
+  wrap.innerHTML = '<div class="de-loading">Loading time…</div>';
+  pane.appendChild(wrap);
+
+  let entries = [];
+  let saveTimer = null;
+  let saving = false;
+
+  const render = () => {
+    wrap.innerHTML = '';
+
+    const head = document.createElement('div');
+    head.className = 'wk-time-head';
+    const label = document.createElement('span');
+    label.className = 'wk-time-label';
+    label.textContent = 'Time';
+    head.appendChild(label);
+
+    const totalHours = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
+    if (totalHours > 0) {
+      const total = document.createElement('span');
+      total.className = 'wk-time-total';
+      total.textContent = `${formatWorkTimeHours(totalHours)}h total`;
+      head.appendChild(total);
+    }
+    wrap.appendChild(head);
+
+    const list = document.createElement('div');
+    list.className = 'wk-time-list';
+
+    const scheduleSave = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => void saveEntries(), 650);
+    };
+
+    const renderRow = (entry, index) => {
+      const row = document.createElement('div');
+      row.className = 'wk-time-row';
+
+      const hoursInput = document.createElement('input');
+      hoursInput.type = 'number';
+      hoursInput.className = 'de-input wk-time-hours';
+      hoursInput.inputMode = 'decimal';
+      hoursInput.min = '0.25';
+      hoursInput.max = '9999';
+      hoursInput.step = '0.25';
+      hoursInput.placeholder = 'hrs';
+      hoursInput.value = entry.hours ? String(entry.hours) : '';
+      hoursInput.setAttribute('aria-label', 'Hours');
+
+      const noteInput = document.createElement('input');
+      noteInput.type = 'text';
+      noteInput.className = 'de-input wk-time-note';
+      noteInput.placeholder = 'Note';
+      noteInput.maxLength = 500;
+      noteInput.value = entry.note || '';
+      noteInput.setAttribute('aria-label', 'Note');
+
+      const removeBtn = createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Remove time row',
+        className: 'ios-icon-btn wk-time-remove',
+        onClick: () => {
+          entries.splice(index, 1);
+          render();
+          scheduleSave();
+        },
+      });
+
+      hoursInput.addEventListener('input', () => {
+        entry.hours = hoursInput.value;
+        scheduleSave();
+      });
+      hoursInput.addEventListener('blur', () => {
+        const parsed = Number(String(entry.hours).trim());
+        if (Number.isFinite(parsed) && parsed > 0) {
+          entry.hours = Math.round(parsed * 100) / 100;
+          hoursInput.value = String(entry.hours);
+        }
+        void saveEntries();
+      });
+      noteInput.addEventListener('input', () => {
+        entry.note = noteInput.value;
+        scheduleSave();
+      });
+      noteInput.addEventListener('blur', () => void saveEntries());
+
+      row.append(hoursInput, noteInput, removeBtn);
+      list.appendChild(row);
+    };
+
+    if (!entries.length) {
+      const empty = document.createElement('div');
+      empty.className = 'de-empty wk-time-empty';
+      empty.textContent = 'No time logged yet.';
+      list.appendChild(empty);
+    } else {
+      entries.forEach((entry, index) => renderRow(entry, index));
+    }
+    wrap.appendChild(list);
+
+    const actions = document.createElement('div');
+    actions.className = 'wk-time-actions';
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'de-btn de-btn-secondary de-btn-with-icon';
+    setDeBtnLabel(addBtn, 'Add time', 'plus');
+    addBtn.addEventListener('click', () => {
+      entries.push({
+        id: newWorkTimeEntryId(),
+        hours: '',
+        note: '',
+        createdAt: new Date().toISOString(),
+      });
+      render();
+      const lastHours = wrap.querySelector('.wk-time-hours:last-of-type');
+      if (lastHours) lastHours.focus();
+    });
+    actions.appendChild(addBtn);
+
+    if (saving) {
+      const status = document.createElement('span');
+      status.className = 'wk-time-save-status';
+      status.textContent = 'Saving…';
+      actions.appendChild(status);
+    }
+
+    wrap.appendChild(actions);
+
+    const billable = entries.filter((e) => Number(e.hours) > 0);
+    if (billable.length) {
+      const bill = document.createElement('div');
+      bill.className = 'wk-billable-section wk-time-billable';
+
+      const billHead = document.createElement('div');
+      billHead.className = 'wk-billable-head';
+      const billLabel = document.createElement('span');
+      billLabel.className = 'wk-billable-label';
+      billLabel.textContent = 'Ready to invoice';
+      billHead.appendChild(billLabel);
+
+      const copyBtn = createIosIconBtn({
+        iconKey: 'copy',
+        label: 'Copy time for invoice',
+        className: 'ios-icon-btn wk-billable-copy',
+        onClick: () => {
+          const lines = billable
+            .map((e) => {
+              const note = (e.note || '').trim() || 'Time worked';
+              return `${formatWorkTimeHours(Number(e.hours))}h — ${note}`;
+            })
+            .join('\n');
+          navigator.clipboard.writeText(lines).then(
+            () =>
+              shell.osAlert({
+                title: 'Copied',
+                bodyHtml:
+                  '<p>Time entries copied — paste into Crater line items (quantity = hours) or ask the agent to invoice.</p>',
+              }),
+            () => shell.osAlert({ title: 'Copy failed', bodyHtml: '<p>Could not access clipboard.</p>' }),
+          );
+        },
+      });
+      billHead.appendChild(copyBtn);
+      bill.appendChild(billHead);
+
+      const billList = document.createElement('ul');
+      billList.className = 'wk-billable-list';
+      for (const entry of billable) {
+        const li = document.createElement('li');
+        li.className = 'wk-billable-item';
+        const note = (entry.note || '').trim() || 'Time worked';
+        li.textContent = `${formatWorkTimeHours(Number(entry.hours))}h — ${note}`;
+        billList.appendChild(li);
+      }
+      bill.appendChild(billList);
+
+      const hint = document.createElement('p');
+      hint.className = 'wk-billable-hint';
+      hint.textContent = `Bill ${opts.clientName || opts.title || 'this client'} using hours as quantity on each line item.`;
+      bill.appendChild(hint);
+
+      wrap.appendChild(bill);
+    }
+  };
+
+  const saveEntries = async () => {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    const payload = entries
+      .map((e) => ({
+        id: e.id,
+        hours: Number(String(e.hours).trim()),
+        note: (e.note || '').trim(),
+        createdAt: e.createdAt,
+      }))
+      .filter((e) => Number.isFinite(e.hours) && e.hours > 0);
+
+    saving = true;
+    render();
+
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}/time`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: payload }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      entries = (data.entries || []).map((e) => ({
+        id: e.id,
+        hours: e.hours,
+        note: e.note || '',
+        createdAt: e.createdAt,
+      }));
+    } catch (e) {
+      shell.osAlert({ title: 'Could not save time', bodyHtml: escHtml(e.message) });
+    } finally {
+      saving = false;
+      render();
+    }
+  };
+
+  fetch(`/api/work/${encodeURIComponent(slug)}/time`, { cache: 'no-store' })
+    .then((r) => r.json())
+    .then((data) => {
+      if (!data.ok) throw new Error(data.error || 'Failed to load time');
+      entries = (data.entries || []).map((e) => ({
+        id: e.id,
+        hours: e.hours,
+        note: e.note || '',
+        createdAt: e.createdAt,
+      }));
+      render();
+    })
+    .catch(() => {
+      wrap.remove();
+    });
+}
+
 function createClientWorkCard(job) {
   const card = document.createElement('button');
   card.type = 'button';
@@ -2293,6 +2554,10 @@ function renderEditWorkForm(pane) {
       scroll.appendChild(checklistMount);
       scroll.appendChild(bodyEditor.wrap);
       renderWorkChecklistPanel(checklistMount, checklistOpts);
+      mountWorkTimeSection(scroll, slug, {
+        title: workState.draft.title,
+        clientName: workState.draft.contact_name,
+      });
       mountWorkCommentsSection(scroll, slug, data.contact_uid);
       mountWorkFilesSection(scroll, slug, data.files);
       mountWorkTodosSection(scroll, slug);

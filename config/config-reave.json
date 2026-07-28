@@ -17,7 +17,8 @@
     "email_marketing",
     "fleet_tracking",
     "dealership_wizard",
-    "namecom_dns"
+    "namecom_dns",
+    "time_tracking"
   ],
   "footerNav": [
     "__system__",
