@@ -32,6 +32,35 @@ const company = await getCompanyConfig(Astro.request);
 const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
 const quoteHref = supportMail ? `mailto:${supportMail}` : "/schedule";
 
+/** Familiar SaaS logos — what {company.name} consolidates for clients. */
+type ReplacedApp = { slug: string; name: string; color: string };
+
+const replacedApps: ReplacedApp[] = [
+  { slug: "gmail", name: "Gmail", color: "#EA4335" },
+  { slug: "microsoftoutlook", name: "Outlook", color: "#0078D4" },
+  { slug: "googlecalendar", name: "Google Calendar", color: "#4285F4" },
+  { slug: "openai", name: "ChatGPT", color: "#412991" },
+  { slug: "quickbooks", name: "QuickBooks", color: "#2CA01C" },
+  { slug: "slack", name: "Slack", color: "#4A154B" },
+  { slug: "zoom", name: "Zoom", color: "#0B5CFF" },
+  { slug: "microsoftteams", name: "Teams", color: "#6264A7" },
+  { slug: "notion", name: "Notion", color: "#FFFFFF" },
+  { slug: "trello", name: "Trello", color: "#0052CC" },
+  { slug: "asana", name: "Asana", color: "#F06A6A" },
+  { slug: "monday", name: "Monday.com", color: "#FF3D57" },
+  { slug: "hubspot", name: "HubSpot", color: "#FF7A59" },
+  { slug: "salesforce", name: "Salesforce", color: "#00A1E0" },
+  { slug: "stripe", name: "Stripe", color: "#635BFF" },
+  { slug: "calendly", name: "Calendly", color: "#006BFF" },
+  { slug: "docusign", name: "DocuSign", color: "#FFCC22" },
+  { slug: "mailchimp", name: "Mailchimp", color: "#FFE01B" },
+  { slug: "dropbox", name: "Dropbox", color: "#0061FF" },
+  { slug: "googledrive", name: "Google Drive", color: "#4285F4" },
+];
+
+const SIMPLE_ICONS_CDN = (slug: string) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
 type IconComponent = typeof Users;
 
 type Section = {
@@ -318,7 +347,7 @@ const portalTabs = [
 
 <Layout
   title="Features"
-  description={`Everything ${company.name} runs on — contacts, client portals, billing, the AI assistant, Siri, white-label branding, mobile push, SMS, and industry plugins, all in one platform.`}
+  description={`${company.name} replaces the SaaS stack most businesses pay for separately — Gmail, QuickBooks, ChatGPT, Calendly, HubSpot, and more — with one platform: contacts, portal, billing, AI, scheduling, white-label branding, and plugins.`}
 >
   <div class="fx-page">
     <section class="fx-hero">
@@ -344,6 +373,37 @@ const portalTabs = [
         <span class="fx-chip">White labeled</span>
         <span class="fx-chip">Plug in only what you need</span>
       </div>
+    </section>
+
+    <section class="fx-stack" aria-label="Apps this platform replaces">
+      <p class="fx-stack-kicker">Replace the stack</p>
+      <h2 class="fx-stack-h2">
+        One platform instead of a dozen monthly subscriptions.
+      </h2>
+      <p class="fx-stack-lead">
+        Most small businesses pay separately for email, CRM, invoicing, scheduling,
+        AI, file storage, e-sign, and project tools. {company.name} is built to
+        absorb that whole layer — so your clients stop juggling logins and line items.
+      </p>
+      <ul class="fx-stack-grid">
+        {
+          replacedApps.map((app) => (
+            <li class="fx-stack-item">
+              <span
+                class="fx-stack-logo"
+                style={`--brand-color: ${app.color}; --brand-icon: url(${SIMPLE_ICONS_CDN(app.slug)})`}
+                aria-hidden="true"
+              />
+              <span class="fx-stack-name">{app.name}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="fx-stack-note">
+        Keep Gmail or Outlook for personal mail if you want — the OS handles CRM,
+        billing, projects, scheduling, AI, and the client portal that used to
+        require all of the above.
+      </p>
     </section>
 
     <section class="fx-list" aria-label="Core features">
@@ -565,11 +625,16 @@ const portalTabs = [
   }
 
   .fx-hero,
+  .fx-stack,
   .fx-list,
   .fx-plugins,
   .fx-closing {
     width: 100%;
     max-width: 760px;
+  }
+
+  .fx-stack {
+    max-width: 920px;
   }
 
   /* ---------- Hero ---------- */
@@ -664,6 +729,111 @@ const portalTabs = [
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* ---------- Replaced-app logo wall ---------- */
+
+  .fx-stack {
+    text-align: center;
+    margin-bottom: 56px;
+    padding: 28px 22px 32px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(168, 85, 247, 0.12), transparent 70%),
+      rgba(255, 255, 255, 0.02);
+  }
+
+  .fx-stack-kicker {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin: 0 0 12px;
+  }
+
+  .fx-stack-h2 {
+    margin: 0 0 12px;
+    font-size: clamp(1.35rem, 3.8vw, 1.85rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: #fff;
+  }
+
+  .fx-stack-lead {
+    margin: 0 auto 24px;
+    max-width: 620px;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .fx-stack-grid {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .fx-stack-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(0, 0, 0, 0.22);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .fx-stack-item:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .fx-stack-logo {
+    width: 28px;
+    height: 28px;
+    background-color: var(--brand-color);
+    mask: var(--brand-icon) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon) center / contain no-repeat;
+  }
+
+  .fx-stack-name {
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+  }
+
+  .fx-stack-note {
+    margin: 0 auto;
+    max-width: 580px;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  @media (max-width: 720px) {
+    .fx-stack-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 480px) {
+    .fx-stack-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .fx-stack-name {
+      font-size: 0.62rem;
+    }
   }
 
   /* ---------- Section intros ---------- */
