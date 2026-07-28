@@ -5,6 +5,7 @@ import {
   resolveCompanyAddressGeo,
   type CompanyConfigInput,
 } from '../../../lib/companyConfig';
+import { brandFontCatalogForAdmin } from '../../../lib/brandFonts';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
 
@@ -22,7 +23,7 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!userId) return json({ error: 'Unauthorized' }, 401);
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company });
+  return json({ ok: true, company, fontCatalog: brandFontCatalogForAdmin() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -62,5 +63,5 @@ export async function POST(context: APIContext): Promise<Response> {
   invalidateOfficeCoordsCache();
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company });
+  return json({ ok: true, company, fontCatalog: brandFontCatalogForAdmin() });
 }

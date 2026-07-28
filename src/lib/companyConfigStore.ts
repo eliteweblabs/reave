@@ -64,6 +64,10 @@ export type StoredCompanyConfig = {
   socialYelp?: string | null;
   socialGoogleBusiness?: string | null;
   socialHiddenPlatforms?: string[] | null;
+  /** Admin-selected heading font id — see brandFonts.ts */
+  fontDisplay?: string | null;
+  /** Admin-selected body font id — see brandFonts.ts */
+  fontBody?: string | null;
   updatedAt?: string | null;
 };
 
@@ -119,6 +123,8 @@ ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lat DOUBLE PRECISION;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_lng DOUBLE PRECISION;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_place_id TEXT;
 ALTER TABLE company_config ADD COLUMN IF NOT EXISTS geo_geocoded_at TIMESTAMPTZ;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_display TEXT;
+ALTER TABLE company_config ADD COLUMN IF NOT EXISTS font_body TEXT;
 `;
 
 let _pool: pg.Pool | null | undefined = undefined;
@@ -256,6 +262,8 @@ function normalizeStored(raw: unknown): StoredCompanyConfig {
     socialYelp: str('socialYelp') || null,
     socialGoogleBusiness: str('socialGoogleBusiness') || null,
     socialHiddenPlatforms: parseHiddenSocialPlatforms(o.socialHiddenPlatforms),
+    fontDisplay: str('fontDisplay') || null,
+    fontBody: str('fontBody') || null,
     updatedAt: typeof o.updatedAt === 'string' && o.updatedAt ? o.updatedAt : null,
   };
 }
@@ -328,6 +336,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
     geo_lng: number | null;
     geo_place_id: string | null;
     geo_geocoded_at: Date | string | null;
+    font_display: string | null;
+    font_body: string | null;
     updated_at: Date | string | null;
   }>(
     `SELECT name, legal_name, description, domain, support_email, support_phone, from_email,
@@ -339,7 +349,7 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             social_snapchat, social_discord, social_reddit, social_github, social_twitch,
             social_telegram, social_whatsapp, social_substack, social_yelp, social_google_business,
             social_hidden_platforms, address, geo_lat, geo_lng, geo_place_id, geo_geocoded_at,
-            updated_at
+            font_display, font_body, updated_at
      FROM company_config WHERE id = 1 LIMIT 1`,
   );
   const row = res.rows[0];
@@ -391,6 +401,8 @@ async function readPgConfig(): Promise<StoredCompanyConfig | null> {
             geocodedAt: row.geo_geocoded_at ? String(row.geo_geocoded_at) : null,
           }
         : null,
+    fontDisplay: row.font_display,
+    fontBody: row.font_body,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   });
 }
@@ -441,6 +453,8 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
        geo_lng = $39,
        geo_place_id = $40,
        geo_geocoded_at = $41,
+       font_display = $42,
+       font_body = $43,
        updated_at = now()
      WHERE id = 1`,
     [
@@ -487,6 +501,8 @@ async function writePgConfig(config: StoredCompanyConfig): Promise<boolean> {
       config.geo?.lng ?? null,
       config.geo?.placeId ?? null,
       config.geo?.geocodedAt ? new Date(config.geo.geocodedAt) : null,
+      config.fontDisplay ?? null,
+      config.fontBody ?? null,
     ],
   );
   return true;

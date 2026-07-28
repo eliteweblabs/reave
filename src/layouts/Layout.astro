@@ -1,6 +1,7 @@
 ---
 import Header from "../components/Header.astro";
 import Favicon from "../components/Favicon.astro";
+import BrandFontHead from "../components/BrandFontHead.astro";
 import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { getCompanyConfig } from "../lib/companyConfig";
@@ -60,7 +61,10 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 ---
 
 <!doctype html>
-<html lang="en">
+<html
+	lang="en"
+	style={`--font-display: ${company.fonts.fontDisplay}; --font-body: ${company.fonts.fontBody};`}
+>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -70,10 +74,7 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<!-- Favicons -->
 		<Favicon />
 
-		<!-- Fonts -->
-		<link rel="preconnect" href="https://fonts.googleapis.com" />
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-		<link href="https://fonts.googleapis.com/css2?family=Mozilla+Text:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+		<BrandFontHead fonts={company.fonts} />
 
 		<title>{pageTitle}</title>
 		<meta name="description" content={description} />

@@ -5017,7 +5017,7 @@ function destroyCompanyMap() {
   companyPendingGeo = null;
 }
 
-function bindCompanyForm(root, company) {
+function bindCompanyForm(root, company, fontCatalog) {
   destroyCompanyMap();
 
   const addressInput = root.querySelector('#company-address');
@@ -5094,6 +5094,7 @@ function bindCompanyForm(root, company) {
 
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
+  bindCompanyFontPreview(root, fontCatalog, company);
 }
 
 const SOCIAL_OAUTH_ERRORS = {
@@ -5426,8 +5427,74 @@ function renderProfileOnlyPanel(profile) {
   );
 }
 
-function renderCompanyPanel(company) {
+function brandFontsForRole(catalog, role) {
+  return (catalog || []).filter(
+    (entry) => Array.isArray(entry.roles) && entry.roles.includes(role),
+  );
+}
+
+function renderBrandFontOptions(catalog, role, selectedId) {
+  const options = brandFontsForRole(catalog, role);
+  const fallback = role === 'display' ? 'space-grotesk' : 'mozilla-text';
+  const selected = selectedId || fallback;
+  return options
+    .map(
+      (entry) =>
+        `<option value="${escHtml(entry.id)}"${entry.id === selected ? ' selected' : ''}>${escHtml(entry.label)}</option>`,
+    )
+    .join('');
+}
+
+function buildBrandFontsHref(catalog, displayId, bodyId) {
+  const display = (catalog || []).find((entry) => entry.id === displayId);
+  const body = (catalog || []).find((entry) => entry.id === bodyId);
+  if (!display || !body) return '';
+  const specs = new Map();
+  specs.set(display.family, display.googleSpec);
+  specs.set(body.family, body.googleSpec);
+  return `https://fonts.googleapis.com/css2?${[...specs.values()]
+    .map((spec) => `family=${spec}`)
+    .join('&')}&display=swap`;
+}
+
+function bindCompanyFontPreview(root, catalog, company) {
+  const displaySelect = root.querySelector('#company-fontDisplay');
+  const bodySelect = root.querySelector('#company-fontBody');
+  const previewDisplay = root.querySelector('.prof-font-preview-display');
+  const previewBody = root.querySelector('.prof-font-preview-body');
+  if (!displaySelect || !bodySelect || !previewDisplay || !previewBody) return;
+
+  let fontLink = document.getElementById('company-font-preview-link');
+  if (!(fontLink instanceof HTMLLinkElement)) {
+    fontLink = document.createElement('link');
+    fontLink.id = 'company-font-preview-link';
+    fontLink.rel = 'stylesheet';
+    document.head.appendChild(fontLink);
+  }
+
+  const update = () => {
+    const displayId = displaySelect.value;
+    const bodyId = bodySelect.value;
+    const display = (catalog || []).find((entry) => entry.id === displayId);
+    const body = (catalog || []).find((entry) => entry.id === bodyId);
+    const href = buildBrandFontsHref(catalog, displayId, bodyId);
+    if (href) fontLink.href = href;
+    previewDisplay.style.fontFamily = display
+      ? `"${display.family}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+      : '';
+    previewBody.style.fontFamily = body
+      ? `"${body.family}", Georgia, "Times New Roman", serif`
+      : '';
+  };
+
+  displaySelect.addEventListener('change', update);
+  bodySelect.addEventListener('change', update);
+  update();
+}
+
+function renderCompanyPanel(company, fontCatalog) {
   const c = company || {};
+  const fonts = c.fonts || {};
   const logoUrl = companyLogoPreviewUrl(c);
   const hasLogo = hasCustomCompanyLogo(c);
   const iconUrl = companyIconPreviewUrl(c);
@@ -5479,6 +5546,21 @@ function renderCompanyPanel(company) {
             `</div>` +
           `</div>` +
           `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
+          `<div class="prof-field-row">` +
+            `<div class="prof-field"><label for="company-fontDisplay">Heading font</label>` +
+            `<select id="company-fontDisplay" name="fontDisplay" aria-describedby="company-font-hint">` +
+              renderBrandFontOptions(fontCatalog, 'display', fonts.fontDisplayId) +
+            `</select></div>` +
+            `<div class="prof-field"><label for="company-fontBody">Body font</label>` +
+            `<select id="company-fontBody" name="fontBody" aria-describedby="company-font-hint">` +
+              renderBrandFontOptions(fontCatalog, 'body', fonts.fontBodyId) +
+            `</select></div>` +
+          `</div>` +
+          `<div class="prof-font-preview" aria-hidden="true">` +
+            `<p class="prof-font-preview-display">Runs the whole business</p>` +
+            `<p class="prof-font-preview-body">Contacts, billing, projects, and AI — one platform.</p>` +
+          `</div>` +
+          `<span id="company-font-hint" class="prof-hint prof-hint--block">Typography for public pages — headings, marketing copy, and feature lists. Changes apply after save.</span>` +
           `<div class="prof-field"><label for="company-domain">Website domain</label>` +
           `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
           `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +
@@ -5820,9 +5902,9 @@ async function loadCompanyTab() {
     const companyRes = await fetch('/api/admin/company', { cache: 'no-store' });
     const companyData = await companyRes.json();
     if (!companyRes.ok || !companyData.ok) throw new Error(companyData.error || `HTTP ${companyRes.status}`);
-    root.innerHTML = renderCompanyPanel(companyData.company);
+    root.innerHTML = renderCompanyPanel(companyData.company, companyData.fontCatalog);
     prependSettingsBackHeader(root);
-    bindCompanyForm(root, companyData.company);
+    bindCompanyForm(root, companyData.company, companyData.fontCatalog);
   } catch (e) {
     root.innerHTML =
       `<div class="profile-panel-scroll">` +

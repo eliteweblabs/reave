@@ -6,6 +6,7 @@ import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
 import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH } from './companyLogo';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
+import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { serverEnv } from './serverEnv';
 import { parseHiddenSocialPlatforms } from './social/platforms.ts';
 
@@ -159,6 +160,8 @@ export type CompanyConfig = {
   socialGoogleBusiness: string;
   /** Platform ids hidden from the Socials settings form. */
   socialHiddenPlatforms: string[];
+  /** Resolved typography from admin Company branding. */
+  fonts: ResolvedBrandFonts;
 };
 
 function trim(s: string | null | undefined): string {
@@ -320,6 +323,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
   );
   const address = pick(stored?.address, serverEnv('BOOKING_DEFAULT_ADDRESS'));
   const geo = resolveCompanyGeo(stored);
+  const fonts = resolveBrandFonts(stored?.fontDisplay, stored?.fontBody);
   const vapiAssistantId = pick(
     stored?.vapiAssistantId,
     serverEnv('VAPI_ASSISTANT_ID'),
@@ -359,6 +363,7 @@ function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request
     socialYelp: trim(stored?.socialYelp),
     socialGoogleBusiness: trim(stored?.socialGoogleBusiness),
     socialHiddenPlatforms: parseHiddenSocialPlatforms(stored?.socialHiddenPlatforms),
+    fonts,
     ...logo,
     ...icon,
   };
@@ -423,6 +428,8 @@ export type CompanyConfigInput = {
   socialYelp?: string;
   socialGoogleBusiness?: string;
   socialHiddenPlatforms?: string[] | string;
+  fontDisplay?: string;
+  fontBody?: string;
 };
 
 export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyConfig {
@@ -474,6 +481,12 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
     } else {
       out.socialHiddenPlatforms = parseHiddenSocialPlatforms(raw);
     }
+  }
+  if (input.fontDisplay !== undefined) {
+    out.fontDisplay = normalizeBrandFontInput(input.fontDisplay, 'display');
+  }
+  if (input.fontBody !== undefined) {
+    out.fontBody = normalizeBrandFontInput(input.fontBody, 'body');
   }
   return out;
 }
