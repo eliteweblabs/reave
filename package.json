@@ -37,6 +37,7 @@
     "conversational-form": "^1.0.2",
     "lucide-astro": "^0.556.0",
     "pg": "^8.20.0",
+    "playwright": "^1.47.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
