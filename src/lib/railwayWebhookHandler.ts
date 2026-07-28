@@ -4,6 +4,14 @@ import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
 
+/**
+ * The model used for autonomous Railway failure investigation.
+ * Chosen at the highest reliably-available tier so the agent can read logs,
+ * run check_deployment_status / get_git_status, and attempt self-repair
+ * without any phone notification interrupting the owner.
+ */
+const RAILWAY_ALERT_MODEL = 'claude-opus-4-6';
+
 type RailwayWebhookBody = {
   type?: string;
   severity?: string;
@@ -57,13 +65,23 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
   lines.push(
     '',
-    'You run inside this app on Railway. Call check_deployment_status and get_git_status now — report deployed commit vs GitHub latest and health ping. Distinguish rollout teardown vs a real crash. You cannot fetch Railway logs via API; only mention dashboard logs if tools leave the cause unclear.',
+    'AUTONOMOUS INVESTIGATION REQUIRED — no phone notification was sent. You run inside this app on Railway.',
+    'Steps: call check_deployment_status and get_git_status now. Report deployed commit vs GitHub latest and health ping.',
+    'Distinguish rollout teardown (normal) vs a real crash (needs repair).',
+    'If it is a real crash: read the relevant source files, identify the error, write and commit a fix via write_github_file to main.',
+    'You cannot fetch Railway logs via API — only mention dashboard logs if your tools cannot explain the failure.',
+    'Summarize findings and any fix applied clearly so the owner can review in System alerts.',
   );
   return lines.join('\n');
 }
 
 /**
- * Railway project webhook → admin System alerts chat (+ optional push).
+ * Railway project webhook → admin System alerts chat.
+ *
+ * Deploy failures are investigated silently by the highest-tier model
+ * (RAILWAY_ALERT_MODEL). NO push notification is sent — the owner should
+ * never be buzzed on their phone for a build failure. Results land in the
+ * System alerts chat thread for async review.
  */
 export async function handleRailwayWebhook(opts: {
   ingressKey: string | null;
@@ -109,14 +127,12 @@ export async function handleRailwayWebhook(opts: {
     return { ok: true, status: 200, message: 'no alert target' };
   }
 
+  // Post to System alerts with the best model available for auto-investigation.
+  // Intentionally NO push — the agent investigates silently in the background.
   await postToSystemAlertsThread({
     message: text,
-    push: {
-      title: `Railway: ${svc} deploy failed`,
-      body: `${proj} · ${type}`,
-      tag: 'railway-deploy-failed',
-      url: '/admin?tab=chats',
-    },
+    model: RAILWAY_ALERT_MODEL,
+    // push: omitted — owner is never buzzed for Railway deploy failures
   });
 
   return { ok: true, status: 200, message: 'sent' };
