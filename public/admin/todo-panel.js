@@ -35,7 +35,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728l';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260728l';
@@ -50,13 +50,6 @@ export function initTodoPanel(deps) {
 
 // ---- extracted from os-map-loader.js:8692-9838 ----
 // ---- todo tab ----
-
-const TODO_PRIORITY_LABELS = {
-  low: 'Low',
-  normal: 'Normal',
-  high: 'High',
-  urgent: 'Urgent',
-};
 
 const TODO_STATUS_LABELS = {
   open: 'Open',
@@ -90,30 +83,6 @@ function todoJobTitle(slug) {
 }
 
 const TODO_WEEKDAY_SHORT = ['Sun', 'Mon', 'Tues', 'Wed', 'Thurs', 'Fri', 'Sat'];
-
-/** True for legacy DATE-only values stored as UTC midnight. */
-function isUtcDateOnlyInstant(raw, d) {
-  if (!d) return false;
-  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return true;
-  return (
-    d.getUTCHours() === 0 &&
-    d.getUTCMinutes() === 0 &&
-    d.getUTCSeconds() === 0 &&
-    d.getUTCMilliseconds() === 0
-  );
-}
-
-function parseTodoDueInstant(raw) {
-  if (raw == null || raw === '') return null;
-  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
-  const s = String(raw).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const [y, m, d] = s.split('-').map(Number);
-    return new Date(y, m - 1, d, 0, 0, 0, 0);
-  }
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
 
 function normalizeTodoDueDateRaw(raw) {
   if (raw == null || raw === '') return null;
@@ -157,16 +126,6 @@ function combineTodoDueDateTime(dateStr, timeStr) {
   const dt = new Date(y, m - 1, d, hh, mm, 0, 0);
   if (Number.isNaN(dt.getTime())) return null;
   return dt.toISOString();
-}
-
-function formatTodoDueTime(d) {
-  const h = d.getHours();
-  const min = d.getMinutes();
-  if (h === 0 && min === 0) return null;
-  const period = h >= 12 ? 'pm' : 'am';
-  const hour12 = h % 12 || 12;
-  if (min === 0) return `${hour12}${period}`;
-  return `${hour12}:${String(min).padStart(2, '0')}${period}`;
 }
 
 function formatTodoDueDate(raw) {

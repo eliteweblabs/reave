@@ -35,7 +35,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   navigateToWork,
@@ -48,7 +48,7 @@ import {
 } from './work-panel.js?v=20260728l';
 import { mountAddressAutocomplete } from './schedule-panel.js?v=20260728l';
 import { createPortalShareBtn } from './chat-panel.js?v=20260728l';
-import { navIcon, FORM_FIELD_INVALID, FORM_FIELD_SAVED } from './os-map-loader.js?v=20260728l';
+import { navIcon, FORM_FIELD_INVALID, FORM_FIELD_SAVED } from './os-map-loader.js?v=20260728m';
 import { createClientMap } from '/admin/client-map.js';
 
 /** Injected by os-map-loader via initClientsPanel(). */

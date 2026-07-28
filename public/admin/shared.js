@@ -82,3 +82,45 @@ export function linkifyPlainText(str) {
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
   });
 }
+
+/** To-do priority labels — shared by dashboard and todo panel. */
+export const TODO_PRIORITY_LABELS = {
+  low: 'Low',
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+};
+
+/** True for legacy DATE-only values stored as UTC midnight. */
+export function isUtcDateOnlyInstant(raw, d) {
+  if (!d) return false;
+  if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return true;
+  return (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+  );
+}
+
+export function parseTodoDueInstant(raw) {
+  if (raw == null || raw === '') return null;
+  if (raw instanceof Date) return Number.isNaN(raw.getTime()) ? null : raw;
+  const s = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function formatTodoDueTime(d) {
+  const h = d.getHours();
+  const min = d.getMinutes();
+  if (h === 0 && min === 0) return null;
+  const period = h >= 12 ? 'pm' : 'am';
+  const hour12 = h % 12 || 12;
+  if (min === 0) return `${hour12}${period}`;
+  return `${hour12}:${String(min).padStart(2, '0')}${period}`;
+}

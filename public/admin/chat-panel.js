@@ -35,7 +35,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728l';
@@ -48,7 +48,7 @@ import {
   chatHasConversation,
   buildChatPaneHeader,
   clearTopbarPanelContext,
-} from './os-map-loader.js?v=20260728l';
+} from './os-map-loader.js?v=20260728m';
 
 /** Injected by os-map-loader via initChatPanel(). */
 let shell = {};

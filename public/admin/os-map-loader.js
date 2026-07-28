@@ -93,7 +93,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -119,10 +119,6 @@ import {
   flushTodoAutosave,
   saveActiveTodoDraft,
   formatTodoDueDate,
-  parseTodoDueInstant,
-  isUtcDateOnlyInstant,
-  formatTodoDueTime,
-  TODO_PRIORITY_LABELS,
   startNewTodo,
 } from './todo-panel.js?v=20260728l';
 import {

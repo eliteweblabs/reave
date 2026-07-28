@@ -26,7 +26,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728i';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728l';
 
 /** Injected by os-map-loader via initWorkPanel(). */
