@@ -16,8 +16,8 @@
  *   description (name alone, or name + street/town for disambiguation); the research agent finds the real business
  *   and website, resolves or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence, and
  *   files a project with a full audit body. Runs in the background (this returns immediately) — the finished
- *   result posts to the "System alerts" chat with a push notification. Requires ANTHROPIC_API_KEY and
- *   AGENT_ALERT_USER_ID for the notification/chat log.
+ *   result triggers a dashboard alert and push notification. Requires ANTHROPIC_API_KEY and
+ *   AGENT_ALERT_USER_ID for the notification.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  *
@@ -46,7 +46,6 @@ import { sendTelnyxSms } from '../../../lib/telnyxClient';
 import { serverEnv } from '../../../lib/serverEnv';
 import { runKnowledgeAgent } from '../../../lib/agentRunner';
 import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../../lib/adminAgentAlert';
-import { storeAppendChatMessages, storeCreateChatThread, storeUpdateChatTitle } from '../../../lib/chatStore';
 import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 
@@ -499,8 +498,8 @@ async function handleCreateProject(params: Record<string, unknown>): Promise<Sir
  * This can take minutes (Lighthouse alone budgets up to 150s, plus DNS/SSL/link
  * checks and multiple LLM turns), far longer than a Siri Shortcut should sit
  * waiting on a spinner. So this kicks the run off in the background and
- * replies immediately; the finished audit lands in the "System alerts" chat
- * thread with a push notification when it's done.
+ * replies immediately; the finished audit triggers a dashboard alert and push
+ * notification when it's done.
  */
 async function handleCreateProposal(params: Record<string, unknown>): Promise<SiriResponse> {
   if (!isContactApiConfigured()) {
@@ -571,36 +570,21 @@ async function runProposalResearch(input: {
     '4. create_work with status "inquiry", contact_uid set, title "Website Redesign — {Business Name}" (best ' +
       'known name), and a complete markdown audit body following the required section structure — 1,500+ ' +
       'characters, not a stub.',
-    '5. link_to_work if applicable, then end your final reply with a line formatted exactly like ' +
+    '5. End your final reply with a line formatted exactly like ' +
       '`Project: <slug>` followed by 2-3 sentences summarizing the top findings and the recommended next step.',
   ].join('\n');
 
   const userId = agentAlertUserId();
-  let threadId: string | undefined;
-  if (userId) {
-    const thread = await storeCreateChatThread(userId);
-    threadId = thread?.id;
-    if (threadId) {
-      await storeUpdateChatTitle(userId, threadId, `Proposal: ${input.label}`.slice(0, 80));
-    }
-  }
 
   let reply: string;
   try {
     reply = await runKnowledgeAgent({
       userText,
-      context: userId ? { userId, threadId } : {},
+      context: userId ? { userId } : {},
     });
   } catch (e) {
     reply = `Research failed: ${e instanceof Error ? e.message : String(e)}`;
     log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));
-  }
-
-  if (userId && threadId) {
-    await storeAppendChatMessages(userId, threadId, [
-      { role: 'user', content: userText },
-      { role: 'assistant', content: reply },
-    ]);
   }
 
   const slugMatch = reply.match(/Project:\s*([a-z0-9._-]+)/i);
@@ -610,7 +594,6 @@ async function runProposalResearch(input: {
     label: input.label,
     reply,
     jobSlug: slug,
-    threadId,
   }).catch((e) => log.warn('proposal notify failed', e instanceof Error ? e : new Error(String(e))));
 }
 

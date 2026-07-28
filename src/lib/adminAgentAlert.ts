@@ -61,33 +61,35 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   label: string;
   reply: string;
   jobSlug?: string | null;
-  threadId?: string;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
   const slug = opts.jobSlug?.trim();
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
-  const summary = opts.reply.trim().slice(0, 1200);
+  const summary = extractProposalSummary(opts.reply, slug);
 
-  const message = [
-    'Proposal research complete (Siri shortcut)',
-    '',
-    `Prospect: ${opts.label}`,
-    slug ? `Project slug: ${slug}` : 'Project: see Work tab',
-    '',
-    summary || 'Research finished — open the project for the full audit.',
-  ].join('\n');
+  await sendPushNotification({
+    title: `Proposal ready: ${opts.label}`,
+    body: summary.slice(0, 150) || `Project ready${slug ? `: ${slug}` : ''}`,
+    tag: `siri-proposal-${slug ?? opts.label}`,
+    url: deepLinkUrl,
+  }).catch((e) => log.warn('push failed', e));
+}
 
-  await postToSystemAlertsThread({
-    message,
-    autoRun: false,
-    push: {
-      title: `Proposal ready: ${opts.label}`,
-      body: summary.slice(0, 150) || `Project ready${slug ? `: ${slug}` : ''}`,
-      tag: `siri-proposal-${opts.threadId ?? slug ?? opts.label}`,
-      url: deepLinkUrl,
-    },
-  });
+function extractProposalSummary(reply: string, slug?: string | null): string {
+  const trimmed = reply.trim();
+  if (!trimmed) return 'Research finished — open the project for the full audit.';
+
+  if (slug) {
+    const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = trimmed.match(new RegExp(`Project:\\s*${escaped}\\s*\\n?([\\s\\S]*)`, 'i'));
+    if (match?.[1]?.trim()) return match[1].trim();
+  }
+
+  const generic = trimmed.match(/Project:\s*[a-z0-9._-]+\s*\n([\s\S]*)/i);
+  if (generic?.[1]?.trim()) return generic[1].trim();
+
+  return trimmed.slice(0, 1200);
 }
 
 /** Fire-and-forget — logs failures, never throws to callers. */
