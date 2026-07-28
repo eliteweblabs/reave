@@ -173,9 +173,15 @@ function hostnameFromOrigin(origin: string): string {
   }
 }
 
+function normalizeDomain(raw: string | null | undefined): string {
+  const t = trim(raw);
+  if (!t) return '';
+  return t.replace(/^https?:\/\//, '').replace(/\/+$/, '').split('/')[0]?.split(':')[0] ?? '';
+}
+
 function domainFromEnvOrRequest(request?: Request): string {
-  const envDomain = trim(serverEnv('COMPANY_DOMAIN') || serverEnv('PUBLIC_SITE_DOMAIN'));
-  if (envDomain) return envDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '').split('/')[0] ?? '';
+  const envDomain = normalizeDomain(serverEnv('COMPANY_DOMAIN') || serverEnv('PUBLIC_SITE_DOMAIN'));
+  if (envDomain) return envDomain;
 
   if (request) {
     const host = hostnameFromOrigin(requestOrigin(request));
@@ -290,7 +296,7 @@ function resolveCompanyGeo(stored: StoredCompanyConfig | null): CompanyGeo | und
 }
 
 function resolveFromStored(stored: StoredCompanyConfig | null, request?: Request): CompanyConfig {
-  const domain = domainFromEnvOrRequest(request);
+  const domain = pick(stored?.domain, domainFromEnvOrRequest(request));
   const logo = resolveLogo(stored);
   const icon = resolveIcon(stored);
 
@@ -387,6 +393,8 @@ export type CompanyConfigInput = {
   name?: string;
   legalName?: string;
   description?: string;
+  /** Public hostname for branding, OG tags, and emails — e.g. example.com */
+  domain?: string;
   supportEmail?: string;
   supportPhone?: string;
   fromEmail?: string;
@@ -422,6 +430,7 @@ export function normalizeCompanyInput(input: CompanyConfigInput): StoredCompanyC
   if (input.name !== undefined) out.name = trim(input.name) || null;
   if (input.legalName !== undefined) out.legalName = trim(input.legalName) || null;
   if (input.description !== undefined) out.description = trim(input.description) || null;
+  if (input.domain !== undefined) out.domain = normalizeDomain(input.domain) || null;
   if (input.supportEmail !== undefined) out.supportEmail = trim(input.supportEmail) || null;
   if (input.supportPhone !== undefined) out.supportPhone = trim(input.supportPhone) || null;
   if (input.fromEmail !== undefined) out.fromEmail = trim(input.fromEmail) || null;

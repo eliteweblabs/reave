@@ -5479,9 +5479,9 @@ function renderCompanyPanel(company) {
             `</div>` +
           `</div>` +
           `<span class="prof-hint prof-hint--block">Logo: header and homepage. Icon: favicons, install icons, and team comment avatars. PNG, JPEG, or WebP — max 2 MB each.</span>` +
-          (c.domain
-            ? `<span class="prof-hint prof-hint--block">Website domain: <code>${escHtml(c.domain)}</code> (from this deployment)</span>`
-            : '') +
+          `<div class="prof-field"><label for="company-domain">Website domain</label>` +
+          `<input id="company-domain" name="domain" type="text" value="${escHtml(c.domain || '')}" placeholder="example.com" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="url" />` +
+          `<span class="prof-hint prof-hint--block">Hostname only — used in link previews, emails, and legal pages. Leave blank to use this deployment's domain.</span></div>` +
           `<div class="prof-field-row">` +
             `<div class="prof-field"><label for="company-supportEmail">Support email</label>` +
             `<input id="company-supportEmail" name="supportEmail" type="email" value="${escHtml(c.supportEmail || '')}" placeholder="support@example.com" autocomplete="email" /></div>` +

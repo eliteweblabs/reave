@@ -44,8 +44,9 @@ const company = await getCompanyConfig(Astro.request);
 const description = descriptionProp ?? company.description;
 const pageTitle = title ? `${title} | ${company.name}` : company.name;
 const origin = requestOrigin(Astro.request);
+const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical =
-  canonicalUrl ?? `${origin}${Astro.url.pathname}${Astro.url.search}`;
+  canonicalUrl ?? `${publicOrigin}${Astro.url.pathname}${Astro.url.search}`;
 const ogImageAbsolute = ogImage.startsWith("http")
   ? ogImage
   : `${origin}${ogImage}`;
