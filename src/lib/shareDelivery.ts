@@ -11,7 +11,7 @@ import {
   type ContactRecord,
 } from './contactApi';
 import { brandedEmailHtml } from './emailTemplates';
-import { createTrackedProjectLink } from './linkTracking';
+import { createTrackedProjectLink, markTrackedLinkDelivered } from './linkTracking';
 import { logOutboundEmailForProject } from './logOutboundEmailForProject';
 import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
 import { recordProjectOutboundEmail } from './projectOutboundEmail';
@@ -261,6 +261,8 @@ async function sendPortalShare(opts: {
     const r = await sendEmail({ to, subject, text, html });
     if (!r.ok) return { ok: false, error: r.error };
 
+    if (tracked?.token) void markTrackedLinkDelivered(tracked.token, to);
+
     if (tracked?.job_slug) {
       const job = await storeReadWork(tracked.job_slug);
       void recordProjectOutboundEmail({
@@ -297,6 +299,7 @@ async function sendPortalShare(opts: {
   const body = `${intro}Hi ${recipient.firstName}, here's your client page: ${shareUrl}`;
   const r = await sendSms({ to, body });
   if (!r.ok) return { ok: false, error: r.error };
+  if (tracked?.token) void markTrackedLinkDelivered(tracked.token, to);
   return { ok: true, channel: 'sms', dest: to, url: shareUrl, tracked };
 }
 

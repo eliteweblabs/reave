@@ -310,7 +310,9 @@ function renderLinkTrackStatus(container, links, opts = {}) {
   if (opened) {
     label.textContent = `Viewed ${opened}${latest.click_count > 1 ? ` (${latest.click_count}×)` : ''}`;
   } else {
-    label.textContent = sent ? `Link sent ${sent} · Not opened yet` : 'Link sent · Not opened yet';
+    const sentLabel =
+      latest.channel === 'sms' ? 'Text sent' : latest.channel === 'email' ? 'Email sent' : 'Link sent';
+    label.textContent = sent ? `${sentLabel} ${sent} · Not opened yet` : `${sentLabel} · Not opened yet`;
   }
   wrap.appendChild(label);
 
@@ -345,8 +347,61 @@ function renderLinkTrackStatus(container, links, opts = {}) {
   container.appendChild(wrap);
 }
 
+function shareSendLogEntries(links) {
+  if (!Array.isArray(links)) return [];
+  return links.filter((l) => l && (l.channel === 'email' || l.channel === 'sms'));
+}
 
-let _reaveShareState = null;
+function formatShareSendDest(link) {
+  const dest = link.dest?.trim();
+  if (!dest) return '';
+  if (link.channel === 'sms') {
+    try {
+      return formatPhoneInput(dest);
+    } catch {
+      return dest;
+    }
+  }
+  return dest;
+}
+
+function renderShareSendLog(container, links, opts = {}) {
+  if (!container) return;
+  container.innerHTML = '';
+  const entries = shareSendLogEntries(links);
+  const section = container.closest('.wk-share-log-section');
+  if (!entries.length) {
+    if (section) section.hidden = true;
+    return;
+  }
+  if (section) section.hidden = false;
+
+  for (const link of entries) {
+    const row = document.createElement('div');
+    row.className = 'wk-share-log-item';
+    const channelLabel = link.channel === 'sms' ? 'Texted' : 'Emailed';
+    const when = formatLinkTrackWhen(link.sent_at);
+    const dest = formatShareSendDest(link);
+    const opened = link.first_clicked_at ? formatLinkTrackWhen(link.first_clicked_at) : '';
+
+    const main = document.createElement('span');
+    main.className = 'wk-share-log-main';
+    main.textContent = dest
+      ? `${channelLabel} ${dest}${when ? ` · ${when}` : ''}`
+      : `${channelLabel}${when ? ` · ${when}` : ''}`;
+
+    const meta = document.createElement('span');
+    meta.className = 'wk-share-log-meta' + (opened ? ' wk-share-log-meta--opened' : '');
+    meta.textContent = opened
+      ? `Opened ${opened}${link.click_count > 1 ? ` (${link.click_count}×)` : ''}`
+      : 'Not opened yet';
+
+    row.appendChild(main);
+    row.appendChild(meta);
+    container.appendChild(row);
+  }
+}
+
 
 function closeReaveShareSheet() {
   window.IosSheet?.close('reave-share-backdrop');
@@ -456,7 +511,9 @@ async function sendViaReaveShare(channel, state) {
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     setReaveShareStatus(`Sent via ${data.channel} to ${data.dest}`, 'ok');
-    if (state.jobSlug && state.trackEl) void refreshWorkLinkTrackStatus(state.trackEl, state.jobSlug);
+    if (state.jobSlug) {
+      void refreshWorkLinkTrackStatus(state.trackEl, state.jobSlug, state.shareLogEl);
+    }
     state.onSent?.(data);
   } catch (e) {
     setReaveShareStatus(e?.message || 'Send failed', 'err');
@@ -582,6 +639,7 @@ async function openReaveShareSheet(opts = {}) {
     tab: opts.tab,
     booking: opts.booking,
     trackEl: opts.trackEl,
+    shareLogEl: opts.shareLogEl,
     onSent: opts.onSent,
   };
   _reaveShareState = state;
@@ -776,7 +834,7 @@ async function openDocumentShareSheet(opts = {}) {
 }
 
 function createPortalShareBtn(uid, opts = {}) {
-  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, recipient, qrDataUrl } = opts;
+  const { tab, title, className = 'ios-icon-btn de-share-btn', jobSlug, trackEl, shareLogEl, recipient, qrDataUrl } = opts;
   if (!uid) return null;
   return createIosIconBtn({
     iconKey: 'share',
@@ -790,6 +848,7 @@ function createPortalShareBtn(uid, opts = {}) {
         tab,
         jobSlug,
         trackEl,
+        shareLogEl,
         qrDataUrl,
         shareTitle: title || 'Your client page',
       }),
@@ -1877,6 +1936,7 @@ export {
   deleteChat,
   createPortalShareBtn,
   renderLinkTrackStatus,
+  renderShareSendLog,
   sharePortalLink,
   queueChatDeepLink,
   startNewChat,

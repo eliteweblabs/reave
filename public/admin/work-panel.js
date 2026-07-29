@@ -2382,6 +2382,9 @@ function renderEditWorkForm(pane) {
       linkTrackEl.className = 'wk-link-track';
       linkTrackEl.hidden = true;
 
+      const shareLogEl = document.createElement('div');
+      shareLogEl.className = 'wk-share-log';
+
       const agentBtn = document.createElement('button');
       agentBtn.type = 'button';
       agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
@@ -2396,6 +2399,7 @@ function renderEditWorkForm(pane) {
             tab: 'work',
             jobSlug: slug,
             trackEl: linkTrackEl,
+            shareLogEl,
             title: `${data.contact_name || data.client || 'Client'} — Projects`,
             qrDataUrl: data.qr_data_url,
             recipient: {
@@ -2563,6 +2567,7 @@ function renderEditWorkForm(pane) {
       mountWorkFilesSection(scroll, slug, data.files);
       mountWorkTodosSection(scroll, slug);
       mountWorkRelatedSection(scroll, data.related, data.source_chat_id);
+      mountWorkShareLogSection(scroll, shareLogEl, data.tracked_links, slug);
 
       shell.clearEditorFooterSave();
       getWorkEditor()?.classList.add('de-pane-active');
@@ -2765,12 +2770,35 @@ function renderWorkLinkTrackStatus(container, links, jobSlug) {
   shell.renderLinkTrackStatus(container, links, { jobSlug });
 }
 
-async function refreshWorkLinkTrackStatus(container, jobSlug) {
-  if (!container || !jobSlug) return;
+function renderWorkShareSendLog(container, links, jobSlug) {
+  shell.renderShareSendLog(container, links, { jobSlug });
+}
+
+function mountWorkShareLogSection(container, logEl, links, slug) {
+  const section = document.createElement('div');
+  section.className = 'wk-share-log-section';
+  section.hidden = true;
+
+  const title = document.createElement('div');
+  title.className = 'wk-share-log-title';
+  title.textContent = 'Sent to client';
+  section.appendChild(title);
+  section.appendChild(logEl);
+
+  renderWorkShareSendLog(logEl, links, slug);
+  container.appendChild(section);
+  return section;
+}
+
+async function refreshWorkLinkTrackStatus(container, jobSlug, shareLogEl) {
+  if (!jobSlug) return;
   try {
     const res = await fetch(`/api/work/${encodeURIComponent(jobSlug)}/link`, { cache: 'no-store' });
     const data = await res.json();
-    if (res.ok && data.ok) renderWorkLinkTrackStatus(container, data.links, jobSlug);
+    if (res.ok && data.ok) {
+      if (container) renderWorkLinkTrackStatus(container, data.links, jobSlug);
+      if (shareLogEl) renderWorkShareSendLog(shareLogEl, data.links, jobSlug);
+    }
   } catch {
     /* ignore */
   }

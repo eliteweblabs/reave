@@ -22,6 +22,8 @@ export type TrackedLinkRecord = {
   sent_at: string;
   sent_by: string | null;
   channel: TrackedLinkChannel;
+  /** Email or phone the share was delivered to (set after successful send). */
+  dest: string | null;
   click_count: number;
   first_clicked_at: string | null;
   last_clicked_at: string | null;
@@ -41,12 +43,14 @@ CREATE TABLE IF NOT EXISTS project_tracked_links (
   sent_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
   sent_by           TEXT,
   channel           TEXT NOT NULL DEFAULT 'share',
+  dest              TEXT,
   click_count       INT NOT NULL DEFAULT 0,
   first_clicked_at  TIMESTAMPTZ,
   last_clicked_at   TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS project_tracked_links_job_idx
   ON project_tracked_links (job_slug, sent_at DESC);
+ALTER TABLE project_tracked_links ADD COLUMN IF NOT EXISTS dest TEXT;
 `;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -118,6 +122,7 @@ function rowToRecord(row: {
   sent_at: Date | string;
   sent_by: string | null;
   channel: string;
+  dest?: string | null;
   click_count: number;
   first_clicked_at: Date | string | null;
   last_clicked_at: Date | string | null;
@@ -130,11 +135,15 @@ function rowToRecord(row: {
     sent_at: new Date(row.sent_at).toISOString(),
     sent_by: row.sent_by,
     channel: row.channel as TrackedLinkChannel,
+    dest: row.dest?.trim() || null,
     click_count: row.click_count,
     first_clicked_at: row.first_clicked_at ? new Date(row.first_clicked_at).toISOString() : null,
     last_clicked_at: row.last_clicked_at ? new Date(row.last_clicked_at).toISOString() : null,
   };
 }
+
+const TRACKED_LINK_SELECT = `token, job_slug, contact_uid, destination, sent_at, sent_by, channel, dest,
+                 click_count, first_clicked_at, last_clicked_at`;
 
 /** Generate a URL-safe token whose prefix encodes the send timestamp (base36 ms). */
 export function generateLinkToken(sentAt: Date = new Date()): string {
@@ -185,8 +194,7 @@ export async function createTrackedProjectLink(input: {
       `INSERT INTO project_tracked_links
         (token, job_slug, contact_uid, destination, sent_at, sent_by, channel)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-                 click_count, first_clicked_at, last_clicked_at`,
+       RETURNING ${TRACKED_LINK_SELECT}`,
       [token, jobSlug, contactUid, destination, sentAt.toISOString(), sentBy, channel],
     );
     const link = rowToRecord(res.rows[0]);
@@ -201,6 +209,7 @@ export async function createTrackedProjectLink(input: {
     sent_at: sentAt.toISOString(),
     sent_by: sentBy,
     channel,
+    dest: null,
     click_count: 0,
     first_clicked_at: null,
     last_clicked_at: null,
@@ -218,8 +227,7 @@ export async function getTrackedLink(token: string): Promise<TrackedLinkRecord |
   const pool = await ensureSchema();
   if (pool) {
     const res = await pool.query(
-      `SELECT token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-              click_count, first_clicked_at, last_clicked_at
+      `SELECT ${TRACKED_LINK_SELECT}
        FROM project_tracked_links WHERE token = $1`,
       [id],
     );
@@ -246,8 +254,7 @@ export async function recordTrackedLinkClick(
            first_clicked_at = COALESCE(first_clicked_at, now()),
            last_clicked_at = now()
        WHERE token = $1
-       RETURNING token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-                 click_count, first_clicked_at, last_clicked_at`,
+       RETURNING ${TRACKED_LINK_SELECT}`,
       [id],
     );
     if (!res.rows[0]) return null;
@@ -265,6 +272,33 @@ export async function recordTrackedLinkClick(
   links[idx] = row;
   writeFileLinks(links);
   return row;
+}
+
+/** Record delivery destination after a successful email/SMS send. Fire-and-forget. */
+export async function markTrackedLinkDelivered(token: string, dest: string): Promise<void> {
+  const id = token.trim();
+  const destVal = dest.trim();
+  if (!id || !destVal) return;
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      await pool.query(`UPDATE project_tracked_links SET dest = $2 WHERE token = $1`, [id, destVal]);
+      return;
+    }
+  } catch (e) {
+    console.warn('[link-tracking] mark delivered pg failed', e);
+  }
+
+  try {
+    const links = readFileLinks();
+    const idx = links.findIndex((l) => l.token === id);
+    if (idx < 0) return;
+    links[idx]!.dest = destVal;
+    writeFileLinks(links);
+  } catch (e) {
+    console.warn('[link-tracking] mark delivered file failed', e);
+  }
 }
 
 export async function findLatestUnopenedTrackedLink(
@@ -324,8 +358,7 @@ export async function listTrackedLinksForJob(
   const pool = await ensureSchema();
   if (pool) {
     const res = await pool.query(
-      `SELECT token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-              click_count, first_clicked_at, last_clicked_at
+      `SELECT ${TRACKED_LINK_SELECT}
        FROM project_tracked_links
        WHERE job_slug = $1
        ORDER BY sent_at DESC
@@ -377,8 +410,7 @@ export async function dismissTrackedLinkView(
            first_clicked_at = NULL,
            last_clicked_at = NULL
        WHERE token = $1
-       RETURNING token, job_slug, contact_uid, destination, sent_at, sent_by, channel,
-                 click_count, first_clicked_at, last_clicked_at`,
+       RETURNING ${TRACKED_LINK_SELECT}`,
       [id],
     );
     if (!res.rows[0]) return { ok: false, error: 'Not found' };
