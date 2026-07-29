@@ -24,7 +24,7 @@ export type ProjectOutboundEmailRecord = {
 };
 
 export type RecordProjectOutboundInput = {
-  jobSlug: string;
+  jobSlug?: string | null;
   jobTitle?: string;
   contactUid?: string | null;
   toEmail: string;
@@ -33,6 +33,8 @@ export type RecordProjectOutboundInput = {
   sentBy?: string | null;
   source?: string;
 };
+
+export type OutboundEmailListRecord = ProjectOutboundEmailRecord;
 
 const DEFAULT_REPLY_WINDOW_DAYS = 120;
 const MAX_FILE_ROWS = 2000;
@@ -149,9 +151,9 @@ function rowToRecord(row: {
 
 /** Fire-and-forget — never throws to callers. */
 export async function recordProjectOutboundEmail(input: RecordProjectOutboundInput): Promise<void> {
-  const jobSlug = input.jobSlug?.trim();
+  const jobSlug = input.jobSlug?.trim() || '';
   const toEmail = normalizeToEmail(input.toEmail);
-  if (!jobSlug || !toEmail.includes('@')) return;
+  if (!toEmail.includes('@')) return;
 
   const record: ProjectOutboundEmailRecord = {
     id: randomUUID(),
@@ -252,4 +254,39 @@ export async function findRecentProjectOutbound(opts: {
   });
   rows.sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
   return rows[0] ?? null;
+}
+
+export async function listOutboundEmails(limit = 200): Promise<OutboundEmailListRecord[]> {
+  const capped = Math.min(Math.max(limit, 1), 500);
+
+  try {
+    const pool = await ensureSchema();
+    if (pool) {
+      const { rows } = await pool.query<{
+        id: string;
+        job_slug: string;
+        job_title: string;
+        contact_uid: string | null;
+        to_email: string;
+        subject: string;
+        resend_id: string | null;
+        sent_at: Date;
+        sent_by: string | null;
+        source: string;
+      }>(
+        `SELECT id, job_slug, job_title, contact_uid, to_email, subject, resend_id, sent_at, sent_by, source
+         FROM project_outbound_emails
+         ORDER BY sent_at DESC
+         LIMIT $1`,
+        [capped],
+      );
+      return rows.map(rowToRecord);
+    }
+  } catch (e) {
+    console.warn('[project-outbound-email] pg list failed', e);
+  }
+
+  return readFileRows()
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+    .slice(0, capped);
 }

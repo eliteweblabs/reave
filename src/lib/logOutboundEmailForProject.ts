@@ -56,10 +56,8 @@ export async function logOutboundEmailForProject(opts: {
     }
   }
 
-  if (!jobSlug) return;
-
   await recordProjectOutboundEmail({
-    jobSlug,
+    jobSlug: jobSlug || '',
     jobTitle,
     contactUid,
     toEmail,

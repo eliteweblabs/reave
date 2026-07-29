@@ -135,6 +135,11 @@
   gap: 0.35rem;
   min-width: 0;
 }
+.panel-list-subheader--stacked .em-filter-tabs-wrap {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+}
 .panel-list-subheader--stacked .em-filter-tabs {
   margin: 0;
   width: 100%;

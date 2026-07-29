@@ -22,6 +22,47 @@
   min-width: 0;
   max-width: 100%;
 }
+.em-filter-tabs-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  margin: 0 0.7rem 0.35rem;
+  flex: 0 0 auto;
+  min-width: 0;
+  width: calc(100% - 1.4rem);
+  max-width: calc(100% - 1.4rem);
+}
+.em-filter-tabs--scroll {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  width: auto;
+  max-width: none;
+  /* Reserve space so the last scroll tab clears the pinned Sent tab */
+  padding-right: calc(var(--em-filter-fixed-tab-width, 4.75rem) + 0.35rem);
+  box-sizing: border-box;
+}
+.em-filter-tabs-fixed {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  padding-left: 0.65rem;
+  background: linear-gradient(to right, transparent 0%, var(--bg) 38%);
+  pointer-events: none;
+}
+.em-filter-tabs-fixed .em-filter-tab {
+  pointer-events: auto;
+  box-shadow: -6px 0 10px -8px rgba(0, 0, 0, 0.35);
+}
+.em-filter-tab--sent.active {
+  color: var(--fg);
+  background: var(--surface-hover-strong);
+  border-color: var(--panel-border);
+}
 .em-filter-tabs::-webkit-scrollbar { display: none; }
 .em-filter-tab {
   flex: 0 0 auto;
@@ -301,6 +342,12 @@
 .em-status-delete { color: #f87171; background: rgba(248,113,113,0.12); }
 .em-status-auto_archived { color: #a78bfa; background: rgba(167,139,250,0.12); }
 .em-status-down { color: #60a5fa; background: rgba(96,165,250,0.12); }
+.em-status-sent { color: #38bdf8; background: rgba(56,189,248,0.12); }
+.em-resend-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82em;
+  word-break: break-all;
+}
 .em-detail {
   flex: 1;
   min-width: 0;

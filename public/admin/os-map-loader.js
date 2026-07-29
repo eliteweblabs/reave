@@ -448,7 +448,11 @@ function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
 }
 
 function captureFilterTabsScroll(root) {
-  return root?.querySelector('.em-filter-tabs')?.scrollLeft ?? 0;
+  return (
+    root?.querySelector('.em-filter-tabs--scroll')?.scrollLeft ??
+    root?.querySelector('.em-filter-tabs')?.scrollLeft ??
+    0
+  );
 }
 
 function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
@@ -6892,6 +6896,7 @@ function buildLegend() {
 // ---- email tab (inbox summaries) ----
 let emailState = {
   allEvents: [],
+  sentEvents: [],
   inboxFilter: 'all',
   search: '',
   activeId: null,
@@ -7125,6 +7130,7 @@ function inboxTabCounts() {
     routed: all.filter(isEmailRouted).length,
     receipt: all.filter((e) => e.category === 'receipt' && !isEmailRouted(e)).length,
     junk: all.filter((e) => e.category === 'junk').length,
+    sent: (emailState.sentEvents || []).length,
   };
 }
 
@@ -7159,6 +7165,28 @@ function filteredInboxEvents() {
       ev.category,
       ev.routeNote,
     ),
+  );
+}
+
+function formatSentSourceLabel(source) {
+  const key = String(source || '').trim();
+  const labels = {
+    admin_compose: 'Compose',
+    admin_reply: 'Reply',
+    share_sheet: 'Share',
+    agent: 'Agent',
+    client_portal: 'Portal',
+    unknown: 'Sent',
+  };
+  return labels[key] || key.replace(/_/g, ' ') || 'Sent';
+}
+
+function filteredSentEvents() {
+  const q = emailState.search.trim();
+  let events = emailState.sentEvents || [];
+  if (!q) return events;
+  return events.filter((ev) =>
+    matchesListSearch(q, ev.subject, ev.toEmail, ev.jobTitle, ev.jobSlug, ev.source, ev.resendId),
   );
 }
 
@@ -8939,14 +8967,29 @@ function syncEmailPoll() {
   }
 }
 
+async function loadEmailSentEvents(quiet) {
+  try {
+    const res = await adminFetch('/api/email/sent?limit=200');
+    const data = await readAdminJson(res, 'Sent mail');
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.sentEvents = data.events || [];
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+    if (!quiet) console.warn('[email] sent fetch failed', e);
+  }
+}
+
 async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
   if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
   try {
-    const res = await adminFetch('/api/email/inbox?junk=1');
-    const data = await readAdminJson(res, 'Inbox');
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    const [inboxRes] = await Promise.all([
+      adminFetch('/api/email/inbox?junk=1'),
+      loadEmailSentEvents(true),
+    ]);
+    const data = await readAdminJson(inboxRes, 'Inbox');
+    if (!inboxRes.ok) throw new Error(data.error || `HTTP ${inboxRes.status}`);
     emailState.allEvents = data.events || [];
     for (const id of pendingSeenIds) {
       const ev = emailState.allEvents.find((e) => e.id === id);
@@ -8967,7 +9010,12 @@ async function loadEmailTab(quiet) {
   let openedFromDeepLink = false;
   if (deepLinkId) {
     openedFromDeepLink = await openEmailFromDeepLink(deepLinkId);
-  } else if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
+  } else if (
+    emailState.activeId &&
+    emailState.inboxFilter === 'sent'
+      ? !filteredSentEvents().some((ev) => ev.id === emailState.activeId)
+      : !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)
+  ) {
     emailState.activeId = null;
   }
   if (!openedFromDeepLink && !emailState.activeId) {
@@ -8980,10 +9028,13 @@ async function loadEmailTab(quiet) {
 
 function renderEmailFilterTabs(savedScrollLeft = 0) {
   const counts = inboxTabCounts();
-  const nav = document.createElement('div');
-  nav.className = 'em-filter-tabs';
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-label', 'Inbox filters');
+  const wrap = document.createElement('div');
+  wrap.className = 'em-filter-tabs-wrap';
+
+  const scrollNav = document.createElement('div');
+  scrollNav.className = 'em-filter-tabs em-filter-tabs--scroll';
+  scrollNav.setAttribute('role', 'tablist');
+  scrollNav.setAttribute('aria-label', 'Inbox filters');
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
@@ -9027,10 +9078,39 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
       });
     }
 
-    nav.appendChild(btn);
+    scrollNav.appendChild(btn);
   }
-  mountFilterTabsScroll(nav, savedScrollLeft);
-  return nav;
+
+  const fixedNav = document.createElement('div');
+  fixedNav.className = 'em-filter-tabs-fixed';
+
+  const sentTab = { id: 'sent', label: 'Sent', count: counts.sent };
+  const sentBtn = document.createElement('button');
+  sentBtn.type = 'button';
+  const sentActive = emailState.inboxFilter === sentTab.id;
+  sentBtn.className =
+    'em-filter-tab em-filter-tab--sent' + (sentActive ? ' active' : '');
+  sentBtn.setAttribute('role', 'tab');
+  sentBtn.setAttribute('aria-selected', sentActive ? 'true' : 'false');
+  sentBtn.innerHTML = `${escHtml(sentTab.label)} <span class="em-filter-count">${sentTab.count}</span>`;
+  sentBtn.addEventListener('click', () => {
+    if (emailState.inboxFilter === sentTab.id) return;
+    emailState.inboxFilter = sentTab.id;
+    emailState.activeId = null;
+    emailState.composing = false;
+    getEmailPanel()?.classList.remove('em-pane-active');
+    void loadEmailSentEvents(true).then(() => renderEmailPanel());
+  });
+  fixedNav.appendChild(sentBtn);
+
+  wrap.appendChild(scrollNav);
+  wrap.appendChild(fixedNav);
+  mountFilterTabsScroll(scrollNav, savedScrollLeft);
+  requestAnimationFrame(() => {
+    const w = sentBtn.offsetWidth;
+    if (w > 0) wrap.style.setProperty('--em-filter-fixed-tab-width', `${w}px`);
+  });
+  return wrap;
 }
 
 function renderEmailSidebar(savedFilterScroll = 0) {
@@ -9039,7 +9119,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
 
   const counts = inboxTabCounts();
   const countForTab =
-    emailState.inboxFilter === 'junk'
+    emailState.inboxFilter === 'sent'
+      ? counts.sent
+      : emailState.inboxFilter === 'junk'
       ? counts.junk
       : emailState.inboxFilter === 'receipt'
         ? counts.receipt
@@ -9061,7 +9143,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       placeholder: `Search ${countForTab} ${countForTab === 1 ? 'Email' : 'Emails'}`,
       onInput: (value) => {
         emailState.search = value;
-        if (emailState.activeId && !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)) {
+        const visible =
+          emailState.inboxFilter === 'sent' ? filteredSentEvents() : filteredInboxEvents();
+        if (emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId)) {
           emailState.activeId = null;
           emailState.composing = false;
           getEmailPanel()?.classList.remove('em-pane-active');
@@ -9076,17 +9160,21 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   });
   if (subheader) sidebar.appendChild(subheader.el);
 
-  const events = filteredInboxEvents();
+  const isSent = emailState.inboxFilter === 'sent';
+  const events = isSent ? filteredSentEvents() : filteredInboxEvents();
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
   for (const ev of events) {
-    list.appendChild(createEmailSwipeRow(ev));
+    list.appendChild(isSent ? createSentListItem(ev) : createEmailSwipeRow(ev));
   }
   if (events.length === 0) {
     let emptyBody;
     if (emailState.search.trim()) {
       emptyBody = 'No matches.';
+    } else if (emailState.inboxFilter === 'sent') {
+      emptyBody =
+        'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>';
     } else if (emailState.inboxFilter === 'junk') {
       emptyBody = 'No junk messages.';
     } else if (emailState.inboxFilter === 'alert') {
@@ -9115,8 +9203,43 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     return loadEmailTab(true);
   });
   sidebar.appendChild(list);
-  bindEmailListSeenObserver(list);
+  if (!isSent) bindEmailListSeenObserver(list);
   return sidebar;
+}
+
+function createSentListItem(ev) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  item.dataset.id = ev.id;
+  item.innerHTML =
+    `<span class="em-item-row em-item-header">` +
+      `<span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(ev.source))}</span>` +
+      `<span class="em-item-date">${escHtml(formatChatDate(ev.sentAt))}</span>` +
+      `<span class="em-item-from">${escHtml(ev.toEmail || '(unknown)')}</span>` +
+    `</span>` +
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>`;
+  item.addEventListener('click', () => openSentEvent(ev.id));
+  return item;
+}
+
+function openSentEvent(id) {
+  emailState.activeId = id;
+  emailState.composing = false;
+  emailState.replyToId = null;
+  renderEmailPanel();
+  ensureEmailMobilePaneOpen();
+}
+
+function sentShareText(ev) {
+  return [
+    ev.subject,
+    ev.toEmail,
+    ev.resendId ? `Resend ID: ${ev.resendId}` : '',
+    ev.sentAt ? `Sent: ${new Date(ev.sentAt).toLocaleString()}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 function normalizeEmailRecipient(raw) {
@@ -9543,6 +9666,7 @@ async function sendEmailCompose() {
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const replyId = emailState.replyToId;
     closeEmailCompose();
+    await loadEmailSentEvents(true);
     if (replyId) {
       try {
         const refresh = await fetch(`/api/email/inbox/${encodeURIComponent(replyId)}`, { cache: 'no-store' });
@@ -9559,6 +9683,7 @@ async function sendEmailCompose() {
       showChatToast('Reply sent');
     } else {
       showChatToast('Email sent');
+      renderEmailPanel();
     }
   } catch (e) {
     emailState.sending = false;
@@ -9723,6 +9848,77 @@ function renderEmailPanel() {
 
   if (emailState.composing) {
     renderEmailComposePane(pane);
+    root.appendChild(pane);
+    getEmailPanel()?.classList.add('em-pane-active');
+    syncFooterNav();
+    finishSidebarListScroll(root, savedSidebarScroll);
+    return;
+  }
+
+  if (emailState.inboxFilter === 'sent') {
+    const sent = (emailState.sentEvents || []).find((e) => e.id === emailState.activeId);
+    if (!sent) {
+      appendEmptyDetailPane(pane, {
+        mapKey: 'email',
+        iconName: 'mail',
+        bodyHtml:
+          '<p>Select a sent message to verify delivery.</p>' +
+          '<p class="em-hint">Outbound mail sent from Compose, Reply, or share flows is logged here with a Resend reference when available.</p>',
+        btnLabel: 'Compose',
+        onCreate: () => startNewEmail(),
+      });
+      root.appendChild(pane);
+      getEmailPanel()?.classList.remove('em-pane-active');
+      syncFooterNav();
+      finishSidebarListScroll(root, savedSidebarScroll);
+      return;
+    }
+
+    pane.appendChild(
+      createPaneSubheader({
+        back: {
+          label: 'Back to sent',
+          onClick: () => {
+            emailState.activeId = null;
+            emailState.composing = false;
+            getEmailPanel()?.classList.remove('em-pane-active');
+            renderEmailPanel();
+          },
+        },
+        title: sent.subject || '(no subject)',
+        icons: [
+          paneShareIcon({
+            label: 'Share sent details',
+            onClick: (btn) => shareChatText(sentShareText(sent), 'assistant', btn),
+          }),
+        ],
+      }).header,
+    );
+
+    const detail = document.createElement('div');
+    detail.className = 'em-detail';
+    let detailHtml =
+      `<div class="em-item-row"><span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(sent.source))}</span></div>` +
+      `<div class="em-detail-subject">${escHtml(sent.subject || '(no subject)')}</div>` +
+      `<div class="em-detail-meta">` +
+        `<span><strong>To</strong> ${escHtml(sent.toEmail || '(unknown)')}</span>` +
+        (sent.jobTitle || sent.jobSlug
+          ? `<span class="em-detail-project"><strong>Project</strong> <button type="button" class="project-link-chip em-project-link">${escHtml(sent.jobTitle || sent.jobSlug)}</button></span>`
+          : '') +
+        `<span><strong>Sent</strong> ${escHtml(new Date(sent.sentAt).toLocaleString())}</span>` +
+        (sent.resendId
+          ? `<span><strong>Resend ID</strong> <code class="em-resend-id">${escHtml(sent.resendId)}</code></span>`
+          : '') +
+      `</div>` +
+      `<p class="em-hint">Use the Resend ID to confirm delivery in your Resend dashboard when troubleshooting.</p>`;
+    detail.innerHTML = detailHtml;
+    const projectBtn = detail.querySelector('.em-project-link');
+    if (projectBtn && sent.jobSlug) {
+      projectBtn.addEventListener('click', () => {
+        setActiveMap('work', { force: true, workSlug: sent.jobSlug });
+      });
+    }
+    pane.appendChild(detail);
     root.appendChild(pane);
     getEmailPanel()?.classList.add('em-pane-active');
     syncFooterNav();
