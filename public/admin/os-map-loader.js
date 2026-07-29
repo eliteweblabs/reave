@@ -6928,6 +6928,50 @@ function createProjectLinkChip(label, onClick) {
   return btn;
 }
 
+function resolveEmailProjectClientIcon(ev) {
+  const uid = ev?.contactUid?.trim?.();
+  if (!uid) return '';
+  const client = clientState.clients?.find((c) => c.uid === uid);
+  if (!client) return '';
+  return (client.iconUrl || client.logoUrl || '').trim();
+}
+
+function emailProjectIconHtml(ev, size = 14) {
+  const iconUrl = resolveEmailProjectClientIcon(ev);
+  if (iconUrl) {
+    return (
+      `<img class="em-project-context-icon-img" src="${escHtml(iconUrl)}" alt="" loading="lazy" decoding="async" />`
+    );
+  }
+  return navIcon('briefcase', size);
+}
+
+function emailProjectContextHtml(ev) {
+  const title = ev?.jobTitle || ev?.jobSlug;
+  if (!title) return '';
+  return (
+    `<button type="button" class="project-link-chip em-project-context em-project-link" title="${escHtml(title)}">` +
+    `<span class="em-project-context-icon" aria-hidden="true">${emailProjectIconHtml(ev)}</span>` +
+    `<span class="em-project-context-title">${escHtml(title)}</span>` +
+    `</button>`
+  );
+}
+
+async function hydrateEmailProjectContextIcon(detail, ev) {
+  if (!ev?.contactUid?.trim?.() || resolveEmailProjectClientIcon(ev)) return;
+  try {
+    const res = await fetch(`/api/clients/${encodeURIComponent(ev.contactUid)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) return;
+    const url = (data.iconUrl || data.logoUrl || '').trim();
+    if (!url) return;
+    const iconWrap = detail.querySelector('.em-project-context-icon');
+    if (!iconWrap || iconWrap.querySelector('.em-project-context-icon-img')) return;
+    iconWrap.innerHTML =
+      `<img class="em-project-context-icon-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />`;
+  } catch {}
+}
+
 
 function getEmailPanel() { return document.getElementById('email-panel'); }
 
@@ -9765,8 +9809,11 @@ function renderEmailPanel() {
   const detail = document.createElement('div');
   detail.className = 'em-detail';
   const summary = ev.summary || ev.bodySnippet || '';
+  const projectLabel = ev.jobTitle || ev.jobSlug;
   let detailHtml =
-    `<div class="em-item-row"><span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
+    `<div class="em-item-row">` +
+    `<span class="em-status ${isProjectReplyEmail(ev) ? 'em-project-reply' : emailCategoryClass(isEmailProject(ev) ? 'project' : ev.category)}">${escHtml(formatEmailCategoryLabel(ev))}</span>` +
+    (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev)) ? emailProjectContextHtml(ev) : '') +
     (isEmailBooked(ev) ? '<span class="em-status em-book-scheduled">Scheduled ✓</span>' : '') +
     `</div>`;
   if (ev.verificationCode) {
@@ -9833,9 +9880,6 @@ function renderEmailPanel() {
         ? `<span><strong>To</strong> ${escHtml(ev.to.join(', '))}</span>`
         : '') +
       (ev.contactName ? `<span><strong>Client</strong> ${escHtml(ev.contactName)}</span>` : '') +
-      (ev.jobTitle || ev.jobSlug
-        ? `<span class="em-detail-project"><strong>Project</strong> <button type="button" class="project-link-chip em-project-link">${escHtml(ev.jobTitle || ev.jobSlug)}</button></span>`
-        : '') +
       `<span><strong>Received</strong> ${escHtml(new Date(ev.receivedAt).toLocaleString())}</span>` +
       `<span><strong>Action</strong> ${escHtml(formatEmailAction(ev))}</span>` +
       (ev.routeNote ? `<span><strong>Route</strong> ${escHtml(ev.routeNote)}</span>` : '') +
@@ -9908,6 +9952,9 @@ function renderEmailPanel() {
   detail.querySelector('.em-project-link')?.addEventListener('click', () =>
     navigateToWork(ev.jobSlug, { fromEmailId: ev.id }),
   );
+  if (projectLabel && (isEmailProject(ev) || isProjectReplyEmail(ev))) {
+    void hydrateEmailProjectContextIcon(detail, ev);
+  }
   pane.appendChild(detail);
 
   root.appendChild(pane);

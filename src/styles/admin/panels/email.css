@@ -738,6 +738,41 @@
 .project-link-chip:hover {
   background: color-mix(in srgb, var(--accent) 20%, var(--card));
 }
+.em-item-row .em-project-context {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+}
+.em-project-context {
+  gap: 0.35rem;
+  font-weight: 600;
+}
+.em-project-context-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  color: var(--muted);
+}
+.em-project-context-icon svg {
+  display: block;
+}
+.em-project-context-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.em-project-context-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .project-link-sub {
   color: color-mix(in srgb, var(--accent) 70%, var(--muted));
 }
