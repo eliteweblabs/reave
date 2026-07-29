@@ -571,55 +571,81 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
                     {section.groups.map((group) => {
                       const inv = group.invoice;
                       const isOutstanding = group.section === 'outstanding';
-                      return (
-                        <div class="invoice-block">
-                          <div class="invoice">
-                            <div class="inv-main">
-                              <span class="inv-num">#{inv.number}</span>
-                              <span class="inv-meta">
-                                {inv.date ? fmtDate(inv.date) : '—'}
-                                {' · '}
-                                {isOutstanding ? inv.status : 'Paid'}
-                              </span>
-                            </div>
-                            <div class="inv-side">
-                              {isOutstanding ? (
+                      const hasPayments = group.payments.length > 0;
+                      const invoiceHead = (
+                        <>
+                          <div class="inv-main">
+                            <span class="inv-num">#{inv.number}</span>
+                            <span class="inv-meta">
+                              {inv.date ? fmtDate(inv.date) : '—'}
+                              {' · '}
+                              {isOutstanding ? inv.status : 'Paid'}
+                              {hasPayments && (
                                 <>
-                                  <span class="inv-due">{money(inv.due)}</span>
-                                  {inv.url && (
-                                    <a class="pay" href={inv.url} target="_blank" rel="noopener noreferrer">
-                                      Pay
-                                    </a>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <span class="inv-due paid">{money(inv.total)}</span>
-                                  {inv.url && (
-                                    <a class="view" href={inv.url} target="_blank" rel="noopener noreferrer">
-                                      View
-                                    </a>
-                                  )}
+                                  {' · '}
+                                  {group.payments.length === 1
+                                    ? '1 payment'
+                                    : `${group.payments.length} payments`}
                                 </>
                               )}
-                            </div>
+                            </span>
                           </div>
-                          {group.payments.length > 0 && (
-                            <ul class="invoice-payments">
-                              {group.payments.map((pay) => (
-                                <li class="invoice-payment">
-                                  <div class="pay-main">
-                                    <span class="pay-date">{fmtDate(pay.date)}</span>
-                                    <span class="pay-meta">
-                                      {pay.method}
-                                      {pay.paymentNumber ? ` · ${pay.paymentNumber}` : ''}
-                                    </span>
-                                  </div>
-                                  <span class="pay-amount">{money(pay.amount)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
+                          <div class="inv-side">
+                            {isOutstanding ? (
+                              <>
+                                <span class="inv-due">{money(inv.due)}</span>
+                                {inv.url && (
+                                  <a
+                                    class="pay"
+                                    href={inv.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onclick="event.stopPropagation()"
+                                  >
+                                    Pay
+                                  </a>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span class="inv-due paid">{money(inv.total)}</span>
+                                {inv.url && (
+                                  <a
+                                    class="view"
+                                    href={inv.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onclick="event.stopPropagation()"
+                                  >
+                                    View
+                                  </a>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </>
+                      );
+                      return hasPayments ? (
+                        <details class="invoice-block">
+                          <summary class="invoice">{invoiceHead}</summary>
+                          <ul class="invoice-payments">
+                            {group.payments.map((pay) => (
+                              <li class="invoice-payment">
+                                <div class="pay-main">
+                                  <span class="pay-date">{fmtDate(pay.date)}</span>
+                                  <span class="pay-meta">
+                                    {pay.method}
+                                    {pay.paymentNumber ? ` · ${pay.paymentNumber}` : ''}
+                                  </span>
+                                </div>
+                                <span class="pay-amount">{money(pay.amount)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      ) : (
+                        <div class="invoice-block invoice-block--static">
+                          <div class="invoice">{invoiceHead}</div>
                         </div>
                       );
                     })}
@@ -1070,9 +1096,35 @@ const submitEndpoint = `/api/c/${encodeURIComponent(uid)}/submit`;
         border: 1px solid rgba(255, 255, 255, 0.08);
         background: rgba(255, 255, 255, 0.04);
       }
-      .invoice-block .invoice {
+      .invoice-block .invoice,
+      .invoice-block > summary.invoice {
         border-top: none;
         background: transparent;
+      }
+      .invoice-block > summary.invoice {
+        list-style: none;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .invoice-block > summary.invoice::-webkit-details-marker { display: none; }
+      .invoice-block > summary.invoice::marker { content: ''; }
+      .invoice-block > summary.invoice::after {
+        content: '';
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid rgba(255, 255, 255, 0.45);
+        border-bottom: 2px solid rgba(255, 255, 255, 0.45);
+        transform: rotate(45deg);
+        transition: transform 0.2s;
+        margin-top: -2px;
+      }
+      .invoice-block[open] > summary.invoice {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .invoice-block[open] > summary.invoice::after {
+        transform: rotate(-135deg);
+        margin-top: 2px;
       }
       .invoice-payments {
         list-style: none;
