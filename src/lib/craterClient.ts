@@ -242,9 +242,9 @@ export type CraterBillingCounts = {
   estimates: CraterEstimateCounts;
 };
 
-/** Match a master contact to a Crater customer (email, then company name, then contact_name). */
+/** Match a master contact to a Crater customer (email, then name/company vs customer name, then contact_name). */
 export function matchCraterCustomer(
-  contact: { name: string; email?: string | null },
+  contact: { name: string; email?: string | null; company?: string | null },
   customers: CraterCustomer[],
 ): CraterCustomer | undefined {
   const email = (contact.email ?? '').trim().toLowerCase();
@@ -252,10 +252,18 @@ export function matchCraterCustomer(
     const byEmail = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
     if (byEmail) return byEmail;
   }
-  const name = contact.name.trim().toLowerCase();
-  const byName = customers.find((c) => c.name.trim().toLowerCase() === name);
-  if (byName) return byName;
-  return customers.find((c) => (c.contact_name ?? '').trim().toLowerCase() === name);
+  const labels = new Set<string>();
+  for (const raw of [contact.name, contact.company]) {
+    const label = (raw ?? '').trim().toLowerCase();
+    if (label) labels.add(label);
+  }
+  for (const label of labels) {
+    const byName = customers.find((c) => c.name.trim().toLowerCase() === label);
+    if (byName) return byName;
+    const byContactName = customers.find((c) => (c.contact_name ?? '').trim().toLowerCase() === label);
+    if (byContactName) return byContactName;
+  }
+  return undefined;
 }
 
 /** Paid vs outstanding invoice counts keyed by Crater customer `name`. */
@@ -762,53 +770,57 @@ export function buildPortalBillingView(
   };
 }
 
+export type CraterContactMatch = {
+  email?: string;
+  name?: string;
+  company?: string;
+};
+
 /**
- * Resolve a Crater customer for a contact by email and/or name.
+ * Resolve a Crater customer for a contact by email, name, and/or company.
  *
  * Crater's `/customers?q=` search only matches against whatever single query
  * string it's given, so a contact filed in Crater under just their company
  * name (no email on file, or a different invoicing email) would never be
  * found if we only ever searched by email. Try email first (more precise),
- * then fall back to a second search by name whenever the email search comes
- * up empty — otherwise the portal's Billing tab silently disappears for any
- * contact whose CRM email doesn't happen to match their Crater record.
+ * then fall back to separate searches by name and company — otherwise the
+ * portal's Billing tab silently disappears for any contact whose CRM email
+ * doesn't happen to match their Crater record.
  */
 async function craterFindCustomerForContact(
-  email: string,
-  name: string,
+  input: CraterContactMatch,
 ): Promise<CraterResult<CraterCustomer | undefined>> {
-  const matchIn = (customers: CraterCustomer[]): CraterCustomer | undefined => {
-    if (email) {
-      const byEmail = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
-      if (byEmail) return byEmail;
-    }
-    if (name) {
-      const lower = name.toLowerCase();
-      const byName = customers.find((c) => c.name.trim().toLowerCase() === lower);
-      if (byName) return byName;
-      const byContactName = customers.find((c) => (c.contact_name ?? '').trim().toLowerCase() === lower);
-      if (byContactName) return byContactName;
-    }
-    return undefined;
-  };
+  const email = input.email?.trim().toLowerCase() || '';
+  const name = input.name?.trim() || '';
+  const company = input.company?.trim() || '';
+  if (!email && !name && !company) {
+    return { ok: false, error: 'email, name, or company is required' };
+  }
 
-  let lastResults: CraterCustomer[] = [];
-  if (email) {
-    const byEmailSearch = await craterSearchCustomers(email);
-    if (!byEmailSearch.ok) return byEmailSearch;
-    lastResults = byEmailSearch.data?.customers ?? [];
-    const match = matchIn(lastResults);
+  const contact = { name: name || company, email, company };
+  const searchTerms: string[] = [];
+  if (email) searchTerms.push(email);
+  if (name) searchTerms.push(name);
+  if (company && company.toLowerCase() !== name.toLowerCase()) searchTerms.push(company);
+
+  const seenIds = new Set<number>();
+  const pooled: CraterCustomer[] = [];
+
+  for (const term of searchTerms) {
+    const res = await craterSearchCustomers(term);
+    if (!res.ok) return res;
+    const batch = res.data?.customers ?? [];
+    const match = matchCraterCustomer(contact, batch);
     if (match) return { ok: true, data: match };
+    for (const customer of batch) {
+      if (!seenIds.has(customer.id)) {
+        seenIds.add(customer.id);
+        pooled.push(customer);
+      }
+    }
   }
-  if (name) {
-    const byNameSearch = await craterSearchCustomers(name);
-    if (!byNameSearch.ok) return byNameSearch;
-    const nameResults = byNameSearch.data?.customers ?? [];
-    const match = matchIn(nameResults);
-    if (match) return { ok: true, data: match };
-    if (nameResults.length) lastResults = nameResults;
-  }
-  return { ok: true, data: lastResults[0] };
+
+  return { ok: true, data: matchCraterCustomer(contact, pooled) };
 }
 
 /**
@@ -817,15 +829,13 @@ async function craterFindCustomerForContact(
  * invoices with public links, plus upcoming recurring invoices.
  * Returns ok:true with data:null when no matching customer is found.
  */
-export async function craterGetClientBilling(input: {
-  email?: string;
-  name?: string;
-}): Promise<CraterResult<ClientBilling | null>> {
+export async function craterGetClientBilling(input: CraterContactMatch): Promise<CraterResult<ClientBilling | null>> {
   const email = input.email?.trim().toLowerCase() || '';
   const name = input.name?.trim() || '';
-  if (!email && !name) return { ok: false, error: 'email or name is required' };
+  const company = input.company?.trim() || '';
+  if (!email && !name && !company) return { ok: false, error: 'email, name, or company is required' };
 
-  const found = await craterFindCustomerForContact(email, name);
+  const found = await craterFindCustomerForContact(input);
   if (!found.ok) return { ok: false, error: found.error, status: found.status };
   const customer = found.data;
   if (!customer) return { ok: true, data: null };
@@ -914,15 +924,13 @@ export async function craterListPayments(input?: {
  * Payment history for a contact-matched Crater customer.
  * Returns ok:true with data:null when no matching customer is found.
  */
-export async function craterGetClientPayments(input: {
-  email?: string;
-  name?: string;
-}): Promise<CraterResult<ClientPayments | null>> {
+export async function craterGetClientPayments(input: CraterContactMatch): Promise<CraterResult<ClientPayments | null>> {
   const email = input.email?.trim().toLowerCase() || '';
   const name = input.name?.trim() || '';
-  if (!email && !name) return { ok: false, error: 'email or name is required' };
+  const company = input.company?.trim() || '';
+  if (!email && !name && !company) return { ok: false, error: 'email, name, or company is required' };
 
-  const found = await craterFindCustomerForContact(email, name);
+  const found = await craterFindCustomerForContact(input);
   if (!found.ok) return { ok: false, error: found.error, status: found.status };
   const customer = found.data;
   if (!customer) return { ok: true, data: null };

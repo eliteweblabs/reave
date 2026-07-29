@@ -66,6 +66,7 @@ export const GET: APIRoute = async ({ params, request }) => {
     const b = await craterGetClientBilling({
       email: contactStringField(c.email) || undefined,
       name: contactStringField(c.name) || undefined,
+      company: contactStringField(c.company) || undefined,
     });
     if (b.ok && b.data) {
       const bill = b.data;

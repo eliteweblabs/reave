@@ -84,9 +84,10 @@ if (contact && hasFeature('billing') && isCraterConfigured()) {
     const match = {
       email: contactStringField(contact.email) || undefined,
       name: contactStringField(contact.name) || undefined,
+      company: contactStringField(contact.company) || undefined,
     };
     const b = await craterGetClientBilling(match);
-    if (b.ok && b.data && (b.data.outstanding.length > 0 || b.data.previous.length > 0 || b.data.upcoming.length > 0)) {
+    if (b.ok && b.data) {
       billing = b.data;
     }
     const p = await craterGetClientPayments(match);
