@@ -9,6 +9,7 @@ import { contactsModule } from './core/contacts';
 import { outboundModule } from './core/outbound';
 import { techStackModule } from './core/techStack';
 import { playwrightAuditModule } from './core/playwrightAudit';
+import { pexelsModule } from './core/pexels';
 import { activeAgentToolModules } from '../pluginRegistry';
 import type { AgentToolModule } from './types';
 
@@ -21,6 +22,9 @@ import type { AgentToolModule } from './types';
  *
  * Playwright UX/UI audit runs real headless Chromium — desktop + mobile nav,
  * JS errors, overflow, tap targets, CTAs, forms, and screenshots.
+ *
+ * Pexels stock photo search is feature-gated by PEXELS_API_KEY presence —
+ * the tool is omitted from definitions when the key is not configured.
  */
 export const AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
@@ -31,5 +35,6 @@ export const AGENT_TOOL_MODULES: AgentToolModule[] = [
   outboundModule,
   techStackModule,
   playwrightAuditModule,
+  pexelsModule,
   ...activeAgentToolModules(),
 ];
