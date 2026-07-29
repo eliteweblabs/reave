@@ -56,7 +56,7 @@ export interface InboundEmail {
   to?: string[];
   cc?: string[];
   bcc?: string[];
-  replyTo?: string[];;
+  replyTo?: string[];
   headers?: Record<string, string>;
   messageId?: string;
   resendEmailId?: string;
