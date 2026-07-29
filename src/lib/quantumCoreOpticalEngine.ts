@@ -1558,6 +1558,7 @@ export function attachQuantumCoreOpticalEngine(
         sceneT,
         idleAmp: iconIdleAmp,
         energy,
+        spinMat3,
       });
     }
 

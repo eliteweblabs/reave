@@ -4,11 +4,15 @@
  */
 import * as THREE from "three";
 
-/** Shell radius as a fraction of the particle ball — mid-outer band around the logo. */
-const SHELL_FRAC = 0.74;
+/** Inner / outer shell as fractions of the particle ball — wide band for depth. */
+const SHELL_FRAC_MIN = 0.52;
+const SHELL_FRAC_MAX = 0.96;
 const ICON_RASTER_PX = 128;
 const INTRO_OUTWARD_MIN = 2.1;
 const INTRO_OUTWARD_MAX = 3.4;
+/** Foreground icons scale up to this multiple of the baseline (back) size. */
+const DEPTH_SCALE_MIN = 1;
+const DEPTH_SCALE_MAX = 2.85;
 
 export interface CloudIconEntry {
   sprite: THREE.Sprite;
@@ -24,7 +28,7 @@ export interface CloudIconEntry {
 export interface CloudIconLayer {
   group: THREE.Group;
   entries: CloudIconEntry[];
-  /** Drive intro rush, idle drift, and opacity each frame. */
+  /** Drive intro rush, idle drift, depth scale, and visibility each frame. */
   update: (params: {
     rawT: number;
     introDurationSec: number;
@@ -34,6 +38,7 @@ export interface CloudIconLayer {
     sceneT: number;
     idleAmp: number;
     energy: number;
+    spinMat3: THREE.Matrix3;
   }) => void;
   dispose: () => void;
 }
@@ -95,6 +100,29 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
+/** Per-icon shell radius — spreads icons from mid-inner to far-outer for depth. */
+function shellRadiusFrac(i: number): number {
+  const hash = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  const t = hash - Math.floor(hash);
+  return THREE.MathUtils.lerp(SHELL_FRAC_MIN, SHELL_FRAC_MAX, t);
+}
+
+function desaturateImageData(imageData: ImageData): void {
+  const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3]!;
+    if (a <= 8) continue;
+    const r = data[i]!;
+    const g = data[i + 1]!;
+    const b = data[i + 2]!;
+    const gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    data[i] = gray;
+    data[i + 1] = gray;
+    data[i + 2] = gray;
+    data[i + 3] = 255;
+  }
+}
+
 async function loadRasterIconTexture(url: string): Promise<THREE.Texture> {
   const img = new Image();
   img.crossOrigin = "anonymous";
@@ -111,6 +139,9 @@ async function loadRasterIconTexture(url: string): Promise<THREE.Texture> {
   if (!ctx) throw new Error("canvas 2d unavailable");
   ctx.clearRect(0, 0, size, size);
   ctx.drawImage(img, 0, 0, size, size);
+  const imageData = ctx.getImageData(0, 0, size, size);
+  desaturateImageData(imageData);
+  ctx.putImageData(imageData, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.minFilter = THREE.LinearFilter;
@@ -132,14 +163,15 @@ export function createCloudIconLayer(
   const unique = [...new Set(urls.map((u) => u.trim()).filter(Boolean))];
   if (unique.length === 0) return null;
 
-  const shellRadius = ballRadius * SHELL_FRAC;
-  const iconWorldSize = isMobileLike ? 1.35 : 1.85;
+  const maxShellRadius = ballRadius * SHELL_FRAC_MAX;
+  const iconBaseSize = isMobileLike ? 1.35 : 1.85;
   const group = new THREE.Group();
   group.renderOrder = 1;
 
   const entries: CloudIconEntry[] = [];
 
   for (let i = 0; i < unique.length; i++) {
+    const shellRadius = ballRadius * shellRadiusFrac(i);
     const home = fibonacciSphere(i, unique.length, shellRadius);
     const edgeFade = particleDissolveStrength(home.x, home.y, home.z, ballRadius);
     const outward =
@@ -152,13 +184,15 @@ export function createCloudIconLayer(
 
     const material = new THREE.SpriteMaterial({
       transparent: true,
-      opacity: 0,
-      depthWrite: false,
+      opacity: 1,
+      alphaTest: 0.35,
+      depthWrite: true,
       depthTest: true,
       fog: false,
     });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(iconWorldSize, iconWorldSize, 1);
+    sprite.scale.set(iconBaseSize, iconBaseSize, 1);
+    sprite.visible = false;
     sprite.position.copy(introDurationSec > 0 ? start : home);
     sprite.renderOrder = 1;
     group.add(sprite);
@@ -192,6 +226,7 @@ export function createCloudIconLayer(
   );
 
   const tmpOffset = new THREE.Vector3();
+  const tmpView = new THREE.Vector3();
 
   function update(params: {
     rawT: number;
@@ -202,16 +237,16 @@ export function createCloudIconLayer(
     sceneT: number;
     idleAmp: number;
     energy: number;
+    spinMat3: THREE.Matrix3;
   }): void {
     const {
       rawT,
       introDurationSec,
       globalIntroT,
       inIntro,
-      resolveMix,
       sceneT,
       idleAmp,
-      energy,
+      spinMat3,
     } = params;
 
     const revealStart = 0.48;
@@ -227,10 +262,6 @@ export function createCloudIconLayer(
                 1,
               ),
             );
-
-    const baseOpacity = isMobileLike ? 0.62 : 0.72;
-    const resolveDim = 1 - resolveMix * 0.22;
-    const energyLift = 1 + energy * 0.08;
 
     for (const entry of entries) {
       if (!entry.material.map) continue;
@@ -256,12 +287,23 @@ export function createCloudIconLayer(
 
       entry.sprite.position.set(px, py, pz);
 
-      const fade = entry.edgeFade * revealMix * resolveDim * energyLift;
-      entry.material.opacity = THREE.MathUtils.clamp(
-        baseOpacity * fade,
+      tmpView.set(px, py, pz).applyMatrix3(spinMat3);
+      const depthT = THREE.MathUtils.clamp(
+        (tmpView.z / maxShellRadius + 1) * 0.5,
         0,
-        0.88,
+        1,
       );
+      const depthScale = THREE.MathUtils.lerp(
+        DEPTH_SCALE_MIN,
+        DEPTH_SCALE_MAX,
+        Math.pow(depthT, 0.68),
+      );
+      const size = iconBaseSize * depthScale;
+      entry.sprite.scale.set(size, size, 1);
+
+      entry.sprite.visible =
+        revealMix > 0.02 && entry.edgeFade > 0.05;
+      entry.material.opacity = 1;
     }
   }
 
