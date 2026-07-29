@@ -9,6 +9,7 @@ import { bookingPing, calcomWebappUrl, isBookingConfigured } from '../../lib/boo
 import { paulinoWizardPing } from '../../lib/paulinoWizardClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
+import { isPexelsConfigured } from '../../lib/pexelsClient';
 
 /**
  * Live health snapshot for the /admin/ "System" tab.
@@ -226,6 +227,9 @@ export const GET: APIRoute = async () => {
     plausible: isPlausibleConfigured()
       ? configured('PLAUSIBLE_API_BASE_URL + PLAUSIBLE_API_KEY set')
       : unconfigured('Plausible not configured'),
+    pexels: isPexelsConfigured()
+      ? configured('PEXELS_API_KEY set · stock photo search enabled')
+      : unconfigured('PEXELS_API_KEY not set'),
   };
 
   const features = [...enabledFeatures()].map((id: FeatureId) => ({
