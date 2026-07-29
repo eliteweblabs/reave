@@ -31,6 +31,7 @@
   min-width: 0;
   width: calc(100% - 1.4rem);
   max-width: calc(100% - 1.4rem);
+  overflow: visible;
 }
 .em-filter-tabs--scroll {
   flex: 1;
@@ -48,15 +49,23 @@
   top: 0;
   bottom: 0;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   z-index: 2;
-  padding-left: 0.65rem;
-  background: linear-gradient(to right, transparent 0%, var(--bg) 38%);
+  padding-left: 0.85rem;
+  background: linear-gradient(to right, transparent 0%, var(--bg) 28%, var(--bg) 100%);
   pointer-events: none;
 }
 .em-filter-tabs-fixed .em-filter-tab {
   pointer-events: auto;
-  box-shadow: -6px 0 10px -8px rgba(0, 0, 0, 0.35);
+  box-shadow: -8px 0 12px -6px rgba(0, 0, 0, 0.4);
+}
+.em-filter-tab--sent {
+  background: var(--bg);
+  border-color: var(--panel-border);
+}
+.em-filter-tab--sent:hover {
+  background: var(--surface-hover);
 }
 .em-filter-tab--sent.active {
   color: var(--fg);

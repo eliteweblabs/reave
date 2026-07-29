@@ -464,6 +464,18 @@ function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
   });
 }
 
+function syncEmailFilterFixedTabWidth(wrap) {
+  if (!wrap) return;
+  const sentBtn = wrap.querySelector('.em-filter-tab--sent');
+  if (!sentBtn) return;
+  const apply = () => {
+    const w = sentBtn.offsetWidth;
+    if (w > 0) wrap.style.setProperty('--em-filter-fixed-tab-width', `${w}px`);
+  };
+  apply();
+  requestAnimationFrame(apply);
+}
+
 function captureSidebarListScroll(root) {
   return root?.querySelector('.ch-sidebar .ch-list')?.scrollTop ?? 0;
 }
@@ -9085,6 +9097,8 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
 
   const fixedNav = document.createElement('div');
   fixedNav.className = 'em-filter-tabs-fixed';
+  fixedNav.setAttribute('role', 'tablist');
+  fixedNav.setAttribute('aria-label', 'Sent mail');
 
   const sentTab = { id: 'sent', label: 'Sent', count: counts.sent };
   const sentBtn = document.createElement('button');
@@ -9108,10 +9122,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
   wrap.appendChild(scrollNav);
   wrap.appendChild(fixedNav);
   mountFilterTabsScroll(scrollNav, savedScrollLeft);
-  requestAnimationFrame(() => {
-    const w = sentBtn.offsetWidth;
-    if (w > 0) wrap.style.setProperty('--em-filter-fixed-tab-width', `${w}px`);
-  });
+  syncEmailFilterFixedTabWidth(wrap);
   return wrap;
 }
 
@@ -9160,7 +9171,10 @@ function renderEmailSidebar(savedFilterScroll = 0) {
         ? [renderEmailFilterTabs(savedFilterScroll), renderFindMissingReceiptsBar()]
         : renderEmailFilterTabs(savedFilterScroll),
   });
-  if (subheader) sidebar.appendChild(subheader.el);
+  if (subheader) {
+    sidebar.appendChild(subheader.el);
+    syncEmailFilterFixedTabWidth(subheader.el.querySelector('.em-filter-tabs-wrap'));
+  }
 
   const isSent = emailState.inboxFilter === 'sent';
   const events = isSent ? filteredSentEvents() : filteredInboxEvents();
