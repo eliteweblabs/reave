@@ -23,6 +23,46 @@ const items: PortfolioItem[] = [
     button: { label: "View site", href: "https://mdot.world" },
   },
   {
+    title: "Mohegan Sun",
+    description:
+      "Casino-floor exotic car display — scissor-door Lamborghini staging, directional signage, and polished event production for a major resort partner.",
+    tags: ["Events", "Marketing", "Experiential"],
+    image: "/images/portfolio/mohegan-sun-featured.jpg",
+    imageAlt:
+      "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
+    size: "2x2",
+  },
+  {
+    title: "Porsche Miami Art Week",
+    description:
+      "Mission E concept VIP preview — parquet platform staging, gallery lighting, and “Tribute to tomorrow” experiential branding.",
+    tags: ["Events", "Automotive", "VIP"],
+    image: "/images/portfolio/porsche-miami-art-week-featured.jpg",
+    imageAlt:
+      "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
+    size: "2x1",
+  },
+  {
+    title: "New York Art Week VIP Preview",
+    description:
+      "Gallery opening coverage — candid attendee photography, gold-framed grid installations, and polished white-cube event atmosphere.",
+    tags: ["Events", "Photography", "VIP"],
+    image: "/images/portfolio/ny-art-week-vip-preview-featured.jpg",
+    imageAlt:
+      "Gallery attendee viewing gold-framed artwork grid during a New York Art Week VIP preview",
+    size: "1x2",
+  },
+  {
+    title: "VIP Perks Marker Security",
+    description:
+      "Punk in Drublic festival production — stage lighting, branded vertical banners, crowd barricades, and on-site security coordination.",
+    tags: ["Events", "Music", "Production"],
+    image: "/images/portfolio/vip-perks-marker-security-featured.jpg",
+    imageAlt:
+      "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
+    size: "2x1",
+  },
+  {
     title: "LUXEMEDS",
     description:
       "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
@@ -188,12 +228,15 @@ const items: PortfolioItem[] = [
 
 <style>
   .portfolio-masonry {
-    --brick-unit: clamp(72px, 9.5vw, 112px);
+    --masonry-cols: 6;
+    --masonry-gap: clamp(8px, 1.2vw, 12px);
+    --masonry-col: calc((100% - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
+    --brick-unit: var(--masonry-col);
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(var(--masonry-cols), 1fr);
     grid-auto-rows: var(--brick-unit);
     grid-auto-flow: dense;
-    gap: clamp(8px, 1.2vw, 12px);
+    gap: var(--masonry-gap);
     padding: 0 clamp(12px, 2vw, 28px);
   }
 
@@ -209,7 +252,7 @@ const items: PortfolioItem[] = [
 
   .masonry-item--2x1 {
     grid-column: span 2;
-    grid-row: span 1;
+    grid-row: span 2;
   }
 
   .masonry-item--1x2 {
@@ -224,7 +267,7 @@ const items: PortfolioItem[] = [
 
   .masonry-item--3x2 {
     grid-column: span 3;
-    grid-row: span 2;
+    grid-row: span 3;
   }
 
   .masonry-card {
@@ -395,12 +438,12 @@ const items: PortfolioItem[] = [
 
   @media (max-width: 960px) {
     .portfolio-masonry {
-      grid-template-columns: repeat(4, 1fr);
+      --masonry-cols: 4;
     }
 
     .masonry-item--3x2 {
       grid-column: span 4;
-      grid-row: span 2;
+      grid-row: span 4;
     }
 
     .masonry-item--2x2 {
@@ -410,20 +453,20 @@ const items: PortfolioItem[] = [
 
     .masonry-item--2x1 {
       grid-column: span 2;
-      grid-row: span 1;
+      grid-row: span 2;
     }
   }
 
   @media (max-width: 640px) {
     .portfolio-masonry {
-      --brick-unit: clamp(64px, 22vw, 96px);
-      grid-template-columns: repeat(2, 1fr);
+      --masonry-cols: 2;
     }
 
     .masonry-item--3x2,
     .masonry-item--2x2,
     .masonry-item--2x1 {
       grid-column: span 2;
+      grid-row: span 2;
     }
 
     .masonry-item--1x2 {
