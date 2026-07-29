@@ -1,96 +1,76 @@
 /**
- * Email forwarding helper for triage rules.
+ * emailForward.ts — forward an inbound email to a third-party address via Resend.
  *
- * When an email rule has a `forward_to` address, this module re-sends the
- * inbound message to that address via Resend immediately after the rule fires.
- * The forwarded message includes the original sender, subject, and body so the
- * recipient gets the full context without logging into REΛVE.
+ * Called by the inbound pipeline when a matched triage rule has `forwardTo` set.
+ * The forwarded message preserves the original From/Subject and prepends a one-line
+ * "Forwarded by REΛVE" banner so the recipient understands the context.
  */
 
 import { sendEmail } from './outbound';
-import { serverEnv } from './serverEnv';
 import type { InboundEmail } from './emailRules';
+import { normalizeEmailBody } from './emailBody';
 
 export interface ForwardResult {
   ok: boolean;
   id?: string;
   error?: string;
-  skipped?: boolean;
 }
 
 /**
- * Forward an inbound email to `forwardTo`.
- * Wraps the original body in a minimal "Forwarded message" envelope so the
- * recipient can see the original From/Subject without any REΛVE chrome.
+ * Forward `email` to `forwardTo`.
+ * - Subject is prefixed with "Fwd: " (unless already present).
+ * - Body prepends a brief header line: original from + subject.
+ * - Both plain-text and HTML variants are forwarded when available.
  */
-export async function forwardInboundEmail(
+export async function forwardEmail(
   email: InboundEmail,
   forwardTo: string,
 ): Promise<ForwardResult> {
-  const forwardToClean = forwardTo.trim();
-  if (!forwardToClean || !forwardToClean.includes('@')) {
-    return { ok: false, error: 'forward_to is not a valid email address', skipped: true };
-  }
+  if (!forwardTo?.trim()) return { ok: false, error: 'forwardTo is empty' };
 
-  const key = serverEnv('RESEND_API_KEY')?.trim();
-  if (!key) {
-    return { ok: false, error: 'RESEND_API_KEY not set — cannot forward', skipped: true };
-  }
+  const subject = email.subject ?? '(no subject)';
+  const fwdSubject = /^fwd:/i.test(subject) ? subject : `Fwd: ${subject}`;
 
   const originalFrom = email.from ?? '(unknown sender)';
-  const originalSubject = email.subject ?? '(no subject)';
-  const originalBody =
-    email.text?.trim() ||
-    (email.html ? '[HTML email — see attached HTML]' : '(empty body)');
+  const banner = `---------- Forwarded message ----------\nFrom: ${originalFrom}\nSubject: ${subject}\n\n`;
 
-  const forwardSubject = originalSubject.startsWith('Fwd:')
-    ? originalSubject
-    : `Fwd: ${originalSubject}`;
+  const bodyText = normalizeEmailBody(email.text, email.html);
+  const plainBody = banner + (bodyText || '(empty body)');
 
-  const divider = '---------- Forwarded message ----------';
-  const plainBody = [
-    divider,
-    `From: ${originalFrom}`,
-    `Subject: ${originalSubject}`,
-    '',
-    originalBody,
-  ].join('\n');
+  let htmlBody: string | undefined;
+  if (email.html) {
+    const bannerHtml = `<div style="border-top:1px solid #ccc;margin:12px 0;padding-top:8px;font-size:13px;color:#555;">
+<strong>---------- Forwarded message ----------</strong><br>
+<strong>From:</strong> ${escapeHtml(originalFrom)}<br>
+<strong>Subject:</strong> ${escapeHtml(subject)}
+</div>`;
+    htmlBody = bannerHtml + email.html;
+  }
 
-  const htmlBody = email.html
-    ? `<p style="color:#888;font-size:12px;border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:16px">
-        &#8212;&#8212;&#8212; Forwarded message &#8212;&#8212;&#8212;<br>
-        <b>From:</b> ${escapeHtml(originalFrom)}<br>
-        <b>Subject:</b> ${escapeHtml(originalSubject)}
-       </p>
-       ${email.html}`
-    : undefined;
+  const result = await sendEmail({
+    to: forwardTo.trim(),
+    subject: fwdSubject,
+    text: plainBody,
+    html: htmlBody,
+  });
 
-  try {
-    const result = await sendEmail({
-      to: forwardToClean,
-      subject: forwardSubject,
-      text: plainBody,
-      ...(htmlBody ? { html: htmlBody } : {}),
-    });
-
-    if (!result.ok) {
-      console.warn('[email-forward] send failed', { forwardTo: forwardToClean, error: result.error });
-      return { ok: false, error: result.error };
-    }
-
+  if (result.ok) {
     console.info('[email-forward] forwarded', {
       from: originalFrom,
-      subject: originalSubject,
-      forwardTo: forwardToClean,
+      subject,
+      forwardTo,
       id: result.id,
     });
-
-    return { ok: true, id: result.id };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn('[email-forward] exception', msg);
-    return { ok: false, error: msg };
+  } else {
+    console.warn('[email-forward] forward failed', {
+      from: originalFrom,
+      subject,
+      forwardTo,
+      error: result.error,
+    });
   }
+
+  return result;
 }
 
 function escapeHtml(s: string): string {
