@@ -21,6 +21,13 @@ const voice = isHomepageVoiceWidgetEnabled(company);
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isHomePage = pathNorm === "/" || pathNorm === "/index.html";
+const isTermsPage = pathNorm === "/terms";
+const isPrivacyPage = pathNorm === "/privacy";
+
+const legalLinks = [
+  { href: "/terms", label: "Terms", active: isTermsPage },
+  { href: "/privacy", label: "Privacy", active: isPrivacyPage },
+] as const;
 
 function resolveActive(): SiteNavId {
   if (active) return active;
@@ -46,6 +53,22 @@ const items: Array<{
 
 <nav id="site-footer-nav" class="site-footer-nav" aria-label="Site navigation" data-home-nav={isHomePage ? "true" : undefined}>
   <div class="site-footer-nav-bar">
+    <div class="site-footer-nav-legal" aria-label="Legal">
+      {
+        legalLinks.map(({ href, label, active }, index) => (
+          <>
+            {index > 0 && <span class="site-footer-nav-legal-sep" aria-hidden="true">·</span>}
+            <a
+              href={href}
+              class:list={["site-footer-nav-legal-link", { active }]}
+              aria-current={active ? "page" : undefined}
+            >
+              {label}
+            </a>
+          </>
+        ))
+      }
+    </div>
     <div class="site-footer-nav-pill">
       <div id="site-footer-nav-indicator" class="footer-nav-indicator" hidden aria-hidden="true"></div>
       {
@@ -295,7 +318,10 @@ const items: Array<{
 
 <style is:global>
   :root {
-    --site-footer-nav-offset: calc(var(--footer-nav-pill-h, 2.5rem) + 0.85rem);
+    --site-footer-legal-h: 1.15rem;
+    --site-footer-nav-offset: calc(
+      var(--footer-nav-pill-h, 2.5rem) + var(--site-footer-legal-h) + 1.15rem
+    );
   }
 
   .site-footer-nav {
@@ -318,8 +344,41 @@ const items: Array<{
 
   .site-footer-nav-bar {
     display: flex;
+    flex-direction: column;
     align-items: center;
+    gap: 0.45rem;
     pointer-events: auto;
+  }
+
+  .site-footer-nav-legal {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: var(--site-footer-legal-h);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .site-footer-nav-legal-sep {
+    color: rgba(255, 255, 255, 0.28);
+    user-select: none;
+  }
+
+  .site-footer-nav-legal-link {
+    color: rgba(255, 255, 255, 0.42);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .site-footer-nav-legal-link:hover {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .site-footer-nav-legal-link.active {
+    color: rgba(255, 255, 255, 0.88);
   }
 
   .site-footer-nav-pill {

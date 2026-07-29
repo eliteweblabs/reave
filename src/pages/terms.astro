@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import SiteFooterNav from "../components/SiteFooterNav.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -122,6 +123,8 @@ const supportMail = company.supportEmail || (company.domain ? `support@${company
       </div>
     </div>
   </div>
+
+  <SiteFooterNav />
 </Layout>
 
 <style>
@@ -131,7 +134,7 @@ const supportMail = company.supportEmail || (company.domain ? `support@${company
 
   .page {
     min-height: 100vh;
-    padding: calc(64px + 48px) 24px 80px;
+    padding: calc(64px + 48px) 24px calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
     display: flex;
     justify-content: center;
   }
