@@ -2,6 +2,21 @@
 
 Go live with Telnyx SMS, the AI phone agent, and Siri Shortcuts integration. Add vars to Railway → Astro service → Variables.
 
+## 10DLC campaign resubmission
+
+After a failed carrier review, fix the public site first, then resubmit in Telnyx with an updated message flow.
+
+- [ ] Remove SEO / lead-gen service language from the marketing site (carriers flag SEO as lead generation)
+- [ ] Confirm the SMS opt-in form is live at **https://reave.app/form/sms-opt-in**
+- [ ] Take a screenshot showing the **phone number field**, **unchecked SMS consent checkbox**, **full disclaimer**, and **Privacy Policy / Terms links**
+- [ ] Upload the screenshot to a public host (Imgur, Google Drive, etc.) and paste the share link into the Telnyx **Message Flow / Opt-in workflow** field
+- [ ] In the message flow, note: *Customers opt in through the contact form at https://reave.app/form/sms-opt-in (phone field + optional SMS checkbox with full CTIA disclaimer). Homepage contact section at https://reave.app/#contact uses the same consent language.*
+- [ ] Resubmit the 10DLC campaign for review
+
+Reference: [Telnyx 10DLC Opt-in Form](https://support.telnyx.com/en/articles/10684260-10dlc-opt-in-form)
+
+## API & webhooks
+
 - [ ] Get API key from https://portal.telnyx.com/#/app/api-keys
 - [ ] Add TELNYX_API_KEY to Railway vars
 - [ ] Add TELNYX_FROM_NUMBER (E.164 format, e.g. +12125551234)

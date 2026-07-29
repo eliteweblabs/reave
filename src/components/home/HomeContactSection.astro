@@ -81,7 +81,12 @@ const vcardLabel = company.name ? `Add ${company.name}` : "Add contact";
       </a>
     </div>
 
-    <ConversationalForm slug="contact" embedded recipientEmail={supportMail} />
+    <ConversationalForm
+      slug="contact"
+      embedded
+      recipientEmail={supportMail}
+      brandName={company.name || "REΛVE"}
+    />
   </div>
 </section>
 

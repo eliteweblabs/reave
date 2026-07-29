@@ -5,9 +5,16 @@ interface Props {
   embedded?: boolean;
   /** Recipient for /api/forms/submit (company support inbox). */
   recipientEmail?: string;
+  /** Brand name for SMS consent disclaimer copy. */
+  brandName?: string;
 }
 
-const { slug, embedded = false, recipientEmail = "" } = Astro.props;
+const {
+  slug,
+  embedded = false,
+  recipientEmail = "",
+  brandName = "REΛVE",
+} = Astro.props;
 const bookingApiUrl = import.meta.env.PUBLIC_BOOKING_API_URL || "";
 const rootClass = embedded
   ? "conversational-form-root conversational-form-root--embedded"
@@ -310,6 +317,65 @@ const rootClass = embedded
     display: none !important;
   }
 
+  .conversational-form-root .sms-consent-panel {
+    align-self: flex-start;
+    max-width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    background: rgba(168, 85, 247, 0.1);
+    animation: cfFadeIn 0.3s ease;
+  }
+
+  .conversational-form-root .sms-consent-panel h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .conversational-form-root .sms-consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.45;
+    cursor: pointer;
+  }
+
+  .conversational-form-root .sms-consent-label input {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: #a855f7;
+  }
+
+  .conversational-form-root .sms-consent-disclaimer {
+    margin: 0 0 8px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .conversational-form-root .sms-consent-links {
+    margin: 0 0 12px;
+    font-size: 12px;
+  }
+
+  .conversational-form-root .sms-consent-links a {
+    color: #c084fc;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .conversational-form-root .sms-consent-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   @keyframes cfFadeIn {
     from {
       opacity: 0;
@@ -322,10 +388,20 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, recipientEmail }}>
+<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const RECIPIENT_EMAIL = recipientEmail;
+  const BRAND_NAME = brandName;
+  const SMS_USE_CASES = "inquiry updates and appointment reminders";
+
+  function smsConsentCheckboxLabel() {
+    return `I agree to receive SMS ${SMS_USE_CASES} from ${BRAND_NAME}.`;
+  }
+
+  function smsConsentDisclaimer() {
+    return `By providing your phone number, you agree to receive SMS ${SMS_USE_CASES} from ${BRAND_NAME}. Message frequency may vary. Standard Message and Data Rates may apply. Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for promotional or marketing purposes.`;
+  }
 
   let currentFieldIndex = 0;
   let formData = {};
@@ -532,6 +608,77 @@ const rootClass = embedded
     await delay(300);
   }
 
+  function showSmsConsentPanel(field, onComplete) {
+    root()?.querySelector("#current-options")?.remove();
+    root()?.querySelector("#sms-consent-panel")?.remove();
+    setInputVisible(false);
+
+    const panel = document.createElement("div");
+    panel.className = "sms-consent-panel";
+    panel.id = "sms-consent-panel";
+
+    const heading = document.createElement("h3");
+    heading.textContent = field["cf-questions"] || "Optional SMS updates";
+    panel.appendChild(heading);
+
+    const label = document.createElement("label");
+    label.className = "sms-consent-label";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = field.name;
+    checkbox.value = "yes";
+
+    const labelText = document.createElement("span");
+    labelText.textContent = smsConsentCheckboxLabel();
+
+    label.appendChild(checkbox);
+    label.appendChild(labelText);
+    panel.appendChild(label);
+
+    const disclaimer = document.createElement("p");
+    disclaimer.className = "sms-consent-disclaimer";
+    disclaimer.textContent = smsConsentDisclaimer();
+    panel.appendChild(disclaimer);
+
+    const links = document.createElement("p");
+    links.className = "sms-consent-links";
+    links.innerHTML =
+      '<a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>' +
+      ' · ' +
+      '<a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>';
+    panel.appendChild(links);
+
+    const actions = document.createElement("div");
+    actions.className = "sms-consent-actions";
+
+    const continueBtn = document.createElement("button");
+    continueBtn.type = "button";
+    continueBtn.className = "option-btn";
+    continueBtn.textContent = "Continue";
+    continueBtn.addEventListener("click", () => {
+      const optedIn = checkbox.checked;
+      panel.remove();
+      onComplete(optedIn ? "yes" : "no", optedIn ? "SMS updates: Yes" : "SMS updates: No");
+    });
+
+    const skipBtn = document.createElement("button");
+    skipBtn.type = "button";
+    skipBtn.className = "option-btn";
+    skipBtn.textContent = "Skip SMS updates";
+    skipBtn.addEventListener("click", () => {
+      panel.remove();
+      onComplete("no", "SMS updates: No");
+    });
+
+    actions.appendChild(continueBtn);
+    actions.appendChild(skipBtn);
+    panel.appendChild(actions);
+
+    container()?.appendChild(panel);
+    scrollToLatest();
+  }
+
   async function showQuestion() {
     const field = advanceToNextVisibleField();
     if (!field) {
@@ -562,6 +709,14 @@ const rootClass = embedded
           setTimeout(showQuestion, 500);
         });
       }
+    } else if (field.type === "sms_consent") {
+      await showMessages(questionText);
+      showSmsConsentPanel(field, (value, label) => {
+        appendMessage(label, "user");
+        formData[field.name] = value;
+        currentFieldIndex++;
+        setTimeout(showQuestion, 500);
+      });
     } else {
       const introLines = parts.slice(0, -1);
       const promptLine = parts[parts.length - 1];

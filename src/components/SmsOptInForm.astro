@@ -1,0 +1,287 @@
+---
+import { smsConsentCheckboxLabel, smsConsentDisclaimer } from "../lib/smsConsent";
+
+interface Props {
+  brandName: string;
+  recipientEmail?: string;
+  /** Show name/email/message fields or phone + SMS consent only (for Telnyx screenshot). */
+  compact?: boolean;
+}
+
+const { brandName, recipientEmail = "", compact = false } = Astro.props;
+const checkboxLabel = smsConsentCheckboxLabel(brandName);
+const disclaimer = smsConsentDisclaimer(brandName);
+---
+
+<form id="sms-opt-in-form" class="sms-opt-in-form" novalidate>
+  {
+    !compact && (
+      <>
+        <label class="field">
+          <span class="field-label">Name <span class="required">*</span></span>
+          <input type="text" name="name" required autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Email <span class="required">*</span></span>
+          <input type="email" name="email" required autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span class="field-label">Company</span>
+          <input type="text" name="company" autocomplete="organization" />
+        </label>
+      </>
+    )
+  }
+
+  <label class="field">
+    <span class="field-label">Phone number</span>
+    <input
+      type="tel"
+      name="phone"
+      autocomplete="tel"
+      inputmode="tel"
+      placeholder="(555) 555-5555"
+    />
+  </label>
+
+  <div class="sms-consent-block" aria-labelledby="sms-consent-heading">
+    <p id="sms-consent-heading" class="sms-consent-heading">SMS updates (optional)</p>
+
+    <label class="sms-consent-checkbox">
+      <input type="checkbox" name="sms_opt_in" value="yes" />
+      <span>{checkboxLabel}</span>
+    </label>
+
+    <p class="sms-consent-disclaimer">{disclaimer}</p>
+
+    <p class="sms-consent-links">
+      <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+      <span aria-hidden="true"> · </span>
+      <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+    </p>
+  </div>
+
+  {
+    !compact && (
+      <label class="field">
+        <span class="field-label">Message <span class="required">*</span></span>
+        <textarea name="message" rows="4" required placeholder="What would you like to talk about?" />
+      </label>
+    )
+  }
+
+  <button type="submit" class="submit-btn">Send message</button>
+
+  <p id="sms-form-status" class="form-status" role="status" aria-live="polite"></p>
+</form>
+
+<style>
+  .sms-opt-in-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    max-width: 520px;
+    margin: 0 auto;
+    color: rgba(255, 255, 255, 0.92);
+    font-family: "Inter", sans-serif;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .field-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .required {
+    color: #ec4899;
+  }
+
+  .field input,
+  .field textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .field input:focus,
+  .field textarea:focus {
+    border-color: #a855f7;
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.18);
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 110px;
+  }
+
+  .sms-consent-block {
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.28);
+    background: rgba(168, 85, 247, 0.08);
+  }
+
+  .sms-consent-heading {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .sms-consent-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 1.45;
+    cursor: pointer;
+  }
+
+  .sms-consent-checkbox input {
+    margin-top: 3px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: #a855f7;
+  }
+
+  .sms-consent-disclaimer {
+    margin: 0 0 10px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .sms-consent-links {
+    margin: 0;
+    font-size: 12px;
+  }
+
+  .sms-consent-links a {
+    color: #c084fc;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .sms-consent-links a:hover {
+    color: #ec4899;
+  }
+
+  .submit-btn {
+    align-self: flex-start;
+    padding: 12px 22px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .submit-btn:hover {
+    opacity: 0.92;
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .form-status {
+    min-height: 1.25rem;
+    margin: 0;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .form-status.is-error {
+    color: #fca5a5;
+  }
+
+  .form-status.is-success {
+    color: #86efac;
+  }
+</style>
+
+<script define:vars={{ recipientEmail, compact }}>
+  const form = document.getElementById("sms-opt-in-form");
+  const statusEl = document.getElementById("sms-form-status");
+
+  function setStatus(message, type = "") {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.className = "form-status";
+    if (type) statusEl.classList.add(`is-${type}`);
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (!(submitBtn instanceof HTMLButtonElement)) return;
+
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") || (compact ? "SMS opt-in visitor" : "")).trim(),
+      email: String(data.get("email") || (compact ? "sms-opt-in@reave.app" : "")).trim(),
+      company: String(data.get("company") || "").trim(),
+      phone: String(data.get("phone") || "").trim(),
+      message: String(
+        data.get("message") ||
+          (compact ? "SMS opt-in form submission (Telnyx compliance page)." : ""),
+      ).trim(),
+      sms_opt_in: data.get("sms_opt_in") === "yes" ? "yes" : "no",
+      subject: "New contact form message",
+    };
+
+    if (recipientEmail) payload.to = recipientEmail;
+
+    if (!compact && (!payload.name || !payload.email || !payload.message)) {
+      setStatus("Please fill in all required fields.", "error");
+      return;
+    }
+
+    submitBtn.disabled = true;
+    setStatus("Sending…");
+
+    try {
+      const res = await fetch("/api/forms/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        setStatus("Something went wrong. Please try again.", "error");
+        submitBtn.disabled = false;
+        return;
+      }
+
+      form.reset();
+      setStatus("Thanks — your message was sent.", "success");
+      submitBtn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      setStatus("Network error. Please try again.", "error");
+      submitBtn.disabled = false;
+    }
+  });
+</script>

@@ -1,0 +1,70 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import SmsOptInForm from "../../components/SmsOptInForm.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
+
+const company = await getCompanyConfig(Astro.request);
+const brandName = company.name || "REΛVE";
+const supportMail =
+  company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+---
+
+<Layout title={`Contact — ${brandName}`} description="Contact form with SMS opt-in consent.">
+  <style is:global>
+    body {
+      margin: 0;
+      background: #0a0a0a;
+    }
+  </style>
+
+  <main class="sms-opt-in-page">
+    <header class="page-header">
+      <p class="eyebrow">Contact</p>
+      <h1>Get in touch</h1>
+      <p class="lead">
+        Send us a message. Phone number and SMS updates are optional — you can submit without
+        opting in to texts.
+      </p>
+    </header>
+
+    <SmsOptInForm brandName={brandName} recipientEmail={supportMail} />
+  </main>
+</Layout>
+
+<style>
+  .sms-opt-in-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding:
+      calc(4.5rem + env(safe-area-inset-top, 0px))
+      max(1.25rem, env(safe-area-inset-right, 0px))
+      calc(2rem + env(safe-area-inset-bottom, 0px))
+      max(1.25rem, env(safe-area-inset-left, 0px));
+  }
+
+  .page-header {
+    margin-bottom: 28px;
+    text-align: center;
+  }
+
+  .eyebrow {
+    margin: 0 0 8px;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #a855f7;
+  }
+
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    color: #fff;
+  }
+
+  .lead {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+  }
+</style>

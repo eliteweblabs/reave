@@ -28,14 +28,10 @@
     },
     {
       "name": "sms_opt_in",
-      "type": "select",
-      "required": true,
+      "type": "sms_consent",
+      "required": false,
       "cf-show-if": "phone",
-      "cf-questions": "Can we text you updates about your inquiry?",
-      "options": [
-        { "value": "yes", "label": "Yes, text me" },
-        { "value": "no", "label": "No thanks" }
-      ]
+      "cf-questions": "Optional SMS updates about your inquiry"
     },
     {
       "name": "message",

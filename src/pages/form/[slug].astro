@@ -1,8 +1,10 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import ConversationalForm from "../../components/ConversationalForm.astro";
+import { getCompanyConfig } from "../../lib/companyConfig";
 
 const { slug } = Astro.params;
+const company = await getCompanyConfig(Astro.request);
 ---
 
 <Layout>
@@ -12,5 +14,13 @@ const { slug } = Astro.params;
       background: #0a0a0a;
     }
   </style>
-  {slug ? <ConversationalForm slug={slug} /> : null}
+  {
+    slug ? (
+      <ConversationalForm
+        slug={slug}
+        recipientEmail={company.supportEmail || ""}
+        brandName={company.name || "REΛVE"}
+      />
+    ) : null
+  }
 </Layout>
