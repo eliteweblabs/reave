@@ -56,6 +56,9 @@ export function storedChatPlainText(content: string): string {
 export const INBOX_EMAIL_WAIT_INSTRUCTION =
   'Please wait for instructions on how to deal with this email.';
 
+/** Max chars of email body shown in the inbox → agent chat handoff bubble. */
+export const INBOX_EMAIL_CHAT_EXCERPT_MAX = 500;
+
 /** True for the auto-sent stub when opening agent from the admin Email tab. */
 export function isInboxEmailOpenPrompt(text: string): boolean {
   const trimmed = text.trim();
@@ -63,7 +66,15 @@ export function isInboxEmailOpenPrompt(text: string): boolean {
   return /^From:\s/m.test(trimmed) && /^Subject:\s/m.test(trimmed);
 }
 
-/** Strip body (and other noise) from inbox handoff messages for chat display. */
+function truncateInboxEmailExcerpt(text: string, max = INBOX_EMAIL_CHAT_EXCERPT_MAX): string {
+  const clean = text.trim();
+  if (!clean) return '';
+  const withoutBodyLabel = clean.startsWith('Body:') ? clean.slice(5).trim() : clean;
+  if (withoutBodyLabel.length <= max) return withoutBodyLabel;
+  return `${withoutBodyLabel.slice(0, max)}…`;
+}
+
+/** Normalize inbox handoff messages for chat display — keep a short excerpt, not the full body. */
 export function collapseInboxEmailOpenPrompt(text: string): string {
   if (!isInboxEmailOpenPrompt(text)) return text;
 
@@ -77,6 +88,18 @@ export function collapseInboxEmailOpenPrompt(text: string): string {
   if (received) lines.push(`Received: ${received}`);
 
   if (!lines.length) return text;
+
+  const waitIdx = text.indexOf(INBOX_EMAIL_WAIT_INSTRUCTION);
+  const headerEndMatch = text.match(/^Received:.*$/m);
+  let excerpt = '';
+  if (headerEndMatch && waitIdx > -1) {
+    const headerEnd = (headerEndMatch.index ?? 0) + headerEndMatch[0].length;
+    if (waitIdx > headerEnd) {
+      excerpt = truncateInboxEmailExcerpt(text.slice(headerEnd, waitIdx));
+    }
+  }
+
+  if (excerpt) lines.push('', excerpt);
   lines.push('', INBOX_EMAIL_WAIT_INSTRUCTION);
   return lines.join('\n');
 }

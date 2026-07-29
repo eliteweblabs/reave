@@ -1,5 +1,8 @@
 import type { EmailInboxRecord } from './emailInboxStore';
-import { INBOX_EMAIL_WAIT_INSTRUCTION } from './chatMessageFormat';
+import {
+  INBOX_EMAIL_CHAT_EXCERPT_MAX,
+  INBOX_EMAIL_WAIT_INSTRUCTION,
+} from './chatMessageFormat';
 import {
   attachmentSummaryFallback,
   formatAttachmentListForPrompt,
@@ -45,11 +48,29 @@ export function formatEmailChatReference(
   ].join('\n');
 }
 
-/** User-visible stub when opening agent from the Email tab (body stays in system context). */
-export function buildInboxEmailOpenPrompt(
-  email: Pick<EmailInboxRecord, 'from' | 'subject' | 'receivedAt'>,
+/** Short body preview for the inbox → agent chat handoff bubble. */
+export function formatEmailChatExcerpt(
+  email: Pick<EmailInboxRecord, 'bodyText' | 'bodySnippet' | 'summary'>,
+  max = INBOX_EMAIL_CHAT_EXCERPT_MAX,
 ): string {
-  return [formatEmailChatReference(email), '', INBOX_EMAIL_WAIT_INSTRUCTION].join('\n');
+  const body = email.bodySnippet?.trim() || email.bodyText?.trim() || email.summary?.trim() || '';
+  if (!body) return '';
+  if (body.length <= max) return body;
+  return `${body.slice(0, max)}…`;
+}
+
+/** User-visible stub when opening agent from the Email tab (full body stays in system context). */
+export function buildInboxEmailOpenPrompt(
+  email: Pick<
+    EmailInboxRecord,
+    'from' | 'subject' | 'receivedAt' | 'bodyText' | 'bodySnippet' | 'summary'
+  >,
+): string {
+  const lines = [formatEmailChatReference(email), ''];
+  const excerpt = formatEmailChatExcerpt(email);
+  if (excerpt) lines.push(excerpt);
+  lines.push('', INBOX_EMAIL_WAIT_INSTRUCTION);
+  return lines.join('\n');
 }
 
 /** Body (+ optional summary) for agent prompts — skips headers already shown in chat. */

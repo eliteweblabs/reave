@@ -8341,15 +8341,27 @@ document.addEventListener('click', (e) => {
   closeEmailProjectMenu();
 });
 
+function emailChatExcerpt(ev, max = 500) {
+  const snippet = String(ev.bodySnippet || '').trim();
+  if (snippet) return snippet.length > max ? `${snippet.slice(0, max)}…` : snippet;
+  const text = String(ev.bodyText || '').trim();
+  if (text) return text.length > max ? `${text.slice(0, max)}…` : text;
+  const summary = String(ev.summary || '').trim();
+  if (summary) return summary.length > max ? `${summary.slice(0, max)}…` : summary;
+  return '';
+}
+
 function buildEmailAgentPrompt(ev) {
   const received = formatEmailWhen(ev.receivedAt) || ev.receivedAt || 'unknown';
-  return [
+  const lines = [
     `From: ${ev.from || '(unknown)'}`,
     `Subject: ${ev.subject || '(no subject)'}`,
     `Received: ${received}`,
-    '',
-    'Please wait for instructions on how to deal with this email.',
-  ].join('\n');
+  ];
+  const excerpt = emailChatExcerpt(ev);
+  if (excerpt) lines.push('', excerpt);
+  lines.push('', 'Please wait for instructions on how to deal with this email.');
+  return lines.join('\n');
 }
 
 async function fetchFullEmailRecord(ev) {
