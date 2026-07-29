@@ -6,6 +6,7 @@
  * Prices are sent in whole-dollar units; Crater stores cents internally.
  */
 import { serverEnv } from './serverEnv';
+import { clientNameSortKey, extractClientSearchTerms } from './clientSearch';
 
 function baseUrl(): string | null {
   const raw = serverEnv('CRATER_API_BASE_URL')?.trim();
@@ -242,9 +243,32 @@ export type CraterBillingCounts = {
   estimates: CraterEstimateCounts;
 };
 
-/** Match a master contact to a Crater customer (email, then name/company vs customer name, then contact_name). */
+/** Loose match for CRM ↔ Crater names (handles "The Solid Builder" vs "Solid Builders"). */
+export function billingLabelsMatch(a: string, b: string): boolean {
+  const na = clientNameSortKey(a).toLowerCase();
+  const nb = clientNameSortKey(b).toLowerCase();
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 4 && nb.length >= 4 && (na.includes(nb) || nb.includes(na))) return true;
+  return false;
+}
+
+function billingPhoneDigits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '');
+}
+
+function billingPhonesMatch(a: string | null | undefined, b: string | null | undefined): boolean {
+  const da = billingPhoneDigits(a);
+  const db = billingPhoneDigits(b);
+  if (da.length < 10 || db.length < 10) return false;
+  const ta = da.slice(-10);
+  const tb = db.slice(-10);
+  return ta === tb;
+}
+
+/** Match a master contact to a Crater customer (email, phone, then fuzzy name/company). */
 export function matchCraterCustomer(
-  contact: { name: string; email?: string | null; company?: string | null },
+  contact: { name: string; email?: string | null; company?: string | null; phone?: string | null },
   customers: CraterCustomer[],
 ): CraterCustomer | undefined {
   const email = (contact.email ?? '').trim().toLowerCase();
@@ -252,15 +276,21 @@ export function matchCraterCustomer(
     const byEmail = customers.find((c) => (c.email ?? '').trim().toLowerCase() === email);
     if (byEmail) return byEmail;
   }
-  const labels = new Set<string>();
+  if (contact.phone) {
+    const byPhone = customers.find((c) => billingPhonesMatch(contact.phone, c.phone));
+    if (byPhone) return byPhone;
+  }
+  const labels: string[] = [];
   for (const raw of [contact.name, contact.company]) {
-    const label = (raw ?? '').trim().toLowerCase();
-    if (label) labels.add(label);
+    const label = (raw ?? '').trim();
+    if (label) labels.push(label);
   }
   for (const label of labels) {
-    const byName = customers.find((c) => c.name.trim().toLowerCase() === label);
+    const byName = customers.find((c) => billingLabelsMatch(c.name, label));
     if (byName) return byName;
-    const byContactName = customers.find((c) => (c.contact_name ?? '').trim().toLowerCase() === label);
+    const byContactName = customers.find((c) =>
+      c.contact_name ? billingLabelsMatch(c.contact_name, label) : false,
+    );
     if (byContactName) return byContactName;
   }
   return undefined;
@@ -774,7 +804,31 @@ export type CraterContactMatch = {
   email?: string;
   name?: string;
   company?: string;
+  phone?: string;
 };
+
+function collectBillingSearchTerms(input: CraterContactMatch): string[] {
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw?: string) => {
+    const t = raw?.trim();
+    if (!t) return;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    terms.push(t);
+  };
+
+  push(input.email);
+  for (const part of extractClientSearchTerms(input.name ?? '')) push(part);
+  push(input.company);
+  if (input.company) push(clientNameSortKey(input.company));
+
+  const digits = billingPhoneDigits(input.phone);
+  if (digits.length >= 10) push(digits.slice(-10));
+
+  return terms;
+}
 
 /**
  * Resolve a Crater customer for a contact by email, name, and/or company.
@@ -793,15 +847,13 @@ async function craterFindCustomerForContact(
   const email = input.email?.trim().toLowerCase() || '';
   const name = input.name?.trim() || '';
   const company = input.company?.trim() || '';
-  if (!email && !name && !company) {
-    return { ok: false, error: 'email, name, or company is required' };
+  const phone = input.phone?.trim() || '';
+  if (!email && !name && !company && !phone) {
+    return { ok: false, error: 'email, name, company, or phone is required' };
   }
 
-  const contact = { name: name || company, email, company };
-  const searchTerms: string[] = [];
-  if (email) searchTerms.push(email);
-  if (name) searchTerms.push(name);
-  if (company && company.toLowerCase() !== name.toLowerCase()) searchTerms.push(company);
+  const contact = { name: name || company, email, company, phone };
+  const searchTerms = collectBillingSearchTerms(input);
 
   const seenIds = new Set<number>();
   const pooled: CraterCustomer[] = [];
@@ -833,15 +885,19 @@ export async function craterGetClientBilling(input: CraterContactMatch): Promise
   const email = input.email?.trim().toLowerCase() || '';
   const name = input.name?.trim() || '';
   const company = input.company?.trim() || '';
-  if (!email && !name && !company) return { ok: false, error: 'email, name, or company is required' };
+  const phone = input.phone?.trim() || '';
+  if (!email && !name && !company && !phone) {
+    return { ok: false, error: 'email, name, company, or phone is required' };
+  }
 
   const found = await craterFindCustomerForContact(input);
   if (!found.ok) return { ok: false, error: found.error, status: found.status };
   const customer = found.data;
   if (!customer) return { ok: true, data: null };
 
+  const customerLabel = customer.name.trim();
   const matchesCustomer = (n?: string | null) =>
-    (n ?? '').trim().toLowerCase() === customer!.name.trim().toLowerCase();
+    n ? billingLabelsMatch(customerLabel, n) : false;
 
   const list = await craterListInvoices();
   const mine = list.ok ? (list.data?.invoices ?? []).filter((inv) => matchesCustomer(inv.customer_name)) : [];
@@ -928,7 +984,10 @@ export async function craterGetClientPayments(input: CraterContactMatch): Promis
   const email = input.email?.trim().toLowerCase() || '';
   const name = input.name?.trim() || '';
   const company = input.company?.trim() || '';
-  if (!email && !name && !company) return { ok: false, error: 'email, name, or company is required' };
+  const phone = input.phone?.trim() || '';
+  if (!email && !name && !company && !phone) {
+    return { ok: false, error: 'email, name, company, or phone is required' };
+  }
 
   const found = await craterFindCustomerForContact(input);
   if (!found.ok) return { ok: false, error: found.error, status: found.status };

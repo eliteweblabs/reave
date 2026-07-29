@@ -67,6 +67,7 @@ export const GET: APIRoute = async ({ params, request }) => {
       email: contactStringField(c.email) || undefined,
       name: contactStringField(c.name) || undefined,
       company: contactStringField(c.company) || undefined,
+      phone: contactStringField(c.phone) || undefined,
     });
     if (b.ok && b.data) {
       const bill = b.data;
