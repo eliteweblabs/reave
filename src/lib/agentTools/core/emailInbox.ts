@@ -324,6 +324,7 @@ async function handle_list_email_filter_rules(_args: Record<string, unknown>, _c
     enabled: r.enabled,
     expired: isEmailRuleExpired(r, now),
     expiresAt: r.expiresAt ?? null,
+    forwardTo: r.forwardTo ?? null,
     createdAt: r.createdAt ?? null,
   }));
   return JSON.stringify({
@@ -372,16 +373,24 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
   const title =
     String(args.title ?? '').trim() ||
     (sender ? `Block sender ${sender}` : `Block: ${phrases[0].slice(0, 40)}`);
+  const forwardRaw = args.forward_to ?? args.forwardTo;
+  const forwardTo =
+    forwardRaw != null && String(forwardRaw).trim() ? String(forwardRaw).trim() : null;
+  const statusRaw = String(args.status ?? '').trim().toUpperCase().replace(/\s+/g, '_');
+  const status = statusRaw || 'DELETE';
   const rule = await storeCreateEmailRule({
     title,
-    status: 'DELETE',
-    description: 'Auto-junk — created by agent from inbox triage',
+    status,
+    description: forwardTo
+      ? 'Auto-junk + forward — created by agent from inbox triage'
+      : 'Auto-junk — created by agent from inbox triage',
     phrases,
     matchMode: 'any',
     fields: sender ? (['from'] as RuleField[]) : (['subject', 'body'] as RuleField[]),
     notify: false,
     enabled: true,
     expiresAt,
+    forwardTo,
   });
   if (!rule) return JSON.stringify({ error: 'failed to create rule' });
   return JSON.stringify({
@@ -392,6 +401,7 @@ async function handle_create_email_filter_rule(args: Record<string, unknown>, _c
       status: rule.status,
       phrases: rule.phrases,
       fields: rule.fields,
+      forwardTo: rule.forwardTo ?? null,
       expiresAt: rule.expiresAt ?? null,
     },
   });
@@ -533,13 +543,13 @@ export const emailInboxModule: AgentToolModule = {
             function: {
               name: 'create_email_filter_rule',
               description:
-                'Create a triage rule so future mail from a sender or matching phrases is auto-classified as junk (status DELETE, no alert). Rules are indefinite by default. When the user mentions an expiration ("for 7 days", "until Friday", "expires next month"), set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
+                'Create a triage rule so future mail from a sender or matching phrases is auto-classified (default junk/DELETE, no alert). Optional forward_to relays matched mail to an external address via Resend. Rules are indefinite by default. When the user mentions an expiration ("for 7 days", "until Friday", "expires next month"), set expires_at (ISO) or expires_in_days. Skips if an enabled rule already matches the same sender phrase.',
               parameters: {
                 type: 'object',
                 properties: {
                   sender: {
                     type: 'string',
-                    description: 'Sender email or domain substring, e.g. wordpress@mdot.world',
+                    description: 'Sender email or domain substring, e.g. upwork.com or wordpress@mdot.world',
                   },
                   phrases: {
                     type: 'array',
@@ -549,6 +559,15 @@ export const emailInboxModule: AgentToolModule = {
                   title: {
                     type: 'string',
                     description: 'Optional rule title shown in admin Rules UI',
+                  },
+                  status: {
+                    type: 'string',
+                    description: 'Optional status tag (default DELETE for junk). e.g. DELETE, AUTO_ARCHIVED',
+                  },
+                  forward_to: {
+                    type: 'string',
+                    description:
+                      'Optional email address to auto-forward matched messages to (e.g. teammate@company.com)',
                   },
                   expires_at: {
                     type: 'string',

@@ -50,6 +50,12 @@ function parseRuleInput(body: Record<string, unknown>): RuleInput | null {
     notify: body.notify === true || body.notify === 'true',
     enabled: body.enabled !== false && body.enabled !== 'false',
     expiresAt,
+    forwardTo:
+      body.forwardTo !== undefined
+        ? String(body.forwardTo)
+        : body.forward_to !== undefined
+          ? String(body.forward_to)
+          : null,
   };
 }
 

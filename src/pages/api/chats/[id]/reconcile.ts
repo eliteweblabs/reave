@@ -19,9 +19,9 @@ import { storeAppendChatMessages, storeGetChatThread } from '../../../../lib/cha
 export const prerender = false;
 
 const INTERRUPTED_NOTE =
-  '_(This response was interrupted before it finished — the server restarted or the ' +
-  'connection was lost mid-run. Nothing was saved from it. Send the message again and ' +
-  'I\'ll redo the work.)_';
+  '_(This response was interrupted before it finished — the run ended without saving a reply ' +
+  '(often a deploy restart or dropped connection, not necessarily something you did). ' +
+  'Send the message again and I\'ll redo the work.)_';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

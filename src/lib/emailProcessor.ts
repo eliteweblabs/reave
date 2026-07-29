@@ -312,6 +312,21 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
+
+  const forwardTo = ruleResult.matched?.forwardTo?.trim();
+  if (forwardTo) {
+    const { forwardEmail } = await import('./emailForward');
+    const fwd = await forwardEmail(email, forwardTo);
+    if (!fwd.ok) {
+      console.warn('[email] rule forward failed', {
+        from,
+        subject: email.subject,
+        forwardTo,
+        error: fwd.error,
+      });
+    }
+  }
+
   let category: EmailCategory = ruleCategory(ruleResult.status);
   let summary =
     ruleResult.matched?.summaryOverride ||

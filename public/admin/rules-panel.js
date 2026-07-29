@@ -112,6 +112,7 @@ function ruleSubline(rule) {
   if (rule.expiresAt) {
     bits.push(isRuleExpired(rule) ? 'Expired' : `Until ${formatRuleExpiresLabel(rule.expiresAt)}`);
   }
+  if (rule.forwardTo) bits.push(`→ ${rule.forwardTo}`);
   return bits.join(' · ');
 }
 
@@ -392,6 +393,13 @@ function renderRuleEditPane(pane) {
   enabledCb.addEventListener('change', () => { ruleState.dirty = true; });
   enabledLb.append(enabledCb, document.createTextNode(' Rule enabled'));
 
+  const forwardIn = document.createElement('input');
+  forwardIn.className = 'de-input';
+  forwardIn.type = 'email';
+  forwardIn.placeholder = 'e.g. teammate@company.com (optional)';
+  forwardIn.value = rule.forwardTo || '';
+  forwardIn.addEventListener('input', () => { ruleState.dirty = true; });
+
   const expiresLb = document.createElement('label');
   expiresLb.className = 're-check';
   const expiresCb = document.createElement('input');
@@ -428,6 +436,7 @@ function renderRuleEditPane(pane) {
   appendRuleField(form, 'Keywords / phrases', phrasesIn);
   appendRuleField(form, 'Match mode', matchSel);
   appendRuleField(form, 'Search in', fieldsWrap);
+  appendRuleField(form, 'Forward to', forwardIn);
   form.appendChild(notifyLb);
   form.appendChild(enabledLb);
   form.appendChild(expiresWrap);
@@ -442,6 +451,7 @@ function renderRuleEditPane(pane) {
     fieldsWrap,
     notifyCb,
     enabledCb,
+    forwardIn,
     expiresCb,
     expiresAtIn,
   };
@@ -463,6 +473,7 @@ function collectRulePayload(inputs) {
     fields: fields.length ? fields : ['subject', 'body'],
     notify: inputs.notifyCb.checked,
     enabled: inputs.enabledCb.checked,
+    forwardTo: inputs.forwardIn.value.trim() || null,
     expiresAt: inputs.expiresCb.checked ? fromRuleDatetimeLocalValue(inputs.expiresAtIn.value) : null,
   };
 }
@@ -506,6 +517,7 @@ function bindRuleAutosave(rule, inputs) {
     ...inputs.fieldsWrap.querySelectorAll('input[type=checkbox]'),
     inputs.notifyCb,
     inputs.enabledCb,
+    inputs.forwardIn,
     inputs.expiresCb,
     inputs.expiresAtIn,
   ];
