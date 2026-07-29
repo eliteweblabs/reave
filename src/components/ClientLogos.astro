@@ -146,9 +146,14 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
      * The item is content-sized (flex: 0 0 auto) with height:auto too, so
      * without a definite height anywhere in the chain, "width: auto" has
      * nothing to resolve against and the image collapses to 0×0.
+     *
+     * max-width caps very wide-aspect logos (e.g. Johnnie Walker ~10:1) on
+     * narrow viewports so they don't dwarf the rest of the strip. The value
+     * scales with the viewport so it feels proportional at every breakpoint.
      */
     height: 34px;
     width: auto;
+    max-width: min(140px, 38vw);
     pointer-events: none;
     user-select: none;
     -webkit-user-drag: none;
@@ -165,17 +170,30 @@ const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
     .client-logos-viewport {
       --logo-gap: 44px;
     }
+
+    .client-logo-item img {
+      max-width: min(180px, 32vw);
+    }
   }
 
   @media (min-width: 640px) {
     .client-logos-viewport {
       --logo-gap: 52px;
     }
+
+    .client-logo-item img {
+      max-width: min(200px, 28vw);
+    }
   }
 
   @media (min-width: 768px) {
     .client-logos-viewport {
       --logo-gap: 64px;
+    }
+
+    .client-logo-item img {
+      /* Desktop: logos are small decorative elements — no need to cap tightly */
+      max-width: 220px;
     }
   }
 </style>
