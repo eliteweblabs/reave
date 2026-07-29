@@ -25,6 +25,7 @@ import {
   resolveClientLogoUrl,
 } from '../../../lib/clientBranding';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
+import { syncContactToCrater } from '../../../lib/contactCraterSync';
 
 export const prerender = false;
 
@@ -91,7 +92,7 @@ async function loadContactForClientPatch(
   uid: string,
   body: Record<string, unknown>,
 ): Promise<
-  | { ok: true; data: ContactRecord }
+  | { ok: true; data: ContactRecord; before?: ContactRecord }
   | { ok: false; error: string; status?: number }
 > {
   if (!hasContactFieldPatch(body)) {
@@ -99,6 +100,9 @@ async function loadContactForClientPatch(
     if (!current.ok) return { ok: false, error: current.error, status: current.status ?? 404 };
     return { ok: true, data: current.data };
   }
+
+  const previous = await getContact(uid);
+  if (!previous.ok) return { ok: false, error: previous.error, status: previous.status ?? 404 };
 
   const res = await updateContact(uid, {
     name: typeof body.name === 'string' ? body.name : undefined,
@@ -108,7 +112,10 @@ async function loadContactForClientPatch(
     notes: typeof body.notes === 'string' ? body.notes : body.notes == null ? '' : undefined,
   });
   if (!res.ok) return { ok: false, error: res.error, status: res.status ?? 502 };
-  return { ok: true, data: res.data };
+
+  const craterSync = await syncContactToCrater(previous.data, res.data);
+
+  return { ok: true, data: res.data, before: previous.data, craterSync };
 }
 
 async function saveClientPortalFields(

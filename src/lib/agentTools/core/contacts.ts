@@ -41,6 +41,7 @@ import {
   type TodoStatus,
 } from '../../todoStore';
 import { getContactDeleteBlockers, executeContactDelete } from '../../contactDeleteGuard';
+import { syncContactToCrater } from '../../contactCraterSync';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -312,9 +313,20 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
   // Update core contact fields if any were provided.
   let updatedContact = null;
   if (hasCoreFields) {
+    const previous = await getContact(target.uid);
+    if (!previous.ok) return JSON.stringify({ error: previous.error, status: previous.status });
+
     const result = await updateContact(target.uid, patch);
     if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
     updatedContact = result.data;
+
+    const craterSync = await syncContactToCrater(previous.data, result.data);
+    if (!craterSync.ok) {
+      return JSON.stringify({
+        error: `Contact updated but Crater sync failed: ${craterSync.error}`,
+        uid: result.data.uid,
+      });
+    }
   }
 
   // Update website in portal metadata if provided.
@@ -338,6 +350,7 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     notes: updatedContact!.notes ?? null,
     website: website || null,
     portal_url: clientPortalUrl(updatedContact!.uid),
+    crater_synced: hasCoreFields ? true : undefined,
   });
 }
 

@@ -1,10 +1,11 @@
 import type { APIRoute } from 'astro';
-import { isContactApiConfigured, updateContact } from '../../../lib/contactApi';
+import { isContactApiConfigured, getContact, updateContact } from '../../../lib/contactApi';
 import {
   executeContactDelete,
   getContactDeleteBlockers,
   blockersToJson,
 } from '../../../lib/contactDeleteGuard';
+import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { serverEnv } from '../../../lib/serverEnv';
 
 export const prerender = false;
@@ -48,6 +49,9 @@ export const PATCH: APIRoute = async ({ request, params }) => {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
 
+  const previous = await getContact(uid);
+  if (!previous.ok) return json({ ok: false, error: previous.error }, previous.status ?? 404);
+
   const result = await updateContact(uid, {
     name: typeof body.name === 'string' ? body.name : undefined,
     email: typeof body.email === 'string' ? body.email : body.email == null ? '' : undefined,
@@ -56,7 +60,18 @@ export const PATCH: APIRoute = async ({ request, params }) => {
     notes: typeof body.notes === 'string' ? body.notes : body.notes == null ? '' : undefined,
   });
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
-  return json({ ok: true, contact: result.data });
+
+  const craterSync = await syncContactToCrater(previous.data, result.data);
+
+  return json({
+    ok: true,
+    contact: result.data,
+    crater_sync: craterSync.ok
+      ? craterSync.synced
+        ? { customerId: craterSync.customerId, customerName: craterSync.customerName }
+        : null
+      : { error: craterSync.error },
+  });
 };
 
 export const DELETE: APIRoute = async ({ request, params, url }) => {

@@ -183,6 +183,40 @@ export async function craterSearchCustomers(
   return { ok: true, data: { count: customers.length, customers } };
 }
 
+export async function craterUpdateCustomer(
+  customerId: number,
+  input: {
+    name?: string;
+    contact_name?: string;
+    email?: string | null;
+    phone?: string | null;
+  },
+): Promise<
+  CraterResult<{
+    success: boolean;
+    customer_id: number;
+    name: string;
+    contact_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  }>
+> {
+  const id = Number(customerId);
+  if (!Number.isFinite(id) || id <= 0) return { ok: false, error: 'customer_id is required' };
+
+  const body: Record<string, string> = {};
+  if (input.name?.trim()) body.name = input.name.trim();
+  if (input.contact_name !== undefined) body.contact_name = input.contact_name.trim();
+  if (input.email !== undefined) body.email = input.email?.trim() ?? '';
+  if (input.phone !== undefined) body.phone = input.phone?.trim() ?? '';
+  if (!Object.keys(body).length) return { ok: false, error: 'nothing to update' };
+
+  return craterFetch(`/api/custom/customer/${encodeURIComponent(String(id))}`, {
+    method: 'PUT',
+    body,
+  });
+}
+
 export type CraterInvoiceSummary = {
   id: number;
   invoice_number: string;
@@ -841,7 +875,7 @@ function collectBillingSearchTerms(input: CraterContactMatch): string[] {
  * portal's Billing tab silently disappears for any contact whose CRM email
  * doesn't happen to match their Crater record.
  */
-async function craterFindCustomerForContact(
+export async function craterFindCustomerForContact(
   input: CraterContactMatch,
 ): Promise<CraterResult<CraterCustomer | undefined>> {
   const email = input.email?.trim().toLowerCase() || '';

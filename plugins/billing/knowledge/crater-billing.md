@@ -33,6 +33,7 @@ All custom routes require header **`X-Crater-Api-Token`** equal to Crater's `CRA
 | DELETE | `/api/custom/invoice/{id}` | `delete_invoice` |
 | POST | `/api/custom/invoice/{id}/items` | `add_invoice_items` |
 | GET | `/api/custom/customers?q=` | `search_customers` |
+| PUT | `/api/custom/customer/{id}` | _(REΛVE contact → Crater sync on client edit)_ |
 | GET | `/api/custom/line-items?q=` | `search_line_items` |
 | POST | `/api/custom/record-payment` | `record_payment` |
 | GET | `/api/custom/recurring-invoices` | `list_recurring_invoices` |
