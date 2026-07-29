@@ -58,8 +58,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       tag: data.tag || 'inbox',
-      icon: '/favicon-192.png',
-      badge: '/favicon-192.png',
+      icon: '/api/branding/icon?size=192',
+      badge: '/api/branding/icon?size=192',
       data: { url: data.url || '/admin?tab=email', alertId },
       actions: alertId
         ? [

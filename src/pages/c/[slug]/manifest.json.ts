@@ -5,12 +5,26 @@
 import type { APIRoute } from 'astro';
 import { getContact, extractPortal, contactStringField } from '../../../lib/contactApi';
 import { resolveClientIconUrl, resolveClientLogoUrl } from '../../../lib/clientBranding';
+import { getCompanyConfig, companyFaviconUrls } from '../../../lib/companyConfig';
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ params }) => {
+function companyDefaultIcons(company: Awaited<ReturnType<typeof getCompanyConfig>>) {
+  const favicons = companyFaviconUrls(company);
+  return [
+    { src: favicons.appleTouchIcon, sizes: '180x180', type: 'image/png', purpose: 'any' },
+    { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ];
+}
+
+export const GET: APIRoute = async ({ params, request }) => {
   const uid = (params.slug ?? '').trim();
   let name = 'Client';
+  const company = await getCompanyConfig(request);
+  const defaultIcons = companyDefaultIcons(company);
 
   if (uid) {
     const res = await getContact(uid);
@@ -20,15 +34,9 @@ export const GET: APIRoute = async ({ params }) => {
         name = contactStringField(res.data.name) || name;
         const logoUrl = resolveClientLogoUrl(portal, uid);
         const iconUrl = resolveClientIconUrl(portal, uid);
-        const company = contactStringField(res.data.company);
-        if (company) name = company;
+        const contactCompany = contactStringField(res.data.company);
+        if (contactCompany) name = contactCompany;
 
-        const defaultIcons = [
-          { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-          { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-          { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ];
         const pwaIcon = iconUrl || logoUrl;
         const icons = pwaIcon
           ? [
@@ -72,12 +80,7 @@ export const GET: APIRoute = async ({ params }) => {
     display_override: ['standalone', 'minimal-ui'],
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
-    icons: [
-      { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/favicon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-      { src: '/favicon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-    ],
+    icons: defaultIcons,
   };
 
   return new Response(JSON.stringify(manifest), {

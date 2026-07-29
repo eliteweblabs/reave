@@ -1,22 +1,15 @@
+/**
+ * Root /favicon.ico — browsers auto-request this path.
+ * Serves a 32×32 PNG generated from the admin icon (or default AV mark).
+ */
 import type { APIRoute } from 'astro';
-import {
-  BRAND_ICON_SIZES,
-  isBrandIconSize,
-  rasterizeBrandIcon,
-  readDefaultBrandIcon,
-} from '../../../lib/brandIconRaster';
-import { getStoredCompanyIcon } from '../../../lib/companyConfigStore';
+import { BRAND_ICON_SIZES, rasterizeBrandIcon, readDefaultBrandIcon } from '../lib/brandIconRaster';
+import { getStoredCompanyIcon } from '../lib/companyConfigStore';
 
 export const prerender = false;
 
-function parseSize(raw: string | null): number {
-  const n = raw ? Number.parseInt(raw, 10) : Number.NaN;
-  if (isBrandIconSize(n)) return n;
-  return BRAND_ICON_SIZES.png192;
-}
-
-export const GET: APIRoute = async ({ request, url }) => {
-  const size = parseSize(url.searchParams.get('size'));
+export const GET: APIRoute = async ({ request }) => {
+  const size = BRAND_ICON_SIZES.png32;
   const icon = await getStoredCompanyIcon();
 
   let body: Buffer;
@@ -25,10 +18,10 @@ export const GET: APIRoute = async ({ request, url }) => {
   if (icon) {
     const source = Buffer.from(icon.dataBase64, 'base64');
     body = await rasterizeBrandIcon(source, size);
-    etagSource = `${icon.updatedAt ?? '0'}:${size}`;
+    etagSource = `${icon.updatedAt ?? '0'}:ico`;
   } else {
     body = await readDefaultBrandIcon(size);
-    etagSource = `default:${size}`;
+    etagSource = 'default:ico';
   }
 
   const etag = `"${etagSource}"`;

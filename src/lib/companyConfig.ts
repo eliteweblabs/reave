@@ -5,6 +5,7 @@
 import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
 import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH, LOGO_ICON_AVATAR_PATH } from './companyLogo';
+import { BRAND_ICON_SIZES } from './brandIconRaster';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
 import { serverEnv } from './serverEnv';
@@ -251,26 +252,31 @@ export function companyLogoUrl(path: string, version?: string | null): string {
   return `${base}${base.includes('?') ? '&' : '?'}v=${encodeURIComponent(v)}`;
 }
 
-/** Resolved favicon / PWA icon URLs — custom admin icon or SITE defaults. */
+/** Build a sized branding icon URL (admin upload or default AV mark). */
+export function brandIconUrl(size: number, version?: string | null): string {
+  const params = new URLSearchParams({ size: String(size) });
+  const v = trim(version);
+  if (v) params.set('v', v);
+  return `${BRANDING_ICON_PATH}?${params.toString()}`;
+}
+
+/** Resolved favicon / PWA icon URLs — always served from /api/branding/icon (admin or default). */
 export function companyFaviconUrls(company: CompanyConfig): typeof SITE.favicons {
-  if (company.iconSource === 'admin') {
-    const url = companyLogoUrl(company.iconPath, company.iconVersion);
-    return {
-      ico: url,
-      png32: url,
-      png16: url,
-      appleTouchIcon: url,
-      png192: url,
-      png512: url,
-    };
-  }
-  return SITE.favicons;
+  const version = company.iconSource === 'admin' ? company.iconVersion : null;
+  return {
+    ico: brandIconUrl(BRAND_ICON_SIZES.png32, version),
+    png32: brandIconUrl(BRAND_ICON_SIZES.png32, version),
+    png16: brandIconUrl(BRAND_ICON_SIZES.png16, version),
+    appleTouchIcon: brandIconUrl(BRAND_ICON_SIZES.appleTouchIcon, version),
+    png192: brandIconUrl(BRAND_ICON_SIZES.png192, version),
+    png512: brandIconUrl(BRAND_ICON_SIZES.png512, version),
+  };
 }
 
 /** Staff / team avatar for comments — custom icon or transparent default mark. */
 export function companyStaffAvatarUrl(company: CompanyConfig): string {
   if (company.iconSource === 'admin') {
-    return companyLogoUrl(company.iconPath, company.iconVersion);
+    return brandIconUrl(BRAND_ICON_SIZES.png192, company.iconVersion);
   }
   return LOGO_ICON_AVATAR_PATH;
 }

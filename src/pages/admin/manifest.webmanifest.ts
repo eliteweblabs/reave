@@ -24,6 +24,7 @@ export const GET: APIRoute = async ({ request }) => {
     theme_color: '#ffffff',
     categories: ['business', 'productivity'],
     icons: [
+      { src: favicons.appleTouchIcon, sizes: '180x180', type: 'image/png', purpose: 'any' },
       { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
