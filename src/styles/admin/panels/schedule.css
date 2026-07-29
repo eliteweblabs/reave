@@ -884,16 +884,15 @@
   gap: var(--dash-nav-gap);
   padding: var(--dash-nav-pad-y) var(--dash-nav-pad-x);
   border-radius: 12px;
-  border: 1px solid var(--panel-border);
+  border: none;
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;
   text-align: left;
   font: inherit;
-  transition: border-color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 .home-dashboard-tile:hover {
-  border-color: var(--border-hover);
   background: var(--surface-hover-strong);
 }
 .home-dashboard-tile-icon {

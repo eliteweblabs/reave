@@ -562,6 +562,40 @@ export async function bookingsToday(): Promise<
   return { ok: true, data: { events, configured: true } };
 }
 
+/** Accepted bookings starting within the next 24 hours (from now). */
+export async function bookingsNext24Hours(): Promise<
+  BookingResult<{ events: DashboardEvent[]; configured: boolean }>
+> {
+  if (!isBookingConfigured()) {
+    return { ok: true, data: { events: [], configured: false } };
+  }
+
+  const limit = 50;
+  const upcomingRes = await bookingList({ upcoming: true, status: 'accepted', limit });
+  if (!upcomingRes.ok) {
+    console.error('[bookingsNext24Hours] upcoming bookings failed:', upcomingRes.error);
+    return upcomingRes;
+  }
+
+  const now = Date.now();
+  const cutoff = now + 24 * 60 * 60 * 1000;
+  const seen = new Set<string>();
+  const events: DashboardEvent[] = [];
+
+  for (const b of upcomingRes.data.bookings) {
+    if (seen.has(b.uid)) continue;
+    seen.add(b.uid);
+    const startMs = new Date(b.startTime).getTime();
+    if (Number.isNaN(startMs)) continue;
+    if (startMs >= now && startMs <= cutoff) {
+      events.push(bookingToDashboardEvent(b));
+    }
+  }
+
+  events.sort((a, b) => a.time.localeCompare(b.time));
+  return { ok: true, data: { events, configured: true } };
+}
+
 export async function bookingPing(): Promise<
   BookingResult<{ reachable: boolean; db?: string }>
 > {

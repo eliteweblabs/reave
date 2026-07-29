@@ -2317,6 +2317,190 @@ function buildDashTodayGroups(events, todos) {
   return { todos: todoItems, events: eventItems };
 }
 
+const DASH_TIME_VIEW_KEY = 'home-dash-time-view';
+const DASH_TIME_VIEWS = [
+  { value: 'today', label: 'Today' },
+  { value: 'next24', label: 'Next 24h' },
+];
+
+function readDashTimeView() {
+  try {
+    const stored = localStorage.getItem(DASH_TIME_VIEW_KEY);
+    if (stored === 'today' || stored === 'next24') return stored;
+  } catch {
+    /* ignore */
+  }
+  return 'today';
+}
+
+function writeDashTimeView(view) {
+  try {
+    localStorage.setItem(DASH_TIME_VIEW_KEY, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isDashTodoDueToday(raw) {
+  const d = parseTodoDueInstant(raw);
+  if (!d) return false;
+  const now = new Date();
+  const dueDay = isUtcDateOnlyInstant(raw, d)
+    ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toDateString()
+    : d.toDateString();
+  return dueDay === now.toDateString();
+}
+
+function isDashTodoOverdue(raw) {
+  const d = parseTodoDueInstant(raw);
+  if (!d) return false;
+  const now = new Date();
+  const dueDay = isUtcDateOnlyInstant(raw, d)
+    ? new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())).toDateString()
+    : d.toDateString();
+  return d.getTime() < now.getTime() && dueDay !== now.toDateString();
+}
+
+function filterDashTodosForView(todos, view) {
+  const now = Date.now();
+  const cutoff = now + 24 * 60 * 60 * 1000;
+  return todos.filter((todo) => {
+    if (!todo?.due_date) return false;
+    const d = parseTodoDueInstant(todo.due_date);
+    if (!d) return false;
+    if (view === 'today') {
+      return isDashTodoOverdue(todo.due_date) || isDashTodoDueToday(todo.due_date);
+    }
+    if (isDashTodoOverdue(todo.due_date)) return true;
+    return d.getTime() <= cutoff;
+  });
+}
+
+function filterDashEventsForView(eventsToday, eventsNext24h, view) {
+  return view === 'next24' ? eventsNext24h : eventsToday;
+}
+
+function dashTimeViewEmptyCopy(view, scheduleLive) {
+  if (view === 'next24') {
+    return scheduleLive
+      ? 'Nothing in the next 24 hours.'
+      : 'No due to-dos in the next 24 hours.';
+  }
+  return scheduleLive
+    ? 'Nothing scheduled today.'
+    : 'No meetings or due to-dos right now.';
+}
+
+async function markDashTodoDone(id) {
+  try {
+    const res = await fetch(`/api/todos/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'done' }),
+    });
+    await readApiJson(res);
+    closeOpenSwipeRow();
+    await loadHomeDashboard();
+  } catch (e) {
+    osAlert({ title: 'Could not complete', bodyHtml: escHtml(e.message) });
+  }
+}
+
+function createDashTodoContent(todo) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'dash-event dash-event-btn';
+  btn.dataset.id = String(todo.id);
+  const when = formatDashTodoWhen(todo.due_date);
+  const whenClass =
+    when === 'Overdue'
+      ? 'dash-event-time dash-event-time--overdue'
+      : 'dash-event-time dash-event-time--todo';
+  btn.innerHTML =
+    `<span class="${whenClass}">${escHtml(when)}</span>` +
+    `<div class="dash-event-body">` +
+      `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
+      `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
+    `</div>`;
+  btn.addEventListener('click', () => navigateToTodo(todo.id));
+  return btn;
+}
+
+function createDashTodoSwipeRow(todo) {
+  return createSwipeRow(createDashTodoContent(todo), [
+    swipeArchiveAction({
+      label: 'Done',
+      onClick: () => markDashTodoDone(todo.id),
+    }),
+  ]);
+}
+
+function renderDashTodayLists(container, data, view) {
+  closeOpenSwipeRow();
+  container.replaceChildren();
+  const scheduleLive = data?.schedulingConfigured === true;
+  const eventsToday = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
+  const eventsNext24h = Array.isArray(data?.eventsNext24h) ? data.eventsNext24h : [];
+  const upcomingTodos = Array.isArray(data?.upcomingTodos) ? data.upcomingTodos : [];
+  const filteredTodos = filterDashTodosForView(upcomingTodos, view);
+  const filteredEvents = filterDashEventsForView(eventsToday, eventsNext24h, view);
+  const todayGroups = buildDashTodayGroups(filteredEvents, filteredTodos);
+  const hasTodos = todayGroups.todos.length > 0;
+  const hasEvents = todayGroups.events.length > 0;
+
+  if (!hasTodos && !hasEvents) {
+    const empty = document.createElement('p');
+    empty.className = 'dash-empty';
+    empty.textContent = dashTimeViewEmptyCopy(view, scheduleLive);
+    container.appendChild(empty);
+    return;
+  }
+
+  if (hasTodos) {
+    const todoList = document.createElement('div');
+    todoList.className = 'dash-events';
+    bindSwipeListScroll(todoList);
+    for (const todo of todayGroups.todos) {
+      todoList.appendChild(createDashTodoSwipeRow(todo));
+    }
+    container.appendChild(todoList);
+  }
+
+  if (hasEvents) {
+    const eventsList = document.createElement('ul');
+    eventsList.className = 'dash-events';
+    for (const ev of todayGroups.events) {
+      const li = document.createElement('li');
+      const uid = ev.uid || ev.id;
+      const canOpen = scheduleLive && uid;
+      if (canOpen) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dash-event dash-event-btn';
+        btn.innerHTML =
+          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+            (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
+          `</div>`;
+        btn.addEventListener('click', () => openScheduleTab({ uid }));
+        li.appendChild(btn);
+      } else {
+        li.className = 'dash-event';
+        li.innerHTML =
+          `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
+          `<div class="dash-event-body">` +
+            `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
+            (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
+          `</div>`;
+      }
+      eventsList.appendChild(li);
+    }
+    container.appendChild(eventsList);
+  }
+}
+
 function formatEmailWhen(iso) {
   try {
     const d = new Date(iso);
@@ -3563,9 +3747,7 @@ function renderHomeDashboard(data) {
 
   const stats = data?.stats || {};
   const scheduleLive = data?.schedulingConfigured === true;
-  const events = Array.isArray(data?.eventsToday) ? data.eventsToday : [];
-  const upcomingTodos = Array.isArray(data?.upcomingTodos) ? data.upcomingTodos : [];
-  const todayGroups = buildDashTodayGroups(events, upcomingTodos);
+  const dashTimeView = readDashTimeView();
   const automationNotifications = Array.isArray(data?.automationNotifications)
     ? data.automationNotifications
     : [];
@@ -3576,89 +3758,45 @@ function renderHomeDashboard(data) {
 
   const todaySection = document.createElement('section');
   todaySection.className = 'dash-today';
-  todaySection.innerHTML =
-    `<div class="dash-today-head">` +
-      `<h2 class="dash-panel-title">Today</h2>` +
-      (scheduleLive
-        ? `<button type="button" class="dash-panel-btn" data-schedule-all>View Schedule</button>`
-        : '') +
-    `</div>`;
-  todaySection.querySelector('[data-schedule-all]')?.addEventListener('click', () => {
-    openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+
+  const todayHead = document.createElement('div');
+  todayHead.className = 'dash-today-head';
+
+  const todayHeadLeft = document.createElement('div');
+  todayHeadLeft.className = 'dash-today-head-left';
+
+  const viewPickerWrap = document.createElement('div');
+  viewPickerWrap.className = 'dash-today-view-picker';
+  const viewPicker = createSlidingPillSelect({
+    value: dashTimeView,
+    options: DASH_TIME_VIEWS,
+    ariaLabel: 'Schedule window',
+    onChange: (next) => {
+      writeDashTimeView(next);
+      renderDashTodayLists(todayLists, data, next);
+    },
   });
+  viewPickerWrap.appendChild(viewPicker.el);
+  todayHeadLeft.appendChild(viewPickerWrap);
+  todayHead.appendChild(todayHeadLeft);
+
+  if (scheduleLive) {
+    const scheduleBtn = document.createElement('button');
+    scheduleBtn.type = 'button';
+    scheduleBtn.className = 'dash-panel-btn';
+    scheduleBtn.dataset.scheduleAll = '';
+    scheduleBtn.textContent = 'View Schedule';
+    scheduleBtn.addEventListener('click', () => {
+      openScheduleTab({ view: 'day', date: scheduleTodayKey() });
+    });
+    todayHead.appendChild(scheduleBtn);
+  }
+
+  todaySection.appendChild(todayHead);
 
   const todayLists = document.createElement('div');
   todayLists.className = 'dash-today-lists';
-  const hasTodos = todayGroups.todos.length > 0;
-  const hasEvents = todayGroups.events.length > 0;
-
-  if (!hasTodos && !hasEvents) {
-    const empty = document.createElement('p');
-    empty.className = 'dash-empty';
-    empty.textContent = scheduleLive
-      ? 'Nothing scheduled today.'
-      : 'No meetings or due to-dos right now.';
-    todayLists.appendChild(empty);
-  } else {
-    if (hasTodos) {
-      const todoList = document.createElement('ul');
-      todoList.className = 'dash-events';
-      for (const todo of todayGroups.todos) {
-        const li = document.createElement('li');
-        const when = formatDashTodoWhen(todo.due_date);
-        const whenClass =
-          when === 'Overdue'
-            ? 'dash-event-time dash-event-time--overdue'
-            : 'dash-event-time dash-event-time--todo';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'dash-event dash-event-btn';
-        btn.innerHTML =
-          `<span class="${whenClass}">${escHtml(when)}</span>` +
-          `<div class="dash-event-body">` +
-            `<div class="dash-event-title">${escHtml(todo.title || 'To-do')}</div>` +
-            `<div class="dash-event-type">${escHtml(dashTodoSubline(todo))}</div>` +
-          `</div>`;
-        btn.addEventListener('click', () => navigateToTodo(todo.id));
-        li.appendChild(btn);
-        todoList.appendChild(li);
-      }
-      todayLists.appendChild(todoList);
-    }
-    if (hasEvents) {
-      const eventsList = document.createElement('ul');
-      eventsList.className = 'dash-events';
-      for (const ev of todayGroups.events) {
-        const li = document.createElement('li');
-        const uid = ev.uid || ev.id;
-        const canOpen = scheduleLive && uid;
-        if (canOpen) {
-          const btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'dash-event dash-event-btn';
-          btn.innerHTML =
-            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-            `<div class="dash-event-body">` +
-              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-              (ev.attendee ? `<div class="dash-event-type">${escHtml(ev.attendee)}</div>` : '') +
-            `</div>`;
-          btn.addEventListener('click', () => openScheduleTab({ uid }));
-          li.appendChild(btn);
-        } else {
-          li.className = 'dash-event';
-          li.innerHTML =
-            `<span class="dash-event-time">${escHtml(formatEventTime(ev.time))}</span>` +
-            `<div class="dash-event-body">` +
-              `<div class="dash-event-title">${escHtml(ev.title || 'Event')}</div>` +
-              (ev.type ? `<div class="dash-event-type">${escHtml(ev.type)}</div>` : '') +
-            `</div>`;
-        }
-        eventsList.appendChild(li);
-      }
-      todayLists.appendChild(eventsList);
-    }
-  }
+  renderDashTodayLists(todayLists, data, dashTimeView);
   todaySection.appendChild(todayLists);
   scroll.appendChild(todaySection);
 

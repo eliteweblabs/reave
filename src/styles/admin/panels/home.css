@@ -58,13 +58,13 @@
   gap: 0.15rem;
   padding: var(--dash-stat-pad-y) var(--dash-stat-pad-x);
   border-radius: 14px;
-  border: 1px solid var(--panel-border);
+  border: none;
   background: var(--surface-muted);
   color: var(--fg);
   cursor: pointer;
   text-align: left;
   font: inherit;
-  transition: border-color 0.15s, background 0.15s, transform 0.12s;
+  transition: background 0.15s, transform 0.12s;
   min-height: var(--dash-stat-min-h);
 }
 /* Override global pill buttons — dashboard cards stay rounded-rect. */
@@ -78,7 +78,6 @@
   border-radius: 12px;
 }
 .dash-stat:hover {
-  border-color: var(--border-hover);
   background: var(--surface-hover-strong);
 }
 .dash-stat:active {
@@ -106,7 +105,6 @@
 }
 .dash-stat--muted:hover {
   background: var(--surface-muted);
-  border-color: var(--panel-border);
   transform: none;
 }
 .dash-stat--live .dash-stat-value { color: #4ade80; }
@@ -352,6 +350,27 @@
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0.65rem;
+  flex-wrap: wrap;
+}
+.dash-today-head-left {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.dash-today-view-picker .sliding-pill-select {
+  margin: 0;
+}
+.dash-today-view-picker .sliding-pill {
+  min-width: 9.5rem;
+}
+.dash-events .swipe-row {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.dash-events .swipe-content .dash-event-btn {
+  border-radius: 0;
 }
 .dash-today-lists {
   display: flex;

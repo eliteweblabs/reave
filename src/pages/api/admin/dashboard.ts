@@ -28,6 +28,7 @@ import { syncRecentUptimeIncidentsToPushAlerts } from '../../../lib/uptimePushAl
 import {
   bookingList,
   bookingsToday,
+  bookingsNext24Hours,
   isBookingConfigured,
   type DashboardEvent,
 } from '../../../lib/bookingClient';
@@ -58,6 +59,16 @@ async function loadEventsToday(): Promise<DashboardEvent[]> {
   return out.data.events;
 }
 
+async function loadEventsNext24Hours(): Promise<DashboardEvent[]> {
+  if (!isBookingConfigured()) return [];
+  const out = await bookingsNext24Hours();
+  if (!out.ok) {
+    console.error('[dashboard] bookingsNext24Hours failed:', out.error);
+    return [];
+  }
+  return out.data.events;
+}
+
 export type DashboardUpcomingTodo = {
   id: number;
   title: string;
@@ -68,7 +79,7 @@ export type DashboardUpcomingTodo = {
   assignee: string | null;
 };
 
-async function loadUpcomingTodos(limit = 4): Promise<DashboardUpcomingTodo[]> {
+async function loadUpcomingTodos(limit = 24): Promise<DashboardUpcomingTodo[]> {
   if (!isTodoDbConfigured()) return [];
   const todos = await storeListTodos({ status: 'open' });
   return todos
@@ -148,7 +159,8 @@ export async function GET(context: APIContext): Promise<Response> {
   }));
 
   const eventsToday = await loadEventsToday();
-  const upcomingTodos = await loadUpcomingTodos(4);
+  const eventsNext24h = await loadEventsNext24Hours();
+  const upcomingTodos = await loadUpcomingTodos();
   const schedulingConfigured = isBookingConfigured();
 
   // Count open todos from DB (not legacy markdown files)
@@ -227,6 +239,7 @@ export async function GET(context: APIContext): Promise<Response> {
     recentEmails,
     automationNotifications,
     eventsToday,
+    eventsNext24h,
     upcomingTodos,
     schedulingConfigured,
     billingConfigured,
