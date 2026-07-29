@@ -7,13 +7,14 @@ import {
 } from '../../../lib/contactDeleteGuard';
 import { syncContactToCrater } from '../../../lib/contactCraterSync';
 import { serverEnv } from '../../../lib/serverEnv';
+import { secretMatches } from '../../../lib/secretCompare';
 
 export const prerender = false;
 
 function isDashboardAuthed(request: Request): boolean {
   const expected = serverEnv('DASHBOARD_KEY')?.trim();
   if (!expected) return false;
-  return request.headers.get('x-dashboard-key')?.trim() === expected;
+  return secretMatches(request.headers.get('x-dashboard-key'), expected);
 }
 
 const json = (body: object, status = 200) =>
