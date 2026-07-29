@@ -254,13 +254,24 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     notes: typeof args.notes === 'string' ? args.notes : undefined,
   });
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+
+  const uid = result.data.uid;
+
+  // If a website was provided, persist it in portal metadata.
+  const website = typeof args.website === 'string' ? args.website.trim() : '';
+  if (website) {
+    const existing = extractPortal(result.data) ?? {};
+    await setContactPortal(uid, { ...existing, website });
+  }
+
   return JSON.stringify({
     success: true,
-    uid: result.data.uid,
+    uid,
     name: result.data.name,
     email: result.data.email ?? null,
     phone: result.data.phone ?? null,
-    portal_url: clientPortalUrl(result.data.uid),
+    website: website || null,
+    portal_url: clientPortalUrl(uid),
   });
 }
 
@@ -276,6 +287,8 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
       });
   if (!target.ok) return target.payload;
 
+  const website = typeof args.website === 'string' ? args.website.trim() : '';
+
   const patch: {
     name?: string;
     email?: string;
@@ -288,23 +301,43 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
   if (typeof args.phone === 'string') patch.phone = args.phone;
   if (typeof args.company === 'string') patch.company = args.company;
   if (typeof args.notes === 'string') patch.notes = args.notes;
-  if (!Object.keys(patch).length) {
+
+  const hasCoreFields = Object.keys(patch).length > 0;
+  if (!hasCoreFields && !website) {
     return JSON.stringify({
-      error: 'Provide at least one field to update (new_name, email, phone, company, notes).',
+      error: 'Provide at least one field to update (new_name, email, phone, company, notes, website).',
     });
   }
 
-  const result = await updateContact(target.uid, patch);
-  if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+  // Update core contact fields if any were provided.
+  let updatedContact = null;
+  if (hasCoreFields) {
+    const result = await updateContact(target.uid, patch);
+    if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
+    updatedContact = result.data;
+  }
+
+  // Update website in portal metadata if provided.
+  if (website) {
+    const current = await getContact(target.uid);
+    if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+    const existing = extractPortal(current.data) ?? {};
+    const portalSave = await setContactPortal(target.uid, { ...existing, website });
+    if (!portalSave.ok) return JSON.stringify({ error: `Core fields updated but website save failed: ${portalSave.error}` });
+    // Use the freshly-fetched contact if we didn't do a core update.
+    if (!updatedContact) updatedContact = current.data;
+  }
+
   return JSON.stringify({
     success: true,
-    uid: result.data.uid,
-    name: result.data.name,
-    email: result.data.email ?? null,
-    phone: result.data.phone ?? null,
-    company: result.data.company ?? null,
-    notes: result.data.notes ?? null,
-    portal_url: clientPortalUrl(result.data.uid),
+    uid: updatedContact!.uid,
+    name: updatedContact!.name,
+    email: updatedContact!.email ?? null,
+    phone: updatedContact!.phone ?? null,
+    company: updatedContact!.company ?? null,
+    notes: updatedContact!.notes ?? null,
+    website: website || null,
+    portal_url: clientPortalUrl(updatedContact!.uid),
   });
 }
 
@@ -418,6 +451,7 @@ export const contactsModule: AgentToolModule = {
                     phone: { type: 'string' },
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
+                    website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
                   },
                   required: ['name'],
                   additionalProperties: false,
@@ -440,6 +474,7 @@ export const contactsModule: AgentToolModule = {
                     phone: { type: 'string' },
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes' },
+                    website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
                   },
                   additionalProperties: false,
                 },
