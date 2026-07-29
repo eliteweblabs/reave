@@ -22,6 +22,7 @@ import { uptimeMonitoringPlugin } from '../../plugins/uptime-monitoring/manifest
 import { vapiPlugin } from '../../plugins/vapi/manifest';
 import { fleetPlugin } from '../../plugins/fleet/manifest';
 import { paulinoWizardPlugin } from '../../plugins/paulino-wizard/manifest';
+import { demoPlugin } from '../../plugins/demo/manifest';
 
 export const REAVE_PLUGINS: ReavePlugin[] = [
   billingPlugin,
@@ -38,6 +39,7 @@ export const REAVE_PLUGINS: ReavePlugin[] = [
   vapiPlugin,
   fleetPlugin,
   paulinoWizardPlugin,
+  demoPlugin,
 ];
 
 const PLUGIN_BY_ID = new Map(REAVE_PLUGINS.map((p) => [p.id, p]));
@@ -122,6 +124,8 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
       return ['fleet-tracking'];
     case 'paulino-wizard':
       return ['paulino-wizard'];
+    case 'demo':
+      return ['demo-setup'];
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':

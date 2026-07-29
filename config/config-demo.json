@@ -1,0 +1,42 @@
+{
+  "features": [
+    "demo",
+    "client_portal",
+    "web_handoff",
+    "portal_assistant",
+    "site_audits",
+    "site_monitoring",
+    "uptime_monitoring",
+    "documents",
+    "vapi",
+    "carddav",
+    "scheduling",
+    "dev_infra",
+    "email_marketing"
+  ],
+  "footerNav": [
+    "__system__",
+    "home",
+    "todo",
+    "documents",
+    "knowledge",
+    "chats",
+    "email",
+    "rules",
+    "work",
+    "schedule",
+    "clients",
+    "social",
+    "analytics",
+    "finance"
+  ],
+  "profileMenu": [
+    "profile",
+    "company",
+    "socials",
+    "industries",
+    "vapi"
+  ],
+  "homepageVoice": false,
+  "chatFocusSkin": true
+}

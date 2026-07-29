@@ -31,6 +31,7 @@ plugins/{id}/
 | `uptime-monitoring/` | `uptime_monitoring` | `uptime-monitoring.md` | yes |
 | `fleet/` | `fleet_tracking` | `fleet-tracking.md` | yes |
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
+| `demo/` | `demo` | `demo-setup.md` | yes |
 | `vapi/` | `vapi` | — | yes |
 | `svg-operations/` | *(utility)* | — | — |
 

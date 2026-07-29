@@ -30,6 +30,7 @@ const FEATURE_IDS_LIST = [
   'dealership_wizard',
   'namecom_dns',
   'time_tracking',
+  'demo',
 ] as const;
 
 export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];

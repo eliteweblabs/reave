@@ -30,6 +30,7 @@ export const FEATURE_IDS = [
   'dealership_wizard',
   'namecom_dns',
   'time_tracking',
+  'demo',
 ] as const;
 
 export type FeatureId = (typeof FEATURE_IDS)[number];
@@ -103,6 +104,7 @@ export const FEATURE_LABELS: Record<FeatureId, string> = {
   dealership_wizard: 'Dealership inventory & deal wizard (paulino-wizard)',
   namecom_dns: 'DNS record management (Name.com) — agency/ops installs only',
   time_tracking: 'Project time log (hours + notes → invoicing)',
+  demo: 'Demo mode (seed script, quick-start wizard, Railway testing installs)',
 };
 
 export const CORE_FEATURE_NOTE =
