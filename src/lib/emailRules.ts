@@ -38,6 +38,14 @@ export interface EmailRule {
    * boilerplate-heavy alerts show a clean TL;DR instead of a raw text snippet.
    */
   summaryOverride?: string;
+  /**
+   * Optional email address to forward the matched message to automatically.
+   * The full original message (from, subject, body) is re-sent to this address
+   * via Resend immediately after the rule fires — before any inbox logging.
+   * Useful for platform notifications (e.g. Upwork) you want silently relayed
+   * to a team member or secondary inbox.
+   */
+  forwardTo?: string | null;
 }
 
 export interface InboundEmail {
@@ -48,7 +56,7 @@ export interface InboundEmail {
   to?: string[];
   cc?: string[];
   bcc?: string[];
-  replyTo?: string[];
+  replyTo?: string[];;
   headers?: Record<string, string>;
   messageId?: string;
   resendEmailId?: string;
