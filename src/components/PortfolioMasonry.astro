@@ -231,7 +231,7 @@ const items: PortfolioItem[] = [
     --masonry-cols: 6;
     --masonry-gap: clamp(8px, 1.2vw, 12px);
     --masonry-col: calc((100% - (var(--masonry-cols) - 1) * var(--masonry-gap)) / var(--masonry-cols));
-    --brick-unit: var(--masonry-col);
+    --brick-unit: calc(var(--masonry-col) * 0.8);
     display: grid;
     grid-template-columns: repeat(var(--masonry-cols), 1fr);
     grid-auto-rows: var(--brick-unit);
@@ -267,7 +267,7 @@ const items: PortfolioItem[] = [
 
   .masonry-item--3x2 {
     grid-column: span 3;
-    grid-row: span 3;
+    grid-row: span 2;
   }
 
   .masonry-card {
@@ -443,7 +443,7 @@ const items: PortfolioItem[] = [
 
     .masonry-item--3x2 {
       grid-column: span 4;
-      grid-row: span 4;
+      grid-row: span 2;
     }
 
     .masonry-item--2x2 {
