@@ -13,7 +13,16 @@ interface ClientLogo {
   height: number;
 }
 
-const logos: ClientLogo[] = [
+function shuffle<T>(items: T[]): T[] {
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+const logos: ClientLogo[] = shuffle([
   { name: "Porsche", src: "/logos/clients/porsche.svg", width: 24, height: 24 },
   { name: "The New York Times", src: "/logos/clients/newyorktimes.svg", width: 24, height: 24 },
   { name: "Red Bull", src: "/logos/clients/redbull.svg", width: 24, height: 24 },
@@ -34,7 +43,7 @@ const logos: ClientLogo[] = [
   { name: "Sharpie", src: "/logos/clients/sharpie.svg", width: 1000, height: 332.43 },
   { name: "The Overlook", src: "/logos/clients/overlook.svg", width: 280, height: 60 },
   { name: "Coinbase", src: "/logos/clients/coinbase.svg", width: 240, height: 48 },
-];
+]);
 
 const LOOP_COPIES = 3;
 const trackLogos = Array.from({ length: LOOP_COPIES }, () => logos).flat();
