@@ -52,6 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_search ON knowledge USING GIN(
 `;
 
 let _schemaReady: Promise<void> | null = null;
+let _seedReady: Promise<void> | null = null;
 
 async function seedBundledIfEmpty(pool: pg.Pool): Promise<void> {
   const { rows } = await pool.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM knowledge');

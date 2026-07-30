@@ -108,6 +108,7 @@ ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('inquiry', '
 `;
 
 let _schemaReady: Promise<void> | null = null;
+let _seedReady: Promise<void> | null = null;
 
 function rowToSummary(row: JobRow): WorkJobSummary {
   return {
