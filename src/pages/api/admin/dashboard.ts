@@ -153,7 +153,7 @@ export async function GET(context: APIContext): Promise<Response> {
     if (listed.ok) clientsTotal = listed.data.total;
   }
 
-  const recentEmails = inboxForCount.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
+  const recentEmails = events.filter(isEmailInboxActive).slice(0, 5).map((e) => ({
     id: e.id,
     subject: e.subject || '(no subject)',
     from: e.from || '',
