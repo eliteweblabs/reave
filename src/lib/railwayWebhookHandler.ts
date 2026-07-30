@@ -108,7 +108,9 @@ export async function handleRailwayWebhook(opts: {
 
   const svc = body.resource?.service?.name ?? 'service';
   const proj = body.resource?.project?.name ?? 'project';
-  markDeployFailed(`Deploy failed — ${svc} (${proj})`);
+  const failedSha =
+    typeof body.details?.commitHash === 'string' ? body.details.commitHash : null;
+  markDeployFailed(`Deploy failed — ${svc} (${proj})`, failedSha);
 
   if (!isRailwayIncidentHandlerEnabled()) {
     console.info('[railway-webhook] deploy failure logged — incident handler disabled');

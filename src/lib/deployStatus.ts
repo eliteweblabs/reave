@@ -31,7 +31,7 @@ const CACHE_MS = 60_000;
 const STALE_AFTER_MS = 10 * 60_000;
 
 let cache: { at: number; data: DeployStatusSnapshot | null } = { at: 0, data: null };
-let failedOverride: { reason: string; until: number } | null = null;
+let failedOverride: { reason: string; until: number; failed_sha: string | null } | null = null;
 let previousState: DeployState | null = null;
 let showLiveBannerOnce = false;
 
@@ -136,10 +136,11 @@ export function isDeployStatusQuery(text: string): boolean {
 }
 
 /** Called from Railway deploy-failure webhook — surfaces until live again or TTL. */
-export function markDeployFailed(reason?: string): void {
+export function markDeployFailed(reason?: string, failedSha?: string | null): void {
   failedOverride = {
     reason: reason?.trim() || 'Deploy failed — check Railway logs',
     until: Date.now() + 30 * 60_000,
+    failed_sha: failedSha?.trim() || null,
   };
   cache = { at: 0, data: null };
 }
@@ -166,23 +167,6 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
     };
   }
 
-  if (failedOverride) {
-    const deployedAt = await resolveDeployedAt(deployed, null);
-    const snap: DeployStatusSnapshot = {
-      on_railway: true,
-      deployed_sha: deployed,
-      deployed_short: deployed?.slice(0, 7) ?? null,
-      deployed_at: deployedAt,
-      latest_commit: null,
-      up_to_date: false,
-      state: 'failed',
-      failed_reason: failedOverride.reason,
-      minutes_since_push: null,
-    };
-    noteStateTransition(snap.state);
-    return snap;
-  }
-
   if (!isGithubConfigured()) {
     const snap: DeployStatusSnapshot = {
       on_railway: true,
@@ -191,8 +175,8 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
       deployed_at: null,
       latest_commit: null,
       up_to_date: null,
-      state: 'unknown',
-      failed_reason: null,
+      state: failedOverride ? 'failed' : 'unknown',
+      failed_reason: failedOverride?.reason ?? null,
       minutes_since_push: null,
     };
     noteStateTransition(snap.state);
@@ -221,17 +205,31 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
   const upToDate = latest && deployed ? deployed === latest.sha : null;
   const minutesSincePush = !upToDate && latest ? minutesSince(commitPushedAt(latest)) : null;
 
+  let state: DeployState = 'unknown';
+  let failedReason: string | null = null;
   if (upToDate) {
     failedOverride = null;
-  }
-
-  let state: DeployState = 'unknown';
-  if (upToDate) {
     state = 'live';
   } else if (latest) {
     const stale =
       minutesSincePush != null && minutesSincePush * 60_000 >= STALE_AFTER_MS;
-    state = stale ? 'stale' : 'deploying';
+    if (stale) {
+      state = 'stale';
+    } else {
+      const failedSha = failedOverride?.failed_sha ?? null;
+      if (failedOverride && failedSha && latest.sha === failedSha) {
+        state = 'failed';
+        failedReason = failedOverride.reason;
+      } else {
+        state = 'deploying';
+        if (failedOverride && failedSha && latest.sha !== failedSha) {
+          failedOverride = null;
+        }
+      }
+    }
+  } else if (failedOverride) {
+    state = 'failed';
+    failedReason = failedOverride.reason;
   }
 
   const deployedAt = await resolveDeployedAt(deployed, latest);
@@ -244,7 +242,7 @@ async function fetchDeployStatusUncached(): Promise<DeployStatusSnapshot> {
     latest_commit: latest,
     up_to_date: upToDate,
     state,
-    failed_reason: null,
+    failed_reason: failedReason,
     minutes_since_push: minutesSincePush,
   };
   noteStateTransition(snap.state);
