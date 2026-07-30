@@ -19,6 +19,7 @@ export const IOS_ICONS = {
   edit: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   trash:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+  x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
   stopwatch:
     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>',
   send: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
@@ -1046,6 +1047,7 @@ const SWIPE_ACTIONS = {
   junk: { iconKey: 'trash', className: 'swipe-act swipe-act-junk', label: 'Junk' },
   receipt: { iconKey: 'receipt', className: 'swipe-act swipe-act-receipt', label: 'Receipt' },
   clear: { iconKey: 'rewind', className: 'swipe-act swipe-act-archive', label: 'Rewind' },
+  copy: { iconKey: 'copy', className: 'swipe-act swipe-act-archive', label: 'Copy' },
 };
 
 function swipeIconMarkup(iconKey, size = 18) {
@@ -1082,6 +1084,7 @@ export const swipeDeleteAction = (opts) => swipeAction('delete', opts);
 export const swipeJunkAction = (opts) => swipeAction('junk', opts);
 export const swipeReceiptAction = (opts) => swipeAction('receipt', opts);
 export const swipeClearAction = (opts) => swipeAction('clear', opts);
+export const swipeCopyAction = (opts) => swipeAction('copy', opts);
 
 const SWIPE_AXIS_SLOP = 12;
 const SWIPE_HORIZONTAL_MIN = 28;

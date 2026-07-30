@@ -4,7 +4,7 @@
 
 import { serverEnv } from './serverEnv';
 import { parseSenderEmail } from './emailAddress';
-import { classifyEmail, isUptimeRobotEmail, type InboundEmail } from './emailRules';
+import { classifyEmail, isUptimeRobotEmail, isVerificationCodeRuleStatus, type InboundEmail } from './emailRules';
 import { loadActiveEmailRules } from './emailRuleStore';
 import { ensureContactForMeetingEmail } from './emailContactExtract';
 import { tryAutoCreateProjectFromInboundEmail } from './emailProjectAuto';
@@ -313,6 +313,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   const { rules, notifyOnUnmatched } = await loadActiveEmailRules();
   const ruleResult = classifyEmail(email, rules, notifyOnUnmatched);
 
+  const isVerificationCode =
+    verificationCode != null || isVerificationCodeRuleStatus(ruleResult.status);
+
   const forwardTo = ruleResult.matched?.forwardTo?.trim();
   if (forwardTo) {
     const { forwardEmail } = await import('./emailForward');
@@ -334,6 +337,9 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     attachmentSummaryFallback(attachments) ||
     email.subject ||
     '(no subject)';
+  if (isVerificationCode && verificationCode) {
+    summary = `Code: ${verificationCode} — tap to copy`;
+  }
   let jobSlug: string | null = null;
   let jobTitle: string | null = null;
   let contactUid: string | null = null;
@@ -367,9 +373,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       : [];
 
   // ── Receipt override: a DELETE rule must not win over a monetary receipt. ──
-  // Check BEFORE suppressedAsJunk so a junk filter on a known vendor
-  // (e.g. Anthropic, Stripe) can't bury a legit tax receipt.
-  if (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE') {
+  // Never bury OTP mail under junk when the parser found a code.
+  if (
+    !isVerificationCode &&
+    (category === 'junk' || ruleResult.status.toUpperCase() === 'DELETE')
+  ) {
     const earlyReceipt = shouldAutoFileAsReceipt({
       from,
       subject: email.subject ?? '',
@@ -386,7 +394,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   let isProjectReply = false;
 
-  if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
+  if (isVerificationCode) {
+    category = 'review';
+    action = 'verification_code';
+    routeNote = routeNote || 'Verification code — tap to copy in Email tab';
+  } else if (category !== 'junk' && category !== 'receipt' && aiEnabled()) {
     const ai = await runAiTriage(email, jobs, contactName);
     if (ai) {
       category = ai.category;
@@ -476,7 +488,8 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
   }
 
   const suppressedAsJunk =
-    category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE';
+    !isVerificationCode &&
+    (category === 'junk' || action === 'junk' || ruleResult.status.toUpperCase() === 'DELETE');
   if (!suppressedAsJunk) {
     const replyMatch = await detectProjectClientReply({
       senderEmail,
@@ -499,7 +512,11 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
     }
   }
 
-  let inboxStatus = isProjectReply ? 'PROJECT_REPLY' : ruleResult.status;
+  let inboxStatus = isProjectReply
+    ? 'PROJECT_REPLY'
+    : isVerificationCode
+      ? 'VERIFICATION_CODE'
+      : ruleResult.status;
   if (
     !shouldSkipAutoReceipt({
       category,

@@ -17,6 +17,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **Ingest:** Resend webhook at `/api/email/inbound` (copy mail here; keep reading in Proton).
 - **Cutoff:** Mail whose `Date` header is before go-live is dropped (not triaged, not stored). Cutoff auto-sets to the first webhook time; override with `EMAIL_INBOUND_SINCE`.
 - **Triage:** Keyword rules first (junk/marketing), then Claude (`EMAIL_AI_ENABLED`, needs `ANTHROPIC_API_KEY`). Rules are indefinite by default; optional `expires_at` stops matching after that time (admin Rules toggle, or chat when creating a rule).
+- **Verification codes (global):** Built-in rule `VERIFICATION_CODE` matches OTP / login-code mail via regex (`verification code`, `access code`, `otp`, 4–8 digit codes, etc.) on **every installation** — always evaluated before other rules. Parsed code is stored on the inbox row; Email tab shows copy / delete / close actions and a dedicated push notification.
 - **Routing:** Resolve sender via contact-api → match open job → append note to job body (`storeAppendWorkNote`).
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.
@@ -33,6 +34,7 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 | `alert` | Uptime, security, monitoring |
 | `internal` | Admin/personal, not client work |
 | `review` | Needs your decision |
+| `VERIFICATION_CODE` | OTP / login code — copy in Email tab (status label; category is `review`) |
 
 ## Environment
 

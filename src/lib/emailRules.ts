@@ -12,10 +12,21 @@
  * any sending address.
  *
  * Rule order matters: first enabled match wins.
+ * `VERIFICATION_CODE` is always evaluated first (regex via emailOtpParser) on
+ * every installation — even when persisted sort order differs.
  * Keep high-signal operational alerts (RAILWAY, DOWN, NEEDS_CHECK) ABOVE
  * catch-all filing rules (RECEIPT, AUTO_ARCHIVED, DELETE) so a Railway build
  * failure is never silently mis-classified as a receipt.
  */
+
+import { isVerificationCodeEmail } from './emailOtpParser';
+
+/** Built-in status for OTP / login-code mail (global on all installs). */
+export const VERIFICATION_CODE_STATUS = 'VERIFICATION_CODE';
+
+export function isVerificationCodeRuleStatus(status: string): boolean {
+  return status.toUpperCase() === VERIFICATION_CODE_STATUS;
+}
 
 export type MatchMode = 'any' | 'all';
 export type RuleField = 'subject' | 'body' | 'from';
@@ -75,6 +86,7 @@ export interface Classification {
  * Default rule table.
  *
  * Ordering principle:
+ *   0. Verification codes  — OTP / login codes (regex; always checked first)
  *   1. Operational alerts  — Railway, uptime, security (must not be buried)
  *   2. Auto-filing         — receipts, Google invoices
  *   3. Delete/junk         — marketing trash (last resort)
@@ -85,6 +97,32 @@ export interface Classification {
  * subject/body language instead — it generalises to any sending address.
  */
 export const DEFAULT_RULES: EmailRule[] = [
+  // ── 0. VERIFICATION CODES (global — all clients / all installs) ─────────
+
+  {
+    status: VERIFICATION_CODE_STATUS,
+    description:
+      'One-time passwords and login codes — regex match on subject/body (OTP, verification code, access code, 4–8 digit codes). Copy-to-clipboard UX in the Email tab; not overridden by junk or security-alert rules.',
+    phrases: [
+      'verification code',
+      'one-time password',
+      'one-time code',
+      'security code',
+      'login code',
+      'sign-in code',
+      'access code',
+      'authentication code',
+      'confirmation code',
+      'otp',
+      'passcode',
+    ],
+    matchMode: 'any',
+    fields: ['subject', 'body'],
+    notify: true,
+    enabled: true,
+    summaryOverride: 'Verification code — open the Email tab and tap the code to copy.',
+  },
+
   // ── 1. OPERATIONAL ALERTS ───────────────────────────────────────────────
 
   {
@@ -226,8 +264,21 @@ function fieldValue(email: InboundEmail, field: RuleField): string {
   }
 }
 
+function matchesVerificationCodeRule(rule: EmailRule, email: InboundEmail): boolean {
+  if (!rule.enabled || !isVerificationCodeRuleStatus(rule.status)) return false;
+  return isVerificationCodeEmail({
+    subject: email.subject,
+    text: email.text,
+    html: email.html,
+  });
+}
+
 function ruleMatches(rule: EmailRule, email: InboundEmail): boolean {
-  if (!rule.enabled || rule.phrases.length === 0) return false;
+  if (!rule.enabled) return false;
+  if (isVerificationCodeRuleStatus(rule.status)) {
+    return matchesVerificationCodeRule(rule, email);
+  }
+  if (rule.phrases.length === 0) return false;
   const haystack = rule.fields.map((f) => fieldValue(email, f).toLowerCase()).join('\n');
   const hits = rule.phrases.map((p) => haystack.includes(p.toLowerCase()));
   return rule.matchMode === 'all' ? hits.every(Boolean) : hits.some(Boolean);
@@ -250,7 +301,20 @@ export function classifyEmail(
   rules: EmailRule[] = DEFAULT_RULES,
   notifyOnUnmatched: boolean = NOTIFY_ON_UNMATCHED
 ): Classification {
+  // Global OTP rule — always first, regardless of persisted sort_order.
+  const verificationRule = rules.find(
+    (r) => r.enabled && isVerificationCodeRuleStatus(r.status),
+  );
+  if (verificationRule && matchesVerificationCodeRule(verificationRule, email)) {
+    return {
+      status: verificationRule.status,
+      matched: verificationRule,
+      notify: verificationRule.notify,
+    };
+  }
+
   for (const rule of rules) {
+    if (isVerificationCodeRuleStatus(rule.status)) continue;
     if (ruleMatches(rule, email)) {
       return { status: rule.status, matched: rule, notify: rule.notify };
     }

@@ -84,6 +84,7 @@ import {
   swipeJunkAction,
   swipeReceiptAction,
   swipeClearAction,
+  swipeCopyAction,
   setDeBtnLabel,
   getDeBtnLabel,
   updateDeBtnLabel,
@@ -7608,6 +7609,7 @@ function emailCategoryClass(cat) {
 }
 
 function formatEmailCategoryLabel(ev) {
+  if (isVerificationCodeEmail(ev)) return 'Verification code';
   if (isProjectReplyEmail(ev)) return 'Client reply';
   if (isEmailProject(ev)) return 'Projects';
   const cat = String(ev.category || 'review').toLowerCase();
@@ -7625,8 +7627,65 @@ function formatEmailUsd(amount) {
 }
 
 function emailShowsReceiptAction(ev) {
+  if (isVerificationCodeEmail(ev)) return false;
   if (ev.category === 'receipt') return false;
   return emailMonetaryAmount(ev) != null;
+}
+
+function isVerificationCodeEmail(ev) {
+  return Boolean(ev?.verificationCode) || String(ev?.status || '').toUpperCase() === 'VERIFICATION_CODE';
+}
+
+function closeEmailDetail() {
+  emailState.activeId = null;
+  emailState.composing = false;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  renderEmailPanel();
+}
+
+function buildEmailDetailHeaderIcons(ev) {
+  if (isVerificationCodeEmail(ev)) {
+    const icons = [];
+    if (ev.verificationCode) {
+      icons.push(
+        createIosIconBtn({
+          iconKey: 'copy',
+          label: 'Copy verification code',
+          className: 'ios-icon-btn em-copy-code-btn',
+          onClick: (btn) => void copyEmailVerificationCode(ev.verificationCode, btn),
+        }),
+      );
+    }
+    icons.push(
+      paneDeleteIcon({
+        label: 'Delete message',
+        onClick: () => deleteEmail(ev),
+      }),
+      createIosIconBtn({
+        iconKey: 'x',
+        label: 'Close',
+        className: 'ios-icon-btn em-close-detail-btn',
+        onClick: () => closeEmailDetail(),
+      }),
+    );
+    return icons;
+  }
+  return [
+    createIosIconBtn({
+      iconKey: 'reply',
+      label: 'Reply',
+      className: 'ios-icon-btn em-reply-btn',
+      onClick: () => void startReplyEmail(ev),
+    }),
+    paneShareIcon({
+      label: 'Share message',
+      onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
+    }),
+    paneDeleteIcon({
+      label: 'Delete message',
+      onClick: () => deleteEmail(ev),
+    }),
+  ];
 }
 
 function parseSenderEmail(from) {
@@ -9048,6 +9107,24 @@ function createEmailListItem(ev) {
 }
 
 function buildEmailSwipeActions(ev) {
+  if (isVerificationCodeEmail(ev)) {
+    const actions = [];
+    if (ev.verificationCode) {
+      actions.push(
+        swipeCopyAction({
+          onClick: () => void copyEmailVerificationCode(ev.verificationCode, null),
+        }),
+      );
+    }
+    actions.push(
+      swipeDeleteAction({
+        label: 'Delete',
+        onClick: () => deleteEmail(ev),
+      }),
+    );
+    return actions;
+  }
+
   const actions = [
     swipeAgentAction(() => askAgentAboutEmail(ev)),
   ];
@@ -10108,7 +10185,7 @@ function renderEmailPanel() {
   const beforeIcons = [];
   const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
   const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
-  if (!alreadyInLinkedChat) {
+  if (!isVerificationCodeEmail(ev) && !alreadyInLinkedChat) {
     if (shouldShowEmailProjectActions(ev)) {
       agentBtn.className = 'em-btn-group-segment em-agent-btn';
       const group = document.createElement('div');
@@ -10137,22 +10214,7 @@ function renderEmailPanel() {
       },
       title: ev.subject || '(no subject)',
       beforeIcons,
-      icons: [
-        createIosIconBtn({
-          iconKey: 'reply',
-          label: 'Reply',
-          className: 'ios-icon-btn em-reply-btn',
-          onClick: () => void startReplyEmail(ev),
-        }),
-        paneShareIcon({
-          label: 'Share message',
-          onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
-        }),
-        paneDeleteIcon({
-          label: 'Delete message',
-          onClick: () => deleteEmail(ev),
-        }),
-      ],
+      icons: buildEmailDetailHeaderIcons(ev),
     }).header,
   );
 
