@@ -35,26 +35,23 @@ export function initHomepageLogoReveal() {
   };
 
   // Default to hidden until the observer reports; avoids a flash on first paint.
-  let heroRatio = 1;
+  let heroInView = true;
 
   const update = () => {
-    // Show on every section after the hero — not only when a downstream section
-    // wins the footer-nav "best ratio" contest (shorter sections often stay ≤0.15).
-    setVisible(heroRatio <= 0.15);
+    // Match mobile: reveal only once the hero has fully left the viewport.
+    setVisible(!heroInView);
   };
 
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (entry.target === hero) heroRatio = entry.intersectionRatio;
+        if (entry.target === hero) heroInView = entry.isIntersecting;
       });
       update();
     },
     {
       root: null,
-      // Match SiteFooterNav — section in the upper/mid viewport is "active".
-      rootMargin: "-18% 0px -42% 0px",
-      threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
+      threshold: 0,
     },
   );
 
@@ -68,8 +65,6 @@ export function initHomepageLogoReveal() {
   } else {
     update();
   }
-
-  window.addEventListener("resize", update, { passive: true });
   return true;
 }
 

@@ -254,7 +254,8 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     --app-header-h: 3.25rem;
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
-    --app-header-logo-drop: calc(var(--app-header-h) + 12px);
+    /* Cascade distance — 300px or 3× logo height, whichever is larger. */
+    --app-header-logo-drop: max(300px, calc(3 * var(--app-header-logo-h)));
     --app-header-logo-part-stagger: 100ms;
     --app-header-logo-part-duration: 0.55s;
     --app-header-profile-h: calc(24px * var(--app-header-chrome-scale));
@@ -426,6 +427,8 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
   .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
     pointer-events: none;
+    overflow: hidden;
+    height: var(--app-header-logo-h);
   }
 
   .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
@@ -441,12 +444,19 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     overflow: visible;
   }
 
+  /*
+   * Per-letter cascade on SVG <g> parts. transform-box: view-box keeps
+   * translateY() in CSS pixels (fill-box maps px into tiny path bbox units —
+   * ~10px travel on screen). view-box + overflow clip on the link matches
+   * desktop and mobile WebKit/Chromium.
+   */
   .app-header--homepage-logo-reveal .app-header-logo-part {
-    transform-box: fill-box;
+    transform-box: view-box;
     transform-origin: center top;
     transform: translateY(calc(-1 * var(--app-header-logo-drop)));
     transition: transform var(--app-header-logo-part-duration) cubic-bezier(0.22, 1, 0.36, 1);
     transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
+    will-change: transform;
   }
 
   .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
