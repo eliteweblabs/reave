@@ -7021,6 +7021,65 @@ function initSearchOverlay() {
   }
 }
 
+function isEditableKeyboardTarget(el) {
+  if (!(el instanceof Element)) return false;
+  if (el.closest('#search-overlay-input')) return true;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function keyboardShortcutBlocked() {
+  if (document.getElementById('os-dialog-backdrop')?.classList.contains('open')) return true;
+  if (document.querySelector('.ios-sheet-backdrop.open')) return true;
+  if (document.querySelector('.ch-context-menu')) return true;
+  return false;
+}
+
+function deleteKeyboardShortcutAvailable() {
+  if (activeKey === 'chats' || activeKey === 'knowledge') {
+    return !!chatState.activeId;
+  }
+  if (activeKey === 'email') {
+    if (emailState.composing || emailState.inboxFilter === 'sent') return false;
+    return !!emailState.activeId;
+  }
+  return false;
+}
+
+async function handleDeleteKeyboardShortcut() {
+  if (activeKey === 'chats' || activeKey === 'knowledge') {
+    const id = chatState.activeId;
+    if (id) await deleteChat(id);
+    return;
+  }
+  if (activeKey === 'email') {
+    const ev = emailState.allEvents.find((e) => e.id === emailState.activeId);
+    if (ev) await deleteEmail(ev);
+  }
+}
+
+function initKeyboardShortcuts() {
+  if (document.documentElement.dataset.keyboardShortcutsBound) return;
+  document.documentElement.dataset.keyboardShortcutsBound = '1';
+  document.addEventListener('keydown', (ev) => {
+    if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === 'k') {
+      ev.preventDefault();
+      toggleSearchOverlay();
+      return;
+    }
+
+    if (ev.key !== 'Delete') return;
+    if (keyboardShortcutBlocked()) return;
+    if (searchOverlayOpen) return;
+    if (isEditableKeyboardTarget(ev.target)) return;
+    if (!deleteKeyboardShortcutAvailable()) return;
+
+    ev.preventDefault();
+    void handleDeleteKeyboardShortcut();
+  });
+}
+
 let reviewsPendingCount = 0;
 
 const footerNavCounts = {
@@ -10683,6 +10742,7 @@ async function boot() {
   initFooterNavScrollCollapse();
   initChatComposeFocusLayout();
   initSearchOverlay();
+  initKeyboardShortcuts();
   MOBILE_TABS_MQ.addEventListener('change', rebuildTabsForViewport);
   MOBILE_TABS_MQ.addEventListener('change', syncTopbarPanelContext);
   MOBILE_TABS_MQ.addEventListener('change', () => {
