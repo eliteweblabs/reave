@@ -388,7 +388,7 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName, embedded }}>
+<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
   const RECIPIENT_EMAIL = recipientEmail;
@@ -732,7 +732,7 @@ const rootClass = embedded
       if (userInput()) {
         userInput().placeholder = placeholderForField(field);
         userInput().value = "";
-        userInput().focus({ preventScroll: embedded });
+        userInput().focus({ preventScroll: true });
       }
       if (field.required === false) {
         showOptionalSkip(() => {

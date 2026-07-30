@@ -213,6 +213,23 @@ const items: Array<{
     const ratios = new Map<Element, number>();
     let scrollingTo: NavId | null = null;
     let scrollTimer = 0;
+    // Don't rewrite the URL from scroll-spy until the user actually scrolls —
+    // otherwise a programmatic scroll (e.g. form focus) walks the hash through
+    // every section as the viewport passes them.
+    let hashFromSpyEnabled = false;
+    const enableHashFromSpy = () => {
+      hashFromSpyEnabled = true;
+    };
+    window.addEventListener("wheel", enableHashFromSpy, { once: true, passive: true });
+    window.addEventListener("touchmove", enableHashFromSpy, { once: true, passive: true });
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        const scrollKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+        if (scrollKeys.includes(event.key)) enableHashFromSpy();
+      },
+      { once: true },
+    );
 
     const activateBest = () => {
       if (scrollingTo) {
@@ -230,7 +247,7 @@ const items: Array<{
         }
       }
       if (bestId && bestRatio > 0.15) {
-        setActiveNav(bestId, { updateHash: true });
+        setActiveNav(bestId, { updateHash: hashFromSpyEnabled });
       }
     };
 
@@ -281,9 +298,36 @@ const items: Array<{
     }
   }
 
+  function wireInPageHashLinks() {
+    const nav = document.getElementById("site-footer-nav");
+    if (!nav || nav.dataset.homeNav !== "true") return;
+    if (nav.dataset.hashLinksWired === "1") return;
+    nav.dataset.hashLinksWired = "1";
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href^='#']");
+        if (!link) return;
+
+        const hash = link.getAttribute("href")?.replace(/^#/, "") ?? "";
+        if (!isHomepageSectionId(hash)) return;
+        if (!document.getElementById(hash)) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
+        event.preventDefault();
+        scrollToSection(hash);
+      },
+      { capture: true },
+    );
+  }
+
   function bootSiteFooterNav() {
     positionSiteFooterIndicator();
     wireFooterNavAnchors();
+    wireInPageHashLinks();
     wireScrollSpy();
   }
 
