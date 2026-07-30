@@ -5,6 +5,7 @@ import {
   handleSiteChangeAlert,
   parseChangeDetectionWebhook,
 } from '../../../lib/siteMonitoring';
+import { secretMatches } from '../../../lib/secretCompare';
 
 export const prerender = false;
 
@@ -34,7 +35,7 @@ export const POST: APIRoute = async ({ request, url }) => {
   if (!expected) {
     return json({ ok: false, error: 'CHANGEDETECTION_WEBHOOK_SECRET not configured' }, 503);
   }
-  if (!key || key !== expected) {
+  if (!secretMatches(key, expected)) {
     return json({ ok: false, error: 'invalid key' }, 401);
   }
 

@@ -4,9 +4,11 @@
  * DELETE /api/documents/:slug — delete a template.
  */
 import type { APIRoute } from 'astro';
+import type { APIContext } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -27,8 +29,11 @@ function docsDir(): string {
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-export const GET: APIRoute = async ({ params }) => {
-  const { slug } = params;
+export const GET: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   const filePath = join(docsDir(), `${slug}.html`);
   if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
@@ -45,12 +50,15 @@ export const GET: APIRoute = async ({ params }) => {
   }
 };
 
-export const PUT: APIRoute = async ({ params, request }) => {
-  const { slug } = params;
+export const PUT: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   let body: { html?: unknown };
   try {
-    body = (await request.json()) as typeof body;
+    body = (await context.request.json()) as typeof body;
   } catch {
     return new Response('Bad Request', { status: 400 });
   }
@@ -72,8 +80,11 @@ export const PUT: APIRoute = async ({ params, request }) => {
   }
 };
 
-export const DELETE: APIRoute = async ({ params }) => {
-  const { slug } = params;
+export const DELETE: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
   const filePath = join(docsDir(), `${slug}.html`);
   if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });

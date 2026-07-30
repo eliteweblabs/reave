@@ -48,6 +48,7 @@ import { runKnowledgeAgent } from '../../../lib/agentRunner';
 import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../../lib/adminAgentAlert';
 import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
+import { secretMatches } from '../../../lib/secretCompare';
 
 const log = createLogger('siri-proposal');
 
@@ -90,7 +91,7 @@ function isAuthenticated(context: APIContext): boolean {
   const siriKey = serverEnv('SIRI_API_KEY')?.trim();
   if (siriKey) {
     const providedKey = context.request.headers.get('X-Siri-Key');
-    if (providedKey === siriKey) return true;
+    if (secretMatches(providedKey, siriKey)) return true;
   }
 
   return false;

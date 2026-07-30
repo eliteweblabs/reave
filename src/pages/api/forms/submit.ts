@@ -1,7 +1,31 @@
 import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+
+function clientIp(request: Request): string {
+  const fwd = request.headers.get('x-forwarded-for');
+  if (fwd) return fwd.split(',')[0]?.trim() || 'unknown';
+  return request.headers.get('x-real-ip')?.trim() || 'unknown';
+}
 
 export const POST: APIRoute = async ({ request }) => {
+  const rate = checkInMemoryRateLimit(`form:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 10,
+  });
+  if (!rate.ok) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Too many submissions. Please try again later.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(rate.retryAfterSeconds),
+        },
+      },
+    );
+  }
+
   try {
     const formData = await request.json();
     const name = String(

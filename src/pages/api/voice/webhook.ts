@@ -23,7 +23,7 @@
  */
 import type { APIRoute } from 'astro';
 import { serverEnv } from '../../../lib/serverEnv';
-import { verifyTelnyxWebhook } from '../../../lib/telnyxClient';
+import { authorizeTelnyxWebhook } from '../../../lib/telnyxClient';
 import {
   telnyxAnswerCall,
   telnyxGatherUsingSpeak,
@@ -185,26 +185,8 @@ export const POST: APIRoute = async ({ request }) => {
   // Respond 200 immediately so Telnyx doesn't retry; process the event async.
   const rawBody = await request.text();
 
-  // Validate signature if public key is configured.
-  const publicKey = serverEnv('TELNYX_WEBHOOK_PUBLIC_KEY')?.trim();
-  if (publicKey) {
-    const sig = request.headers.get('telnyx-signature-ed25519') ?? '';
-    const ts = request.headers.get('telnyx-timestamp') ?? '';
-    if (!sig || !ts) {
-      console.warn('[voice] missing Telnyx signature headers');
-      if (import.meta.env.PROD) {
-        return new Response('Unauthorized', { status: 401 });
-      }
-    } else {
-      const valid = verifyTelnyxWebhook({ rawBody, signature: sig, timestamp: ts, publicKey });
-      if (!valid) {
-        console.error('[voice] invalid Telnyx webhook signature');
-        if (import.meta.env.PROD) {
-          return new Response('Unauthorized', { status: 401 });
-        }
-      }
-    }
-  }
+  const authError = authorizeTelnyxWebhook(request, rawBody, 'voice');
+  if (authError) return authError;
 
   let body: TelnyxWebhookBody;
   try {

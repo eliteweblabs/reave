@@ -12,7 +12,7 @@
  */
 import type { APIRoute } from 'astro';
 import { serverEnv } from '../../lib/serverEnv';
-import { verifyTelnyxWebhook } from '../../lib/telnyxClient';
+import { authorizeTelnyxWebhook } from '../../lib/telnyxClient';
 import { handleInboundSms } from '../../lib/inboundSmsHandler';
 
 export const prerender = false;
@@ -27,22 +27,8 @@ export const GET: APIRoute = async () => {
 export const POST: APIRoute = async ({ request }) => {
   const rawBody = await request.text();
 
-  // Validate signature if public key is configured.
-  const publicKey = serverEnv('TELNYX_WEBHOOK_PUBLIC_KEY')?.trim();
-  if (publicKey) {
-    const sig = request.headers.get('telnyx-signature-ed25519') ?? '';
-    const ts = request.headers.get('telnyx-timestamp') ?? '';
-    if (!sig || !ts) {
-      console.warn('[sms] missing Telnyx signature headers');
-      if (import.meta.env.PROD) return new Response('Unauthorized', { status: 401 });
-    } else {
-      const valid = verifyTelnyxWebhook({ rawBody, signature: sig, timestamp: ts, publicKey });
-      if (!valid) {
-        console.error('[sms] invalid Telnyx webhook signature');
-        if (import.meta.env.PROD) return new Response('Unauthorized', { status: 401 });
-      }
-    }
-  }
+  const authError = authorizeTelnyxWebhook(request, rawBody, 'sms');
+  if (authError) return authError;
 
   let body: unknown;
   try {

@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { handleRailwayWebhook } from '../../../lib/railwayWebhookHandler';
 import { serverEnv } from '../../../lib/serverEnv';
+import { secretMatches } from '../../../lib/secretCompare';
 
 export const prerender = false;
 
@@ -13,7 +14,7 @@ export const GET: APIRoute = async ({ url }) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
-  if (key !== expected.trim()) {
+  if (!secretMatches(key, expected)) {
     return new Response(JSON.stringify({ ok: false }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
   return new Response(

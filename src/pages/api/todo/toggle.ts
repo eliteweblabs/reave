@@ -9,9 +9,11 @@
  * Commit the file after checking off important items to make it permanent.
  */
 import type { APIRoute } from 'astro';
+import type { APIContext } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -33,10 +35,13 @@ function todoDir(): string {
 const ITEM_RE = /^- \[([ xX])\] /;
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
   let body: { slug?: unknown; lineIndex?: unknown; checked?: unknown };
   try {
-    body = await request.json() as typeof body;
+    body = (await context.request.json()) as typeof body;
   } catch {
     return new Response('Bad Request', { status: 400 });
   }

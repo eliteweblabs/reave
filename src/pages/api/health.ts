@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import type { APIContext } from 'astro';
 import { getAgentModelSettings } from '../../lib/agentModel';
 import { enabledFeatures, FEATURE_LABELS, hasFeature, type FeatureId } from '../../lib/features';
 import { isVapiAdminConfigured, isVapiAdminPluginEnabled } from '../../lib/vapiPlugin';
@@ -10,6 +11,7 @@ import { paulinoWizardPing } from '../../lib/paulinoWizardClient';
 import { getCompanyBrandContext, headerSafe } from '../../lib/companyConfig';
 import { serverEnv } from '../../lib/serverEnv';
 import { isPexelsConfigured } from '../../lib/pexelsClient';
+import { requireDashboardUser } from '../../lib/dashboardAuth';
 
 /**
  * Live health snapshot for the /admin/ "System" tab.
@@ -106,7 +108,10 @@ async function githubProbe(token: string, userAgent: string): Promise<Probe> {
 }
 
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async (context) => {
+  const auth = requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
   const brand = await getCompanyBrandContext();
   const safeBrand = headerSafe(brand.name).toLowerCase().replace(/\s+/g, '-') || 'app';
   const healthUserAgent = `${safeBrand}-health-probe/1.0`;
