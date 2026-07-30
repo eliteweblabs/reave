@@ -618,7 +618,7 @@ async function runKnowledgeAgentInner(
       );
     }
     sysParts.push(
-      'Deploy failures / crash alerts: call check_deployment_status and get_git_status or get_recent_commits immediately — report deployed commit vs GitHub latest, health ping, and whether this looks like rollout teardown vs a real failure. read_knowledge slug "railway-deploy-webhook" for alert context. Only mention Railway dashboard logs when tools cannot explain the failure.',
+      'Deploy failures / crash alerts: read_knowledge slug "railway-build-failure-triage" first. One active repair per GitHub repo — duplicate alerts are blocked. Call check_deployment_status and get_git_status (pass repo + health_url for sibling services). Distinguish rollout teardown vs real failure. On real failure: read changed files, fix via write_github_file(branch:"main") in the same turn — do NOT stop at diagnosis or ask the owner to fix. End with "✅ RESOLVED — …" or "🚨 UNRESOLVED — …".',
     );
     if (isKinstaConfigured()) {
       sysParts.push(

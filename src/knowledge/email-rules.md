@@ -21,8 +21,8 @@ POST /api/email/inbound → Claude triage → contact-api → job append → Pos
 - **UI:** Summaries in admin Email tab; junk hidden by default (`?junk=1` to show).
 - **Attachments:** Resend attachment metadata is stored on the inbox row and shown in the Email detail pane with download links (`/api/email/inbox/:id/attachments/:attachmentId`). Attachment-only mail (signature + files, no body) is summarized by filename — not treated as blank. Linking an email to a project still imports files into that project's file grid.
 - **Push:** Install `/admin` to home screen → tap 🔔 → Web Push (`VAPID_*` env vars).
-- **Railway crash emails:** Rule `RAILWAY_ALERT` matches `noreply@railway.app` / “Deployment crashed” / “Build failed”. Posts to admin **System alerts** chat and auto-runs the agent when `AGENT_ALERT_USER_ID` is set (Clerk user id). Note: Railway often sends “Deployment crashed” during rollout while the new build is still starting — false alarm; the agent is prompted to verify in Railway first.
-- **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → admin System alerts chat (see `RAILWAY_WEBHOOK_INGRESS_KEY` + `AGENT_ALERT_USER_ID`). Email path covers notification emails that hit Proton.
+- **Railway crash emails:** Rule `RAILWAY_ALERT` matches “Deployment crashed” / “Build failed” / `railway.app` in subject/body. Routed through **deploy-incident handler** — one active repair per GitHub repo; duplicate emails are auto-deleted when the repo lock is held. Agent playbook: `railway-build-failure-triage`. Resolved → email deleted silently; unresolved → urgent push.
+- **Railway webhooks:** Direct deploy-failure webhooks → `/api/railway/webhook` → same deploy-incident handler (preferred trigger; structured metadata). Configure on each Railway project. See `RAILWAY_WEBHOOK_INGRESS_KEY` + `AGENT_ALERT_USER_ID` + `DATABASE_URL`.
 
 ## Categories
 

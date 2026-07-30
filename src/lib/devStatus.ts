@@ -160,7 +160,11 @@ export async function listOpenBranches(opts: { repo?: string } = {}): Promise<
 }
 
 /** Is the latest pushed code actually live? Compares deployed SHA to GitHub + health ping. */
-export async function checkDeploymentStatus(): Promise<
+export async function checkDeploymentStatus(opts: {
+  repo?: string;
+  /** Override health ping URL (sibling services). When omitted, uses this Astro service. */
+  healthUrl?: string;
+} = {}): Promise<
   StatusResult<{
     repo: string;
     default_branch: string;
@@ -171,30 +175,35 @@ export async function checkDeploymentStatus(): Promise<
     commits_behind: number | null;
     health: { url: string; reachable: boolean; status: number | null };
     summary: string;
+    /** True when checking a sibling repo — deployed SHA comparison may not apply. */
+    sibling_repo: boolean;
   }>
 > {
-  const defRes = await githubGetDefaultBranch();
+  const repo = opts.repo ?? githubRepoSlug();
+  const siblingRepo = repo.toLowerCase() !== githubRepoSlug().toLowerCase();
+
+  const defRes = await githubGetDefaultBranch(repo);
   if (!defRes.ok) return { ok: false, error: defRes.error };
   const def = defRes.data;
 
-  const commitsRes = await githubListCommits({ branch: def, perPage: 1 });
+  const commitsRes = await githubListCommits({ repo, branch: def, perPage: 1 });
   if (!commitsRes.ok) return { ok: false, error: commitsRes.error };
   const latest = commitsRes.data[0] ?? null;
 
-  const deployed = deployedSha() ?? null;
+  const deployed = siblingRepo ? null : deployedSha() ?? null;
   let upToDate: boolean | null = null;
   let behind: number | null = null;
   if (deployed && latest) {
     upToDate = deployed === latest.sha;
     if (!upToDate) {
-      const cmp = await githubCompare(deployed, latest.sha);
+      const cmp = await githubCompare(deployed, latest.sha, repo);
       behind = cmp.ok ? cmp.data.ahead_by : null;
     } else {
       behind = 0;
     }
   }
 
-  const url = healthUrl();
+  const url = opts.healthUrl?.trim() || healthUrl();
   let reachable = false;
   let httpStatus: number | null = null;
   try {
@@ -206,7 +215,9 @@ export async function checkDeploymentStatus(): Promise<
   }
 
   let summary: string;
-  if (!deployed) {
+  if (siblingRepo) {
+    summary = `Sibling repo ${repo}: latest on ${def} is ${latest?.short_sha ?? 'unknown'}. Health ${url} is ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}). Deployed SHA not available from this Astro service — compare GitHub commits and health only.`;
+  } else if (!deployed) {
     summary = `Deployed commit unknown (RAILWAY_GIT_COMMIT_SHA not set). Site is ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
   } else if (upToDate) {
     summary = `Live at latest commit ${latest?.short_sha} on ${def}. Site ${reachable ? 'reachable' : 'unreachable'} (${httpStatus ?? 'n/a'}).`;
@@ -217,15 +228,16 @@ export async function checkDeploymentStatus(): Promise<
   return {
     ok: true,
     data: {
-      repo: githubRepoSlug(),
+      repo,
       default_branch: def,
       latest_commit: latest,
       deployed_sha: deployed,
       deployed_short_sha: deployed ? deployed.slice(0, 7) : null,
-      up_to_date: upToDate,
+      up_to_date: siblingRepo ? (reachable ? true : false) : upToDate,
       commits_behind: behind,
       health: { url, reachable, status: httpStatus },
       summary,
+      sibling_repo: siblingRepo,
     },
   };
 }

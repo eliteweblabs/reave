@@ -9,10 +9,11 @@ import {
   storeListChatThreads,
   storeUpdateChatTitle,
 } from './chatStore';
+import { handleDeployFailure } from './deployIncidentHandler';
 import { runKnowledgeAgent } from './agentRunner';
 import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
-import { storeGetEmailInbox, storeDeleteEmailInbox } from './emailInboxStore';
+import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
 import { hasFeature } from './features';
 import { createLogger } from './logger';
@@ -95,76 +96,6 @@ function extractProposalSummary(reply: string, slug?: string | null): string {
 }
 
 /**
- * Scan an agent reply for signals that a Railway build/deploy alert was resolved
- * (rollout teardown, self-healed, already live, no real crash, etc.).
- *
- * Returns true when the reply clearly indicates no action is needed.
- */
-function railwayAlertIsResolved(reply: string): boolean {
-  const lower = reply.toLowerCase();
-
-  // Positive "it's fine" signals
-  const resolvedPhrases = [
-    'already live',
-    'deployment is live',
-    'is live and healthy',
-    'health check passed',
-    'no real failure',
-    'not a real crash',
-    'rollout teardown',
-    'old instance was terminated',
-    'previous instance',
-    'deploy succeeded',
-    'latest commit is deployed',
-    'latest commit is live',
-    'no action needed',
-    'no action required',
-    'self-healed',
-    'resolved itself',
-    'build succeeded',
-    'currently healthy',
-    'app is up',
-    'app is live',
-    'no issues found',
-    'everything looks good',
-    'looks healthy',
-    'passing health',
-    'health endpoint',
-  ];
-
-  // Negative "still broken" signals — if present, always treat as unresolved
-  const unresolvedPhrases = [
-    'build failed',
-    'build is failing',
-    'deployment crashed',
-    'crash loop',
-    'health check failed',
-    'not responding',
-    'deploy is down',
-    'site is down',
-    'service is down',
-    'investigate further',
-    'requires your attention',
-    'needs investigation',
-    'stale deploy',
-    'rollback',
-    'behind by',
-    'check railway logs',
-  ];
-
-  for (const phrase of unresolvedPhrases) {
-    if (lower.includes(phrase)) return false;
-  }
-
-  for (const phrase of resolvedPhrases) {
-    if (lower.includes(phrase)) return true;
-  }
-
-  // Default: treat as unresolved to be safe — owner gets notified
-  return false;
-}
-
-/**
  * Fire-and-forget — posts a message to the System alerts thread, optionally
  * running the agent to auto-investigate. Returns the agent reply when autoRun
  * is true so callers can decide whether to fire a push or silently close.
@@ -240,7 +171,7 @@ async function formatAlertMessage(opts: {
   const railway = isRailwayAlertStatus(opts.status);
   const anthropicBilling = isAnthropicBillingAlertStatus(opts.status);
   const intro = railway
-    ? 'Railway alert email received (deploy/build crash notification). You run inside this app on Railway — use your tools first, not manual dashboard/CLI steps.'
+    ? 'Railway alert email received. Routed through deploy-incident handler (one active repair per GitHub repo).'
     : anthropicBilling
       ? 'Anthropic Claude API is out of usage credits — AI email triage/summaries (and this very alert reply, if attempted) will fail until credits are added.'
       : 'Inbound alert email received.';
@@ -250,7 +181,7 @@ async function formatAlertMessage(opts: {
     '',
     `Status: ${opts.status}`,
     railway
-      ? 'Call check_deployment_status and get_git_status now. Distinguish rollout teardown vs a real crash, summarize what you found, and suggest next steps. You cannot fetch Railway logs via API — only mention dashboard logs if tools leave the cause unclear. IMPORTANT: after your investigation, end your reply with either "✅ RESOLVED — no action needed" (if the deploy is healthy) or "🚨 UNRESOLVED — action required" (if there is a real crash) so the system can decide whether to silently close this alert or notify the owner.'
+      ? 'Handled by deploy-incident playbook — read_knowledge slug "railway-build-failure-triage". Duplicate alerts for the same repo are blocked while this incident is open.'
       : anthropicBilling
         ? 'Add credits at console.anthropic.com/settings/billing to restore Claude API access and AI email triage.'
         : 'Read the linked email below and suggest concrete next steps.',
@@ -574,14 +505,10 @@ export async function notifyAdminAgentOfDeckView(opts: {
 /**
  * Fire-and-forget — logs failures, never throws to inbound email handler.
  *
- * Railway build/deploy alerts are handled with full auto-investigation:
- *   1. Agent runs check_deployment_status + get_git_status immediately.
- *   2. If the reply signals "resolved / rollout teardown / already live"
- *      → inbox email is silently deleted, no push notification.
- *   3. If the reply signals a real unresolved crash
- *      → urgent push fires so the owner is notified.
- *
- * All other alert statuses follow the previous behaviour (push always fires).
+ * Railway build/deploy alerts route through deployIncidentHandler:
+ *   - One active incident per GitHub repo (duplicate emails suppressed + deleted)
+ *   - Agent runs playbook, ends with ✅ RESOLVED or 🚨 UNRESOLVED
+ *   - Resolved → silent email delete; unresolved → urgent push
  */
 export async function notifyAdminAgentOfEmailAlert(opts: {
   status: string;
@@ -594,57 +521,32 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
   if (!shouldAgentAlertForInboundEmail({ category: opts.category, status: opts.status })) return;
 
   const isRailway = isRailwayAlertStatus(opts.status);
+
+  if (isRailway) {
+    const message = await formatAlertMessage(opts);
+    await handleDeployFailure({
+      source: 'email',
+      message,
+      emailId: opts.emailId,
+      subject: opts.subject,
+      body: opts.summary,
+    });
+    return;
+  }
+
   const message = await formatAlertMessage(opts);
 
-  const { agentReply } = await postToSystemAlertsThread({
+  await postToSystemAlertsThread({
     message,
     emailId: opts.emailId,
-    // The agent's auto-reply itself needs the Claude API — skip it here so we
-    // don't burn a doomed-to-fail call and can just show the canned summary.
     autoRun: !isAnthropicBillingAlertStatus(opts.status),
-    // Railway alerts: push is conditional on the investigation outcome (see below).
-    // All other alerts: push fires immediately.
-    push: isRailway
-      ? undefined
-      : {
-          title: `Alert: ${opts.summary.slice(0, 60)}`,
-          body: opts.summary,
-          tag: opts.emailId ?? `email-${opts.status}`,
-          url: opts.emailId
-            ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
-            : '/admin?tab=email',
-        },
+    push: {
+      title: `Alert: ${opts.summary.slice(0, 60)}`,
+      body: opts.summary,
+      tag: opts.emailId ?? `email-${opts.status}`,
+      url: opts.emailId
+        ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
+        : '/admin?tab=email',
+    },
   });
-
-  // ── Railway self-healing logic ────────────────────────────────────────────
-  // After the agent investigates, decide: delete silently or push an alert.
-  if (isRailway) {
-    const resolved = agentReply ? railwayAlertIsResolved(agentReply) : false;
-
-    if (resolved) {
-      // No real crash — silently delete the inbox email so it never surfaces.
-      log.info('Railway alert auto-resolved — deleting inbox email silently', {
-        emailId: opts.emailId,
-      });
-      if (opts.emailId) {
-        storeDeleteEmailInbox(opts.emailId).catch((e) =>
-          log.warn('silent delete of resolved Railway alert failed', e),
-        );
-      }
-    } else {
-      // Real crash or uncertain — notify the owner immediately.
-      log.info('Railway alert unresolved — firing push notification', { emailId: opts.emailId });
-      sendPushNotification({
-        title: `🚨 Railway: ${opts.subject?.slice(0, 50) || 'build/deploy alert'}`,
-        body: agentReply
-          ? agentReply.slice(0, 200)
-          : opts.summary || 'Build or deploy failure needs your attention.',
-        tag: opts.emailId ?? 'railway-alert',
-        url: opts.emailId
-          ? `/admin?tab=chats`
-          : '/admin?tab=chats',
-        urgent: true,
-      }).catch((e) => log.warn('Railway push failed', e));
-    }
-  }
 }

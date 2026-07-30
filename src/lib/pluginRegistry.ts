@@ -115,7 +115,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'client-portal':
       return ['client-portal'];
     case 'dev-infra':
-      return ['github-dev-tools', 'kinsta-wordpress', 'railway-deploy-webhook'];
+      return ['github-dev-tools', 'kinsta-wordpress', 'railway-deploy-webhook', 'railway-build-failure-triage'];
     case 'email-marketing':
       return ['newsletter'];
     case 'uptime-monitoring':

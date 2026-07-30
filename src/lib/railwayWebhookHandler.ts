@@ -1,17 +1,9 @@
-import { postToSystemAlertsThread } from './adminAgentAlert';
+import { handleDeployFailure } from './deployIncidentHandler';
 import { markDeployFailed } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
 import { serverEnv } from './serverEnv';
 import { secretMatches } from './secretCompare';
-
-/**
- * The model used for autonomous Railway failure investigation.
- * Chosen at the highest reliably-available tier so the agent can read logs,
- * run check_deployment_status / get_git_status, and attempt self-repair
- * without any phone notification interrupting the owner.
- */
-const RAILWAY_ALERT_MODEL = 'claude-opus-4-6';
 
 type RailwayWebhookBody = {
   type?: string;
@@ -66,12 +58,8 @@ function formatRailwayDeployAlert(body: RailwayWebhookBody): string {
   if (body.timestamp) lines.push(`Time: ${body.timestamp}`);
   lines.push(
     '',
-    'AUTONOMOUS INVESTIGATION REQUIRED — no phone notification was sent. You run inside this app on Railway.',
-    'Steps: call check_deployment_status and get_git_status now. Report deployed commit vs GitHub latest and health ping.',
-    'Distinguish rollout teardown (normal) vs a real crash (needs repair).',
-    'If it is a real crash: read the relevant source files, identify the error, write and commit a fix via write_github_file to main.',
-    'You cannot fetch Railway logs via API — only mention dashboard logs if your tools cannot explain the failure.',
-    'Summarize findings and any fix applied clearly so the owner can review in System alerts.',
+    'Railway deploy failure webhook — incident handler will acquire a repo lock and auto-investigate.',
+    'Duplicate webhooks/emails for the same GitHub repo are suppressed while an incident is open.',
   );
   return lines.join('\n');
 }
@@ -128,13 +116,20 @@ export async function handleRailwayWebhook(opts: {
     return { ok: true, status: 200, message: 'no alert target' };
   }
 
-  // Post to System alerts with the best model available for auto-investigation.
-  // Intentionally NO push — the agent investigates silently in the background.
-  await postToSystemAlertsThread({
+  const result = await handleDeployFailure({
+    source: 'webhook',
     message: text,
-    model: RAILWAY_ALERT_MODEL,
-    // push: omitted — owner is never buzzed for Railway deploy failures
+    project: body.resource?.project?.name,
+    service: body.resource?.service?.name,
+    environment: body.resource?.environment?.name,
+    deploymentId: body.resource?.deployment?.id ?? (typeof body.details?.id === 'string' ? body.details.id : undefined),
   });
 
-  return { ok: true, status: 200, message: 'sent' };
+  const msg = result.suppressed
+    ? `suppressed:${result.reason}`
+    : result.handled
+      ? `incident:${result.incidentId ?? result.reason}`
+      : 'failed';
+
+  return { ok: true, status: 200, message: msg };
 }

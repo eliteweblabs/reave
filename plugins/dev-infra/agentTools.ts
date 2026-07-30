@@ -358,6 +358,7 @@ async function handle_list_kinsta_backups(args: Record<string, unknown>, _ctx: T
 
 async function handle_get_git_status(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const result = await getGitStatus({
+    repo: typeof args.repo === 'string' && args.repo.trim() ? args.repo.trim() : undefined,
     branch: typeof args.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined,
     limit: typeof args.limit === 'number' ? args.limit : undefined,
   });
@@ -367,6 +368,7 @@ async function handle_get_git_status(args: Record<string, unknown>, _ctx: ToolCo
 
 async function handle_get_recent_commits(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const result = await getRecentCommits({
+    repo: typeof args.repo === 'string' && args.repo.trim() ? args.repo.trim() : undefined,
     branch: typeof args.branch === 'string' && args.branch.trim() ? args.branch.trim() : undefined,
     limit: typeof args.limit === 'number' ? args.limit : undefined,
     with_files: args.with_files === true,
@@ -376,7 +378,10 @@ async function handle_get_recent_commits(args: Record<string, unknown>, _ctx: To
 }
 
 async function handle_check_deployment_status(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
-  const result = await checkDeploymentStatus();
+  const result = await checkDeploymentStatus({
+    repo: typeof args.repo === 'string' && args.repo.trim() ? args.repo.trim() : undefined,
+    healthUrl: typeof args.health_url === 'string' && args.health_url.trim() ? args.health_url.trim() : undefined,
+  });
   if (!result.ok) return JSON.stringify({ error: result.error });
   return JSON.stringify(result.data);
 }
@@ -649,10 +654,11 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'get_git_status',
               description:
-                'Snapshot of the GitHub repo (source of truth): current/default branch, latest commits, branch count, and whether the live deploy is on the latest commit. Use to verify work was committed & pushed. Local uncommitted/unstaged changes are NOT visible here — use run_terminal_command on a checked-out repo for that.',
+                'Snapshot of the GitHub repo (source of truth): current/default branch, latest commits, branch count, and whether the live deploy is on the latest commit. Pass repo for sibling services (e.g. eliteweblabs/materials-api). Local uncommitted/unstaged changes are NOT visible here.',
               parameters: {
                 type: 'object',
                 properties: {
+                  repo: { type: 'string', description: 'GitHub owner/repo; defaults to GITHUB_REPO / eliteweblabs/reave.' },
                   branch: { type: 'string', description: 'Branch to inspect; defaults to the repo default branch.' },
                   limit: { type: 'integer', description: 'How many recent commits to include (1-30, default 8).' },
                 },
@@ -665,10 +671,11 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'get_recent_commits',
               description:
-                'Recent commit history from GitHub (author, message, timestamp, link; optionally files changed). Use to verify whether specific work landed.',
+                'Recent commit history from GitHub (author, message, timestamp, link; optionally files changed). Pass repo for sibling services. Use with_files:true when diagnosing deploy failures.',
               parameters: {
                 type: 'object',
                 properties: {
+                  repo: { type: 'string', description: 'GitHub owner/repo; defaults to GITHUB_REPO.' },
                   branch: { type: 'string', description: 'Branch to read; defaults to the repo default branch.' },
                   limit: { type: 'integer', description: 'Number of commits (1-30, default 5).' },
                   with_files: { type: 'boolean', description: 'Include changed files + stats per commit (slower).' },
@@ -682,8 +689,15 @@ export const devInfraModule: AgentToolModule = {
             function: {
               name: 'check_deployment_status',
               description:
-                'Is the latest pushed code actually live? Compares the deployed commit (Railway RAILWAY_GIT_COMMIT_SHA) to GitHub’s latest commit on the default branch and pings the public health endpoint. Returns a one-line summary plus details.',
-              parameters: { type: 'object', properties: {}, additionalProperties: false },
+                'Is the latest pushed code live? Compares deployed commit (this Astro service only) to GitHub latest and pings a health URL. Pass repo + health_url for sibling Railway services.',
+              parameters: {
+                type: 'object',
+                properties: {
+                  repo: { type: 'string', description: 'GitHub owner/repo; defaults to GITHUB_REPO.' },
+                  health_url: { type: 'string', description: 'Health ping URL; defaults to DEPLOY_HEALTH_URL or reave.app.' },
+                },
+                additionalProperties: false,
+              },
             },
           },
           {
