@@ -2,7 +2,6 @@
  * Post operational alerts into the admin agent "System alerts" chat thread.
  */
 
-import { serverEnv } from './serverEnv';
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
