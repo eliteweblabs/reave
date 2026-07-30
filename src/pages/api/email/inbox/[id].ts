@@ -16,6 +16,7 @@ import type { EmailCategory } from '../../../../lib/emailProcessor';
 import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { parseEmailUnsubscribe } from '../../../../lib/emailUnsubscribe';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
 
 export const prerender = false;
@@ -79,6 +80,7 @@ export async function GET(context: APIContext): Promise<Response> {
   const event = await storeGetEmailInbox(id);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
+  const unsubscribe = parseEmailUnsubscribe(event.headers);
   return json({
     ok: true,
     event: {
@@ -89,6 +91,7 @@ export async function GET(context: APIContext): Promise<Response> {
       summary: event.summary ? plainTextForDisplay(event.summary) : event.summary,
       monetaryAmount,
       hasMonetaryValue: monetaryAmount != null,
+      unsubscribe,
     },
   });
 }

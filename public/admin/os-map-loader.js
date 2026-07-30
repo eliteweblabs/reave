@@ -94,7 +94,7 @@ import {
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
+import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
   workState,
@@ -7938,6 +7938,50 @@ function closeEmailDetail() {
   renderEmailPanel();
 }
 
+async function unsubscribeEmail(ev, btn) {
+  const from = parseSenderEmail(ev.from) || ev.from || 'this sender';
+  const confirmed = await osConfirm({
+    title: 'Unsubscribe?',
+    bodyHtml:
+      `Send a one-click unsubscribe request for mail from <strong>${escHtml(from)}</strong>? ` +
+      `This uses the List-Unsubscribe header in the message — the same mechanism Gmail uses.`,
+    confirmLabel: 'Unsubscribe',
+    cancelLabel: 'Cancel',
+  });
+  if (!confirmed) return;
+
+  const prevLabel = btn?.getAttribute('aria-label');
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-label', 'Unsubscribing…');
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/unsubscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!data.ok) {
+      osAlert({
+        title: 'Unsubscribe failed',
+        bodyHtml: escHtml(data.error || 'The sender did not accept the unsubscribe request.'),
+      });
+      return;
+    }
+    osAlert({
+      title: 'Unsubscribed',
+      bodyHtml: `Unsubscribe request sent for mail from ${escHtml(from)}.`,
+    });
+  } catch (e) {
+    osAlert({ title: 'Unsubscribe failed', bodyHtml: escHtml(e.message) });
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.setAttribute('aria-label', prevLabel);
+    }
+  }
+}
+
 function buildEmailDetailHeaderIcons(ev) {
   if (isVerificationCodeEmail(ev)) {
     const icons = [];
@@ -7965,13 +8009,25 @@ function buildEmailDetailHeaderIcons(ev) {
     );
     return icons;
   }
-  return [
+  const icons = [
     createIosIconBtn({
       iconKey: 'reply',
       label: 'Reply',
       className: 'ios-icon-btn em-reply-btn',
       onClick: () => void startReplyEmail(ev),
     }),
+  ];
+  if (ev.unsubscribe?.available) {
+    icons.push(
+      createIosIconBtn({
+        iconKey: 'bell-off',
+        label: 'Unsubscribe',
+        className: 'ios-icon-btn em-unsubscribe-btn',
+        onClick: (btn) => void unsubscribeEmail(ev, btn),
+      }),
+    );
+  }
+  icons.push(
     paneShareIcon({
       label: 'Share message',
       onClick: (btn) => shareChatText(emailShareText(ev), 'assistant', btn),
@@ -7980,7 +8036,8 @@ function buildEmailDetailHeaderIcons(ev) {
       label: 'Delete message',
       onClick: () => deleteEmail(ev),
     }),
-  ];
+  );
+  return icons;
 }
 
 function parseSenderEmail(from) {
