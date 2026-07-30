@@ -1,13 +1,16 @@
 # Inquiry Website Audit — Full Project Playbook
 
-Use this playbook when the user asks to **review a client website**, **audit online presence**, **research a local business prospect**, or **create an inquiry project** from that research.
+Use this playbook for **comprehensive audits** — admin chat full reviews, Siri **"full audit"**, or when the user explicitly wants Playwright UX, broken-link crawl, and tech stack detection.
+
+For **fast street audits** (Siri **"audit"** / **"create proposal"**), use `inquiry-website-audit-quick` instead — same core checks minus Playwright, link crawl, and tech stack.
 
 **Quality bar:** The Barber's Edge inquiry project (`website-redesign-the-barber-s-edge`) is the reference — ~2,000+ characters with tool-backed findings, not a 3-bullet prospect stub.
 
 ## When this applies
 
-- User says: full website review, site audit, online presence check, prospect research, create inquiry for [business]
-- You are filing research from a chat into a **Work** project (status `inquiry`)
+- User says: **full audit**, full website review, deep site audit, Playwright UX review
+- Siri shortcut `full_audit` or `create_proposal_full`
+- Admin chat when the user wants everything — not the quick street tier
 - You recovered or summarized prospects from a list — still run tools on each URL before `create_work`
 
 ## Never do this
@@ -30,7 +33,7 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 ### 2. Resolve the URL
 
 - Prefer contact record website/domain
-- **Siri "Create Proposal"**: the user may only give a freeform business description (name + optional street/town). Use `brave_search` with the full string to find the correct business and website before auditing.
+- **Siri "Full Audit"**: the user may only give a freeform business description (name + optional street/town). Use `brave_search` with the full string to find the correct business and website before auditing. If a quick-audit project already exists for this business, **update_work** instead of creating a duplicate.
 - Normalize: `https://` + apex or `www` — follow redirects (`fetch_url` or `ssl_check` shows final host)
 - Note platform: Shopify, Squarespace, Square Online, WordPress, etc.
 
@@ -43,7 +46,11 @@ Pass `contact_uid` on `create_work`. If creating from the current chat, `source_
 | `ssl_check` | Certificate expiry, TLS, security headers (CSP, HSTS, X-Frame-Options, etc.) |
 | `check_links` | Broken internal links, bad redirects (run on homepage + key subpages if linked) |
 | `dns_check` | A/AAAA, MX, SPF, DKIM, DMARC, WHOIS |
-| `brave_search` | Google Business Profile, Yelp, social handles, hours conflicts, "permanently closed" listings |
+| `brave_search` | Google Business Profile, Yelp, reviews/reputation, social handles, hours conflicts, "permanently closed" listings |
+| `playwright_audit` | Real-browser UX/UI: nav menus, JS errors, overflow, tap targets, CTAs, forms, desktop + mobile screenshots |
+| `detect_tech_stack` | CMS, frameworks, analytics, hosting, payment processors, chat widgets |
+
+**Full tier only:** `playwright_audit`, `check_links`, and `detect_tech_stack` are intentionally omitted from the quick street playbook — run them here.
 
 **Password-protected or pre-launch sites (e.g. Shopify password page):** Still run `ssl_check`, `dns_check`, and `fetch_url` on the password page and any public policy URLs. Note in the audit that public Lighthouse scores are N/A until the store launches.
 
@@ -91,6 +98,13 @@ Mirror this section order. Use `##` for the main heading and `###` for categorie
 
 ### Accessibility
 - {Scores or issues from lighthouse / manual fetch}
+
+### UX & UI (Playwright)
+- {Nav menu, JS console errors, overflow, tap targets, CTA/form issues from playwright_audit}
+- {Note if Playwright unavailable in environment}
+
+### Technology Stack
+- {CMS, hosting, analytics from detect_tech_stack}
 
 ### SSL & Security
 - SSL: {valid, issuer, expiry}
@@ -148,5 +162,6 @@ When the user gives a list of businesses (e.g. local street scan):
 ## Related tools
 
 - Work/jobs: `create_work`, `update_work`, `read_work`, `link_to_work`
-- Site audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`
+- Site audits: `fetch_url`, `lighthouse_audit`, `ssl_check`, `check_links`, `dns_check`, `playwright_audit`, `detect_tech_stack`
 - Research: `brave_search`, `resolve_contact`
+- Quick tier (Siri "audit"): see `inquiry-website-audit-quick`

@@ -81,19 +81,37 @@ Copy-paste these JSON payloads into Apple Shortcuts → Get Contents of URL → 
 
 ---
 
-## Create Proposal (full research audit)
+## Audit (quick — street speed)
 
-Say a business name — add street or town if the name is common — and the research agent finds the business, runs the audit, and files a project. Returns immediately; the finished audit lands via push notification.
+Say a business name — add street or town if the name is common — and the research agent finds the business, runs a fast audit (Lighthouse, HTML, SSL, DNS, Google/social/reputation), and files a project. Skips Playwright and link crawls. Returns immediately; the finished audit lands via push notification.
 
 ```json
 {
-  "action": "create_proposal",
+  "action": "audit",
   "business": "Example Plumbing Co on Oak Street in Portland",
   "format": "text"
 }
 ```
 
 **Required**: `business` (aliases: `business_name`, `company`, `name`, `query`). **Optional**: `url`, `phone`, `email`, `notes`.
+
+**Backward compatible**: `"action": "create_proposal"` runs the same quick tier.
+
+---
+
+## Full Audit (comprehensive)
+
+Everything in the quick audit plus Playwright UX/UI, broken links, and tech stack. Slower — use at a desk, not on the street.
+
+```json
+{
+  "action": "full_audit",
+  "business": "Example Plumbing Co on Oak Street in Portland",
+  "format": "text"
+}
+```
+
+**Also accepts**: `"action": "create_proposal_full"`
 
 ---
 
@@ -185,11 +203,17 @@ curl -X POST https://reave.app/api/siri \
   -H "Content-Type: application/json" \
   -d '{"action":"list_work","status":"active","format":"text"}'
 
-# Create proposal (full research audit — runs in the background)
+# Create proposal (quick audit — runs in the background)
 curl -X POST https://reave.app/api/siri \
   -H "X-Siri-Key: YOUR_KEY_HERE" \
   -H "Content-Type: application/json" \
-  -d '{"action":"create_proposal","business":"Example Plumbing Co on Oak Street in Portland","format":"text"}'
+  -d '{"action":"audit","business":"Example Plumbing Co on Oak Street in Portland","format":"text"}'
+
+# Full audit (Playwright + links + tech stack — runs in the background)
+curl -X POST https://reave.app/api/siri \
+  -H "X-Siri-Key: YOUR_KEY_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"action":"full_audit","business":"Example Plumbing Co on Oak Street in Portland","format":"text"}'
 
 # Status
 curl -X POST https://reave.app/api/siri \

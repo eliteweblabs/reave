@@ -3,6 +3,8 @@ const TOOL_LABELS: Record<string, string> = {
   lighthouse_audit: 'Running Lighthouse audit',
   ssl_check: 'Checking SSL certificate',
   check_links: 'Checking links',
+  playwright_audit: 'Running Playwright UX audit',
+  detect_tech_stack: 'Detecting tech stack',
   dns_check: 'Checking DNS',
   resolve_contact: 'Looking up client',
   list_contacts: 'Listing clients',

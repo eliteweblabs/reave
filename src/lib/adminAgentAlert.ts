@@ -56,20 +56,22 @@ async function getOrCreateAlertThread(userId: string): Promise<string | null> {
   return created.id;
 }
 
-/** Fire-and-forget — Siri "Create Proposal" finished (client + audit project filed). */
+/** Fire-and-forget — Siri audit/proposal finished (client + audit project filed). */
 export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   label: string;
   reply: string;
   jobSlug?: string | null;
+  tier?: 'quick' | 'full';
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
   const slug = opts.jobSlug?.trim();
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
   const summary = extractProposalSummary(opts.reply, slug);
+  const titlePrefix = opts.tier === 'full' ? 'Full audit ready' : 'Audit ready';
 
   await sendPushNotification({
-    title: `Proposal ready: ${opts.label}`,
+    title: `${titlePrefix}: ${opts.label}`,
     body: summary.slice(0, 150) || `Project ready${slug ? `: ${slug}` : ''}`,
     tag: `siri-proposal-${slug ?? opts.label}`,
     url: deepLinkUrl,

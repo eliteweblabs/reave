@@ -12,12 +12,10 @@
  * - create_work: { action: "create_work", title: string, client: string, status?, priority?, body? }
  * - find_client: { action: "find_client", client?: string, query?: string } — lookup for Shortcuts conditionals
  * - create_project: { action: "create_project", title: string, client?, first_name?, last_name?, company?, email? }
- * - create_proposal: { action: "create_proposal", business, url?, phone?, email?, notes? } — pass a business
- *   description (name alone, or name + street/town for disambiguation); the research agent finds the real business
- *   and website, resolves or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence, and
- *   files a project with a full audit body. Runs in the background (this returns immediately) — the finished
- *   result triggers a dashboard alert and push notification. Requires ANTHROPIC_API_KEY and
- *   AGENT_ALERT_USER_ID for the notification.
+ * - create_proposal / audit: { action: "create_proposal" | "audit", business, ... } — quick street audit
+ *   (Lighthouse, HTML, SSL, DNS, Google/social/reputation search). Runs in background; push when done.
+ * - create_proposal_full / full_audit: { action: "full_audit" | "create_proposal_full", business, ... } —
+ *   everything in the quick audit plus Playwright UX, broken links, and tech stack detection.
  * - send_sms: { action: "send_sms", to: string, message: string }
  * - status: { action: "status" } — quick health check
  *
@@ -138,7 +136,12 @@ export async function POST(context: APIContext): Promise<Response> {
         result = await handleCreateProject(body);
         break;
       case 'create_proposal':
-        result = await handleCreateProposal(body);
+      case 'audit':
+        result = await handleAuditProposal(body, 'quick');
+        break;
+      case 'create_proposal_full':
+      case 'full_audit':
+        result = await handleAuditProposal(body, 'full');
         break;
       case 'send_sms':
         result = await handleSendSms(body);
@@ -489,20 +492,19 @@ async function handleCreateProject(params: Record<string, unknown>): Promise<Sir
   };
 }
 
+type AuditTier = 'quick' | 'full';
+
 /**
- * "Siri, create proposal" — pass a business description (name, or name + street/town)
- * and the full research agent finds the real business, resolves or creates the client,
- * runs the whole audit tool sequence (fetch_url, lighthouse_audit, ssl_check,
- * check_links, dns_check, brave_search), and files an inquiry project with a complete
- * audit body — the same "inquiry-website-audit" playbook the admin chat agent follows.
- *
- * This can take minutes (Lighthouse alone budgets up to 150s, plus DNS/SSL/link
- * checks and multiple LLM turns), far longer than a Siri Shortcut should sit
- * waiting on a spinner. So this kicks the run off in the background and
- * replies immediately; the finished audit triggers a dashboard alert and push
- * notification when it's done.
+ * Siri "audit" / "create proposal" (quick) or "full audit" (comprehensive) — pass a business
+ * description (name, or name + street/town) and the research agent finds the real business,
+ * resolves or creates the client, runs the appropriate audit tool sequence, and files an
+ * inquiry project. Runs in the background; the finished audit triggers a dashboard alert and
+ * push notification when done.
  */
-async function handleCreateProposal(params: Record<string, unknown>): Promise<SiriResponse> {
+async function handleAuditProposal(
+  params: Record<string, unknown>,
+  tier: AuditTier,
+): Promise<SiriResponse> {
   if (!isContactApiConfigured()) {
     return { ok: false, error: 'Contact API not configured' };
   }
@@ -522,14 +524,19 @@ async function handleCreateProposal(params: Record<string, unknown>): Promise<Si
 
   const label = business;
 
-  runProposalResearch({ url, business, phone, email, notes, label }).catch((e) => {
+  runProposalResearch({ url, business, phone, email, notes, label, tier }).catch((e) => {
     log.error('background research failed', e);
   });
 
+  const ack =
+    tier === 'full'
+      ? `Running full audit on ${label} now. You'll get an alert in Admin when the audit and project are ready.`
+      : `Auditing ${label} now. You'll get an alert in Admin when the audit and project are ready.`;
+
   return {
     ok: true,
-    text: `Researching ${label} now. You'll get an alert in Admin when the audit and project are ready.`,
-    data: { started: true, label, url: url || null, business: business || null },
+    text: ack,
+    data: { started: true, tier, label, url: url || null, business: business || null },
   };
 }
 
@@ -540,6 +547,7 @@ async function runProposalResearch(input: {
   email: string;
   notes: string;
   label: string;
+  tier: AuditTier;
 }): Promise<void> {
   const givenLines = [
     input.business ? `Business name: ${input.business}` : null,
@@ -549,8 +557,23 @@ async function runProposalResearch(input: {
     input.notes ? `Notes: ${input.notes}` : null,
   ].filter((l): l is string => Boolean(l));
 
+  const knowledgeSlug =
+    input.tier === 'full' ? 'inquiry-website-audit' : 'inquiry-website-audit-quick';
+  const tierLabel = input.tier === 'full' ? 'Full audit' : 'Quick audit (street)';
+
+  const auditToolsStep =
+    input.tier === 'full'
+      ? '3. Run the **full** audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, ' +
+        'check_links, dns_check, brave_search (Google Business Profile, Yelp, reviews/reputation, social), ' +
+        'playwright_audit (real-browser UX/UI on desktop + mobile), and detect_tech_stack. Run read-only ' +
+        'tools in parallel when possible.'
+      : '3. Run the **quick** audit tool sequence on the site (street-speed — skip slow tools): fetch_url, ' +
+        'lighthouse_audit, ssl_check, dns_check, and brave_search (Google Business Profile, Yelp, ' +
+        'reviews/reputation, social). Do **not** run playwright_audit, check_links, or detect_tech_stack — ' +
+        'those belong in the full audit tier. Run read-only tools in parallel when possible.';
+
   const userText = [
-    'Siri shortcut "Create Proposal" was triggered with only the raw information below — there is no one ' +
+    `Siri shortcut "${tierLabel}" was triggered with only the raw information below — there is no one ` +
       'here to ask follow-up questions, so proceed autonomously and make reasonable, clearly-noted assumptions ' +
       'instead of stopping to ask.',
     '',
@@ -559,18 +582,18 @@ async function runProposalResearch(input: {
     '',
     ...givenLines,
     '',
-    'Follow the full inquiry-website-audit playbook (read_knowledge slug "inquiry-website-audit" first):',
+    `Follow the ${tierLabel.toLowerCase()} playbook (read_knowledge slug "${knowledgeSlug}" first):`,
     '1. If no URL was given, use brave_search with the full business description (plus phone/email if provided) ' +
       'to identify the correct business and find its website; use any location hints in the description to ' +
       'disambiguate common names. If no website can be found, say so in the audit and continue with whatever ' +
       'public info you can find.',
     '2. resolve_contact for the client; create_contact if there is no match — use the business name as the ' +
       'contact name when no personal name is known, and save whatever phone/email/company was given.',
-    '3. Run the full audit tool sequence on the site: fetch_url, lighthouse_audit, ssl_check, check_links, ' +
-      "dns_check, and brave_search for the business's Google Business Profile / Yelp / social presence.",
+    auditToolsStep,
     '4. create_work with status "inquiry", contact_uid set, title "Website Redesign — {Business Name}" (best ' +
-      'known name), and a complete markdown audit body following the required section structure — 1,500+ ' +
-      'characters, not a stub.',
+      'known name), and a complete markdown audit body following the required section structure — 1,200+ ' +
+      'characters for quick tier, 1,500+ for full tier, not a stub. If a quick-audit project already exists ' +
+      'and this is a full audit, use update_work instead of creating a duplicate.',
     '5. End your final reply with a line formatted exactly like ' +
       '`Project: <slug>` followed by 2-3 sentences summarizing the top findings and the recommended next step.',
   ].join('\n');
@@ -595,6 +618,7 @@ async function runProposalResearch(input: {
     label: input.label,
     reply,
     jobSlug: slug,
+    tier: input.tier,
   }).catch((e) => log.warn('proposal notify failed', e instanceof Error ? e : new Error(String(e))));
 }
 

@@ -129,7 +129,7 @@ export function pluginKnowledgeSlugs(pluginId: string): string[] {
     case 'code-dev':
       return ['code-dev-tools'];
     case 'siteAudits':
-      return ['inquiry-website-audit'];
+      return ['inquiry-website-audit', 'inquiry-website-audit-quick'];
     default:
       return [];
   }

@@ -228,17 +228,17 @@ Created project Website redesign for Tony Vello. Status: active.
 
 **Siri phrase**: "create reave project" or "new reave project"
 
-### Create Proposal (full research audit)
+### Audit (quick — street speed)
 
-**What it does**: The big one. Say a business name — add street or town if the name is common — and it hands the job to the full research agent: finds the real business and website, looks up or creates the client, runs the complete site/SEO/SSL/DNS audit tool sequence (Lighthouse, SSL, broken links, DNS, web search for their Google Business Profile/social presence), and files an "inquiry" project with a complete audit write-up. This is the same research playbook the admin chat agent runs, triggered hands-free.
+**What it does**: Say a business name — add street or town if the name is common — and it hands the job to the research agent: finds the real business and website, looks up or creates the client, runs a **fast audit** (Lighthouse, HTML/content, SSL, DNS, Google/social/reputation search), and files an "inquiry" project. Skips slow Playwright browser automation and link crawls so you get results faster on the street.
 
-Because a full audit can take a couple of minutes (Lighthouse alone budgets up to 150 seconds), this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
+Because Lighthouse alone can take up to ~2 minutes, this action returns immediately with an acknowledgment — the finished audit, new client, and new project land a little later in the **System alerts** chat thread with a push notification (requires `AGENT_ALERT_USER_ID` and web push set up). Siri won't sit there waiting.
 
 **JSON body**:
 
 ```json
 {
-  "action": "create_proposal",
+  "action": "audit",
   "business": "Example Plumbing Co on Oak Street in Portland",
   "format": "text"
 }
@@ -252,12 +252,40 @@ Because a full audit can take a couple of minutes (Lighthouse alone budgets up t
 **Example response** (immediate ack — the real result comes later via push notification):
 
 ```
-Researching Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
+Auditing Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
 ```
 
-**Siri phrase**: "create proposal" or "research this business"
+**Siri phrase**: "audit" or "create proposal" or "research this business"
+
+**Also accepts**: `"action": "create_proposal"` (same quick tier — backward compatible)
 
 **Requirement**: `ANTHROPIC_API_KEY` (for the research agent), `CONTACT_API_BASE_URL` (to create the client), and `AGENT_ALERT_USER_ID` (so the finished audit posts to System alerts with a push notification — without it the research still runs but there's nowhere to see the result land).
+
+### Full Audit (comprehensive)
+
+**What it does**: Same as the quick audit, plus **Playwright** real-browser UX/UI checks (nav menus, JS errors, tap targets, screenshots), **broken link crawl**, and **tech stack detection**. Use when you're back at a desk and want the deepest report — not for on-the-street speed.
+
+**JSON body**:
+
+```json
+{
+  "action": "full_audit",
+  "business": "Example Plumbing Co on Oak Street in Portland",
+  "format": "text"
+}
+```
+
+**Example response**:
+
+```
+Running full audit on Example Plumbing Co on Oak Street in Portland now. You'll get an alert in Admin when the audit and project are ready.
+```
+
+**Siri phrase**: "full audit"
+
+**Also accepts**: `"action": "create_proposal_full"`
+
+**Requirement**: Same as quick audit. Playwright requires Chromium in the server environment (included in the Docker image).
 
 ### Create Work Item
 

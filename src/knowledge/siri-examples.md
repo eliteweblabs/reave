@@ -265,11 +265,11 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 
 ---
 
-## Example 6b: "Create Proposal" (full research audit)
+## Example 6b: "Audit" (quick street audit)
 
-**What it does**: Say a business name — add street or town if needed — and it kicks off the full research agent in the background: finds the business and website, resolves/creates the client, runs the complete audit tool sequence (Lighthouse, SSL, DNS, broken links, web search for their online presence), and files a project with a full write-up. Siri gets an immediate "researching now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
+**What it does**: Say a business name — add street or town if needed — and it kicks off the research agent in the background: finds the business and website, resolves/creates the client, runs a **fast audit** (Lighthouse, HTML, SSL, DNS, Google/social/reputation search — no Playwright or link crawl), and files a project with a write-up. Siri gets an immediate "auditing now" reply; the finished result (new client + new project + top findings) shows up a little later as a push notification.
 
-**Siri phrase**: "create proposal" or "research this business"
+**Siri phrase**: "audit" or "create proposal" or "research this business"
 
 **Shortcut steps**:
 
@@ -280,7 +280,7 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 2. **Text** (build JSON — insert the variable as a blue pill, not typed text)
    ```json
    {
-     "action": "create_proposal",
+     "action": "audit",
      "business": "Business",
      "format": "text"
    }
@@ -303,6 +303,17 @@ Real-world shortcut configurations you can copy into the Shortcuts app.
 - One prompt is enough — the research agent finds the website and contact details from the name/description.
 - This does NOT reply with the finished audit — that comes later via push notification (needs `AGENT_ALERT_USER_ID` + web push configured). The immediate Siri response only confirms the research has started.
 - The new client and project both land in the admin dashboard as soon as the research finishes, even before the push notification arrives.
+- `"action": "create_proposal"` still works and runs the same quick tier.
+
+---
+
+## Example 6c: "Full Audit" (comprehensive)
+
+**What it does**: Same as the quick audit, plus Playwright UX/UI (real browser), broken link crawl, and tech stack detection. Use when you have time — not optimized for on-the-street speed.
+
+**Siri phrase**: "full audit"
+
+**Shortcut steps**: Same as Example 6b, but use `"action": "full_audit"` in the JSON body.
 
 ---
 

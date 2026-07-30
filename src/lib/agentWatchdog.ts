@@ -27,6 +27,8 @@ const DEFAULT_TOOL_TIMEOUT_MS = 90_000;
 const TOOL_TIMEOUT_OVERRIDES_MS: Record<string, number> = {
   lighthouse_audit: 150_000,
   check_links: 120_000,
+  playwright_audit: 180_000,
+  detect_tech_stack: 45_000,
   dns_check: 60_000,
   ssl_check: 60_000,
   fetch_url: 45_000,
@@ -59,9 +61,10 @@ const READ_ONLY_TOOLS = new Set([
   'lighthouse_audit',
   'ssl_check',
   'check_links',
+  'playwright_audit',
+  'detect_tech_stack',
   'dns_check',
   'brave_search',
-  'detect_tech_stack',
   'get_site_monitoring',
   // Knowledge and project reads
   'list_knowledge',
