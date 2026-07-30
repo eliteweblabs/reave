@@ -1,43 +1,72 @@
 /**
- * Lightweight in-memory rate limit for public endpoints (forms, assistants).
- * Single-process state — matches Railway's long-lived Node container model.
+ * In-memory sliding-window rate limiter.
+ *
+ * Keyed by any string (IP, user id, API key prefix, etc.).
+ * Uses a circular bucket approach: timestamps outside the window are discarded
+ * on each check so memory stays bounded.
+ *
+ * NOT shared across Railway replicas — intentional for low-overhead single-instance
+ * protection (brute-force, credential-stuffing). For multi-replica deployments
+ * swap the store for a Redis-backed implementation.
  */
 
-type Bucket = { count: number; windowStart: number };
-
-const buckets = new Map<string, Bucket>();
-let lastSweep = Date.now();
-
-function sweep(now: number, windowMs: number): void {
-  if (now - lastSweep < windowMs) return;
-  lastSweep = now;
-  for (const [key, bucket] of buckets) {
-    if (now - bucket.windowStart > windowMs) buckets.delete(key);
-  }
+interface Window {
+  timestamps: number[];
 }
 
-export function checkInMemoryRateLimit(
+const store = new Map<string, Window>();
+
+/**
+ * Check (and record) a hit for `key`.
+ *
+ * @param key        Unique identifier for the rate-limited entity.
+ * @param limit      Maximum requests allowed in `windowMs`.
+ * @param windowMs   Sliding window size in milliseconds (default 60 000 = 1 min).
+ * @returns `{ allowed: true }` or `{ allowed: false, retryAfterMs: number }`.
+ */
+export function checkRateLimit(
   key: string,
-  opts?: { windowMs?: number; maxPerWindow?: number },
-): { ok: true } | { ok: false; retryAfterSeconds: number } {
-  const windowMs = opts?.windowMs ?? 10 * 60 * 1000;
-  const maxPerWindow = opts?.maxPerWindow ?? 30;
+  limit: number,
+  windowMs = 60_000,
+): { allowed: true } | { allowed: false; retryAfterMs: number } {
   const now = Date.now();
-  sweep(now, windowMs);
+  const cutoff = now - windowMs;
 
-  const bucket = buckets.get(key);
-  if (!bucket || now - bucket.windowStart > windowMs) {
-    buckets.set(key, { count: 1, windowStart: now });
-    return { ok: true };
+  let win = store.get(key);
+  if (!win) {
+    win = { timestamps: [] };
+    store.set(key, win);
   }
 
-  if (bucket.count >= maxPerWindow) {
-    return {
-      ok: false,
-      retryAfterSeconds: Math.max(1, Math.ceil((windowMs - (now - bucket.windowStart)) / 1000)),
-    };
+  // Evict expired timestamps.
+  win.timestamps = win.timestamps.filter((t) => t > cutoff);
+
+  if (win.timestamps.length >= limit) {
+    // Oldest timestamp in window → tells caller when a slot opens.
+    const oldest = win.timestamps[0];
+    const retryAfterMs = oldest + windowMs - now;
+    return { allowed: false, retryAfterMs: Math.max(retryAfterMs, 0) };
   }
 
-  bucket.count += 1;
-  return { ok: true };
+  win.timestamps.push(now);
+  return { allowed: true };
+}
+
+/**
+ * Reset the rate-limit counter for a key (e.g. after a successful auth).
+ */
+export function resetRateLimit(key: string): void {
+  store.delete(key);
+}
+
+/**
+ * Purge all entries older than their window from the global store.
+ * Call periodically (e.g. every 5 min) to prevent unbounded growth.
+ */
+export function pruneRateLimitStore(windowMs = 60_000): void {
+  const cutoff = Date.now() - windowMs;
+  for (const [key, win] of store.entries()) {
+    win.timestamps = win.timestamps.filter((t) => t > cutoff);
+    if (win.timestamps.length === 0) store.delete(key);
+  }
 }
