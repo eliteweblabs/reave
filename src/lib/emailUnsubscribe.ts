@@ -6,8 +6,10 @@
 import { isPrivateHost } from './publicUrl';
 
 export interface EmailUnsubscribeInfo {
-  /** True when RFC 8058 one-click unsubscribe can be attempted. */
+  /** True when an HTTPS List-Unsubscribe URL can be invoked server-side. */
   available: boolean;
+  /** True when List-Unsubscribe-Post supports RFC 8058 one-click POST. */
+  oneClick?: boolean;
 }
 
 function headerValue(headers: Record<string, string>, name: string): string {
@@ -41,14 +43,28 @@ function normalizeUnsubscribeUrl(raw: string): URL | null {
   }
 }
 
+function parseListUnsubscribeUris(value: string): string[] {
+  const bracketed = parseAngleBracketUris(value);
+  if (bracketed.length) return bracketed;
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function firstHttpUnsubscribeUrl(headers: Record<string, string>): URL | null {
   const listValue = headerValue(headers, 'List-Unsubscribe');
   if (!listValue) return null;
-  for (const uri of parseAngleBracketUris(listValue)) {
+  for (const uri of parseListUnsubscribeUris(listValue)) {
     const url = normalizeUnsubscribeUrl(uri);
     if (url) return url;
   }
   return null;
+}
+
+export function hasListUnsubscribeHeader(headers: Record<string, string> | undefined | null): boolean {
+  if (!headers || typeof headers !== 'object') return false;
+  return !!headerValue(headers, 'List-Unsubscribe');
 }
 
 function supportsOneClickPost(headers: Record<string, string>): boolean {
@@ -56,40 +72,38 @@ function supportsOneClickPost(headers: Record<string, string>): boolean {
   return /one-click/i.test(post);
 }
 
-/** Only expose unsubscribe when automatic one-click is possible (not mailto / manual pages). */
+/** Expose unsubscribe when an HTTPS List-Unsubscribe URL exists (not mailto-only). */
 export function parseEmailUnsubscribe(
   headers: Record<string, string> | undefined | null,
 ): EmailUnsubscribeInfo {
   if (!headers || typeof headers !== 'object') return { available: false };
   const url = firstHttpUnsubscribeUrl(headers);
-  if (!url || !supportsOneClickPost(headers)) return { available: false };
-  return { available: true };
+  if (!url) return { available: false };
+  return { available: true, oneClick: supportsOneClickPost(headers) };
 }
 
 export async function performEmailUnsubscribe(
   headers: Record<string, string>,
 ): Promise<{ ok: boolean; error?: string }> {
-  const info = parseEmailUnsubscribe(headers);
-  if (!info.available) {
-    return { ok: false, error: 'This message does not support one-click unsubscribe.' };
-  }
-
   const url = firstHttpUnsubscribeUrl(headers);
   if (!url) {
-    return { ok: false, error: 'This message does not support one-click unsubscribe.' };
+    return { ok: false, error: 'This message does not include an unsubscribe link.' };
   }
 
+  const oneClick = supportsOneClickPost(headers);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   try {
     const res = await fetch(url.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Reave-Inbox/1.0 (List-Unsubscribe One-Click)',
-      },
-      body: 'List-Unsubscribe=One-Click',
+      method: oneClick ? 'POST' : 'GET',
+      headers: oneClick
+        ? {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Reave-Inbox/1.0 (List-Unsubscribe One-Click)',
+          }
+        : { 'User-Agent': 'Reave-Inbox/1.0 (List-Unsubscribe)' },
+      body: oneClick ? 'List-Unsubscribe=One-Click' : undefined,
       signal: controller.signal,
       redirect: 'follow',
     });

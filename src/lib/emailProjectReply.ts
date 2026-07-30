@@ -29,6 +29,30 @@ export function isLikelyEmailReply(opts: {
   return Boolean(inReply || references);
 }
 
+/** Strip Re:/Fwd:/Aw: prefixes so thread siblings share one subject. */
+function normalizeSubjectForThread(subject: string): string {
+  return subject.replace(/^(?:(?:re|fw|fwd|aw):\s*)+/gi, '').trim().toLowerCase();
+}
+
+/** Inbound subject continues the outbound thread (even when clients omit Re:). */
+export function subjectRelatesToOutbound(inboundSubject: string, outboundSubject: string): boolean {
+  const a = normalizeSubjectForThread(inboundSubject);
+  const b = normalizeSubjectForThread(outboundSubject);
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function hasReplyEvidence(opts: {
+  subject: string;
+  headers?: Record<string, string>;
+  outboundSubject?: string | null;
+}): boolean {
+  if (isLikelyEmailReply({ subject: opts.subject, headers: opts.headers })) return true;
+  const outboundSubject = opts.outboundSubject?.trim();
+  if (outboundSubject && subjectRelatesToOutbound(opts.subject, outboundSubject)) return true;
+  return false;
+}
+
 function senderMatchesContact(
   senderEmail: string,
   contactEmailOnRecord: string | null | undefined,
@@ -52,6 +76,8 @@ function pickJobFromList(jobs: WorkJobSummary[], preferredSlug?: string | null):
 
 /**
  * Detect inbound mail that is a client reply after we sent project-related outbound email.
+ * Requires thread evidence (Re:/In-Reply-To/References, or same subject as outbound) —
+ * a fresh email from a known contact is not treated as a reply.
  */
 export async function detectProjectClientReply(opts: {
   senderEmail: string;
@@ -70,6 +96,15 @@ export async function detectProjectClientReply(opts: {
   });
 
   if (outbound) {
+    if (
+      !hasReplyEvidence({
+        subject: opts.subject,
+        headers: opts.headers,
+        outboundSubject: outbound.subject,
+      })
+    ) {
+      return null;
+    }
     const job =
       opts.jobs.find((j) => j.slug === outbound.jobSlug) ??
       pickJobFromList(opts.jobs, outbound.jobSlug);

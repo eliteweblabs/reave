@@ -77,8 +77,16 @@ function slugify(input: string): string {
     .slice(0, 60);
 }
 
-export async function createEmailRuleFromTriageFeedback(opts: {
-  record: EmailInboxRecord;
+export type TriageFeedbackContext = Pick<
+  EmailInboxRecord,
+  'subject' | 'summary' | 'status' | 'from' | 'category'
+> & {
+  /** Dashboard notification type (push_alert, project_comment, …). */
+  notificationType?: string;
+};
+
+export async function createTriageFeedback(opts: {
+  context: TriageFeedbackContext;
   feedback: EmailTriageFeedbackAction;
   note?: string;
 }): Promise<{ ruleId: string | null; knowledgeSlug: string | null }> {
@@ -86,53 +94,60 @@ export async function createEmailRuleFromTriageFeedback(opts: {
     return { ruleId: null, knowledgeSlug: null };
   }
 
-  const phrases = extractPhrases(opts.record);
+  const ctx = opts.context;
+  const phrases = extractPhrases(ctx);
   const fields: RuleField[] = ['subject', 'body'];
   let notify = false;
   let status = 'AUTO_ARCHIVED';
-  let title = `Triage: ${opts.record.subject?.slice(0, 48) || 'similar mail'}`;
+  const label = ctx.subject?.slice(0, 48) || ctx.summary?.slice(0, 48) || 'similar cases';
+  let title = `Triage: ${label}`;
   let description = `Owner triage (${opts.feedback}) from dashboard review`;
 
   switch (opts.feedback) {
     case 'important':
       notify = true;
       status = 'NEEDS_CHECK';
-      title = `Alert: ${opts.record.subject?.slice(0, 48) || 'similar mail'}`;
-      description = 'Owner marked similar mail as important — always notify.';
+      title = `Alert: ${label}`;
+      description = 'Owner marked similar cases as important — always notify.';
       break;
     case 'ignore':
       notify = false;
       status = 'DELETE';
-      title = `Ignore: ${opts.record.subject?.slice(0, 48) || 'similar mail'}`;
-      description = 'Owner asked to suppress similar mail.';
+      title = `Ignore: ${label}`;
+      description = 'Owner asked to suppress similar cases.';
       break;
     case 'teach':
       notify = true;
       status = 'NEEDS_CHECK';
-      title = `Learned: ${opts.record.subject?.slice(0, 48) || 'similar mail'}`;
-      description = opts.note?.trim() || 'Owner taught handling for similar mail.';
+      title = `Learned: ${label}`;
+      description = opts.note?.trim() || 'Owner taught handling for similar cases.';
       break;
     case 'expected':
     default:
       notify = false;
       status = 'AUTO_ARCHIVED';
-      description = 'Owner marked similar mail as expected — log quietly.';
+      description = 'Owner marked similar cases as expected — log quietly.';
       break;
   }
 
   let knowledgeSlug: string | null = null;
   if (opts.feedback === 'teach' && opts.note?.trim()) {
-    knowledgeSlug = `email-triage-${slugify(opts.record.subject || opts.record.status || 'mail')}-${Date.now().toString(36)}`;
+    const slugBase = ctx.subject || ctx.summary || ctx.status || 'notification';
+    knowledgeSlug = `notification-triage-${slugify(slugBase)}-${Date.now().toString(36)}`;
+    const tags = ['notification-triage', ctx.category || 'review'];
+    if (ctx.notificationType) tags.push(ctx.notificationType);
     await storeWriteKnowledge({
       slug: knowledgeSlug,
-      title: `Email triage: ${opts.record.subject?.slice(0, 80) || 'similar mail'}`,
+      title: `Notification triage: ${ctx.subject?.slice(0, 80) || label}`,
       content:
-        `# ${opts.record.subject || 'Email triage note'}\n\n` +
+        `# ${ctx.subject || 'Notification triage note'}\n\n` +
         `${opts.note.trim()}\n\n---\n` +
-        `Status: ${opts.record.status}\n` +
-        `From: ${opts.record.from}\n` +
+        (ctx.notificationType ? `Type: ${ctx.notificationType}\n` : '') +
+        `Status: ${ctx.status}\n` +
+        `From: ${ctx.from}\n` +
+        `Summary: ${ctx.summary || ''}\n` +
         `Matched phrases: ${phrases.join(', ')}`,
-      tags: ['email-triage', opts.record.category || 'review'],
+      tags,
       source: 'owner',
     });
   }
@@ -149,6 +164,18 @@ export async function createEmailRuleFromTriageFeedback(opts: {
   });
 
   return { ruleId: rule?.id ?? null, knowledgeSlug };
+}
+
+export async function createEmailRuleFromTriageFeedback(opts: {
+  record: EmailInboxRecord;
+  feedback: EmailTriageFeedbackAction;
+  note?: string;
+}): Promise<{ ruleId: string | null; knowledgeSlug: string | null }> {
+  return createTriageFeedback({
+    context: opts.record,
+    feedback: opts.feedback,
+    note: opts.note,
+  });
 }
 
 export function feedbackActionLabel(action: EmailTriageFeedbackAction): string {

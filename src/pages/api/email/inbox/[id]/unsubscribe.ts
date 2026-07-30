@@ -4,7 +4,8 @@
 
 import type { APIContext } from 'astro';
 import { storeGetEmailInbox } from '../../../../../lib/emailInboxStore';
-import { parseEmailUnsubscribe, performEmailUnsubscribe } from '../../../../../lib/emailUnsubscribe';
+import { parseEmailUnsubscribe, performEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../../lib/emailUnsubscribe';
+import { fetchResendInboundEmailHeaders } from '../../../../../lib/resendInboundEmail';
 
 export const prerender = false;
 
@@ -25,15 +26,21 @@ export async function POST(context: APIContext): Promise<Response> {
   const event = await storeGetEmailInbox(id);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
 
-  const unsubscribe = parseEmailUnsubscribe(event.headers);
+  let headers = event.headers;
+  if (!hasListUnsubscribeHeader(headers) && event.resendEmailId) {
+    const fresh = await fetchResendInboundEmailHeaders(event.resendEmailId);
+    if (Object.keys(fresh).length) headers = { ...headers, ...fresh };
+  }
+
+  const unsubscribe = parseEmailUnsubscribe(headers);
   if (!unsubscribe.available) {
     return json(
-      { ok: false, error: 'This message does not support one-click unsubscribe.' },
+      { ok: false, error: 'This message does not include an unsubscribe link.' },
       400,
     );
   }
 
-  const result = await performEmailUnsubscribe(event.headers);
+  const result = await performEmailUnsubscribe(headers);
   if (!result.ok) {
     return json({ ok: false, error: result.error || 'Unsubscribe failed.' }, 502);
   }

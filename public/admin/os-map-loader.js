@@ -2880,7 +2880,7 @@ async function dismissReviewNotification(item, btn) {
   }
   if (!item?.emailId) return;
   if (isEmailAutomationReview(item) && item.awaitingTriage) {
-    await openEmailTriageDialog(item);
+    await openNotificationTriageDialog(item);
     return;
   }
   const prevLabel = btn?.textContent;
@@ -2896,7 +2896,7 @@ async function dismissReviewNotification(item, btn) {
     });
     const data = await readApiJson(res);
     if (res.status === 409 && data.requiresTriage) {
-      await openEmailTriageDialog(item);
+      await openNotificationTriageDialog(item);
       return;
     }
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
@@ -3594,12 +3594,10 @@ function buildReviewAlertBanner(item) {
     });
   }
 
-  if (emailAwaitingTriage) {
-    appendReviewAlertAction(actions, {
-      label: 'Triage',
-      onClick: () => void openEmailTriageDialog(item),
-    });
-  }
+  appendReviewAlertAction(actions, {
+    label: 'Triage',
+    onClick: () => void openNotificationTriageDialog(item),
+  });
 
   const dismissBtn = document.createElement('button');
   dismissBtn.type = 'button';
@@ -3610,7 +3608,7 @@ function buildReviewAlertBanner(item) {
   dismissBtn.addEventListener('click', (ev) => {
     ev.stopPropagation();
     if (emailAwaitingTriage) {
-      void openEmailTriageDialog(item);
+      void openNotificationTriageDialog(item);
       return;
     }
     dismissBtn.disabled = true;
@@ -3676,7 +3674,7 @@ function bindReviewAlertSwipe(alert, item) {
           if (isEmailAutomationReview(item) && item.awaitingTriage) {
             alert.style.transform = '';
             alert.style.opacity = '';
-            void openEmailTriageDialog(item);
+            void openNotificationTriageDialog(item);
             return;
           }
           void dismissReviewNotification(item).catch(() => {
@@ -3723,17 +3721,17 @@ const TRIAGE_FEEDBACK_OPTIONS = [
   {
     action: 'expected',
     label: 'Expected',
-    detail: 'Auto-file similar mail without notifying you.',
+    detail: 'Handle similar cases quietly next time.',
   },
   {
     action: 'important',
     label: 'Always alert me',
-    detail: 'Keep surfacing similar mail for review.',
+    detail: 'Keep surfacing similar cases for review.',
   },
   {
     action: 'ignore',
     label: 'Ignore similar',
-    detail: 'Suppress future mail that matches this pattern.',
+    detail: 'Suppress future matches like this.',
   },
   {
     action: 'teach',
@@ -3743,7 +3741,20 @@ const TRIAGE_FEEDBACK_OPTIONS = [
   },
 ];
 
-function emailTriageDialogHtml(item) {
+function resolveNotificationEmailId(item) {
+  const direct = String(item?.emailId || '').trim();
+  if (direct) return direct;
+  const url = String(item?.url || '').trim();
+  if (!url) return '';
+  try {
+    const parsed = url.startsWith('http') ? new URL(url) : new URL(url, window.location.origin);
+    return parsed.searchParams.get('email')?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+function notificationTriageDialogHtml(item) {
   const options = TRIAGE_FEEDBACK_OPTIONS.map(
     (opt) =>
       `<label class="alert-triage-option">` +
@@ -3754,8 +3765,12 @@ function emailTriageDialogHtml(item) {
         `</span>` +
       `</label>`,
   ).join('');
+  const limboHint =
+    isEmailAutomationReview(item) && item.awaitingTriage
+      ? 'This alert stays in limbo until you choose. '
+      : '';
   return (
-    `<p class="alert-triage-intro">This agent decision stays in limbo until you choose how similar email should be handled in the future.</p>` +
+    `<p class="alert-triage-intro">${limboHint}Pick how similar notifications should be handled in the future.</p>` +
     `<div class="alert-triage-options">${options}</div>` +
     `<label class="alert-triage-note-wrap" hidden>` +
       `<span class="alert-triage-note-label">What should the agent know?</span>` +
@@ -3764,27 +3779,60 @@ function emailTriageDialogHtml(item) {
   );
 }
 
-async function submitEmailTriage(item, action, note, btn) {
+function dismissNotificationAfterTriage(item, data) {
+  const emailId = String(data?.emailId || resolveNotificationEmailId(item) || item?.emailId || '').trim();
+  if (data?.event && emailId) {
+    const idx = emailState.allEvents.findIndex((e) => e.id === emailId);
+    if (idx !== -1) emailState.allEvents[idx] = data.event;
+  }
+  if (emailId) {
+    removeEmailRelatedAlertBanners(emailId);
+  } else if (item?.alertId) {
+    removeReviewAlertBanner(null, null, null, item.alertId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  } else if (item?.engagementId) {
+    removeReviewAlertBanner(null, null, item.engagementId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  } else if (item?.commentId) {
+    removeReviewAlertBanner(null, item.commentId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  } else if (item?.emailId) {
+    removeReviewAlertBanner(item.emailId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  }
+  if (emailId && emailState.activeId === emailId) renderEmailPanel();
+}
+
+async function submitNotificationTriage(item, action, note, btn) {
   const prevLabel = btn?.textContent;
   if (btn) {
     btn.disabled = true;
     if (prevLabel) btn.textContent = 'Saving…';
   }
   try {
-    const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/triage`, {
+    const res = await fetch('/api/admin/notifications/triage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, note: note || undefined }),
+      body: JSON.stringify({
+        action,
+        note: note || undefined,
+        notification: {
+          type: item.type,
+          emailId: resolveNotificationEmailId(item) || undefined,
+          alertId: item.alertId || undefined,
+          commentId: item.commentId || undefined,
+          engagementId: item.engagementId || undefined,
+          title: item.title,
+          detail: item.detail,
+          subject: item.subject,
+          from: item.from || item.attendeeEmail,
+          url: item.url,
+        },
+      }),
     });
     const data = await readApiJson(res);
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    if (data.event) {
-      const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
-      if (idx !== -1) emailState.allEvents[idx] = data.event;
-    }
-    removeReviewAlertBanner(item.emailId);
-    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
-    if (emailState.activeId === item.emailId) renderEmailPanel();
+    dismissNotificationAfterTriage(item, data);
     return true;
   } catch (e) {
     await osAlert({ title: 'Could not save triage', bodyHtml: escHtml(e.message || String(e)) });
@@ -3797,7 +3845,7 @@ async function submitEmailTriage(item, action, note, btn) {
   }
 }
 
-function openEmailTriageDialog(item) {
+function openNotificationTriageDialog(item) {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
   const bodyEl = document.getElementById('os-dialog-body');
@@ -3814,8 +3862,8 @@ function openEmailTriageDialog(item) {
       resolve(value);
     };
 
-    titleEl.textContent = 'How should similar email be handled?';
-    bodyEl.innerHTML = emailTriageDialogHtml(item);
+    titleEl.textContent = 'How should similar cases be handled?';
+    bodyEl.innerHTML = notificationTriageDialogHtml(item);
     actionsEl.innerHTML = '';
 
     const noteWrap = bodyEl.querySelector('.alert-triage-note-wrap');
@@ -3852,18 +3900,18 @@ function openEmailTriageDialog(item) {
       const selected = bodyEl.querySelector('input[name="alert-triage-action"]:checked');
       const action = selected?.value;
       if (!action) {
-        await osAlert({ title: 'Choose an option', bodyHtml: 'Pick how similar email should be handled.' });
+        await osAlert({ title: 'Choose an option', bodyHtml: 'Pick how similar cases should be handled.' });
         return;
       }
       const note = action === 'teach' ? String(noteEl?.value || '').trim() : '';
       if (action === 'teach' && !note) {
-        await osAlert({ title: 'Add a note', bodyHtml: 'Describe what the agent should know about this mail.' });
+        await osAlert({ title: 'Add a note', bodyHtml: 'Describe what the agent should know about this case.' });
         if (noteEl) scheduleOsDialogFieldFocus(noteEl);
         return;
       }
       saveBtn.disabled = true;
       saveBtn.textContent = 'Saving…';
-      const ok = await submitEmailTriage(item, action, note, saveBtn);
+      const ok = await submitNotificationTriage(item, action, note, saveBtn);
       if (ok) finish(true);
       else {
         saveBtn.disabled = false;
@@ -3954,7 +4002,7 @@ function maybeOpenPendingTriageDialog(notifications) {
   );
   if (!item) return;
   window.setTimeout(() => {
-    void openEmailTriageDialog(item);
+    void openNotificationTriageDialog(item);
   }, 120);
 }
 
@@ -7938,12 +7986,19 @@ function closeEmailDetail() {
   renderEmailPanel();
 }
 
+function emailDetailSummaryText(ev) {
+  const summary = String(ev.summary || ev.bodySnippet || '').trim();
+  const subject = String(ev.subject || '').trim();
+  if (!summary || summary === subject) return '';
+  return summary;
+}
+
 async function unsubscribeEmail(ev, btn) {
   const from = parseSenderEmail(ev.from) || ev.from || 'this sender';
   const confirmed = await osConfirm({
     title: 'Unsubscribe?',
     bodyHtml:
-      `Send a one-click unsubscribe request for mail from <strong>${escHtml(from)}</strong>? ` +
+      `Send an unsubscribe request for mail from <strong>${escHtml(from)}</strong>? ` +
       `This uses the List-Unsubscribe header in the message — the same mechanism Gmail uses.`,
     confirmLabel: 'Unsubscribe',
     cancelLabel: 'Cancel',
@@ -10482,7 +10537,6 @@ function renderEmailPanel() {
     detail.className = 'em-detail';
     let detailHtml =
       `<div class="em-item-row"><span class="em-status em-status-sent">${escHtml(formatSentSourceLabel(sent.source))}</span></div>` +
-      `<div class="em-detail-subject">${escHtml(sent.subject || '(no subject)')}</div>` +
       `<div class="em-detail-meta">` +
         `<span><strong>To</strong> ${escHtml(sent.toEmail || '(unknown)')}</span>` +
         (sent.jobTitle || sent.jobSlug
@@ -10572,7 +10626,7 @@ function renderEmailPanel() {
 
   const detail = document.createElement('div');
   detail.className = 'em-detail';
-  const summary = ev.summary || ev.bodySnippet || '';
+  const summaryText = emailDetailSummaryText(ev);
   const projectLabel = ev.jobTitle || ev.jobSlug;
   let detailHtml =
     `<div class="em-item-row">` +
@@ -10606,7 +10660,7 @@ function renderEmailPanel() {
       `</div>`;
   }
   detailHtml +=
-    (summary ? `<div class="em-detail-summary">${linkifyPlainText(summary)}</div>` : '');
+    (summaryText ? `<div class="em-detail-summary">${linkifyPlainText(summaryText)}</div>` : '');
   if (isMeetingPendingConfirm(ev)) {
     detailHtml +=
       `<div class="em-schedule-actions em-schedule-actions-confirm">` +
@@ -10637,7 +10691,6 @@ function renderEmailPanel() {
       `</div>`;
   }
   detailHtml +=
-    `<div class="em-detail-subject">${escHtml(ev.subject || '(no subject)')}</div>` +
     `<div class="em-detail-meta">` +
       `<span><strong>From</strong> ${escHtml(ev.from || '(unknown)')}</span>` +
       (Array.isArray(ev.to) && ev.to.length
@@ -10695,7 +10748,7 @@ function renderEmailPanel() {
       `<div class="em-detail-body-html"><iframe class="em-detail-body-frame" sandbox="allow-popups allow-popups-to-escape-sandbox" title="Email message"></iframe></div>`;
   } else if (showPlainBody) {
     detailHtml += `<div class="em-detail-body">${linkifyPlainText(plainBody)}</div>`;
-  } else if (!attachments.length && !summary) {
+  } else if (!attachments.length && !summaryText) {
     detailHtml += `<div class="em-detail-body em-detail-body-empty">(no body text)</div>`;
   }
   detail.innerHTML = detailHtml;

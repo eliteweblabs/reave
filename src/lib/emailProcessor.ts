@@ -30,7 +30,7 @@ import { getCompanyConfig } from './companyConfig';
 import { sendInboundThreadReply, scheduleFormUrl } from './inboundEmailReply';
 import { siteBaseUrl } from './contactApi';
 import { inboxPreviewSnippet, normalizeEmailBody, normalizeEmailHtml } from './emailBody';
-import { detectProjectClientReply } from './emailProjectReply';
+import { detectProjectClientReply, isLikelyEmailReply } from './emailProjectReply';
 import { isSuggestedProjectMatch } from './emailAutomation';
 import { looksLikePaymentNotification, shouldAutoFileAsReceipt } from './emailMoney';
 import { extractVerificationCodeFromEmail } from './emailOtpParser';
@@ -500,14 +500,33 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       jobs,
     });
     if (replyMatch) {
-      isProjectReply = true;
-      category = 'client';
-      action = 'project_reply';
-      jobSlug = replyMatch.jobSlug;
-      jobTitle = replyMatch.jobTitle;
-      routeNote = `🚨 Client replied on "${replyMatch.jobTitle}" — follow up ASAP. ${replyMatch.reason}`;
-      if (!summary.toLowerCase().includes('client replied')) {
-        summary = `Client replied on project ${replyMatch.jobTitle}: ${summary}`;
+      const threadedReply = isLikelyEmailReply({
+        subject: email.subject ?? '',
+        headers: email.headers,
+      });
+      const looksLikeMeeting =
+        Boolean(proposedMeetingStart || schedulingNote) ||
+        /\b(meet(ing)?|schedule|appointment|available|availability)\b/i.test(
+          `${summary} ${schedulingNote} ${snippet(bodyText, 500)}`,
+        );
+      if (looksLikeMeeting && !threadedReply) {
+        if (!jobSlug) {
+          jobSlug = replyMatch.jobSlug;
+          jobTitle = replyMatch.jobTitle;
+        }
+        routeNote =
+          routeNote ||
+          `Meeting request from ${contactName ?? senderEmail} on "${replyMatch.jobTitle}"`;
+      } else {
+        isProjectReply = true;
+        category = 'client';
+        action = 'project_reply';
+        jobSlug = replyMatch.jobSlug;
+        jobTitle = replyMatch.jobTitle;
+        routeNote = `🚨 Client replied on "${replyMatch.jobTitle}" — follow up ASAP. ${replyMatch.reason}`;
+        if (!summary.toLowerCase().includes('client replied')) {
+          summary = `Client replied on project ${replyMatch.jobTitle}: ${summary}`;
+        }
       }
     }
   }

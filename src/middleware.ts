@@ -1,8 +1,14 @@
+import type { MiddlewareHandler } from "astro";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/astro/server";
 import { hasFeature } from "./lib/features";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { serverEnv } from "./lib/serverEnv";
+
+/** Railway liveness probe — must not depend on Clerk keys (see health/live.ts). */
+function isHealthLiveProbe(pathname: string): boolean {
+  return pathname.replace(/\/$/, "") === "/api/health/live";
+}
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
 const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
@@ -48,7 +54,7 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
   "/contact": "contact",
 };
 
-export const onRequest = clerkMiddleware(async (auth, context, next) => {
+const appMiddleware = clerkMiddleware(async (auth, context, next) => {
   const url = new URL(context.request.url);
   const { pathname } = url;
 
@@ -99,3 +105,11 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
   const response = await next();
   return applySecurityHeaders(response);
 });
+
+export const onRequest: MiddlewareHandler = async (context, next) => {
+  if (isHealthLiveProbe(new URL(context.request.url).pathname)) {
+    const response = await next();
+    return applySecurityHeaders(response);
+  }
+  return appMiddleware(context, next);
+};

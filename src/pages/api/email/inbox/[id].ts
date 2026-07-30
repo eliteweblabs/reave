@@ -16,7 +16,8 @@ import type { EmailCategory } from '../../../../lib/emailProcessor';
 import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
-import { parseEmailUnsubscribe } from '../../../../lib/emailUnsubscribe';
+import { parseEmailUnsubscribe, hasListUnsubscribeHeader } from '../../../../lib/emailUnsubscribe';
+import { fetchResendInboundEmailHeaders } from '../../../../lib/resendInboundEmail';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
 
 export const prerender = false;
@@ -79,12 +80,20 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const event = await storeGetEmailInbox(id);
   if (!event) return json({ ok: false, error: 'Not found' }, 404);
+
+  let headers = event.headers;
+  if (!hasListUnsubscribeHeader(headers) && event.resendEmailId) {
+    const fresh = await fetchResendInboundEmailHeaders(event.resendEmailId);
+    if (Object.keys(fresh).length) headers = { ...headers, ...fresh };
+  }
+
   const monetaryAmount = extractMonetaryAmountFromEmail(event);
-  const unsubscribe = parseEmailUnsubscribe(event.headers);
+  const unsubscribe = parseEmailUnsubscribe(headers);
   return json({
     ok: true,
     event: {
       ...event,
+      headers,
       bodyHtml: resolveEmailHtmlForDisplay(event.bodyHtml, event.bodyText),
       bodyText: plainTextForDisplay(event.bodyText),
       bodySnippet: plainTextForDisplay(event.bodySnippet),

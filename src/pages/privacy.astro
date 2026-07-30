@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
+import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import { getCompanyConfig } from "../lib/companyConfig";
 
 const company = await getCompanyConfig(Astro.request);
@@ -130,6 +131,7 @@ const supportMail = company.supportEmail || (company.domain ? `support@${company
           </p>
         </section>
       </div>
+      <SiteLegalLinks />
     </div>
   </div>
 

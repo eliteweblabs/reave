@@ -1,0 +1,60 @@
+---
+const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
+const isTermsPage = pathNorm === "/terms";
+const isPrivacyPage = pathNorm === "/privacy";
+
+const legalLinks = [
+  { href: "/terms", label: "Terms", active: isTermsPage },
+  { href: "/privacy", label: "Privacy", active: isPrivacyPage },
+] as const;
+---
+
+<div class="site-legal-links" aria-label="Legal">
+  {
+    legalLinks.map(({ href, label, active }, index) => (
+      <>
+        {index > 0 && <span class="site-legal-links-sep" aria-hidden="true">·</span>}
+        <a
+          href={href}
+          class:list={["site-legal-links-link", { active }]}
+          aria-current={active ? "page" : undefined}
+        >
+          {label}
+        </a>
+      </>
+    ))
+  }
+</div>
+
+<style is:global>
+  .site-legal-links {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 1.25rem 24px 0.25rem;
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .site-legal-links-sep {
+    color: rgba(255, 255, 255, 0.28);
+    user-select: none;
+  }
+
+  .site-legal-links-link {
+    color: rgba(255, 255, 255, 0.42);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .site-legal-links-link:hover {
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .site-legal-links-link.active {
+    color: rgba(255, 255, 255, 0.88);
+  }
+</style>
