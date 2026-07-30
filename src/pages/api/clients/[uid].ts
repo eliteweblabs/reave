@@ -12,6 +12,7 @@ import {
   type ClientDataEntry,
   type ContactRecord,
 } from '../../../lib/contactApi';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { portalSiteUrl } from '../../../lib/siteMonitoring';
 import {
   enrichClientPortalBrand,
@@ -168,12 +169,14 @@ async function clientPortalBranding(uid: string) {
   };
 }
 
-export const GET: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
+
+  const { params, url } = context;
 
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
@@ -230,12 +233,14 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   });
 };
 
-export const PATCH: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const PATCH: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
+
+  const { params, request } = context;
 
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
@@ -286,12 +291,14 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   });
 };
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const PUT: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
+
+  const { params, request } = context;
 
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
@@ -342,12 +349,14 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const DELETE: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
+
+  const { params, url } = context;
 
   const uid = (params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);

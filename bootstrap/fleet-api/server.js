@@ -1,4 +1,5 @@
 const express = require('express');
+const { safeCompare } = require('../lib/safeCompare');
 const db = require('./db');
 
 const app = express();
@@ -28,8 +29,10 @@ app.use((req, res, next) => {
 app.use((req, res, next) => {
   if (!API_KEY) return next();
   if (req.path === '/health' || req.method === 'OPTIONS') return next();
-  const provided = req.headers['x-api-key'] || req.query.apiKey;
-  if (provided !== API_KEY) return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  if (!safeCompare(provided, API_KEY)) {
+    return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+  }
   next();
 });
 

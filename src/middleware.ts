@@ -3,6 +3,10 @@ import { hasFeature } from "./lib/features";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { serverEnv } from "./lib/serverEnv";
+import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
+
+let lastRateLimitPruneMs = 0;
+const RATE_LIMIT_PRUNE_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Admin HTML sub-pages that require a session (not the main PWA shell). */
 const isProtectedAdminPage = createRouteMatcher(["/admin/doc(.*)", "/admin/profile(.*)"]);
@@ -84,6 +88,12 @@ export const onRequest = clerkMiddleware(async (auth, context, next) => {
 
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
+  }
+
+  const now = Date.now();
+  if (now - lastRateLimitPruneMs > RATE_LIMIT_PRUNE_INTERVAL_MS) {
+    lastRateLimitPruneMs = now;
+    pruneRateLimitStore(10 * 60 * 1000);
   }
 
   if (isProtectedAdminPage(context.request) && !isPublicAdminAsset(context.request)) {

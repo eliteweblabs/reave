@@ -8,6 +8,8 @@ import { createHash } from 'crypto';
 import { getContact } from '../../../lib/contactApi';
 import { recordDeckViewEngagement } from '../../../lib/engagementNotifications';
 import { isOwnerPreviewRequest, isStaffSession } from '../../../lib/staffSession';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -30,6 +32,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
   // Owner previewing the deck while signed in should not create engagement noise.
   if (isStaffSession(locals) || isOwnerPreviewRequest(request)) {
     return json({ ok: true, skipped: 'signed_in' });
+  }
+
+  const rate = checkInMemoryRateLimit(`deck-view:${clientIp(request)}`, {
+    windowMs: 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return json({ ok: true, skipped: 'rate_limited' });
   }
 
   const ua = request.headers.get('user-agent') || '';

@@ -47,6 +47,7 @@ import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../
 import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 import { secretMatches } from '../../../lib/secretCompare';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 
 const log = createLogger('siri-proposal');
 
@@ -80,11 +81,11 @@ function textResponse(text: string, status = 200): Response {
 }
 
 /**
- * Check authentication: Clerk session token or X-Siri-Key header.
+ * Check authentication: deployment-owner Clerk session or X-Siri-Key header.
  */
-function isAuthenticated(context: APIContext): boolean {
-  const { userId } = context.locals.auth();
-  if (userId) return true;
+async function isAuthenticated(context: APIContext): Promise<boolean> {
+  const owner = await requireDeploymentOwner(context);
+  if (!(owner instanceof Response)) return true;
 
   const siriKey = serverEnv('SIRI_API_KEY')?.trim();
   if (siriKey) {
@@ -96,7 +97,7 @@ function isAuthenticated(context: APIContext): boolean {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  if (!isAuthenticated(context)) {
+  if (!(await isAuthenticated(context))) {
     return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or use Clerk session.' }, 401);
   }
 

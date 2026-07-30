@@ -23,7 +23,8 @@ import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig'
 import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
 import { brandedEmailHtml } from '../../../../lib/emailTemplates';
 import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
-import { serverEnv } from '../../../../lib/serverEnv';
+import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -141,6 +142,14 @@ function err(status: number, error: string): Response {
 // ── route handler ──────────────────────────────────────────────────────────
 
 export const POST: APIRoute = async ({ params, request }) => {
+  const rate = checkInMemoryRateLimit(`doc-sign:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 15,
+  });
+  if (!rate.ok) {
+    return err(429, 'Too many signing attempts. Please try again later.');
+  }
+
   const uid = (params.uid ?? '').trim();
   if (!uid) return err(400, 'Missing uid');
 

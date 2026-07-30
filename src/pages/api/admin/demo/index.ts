@@ -18,8 +18,8 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const owner = await requireDeploymentOwner(context);
+  if (owner instanceof Response) return owner;
 
   if (!hasFeature('demo')) {
     return json({

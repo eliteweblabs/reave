@@ -9,6 +9,7 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../../lib/companyConfigStore';
 import { normalizePublicUrl } from '../../../../lib/publicUrl';
 import { detectWebsiteFonts } from '../../../../lib/websiteFonts';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -26,9 +27,11 @@ function websiteFromDomain(domain: string): string | null {
   return url?.origin ?? null;
 }
 
-export const POST: APIRoute = async ({ request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const POST: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
+  const { request } = context;
 
   let body: Record<string, unknown> = {};
   try {

@@ -11,6 +11,7 @@ import {
   groupedTimeInvoiceDescription,
   timeEntriesToInvoiceSuggestions,
 } from '../../../../lib/workTimeBilling';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -28,8 +29,8 @@ function featureDisabled(): Response {
 export async function GET(context: APIContext): Promise<Response> {
   if (!hasFeature('time_tracking')) return featureDisabled();
 
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);
@@ -56,8 +57,8 @@ export async function GET(context: APIContext): Promise<Response> {
 export async function PUT(context: APIContext): Promise<Response> {
   if (!hasFeature('time_tracking')) return featureDisabled();
 
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const slug = context.params.slug?.trim() ?? '';
   if (!slug || !isSafeWorkSlug(slug)) return json({ ok: false, error: 'Invalid slug' }, 400);

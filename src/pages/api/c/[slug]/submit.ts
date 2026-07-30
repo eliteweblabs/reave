@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { getContact, extractPortal, setContactPortal } from '../../../../lib/contactApi';
 import { recordVaultSubmitEngagement } from '../../../../lib/engagementNotifications';
 import { hasFeature } from '../../../../lib/features';
+import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -11,6 +13,23 @@ export const POST: APIRoute = async ({ params, request }) => {
       status: 404,
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  const rate = checkInMemoryRateLimit(`vault:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 10,
+  });
+  if (!rate.ok) {
+    return new Response(
+      JSON.stringify({ ok: false, error: 'Too many submissions. Please try again later.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(rate.retryAfterSeconds),
+        },
+      },
+    );
   }
 
   const uid = (params.slug ?? '').trim();

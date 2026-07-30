@@ -9,6 +9,7 @@ import { hasFeature } from '../../../lib/features';
 import { processDueNewsletterSends } from '../../../lib/newsletterEngine';
 import { ensureNewsletterScheduler, newsletterPollSecret } from '../../../lib/newsletterScheduler';
 import { secretMatches } from '../../../lib/secretCompare';
+import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
 
 export const prerender = false;
 
@@ -24,11 +25,12 @@ function authorizedByKey(key: string | null): boolean {
   return secretMatches(key, expected);
 }
 
-export const GET: APIRoute = async ({ url, locals }) => {
+export const GET: APIRoute = async (context) => {
+  const { url } = context;
   const key = url.searchParams.get('key')?.trim() ?? null;
-  const { userId } = locals.auth();
-  if (!userId && !authorizedByKey(key)) {
-    return json({ ok: false, error: 'Unauthorized' }, 401);
+  if (!authorizedByKey(key)) {
+    const owner = await requireDeploymentOwner(context);
+    if (owner instanceof Response) return owner;
   }
   if (!hasFeature('email_marketing')) {
     return json({ ok: false, error: 'email_marketing not enabled' }, 404);
