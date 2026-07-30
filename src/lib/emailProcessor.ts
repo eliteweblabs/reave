@@ -719,6 +719,7 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
 
   if (inboxRecord?.id && suppressDuplicateMeetingAlert) {
     const updated = await storeUpdateEmailInbox(inboxRecord.id, {
+      acceptAutomationDecision: true,
       markAutomationAck: true,
       automationKind: null,
       routeNote,

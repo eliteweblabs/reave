@@ -22,7 +22,10 @@ export async function dismissEmailRelatedNotifications(
 
   let automationAcked = false;
   if (opts?.markAutomationAck !== false) {
-    const updated = await storeUpdateEmailInbox(id, { markAutomationAck: true }).catch(() => null);
+    const updated = await storeUpdateEmailInbox(id, {
+      acceptAutomationDecision: true,
+      markAutomationAck: true,
+    }).catch(() => null);
     automationAcked = Boolean(updated?.automationAckAt);
   }
 

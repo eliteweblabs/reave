@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/emailInboxStore';
 import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
 import type { EmailCategory } from '../../../../lib/emailProcessor';
+import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
 import { plainTextForDisplay, resolveEmailHtmlForDisplay } from '../../../../lib/emailBody';
 import { extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
 import { unlinkProjectItem } from '../../../../lib/projectLinks';
@@ -58,6 +59,7 @@ function parsePatch(body: unknown): EmailInboxPatch | null {
   }
   if (rec.seen === true || rec.markSeen === true) patch.markSeen = true;
   if (rec.markAutomationAck === true || rec.automationAck === true) patch.markAutomationAck = true;
+  if (rec.acceptAutomationDecision === true) patch.acceptAutomationDecision = true;
   return Object.keys(patch).length ? patch : null;
 }
 
@@ -123,6 +125,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
       action: 'review',
       status: 'UNMATCHED',
       routeNote: 'Project match dismissed',
+      acceptAutomationDecision: true,
       markAutomationAck: true,
     });
     if (!event) return json({ ok: false, error: 'Not found' }, 404);
@@ -134,6 +137,22 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const { rejectProjectMatch: _reject, ...storePatch } = patch;
+  if (
+    storePatch.markAutomationAck &&
+    !storePatch.acceptAutomationDecision &&
+    isPendingReviewNotification(existing) &&
+    !existing.automationTriageAt
+  ) {
+    return json(
+      {
+        ok: false,
+        error: 'Triage feedback required before dismissing agent review',
+        requiresTriage: true,
+        emailId: id,
+      },
+      409,
+    );
+  }
   if (isEmailArchivedOrRemoved(storePatch)) {
     storePatch.markAutomationAck = true;
   }

@@ -496,6 +496,87 @@ select,
   color: var(--muted);
   cursor: pointer;
 }
+.admin-setup-alert--triage {
+  border-color: rgba(167, 139, 250, 0.45);
+  background: color-mix(in srgb, var(--overlay-bg) 88%, rgba(167, 139, 250, 0.12));
+}
+.admin-setup-alert--triage-pulse {
+  animation: admin-setup-alert-triage-pulse 0.8s ease 2;
+}
+@keyframes admin-setup-alert-triage-pulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow-lg);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.35), var(--shadow-lg);
+  }
+}
+.alert-triage-intro {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.alert-triage-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.alert-triage-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: var(--surface);
+}
+.alert-triage-option:has(input:checked) {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: color-mix(in srgb, var(--surface) 90%, rgba(167, 139, 250, 0.12));
+}
+.alert-triage-option input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+.alert-triage-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.alert-triage-option-copy strong {
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+.alert-triage-option-copy span {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.alert-triage-note-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+.alert-triage-note-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.alert-triage-note {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  resize: vertical;
+}
 .admin-setup-alert-dismiss:hover {
   background: var(--surface-hover);
   color: var(--fg);

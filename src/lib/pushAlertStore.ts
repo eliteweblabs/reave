@@ -9,7 +9,6 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
 import { getPgPool } from './pgPool';
-import { serverEnv } from './serverEnv';
 
 export type PushAlertKind = 'uptime' | 'email' | 'system' | 'comment' | 'engagement';
 

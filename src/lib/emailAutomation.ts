@@ -3,6 +3,7 @@
  */
 
 import type { EmailInboxRecord } from './emailInboxStore';
+import { isEmailAwaitingTriage } from './emailTriage';
 import { attendeeFromEmail, formatMeetingWhenLabel, resolveProposedMeetingStart } from './emailScheduling';
 import { buildAutoProjectNotificationTitle } from './emailProjectAuto';
 import { buildMeetingFollowupNotificationTitle } from './emailMeetingFollowup';
@@ -23,6 +24,7 @@ export type MeetingReviewNotification = {
   attendeeName: string;
   attendeeEmail: string;
   jobSlug: string | null;
+  awaitingTriage: boolean;
 };
 
 export type ProjectReviewNotification = {
@@ -37,6 +39,7 @@ export type ProjectReviewNotification = {
   jobSlug: string;
   jobTitle: string;
   contactName: string | null;
+  awaitingTriage: boolean;
 };
 
 export type ProjectMatchSuggestedReviewNotification = {
@@ -52,6 +55,7 @@ export type ProjectMatchSuggestedReviewNotification = {
   jobTitle: string;
   contactName: string | null;
   attachmentCount: number;
+  awaitingTriage: boolean;
 };
 
 export type MeetingFollowupReviewNotification = {
@@ -68,6 +72,7 @@ export type MeetingFollowupReviewNotification = {
   whenLabel: string;
   attendeeName: string;
   attendeeEmail: string;
+  awaitingTriage: boolean;
 };
 
 export type MeetingRequestReviewNotification = {
@@ -83,6 +88,7 @@ export type MeetingRequestReviewNotification = {
   whenLabel: string;
   attendeeName: string;
   attendeeEmail: string;
+  awaitingTriage: boolean;
 };
 
 export type ReviewNotification =
@@ -194,6 +200,10 @@ export function isPendingReviewNotification(record: EmailInboxRecord): boolean {
   );
 }
 
+function awaitingTriageFor(record: EmailInboxRecord): boolean {
+  return isEmailAwaitingTriage(record, isPendingReviewNotification(record));
+}
+
 function meetingDetail(record: EmailInboxRecord): string {
   const who = record.contactName || record.from || 'Guest';
   const subject = record.subject || '(no subject)';
@@ -219,6 +229,7 @@ export function toMeetingReviewNotification(record: EmailInboxRecord): MeetingRe
     attendeeName: attendee.name,
     attendeeEmail: attendee.email,
     jobSlug: record.jobSlug,
+    awaitingTriage: awaitingTriageFor(record),
   };
 }
 
@@ -247,6 +258,7 @@ export function toMeetingFollowupReviewNotification(
     whenLabel,
     attendeeName: attendee.name,
     attendeeEmail: attendee.email,
+    awaitingTriage: awaitingTriageFor(record),
   };
 }
 
@@ -293,6 +305,7 @@ export function toMeetingRequestReviewNotification(
     whenLabel,
     attendeeName: attendee.name,
     attendeeEmail: attendee.email,
+    awaitingTriage: awaitingTriageFor(record),
   };
 }
 
@@ -318,6 +331,7 @@ export function toProjectMatchSuggestedReviewNotification(
     jobTitle,
     contactName: record.contactName,
     attachmentCount,
+    awaitingTriage: awaitingTriageFor(record),
   };
 }
 
@@ -341,6 +355,7 @@ export function toProjectReviewNotification(record: EmailInboxRecord): ProjectRe
     jobSlug: record.jobSlug!,
     jobTitle: record.jobTitle || record.jobSlug!,
     contactName: record.contactName,
+    awaitingTriage: awaitingTriageFor(record),
   };
 }
 

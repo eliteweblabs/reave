@@ -56,6 +56,10 @@ export interface EmailInboxRecord {
   seenAt: string | null;
   /** Set when the owner dismisses an automated-decision notification on the dashboard. */
   automationAckAt: string | null;
+  /** Owner feedback on how future similar agent decisions should be handled. */
+  automationTriageAt: string | null;
+  automationTriageAction: string | null;
+  automationTriageRuleId: string | null;
   /** What was automated: meeting_booked, project_created, etc. */
   automationKind: string | null;
   /** Parsed one-time verification code for copy-to-clipboard UX. */
@@ -163,6 +167,9 @@ const MIGRATE_COLUMNS = [
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS booking_start TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_ack_at TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_triage_at TIMESTAMPTZ`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_triage_action TEXT`,
+  `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_triage_rule_id TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS automation_kind TEXT`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_text TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE email_inbox ADD COLUMN IF NOT EXISTS body_html TEXT NOT NULL DEFAULT ''`,
@@ -187,7 +194,8 @@ const INDEX_SQL = [
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
               summary, category, contact_uid, contact_name, job_slug, job_title, route_note,
               proposed_meeting_start, scheduling_note, booking_uid, booking_start, seen_at,
-              automation_ack_at, automation_kind, verification_code, attachments_json`;
+              automation_ack_at, automation_triage_at, automation_triage_action, automation_triage_rule_id,
+              automation_kind, verification_code, attachments_json`;
 
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
@@ -260,6 +268,9 @@ type InboxRow = {
   booking_start?: Date | string | null;
   seen_at?: Date | string | null;
   automation_ack_at?: Date | string | null;
+  automation_triage_at?: Date | string | null;
+  automation_triage_action?: string | null;
+  automation_triage_rule_id?: string | null;
   automation_kind?: string | null;
   verification_code?: string | null;
 };
@@ -329,6 +340,11 @@ function rowToRecord(row: InboxRow): EmailInboxRecord {
     automationAckAt: row.automation_ack_at
       ? new Date(row.automation_ack_at).toISOString()
       : null,
+    automationTriageAt: row.automation_triage_at
+      ? new Date(row.automation_triage_at).toISOString()
+      : null,
+    automationTriageAction: row.automation_triage_action ?? null,
+    automationTriageRuleId: row.automation_triage_rule_id ?? null,
     automationKind: row.automation_kind ?? null,
     verificationCode: row.verification_code ?? null,
   };
@@ -370,6 +386,9 @@ function parseFileEvents(raw: string): EmailInboxRecord[] {
       bookingStart: e.bookingStart ?? null,
       seenAt: e.seenAt ?? null,
       automationAckAt: e.automationAckAt ?? null,
+      automationTriageAt: e.automationTriageAt ?? null,
+      automationTriageAction: e.automationTriageAction ?? null,
+      automationTriageRuleId: e.automationTriageRuleId ?? null,
       automationKind: e.automationKind ?? null,
       verificationCode: e.verificationCode ?? null,
     }));
@@ -542,6 +561,9 @@ async function appendToFile(input: EmailInboxInput): Promise<EmailInboxRecord | 
     bookingStart: input.bookingStart ?? null,
     seenAt: null,
     automationAckAt: null,
+    automationTriageAt: null,
+    automationTriageAction: null,
+    automationTriageRuleId: null,
     automationKind: input.automationKind ?? null,
     verificationCode: input.verificationCode ?? null,
   };
@@ -810,6 +832,10 @@ export type EmailInboxPatch = Partial<
   markSeen?: boolean;
   markAutomationAck?: boolean;
   rejectProjectMatch?: boolean;
+  acceptAutomationDecision?: boolean;
+  automationTriageAction?: string;
+  automationTriageRuleId?: string | null;
+  markAutomationTriage?: boolean;
 };
 
 async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailInboxRecord | null> {
@@ -844,6 +870,21 @@ async function updateInFile(id: string, patch: EmailInboxPatch): Promise<EmailIn
     ...(patch.markSeen && !cur.seenAt ? { seenAt: new Date().toISOString() } : {}),
     ...(patch.markAutomationAck && !cur.automationAckAt
       ? { automationAckAt: new Date().toISOString() }
+      : {}),
+    ...(patch.markAutomationTriage && !cur.automationTriageAt
+      ? { automationTriageAt: new Date().toISOString() }
+      : {}),
+    ...(patch.automationTriageAction != null
+      ? { automationTriageAction: patch.automationTriageAction }
+      : {}),
+    ...(patch.automationTriageRuleId !== undefined
+      ? { automationTriageRuleId: patch.automationTriageRuleId }
+      : {}),
+    ...(patch.acceptAutomationDecision && !cur.automationTriageAt
+      ? {
+          automationTriageAt: new Date().toISOString(),
+          automationTriageAction: 'accepted',
+        }
       : {}),
   };
   events[idx] = next;
@@ -936,6 +977,21 @@ async function updateInPg(id: string, patch: EmailInboxPatch): Promise<EmailInbo
     }
     if (patch.markAutomationAck) {
       sets.push(`automation_ack_at = COALESCE(automation_ack_at, now())`);
+    }
+    if (patch.markAutomationTriage) {
+      sets.push(`automation_triage_at = COALESCE(automation_triage_at, now())`);
+    }
+    if (patch.automationTriageAction != null) {
+      sets.push(`automation_triage_action = $${i++}`);
+      vals.push(patch.automationTriageAction);
+    }
+    if (patch.automationTriageRuleId !== undefined) {
+      sets.push(`automation_triage_rule_id = $${i++}`);
+      vals.push(patch.automationTriageRuleId);
+    }
+    if (patch.acceptAutomationDecision) {
+      sets.push(`automation_triage_at = COALESCE(automation_triage_at, now())`);
+      sets.push(`automation_triage_action = COALESCE(automation_triage_action, 'accepted')`);
     }
     if (!sets.length) return null;
     vals.push(id);

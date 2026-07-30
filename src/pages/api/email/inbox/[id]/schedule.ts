@@ -165,6 +165,7 @@ async function handleNotifyScheduleLink(
   const updated = await storeUpdateEmailInbox(id, {
     action: 'filed',
     status: 'FILED',
+    acceptAutomationDecision: true,
     markAutomationAck: true,
   });
   return json({
@@ -360,6 +361,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
+      acceptAutomationDecision: true,
       markAutomationAck: true,
     });
     return json({
@@ -415,6 +417,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
+      acceptAutomationDecision: true,
       markAutomationAck: true,
     });
     return json({
@@ -485,6 +488,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const updated = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
+      acceptAutomationDecision: true,
       markAutomationAck: true,
     });
     return json({
@@ -579,6 +583,7 @@ export async function POST(context: APIContext): Promise<Response> {
     const filed = await storeUpdateEmailInbox(id, {
       action: 'filed',
       status: 'FILED',
+      acceptAutomationDecision: true,
       markAutomationAck: true,
     });
     return json({

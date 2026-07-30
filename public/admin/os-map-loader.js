@@ -94,7 +94,7 @@ import {
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
-import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout } from './os-dialog.js?v=20260728j';
+import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
   workState,
@@ -2879,6 +2879,10 @@ async function dismissReviewNotification(item, btn) {
     return;
   }
   if (!item?.emailId) return;
+  if (isEmailAutomationReview(item) && item.awaitingTriage) {
+    await openEmailTriageDialog(item);
+    return;
+  }
   const prevLabel = btn?.textContent;
   if (btn) {
     btn.disabled = true;
@@ -2891,6 +2895,10 @@ async function dismissReviewNotification(item, btn) {
       body: JSON.stringify({ markAutomationAck: true }),
     });
     const data = await readApiJson(res);
+    if (res.status === 409 && data.requiresTriage) {
+      await openEmailTriageDialog(item);
+      return;
+    }
     if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
     if (data.event) {
@@ -3478,6 +3486,15 @@ function buildReviewAlertBanner(item) {
   const isMeetingRequest = item.type === 'meeting_request' || item.type === 'meeting_conflict';
   const isAutoBookedMeeting = item.type === 'meeting';
   const isPushAlert = item.type === 'push_alert';
+  const emailAwaitingTriage = isEmailAutomationReview(item) && item.awaitingTriage;
+
+  if (emailAwaitingTriage) {
+    alert.classList.add('admin-setup-alert--triage');
+    copy.querySelector('p')?.insertAdjacentText(
+      'afterbegin',
+      'Awaiting your triage · ',
+    );
+  }
 
   if (isPushAlert) {
     appendReviewAlertAction(actions, {
@@ -3577,6 +3594,13 @@ function buildReviewAlertBanner(item) {
     });
   }
 
+  if (emailAwaitingTriage) {
+    appendReviewAlertAction(actions, {
+      label: 'Triage',
+      onClick: () => void openEmailTriageDialog(item),
+    });
+  }
+
   const dismissBtn = document.createElement('button');
   dismissBtn.type = 'button';
   dismissBtn.className = 'admin-setup-alert-dismiss';
@@ -3585,6 +3609,10 @@ function buildReviewAlertBanner(item) {
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   dismissBtn.addEventListener('click', (ev) => {
     ev.stopPropagation();
+    if (emailAwaitingTriage) {
+      void openEmailTriageDialog(item);
+      return;
+    }
     dismissBtn.disabled = true;
     void dismissReviewNotification(item).finally(() => {
       dismissBtn.disabled = false;
@@ -3645,6 +3673,12 @@ function bindReviewAlertSwipe(alert, item) {
         alert.style.transform = 'translateX(120%)';
         alert.style.opacity = '0';
         window.setTimeout(() => {
+          if (isEmailAutomationReview(item) && item.awaitingTriage) {
+            alert.style.transform = '';
+            alert.style.opacity = '';
+            void openEmailTriageDialog(item);
+            return;
+          }
           void dismissReviewNotification(item).catch(() => {
             alert.style.transform = '';
             alert.style.opacity = '';
@@ -3670,6 +3704,179 @@ async function dismissPushAlertById(alertId) {
   if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
   removeReviewAlertBanner(null, null, null, id);
   syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+}
+
+const EMAIL_AUTOMATION_REVIEW_TYPES = new Set([
+  'meeting',
+  'meeting_request',
+  'meeting_conflict',
+  'meeting_followup',
+  'project',
+  'project_match',
+]);
+
+function isEmailAutomationReview(item) {
+  return Boolean(item?.emailId && EMAIL_AUTOMATION_REVIEW_TYPES.has(item.type));
+}
+
+const TRIAGE_FEEDBACK_OPTIONS = [
+  {
+    action: 'expected',
+    label: 'Expected',
+    detail: 'Auto-file similar mail without notifying you.',
+  },
+  {
+    action: 'important',
+    label: 'Always alert me',
+    detail: 'Keep surfacing similar mail for review.',
+  },
+  {
+    action: 'ignore',
+    label: 'Ignore similar',
+    detail: 'Suppress future mail that matches this pattern.',
+  },
+  {
+    action: 'teach',
+    label: 'Teach the agent',
+    detail: 'Save a note to knowledge for how to handle these.',
+    needsNote: true,
+  },
+];
+
+function emailTriageDialogHtml(item) {
+  const options = TRIAGE_FEEDBACK_OPTIONS.map(
+    (opt) =>
+      `<label class="alert-triage-option">` +
+        `<input type="radio" name="alert-triage-action" value="${escHtml(opt.action)}" />` +
+        `<span class="alert-triage-option-copy">` +
+          `<strong>${escHtml(opt.label)}</strong>` +
+          `<span>${escHtml(opt.detail)}</span>` +
+        `</span>` +
+      `</label>`,
+  ).join('');
+  return (
+    `<p class="alert-triage-intro">This agent decision stays in limbo until you choose how similar email should be handled in the future.</p>` +
+    `<div class="alert-triage-options">${options}</div>` +
+    `<label class="alert-triage-note-wrap" hidden>` +
+      `<span class="alert-triage-note-label">What should the agent know?</span>` +
+      `<textarea class="alert-triage-note" rows="3" maxlength="2000" placeholder="e.g. Meeting requests from this client always need manual review…"></textarea>` +
+    `</label>`
+  );
+}
+
+async function submitEmailTriage(item, action, note, btn) {
+  const prevLabel = btn?.textContent;
+  if (btn) {
+    btn.disabled = true;
+    if (prevLabel) btn.textContent = 'Saving…';
+  }
+  try {
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(item.emailId)}/triage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, note: note || undefined }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    if (data.event) {
+      const idx = emailState.allEvents.findIndex((e) => e.id === item.emailId);
+      if (idx !== -1) emailState.allEvents[idx] = data.event;
+    }
+    removeReviewAlertBanner(item.emailId);
+    syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+    if (emailState.activeId === item.emailId) renderEmailPanel();
+    return true;
+  } catch (e) {
+    await osAlert({ title: 'Could not save triage', bodyHtml: escHtml(e.message || String(e)) });
+    return false;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      if (prevLabel) btn.textContent = prevLabel;
+    }
+  }
+}
+
+function openEmailTriageDialog(item) {
+  const backdrop = document.getElementById('os-dialog-backdrop');
+  const titleEl = document.getElementById('os-dialog-title');
+  const bodyEl = document.getElementById('os-dialog-body');
+  const actionsEl = document.getElementById('os-dialog-actions');
+  if (!backdrop || !titleEl || !bodyEl || !actionsEl) return Promise.resolve(false);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
+      resolve(value);
+    };
+
+    titleEl.textContent = 'How should similar email be handled?';
+    bodyEl.innerHTML = emailTriageDialogHtml(item);
+    actionsEl.innerHTML = '';
+
+    const noteWrap = bodyEl.querySelector('.alert-triage-note-wrap');
+    const noteEl = bodyEl.querySelector('.alert-triage-note');
+    const radios = bodyEl.querySelectorAll('input[name="alert-triage-action"]');
+
+    const syncNoteVisibility = () => {
+      const selected = bodyEl.querySelector('input[name="alert-triage-action"]:checked');
+      const teach = selected?.value === 'teach';
+      if (noteWrap) noteWrap.hidden = !teach;
+      if (teach && noteEl) scheduleOsDialogFieldFocus(noteEl);
+    };
+
+    for (const radio of radios) {
+      radio.addEventListener('change', syncNoteVisibility);
+    }
+    if (radios[0]) {
+      radios[0].checked = true;
+      syncNoteVisibility();
+    }
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => finish(false));
+    actionsEl.appendChild(cancelBtn);
+
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'os-dialog-btn os-dialog-btn--primary';
+    saveBtn.textContent = 'Save & resolve';
+    saveBtn.addEventListener('click', async () => {
+      const selected = bodyEl.querySelector('input[name="alert-triage-action"]:checked');
+      const action = selected?.value;
+      if (!action) {
+        await osAlert({ title: 'Choose an option', bodyHtml: 'Pick how similar email should be handled.' });
+        return;
+      }
+      const note = action === 'teach' ? String(noteEl?.value || '').trim() : '';
+      if (action === 'teach' && !note) {
+        await osAlert({ title: 'Add a note', bodyHtml: 'Describe what the agent should know about this mail.' });
+        if (noteEl) scheduleOsDialogFieldFocus(noteEl);
+        return;
+      }
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving…';
+      const ok = await submitEmailTriage(item, action, note, saveBtn);
+      if (ok) finish(true);
+      else {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save & resolve';
+      }
+    });
+    actionsEl.appendChild(saveBtn);
+
+    openOsDialogBackdrop();
+    bindOsDialogDismiss(backdrop, finish, true);
+    bindOsDialogKeyboardLayout();
+    saveBtn.focus();
+  });
 }
 
 function buildReviewAlertBanners(notifications) {
@@ -3738,6 +3945,34 @@ function removeEmailRelatedAlertBanners(emailId) {
   return removed;
 }
 
+function maybeOpenPendingTriageDialog(notifications) {
+  const emailId = String(pendingTriageEmailId || '').trim();
+  if (!emailId) return;
+  pendingTriageEmailId = '';
+  const item = notifications.find(
+    (n) => n.emailId === emailId && isEmailAutomationReview(n) && n.awaitingTriage,
+  );
+  if (!item) return;
+  window.setTimeout(() => {
+    void openEmailTriageDialog(item);
+  }, 120);
+}
+
+let pendingTriageEmailId = '';
+
+function queueTriageEmailFromUrl() {
+  try {
+    const id = new URLSearchParams(window.location.search).get('triageEmail')?.trim();
+    if (!id) return;
+    pendingTriageEmailId = id;
+    const url = new URL(window.location.href);
+    url.searchParams.delete('triageEmail');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {
+    /* ignore */
+  }
+}
+
 function renderHomeDashboard(data) {
   const root = document.getElementById('home-dashboard');
   if (!root) return;
@@ -3756,6 +3991,7 @@ function renderHomeDashboard(data) {
   if (automationNotifications.length) {
     scroll.appendChild(buildReviewAlertBanners(automationNotifications));
   }
+  maybeOpenPendingTriageDialog(automationNotifications);
 
   const todaySection = document.createElement('section');
   todaySection.className = 'dash-today';
@@ -10471,8 +10707,11 @@ async function boot() {
 
 boot().catch(showBootError);
 
+queueTriageEmailFromUrl();
+
 window.addEventListener('pageshow', () => {
   resumeEmailDeepLinkFromUrl();
+  queueTriageEmailFromUrl();
 });
 
 if ('serviceWorker' in navigator) {
