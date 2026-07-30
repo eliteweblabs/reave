@@ -4,7 +4,7 @@
  * One active incident per GitHub repo — duplicate emails/webhooks for the same
  * repo are suppressed so the agent never runs parallel repairs.
  */
-import { postToSystemAlertsThread } from './adminAgentAlert';
+import { postToSystemAlertsThread } from './systemAlertsThread';
 import { resolveDeployTarget, deployDedupKey, type DeployServiceTarget } from './deployServiceMap';
 import {
   dbAcquireDeployIncident,
@@ -208,72 +208,96 @@ async function runInvestigation(opts: {
   pushOnUnresolved?: boolean;
   subject?: string;
 }): Promise<void> {
-  if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {
-    log.warn('AGENT_ALERT_USER_ID missing — incident recorded but no agent run');
-    return;
-  }
+  const incidentId = opts.incident.id;
+  const canPersist = incidentId !== 'no-db';
 
-  await dbUpdateDeployIncident(opts.incident.id, { status: 'investigating' });
+  try {
+    if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {
+      log.warn('AGENT_ALERT_USER_ID missing — incident recorded but no agent run');
+      if (canPersist) {
+        await dbUpdateDeployIncident(incidentId, { status: 'escalated', resolution: 'no_alert_user' });
+      }
+      return;
+    }
 
-  const alertText = buildInvestigationMessage({
-    incident: opts.incident,
-    target: opts.target,
-    baseMessage: opts.message,
-  });
+    if (canPersist) {
+      await dbUpdateDeployIncident(incidentId, { status: 'investigating' });
+    }
 
-  const { agentReply } = await postToSystemAlertsThread({
-    message: alertText,
-    emailId: opts.emailId,
-    model: RAILWAY_ALERT_MODEL,
-    autoRun: serverEnv('AGENT_ALERT_AUTO_RUN') !== '0',
-  });
-
-  if (!agentReply) {
-    await dbUpdateDeployIncident(opts.incident.id, { status: 'escalated', resolution: 'no_agent_reply' });
-    return;
-  }
-
-  const structured = parseDeployOutcome(agentReply);
-  const resolved =
-    structured === 'resolved' || (structured === 'unknown' && heuristicResolved(agentReply));
-  const fixSha = extractFixCommitSha(agentReply);
-
-  if (resolved) {
-    await dbUpdateDeployIncident(opts.incident.id, {
-      status: 'resolved',
-      agent_reply: agentReply,
-      fix_commit_sha: fixSha ?? undefined,
-      resolution: structured === 'resolved' ? 'agent_resolved' : 'heuristic_resolved',
-    });
-    await silentDeleteEmail(opts.emailId);
-    log.info('incident resolved', { id: opts.incident.id, repo: opts.target.repo });
-    return;
-  }
-
-  await dbUpdateDeployIncident(opts.incident.id, {
-    status: fixSha ? 'fixing' : 'escalated',
-    agent_reply: agentReply,
-    fix_commit_sha: fixSha ?? undefined,
-    resolution: fixSha ? 'fix_applied' : 'unresolved',
-  });
-
-  if (fixSha) {
-    scheduleVerifyLoop({
-      incidentId: opts.incident.id,
+    const alertText = buildInvestigationMessage({
+      incident: opts.incident,
       target: opts.target,
-      fixCommitSha: fixSha,
-      emailId: opts.emailId,
+      baseMessage: opts.message,
     });
-  }
 
-  if (opts.pushOnUnresolved !== false) {
-    sendPushNotification({
-      title: `🚨 Deploy: ${opts.subject?.slice(0, 50) || opts.target.repo}`,
-      body: agentReply.slice(0, 200),
-      tag: `deploy-incident-${opts.incident.id}`,
-      url: '/admin?tab=chats',
-      urgent: true,
-    }).catch((e) => log.warn('push failed', e));
+    const { agentReply } = await postToSystemAlertsThread({
+      message: alertText,
+      emailId: opts.emailId,
+      model: RAILWAY_ALERT_MODEL,
+      autoRun: serverEnv('AGENT_ALERT_AUTO_RUN') !== '0',
+    });
+
+    if (!agentReply) {
+      if (canPersist) {
+        await dbUpdateDeployIncident(incidentId, { status: 'escalated', resolution: 'no_agent_reply' });
+      }
+      return;
+    }
+
+    const structured = parseDeployOutcome(agentReply);
+    const resolved =
+      structured === 'resolved' || (structured === 'unknown' && heuristicResolved(agentReply));
+    const fixSha = extractFixCommitSha(agentReply);
+
+    if (resolved) {
+      if (canPersist) {
+        await dbUpdateDeployIncident(incidentId, {
+          status: 'resolved',
+          agent_reply: agentReply,
+          fix_commit_sha: fixSha ?? undefined,
+          resolution: structured === 'resolved' ? 'agent_resolved' : 'heuristic_resolved',
+        });
+      }
+      await silentDeleteEmail(opts.emailId);
+      log.info('incident resolved', { id: incidentId, repo: opts.target.repo });
+      return;
+    }
+
+    if (canPersist) {
+      await dbUpdateDeployIncident(incidentId, {
+        status: fixSha ? 'fixing' : 'escalated',
+        agent_reply: agentReply,
+        fix_commit_sha: fixSha ?? undefined,
+        resolution: fixSha ? 'fix_applied' : 'unresolved',
+      });
+    }
+
+    if (fixSha && canPersist) {
+      scheduleVerifyLoop({
+        incidentId,
+        target: opts.target,
+        fixCommitSha: fixSha,
+        emailId: opts.emailId,
+      });
+    }
+
+    if (opts.pushOnUnresolved !== false) {
+      sendPushNotification({
+        title: `🚨 Deploy: ${opts.subject?.slice(0, 50) || opts.target.repo}`,
+        body: agentReply.slice(0, 200),
+        tag: `deploy-incident-${incidentId}`,
+        url: '/admin?tab=chats',
+        urgent: true,
+      }).catch((e) => log.warn('push failed', e));
+    }
+  } catch (e) {
+    log.error('investigation failed', e);
+    if (canPersist) {
+      await dbUpdateDeployIncident(incidentId, {
+        status: 'escalated',
+        resolution: 'investigation_error',
+      }).catch(() => undefined);
+    }
   }
 }
 

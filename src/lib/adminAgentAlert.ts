@@ -3,15 +3,7 @@
  */
 
 import { serverEnv } from './serverEnv';
-import {
-  storeAppendChatMessages,
-  storeCreateChatThread,
-  storeListChatThreads,
-  storeUpdateChatTitle,
-} from './chatStore';
-import { handleDeployFailure } from './deployIncidentHandler';
-import { runKnowledgeAgent } from './agentRunner';
-import { prependDeployBanner } from './deployStatus';
+import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
@@ -20,11 +12,7 @@ import { createLogger } from './logger';
 
 const log = createLogger('admin-agent');
 
-const ALERT_THREAD_TITLE = 'System alerts';
-
-export function agentAlertUserId(): string | null {
-  return serverEnv('AGENT_ALERT_USER_ID')?.trim() || null;
-}
+export { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
 
 export function isRailwayAlertStatus(status: string): boolean {
   return status.toUpperCase().startsWith('RAILWAY');
@@ -44,17 +32,6 @@ export function shouldAgentAlertForInboundEmail(opts: {
   if (opts.category !== 'alert' && !isRailwayAlertStatus(opts.status)) return false;
   if (opts.isUptimeRobot && hasFeature('uptime_monitoring')) return false;
   return true;
-}
-
-async function getOrCreateAlertThread(userId: string): Promise<string | null> {
-  const threads = await storeListChatThreads(userId);
-  const existing = threads.find((t) => t.title === ALERT_THREAD_TITLE);
-  if (existing) return existing.id;
-
-  const created = await storeCreateChatThread(userId);
-  if (!created) return null;
-  await storeUpdateChatTitle(userId, created.id, ALERT_THREAD_TITLE);
-  return created.id;
 }
 
 /** Fire-and-forget — Siri audit/proposal finished (client + audit project filed). */
@@ -93,72 +70,6 @@ function extractProposalSummary(reply: string, slug?: string | null): string {
   if (generic?.[1]?.trim()) return generic[1].trim();
 
   return trimmed.slice(0, 1200);
-}
-
-/**
- * Fire-and-forget — posts a message to the System alerts thread, optionally
- * running the agent to auto-investigate. Returns the agent reply when autoRun
- * is true so callers can decide whether to fire a push or silently close.
- */
-export async function postToSystemAlertsThread(opts: {
-  message: string;
-  autoRun?: boolean;
-  emailId?: string;
-  /** Optional model override — e.g. 'claude-opus-4-6' for high-priority auto-investigations. */
-  model?: string;
-  push?: { title: string; body: string; tag?: string; url?: string };
-}): Promise<{ agentReply?: string }> {
-  const userId = agentAlertUserId();
-  if (!userId) return {};
-
-  try {
-    const threadId = await getOrCreateAlertThread(userId);
-    if (!threadId) {
-      log.warn('could not open System alerts thread');
-      return {};
-    }
-
-    const priorTurns: { role: 'user' | 'assistant'; content: string }[] = [];
-    // System alerts are standalone events — replaying the whole thread blows the prompt.
-
-    const autoRun = opts.autoRun !== false && serverEnv('AGENT_ALERT_AUTO_RUN') !== '0';
-
-    let agentReply: string | undefined;
-
-    if (autoRun) {
-      let reply = await runKnowledgeAgent({
-        userText: opts.message,
-        priorTurns,
-        model: opts.model ?? null,
-        context: opts.emailId
-          ? { userId, emailId: opts.emailId, systemAlert: true }
-          : { userId, systemAlert: true },
-      });
-      reply = await prependDeployBanner(reply, { userText: opts.message });
-      await storeAppendChatMessages(userId, threadId, [
-        { role: 'user', content: opts.message },
-        { role: 'assistant', content: reply },
-      ]);
-      agentReply = reply;
-    } else {
-      await storeAppendChatMessages(userId, threadId, [{ role: 'user', content: opts.message }]);
-    }
-
-    if (opts.push) {
-      sendPushNotification({
-        title: opts.push.title,
-        body: opts.push.body,
-        tag: opts.push.tag ?? 'system-alert',
-        url: opts.push.url ?? '/admin?tab=chats',
-      }).catch((e) => log.warn('push failed', e));
-    }
-
-    log.info('alert posted', { threadId });
-    return { agentReply };
-  } catch (e) {
-    log.warn('notify failed', e);
-    return {};
-  }
 }
 
 async function formatAlertMessage(opts: {
@@ -524,6 +435,7 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
 
   if (isRailway) {
     const message = await formatAlertMessage(opts);
+    const { handleDeployFailure } = await import('./deployIncidentHandler');
     await handleDeployFailure({
       source: 'email',
       message,
