@@ -248,6 +248,44 @@ async function handle_get_client_submit_link(args: Record<string, unknown>, _ctx
   });
 }
 
+async function handle_get_client_vcard_link(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const target = await resolvePortalTarget(args);
+  if (!target.ok) return target.payload;
+
+  const current = await getContact(target.uid);
+  if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+  const portal = extractPortal(current.data);
+  if (portal?.enabled === false) {
+    return JSON.stringify({ error: 'This client\u2019s page is hidden (enabled:false). Re-enable it before sharing.' });
+  }
+  return JSON.stringify({
+    uid: target.uid,
+    name: current.data.name,
+    vcard_url: `${clientPortalUrl(target.uid)}/card.vcf`,
+    note:
+      'A real, always-live digital business card for THIS client to hand to their own customers/prospects (name, company, phone, email, website). Opening the link on a phone offers "Add to Contacts". Not staff-only — safe to send directly to the client. Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this; this link is hosted by the app and always resolves.',
+  });
+}
+
+async function handle_get_client_signature_link(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+  const target = await resolvePortalTarget(args);
+  if (!target.ok) return target.payload;
+
+  const current = await getContact(target.uid);
+  if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+  const portal = extractPortal(current.data);
+  if (portal?.enabled === false) {
+    return JSON.stringify({ error: 'This client\u2019s page is hidden (enabled:false). Re-enable it before sharing.' });
+  }
+  return JSON.stringify({
+    uid: target.uid,
+    name: current.data.name,
+    signature_url: `${clientPortalUrl(target.uid)}/signature.html`,
+    note:
+      'A branded HTML email signature page for THIS client, built from their name/company/phone/email/website/logo. Open the link, click "Copy signature", then paste into Gmail Settings \u2192 General \u2192 Signature. Always live and self-updating (no separate generation/hosting step). Do not create GitHub repos/files or invent a URL on the client\u2019s own website for this.',
+  });
+}
+
 async function handle_send_client_portal(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
   const target = await resolvePortalTarget(args);
   if (!target.ok) return target.payload;
@@ -428,6 +466,46 @@ export const clientPortalModule: AgentToolModule = {
               },
             }
     );
+    out.push(
+            {
+              type: 'function',
+              function: {
+                name: 'get_client_vcard_link',
+                description:
+                  'Get a real, always-live link to THIS client\u2019s own digital business card (vCard) — for them to share with their own customers/prospects, e.g. "generate Reggie a vCard he can hand out". Built from their name/company/phone/email/website already on file; opening it on a phone offers "Add to Contacts". Different from the internal /c/:uid.vcf export (that one is staff-only, for saving the client to a staff member\u2019s own phone). Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    email: { type: 'string' },
+                    phone: { type: 'string' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            }
+    );
+    out.push(
+            {
+              type: 'function',
+              function: {
+                name: 'get_client_signature_link',
+                description:
+                  'Get a real, always-live link to a branded HTML email signature for THIS client, e.g. "generate an email signature for this client". The page renders their name/company/phone/email/website/logo and has a "Copy signature" button to paste straight into Gmail/Outlook signature settings — no file to author or host yourself. Never fabricate a GitHub link or a URL on the client\u2019s own website for this — this tool\u2019s link is hosted by the app and is guaranteed to resolve. Identify by uid or name (fuzzy-resolved).',
+                parameters: {
+                  type: 'object',
+                  properties: {
+                    uid: { type: 'string', description: 'Contact uid (preferred if known)' },
+                    name: { type: 'string', description: 'Client name to resolve when uid is unknown' },
+                    email: { type: 'string' },
+                    phone: { type: 'string' },
+                  },
+                  additionalProperties: false,
+                },
+              },
+            }
+    );
     if (isEmailSendConfigured() || isSmsSendConfigured()) out.push(
       {
               type: 'function',
@@ -465,6 +543,8 @@ export const clientPortalModule: AgentToolModule = {
     'set_client_portal': handle_set_client_portal,
     'get_client_portal': handle_get_client_portal,
     'get_client_submit_link': handle_get_client_submit_link,
+    'get_client_vcard_link': handle_get_client_vcard_link,
+    'get_client_signature_link': handle_get_client_signature_link,
     'send_client_portal': handle_send_client_portal,
   },
 };

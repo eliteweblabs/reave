@@ -104,7 +104,30 @@ natively in **iOS Contacts** ("Add to Contacts"). It includes only client-safe
 fields — name, company, phone, email, and the portal URL — never the internal
 `notes`. Same gating as the page (portal must exist and not be revoked). Not
 linked from the client portal UI — use CardDAV or admin when staff need the
-contact on their phone.
+contact on their phone. **This one requires a staff session** (it's for
+saving the *client* to a *staff member's* phone).
+
+## Client's own vCard + email signature (`get_client_vcard_link` / `get_client_signature_link`)
+
+When a client wants a **digital business card or email signature to hand out
+to their own customers** ("generate Reggie a vCard he can share", "make me an
+email signature"), use these two agent tools — do **not** try to author and
+host a file yourself (no GitHub repo, no guess at a path on the client's own
+website: `write_github_file`/`create_github_repo` only commit to *this app's*
+source and never produce a public URL by themselves, and there is no tool
+that can write files onto a client's separate production site). Both return
+a link that is rendered live by this app from the contact's existing
+name/company/phone/email/website/logo, so it can never 404:
+
+- **`get_client_vcard_link`** → `https://reave.app/c/<uid>/card.vcf` — public,
+  no staff auth. Opens "Add to Contacts" on a phone. Distinct from the
+  staff-only `/c/<uid>.vcf` above.
+- **`get_client_signature_link`** → `https://reave.app/c/<uid>/signature.html`
+  — a branded HTML signature block with a "Copy signature" button; paste
+  straight into Gmail/Outlook signature settings.
+
+Both are gated the same way as the portal page (revoked via `enabled:false`)
+and never expose the internal `notes` field.
 
 ## Manage it via API or Admin
 

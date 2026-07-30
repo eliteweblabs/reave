@@ -22,7 +22,10 @@ export function foldLine(line: string): string {
   return parts.join('\r\n');
 }
 
-export function contactToVCard(contact: ContactRecord, opts?: { includeNotes?: boolean }): string {
+export function contactToVCard(
+  contact: ContactRecord,
+  opts?: { includeNotes?: boolean; website?: string; photoUrl?: string },
+): string {
   const uid = contact.uid.trim();
   const first = (contact.firstName ?? '').trim();
   const last = (contact.lastName ?? '').trim();
@@ -39,7 +42,12 @@ export function contactToVCard(contact: ContactRecord, opts?: { includeNotes?: b
   if (opts?.includeNotes && contact.notes?.trim()) {
     lines.push(foldLine(`NOTE:${escVCard(contact.notes.trim())}`));
   }
-  lines.push(foldLine(`URL:${escVCard(clientPortalUrl(uid))}`));
+  // Prefer the client's own website (when sharing their card with others); fall back to the portal link.
+  lines.push(foldLine(`URL:${escVCard((opts?.website?.trim() || clientPortalUrl(uid)))}`));
+  const photo = opts?.photoUrl?.trim();
+  if (photo && /^https?:\/\//i.test(photo)) {
+    lines.push(foldLine(`PHOTO;VALUE=URI:${escVCard(photo)}`));
+  }
   if (contact.updatedAt) {
     const rev = contact.updatedAt.replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z').replace('Z', 'Z');
     lines.push(foldLine(`REV:${escVCard(rev)}`));
