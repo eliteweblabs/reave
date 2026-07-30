@@ -2,6 +2,13 @@
  * Register admin PWA service worker, Web Push subscriptions, and setup alerts.
  */
 
+import {
+  openOsDialogBackdrop,
+  closeOsDialogBackdrop,
+  bindOsDialogKeyboardLayout,
+  releaseOsDialogKeyboardLayout,
+} from './os-dialog.js?v=20260728j';
+
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -441,24 +448,6 @@ function formatSleepMenuLabel(data) {
   return data?.settings?.sleepModeEnabled ? `Sleep mode (${label})${active}` : 'Sleep mode (off)';
 }
 
-function openSleepDialogBackdrop() {
-  const backdrop = document.getElementById('os-dialog-backdrop');
-  if (backdrop) {
-    backdrop.hidden = false;
-    backdrop.classList.add('open');
-    document.body.classList.add('os-dialog-open');
-  }
-}
-
-function closeSleepDialogBackdrop() {
-  const backdrop = document.getElementById('os-dialog-backdrop');
-  if (backdrop) {
-    backdrop.hidden = true;
-    backdrop.classList.remove('open');
-    document.body.classList.remove('os-dialog-open');
-  }
-}
-
 async function openSleepModeDialog() {
   const backdrop = document.getElementById('os-dialog-backdrop');
   const titleEl = document.getElementById('os-dialog-title');
@@ -504,7 +493,10 @@ async function openSleepModeDialog() {
   cancelBtn.type = 'button';
   cancelBtn.className = 'os-dialog-btn os-dialog-btn--ghost';
   cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => closeSleepDialogBackdrop());
+  cancelBtn.addEventListener('click', () => {
+    releaseOsDialogKeyboardLayout();
+    closeOsDialogBackdrop();
+  });
 
   const saveBtn = document.createElement('button');
   saveBtn.type = 'button';
@@ -528,7 +520,8 @@ async function openSleepModeDialog() {
       if (!res.ok || !saved.ok) throw new Error(saved.error || `HTTP ${res.status}`);
       sleepModeCache = saved;
       updateSleepModeMenuItem(saved);
-      closeSleepDialogBackdrop();
+      releaseOsDialogKeyboardLayout();
+      closeOsDialogBackdrop();
     } catch (e) {
       alert(e.message || String(e));
     } finally {
@@ -538,7 +531,8 @@ async function openSleepModeDialog() {
   });
 
   actionsEl.append(cancelBtn, saveBtn);
-  openSleepDialogBackdrop();
+  openOsDialogBackdrop();
+  bindOsDialogKeyboardLayout();
   saveBtn.focus();
 }
 
