@@ -14,7 +14,8 @@ import { isPexelsConfigured } from '../../lib/pexelsClient';
 import { requireDashboardUser } from '../../lib/dashboardAuth';
 
 /**
- * Live health snapshot for the /admin/ "System" tab.
+ * Live health snapshot for the /admin/ "System" tab (auth required).
+ * Railway uses `/api/health/live` for deploy liveness — see `health/live.ts`.
  *
  * Honest about what it can and can't verify:
  *  - `live`    — actually pinged the service this request (reachable / down).
