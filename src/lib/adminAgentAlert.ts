@@ -434,13 +434,32 @@ export async function notifyAdminAgentOfEmailAlert(opts: {
 
   if (isRailway) {
     const message = await formatAlertMessage(opts);
-    const { handleDeployFailure } = await import('./deployIncidentHandler');
-    await handleDeployFailure({
-      source: 'email',
+    const { handleDeployFailure, isRailwayIncidentHandlerEnabled } = await import(
+      './deployIncidentHandler'
+    );
+    if (isRailwayIncidentHandlerEnabled()) {
+      await handleDeployFailure({
+        source: 'email',
+        message,
+        emailId: opts.emailId,
+        subject: opts.subject,
+        body: opts.summary,
+      });
+      return;
+    }
+
+    await postToSystemAlertsThread({
       message,
       emailId: opts.emailId,
-      subject: opts.subject,
-      body: opts.summary,
+      autoRun: false,
+      push: {
+        title: `Railway: ${opts.summary.slice(0, 60)}`,
+        body: opts.summary,
+        tag: opts.emailId ?? 'railway-alert',
+        url: opts.emailId
+          ? `/admin?tab=email&email=${encodeURIComponent(opts.emailId)}`
+          : '/admin?tab=email',
+      },
     });
     return;
   }

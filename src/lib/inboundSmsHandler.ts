@@ -10,6 +10,7 @@
 import { serverEnv } from './serverEnv';
 import { postToSystemAlertsThread, agentAlertUserId } from './adminAgentAlert';
 import { sendTelnyxSms } from './telnyxClient';
+import { isSleepModeActive } from './pushQuietHours';
 
 export interface InboundSms {
   from: string;
@@ -82,6 +83,11 @@ async function aiReply(sms: InboundSms): Promise<string | null> {
 
 export async function handleInboundSms(sms: InboundSms): Promise<InboundSmsResult> {
   const { from } = sms;
+
+  if (await isSleepModeActive()) {
+    console.info('[sms] deferred during sleep mode', { from });
+    return { ok: true, action: 'sleep_deferred', from };
+  }
 
   if (!isAllowedSender(from)) {
     console.warn('[sms] rejected sender', { from });

@@ -709,6 +709,40 @@ export async function storeListEmailInboxReceiptScan(
   return listReceiptScanFromFile(limit, since);
 }
 
+async function listSleepDeferredFromPg(limit: number): Promise<EmailInboxRecord[]> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return [];
+    const { rows } = await pool.query(
+      `SELECT ${INBOX_LIST_SELECT}
+       FROM email_inbox
+       WHERE status = 'SLEEP_DEFERRED'
+       ORDER BY received_at ASC
+       LIMIT $1`,
+      [limit],
+    );
+    return rows.map(rowToRecord);
+  } catch (e) {
+    console.error('[email-inbox] sleep deferred list failed', e);
+    return [];
+  }
+}
+
+function listSleepDeferredFromFile(limit: number): EmailInboxRecord[] {
+  const path = inboxFilePath();
+  if (!existsSync(path)) return [];
+  return parseFileEvents(readFileSync(path, 'utf8'))
+    .filter((e) => e.status === 'SLEEP_DEFERRED')
+    .sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime())
+    .slice(0, limit);
+}
+
+/** Inbound rows held during sleep mode — oldest first for morning catch-up. */
+export async function storeListSleepDeferredEmails(limit = 15): Promise<EmailInboxRecord[]> {
+  if (databaseUrl()) return listSleepDeferredFromPg(limit);
+  return listSleepDeferredFromFile(limit);
+}
+
 export async function storeRecordEmailInbox(input: EmailInboxInput): Promise<EmailInboxRecord | null> {
   if (databaseUrl()) return appendToPg(input);
   return appendToFile(input);

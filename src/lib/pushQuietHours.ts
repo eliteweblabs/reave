@@ -1,5 +1,7 @@
 /**
- * Scheduled quiet hours ("sleep mode") — suppress Web Push, keep inbox processing.
+ * Scheduled quiet hours ("sleep mode") — pause push, inbound email triage,
+ * Anthropic API calls, system-alert agent runs, and other automated processing
+ * during the configured window (default 11 PM–7 AM).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
@@ -300,16 +302,35 @@ export async function savePushQuietHoursSettings(
   return next;
 }
 
+/** True when sleep mode is enabled and the current time is inside the quiet window. */
+export async function isSleepModeActive(opts?: { now?: Date }): Promise<boolean> {
+  const settings = await getPushQuietHoursSettings();
+  if (!settings.sleepModeEnabled) return false;
+  return isWithinQuietWindow(settings, opts?.now ?? new Date());
+}
+
+export async function sleepModeStatus(opts?: {
+  now?: Date;
+}): Promise<{ active: boolean; settings: PushQuietHoursSettings; label: string }> {
+  const settings = await getPushQuietHoursSettings();
+  const label = formatQuietHoursLabel(settings);
+  const active = settings.sleepModeEnabled && isWithinQuietWindow(settings, opts?.now ?? new Date());
+  return { active, settings, label };
+}
+
+/** User-facing explanation when automated work is blocked overnight. */
+export async function sleepModeBlockMessage(opts?: { now?: Date }): Promise<string> {
+  const { label } = await sleepModeStatus(opts);
+  return `Sleep mode is active (${label}). Inbound mail, AI calls, and automated alerts resume when the quiet window ends. Adjust times in the admin menu → Sleep mode.`;
+}
+
 export async function isPushQuietHoursActive(opts?: {
   bypassQuietHours?: boolean;
   urgent?: boolean;
   now?: Date;
 }): Promise<boolean> {
   if (opts?.bypassQuietHours) return false;
-  const settings = await getPushQuietHoursSettings();
-  if (!settings.sleepModeEnabled) return false;
-  if (opts?.urgent && settings.allowUrgentDuringSleep) return false;
-  return isWithinQuietWindow(settings, opts?.now ?? new Date());
+  return isSleepModeActive({ now: opts?.now });
 }
 
 export function formatQuietHoursLabel(settings: PushQuietHoursSettings): string {

@@ -1,5 +1,5 @@
 /**
- * GET/PATCH /api/push/settings — sleep mode / quiet hours for Web Push.
+ * GET/PATCH /api/push/settings — sleep mode schedule (push, email triage, AI, alerts).
  */
 
 import type { APIContext } from 'astro';

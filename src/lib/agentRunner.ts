@@ -31,6 +31,7 @@ import {
 } from './anthropicMessages';
 import { runWithAgentContext, getAgentContext, type AgentRunContext } from './agentContext';
 import { appendAgentPartialText, setAgentProgress } from './agentProgress';
+import { isSleepModeActive, sleepModeBlockMessage } from './pushQuietHours';
 import { throwIfAborted } from './agentRunControl';
 import {
   agentLlmTurnTimeoutMs,
@@ -573,6 +574,10 @@ async function runKnowledgeAgentInner(
   },
   stream?: AgentStreamCallbacks,
 ): Promise<string> {
+  if (await isSleepModeActive()) {
+    return sleepModeBlockMessage();
+  }
+
   const { userText, images = [], docs = [], priorTurns = [], model: modelOverride } = opts;
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) {

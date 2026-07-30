@@ -9,6 +9,7 @@ import { isUptimeDbConfigured } from './pgUptime';
 import { syncUptimeMonitorsFromApi } from './uptimeMonitoring';
 import { runUptimePlatformSyncJob } from './uptimePlatformSyncJob';
 import { serverEnv } from './serverEnv';
+import { runSleepDeferredCatchUp } from './inboundEmailHandler';
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 let _discoverTimer: ReturnType<typeof setInterval> | null = null;
@@ -80,8 +81,10 @@ export function ensureUptimePollScheduler(): void {
 
   const ms = pollIntervalMs();
   void runUptimePoll().catch((e) => console.warn('[uptime-poll] initial sync failed', e));
+  void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   _timer = setInterval(() => {
     void runUptimePoll().catch((e) => console.warn('[uptime-poll] sync failed', e));
+    void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   }, ms);
   console.info('[uptime-poll] scheduler started', { intervalMinutes: ms / 60_000 });
 

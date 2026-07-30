@@ -1,4 +1,4 @@
-import { handleDeployFailure } from './deployIncidentHandler';
+import { handleDeployFailure, isRailwayIncidentHandlerEnabled } from './deployIncidentHandler';
 import { markDeployFailed } from './deployStatus';
 import { markDeployActivity } from './siteMonitoring';
 import { hasFeature } from './features';
@@ -109,6 +109,11 @@ export async function handleRailwayWebhook(opts: {
   const svc = body.resource?.service?.name ?? 'service';
   const proj = body.resource?.project?.name ?? 'project';
   markDeployFailed(`Deploy failed — ${svc} (${proj})`);
+
+  if (!isRailwayIncidentHandlerEnabled()) {
+    console.info('[railway-webhook] deploy failure logged — incident handler disabled');
+    return { ok: true, status: 200, message: 'handler_disabled' };
+  }
 
   const text = formatRailwayDeployAlert(body);
   if (!serverEnv('AGENT_ALERT_USER_ID')?.trim()) {

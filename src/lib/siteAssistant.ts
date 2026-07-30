@@ -8,6 +8,7 @@
 import { serverEnv } from './serverEnv';
 import { resolveAgentModel } from './agentModel';
 import { anthropicApiHeaders } from './anthropicMessages';
+import { isSleepModeActive } from './pushQuietHours';
 
 export function isSiteAssistantConfigured(): boolean {
   return Boolean(serverEnv('ANTHROPIC_API_KEY')?.trim());
@@ -81,6 +82,12 @@ export async function runSiteAssistantReply(opts: {
 }): Promise<{ ok: true; reply: string } | { ok: false; error: string }> {
   const apiKey = serverEnv('ANTHROPIC_API_KEY');
   if (!apiKey) return { ok: false, error: 'Assistant is not configured.' };
+  if (await isSleepModeActive()) {
+    return {
+      ok: false,
+      error: 'Our help assistant is offline overnight. Please use the contact form or schedule page, or reach us during business hours.',
+    };
+  }
 
   const model = await resolveAgentModel();
   const system = buildSystemPrompt(opts.context);

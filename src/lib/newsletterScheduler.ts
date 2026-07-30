@@ -5,6 +5,7 @@
  */
 import { serverEnv } from './serverEnv';
 import { isNewsletterEnabled, processDueNewsletterSends } from './newsletterEngine';
+import { runSleepDeferredCatchUp } from './inboundEmailHandler';
 
 let _timer: ReturnType<typeof setInterval> | null = null;
 
@@ -25,8 +26,10 @@ export function ensureNewsletterScheduler(): void {
 
   const ms = pollIntervalMs();
   void processDueNewsletterSends().catch((e) => console.warn('[newsletter] initial run failed', e));
+  void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   _timer = setInterval(() => {
     void processDueNewsletterSends().catch((e) => console.warn('[newsletter] run failed', e));
+    void runSleepDeferredCatchUp().catch((e) => console.warn('[email] sleep catch-up failed', e));
   }, ms);
   console.info('[newsletter] scheduler started', { intervalMinutes: ms / 60_000 });
 }

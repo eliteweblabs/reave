@@ -1,6 +1,8 @@
 import { processInboundEmail } from './emailProcessor';
 import { parseEmailDate } from './emailDate';
 import { ensureInboundSince, isInboundEmailAllowed } from './inboundEmailSince';
+import { isSleepModeActive, sleepModeStatus } from './pushQuietHours';
+import { inboxPreviewSnippet, normalizeEmailBody } from './emailBody';
 
 export interface InboundEmailResult {
   ok: boolean;
@@ -8,6 +10,48 @@ export interface InboundEmailResult {
   action: string;
   status: string;
   from: string;
+}
+
+let _reprocessRunning = false;
+let _lastReprocessAt = 0;
+const REPROCESS_MIN_MS = 60_000;
+
+/** After quiet hours end, triage mail that was held overnight (at most once per minute). */
+export async function runSleepDeferredCatchUp(): Promise<void> {
+  return maybeReprocessSleepDeferred();
+}
+
+async function maybeReprocessSleepDeferred(): Promise<void> {
+  if (await isSleepModeActive()) return;
+  if (_reprocessRunning) return;
+  if (Date.now() - _lastReprocessAt < REPROCESS_MIN_MS) return;
+  _reprocessRunning = true;
+  _lastReprocessAt = Date.now();
+  try {
+    const { storeListSleepDeferredEmails, storeDeleteEmailInbox } = await import('./emailInboxStore');
+    const deferred = await storeListSleepDeferredEmails(15);
+    if (!deferred.length) return;
+    console.info('[email] reprocessing sleep-deferred mail', { count: deferred.length });
+    for (const row of deferred) {
+      await storeDeleteEmailInbox(row.id);
+      await processInboundEmail({
+        from: row.from,
+        subject: row.subject,
+        text: row.bodyText,
+        html: row.bodyHtml,
+        to: row.to,
+        cc: row.cc,
+        bcc: row.bcc,
+        replyTo: row.replyTo,
+        headers: row.headers,
+        messageId: row.messageId,
+        resendEmailId: row.resendEmailId || undefined,
+        attachments: row.attachments,
+      });
+    }
+  } finally {
+    _reprocessRunning = false;
+  }
 }
 
 /**
@@ -29,6 +73,39 @@ export async function handleInboundEmail(email: {
   attachments?: import('./emailAttachments').EmailAttachmentMeta[];
 }): Promise<InboundEmailResult> {
   const from = email.from ?? '';
+
+  if (await isSleepModeActive()) {
+    const { label } = await sleepModeStatus();
+    const bodyText = normalizeEmailBody(email.text ?? '', email.html);
+    const bodyHtml = email.html?.slice(0, 500_000) ?? '';
+    const { storeRecordEmailInbox } = await import('./emailInboxStore');
+    await storeRecordEmailInbox({
+      from,
+      subject: email.subject ?? '',
+      bodySnippet: inboxPreviewSnippet(bodyText || email.subject || ''),
+      bodyText: bodyText.slice(0, 20_000),
+      bodyHtml,
+      to: email.to,
+      cc: email.cc,
+      bcc: email.bcc,
+      replyTo: email.replyTo,
+      headers: email.headers,
+      messageId: email.messageId,
+      resendEmailId: email.resendEmailId,
+      attachments: email.attachments,
+      status: 'SLEEP_DEFERRED',
+      action: 'sleep_deferred',
+      notified: false,
+      category: 'review',
+      summary: `Received during sleep mode (${label}) — triage resumes after quiet hours`,
+    }).catch(() => undefined);
+    console.info('[email] deferred during sleep mode', { from, subject: email.subject ?? '' });
+    return { ok: true, action: 'sleep_deferred', status: 'SLEEP_DEFERRED', from };
+  }
+
+  void maybeReprocessSleepDeferred().catch((e) =>
+    console.warn('[email] sleep deferred reprocess failed', e),
+  );
 
   const since = await ensureInboundSince();
   const emailDate = parseEmailDate(email.headers) ?? new Date();

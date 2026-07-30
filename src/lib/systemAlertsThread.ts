@@ -12,6 +12,7 @@ import {
 import { runKnowledgeAgent } from './agentRunner';
 import { prependDeployBanner } from './deployStatus';
 import { sendPushNotification } from './webPush';
+import { isSleepModeActive } from './pushQuietHours';
 import { createLogger } from './logger';
 
 const log = createLogger('system-alerts');
@@ -46,6 +47,11 @@ export async function postToSystemAlertsThread(opts: {
 }): Promise<{ agentReply?: string }> {
   const userId = agentAlertUserId();
   if (!userId) return {};
+
+  if (await isSleepModeActive()) {
+    log.info('sleep mode — system alert suppressed');
+    return {};
+  }
 
   try {
     const threadId = await getOrCreateAlertThread(userId);

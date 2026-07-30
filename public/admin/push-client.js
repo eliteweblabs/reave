@@ -485,10 +485,10 @@ async function openSleepModeDialog() {
 
   titleEl.textContent = 'Sleep mode';
   bodyEl.innerHTML =
-    '<p class="em-hint">Pause phone push overnight. Mail still triages — review on the home dashboard in the morning.</p>' +
+    '<p class="em-hint">During quiet hours, inbound mail is held without AI triage, phone push is paused, and all Claude API calls are blocked until the window ends. Messages received overnight appear in the Email tab with status <strong>Sleep deferred</strong>.</p>' +
     '<label class="re-check" style="display:flex;gap:8px;margin:12px 0 8px">' +
-    `<input type="checkbox" id="sleep-mode-enabled" ${s.sleepModeEnabled ? 'checked' : ''} />` +
-    '<span>Pause notifications overnight</span></label>' +
+    `<input type="checkbox" id="sleep-mode-enabled" ${s.sleepModeEnabled !== false ? 'checked' : ''} />` +
+    '<span>Enable sleep mode</span></label>' +
     '<div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0">' +
     '<label style="flex:1;min-width:120px">From<br><input type="time" id="sleep-mode-start" value="' +
     (s.quietStart || '23:00') +
@@ -497,10 +497,7 @@ async function openSleepModeDialog() {
     (s.quietEnd || '07:00') +
     '" style="width:100%"></label></div>' +
     '<label style="display:block;margin:8px 0">Timezone<br>' +
-    `<input type="text" id="sleep-mode-tz" value="${tz.replace(/"/g, '&quot;')}" style="width:100%" placeholder="America/New_York"></label>` +
-    '<label class="re-check" style="display:flex;gap:8px;margin:12px 0 0">' +
-    `<input type="checkbox" id="sleep-mode-urgent" ${s.allowUrgentDuringSleep !== false ? 'checked' : ''} />` +
-    '<span>Still push urgent client replies</span></label>';
+    `<input type="text" id="sleep-mode-tz" value="${tz.replace(/"/g, '&quot;')}" style="width:100%" placeholder="America/New_York"></label>`;
 
   actionsEl.innerHTML = '';
   const cancelBtn = document.createElement('button');
@@ -521,11 +518,10 @@ async function openSleepModeDialog() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? false,
+          sleepModeEnabled: document.getElementById('sleep-mode-enabled')?.checked ?? true,
           quietStart: document.getElementById('sleep-mode-start')?.value || '23:00',
           quietEnd: document.getElementById('sleep-mode-end')?.value || '07:00',
           timezone: document.getElementById('sleep-mode-tz')?.value?.trim() || tz,
-          allowUrgentDuringSleep: document.getElementById('sleep-mode-urgent')?.checked ?? true,
         }),
       });
       const saved = await res.json().catch(() => ({}));

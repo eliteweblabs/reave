@@ -4,6 +4,7 @@
  */
 
 import { serverEnv } from './serverEnv';
+import { isSleepModeActive } from './pushQuietHours';
 
 export interface EmailMergeSource {
   from: string;
@@ -140,6 +141,7 @@ export async function mergeEmailIntoProjectBody(opts: {
 
   const key = serverEnv('ANTHROPIC_API_KEY')?.trim();
   if (!key) return fallback();
+  if (await isSleepModeActive()) return fallback();
 
   const model = serverEnv('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-4-6';
   const jsonFooter =

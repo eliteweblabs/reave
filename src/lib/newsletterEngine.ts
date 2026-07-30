@@ -37,6 +37,7 @@ import {
 } from './newsletterTemplates';
 import { makeUnsubscribeToken } from './newsletterUnsubscribe';
 import { serverEnv } from './serverEnv';
+import { isSleepModeActive } from './pushQuietHours';
 
 export function isNewsletterEnabled(): boolean {
   return hasFeature('email_marketing') && isEmailSendConfigured();
@@ -357,6 +358,10 @@ export async function processDueNewsletterSends(
 
   if (!opts.ignoreWindow && !isWithinSendWindow()) {
     // Leave everything pending; a later tick inside the window will pick it up.
+    return { ...empty, deferred: true };
+  }
+
+  if (!opts.ignoreWindow && (await isSleepModeActive())) {
     return { ...empty, deferred: true };
   }
 

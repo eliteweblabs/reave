@@ -1,6 +1,6 @@
 # Railway deploy → admin alerts (automatic)
 
-When Railway posts a **deployment failure** webhook to Reave, the **deploy-incident handler** runs:
+When Railway posts a **deployment failure** webhook to Reave **and** `RAILWAY_INCIDENT_HANDLER=1`, the **deploy-incident handler** runs:
 
 1. **Repo lock** — one active incident per GitHub repo (duplicate webhooks/emails suppressed)
 2. **Agent playbook** — `read_knowledge slug "railway-build-failure-triage"`
@@ -8,10 +8,13 @@ When Railway posts a **deployment failure** webhook to Reave, the **deploy-incid
 4. **Verify loop** — re-checks deploy health ~90s after a fix commit
 5. **Close** — `✅ RESOLVED` deletes inbox email; `🚨 UNRESOLVED` pushes to phone (email path only)
 
+**Default: off.** Leave `RAILWAY_INCIDENT_HANDLER` unset (or `0`) during development — failures are logged / appear in Email and System alerts without auto-investigation or Claude usage.
+
 ## Setup
 
 1. **Astro env (Reave App service)**
    - `RAILWAY_WEBHOOK_INGRESS_KEY` — long random string; same value in the webhook URL `?key=`.
+   - `RAILWAY_INCIDENT_HANDLER=1` — enable the auto-investigation loop (optional; off by default).
    - `AGENT_ALERT_USER_ID` — your Clerk user id (creates/uses the "System alerts" chat thread).
    - `DATABASE_URL` — required for deploy-incident dedup (Postgres).
 

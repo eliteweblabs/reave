@@ -24,6 +24,14 @@ const RAILWAY_ALERT_MODEL = 'claude-opus-4-6';
 const VERIFY_DELAY_MS = 90_000;
 const VERIFY_MAX_ATTEMPTS = 2;
 
+/**
+ * Auto-investigate Railway deploy failures (repo lock + Claude agent playbook).
+ * Off by default during development — set RAILWAY_INCIDENT_HANDLER=1 to enable.
+ */
+export function isRailwayIncidentHandlerEnabled(): boolean {
+  return serverEnv('RAILWAY_INCIDENT_HANDLER') === '1';
+}
+
 export type DeployFailureInput = {
   source: 'webhook' | 'email';
   /** Raw alert text posted to System alerts when investigation runs. */
@@ -306,6 +314,15 @@ async function runInvestigation(opts: {
  * Returns suppressed:true when another incident already holds the repo lock.
  */
 export async function handleDeployFailure(input: DeployFailureInput): Promise<DeployFailureResult> {
+  if (!isRailwayIncidentHandlerEnabled()) {
+    log.info('incident handler disabled — skipping auto-investigation', {
+      source: input.source,
+      project: input.project,
+      service: input.service,
+    });
+    return { handled: false, suppressed: false, reason: 'handler_disabled' };
+  }
+
   const target = resolveDeployTarget({
     project: input.project,
     service: input.service,
