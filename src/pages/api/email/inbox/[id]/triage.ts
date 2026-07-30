@@ -4,14 +4,14 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../lib/emailInboxStore';
+import { storeGetEmailInbox, storeUpdateEmailInbox } from '../../../../../lib/emailInboxStore';
 import {
   createEmailRuleFromTriageFeedback,
   type EmailTriageFeedbackAction,
-} from '../../../../lib/emailTriage';
-import { isPendingReviewNotification } from '../../../../lib/emailAutomation';
-import { dismissEmailRelatedNotifications } from '../../../../lib/emailNotificationSync';
-import { requireDashboardUser } from '../../../../lib/dashboardAuth';
+} from '../../../../../lib/emailTriage';
+import { isPendingReviewNotification } from '../../../../../lib/emailAutomation';
+import { dismissEmailRelatedNotifications } from '../../../../../lib/emailNotificationSync';
+import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
