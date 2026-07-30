@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
 import type { ChatDocAttachment, ChatImageAttachment } from './chatTypes';
 import { isSafeWorkSlug, workDir } from './workStore';
 import { serverEnv } from './serverEnv';
@@ -122,33 +123,10 @@ ALTER TABLE project_files ADD CONSTRAINT project_files_source_check
   CHECK (source IN ('chat', 'admin', 'agent', 'email', 'client'));
 `;
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
 
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool.query(SCHEMA_SQL).then(() => undefined).catch((e) => {

@@ -3,8 +3,8 @@
  */
 
 import { deleteContact, getContact } from './contactApi';
-import { isCraterConfigured, craterListEstimates, craterListInvoices, craterSearchCustomers, matchCraterCustomer, buildBillingCountsByCustomerName } from './craterClient';
-import { storeDeleteWork, storeListWork } from './workStore';
+import { isCraterConfigured, craterListEstimates, craterListInvoices, craterSearchCustomers, matchCraterCustomer } from './craterClient';
+import { storeDeleteWorkByClientUid, storeListWork } from './workStore';
 
 export type LinkedProject = { slug: string; title: string };
 
@@ -46,23 +46,20 @@ export async function getContactDeleteBlockers(
   let estimate_count = 0;
   if (isCraterConfigured()) {
     const lookup = (contact.data.email ?? '').trim() || contact.data.name;
-    const [invRes, estRes, custRes] = await Promise.all([
-      craterListInvoices(),
-      craterListEstimates(),
-      craterSearchCustomers(lookup),
-    ]);
-
-    const billingCounts = buildBillingCountsByCustomerName(
-      invRes.ok ? (invRes.data.invoices ?? []) : [],
-      estRes.ok ? (estRes.data.estimates ?? []) : [],
-    );
-
+    const custRes = await craterSearchCustomers(lookup);
     const customer = custRes.ok ? matchCraterCustomer(contact.data, custRes.data.customers ?? []) : undefined;
     if (customer) {
-      const counts = billingCounts.get(customer.name.trim().toLowerCase());
-      if (counts) {
-        invoice_count = counts.invoices.outstanding + counts.invoices.paid;
-        estimate_count = counts.estimates.total;
+      const nameKey = customer.name.trim().toLowerCase();
+      const [invRes, estRes] = await Promise.all([craterListInvoices(), craterListEstimates()]);
+      if (invRes.ok) {
+        invoice_count = (invRes.data.invoices ?? []).filter(
+          (inv) => (inv.customer_name ?? '').trim().toLowerCase() === nameKey,
+        ).length;
+      }
+      if (estRes.ok) {
+        estimate_count = (estRes.data.estimates ?? []).filter(
+          (est) => (est.customer_name ?? '').trim().toLowerCase() === nameKey,
+        ).length;
       }
     }
   }
@@ -118,8 +115,8 @@ export async function executeContactDelete(
   }
 
   let deleted_projects = 0;
-  for (const project of projects) {
-    if (await storeDeleteWork(project.slug)) deleted_projects++;
+  if (projects.length > 0) {
+    deleted_projects = await storeDeleteWorkByClientUid(trimmed);
   }
 
   const permanent = opts.permanent ?? !!opts.force;

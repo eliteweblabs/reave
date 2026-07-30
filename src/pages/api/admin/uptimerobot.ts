@@ -3,7 +3,7 @@
  * POST /api/admin/uptimerobot — sync monitors from UptimeRobot API
  */
 import type { APIContext } from 'astro';
-import { requireDeploymentOwner } from '../../../lib/deploymentOwner';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
 import { isUptimeRobotConfigured } from '../../../lib/uptimerobotClient';
 import { isUptimeDbConfigured } from '../../../lib/pgUptime';
@@ -19,8 +19,8 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   return json({
     ok: true,
@@ -33,7 +33,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = await requireDeploymentOwner(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   if (!hasFeature('uptime_monitoring')) {

@@ -16,6 +16,7 @@ import {
 } from '../../../../../lib/social/oauth.ts';
 import { setSocialToken } from '../../../../../lib/social/tokenStore.ts';
 import { OAUTH_STATE_COOKIE } from '../connect/[platform].ts';
+import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -27,8 +28,9 @@ function adminRedirect(context: APIContext, params: Record<string, string>): Res
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return new Response('Unauthorized', { status: 401 });
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const platform = context.params.platform?.trim() ?? '';
   if (!isSocialPlatform(platform)) {

@@ -4,6 +4,7 @@
  * PUT  — replace full list { industries: [{ slug?, label, enabled?, sortOrder? }] }
  */
 import type { APIContext } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   deckIndustriesStorageBackend,
   listDeckIndustries,
@@ -21,8 +22,9 @@ function json(data: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const industries = await listDeckIndustries();
   return json({
@@ -33,8 +35,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PUT(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: unknown;
   try {

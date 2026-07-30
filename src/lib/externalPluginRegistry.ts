@@ -14,6 +14,7 @@
  */
 
 import pg from 'pg';
+import { getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 
 // ─── Manifest Types ──────────────────────────────────────────────────────────
@@ -93,22 +94,10 @@ CREATE INDEX IF NOT EXISTS idx_external_plugins_enabled   ON external_plugins(en
 
 // ─── Pool ─────────────────────────────────────────────────────────────────────
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
 
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = serverEnv('DATABASE_URL')?.trim();
-  if (!url) { _pool = null; return null; }
-  const ssl = /sslmode=(require|verify-full|verify-ca)/i.test(url)
-    ? { rejectUnauthorized: false }
-    : undefined;
-  _pool = new pg.Pool({ connectionString: url, ssl, max: 3 });
-  return _pool;
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool.query(SCHEMA_SQL).then(() => undefined).catch((e) => {

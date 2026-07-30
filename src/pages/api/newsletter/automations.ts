@@ -7,6 +7,7 @@ import { NEWSLETTER_AUTOMATIONS, getAutomationDef, mergeAutomation } from '../..
 import { getAutomationOverrides, setAutomationOverride } from '../../../lib/newsletterStore';
 import { ensureNewsletterScheduler } from '../../../lib/newsletterScheduler';
 import { isNewsletterEnabled } from '../../../lib/newsletterEngine';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -18,8 +19,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   ensureNewsletterScheduler();
   const overrides = await getAutomationOverrides();
@@ -28,8 +30,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: Record<string, unknown>;
   try {

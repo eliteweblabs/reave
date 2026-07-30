@@ -20,6 +20,7 @@ import {
   storeWriteWork,
 } from '../../../../../lib/workStore';
 import { parseWorkJobInput } from '../../../../../lib/workJobInput';
+import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -74,8 +75,9 @@ async function writeMergedBody(
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const id = context.params.id?.trim();
   if (!id) return json({ ok: false, error: 'Missing id' }, 400);

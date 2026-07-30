@@ -8,6 +8,7 @@ import { buildReplyEmailHeaders } from '../../../lib/emailReply';
 import { brandedPlainTextEmail } from '../../../lib/inboundEmailReply';
 import { logOutboundEmailForProject } from '../../../lib/logOutboundEmailForProject';
 import { isEmailSendConfigured, sendEmail } from '../../../lib/outbound';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -19,8 +20,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!isEmailSendConfigured()) {
     return json({ ok: false, error: 'Outbound email is not configured (RESEND_API_KEY)' }, 503);

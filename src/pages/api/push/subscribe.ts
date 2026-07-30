@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { isPushConfigured } from '../../../lib/webPush';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   savePushSubscription,
   removePushSubscriptionByEndpoint,
@@ -20,8 +21,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const dashAuth = await requireDashboardUser(context);
+  if (dashAuth instanceof Response) return dashAuth;
+  const { userId } = dashAuth;
   if (!isPushConfigured()) return json({ ok: false, error: 'Push not configured' }, 503);
 
   let body: unknown;
@@ -46,8 +48,9 @@ export async function POST(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: unknown;
   try {

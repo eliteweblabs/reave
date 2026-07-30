@@ -8,6 +8,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import type { EmailCategory } from './emailProcessor';
 import { normalizeMessageId } from './emailReply';
@@ -180,6 +181,7 @@ const INDEX_SQL = [
   `CREATE INDEX IF NOT EXISTS email_inbox_received_idx ON email_inbox (received_at DESC)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_category_idx ON email_inbox (category)`,
   `CREATE INDEX IF NOT EXISTS email_inbox_job_slug_idx ON email_inbox (job_slug) WHERE job_slug IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS email_inbox_message_id_idx ON email_inbox (message_id) WHERE message_id <> ''`,
 ];
 
 const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet, status, action, notified,
@@ -190,33 +192,10 @@ const INBOX_LIST_SELECT = `id, received_at, from_address, subject, body_snippet,
 const INBOX_SELECT = `${INBOX_LIST_SELECT}, body_text, body_html, to_addrs, cc_addrs, bcc_addrs, reply_to_addrs,
               headers_json, message_id, resend_email_id`;
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
 
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = (async () => {
@@ -447,17 +426,76 @@ export function isEmailInboxActive(
 }
 
 export function computeInboxDigest(events: EmailInboxRecord[], hideJunk: boolean): EmailInboxDigest {
-  const junkHidden = events.filter((e) => e.category === 'junk').length;
-  const visibleEvents = hideJunk ? events.filter((e) => e.category !== 'junk') : events;
-  return {
-    total: events.length,
-    visible: visibleEvents.length,
-    junkHidden,
-    client: events.filter((e) => e.category === 'client').length,
-    filed: events.filter((e) => e.action === 'filed').length,
-    review: events.filter((e) => e.category === 'review').length,
-    alert: events.filter((e) => e.category === 'alert').length,
-  };
+  let total = 0;
+  let visible = 0;
+  let junkHidden = 0;
+  let client = 0;
+  let filed = 0;
+  let review = 0;
+  let alert = 0;
+  for (const e of events) {
+    total++;
+    if (e.category === 'junk') {
+      junkHidden++;
+      if (hideJunk) continue;
+    }
+    visible++;
+    if (e.category === 'client') client++;
+    else if (e.category === 'review') review++;
+    else if (e.category === 'alert') alert++;
+    if (e.action === 'filed') filed++;
+  }
+  return { total, visible, junkHidden, client, filed, review, alert };
+}
+
+async function digestFromPg(hideJunk: boolean): Promise<EmailInboxDigest | null> {
+  try {
+    const pool = await ensureSchema();
+    if (!pool) return null;
+    const { rows } = await pool.query<{
+      total: string;
+      visible: string;
+      junk_hidden: string;
+      client: string;
+      filed: string;
+      review: string;
+      alert: string;
+    }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE category <> 'junk')::text AS visible,
+         COUNT(*) FILTER (WHERE category = 'junk')::text AS junk_hidden,
+         COUNT(*) FILTER (WHERE category = 'client')::text AS client,
+         COUNT(*) FILTER (WHERE action = 'filed')::text AS filed,
+         COUNT(*) FILTER (WHERE category = 'review')::text AS review,
+         COUNT(*) FILTER (WHERE category = 'alert')::text AS alert
+       FROM email_inbox`,
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const digest: EmailInboxDigest = {
+      total: Number(row.total),
+      visible: Number(row.visible),
+      junkHidden: Number(row.junk_hidden),
+      client: Number(row.client),
+      filed: Number(row.filed),
+      review: Number(row.review),
+      alert: Number(row.alert),
+    };
+    if (!hideJunk) digest.visible = digest.total;
+    return digest;
+  } catch (e) {
+    console.error('[email-inbox] pg digest failed', e);
+    return null;
+  }
+}
+
+/** SQL-backed inbox counts — avoids loading thousands of rows for dashboard totals. */
+export async function storeEmailInboxDigest(hideJunk = true): Promise<EmailInboxDigest> {
+  const fromPg = await digestFromPg(hideJunk);
+  if (fromPg) return fromPg;
+  const events = await listFromFile(10_000, false);
+  return computeInboxDigest(events, hideJunk);
 }
 
 async function listFromFile(limit: number, hideJunk: boolean): Promise<EmailInboxRecord[]> {

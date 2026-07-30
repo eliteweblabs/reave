@@ -6,6 +6,7 @@
 import type { APIContext } from 'astro';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
 import { resolvePlacesLocationBias } from '../../../lib/placesLocationBias';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -28,8 +29,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   try {
     const url = new URL(context.request.url);

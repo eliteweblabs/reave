@@ -8,6 +8,7 @@ import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeU
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -32,8 +33,9 @@ async function enrichThreadsWithLinks(
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const archivedOnly = context.url.searchParams.get('archived') === '1';
   const threads = await storeListChatThreads(userId, { archivedOnly });
@@ -49,8 +51,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   let body: Record<string, unknown> = {};
   try {

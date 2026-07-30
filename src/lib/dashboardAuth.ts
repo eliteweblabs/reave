@@ -1,16 +1,13 @@
 import type { APIContext } from 'astro';
+import { requireDeploymentOwner } from './deploymentOwner';
 
-function unauthorized(): Response {
-  return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-    status: 401,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-}
-
-/** Require a signed-in Clerk user for dashboard API routes. */
-export function requireDashboardUser(context: APIContext): { userId: string } | Response {
-  const auth = context.locals.auth?.();
-  const userId = auth?.userId;
-  if (!userId) return unauthorized();
-  return { userId };
+/**
+ * Require the deployment owner for dashboard API routes.
+ * Delegates to requireDeploymentOwner so only the install owner (ADMIN_USERNAME /
+ * AGENT_ALERT_USER_ID) can access admin data and actions.
+ */
+export async function requireDashboardUser(
+  context: APIContext,
+): Promise<{ userId: string } | Response> {
+  return requireDeploymentOwner(context);
 }

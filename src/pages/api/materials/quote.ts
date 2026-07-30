@@ -1,4 +1,5 @@
 import type { APIContext } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   isMaterialsApiConfigured,
   materialsQuote,
@@ -15,8 +16,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isMaterialsApiConfigured()) {
     return json({ ok: false, error: 'MATERIALS_API_BASE_URL is not configured' }, 503);
   }

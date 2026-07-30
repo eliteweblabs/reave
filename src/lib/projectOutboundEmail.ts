@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import { getPgPool } from './pgPool';
 import { parseSenderEmail } from './emailAddress';
 import { serverEnv } from './serverEnv';
 
@@ -63,33 +64,10 @@ CREATE INDEX IF NOT EXISTS project_outbound_emails_job_idx
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FILE_PATH = join(__dirname, '..', 'knowledge', 'project-outbound-emails.json');
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
 
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool

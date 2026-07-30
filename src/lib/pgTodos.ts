@@ -3,6 +3,7 @@
  */
 
 import pg from 'pg';
+import { databaseUrl, getPgPool } from './pgPool';
 import { serverEnv } from './serverEnv';
 import { readMarkdownTodoSections } from './markdownTodoFiles';
 
@@ -59,33 +60,10 @@ ALTER TABLE todos ALTER COLUMN due_date TYPE TIMESTAMPTZ USING (
 CREATE INDEX IF NOT EXISTS idx_todos_sort_order ON todos (status, sort_order ASC, updated_at DESC);
 `;
 
-let _pool: pg.Pool | null | undefined = undefined;
 let _schemaReady: Promise<void> | null = null;
 
-function databaseUrl(): string | undefined {
-  return serverEnv('DATABASE_URL')?.trim() || undefined;
-}
-
-function poolSsl(url: string): pg.ConnectionConfig['ssl'] {
-  if (/sslmode=(require|verify-full|verify-ca)/i.test(url)) {
-    return { rejectUnauthorized: false };
-  }
-  return undefined;
-}
-
-function getPool(): pg.Pool | null {
-  if (_pool !== undefined) return _pool;
-  const url = databaseUrl();
-  if (!url) {
-    _pool = null;
-    return null;
-  }
-  _pool = new pg.Pool({ connectionString: url, ssl: poolSsl(url), max: 5 });
-  return _pool;
-}
-
 async function ensureSchema(): Promise<pg.Pool | null> {
-  const pool = getPool();
+  const pool = getPgPool();
   if (!pool) return null;
   if (!_schemaReady) {
     _schemaReady = pool

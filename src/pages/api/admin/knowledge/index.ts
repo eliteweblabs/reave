@@ -24,7 +24,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const entries = await storeListKnowledge();
@@ -43,7 +43,7 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const url = new URL(context.request.url);

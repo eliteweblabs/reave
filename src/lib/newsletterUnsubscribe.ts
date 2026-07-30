@@ -7,12 +7,12 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { serverEnv } from './serverEnv';
 
-function secret(): string {
+function secret(): string | undefined {
   return (
     serverEnv('NEWSLETTER_UNSUB_SECRET') ||
     serverEnv('RESEND_WEBHOOK_SECRET') ||
     serverEnv('CLERK_SECRET_KEY') ||
-    'reave-newsletter-unsub'
+    undefined
   );
 }
 
@@ -30,13 +30,17 @@ function b64urlDecode(input: string): string {
   return Buffer.from(normalized, 'base64').toString('utf8');
 }
 
-function sign(email: string): string {
-  return createHmac('sha256', secret()).update(email.toLowerCase().trim()).digest('hex');
+function sign(email: string): string | null {
+  const key = secret();
+  if (!key) return null;
+  return createHmac('sha256', key).update(email.toLowerCase().trim()).digest('hex');
 }
 
-export function makeUnsubscribeToken(email: string): string {
+export function makeUnsubscribeToken(email: string): string | null {
   const normalized = email.toLowerCase().trim();
-  return `${b64urlEncode(normalized)}.${sign(normalized)}`;
+  const sig = sign(normalized);
+  if (!sig) return null;
+  return `${b64urlEncode(normalized)}.${sig}`;
 }
 
 export function verifyUnsubscribeToken(token: string): string | null {
@@ -53,6 +57,7 @@ export function verifyUnsubscribeToken(token: string): string | null {
   }
   if (!email.includes('@')) return null;
   const expected = sign(email);
+  if (!expected) return null;
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   if (a.length !== b.length) return null;

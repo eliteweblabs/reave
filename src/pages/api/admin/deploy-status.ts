@@ -3,6 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   deployIndicatorTone,
   deployTooltip,
@@ -20,8 +21,9 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const deploy = await getDeployStatus().catch(() => null);
   if (!deploy) {

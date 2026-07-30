@@ -5,6 +5,7 @@ import {
   setClientPortalLogo,
 } from '../../../../lib/clientBranding';
 import { isLogoUploadMediaType, LOGO_UPLOAD_MAX_BYTES } from '../../../../lib/companyLogo';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -38,8 +39,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ error: 'Not found' }, 404);
@@ -75,8 +77,9 @@ export async function POST(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ error: 'Not found' }, 404);

@@ -17,7 +17,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   let body: Record<string, unknown>;

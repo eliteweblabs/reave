@@ -8,6 +8,7 @@ import { listContacts, isContactApiConfigured } from '../../../lib/contactApi';
 import {
   computeInboxDigest,
   isEmailInboxActive,
+  storeEmailInboxDigest,
   storeListEmailInbox,
 } from '../../../lib/emailInboxStore';
 import { countReviewNotifications, listReviewNotifications } from '../../../lib/emailAutomation';
@@ -39,6 +40,7 @@ import { ensureUptimePollScheduler } from '../../../lib/uptimePollScheduler';
 import { enrichUptimeMonitorView } from '../../../lib/uptimerobotClient';
 import { hasFeature } from '../../../lib/features';
 import { craterBillingDashboardStats, isCraterConfigured, type BillingDashboardStats } from '../../../lib/craterClient';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -98,21 +100,22 @@ async function loadUpcomingTodos(limit = 24): Promise<DashboardUpcomingTodo[]> {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   await syncRecentUptimeIncidentsToPushAlerts().catch(() => undefined);
 
-  const [events, inboxForCount, jobs, threads, deploy] = await Promise.all([
+  const [events, inboxDigest, jobs, threads, deploy] = await Promise.all([
     storeListEmailInbox(100, { hideJunk: true }),
-    storeListEmailInbox(10_000, { hideJunk: true, forDigest: true }),
+    storeEmailInboxDigest(true),
     storeListWork(),
     storeListChatThreads(userId, { archivedOnly: false }),
     getDeployStatus().catch(() => null),
   ]);
 
   const digest = computeInboxDigest(events, true);
-  const emailsTotal = computeInboxDigest(inboxForCount, true).visible;
+  const emailsTotal = inboxDigest.visible;
   const projectsTotal = jobs.length;
   const [
     emailNotifications,

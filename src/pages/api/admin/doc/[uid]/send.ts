@@ -2,6 +2,7 @@ import type { APIContext } from 'astro';
 import { getContact, siteBaseUrl } from '../../../../../lib/contactApi';
 import { getTemplate } from '../../../../../lib/documentTemplates';
 import { deliverShare } from '../../../../../lib/shareDelivery';
+import { requireDashboardUser } from '../../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -18,8 +19,9 @@ function json(body: unknown, status = 200): Response {
  * Sends the client their signing link for the given template over the channel.
  */
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   const uid = context.params.uid ?? '';
   if (!uid) return json({ ok: false, error: 'Missing contact id' }, 400);

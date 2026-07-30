@@ -4,6 +4,7 @@
 import type { APIRoute } from 'astro';
 import { geocodeAddress } from '../../../lib/mapbox';
 import { getMapboxAccessToken } from '../../../lib/mapboxAccessToken';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -14,9 +15,10 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export const GET: APIRoute = async ({ url, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!getMapboxAccessToken()) {
     return json(

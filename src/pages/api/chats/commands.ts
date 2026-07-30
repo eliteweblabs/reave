@@ -3,17 +3,13 @@
  */
 import type { APIContext } from 'astro';
 import { listEnabledHelperCommands } from '../../../lib/agentHelperCommands.server';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) {
-    return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const commands = listEnabledHelperCommands().map((cmd) => ({
     slash: cmd.slash,

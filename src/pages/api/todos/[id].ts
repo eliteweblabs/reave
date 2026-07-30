@@ -5,6 +5,7 @@
  */
 
 import type { APIContext } from 'astro';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
   isTodoDbConfigured,
   normalizeTodoPriority,
@@ -30,8 +31,9 @@ function parseId(raw: string | undefined): number | null {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);
@@ -43,8 +45,9 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);
@@ -115,8 +118,9 @@ export async function PATCH(context: APIContext): Promise<Response> {
 }
 
 export async function DELETE(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
   if (!isTodoDbConfigured()) return json({ ok: false, error: 'To-do DB not configured' }, 503);
 
   const id = parseId(context.params.id);

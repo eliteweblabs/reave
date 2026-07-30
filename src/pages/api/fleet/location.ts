@@ -4,6 +4,7 @@
 import type { APIRoute } from 'astro';
 import { hasFeature } from '../../../lib/features';
 import { fleetRecordLocation, isFleetApiConfigured } from '../../../lib/fleetClient';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -15,8 +16,9 @@ function json(data: unknown, status = 200): Response {
 }
 
 export const POST: APIRoute = async ({ locals, request }) => {
-  const { userId } = locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   if (!hasFeature('fleet_tracking')) {
     return json({ ok: false, error: 'fleet_tracking not enabled' }, 404);

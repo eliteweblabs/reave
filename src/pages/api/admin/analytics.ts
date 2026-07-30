@@ -7,6 +7,7 @@
 import type { APIContext } from 'astro';
 import { buildAnalyticsDashboard } from '../../../lib/analyticsDashboard';
 import { getCompanyConfig } from '../../../lib/companyConfig';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -24,8 +25,9 @@ function parseRange(raw: string | null): number {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+  const { userId } = auth;
 
   try {
     const url = new URL(context.request.url);
