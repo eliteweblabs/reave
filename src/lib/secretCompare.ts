@@ -35,3 +35,10 @@ export function verifySecret(incoming: string | null | undefined, expected: stri
   if (!incoming || !expected) return false;
   return safeCompare(incoming, expected);
 }
+
+/** Alias used across webhook/auth routes — trims whitespace before comparing. */
+export function secretMatches(provided: string | null | undefined, expected: string | null | undefined): boolean {
+  const a = typeof provided === 'string' ? provided.trim() : provided;
+  const b = typeof expected === 'string' ? expected.trim() : expected;
+  return verifySecret(a, b);
+}

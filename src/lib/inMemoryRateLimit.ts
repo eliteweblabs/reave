@@ -52,6 +52,21 @@ export function checkRateLimit(
   return { allowed: true };
 }
 
+/** Legacy API used by portal assistant and form submit routes. */
+export function checkInMemoryRateLimit(
+  key: string,
+  opts?: { windowMs?: number; maxPerWindow?: number },
+): { ok: true } | { ok: false; retryAfterSeconds: number } {
+  const windowMs = opts?.windowMs ?? 10 * 60 * 1000;
+  const maxPerWindow = opts?.maxPerWindow ?? 30;
+  const result = checkRateLimit(key, maxPerWindow, windowMs);
+  if (result.allowed) return { ok: true };
+  return {
+    ok: false,
+    retryAfterSeconds: Math.max(1, Math.ceil(result.retryAfterMs / 1000)),
+  };
+}
+
 /**
  * Reset the rate-limit counter for a key (e.g. after a successful auth).
  */
