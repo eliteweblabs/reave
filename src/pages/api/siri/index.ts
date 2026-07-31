@@ -599,6 +599,7 @@ async function runProposalResearch(input: {
   ].join('\n');
 
   const userId = agentAlertUserId();
+  const researchStartedAt = Date.now();
 
   let reply: string;
   try {
@@ -611,14 +612,11 @@ async function runProposalResearch(input: {
     log.error('runKnowledgeAgent threw', e instanceof Error ? e : new Error(String(e)));
   }
 
-  const slugMatch = reply.match(/Project:\s*([a-z0-9._-]+)/i);
-  const slug = slugMatch?.[1]?.trim();
-
   await notifyAdminAgentOfSiriProposalComplete({
     label: input.label,
     reply,
-    jobSlug: slug,
     tier: input.tier,
+    researchStartedAt,
   }).catch((e) => log.warn('proposal notify failed', e instanceof Error ? e : new Error(String(e))));
 }
 

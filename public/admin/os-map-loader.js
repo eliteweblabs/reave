@@ -3477,9 +3477,102 @@ function appendReviewAlertAction(actions, { label, primary, onClick }) {
   return btn;
 }
 
-function openReviewNotificationTarget(item) {
-  if (item.type === 'push_alert' && item.url) {
-    handleNotificationOpen(item.url);
+function workSlugFromPushAlertUrl(url) {
+  if (!url) return null;
+  try {
+    const slug = new URL(url, window.location.origin).searchParams.get('slug')?.trim();
+    return slug || null;
+  } catch {
+    return null;
+  }
+}
+
+function workSlugFromSiriProposalTag(tag) {
+  const prefix = 'siri-proposal-';
+  const raw = String(tag || '');
+  if (!raw.toLowerCase().startsWith(prefix)) return null;
+  const slug = raw.slice(prefix.length).trim().toLowerCase();
+  return /^[a-z0-9._-]+$/.test(slug) ? slug : null;
+}
+
+function auditLabelFromPushAlertTitle(title) {
+  const match = String(title || '')
+    .trim()
+    .match(/^(?:Full )?audit ready:\s*(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+function matchWorkSlugByAuditLabel(jobs, label) {
+  if (!label || !Array.isArray(jobs) || !jobs.length) return null;
+  const labelLower = label.toLowerCase();
+  const keywords = labelLower
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 6);
+
+  let best = null;
+  let bestScore = 0;
+  for (const job of jobs) {
+    const hay = `${job.title || ''} ${job.slug || ''} ${job.client || ''} ${job.contact_name || ''}`.toLowerCase();
+    const score = keywords.filter((w) => hay.includes(w)).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = job.slug;
+    }
+  }
+  if (best && bestScore >= Math.min(2, keywords.length)) return best;
+  if (keywords.length === 1) {
+    for (const job of jobs) {
+      const hay = `${job.title || ''} ${job.slug || ''}`.toLowerCase();
+      if (hay.includes(keywords[0])) return job.slug;
+    }
+  }
+  return null;
+}
+
+async function resolveAuditPushAlertWorkSlug(item) {
+  const fromUrl = workSlugFromPushAlertUrl(item.url);
+  if (fromUrl) return fromUrl;
+
+  const fromTag = workSlugFromSiriProposalTag(item.tag);
+  if (fromTag) return fromTag;
+
+  const label = auditLabelFromPushAlertTitle(item.title);
+  if (!label) return null;
+
+  let jobs = workState.jobs || [];
+  if (!jobs.length) {
+    try {
+      const res = await adminFetch('/api/work');
+      const data = await readAdminJson(res, 'Projects');
+      if (res.ok) jobs = data.jobs || [];
+    } catch {
+      return null;
+    }
+  }
+
+  return matchWorkSlugByAuditLabel(jobs, label);
+}
+
+async function openReviewNotificationTarget(item) {
+  if (item.type === 'push_alert') {
+    if (isAuditPushAlert(item)) {
+      const slug = await resolveAuditPushAlertWorkSlug(item);
+      if (slug) {
+        navigateToWork(slug);
+        return;
+      }
+    }
+    const slug = workSlugFromPushAlertUrl(item.url);
+    if (slug) {
+      navigateToWork(slug);
+      return;
+    }
+    if (item.url) {
+      handleNotificationOpen(item.url);
+      return;
+    }
     return;
   }
   if (

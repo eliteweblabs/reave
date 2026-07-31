@@ -8,6 +8,7 @@ import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
 import { hasFeature } from './features';
 import { createLogger } from './logger';
+import { isSafeWorkSlug, storeListWork } from './workStore';
 
 const log = createLogger('admin-agent');
 
@@ -33,16 +34,87 @@ export function shouldAgentAlertForInboundEmail(opts: {
   return true;
 }
 
+/** Parse `Project: <slug>` from an agent audit reply (backticks / markdown tolerated). */
+export function extractWorkSlugFromAgentReply(reply: string): string | null {
+  const trimmed = reply.trim();
+  if (!trimmed) return null;
+
+  const patterns = [
+    /Project:\s*`([a-z0-9._-]+)`/i,
+    /Project:\s*([a-z0-9._-]+)/i,
+  ];
+  for (const re of patterns) {
+    const match = trimmed.match(re);
+    const slug = match?.[1]?.trim().toLowerCase();
+    if (slug && isSafeWorkSlug(slug)) return slug;
+  }
+  return null;
+}
+
+/** Resolve the work slug filed during a Siri audit when the reply line is missing or malformed. */
+export async function resolveSiriProposalWorkSlug(opts: {
+  reply: string;
+  label: string;
+  jobSlug?: string | null;
+  researchStartedAt?: number;
+}): Promise<string | null> {
+  const explicit = opts.jobSlug?.trim().toLowerCase();
+  if (explicit && isSafeWorkSlug(explicit)) return explicit;
+
+  const fromReply = extractWorkSlugFromAgentReply(opts.reply);
+  if (fromReply) return fromReply;
+
+  const label = opts.label.trim();
+  if (!label) return null;
+
+  const sinceMs = Math.max(0, (opts.researchStartedAt ?? Date.now()) - 5000);
+  const jobs = await storeListWork();
+  const labelLower = label.toLowerCase();
+  const keywords = labelLower
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 6);
+
+  const recent = jobs
+    .filter((j) => new Date(j.updated).getTime() >= sinceMs)
+    .sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
+
+  if (!recent.length) return null;
+  if (recent.length === 1) return recent[0].slug;
+
+  for (const job of recent) {
+    const hay = `${job.title} ${job.slug} ${job.client} ${job.contact_name}`.toLowerCase();
+    const hits = keywords.filter((w) => hay.includes(w)).length;
+    if (hits >= Math.min(2, keywords.length)) return job.slug;
+  }
+
+  if (keywords.length) {
+    for (const job of recent) {
+      const hay = `${job.title} ${job.slug}`.toLowerCase();
+      if (keywords.some((w) => hay.includes(w))) return job.slug;
+    }
+  }
+
+  return recent[0]?.slug ?? null;
+}
+
 /** Fire-and-forget — Siri audit/proposal finished (client + audit project filed). */
 export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   label: string;
   reply: string;
   jobSlug?: string | null;
   tier?: 'quick' | 'full';
+  researchStartedAt?: number;
 }): Promise<void> {
   if (!agentAlertUserId()) return;
 
-  const slug = opts.jobSlug?.trim();
+  const slug = await resolveSiriProposalWorkSlug({
+    reply: opts.reply,
+    label: opts.label,
+    jobSlug: opts.jobSlug,
+    researchStartedAt: opts.researchStartedAt,
+  });
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
   const summary = extractProposalSummary(opts.reply, slug);
   const titlePrefix = opts.tier === 'full' ? 'Full audit ready' : 'Audit ready';
