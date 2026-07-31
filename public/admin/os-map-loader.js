@@ -3779,6 +3779,25 @@ function notificationTriageDialogHtml(item) {
   );
 }
 
+function dismissSimilarNotificationsAfterTriage(alsoResolved) {
+  if (!Array.isArray(alsoResolved) || !alsoResolved.length) return;
+  let nonEmailRemoved = 0;
+  for (const r of alsoResolved) {
+    if (r.emailId) {
+      removeEmailRelatedAlertBanners(r.emailId);
+    } else if (r.alertId) {
+      if (removeReviewAlertBanner(null, null, null, r.alertId)) nonEmailRemoved += 1;
+    } else if (r.engagementId) {
+      if (removeReviewAlertBanner(null, null, r.engagementId)) nonEmailRemoved += 1;
+    } else if (r.commentId) {
+      if (removeReviewAlertBanner(null, r.commentId)) nonEmailRemoved += 1;
+    }
+  }
+  if (nonEmailRemoved > 0) {
+    syncReviewBadge(Math.max(0, reviewsPendingCount - nonEmailRemoved));
+  }
+}
+
 function dismissNotificationAfterTriage(item, data) {
   const emailId = String(data?.emailId || resolveNotificationEmailId(item) || item?.emailId || '').trim();
   if (data?.event && emailId) {
@@ -3800,6 +3819,7 @@ function dismissNotificationAfterTriage(item, data) {
     removeReviewAlertBanner(item.emailId);
     syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
   }
+  dismissSimilarNotificationsAfterTriage(data?.alsoResolved);
   if (emailId && emailState.activeId === emailId) renderEmailPanel();
 }
 

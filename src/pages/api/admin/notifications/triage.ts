@@ -87,6 +87,7 @@ export async function POST(context: APIContext): Promise<Response> {
     emailId: result.emailId,
     ruleId: result.ruleId,
     knowledgeSlug: result.knowledgeSlug,
+    alsoResolved: result.alsoResolved,
     ...(event
       ? {
           event: {

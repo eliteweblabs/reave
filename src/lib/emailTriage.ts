@@ -30,7 +30,7 @@ export function isEmailAwaitingTriage(
   return pendingReview && !record.automationTriageAt && !record.automationAckAt;
 }
 
-function extractPhrases(record: Pick<EmailInboxRecord, 'subject' | 'summary' | 'status'>): string[] {
+export function extractPhrases(record: Pick<EmailInboxRecord, 'subject' | 'summary' | 'status'>): string[] {
   const blob = [record.subject, record.summary].filter(Boolean).join(' ');
   const words = blob
     .toLowerCase()
