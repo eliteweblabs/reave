@@ -78,7 +78,9 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     tabindex={homepageLogoReveal ? -1 : undefined}
   >
     {homepageLogoReveal ? (
-      <HeaderLogoAnimated />
+      <span class="app-header-logo-clip" aria-hidden="true">
+        <HeaderLogoAnimated />
+      </span>
     ) : (
       <span class="app-header-logo-mark brand-img logo-img" aria-hidden="true"></span>
     )}
@@ -427,12 +429,24 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
   .app-header--homepage-logo-reveal .app-header-logo--hero-hidden {
     pointer-events: none;
-    overflow: hidden;
-    height: var(--app-header-logo-h);
   }
 
   .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo--hero-hidden {
     pointer-events: auto;
+  }
+
+  /*
+   * Dedicated clip layer — iOS Safari often fails to clip transformed SVG
+   * descendants on the link alone; an inner wrapper with contain:paint fixes it.
+   */
+  .app-header-logo-clip {
+    display: block;
+    overflow: hidden;
+    height: var(--app-header-logo-h);
+    width: calc(var(--app-header-logo-h) * (1014 / 329));
+    transform: translateZ(0);
+    contain: paint;
+    isolation: isolate;
   }
 
   .app-header-logo-svg--animated {
@@ -441,37 +455,59 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     width: calc(var(--app-header-logo-h) * (1014 / 329));
     max-width: none;
     pointer-events: none;
-    overflow: visible;
+    overflow: hidden;
   }
 
   /*
    * Per-letter cascade on SVG <g> parts. transform-box: view-box keeps
    * translateY() in CSS pixels (fill-box maps px into tiny path bbox units —
-   * ~10px travel on screen). view-box + overflow clip on the link matches
-   * desktop and mobile WebKit/Chromium.
+   * ~10px travel on screen). Keyframe animations + translate3d are more
+   * reliable than transitions on mobile WebKit.
    */
   .app-header--homepage-logo-reveal .app-header-logo-part {
     transform-box: view-box;
     transform-origin: center top;
-    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
-    transition: transform var(--app-header-logo-part-duration) cubic-bezier(0.22, 1, 0.36, 1);
-    transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
+    transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
     will-change: transform;
   }
 
+  @keyframes app-header-logo-part-in {
+    from {
+      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  @keyframes app-header-logo-part-out {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
+    }
+  }
+
   .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-    transform: translateY(0);
+    animation: app-header-logo-part-in var(--app-header-logo-part-duration)
+      cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
   }
 
   .app-header--homepage-logo-reveal.app-header--logo-hiding .app-header-logo-part {
-    transform: translateY(calc(-1 * var(--app-header-logo-drop)));
-    transition-delay: calc((var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) * var(--app-header-logo-part-stagger));
+    animation: app-header-logo-part-out var(--app-header-logo-part-duration)
+      cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(
+      (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
+        var(--app-header-logo-part-stagger)
+    );
   }
 
   @media (prefers-reduced-motion: reduce) {
     .app-header--homepage-logo-reveal .app-header-logo-part {
-      transition: none;
-      transform: translateY(0);
+      animation: none;
+      transform: translate3d(0, 0, 0);
     }
 
     .app-header--homepage-logo-reveal:not(.app-header--logo-visible) .app-header-logo-part {

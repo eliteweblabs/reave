@@ -10,8 +10,11 @@ export function initHomepageLogoReveal() {
   const partCount = header.querySelectorAll(".app-header-logo-part").length;
   const animMs = 550 + Math.max(0, partCount - 1) * 100;
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
+  let logoVisible = false;
 
   const setVisible = (visible: boolean) => {
+    if (visible === logoVisible) return;
+
     if (hideTimer) {
       clearTimeout(hideTimer);
       hideTimer = null;
@@ -19,9 +22,13 @@ export function initHomepageLogoReveal() {
 
     if (visible) {
       header.classList.remove("app-header--logo-hiding");
+      // Force keyframe animations to re-run when scrolling back down.
+      header.classList.remove("app-header--logo-visible");
+      void header.offsetWidth;
       header.classList.add("app-header--logo-visible");
       logo.setAttribute("aria-hidden", "false");
       logo.removeAttribute("tabindex");
+      logoVisible = true;
       return;
     }
 
@@ -29,6 +36,7 @@ export function initHomepageLogoReveal() {
     header.classList.add("app-header--logo-hiding");
     logo.setAttribute("aria-hidden", "true");
     logo.setAttribute("tabindex", "-1");
+    logoVisible = false;
     hideTimer = setTimeout(() => {
       header.classList.remove("app-header--logo-hiding");
     }, animMs);
@@ -37,25 +45,39 @@ export function initHomepageLogoReveal() {
   // Default to hidden until the observer reports; avoids a flash on first paint.
   let heroInView = true;
 
-  const update = () => {
-    // Match mobile: reveal only once the hero has fully left the viewport.
+  const measureHeroInView = () => {
+    const rect = hero.getBoundingClientRect();
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    return rect.bottom > 0 && rect.top < viewportHeight;
+  };
+
+  const syncHeroInView = () => {
+    const next = measureHeroInView();
+    if (next === heroInView) return;
+    heroInView = next;
     setVisible(!heroInView);
   };
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.target === hero) heroInView = entry.isIntersecting;
-      });
-      update();
-    },
-    {
-      root: null,
-      threshold: 0,
-    },
-  );
+  let scrollTick = 0;
+  const scheduleSync = () => {
+    if (scrollTick) return;
+    scrollTick = window.requestAnimationFrame(() => {
+      scrollTick = 0;
+      syncHeroInView();
+    });
+  };
+
+  const observer = new IntersectionObserver(() => scheduleSync(), {
+    root: null,
+    threshold: 0,
+  });
 
   observer.observe(hero);
+
+  // visualViewport scroll/resize tracks the mobile URL bar; IO alone can lag on iOS.
+  window.addEventListener("scroll", scheduleSync, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleSync, { passive: true });
+  window.visualViewport?.addEventListener("resize", scheduleSync, { passive: true });
 
   // Deep links: `/#about` or `/?section=about`
   const params = new URLSearchParams(location.search);
@@ -63,7 +85,7 @@ export function initHomepageLogoReveal() {
   if (deepLink && deepLink !== "home") {
     setVisible(true);
   } else {
-    update();
+    syncHeroInView();
   }
   return true;
 }
