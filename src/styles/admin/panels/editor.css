@@ -1022,6 +1022,9 @@ button.de-placeholder-action:active {
 #work-editor .re-form-scroll.wk-form-scroll > .wk-client-picker {
   margin-bottom: 0;
 }
+#work-editor .re-form-scroll.wk-form-scroll:has(> .wk-client-picker--readonly) {
+  padding-top: 0;
+}
 #work-editor .re-form-scroll.wk-form-scroll > .wk-client-picker.wk-client-picker--readonly {
   position: sticky;
   top: 0;
@@ -1030,7 +1033,7 @@ button.de-placeholder-action:active {
   margin-right: -1rem;
   padding-left: 1rem;
   padding-right: 1rem;
-  background: var(--card);
+  background: var(--bg);
 }
 #work-editor .de-fields .de-label {
   display: flex;
