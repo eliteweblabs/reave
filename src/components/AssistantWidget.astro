@@ -175,10 +175,12 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   .aw-fab:active { transform: scale(0.93); }
   .aw-root--site .aw-fab:active { transform: translateY(0) scale(0.93); }
   .aw-root--site .aw-fab.is-visible:active { transform: translateY(0) scale(0.93); }
-  .aw-fab[aria-expanded='true'] { z-index: 6001; }
+  .aw-fab[aria-expanded='true'] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
   .aw-fab-icon-close { display: none; }
-  .aw-fab[aria-expanded='true'] .aw-fab-icon-chat { display: none; }
-  .aw-fab[aria-expanded='true'] .aw-fab-icon-close { display: block; }
 
   @media (prefers-reduced-motion: reduce) {
     .aw-root--site .aw-fab {
