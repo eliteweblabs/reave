@@ -84,6 +84,8 @@ const PARTICLE_SPIN_CRUISE = 0.17;
 const PARTICLE_SPIN_MAX = 1.35;
 /** Screen pixels → radians while dragging the cloud (trackball). */
 const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
+/** Mouse / trackpad gain (touch uses full coarse multiplier below). */
+const PARTICLE_FINE_POINTER_GAIN = 0.34;
 
 /**
  * Non-touch "follow the cursor" trackball: a mouse (fine pointer) moving
@@ -91,7 +93,8 @@ const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
  * swipe. Dampened vs. an explicit click-drag so ambient mouse movement
  * doesn't overpower deliberate control.
  */
-const PARTICLE_HOVER_RAD_PER_PX = PARTICLE_TRACKBALL_RAD_PER_PX * 0.6;
+const PARTICLE_HOVER_RAD_PER_PX =
+  PARTICLE_TRACKBALL_RAD_PER_PX * 0.6 * PARTICLE_FINE_POINTER_GAIN;
 /** Hover "stop" detection: no new pointermove within this window hands off
  *  to the normal coast-to-cruise-in-last-direction logic below. */
 const PARTICLE_HOVER_IDLE_MS = 120;
@@ -105,9 +108,9 @@ const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
 const LOGO_AV_DAMP_INNER_AMOUNT = 0.04;
 
-/** Desktop logo width cap (px). Mobile uses 80% of viewport width. */
-const LOGO_MAX_WIDTH_PX = 560;
-const LOGO_MAX_VIEWPORT_FRAC = 0.8;
+/** Desktop logo width cap (px). Mobile uses 40% of viewport width. */
+const LOGO_MAX_WIDTH_PX = 280;
+const LOGO_MAX_VIEWPORT_FRAC = 0.4;
 
 /** After logo resolve, speck particles expand off-screen; app icons stay. */
 const POST_RESOLVE_SCATTER_SEC = 2.4;
@@ -970,7 +973,7 @@ export function attachQuantumCoreOpticalEngine(
     const coarse = isCoarsePointer() || isTouch;
     const radPerPx =
       PARTICLE_TRACKBALL_RAD_PER_PX *
-      (coarse ? 1.35 : 1) *
+      (coarse ? 1.35 : PARTICLE_FINE_POINTER_GAIN) *
       (prefersReduced ? 0.35 : 1);
     cloudDirected = true;
     cloudDragging = true;

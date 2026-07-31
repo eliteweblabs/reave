@@ -72,6 +72,8 @@ let clientState = {
   returnToWorkSlug: null,
   returnToScheduleUid: null,
 };
+const CLIENT_LAST_ACTIVE_KEY = 'clients:lastActiveUid-v1';
+
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
 let clientFieldRegistry = [];
@@ -280,6 +282,8 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
         clientState.autosaveGetPayload = null;
         clientState.returnToWorkSlug = null;
         clientState.returnToScheduleUid = null;
+        clearClientLastActiveUid();
+        syncClientDeepLinkUrl(null);
         getClientsEditor()?.classList.remove('de-pane-active');
       }
       renderClientsEditor();
@@ -302,9 +306,81 @@ async function fetchClientsList() {
   clientState.total = data.total ?? clientState.clients.length;
 }
 
+function readClientLastActiveUid() {
+  try {
+    return localStorage.getItem(CLIENT_LAST_ACTIVE_KEY)?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberClientActiveUid(uid) {
+  if (!uid || uid === '__new__') return;
+  try {
+    localStorage.setItem(CLIENT_LAST_ACTIVE_KEY, uid);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function clearClientLastActiveUid() {
+  try {
+    localStorage.removeItem(CLIENT_LAST_ACTIVE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function syncClientDeepLinkUrl(uid) {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'clients');
+    if (uid && uid !== '__new__') url.searchParams.set('client', uid);
+    else url.searchParams.delete('client');
+    history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {
+    /* ignore */
+  }
+}
+
+function ensureClientMobilePaneOpen() {
+  if (!shell.isMobileTabs() || !clientState.activeUid) return;
+  getClientsEditor()?.classList.add('de-pane-active');
+}
+
+function syncClientsListActiveState() {
+  const root = getClientsEditor();
+  if (!root) return;
+  root.querySelectorAll('.ch-list-item[data-id]').forEach((item) => {
+    item.classList.toggle('active', item.dataset.id === clientState.activeUid);
+  });
+}
+
 async function loadClientsTab(opts = {}) {
   const root = getClientsEditor();
   if (!root) return;
+
+  const pendingDeepLink = opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
+  const canPreserveMounted =
+    root.querySelector('.de-pane') &&
+    clientState.activeUid &&
+    clientState.activeUid !== '__new__' &&
+    !clientState.dirty &&
+    !pendingDeepLink;
+
+  if (canPreserveMounted) {
+    pendingClientDeepLinkUid = null;
+    try {
+      await fetchClientsList();
+    } catch {
+      /* keep current detail view if list refresh fails */
+    }
+    refreshClientsSidebarList();
+    syncClientsListActiveState();
+    ensureClientMobilePaneOpen();
+    return;
+  }
+
   root.innerHTML = '<div class="de-loading">Loading clients…</div>';
   try {
     await fetchClientsList();
@@ -312,19 +388,39 @@ async function loadClientsTab(opts = {}) {
     root.innerHTML = `<div class="de-loading de-error">Failed to load: ${escHtml(e.message)}</div>`;
     return;
   }
-  const deepUid = opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
+
   pendingClientDeepLinkUid = null;
-  if (!deepUid) {
+  let restoreUid = pendingDeepLink || null;
+  if (!restoreUid && clientState.activeUid && clientState.activeUid !== '__new__') {
+    restoreUid = clientState.activeUid;
+  }
+  if (!restoreUid) restoreUid = readClientLastActiveUid();
+
+  if (restoreUid && !clientState.clients.some((c) => c.uid === restoreUid)) {
+    restoreUid = null;
+    clearClientLastActiveUid();
+  }
+
+  if (!restoreUid) {
     clientState.returnToWorkSlug = null;
     clientState.returnToScheduleUid = null;
   }
-  clientState.activeUid = deepUid || null;
+  clientState.activeUid = restoreUid || null;
   clientState.dirty = false;
   clientState.draft = null;
   shell.clearEditorFooterSave();
-  if (!clientState.activeUid) getClientsEditor()?.classList.remove('de-pane-active');
+
+  if (clientState.activeUid) {
+    rememberClientActiveUid(clientState.activeUid);
+    syncClientDeepLinkUrl(clientState.activeUid);
+  } else {
+    clearClientLastActiveUid();
+    syncClientDeepLinkUrl(null);
+    getClientsEditor()?.classList.remove('de-pane-active');
+  }
+
   renderClientsEditor();
-  if (deepUid && shell.isMobileTabs()) getClientsEditor()?.classList.add('de-pane-active');
+  if (clientState.activeUid && shell.isMobileTabs()) getClientsEditor()?.classList.add('de-pane-active');
 }
 
 function scheduleClientSearch() {
@@ -387,10 +483,7 @@ function startNewClient() {
     title: 'New Client',
     submitLabel: 'Add',
     onDismiss: () => {
-      clientState.activeUid = null;
-      clientState.draft = null;
-      getClientsEditor()?.classList.remove('de-pane-active');
-      renderClientsEditor();
+      void closeClientEditor(false);
     },
   });
   clientState.activeUid = '__new__';
@@ -1308,6 +1401,8 @@ async function closeClientEditor(checkDirty = true) {
   clientState.autosaveGetPayload = null;
   clientState.returnToWorkSlug = null;
   clientState.returnToScheduleUid = null;
+  clearClientLastActiveUid();
+  syncClientDeepLinkUrl(null);
   getClientsEditor()?.classList.remove('de-pane-active');
   if (returnWorkSlug) {
     navigateToWork(returnWorkSlug);
@@ -1329,6 +1424,8 @@ async function openClient(uid) {
   clientState.detailTab = 'profile';
   clientState.dirty = false;
   clientState.autosaveGetPayload = null;
+  rememberClientActiveUid(uid);
+  syncClientDeepLinkUrl(uid);
   renderClientsEditor();
 }
 
@@ -1351,10 +1448,8 @@ async function createClient(payload) {
       });
     }
     shell.finishCreateDrawer();
-    await loadClientsTab();
-    clientState.activeUid = uid;
+    await loadClientsTab({ clientUid: uid });
     getClientsEditor()?.classList.add('de-pane-active');
-    renderClientsEditor();
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
   }
@@ -1506,9 +1601,7 @@ async function saveClient(uid, payload) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     clientState.dirty = false;
-    await loadClientsTab();
-    clientState.activeUid = uid;
-    renderClientsEditor();
+    await loadClientsTab({ clientUid: uid });
   } catch (e) {
     alert(`Failed to save: ${e.message}`);
   }
@@ -1540,6 +1633,8 @@ async function deleteClient(uid) {
     const { res, data } = await performClientDelete(uid, true);
     if (!res.ok) throw new Error(data.error || data.warning || `HTTP ${res.status}`);
 
+    clearClientLastActiveUid();
+    syncClientDeepLinkUrl(null);
     clientState.activeUid = null;
     clientState.dirty = false;
     clientState.draft = null;
@@ -1603,10 +1698,25 @@ function navigateToClient(uid, opts = {}) {
   shell.setActiveMap('clients', { force: true, clientUid: uid });
 }
 
+async function resumeClientDetailFromUrl() {
+  const clientUid = parseClientDeepLinkFromUrl();
+  if (!clientUid) return;
+  if (clientState.activeUid === clientUid) {
+    ensureClientMobilePaneOpen();
+    return;
+  }
+  if (clientState.clients.some((c) => c.uid === clientUid)) {
+    await openClient(clientUid);
+    return;
+  }
+  pendingClientDeepLinkUid = clientUid;
+}
+
 export {
   clientState,
   loadClientsTab,
   navigateToClient,
+  resumeClientDetailFromUrl,
   createClientListItem,
   createClientSwipeRow,
   parseClientDeepLinkFromUrl,

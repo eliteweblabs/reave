@@ -154,10 +154,12 @@ import {
   clientState,
   loadClientsTab,
   navigateToClient,
+  resumeClientDetailFromUrl,
+  parseClientDeepLinkFromUrl,
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260728p';
+} from './clients-panel.js?v=20260730a';
 import {
   initChatPanel,
   chatState,
@@ -7561,6 +7563,16 @@ function ensureEmailMobilePaneOpen() {
   getEmailPanel()?.classList.add('em-pane-active');
 }
 
+function resumeClientDeepLinkFromUrl() {
+  const clientUid = parseClientDeepLinkFromUrl();
+  if (!clientUid) return;
+  if (MAP?.type !== 'clients') {
+    navigateToClient(clientUid);
+    return;
+  }
+  void resumeClientDetailFromUrl();
+}
+
 function resumeEmailDeepLinkFromUrl() {
   const emailId = parseEmailDeepLinkFromUrl();
   if (!emailId) return;
@@ -7599,6 +7611,11 @@ function handleNotificationOpen(url) {
     if (tab === 'chats' && chatId) {
       queueChatDeepLink(chatId);
       setActiveMap('chats', { force: true, chatId, keepChatSession: true });
+      return;
+    }
+    const clientUid = u.searchParams.get('client')?.trim();
+    if (tab === 'clients' && clientUid) {
+      navigateToClient(clientUid);
       return;
     }
     if (tab && MAPS[tab]) setActiveMap(tab, { force: true });
@@ -11110,6 +11127,7 @@ queueTriageEmailFromUrl();
 
 window.addEventListener('pageshow', () => {
   resumeEmailDeepLinkFromUrl();
+  resumeClientDeepLinkFromUrl();
   queueTriageEmailFromUrl();
 });
 
@@ -11140,5 +11158,6 @@ document.addEventListener('visibilitychange', () => {
     syncChatRunningPoll();
     startDeployPoll();
     resumeEmailDeepLinkFromUrl();
+    resumeClientDeepLinkFromUrl();
   }
 });
