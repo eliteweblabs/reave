@@ -1,0 +1,50 @@
+{
+  "name": "@reave/plugin-real-estate-data",
+  "version": "0.1.0",
+  "description": "REΛVE plugin — property lookup tools for agents (sqft, year built, tax, comps, zoning)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "import": "./dist/manifest.js"
+    }
+  },
+  "files": [
+    "dist",
+    "knowledge",
+    "manifest.ts",
+    "agentTools.ts"
+  ],
+  "scripts": {
+    "prepare": "npm run build",
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --experimental-strip-types test/smoke.test.ts && node --experimental-strip-types test/compliance.test.ts"
+  },
+  "keywords": [
+    "reave",
+    "real-estate",
+    "property-data",
+    "assessor",
+    "parcel"
+  ],
+  "peerDependencies": {
+    "reave": ">=0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "reave": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "typescript": "^5.9.3"
+  }
+}

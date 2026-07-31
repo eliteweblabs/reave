@@ -29,7 +29,7 @@
     "@assistant-ui/react-markdown": "^0.14.5",
     "@astrojs/node": "^9.5.5",
     "@astrojs/react": "^6.0.0",
-    "@reave/plugin-real-estate-data": "git+https://github.com/eliteweblabs/reave-plugin-real-estate-data.git",
+    "@reave/plugin-real-estate-data": "file:packages/real-estate-data",
     "@clerk/astro": "^3.4.2",
     "@clerk/ui": "^1.23.0",
     "@vapi-ai/web": "^2.5.2",

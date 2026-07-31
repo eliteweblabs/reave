@@ -4,7 +4,6 @@ WORKDIR /app
 
 # System dependencies required by Playwright's Chromium browser
 RUN apt-get update && apt-get install -y \
-  git \
   chromium \
   libnss3 \
   libatk1.0-0 \
