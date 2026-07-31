@@ -403,6 +403,8 @@ function renderShareSendLog(container, links, opts = {}) {
 }
 
 
+let _reaveShareState = null;
+
 function closeReaveShareSheet() {
   window.IosSheet?.close('reave-share-backdrop');
   _reaveShareState = null;

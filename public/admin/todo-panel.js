@@ -38,7 +38,7 @@ import {
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
-import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260728p';
+import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260730c';
 import { knowledgeState, refreshKnowledgeSidebarList } from './knowledge-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initTodoPanel(). */

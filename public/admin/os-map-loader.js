@@ -186,7 +186,7 @@ import {
   shareChatText,
   archiveChat,
   openChat,
-} from './chat-panel.js?v=20260728p';
+} from './chat-panel.js?v=20260730c';
 import {
   initCreateDrawer,
   beginCreateDrawer,
