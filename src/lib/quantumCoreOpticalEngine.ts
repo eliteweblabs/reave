@@ -6,7 +6,6 @@ import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { createCloudIconLayer, type CloudIconLayer } from "./quantumCloudIcons";
 
 /** Soft disc for `PointsMaterial.map` — reads as glow under bloom, not hard squares. */
 function createSoftParticleSpriteTexture(): THREE.CanvasTexture {
@@ -58,8 +57,6 @@ export interface QuantumEngineOptions {
   };
   /** Static logo PNG — colors, resolve plane, and intro sampling target. */
   logoImageUrl?: string;
-  /** App icons orbiting in the particle shell (e.g. /logos/replaced-apps/*.svg). */
-  cloudIconUrls?: string[];
 }
 
 const QUANTUM_PARTICLE_COUNT = 4000;
@@ -84,8 +81,6 @@ const PARTICLE_SPIN_CRUISE = 0.17;
 const PARTICLE_SPIN_MAX = 1.35;
 /** Screen pixels → radians while dragging the cloud (trackball). */
 const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
-/** Mouse / trackpad gain (touch uses full coarse multiplier below). */
-const PARTICLE_FINE_POINTER_GAIN = 0.34;
 
 /**
  * Non-touch "follow the cursor" trackball: a mouse (fine pointer) moving
@@ -93,8 +88,7 @@ const PARTICLE_FINE_POINTER_GAIN = 0.34;
  * swipe. Dampened vs. an explicit click-drag so ambient mouse movement
  * doesn't overpower deliberate control.
  */
-const PARTICLE_HOVER_RAD_PER_PX =
-  PARTICLE_TRACKBALL_RAD_PER_PX * 0.6 * PARTICLE_FINE_POINTER_GAIN;
+const PARTICLE_HOVER_RAD_PER_PX = PARTICLE_TRACKBALL_RAD_PER_PX * 0.6;
 /** Hover "stop" detection: no new pointermove within this window hands off
  *  to the normal coast-to-cruise-in-last-direction logic below. */
 const PARTICLE_HOVER_IDLE_MS = 120;
@@ -108,13 +102,9 @@ const LOGO_AV_DAMP_INNER_U0 = 0.43;
 const LOGO_AV_DAMP_INNER_U1 = 0.57;
 const LOGO_AV_DAMP_INNER_AMOUNT = 0.04;
 
-/** Desktop logo width cap (px). Mobile uses 40% of viewport width. */
-const LOGO_MAX_WIDTH_PX = 280;
-const LOGO_MAX_VIEWPORT_FRAC = 0.4;
-
-/** After logo resolve, speck particles expand off-screen; app icons stay. */
-const POST_RESOLVE_SCATTER_SEC = 2.4;
-const POST_RESOLVE_SCATTER_OUTWARD = 16;
+/** Desktop logo width cap (px). Mobile uses 80% of viewport width. */
+const LOGO_MAX_WIDTH_PX = 560;
+const LOGO_MAX_VIEWPORT_FRAC = 0.8;
 
 const LogoResolveShader = {
   uniforms: {
@@ -364,6 +354,25 @@ function introCoverScale(
   return [sx, 1];
 }
 
+/** Slow post-intro drift — particles orbit their home positions within the ball. */
+function idleParticleOffset(
+  phase: number,
+  t: number,
+  amp: number,
+  hx: number,
+  hy: number,
+): [number, number, number] {
+  const seed = phase + hx * 0.07 + hy * 0.09;
+  const dx =
+    Math.sin(t * 0.41 + seed) * amp +
+    Math.sin(t * 0.16 + seed * 2.2) * amp * 0.42;
+  const dy =
+    Math.cos(t * 0.34 + seed * 1.4) * amp * 0.88 +
+    Math.sin(t * 0.2 + seed * 0.8) * amp * 0.38;
+  const dz = Math.sin(t * 0.27 + seed * 1.9) * amp * 0.52;
+  return [dx, dy, dz];
+}
+
 export function attachQuantumCoreOpticalEngine(
   host: HTMLElement,
   options?: QuantumEngineOptions,
@@ -521,6 +530,8 @@ export function attachQuantumCoreOpticalEngine(
   const startPositions = new Float32Array(particleCount * 3);
   /** Outer particles join the implosion slightly later — reverse-explosion wave. */
   const introStagger = new Float32Array(particleCount);
+  /** Per-particle phase for slow idle morph after the intro settles. */
+  const particleIdlePhase = new Float32Array(particleCount);
   const introDurationBase = Math.max(0, options?.introRush?.durationSec ?? 0);
   /* Keep the intro on devices that report reduced motion — only shorten it and damp reactive FX. */
   const introDurationSec = introDurationBase * (prefersReduced ? 0.7 : 1);
@@ -533,6 +544,7 @@ export function attachQuantumCoreOpticalEngine(
   const homeEdgeFade = new Float32Array(particleCount);
 
   for (let i = 0; i < particleCount; i++) {
+    particleIdlePhase[i] = Math.random() * Math.PI * 2;
     const [hx, hy, hz] = sampleSphericalHome(BALL_RADIUS);
     homeEdgeFade[i] = particleDissolveStrength(hx, hy, hz, BALL_RADIUS);
     homePositions[i * 3] = hx;
@@ -608,19 +620,6 @@ export function attachQuantumCoreOpticalEngine(
   particleGroup.scale.setScalar(PARTICLE_VIS_SCALE);
   particleGroup.add(particlesBack);
   particleGroup.add(particlesFront);
-
-  const cloudIconUrls = (options?.cloudIconUrls ?? [])
-    .map((u) => u.trim())
-    .filter(Boolean);
-  const cloudIcons: CloudIconLayer | null = createCloudIconLayer(
-    cloudIconUrls,
-    BALL_RADIUS,
-    isMobileLike,
-    introDurationSec,
-  );
-  if (cloudIcons) {
-    particleGroup.add(cloudIcons.group);
-  }
 
   function syncParticleMaterial(size: number, backOpacity: number): void {
     particlesMatBack.size = size;
@@ -973,7 +972,7 @@ export function attachQuantumCoreOpticalEngine(
     const coarse = isCoarsePointer() || isTouch;
     const radPerPx =
       PARTICLE_TRACKBALL_RAD_PER_PX *
-      (coarse ? 1.35 : PARTICLE_FINE_POINTER_GAIN) *
+      (coarse ? 1.35 : 1) *
       (prefersReduced ? 0.35 : 1);
     cloudDirected = true;
     cloudDragging = true;
@@ -1190,9 +1189,6 @@ export function attachQuantumCoreOpticalEngine(
   }
 
   let introCompleteFired = false;
-  /** Scene time when post-resolve particle scatter begins (null until logo phase ends). */
-  let postResolveScatterStartT: number | null = null;
-  let particlesDismissed = false;
   let raf = 0;
   let alive = true;
   const clock = new THREE.Clock();
@@ -1447,45 +1443,30 @@ export function attachQuantumCoreOpticalEngine(
         easeInQuart(globalIntroT),
       );
     } else {
-      if (!particlesDismissed) {
-        if (postResolveScatterStartT === null) {
-          postResolveScatterStartT = sceneT;
-        }
-        const scatterDuration =
-          POST_RESOLVE_SCATTER_SEC * (prefersReduced ? 0.65 : 1);
-        const scatterElapsed = sceneT - postResolveScatterStartT;
-        const scatterT = THREE.MathUtils.clamp(
-          scatterElapsed / scatterDuration,
-          0,
-          1,
+      const baseIdleAmp =
+        isCompactStack || prefersReduced
+          ? 0
+          : 0.034 * motionScale * (1 - resolveMix * 0.22);
+      const idleAmp = baseIdleAmp * voiceMorphMul;
+      for (let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        const hx = homePositions[i3]!;
+        const hy = homePositions[i3 + 1]!;
+        const hz = homePositions[i3 + 2]!;
+        const [dx, dy, dz] = idleParticleOffset(
+          particleIdlePhase[i]!,
+          voiceMorphTime,
+          idleAmp,
+          hx,
+          hy,
         );
-        const scatterEase = easeInQuart(scatterT);
-        const outward = 1 + scatterEase * POST_RESOLVE_SCATTER_OUTWARD;
-        const opacityMul = 1 - easeOutCubic(scatterT);
-
-        for (let i = 0; i < particleCount; i++) {
-          const i3 = i * 3;
-          const hx = homePositions[i3]!;
-          const hy = homePositions[i3 + 1]!;
-          const hz = homePositions[i3 + 2]!;
-          positions[i3] = hx * outward;
-          positions[i3 + 1] = hy * outward;
-          positions[i3 + 2] = hz * outward;
-
-          const fade = homeEdgeFade[i]! * opacityMul;
-          particleColors[i3] = ballHomeColors[i3]! * fade;
-          particleColors[i3 + 1] = ballHomeColors[i3 + 1]! * fade;
-          particleColors[i3 + 2] = ballHomeColors[i3 + 2]! * fade;
-        }
-        particlesGeo.attributes.position!.needsUpdate = true;
-        particlesGeo.attributes.color!.needsUpdate = true;
-
-        if (scatterT >= 1) {
-          particlesDismissed = true;
-          particlesBack.visible = false;
-          particlesFront.visible = false;
-        }
+        positions[i3] = hx + dx;
+        positions[i3 + 1] = hy + dy;
+        positions[i3 + 2] = hz + dz;
       }
+      particlesGeo.attributes.position!.needsUpdate = true;
+
+      applyBallParticleColors(1, energy);
 
       if (introDurationSec > 0) {
         if (!introCompleteFired) {
@@ -1495,7 +1476,7 @@ export function attachQuantumCoreOpticalEngine(
       }
     }
 
-    if (!inIntro && !particlesDismissed) {
+    if (!inIntro) {
       particleGroup.scale.setScalar(PARTICLE_VIS_SCALE);
       const voiceSizeLift = mic * 0.07 + reactiveLift * 0.05;
       syncParticleMaterial(
@@ -1512,12 +1493,6 @@ export function attachQuantumCoreOpticalEngine(
         (0.86 + wild * 0.06 + energy * 0.14) * (1 - resolveMix * 0.35),
         0.62,
         1.12,
-      );
-    } else if (particlesDismissed) {
-      bloomPass.strength = THREE.MathUtils.clamp(
-        0.58 + energy * 0.1,
-        0.48,
-        0.72,
       );
     }
 
@@ -1546,24 +1521,6 @@ export function attachQuantumCoreOpticalEngine(
     camera.position.set(0, 0, VIEW_Z);
     /* Look at hero center (not the lifted content) so the +20% lift reads on screen. */
     camera.lookAt(0, contentAnchorY, 0);
-
-    if (cloudIcons) {
-      const iconIdleAmp =
-        inIntro || isCompactStack || prefersReduced
-          ? 0
-          : 0.034 * motionScale * (1 - resolveMix * 0.22) * voiceMorphMul;
-      cloudIcons.update({
-        rawT,
-        introDurationSec,
-        globalIntroT,
-        inIntro,
-        resolveMix,
-        sceneT,
-        idleAmp: iconIdleAmp,
-        energy,
-        spinMat3,
-      });
-    }
 
     composer.render();
   }
@@ -1657,7 +1614,6 @@ export function attachQuantumCoreOpticalEngine(
     particlesMatBack.dispose();
     particlesMatFront.dispose();
     particleSprite.dispose();
-    cloudIcons?.dispose();
     logoResolveGeo.dispose();
     const logoMap = logoResolveMat.uniforms.uMap.value as THREE.Texture | null;
     logoMap?.dispose();

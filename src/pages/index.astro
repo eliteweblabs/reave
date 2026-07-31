@@ -5,11 +5,11 @@ import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
 import SiteFooterNav from "../components/SiteFooterNav.astro";
 import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import HomeAboutSection from "../components/home/HomeAboutSection.astro";
+import HomeIntegrationsSection from "../components/home/HomeIntegrationsSection.astro";
 import HomeServicesSection from "../components/home/HomeServicesSection.astro";
 import HomePortfolioSection from "../components/home/HomePortfolioSection.astro";
 import HomeContactSection from "../components/home/HomeContactSection.astro";
 import { getCompanyConfig, homepageHeroMask, homepageHeroLogo } from "../lib/companyConfig";
-import { listBrandLogos } from "../lib/brandLogos";
 import { hasFeature } from "../lib/features";
 import { isSiteAssistantConfigured } from "../lib/siteAssistant";
 import "../styles/marketing-sections.css";
@@ -17,7 +17,6 @@ import "../styles/marketing-sections.css";
 const company = await getCompanyConfig(Astro.request);
 const heroMask = homepageHeroMask(company);
 const heroLogo = homepageHeroLogo(company);
-const cloudIconUrls = listBrandLogos("replaced-apps").map((logo) => logo.src);
 const showSiteAssistant =
   hasFeature("portal_assistant") && isSiteAssistantConfigured();
 ---
@@ -36,7 +35,6 @@ const showSiteAssistant =
             heroMask={heroMask ?? undefined}
             logoSrc={heroLogo}
             layout="homepage"
-            cloudIconUrls={cloudIconUrls}
           />
         )
       }
@@ -44,6 +42,7 @@ const showSiteAssistant =
     </section>
 
     <HomeAboutSection />
+    <HomeIntegrationsSection />
     <HomeServicesSection />
     <HomePortfolioSection />
     <HomeContactSection />

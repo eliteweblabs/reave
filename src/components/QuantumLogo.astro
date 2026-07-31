@@ -17,8 +17,6 @@ export interface Props {
   introDuration?: number;
   /** Delay before WebGL init (homepage only, ms). */
   initDelay?: number;
-  /** App icons orbiting in the particle shell (homepage). */
-  cloudIconUrls?: string[];
   class?: string;
 }
 
@@ -30,7 +28,6 @@ const {
   introRush = true,
   introDuration = 4,
   initDelay,
-  cloudIconUrls = [],
   class: className,
 } = Astro.props;
 
@@ -57,7 +54,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
   data-intro-rush={introRush ? "true" : "false"}
   data-intro-duration={String(introDuration)}
   data-init-delay={String(resolvedInitDelay)}
-  data-cloud-icons={JSON.stringify(cloudIconUrls)}
   aria-hidden="true"
 >
   <div id={hostId} class="quantum-host"></div>
@@ -236,13 +232,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
     const introRush = stack.dataset.introRush === "true";
     const introDuration = Number(stack.dataset.introDuration) || 4;
     const resolvedInitDelay = Number(stack.dataset.initDelay) || 0;
-    let cloudIconUrls: string[] = [];
-    try {
-      cloudIconUrls = JSON.parse(stack.dataset.cloudIcons || "[]");
-      if (!Array.isArray(cloudIconUrls)) cloudIconUrls = [];
-    } catch {
-      cloudIconUrls = [];
-    }
 
     document.documentElement.classList.add("quantum-page-touch");
     document.body.classList.add("quantum-page-touch");
@@ -259,7 +248,6 @@ const resolvedInitDelay = initDelay ?? (isHomepage ? 400 : 0);
       detach = attachQuantumCoreOpticalEngine(host, {
         introRush: introRush ? { durationSec: introDuration } : undefined,
         logoImageUrl: logoSrc,
-        cloudIconUrls,
       });
     };
 
