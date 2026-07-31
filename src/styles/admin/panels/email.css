@@ -22,17 +22,15 @@
   min-width: 0;
   max-width: 100%;
 }
-/* Search + filter tabs scroll with the inbox list (not pinned above it). */
-#email-panel .ch-list.em-list-scroll {
-  padding-top: 0;
-}
-#email-panel .ch-list .panel-list-subheader {
+/* Search + category tabs stay pinned above the scrolling inbox list (same as Projects). */
+#email-panel .ch-sidebar .panel-list-subheader {
   margin-left: 0;
   margin-right: 0;
   margin-bottom: 0.35rem;
   width: 100%;
+  flex: 0 0 auto;
 }
-#email-panel .ch-list .panel-list-subheader--stacked .em-filter-tabs-wrap {
+#email-panel .ch-sidebar .panel-list-subheader--stacked .em-filter-tabs-wrap {
   margin-left: 0;
   margin-right: 0;
   width: 100%;

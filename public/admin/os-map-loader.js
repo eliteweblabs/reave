@@ -9954,17 +9954,18 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   const isSent = emailState.inboxFilter === 'sent';
   const isDraft = emailState.inboxFilter === 'draft';
   const events = isSent ? filteredSentEvents() : isDraft ? filteredDraftEvents() : filteredInboxEvents();
-  const list = document.createElement('div');
-  list.className = 'ch-list em-list-scroll';
-  bindSwipeListScroll(list);
   if (subheader) {
-    list.appendChild(subheader.el);
+    sidebar.appendChild(subheader.el);
     applyEmailFilterTabsScroll(
       subheader.el.querySelector('.em-filter-tabs-wrap'),
       savedFilterScroll,
       emailState.inboxFilter,
     );
   }
+
+  const list = document.createElement('div');
+  list.className = 'ch-list';
+  bindSwipeListScroll(list);
   for (const ev of events) {
     list.appendChild(
       isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),
