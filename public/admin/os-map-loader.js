@@ -469,10 +469,10 @@ function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
 
 function syncEmailFilterFixedTabWidth(wrap) {
   if (!wrap) return;
-  const sentBtn = wrap.querySelector('.em-filter-tab--sent');
-  if (!sentBtn) return;
+  const fixedNav = wrap.querySelector('.em-filter-tabs-fixed');
+  if (!fixedNav) return;
   const apply = () => {
-    const w = sentBtn.offsetWidth;
+    const w = fixedNav.offsetWidth;
     if (w > 0) wrap.style.setProperty('--em-filter-fixed-tab-width', `${w}px`);
   };
   apply();
@@ -691,7 +691,9 @@ function setActiveMap(key, opts = {}) {
   syncProfileMenuActive();
   syncTopbarPanelContext();
   syncAdminSplitView(MAP?.type);
-  if (MAP.type !== 'email') {
+  if (prevType === 'email' && MAP.type !== 'email' && emailState.composing) {
+    void leaveEmailCompose();
+  } else if (MAP.type !== 'email') {
     emailState.composing = false;
   }
   if (key !== 'chats') {
@@ -7140,7 +7142,7 @@ function deleteKeyboardShortcutAvailable() {
     return !!chatState.activeId;
   }
   if (activeKey === 'email') {
-    if (emailState.composing || emailState.inboxFilter === 'sent') return false;
+    if (emailState.composing || emailState.inboxFilter === 'sent' || emailState.inboxFilter === 'draft') return false;
     return !!emailState.activeId;
   }
   return false;
@@ -7443,11 +7445,13 @@ function buildLegend() {
 let emailState = {
   allEvents: [],
   sentEvents: [],
+  draftEvents: [],
   inboxFilter: 'all',
   search: '',
   activeId: null,
   composing: false,
   replyToId: null,
+  activeDraftId: null,
   compose: { to: [], subject: '', body: '' },
   sending: false,
   storage: 'files',
@@ -7691,6 +7695,7 @@ function inboxTabCounts() {
     routed: all.filter(isEmailRouted).length,
     receipt: all.filter((e) => e.category === 'receipt' && !isEmailRouted(e)).length,
     junk: all.filter((e) => e.category === 'junk').length,
+    draft: (emailState.draftEvents || []).length,
     sent: (emailState.sentEvents || []).length,
   };
 }
@@ -7740,6 +7745,16 @@ function formatSentSourceLabel(source) {
     unknown: 'Sent',
   };
   return labels[key] || key.replace(/_/g, ' ') || 'Sent';
+}
+
+function filteredDraftEvents() {
+  const q = emailState.search.trim();
+  let events = emailState.draftEvents || [];
+  if (!q) return events;
+  return events.filter((ev) => {
+    const recipients = (ev.to || []).flatMap((r) => [r.email, r.name]).filter(Boolean);
+    return matchesListSearch(q, ev.subject, ev.body, ...recipients);
+  });
 }
 
 function filteredSentEvents() {
@@ -9681,6 +9696,29 @@ async function loadEmailSentEvents(quiet) {
   }
 }
 
+async function loadEmailDraftEvents(quiet) {
+  try {
+    const res = await adminFetch('/api/email/drafts?limit=200');
+    const data = await readAdminJson(res, 'Draft mail');
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.draftEvents = data.events || [];
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+    if (!quiet) console.warn('[email] drafts fetch failed', e);
+  }
+}
+
+async function switchEmailInboxFilter(nextFilter) {
+  await leaveEmailCompose();
+  if (emailState.inboxFilter === nextFilter) return;
+  emailState.inboxFilter = nextFilter;
+  emailState.activeId = null;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  if (nextFilter === 'sent') await loadEmailSentEvents(true);
+  if (nextFilter === 'draft') await loadEmailDraftEvents(true);
+  renderEmailPanel();
+}
+
 async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
@@ -9689,6 +9727,7 @@ async function loadEmailTab(quiet) {
     const [inboxRes] = await Promise.all([
       adminFetch('/api/email/inbox?junk=1'),
       loadEmailSentEvents(true),
+      loadEmailDraftEvents(true),
     ]);
     const data = await readAdminJson(inboxRes, 'Inbox');
     if (!inboxRes.ok) throw new Error(data.error || `HTTP ${inboxRes.status}`);
@@ -9714,9 +9753,11 @@ async function loadEmailTab(quiet) {
     openedFromDeepLink = await openEmailFromDeepLink(deepLinkId);
   } else if (
     emailState.activeId &&
-    emailState.inboxFilter === 'sent'
+    (emailState.inboxFilter === 'sent'
       ? !filteredSentEvents().some((ev) => ev.id === emailState.activeId)
-      : !filteredInboxEvents().some((ev) => ev.id === emailState.activeId)
+      : emailState.inboxFilter === 'draft'
+        ? !filteredDraftEvents().some((ev) => ev.id === emailState.activeId)
+        : !filteredInboxEvents().some((ev) => ev.id === emailState.activeId))
   ) {
     emailState.activeId = null;
   }
@@ -9771,12 +9812,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
     } else {
       btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
       btn.addEventListener('click', () => {
-        if (emailState.inboxFilter === tab.id) return;
-        emailState.inboxFilter = tab.id;
-        emailState.activeId = null;
-        emailState.composing = false;
-        getEmailPanel()?.classList.remove('em-pane-active');
-        renderEmailPanel();
+        void switchEmailInboxFilter(tab.id);
       });
     }
 
@@ -9786,7 +9822,21 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
   const fixedNav = document.createElement('div');
   fixedNav.className = 'em-filter-tabs-fixed';
   fixedNav.setAttribute('role', 'tablist');
-  fixedNav.setAttribute('aria-label', 'Sent mail');
+  fixedNav.setAttribute('aria-label', 'Mail folders');
+
+  const draftTab = { id: 'draft', label: 'Draft', count: counts.draft };
+  const draftBtn = document.createElement('button');
+  draftBtn.type = 'button';
+  const draftActive = emailState.inboxFilter === draftTab.id;
+  draftBtn.className =
+    'em-filter-tab em-filter-tab--draft' + (draftActive ? ' active' : '');
+  draftBtn.setAttribute('role', 'tab');
+  draftBtn.setAttribute('aria-selected', draftActive ? 'true' : 'false');
+  draftBtn.innerHTML = `${escHtml(draftTab.label)} <span class="em-filter-count">${draftTab.count}</span>`;
+  draftBtn.addEventListener('click', () => {
+    void switchEmailInboxFilter(draftTab.id);
+  });
+  fixedNav.appendChild(draftBtn);
 
   const sentTab = { id: 'sent', label: 'Sent', count: counts.sent };
   const sentBtn = document.createElement('button');
@@ -9798,12 +9848,7 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
   sentBtn.setAttribute('aria-selected', sentActive ? 'true' : 'false');
   sentBtn.innerHTML = `${escHtml(sentTab.label)} <span class="em-filter-count">${sentTab.count}</span>`;
   sentBtn.addEventListener('click', () => {
-    if (emailState.inboxFilter === sentTab.id) return;
-    emailState.inboxFilter = sentTab.id;
-    emailState.activeId = null;
-    emailState.composing = false;
-    getEmailPanel()?.classList.remove('em-pane-active');
-    void loadEmailSentEvents(true).then(() => renderEmailPanel());
+    void switchEmailInboxFilter(sentTab.id);
   });
   fixedNav.appendChild(sentBtn);
 
@@ -9822,6 +9867,8 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   const countForTab =
     emailState.inboxFilter === 'sent'
       ? counts.sent
+      : emailState.inboxFilter === 'draft'
+        ? counts.draft
       : emailState.inboxFilter === 'junk'
       ? counts.junk
       : emailState.inboxFilter === 'receipt'
@@ -9845,10 +9892,15 @@ function renderEmailSidebar(savedFilterScroll = 0) {
       onInput: (value) => {
         emailState.search = value;
         const visible =
-          emailState.inboxFilter === 'sent' ? filteredSentEvents() : filteredInboxEvents();
+          emailState.inboxFilter === 'sent'
+            ? filteredSentEvents()
+            : emailState.inboxFilter === 'draft'
+              ? filteredDraftEvents()
+              : filteredInboxEvents();
         if (emailState.activeId && !visible.some((ev) => ev.id === emailState.activeId)) {
           emailState.activeId = null;
           emailState.composing = false;
+          emailState.activeDraftId = null;
           getEmailPanel()?.classList.remove('em-pane-active');
         }
         renderEmailPanel();
@@ -9861,7 +9913,8 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   });
 
   const isSent = emailState.inboxFilter === 'sent';
-  const events = isSent ? filteredSentEvents() : filteredInboxEvents();
+  const isDraft = emailState.inboxFilter === 'draft';
+  const events = isSent ? filteredSentEvents() : isDraft ? filteredDraftEvents() : filteredInboxEvents();
   const list = document.createElement('div');
   list.className = 'ch-list em-list-scroll';
   bindSwipeListScroll(list);
@@ -9870,7 +9923,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     syncEmailFilterFixedTabWidth(subheader.el.querySelector('.em-filter-tabs-wrap'));
   }
   for (const ev of events) {
-    list.appendChild(isSent ? createSentListItem(ev) : createEmailSwipeRow(ev));
+    list.appendChild(
+      isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),
+    );
   }
   if (events.length === 0) {
     let emptyBody;
@@ -9879,6 +9934,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     } else if (emailState.inboxFilter === 'sent') {
       emptyBody =
         'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>';
+    } else if (emailState.inboxFilter === 'draft') {
+      emptyBody =
+        'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
     } else if (emailState.inboxFilter === 'junk') {
       emptyBody = 'No junk messages.';
     } else if (emailState.inboxFilter === 'alert') {
@@ -9907,7 +9965,7 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     return loadEmailTab(true);
   });
   sidebar.appendChild(list);
-  if (!isSent) bindEmailListSeenObserver(list);
+  if (!isSent && !isDraft) bindEmailListSeenObserver(list);
   return sidebar;
 }
 
@@ -9965,6 +10023,55 @@ function normalizeEmailRecipient(raw) {
 
 function emailRecipientLabel(r) {
   return r.name || r.email;
+}
+
+function draftRecipientSummary(ev) {
+  const recipients = (ev.to || []).map(normalizeEmailRecipient).filter(Boolean);
+  if (!recipients.length) return '(no recipients)';
+  if (recipients.length === 1) return emailRecipientLabel(recipients[0]);
+  return `${emailRecipientLabel(recipients[0])} +${recipients.length - 1}`;
+}
+
+function createDraftListItem(ev) {
+  const item = document.createElement('button');
+  item.type = 'button';
+  item.className = 'em-list-item em-list-item--sent' + (ev.id === emailState.activeId ? ' active' : '');
+  item.dataset.id = ev.id;
+  item.innerHTML =
+    `<span class="em-item-row em-item-header">` +
+      `<span class="em-status em-status-sent">Draft</span>` +
+      `<span class="em-item-date">${escHtml(formatChatDate(ev.updatedAt || ev.createdAt))}</span>` +
+      `<span class="em-item-from">${escHtml(draftRecipientSummary(ev))}</span>` +
+    `</span>` +
+    `<span class="em-item-summary">${escHtml(ev.subject || '(no subject)')}</span>`;
+  item.addEventListener('click', () => openDraftEvent(ev.id));
+  return item;
+}
+
+function openDraftEvent(id) {
+  const draft = (emailState.draftEvents || []).find((d) => d.id === id);
+  if (!draft) return;
+  emailState.activeId = id;
+  emailState.activeDraftId = id;
+  emailState.composing = true;
+  emailState.replyToId = draft.inReplyToEmailId || null;
+  emailState.sending = false;
+  emailState.compose = {
+    to: (draft.to || []).map(normalizeEmailRecipient).filter(Boolean),
+    subject: draft.subject || '',
+    body: draft.body || '',
+  };
+  getEmailPanel()?.classList.add('em-pane-active');
+  renderEmailPanel();
+  syncFooterNav();
+  requestAnimationFrame(() => {
+    const bodyEl = getEmailPanel()?.querySelector('.em-compose-textarea');
+    if (bodyEl) {
+      bodyEl.focus();
+      bodyEl.setSelectionRange(0, 0);
+      bodyEl.scrollTop = 0;
+    }
+  });
 }
 
 function isValidEmailAddress(value) {
@@ -10351,9 +10458,93 @@ function buildReplyQuoteClient(ev) {
   return `\n\n---\nOn ${when}, ${from} wrote:\n${quoted}`;
 }
 
-function closeEmailCompose() {
+function isEmailComposeDirty() {
+  const { to, subject, body } = emailState.compose;
+  return (
+    (Array.isArray(to) && to.length > 0) ||
+    String(subject || '').trim() ||
+    String(body || '').trim()
+  );
+}
+
+async function saveActiveEmailDraft(silent = true) {
+  if (!isEmailComposeDirty()) return true;
+  const { to, subject, body } = emailState.compose;
+  const payload = {
+    to: (Array.isArray(to) ? to : []).map(normalizeEmailRecipient).filter(Boolean),
+    subject: String(subject || '').trim(),
+    body: String(body || ''),
+    inReplyToEmailId: emailState.replyToId || null,
+  };
+  try {
+    if (emailState.activeDraftId) {
+      const res = await adminFetch(
+        `/api/email/drafts/${encodeURIComponent(emailState.activeDraftId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      );
+      const data = await readAdminJson(res, 'Save draft');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      const idx = emailState.draftEvents.findIndex((d) => d.id === emailState.activeDraftId);
+      if (idx !== -1) emailState.draftEvents[idx] = data.event;
+      else emailState.draftEvents.unshift(data.event);
+    } else {
+      const res = await adminFetch('/api/email/drafts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await readAdminJson(res, 'Save draft');
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      emailState.activeDraftId = data.event.id;
+      emailState.draftEvents.unshift(data.event);
+    }
+    emailState.draftEvents.sort(
+      (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime(),
+    );
+    if (!silent) showChatToast('Draft saved');
+    return true;
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+    if (!silent) osAlert({ title: 'Could not save draft', bodyHtml: escHtml(e.message) });
+    return false;
+  }
+}
+
+async function deleteEmailDraftById(id) {
+  if (!id) return;
+  try {
+    const res = await adminFetch(`/api/email/drafts/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const data = await readAdminJson(res, 'Delete draft');
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    emailState.draftEvents = (emailState.draftEvents || []).filter((d) => d.id !== id);
+  } catch (e) {
+    if (e.message === 'Session expired') throw e;
+    console.warn('[email] draft delete failed', e);
+  }
+}
+
+async function leaveEmailCompose() {
+  if (!emailState.composing) return;
+  if (isEmailComposeDirty()) await saveActiveEmailDraft(true);
   emailState.composing = false;
   emailState.replyToId = null;
+  emailState.activeDraftId = null;
+  emailState.compose = { to: [], subject: '', body: '' };
+  emailState.sending = false;
+}
+
+async function closeEmailCompose(opts = { saveDraft: true }) {
+  if (opts.saveDraft && isEmailComposeDirty()) {
+    await saveActiveEmailDraft(true);
+  }
+  emailState.composing = false;
+  emailState.replyToId = null;
+  emailState.activeDraftId = null;
+  emailState.activeId = null;
   emailState.compose = { to: [], subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.remove('em-pane-active');
@@ -10365,6 +10556,7 @@ function startNewEmail() {
   emailState.activeId = null;
   emailState.composing = true;
   emailState.replyToId = null;
+  emailState.activeDraftId = null;
   emailState.compose = { to: [], subject: '', body: '' };
   emailState.sending = false;
   getEmailPanel()?.classList.add('em-pane-active');
@@ -10380,6 +10572,7 @@ async function startReplyEmail(ev) {
   emailState.activeId = ev.id;
   emailState.composing = true;
   emailState.replyToId = ev.id;
+  emailState.activeDraftId = null;
   emailState.sending = false;
   emailState.compose = { to: [], subject: '', body: '' };
   getEmailPanel()?.classList.add('em-pane-active');
@@ -10434,7 +10627,11 @@ async function sendEmailCompose() {
     const data = await readApiJson(res);
     if (!data.ok) throw new Error(data.error || `HTTP ${res.status}`);
     const replyId = emailState.replyToId;
-    closeEmailCompose();
+    const draftId = emailState.activeDraftId;
+    emailState.activeDraftId = null;
+    emailState.compose = { to: [], subject: '', body: '' };
+    if (draftId) void deleteEmailDraftById(draftId);
+    await closeEmailCompose({ saveDraft: false });
     await loadEmailSentEvents(true);
     if (replyId) {
       try {
@@ -10468,7 +10665,7 @@ function emailShareText(ev) {
 function renderEmailComposePane(pane) {
   pane.appendChild(
     createPaneSubheader({
-      back: { label: 'Back to inbox', onClick: () => closeEmailCompose() },
+      back: { label: 'Back to inbox', onClick: () => void closeEmailCompose() },
       title: emailState.replyToId ? 'Reply' : 'New message',
     }).header,
   );
