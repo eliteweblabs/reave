@@ -44,11 +44,15 @@ const {
 
 const company = await getCompanyConfig(Astro.request);
 const description = descriptionProp ?? company.description;
-/** "Page Title | Company Name | Tagline" — tagline comes from admin → Company → Tagline / description. */
+/** Browser tab title — "Page | Company | Tagline" (tagline from admin → Company → description). */
 const titleParts = [title, company.name, company.description]
   .map((part) => part?.trim())
   .filter((part, i, arr): part is string => Boolean(part) && arr.indexOf(part) === i);
 const pageTitle = titleParts.join(" | ");
+/** Link-preview title — page name on inner pages, company name on homepage. */
+const shareTitle = title?.trim() || company.name;
+/** Omit on homepage: og:site_name + og:title with the same value renders as "Name · Name" in iMessage/Slack. */
+const shareSiteName = title?.trim() ? company.name : undefined;
 const origin = requestOrigin(Astro.request);
 const publicOrigin = company.domain ? `https://${company.domain}` : origin;
 const canonical =
@@ -84,16 +88,16 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		{noIndex && <meta name="robots" content="noindex, nofollow" />}
 
 		<!-- Open Graph -->
-		<meta property="og:title" content={pageTitle} />
+		<meta property="og:title" content={shareTitle} />
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:image" content={ogImageSafe} />
-		<meta property="og:site_name" content={company.name} />
+		{shareSiteName && <meta property="og:site_name" content={shareSiteName} />}
 
 		<!-- Twitter Card -->
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={pageTitle} />
+		<meta name="twitter:title" content={shareTitle} />
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
