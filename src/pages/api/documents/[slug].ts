@@ -1,10 +1,9 @@
 /**
- * GET    /api/documents/:slug — read a template's full HTML.
- * PUT    /api/documents/:slug — overwrite a template { html }.
+ * GET    /api/documents/:slug — read a template's full markdown.
+ * PUT    /api/documents/:slug — overwrite a template { content }.
  * DELETE /api/documents/:slug — delete a template.
  */
 import type { APIRoute } from 'astro';
-import type { APIContext } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs';
@@ -35,11 +34,11 @@ export const GET: APIRoute = async (context) => {
 
   const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.html`);
+  const filePath = join(docsDir(), `${slug}.md`);
   if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
   try {
-    const html = readFileSync(filePath, 'utf8');
-    return new Response(JSON.stringify({ slug, html }), {
+    const content = readFileSync(filePath, 'utf8');
+    return new Response(JSON.stringify({ slug, content }), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
     });
   } catch (e) {
@@ -56,18 +55,18 @@ export const PUT: APIRoute = async (context) => {
 
   const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
-  let body: { html?: unknown };
+  let body: { content?: unknown; html?: unknown };
   try {
     body = (await context.request.json()) as typeof body;
   } catch {
     return new Response('Bad Request', { status: 400 });
   }
-  const { html } = body;
-  if (typeof html !== 'string') return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.html`);
+  const content = typeof body.content === 'string' ? body.content : body.html;
+  if (typeof content !== 'string') return new Response('Bad Request', { status: 400 });
+  const filePath = join(docsDir(), `${slug}.md`);
   if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
   try {
-    writeFileSync(filePath, html, 'utf8');
+    writeFileSync(filePath, content, 'utf8');
     console.info('[documents] updated', slug);
     return new Response(JSON.stringify({ ok: true }), {
       headers: { 'Content-Type': 'application/json' },
@@ -86,7 +85,7 @@ export const DELETE: APIRoute = async (context) => {
 
   const { slug } = context.params;
   if (!slug || !SAFE_SLUG_RE.test(slug)) return new Response('Bad Request', { status: 400 });
-  const filePath = join(docsDir(), `${slug}.html`);
+  const filePath = join(docsDir(), `${slug}.md`);
   if (!existsSync(filePath)) return new Response('Not Found', { status: 404 });
   try {
     unlinkSync(filePath);

@@ -1,10 +1,12 @@
 import type { ContactRecord } from './contactApi';
 import type { CompanyConfig } from './companyConfig';
+import { parseKnowledgeMarkdown } from './localKnowledge';
+import { renderDocumentMarkdown } from './renderDocumentMarkdown';
 
-// Load all HTML templates at build time (Vite eager glob).
+// Load all markdown templates at build time (Vite eager glob).
 // Path is relative to this file: src/lib/ → src/documents/
 const RAW: Record<string, string> = import.meta.glob(
-  '../documents/*.html',
+  '../documents/*.md',
   { query: '?raw', import: 'default', eager: true }
 ) as Record<string, string>;
 
@@ -40,52 +42,41 @@ export const SHORTCODES: Shortcode[] = [
 export type DocumentTemplate = {
   slug: string;
   title: string;
-  html: string;
+  markdown: string;
 };
 
 function slugFromPath(p: string): string {
-  return p.split('/').pop()!.replace(/\.html$/, '');
+  return p.split('/').pop()!.replace(/\.md$/, '');
 }
 
-function titleFromHtml(html: string, slug: string): string {
-  const m = html.match(/<!--\s*title:\s*(.+?)\s*-->/i);
-  if (m) return m[1].trim();
+export function titleFromDocumentMarkdown(markdown: string, slug: string): string {
+  const parsed = parseKnowledgeMarkdown(markdown);
+  if (parsed.title) return parsed.title;
+  const first = parsed.body.split('\n').find((l) => l.trim().length > 0) ?? '';
+  const fromHeading = first.replace(/^#+\s*/, '').trim();
+  if (fromHeading) return fromHeading.slice(0, 200);
   return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function listTemplates(): DocumentTemplate[] {
-  return Object.entries(RAW).map(([path, html]) => {
+  return Object.entries(RAW).map(([path, markdown]) => {
     const slug = slugFromPath(path);
-    return { slug, title: titleFromHtml(html, slug), html };
+    return { slug, title: titleFromDocumentMarkdown(markdown, slug), markdown };
   });
 }
 
 export function getTemplate(slug: string): DocumentTemplate | null {
   const entry = Object.entries(RAW).find(([p]) => slugFromPath(p) === slug);
   if (!entry) return null;
-  const [, html] = entry;
-  return { slug, title: titleFromHtml(html, slug), html };
+  const [, markdown] = entry;
+  return { slug, title: titleFromDocumentMarkdown(markdown, slug), markdown };
 }
 
 /**
- * Fill all {placeholder} tokens in the template HTML with contact data.
- * Supported tokens:
- *   {client.name}         full name
- *   {client.first_name}   first name
- *   {client.last_name}    last name
- *   {client.email}
- *   {client.phone}
- *   {client.company}
- *   {client.company_str}  " · Company Name" or "" (used inline in sentences)
- *   {company.name}        organization display name
- *   {company.legal_name}  legal entity name
- *   {company.domain}      website hostname
- *   {company.support_email}
- *   {date}                "June 14, 2026"
- *   {year}                "2026"
+ * Fill all {placeholder} tokens in the template markdown with contact data.
  */
 export function fillTemplate(
-  html: string,
+  markdown: string,
   contact: ContactRecord,
   org?: Pick<CompanyConfig, 'name' | 'legalName' | 'domain' | 'supportEmail'>,
 ): string {
@@ -104,42 +95,43 @@ export function fillTemplate(
     day: 'numeric',
   });
 
-  let result = html
-    .replace(/{client\.name}/g, escHtml(contact.name ?? ''))
-    .replace(/{client\.first_name}/g, escHtml(firstName))
-    .replace(/{client\.last_name}/g, escHtml(lastName))
-    .replace(/{client\.email}/g, escHtml(contact.email ?? ''))
-    .replace(/{client\.phone}/g, escHtml(contact.phone ?? ''))
-    .replace(/{client\.company}/g, escHtml(contactCompany))
-    .replace(/{client\.company_str}/g, contactCompany ? ` · <strong>${escHtml(contactCompany)}</strong>` : '')
-    .replace(/{company\.name}/g, escHtml(org?.name ?? ''))
-    .replace(/{company\.legal_name}/g, escHtml(org?.legalName ?? org?.name ?? ''))
-    .replace(/{company\.domain}/g, escHtml(org?.domain ?? ''))
-    .replace(/{company\.support_email}/g, escHtml(org?.supportEmail ?? ''))
+  let result = markdown
+    .replace(/{client\.name}/g, escMarkdown(contact.name ?? ''))
+    .replace(/{client\.first_name}/g, escMarkdown(firstName))
+    .replace(/{client\.last_name}/g, escMarkdown(lastName))
+    .replace(/{client\.email}/g, escMarkdown(contact.email ?? ''))
+    .replace(/{client\.phone}/g, escMarkdown(contact.phone ?? ''))
+    .replace(/{client\.company}/g, escMarkdown(contactCompany))
+    .replace(/{client\.company_str}/g, contactCompany ? ` · **${escMarkdown(contactCompany)}**` : '')
+    .replace(/{company\.name}/g, escMarkdown(org?.name ?? ''))
+    .replace(/{company\.legal_name}/g, escMarkdown(org?.legalName ?? org?.name ?? ''))
+    .replace(/{company\.domain}/g, escMarkdown(org?.domain ?? ''))
+    .replace(/{company\.support_email}/g, escMarkdown(org?.supportEmail ?? ''))
     .replace(/{date}/g, today)
     .replace(/{year}/g, String(new Date().getFullYear()));
 
-  // Generic fallback: any remaining {client.xxx} tokens — look up contact[xxx] directly.
-  // This means extra fields added to the contact-api schema work automatically.
   result = result.replace(/{client\.([a-z_][a-z0-9_]*)}/gi, (_, field) => {
     const val = (contact as Record<string, unknown>)[field];
-    return typeof val === 'string' ? escHtml(val) : '';
+    return typeof val === 'string' ? escMarkdown(val) : '';
   });
 
-  // Clean up empty <strong></strong> or <strong> · </strong> artifacts left by missing optional fields.
   result = result
-    .replace(/<strong><\/strong>/g, '')
-    .replace(/·\s*<strong><\/strong>/g, '')
-    .replace(/<strong>\s*·\s*<\/strong>/g, '');
+    .replace(/\*\*\s*\*\*/g, '')
+    .replace(/ · \*\*\*\*/g, '')
+    .replace(/\*\* · \*\*/g, '');
 
   return result;
 }
 
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+/** Fill shortcodes, then render markdown to HTML for display and signing. */
+export async function fillAndRenderTemplate(
+  markdown: string,
+  contact: ContactRecord,
+  org?: Pick<CompanyConfig, 'name' | 'legalName' | 'domain' | 'supportEmail'>,
+): Promise<string> {
+  return renderDocumentMarkdown(fillTemplate(markdown, contact, org));
+}
+
+function escMarkdown(s: string): string {
+  return s.replace(/([\\`*_[\]#])/g, '\\$1');
 }

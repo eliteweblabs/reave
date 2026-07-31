@@ -10,7 +10,7 @@
  */
 import { getContact, extractPortal } from '../../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
-import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
+import { getTemplate, fillAndRenderTemplate } from '../../../../lib/documentTemplates';
 import Favicon from '../../../../components/Favicon.astro';
 
 export const prerender = false;
@@ -49,7 +49,7 @@ if (!uid || !templateSlug) {
       const portal = extractPortal(c);
       const existing = (portal?.documents ?? []).find((d) => d.template === templateSlug);
       if (existing) alreadySignedUrl = `${Astro.url.origin}/doc/${encodeURIComponent(uid)}/view/${existing.id}`;
-      filled = fillTemplate(tmpl.html, c, company);
+      filled = await fillAndRenderTemplate(tmpl.markdown, c, company);
       title = tmpl.title;
       contactName = c.name;
       contactEmail = c.email ?? '';
@@ -253,7 +253,8 @@ const sendEndpoint = `/api/admin/doc/${encodeURIComponent(uid ?? '')}/send`;
       .doc-body p { margin: 0 0 14px; color: #333; }
       .doc-body ul { margin: 0 0 14px; padding-left: 24px; color: #333; }
       .doc-body li { margin-bottom: 6px; }
-      .doc-body .doc-meta {
+      .doc-body .doc-meta,
+      .doc-body h1 + p {
         font-size: 14px; color: #888; margin-bottom: 32px; padding-bottom: 24px;
         border-bottom: 1px solid #eee;
       }

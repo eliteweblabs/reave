@@ -1,16 +1,16 @@
 /**
- * GET  /api/documents — list all HTML document templates.
- * POST /api/documents — create a new template { slug, html }.
+ * GET  /api/documents — list all markdown document templates.
+ * POST /api/documents — create a new template { slug, content }.
  *
- * Templates live in src/documents/*.html.
+ * Templates live in src/documents/*.md.
  * On Railway, writes persist until the next deploy.
  */
 import type { APIRoute } from 'astro';
-import type { APIContext } from 'astro';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
+import { titleFromDocumentMarkdown } from '../../../lib/documentTemplates';
 
 export const prerender = false;
 
@@ -31,12 +31,6 @@ function docsDir(): string {
 
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
-function titleFromHtml(html: string, slug: string): string {
-  const m = html.match(/<!--\s*title:\s*(.+?)\s*-->/i);
-  if (m) return m[1].trim();
-  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export const GET: APIRoute = async (context) => {
   const auth = requireDashboardUser(context);
   if (auth instanceof Response) return auth;
@@ -48,11 +42,11 @@ export const GET: APIRoute = async (context) => {
     });
   }
   try {
-    const files = readdirSync(dir).filter((f) => f.endsWith('.html')).sort();
+    const files = readdirSync(dir).filter((f) => f.endsWith('.md')).sort();
     const templates = files.map((f) => {
-      const slug = f.replace(/\.html$/, '');
-      const html = readFileSync(join(dir, f), 'utf8');
-      return { slug, title: titleFromHtml(html, slug) };
+      const slug = f.replace(/\.md$/, '');
+      const content = readFileSync(join(dir, f), 'utf8');
+      return { slug, title: titleFromDocumentMarkdown(content, slug) };
     });
     return new Response(JSON.stringify(templates), {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
@@ -70,19 +64,20 @@ export const POST: APIRoute = async (context) => {
   const auth = requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
-  let body: { slug?: unknown; html?: unknown };
+  let body: { slug?: unknown; content?: unknown; html?: unknown };
   try {
     body = (await context.request.json()) as typeof body;
   } catch {
     return new Response('Bad Request', { status: 400 });
   }
-  const { slug, html } = body;
-  if (typeof slug !== 'string' || typeof html !== 'string' || !SAFE_SLUG_RE.test(slug)) {
+  const { slug } = body;
+  const content = typeof body.content === 'string' ? body.content : body.html;
+  if (typeof slug !== 'string' || typeof content !== 'string' || !SAFE_SLUG_RE.test(slug)) {
     return new Response('Bad Request', { status: 400 });
   }
   const dir = docsDir();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  const filePath = join(dir, `${slug}.html`);
+  const filePath = join(dir, `${slug}.md`);
   if (existsSync(filePath)) {
     return new Response(JSON.stringify({ error: 'Template already exists' }), {
       status: 409,
@@ -90,7 +85,7 @@ export const POST: APIRoute = async (context) => {
     });
   }
   try {
-    writeFileSync(filePath, html, 'utf8');
+    writeFileSync(filePath, content, 'utf8');
     console.info('[documents] created', slug);
     return new Response(JSON.stringify({ ok: true, slug }), {
       headers: { 'Content-Type': 'application/json' },

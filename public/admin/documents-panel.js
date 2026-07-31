@@ -57,7 +57,7 @@ let docState = {
   search: '',
   activeSlug: null,
   dirty: false,
-  savedHtml: '',
+  savedContent: '',
   autosaveGetHtml: null,
   paneMode: 'edit', // 'edit' | 'view'
 };
@@ -170,6 +170,29 @@ function attachDocTextareaPinchZoom(ta) {
     localStorage.setItem(DOC_TEXTAREA_FONT_STORE, String(fontSize));
     scheduleDocTextareaLayoutRefresh(ta);
   }, { passive: false });
+}
+
+function titleFromDocumentMarkdown(content, slug) {
+  const fm = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (fm) {
+    const titleLine = fm[1].match(/^title:\s*(.+)$/im);
+    if (titleLine) return titleLine[1].trim().replace(/^["']|["']$/g, '');
+  }
+  const first = content.split('\n').find((l) => l.trim().length > 0) ?? '';
+  const fromHeading = first.replace(/^#+\s*/, '').trim();
+  if (fromHeading) return fromHeading.slice(0, 200);
+  return slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+async function renderDocumentPreview(content) {
+  const res = await fetch('/api/documents/render', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.html || '';
 }
 
 function getDocEditor() { return document.getElementById('doc-editor'); }
@@ -335,9 +358,9 @@ function renderNewForm(pane) {
 
   const ta = document.createElement('textarea');
   ta.className = 'de-textarea';
-  ta.id = 'de-new-html';
+  ta.id = 'de-new-content';
   ta.spellcheck = false;
-  ta.placeholder = '<!-- title: My Document -->\n<h1>Title</h1>\n<p>Content…</p>';
+  ta.placeholder = '---\ntitle: My Document\n---\n\n# Title\n\nBody…';
   attachShortcodePopover(ta);
   attachDocTextareaPinchZoom(ta);
   pane.appendChild(ta);
@@ -355,7 +378,7 @@ function renderEditForm(pane) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return r.json();
     })
-    .then(({ html }) => {
+    .then(({ content }) => {
       pane.innerHTML = '';
 
       const modeTabs = document.createElement('div');
@@ -389,7 +412,7 @@ function renderEditForm(pane) {
       });
       pane.appendChild(header);
 
-      docState.savedHtml = html;
+      docState.savedContent = content;
       docState.dirty = false;
 
       // ── Textarea (edit mode) ──
@@ -397,10 +420,10 @@ function renderEditForm(pane) {
       ta.className = 'de-textarea';
       ta.id = `de-edit-${slug}`;
       ta.spellcheck = false;
-      ta.value = html;
+      ta.value = content;
       docState.autosaveGetHtml = () => ta.value;
       ta.addEventListener('input', () => {
-        docState.dirty = ta.value !== docState.savedHtml;
+        docState.dirty = ta.value !== docState.savedContent;
         scheduleDocAutosave(slug);
       });
       attachShortcodePopover(ta);
@@ -410,11 +433,13 @@ function renderEditForm(pane) {
       const preview = document.createElement('iframe');
       preview.className = 'de-preview';
       preview.setAttribute('sandbox', 'allow-same-origin');
-      preview.srcdoc = html;
       preview.title = 'Document preview';
 
       if (docState.paneMode === 'view') {
         ta.style.display = 'none';
+        renderDocumentPreview(content)
+          .then((html) => { preview.srcdoc = html; })
+          .catch(() => { preview.srcdoc = '<p>Preview failed.</p>'; });
       } else {
         preview.style.display = 'none';
       }
@@ -436,7 +461,11 @@ function renderEditForm(pane) {
         docState.paneMode = 'view';
         viewTab.classList.add('active');
         editTab.classList.remove('active');
-        preview.srcdoc = ta.value;
+        try {
+          preview.srcdoc = await renderDocumentPreview(ta.value);
+        } catch {
+          preview.srcdoc = '<p>Preview failed.</p>';
+        }
         ta.style.display = 'none';
         preview.style.display = '';
       });
@@ -446,9 +475,8 @@ function renderEditForm(pane) {
     });
 }
 
-function syncDocSidebarTitle(slug, html) {
-  const newTitle = html.match(/<!--\s*title:\s*(.+?)\s*-->/i)?.[1]?.trim()
-    ?? slug.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+function syncDocSidebarTitle(slug, content) {
+  const newTitle = titleFromDocumentMarkdown(content, slug);
   const tpl = docState.templates.find((t) => t.slug === slug);
   if (tpl) tpl.title = newTitle;
   const titleEl = document.querySelector(
@@ -479,24 +507,24 @@ async function flushDocAutosave() {
   await autosaveDocument(slug, docState.autosaveGetHtml());
 }
 
-async function autosaveDocument(slug, html) {
-  if (html === docState.savedHtml) {
+async function autosaveDocument(slug, content) {
+  if (content === docState.savedContent) {
     docState.dirty = false;
     return;
   }
-  if (!html.trim()) return;
+  if (!content.trim()) return;
   const ta = document.getElementById(`de-edit-${slug}`);
   if (ta) shell.setFormFieldState(ta, 'saving');
   try {
     const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ html }),
+      body: JSON.stringify({ content }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    docState.savedHtml = html;
+    docState.savedContent = content;
     docState.dirty = false;
-    syncDocSidebarTitle(slug, html);
+    syncDocSidebarTitle(slug, content);
     if (ta) shell.flashFormFieldSaved(ta);
   } catch (e) {
     console.warn('[documents] autosave failed', e);
@@ -509,7 +537,7 @@ async function openDocument(slug) {
   if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = slug;
   docState.dirty = false;
-  docState.savedHtml = '';
+  docState.savedContent = '';
   docState.autosaveGetHtml = null;
   docState.paneMode = 'edit';
   renderDocEditor();
@@ -536,7 +564,7 @@ async function startNewDocument() {
   });
   docState.activeSlug = '__new__';
   docState.dirty = false;
-  docState.savedHtml = '';
+  docState.savedContent = '';
   docState.autosaveGetHtml = null;
   renderDocEditor();
 }
@@ -546,22 +574,22 @@ async function backToList() {
   if (docState.dirty && !(await confirmDiscardChanges())) return;
   docState.activeSlug = null;
   docState.dirty = false;
-  docState.savedHtml = '';
+  docState.savedContent = '';
   docState.autosaveGetHtml = null;
   shell.clearEditorFooterSave();
   getDocEditor()?.classList.remove('de-pane-active');
   renderDocEditor();
 }
 
-async function createDocument(slug, html) {
+async function createDocument(slug, content) {
   if (!slug) { alert('Please enter a filename (slug).'); return; }
   if (!/^[a-z0-9_-]+$/i.test(slug)) { alert('Slug may only contain letters, numbers, hyphens, and underscores.'); return; }
-  if (!html.trim()) { alert('HTML content cannot be empty.'); return; }
+  if (!content.trim()) { alert('Markdown content cannot be empty.'); return; }
   try {
     const res = await fetch('/api/documents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, html }),
+      body: JSON.stringify({ slug, content }),
     });
     if (res.status === 409) { alert('A template with that slug already exists.'); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -591,7 +619,7 @@ async function deleteDocument(slug) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     docState.activeSlug = null;
     docState.dirty = false;
-    docState.savedHtml = '';
+    docState.savedContent = '';
     docState.autosaveGetHtml = null;
     getDocEditor()?.classList.remove('de-pane-active');
     await loadDocumentsTab();
@@ -756,7 +784,7 @@ async function askAgentAboutDocument(tpl) {
     const prompt = shell.buildAgentContentPrompt(
       'Help me work with this document template:',
       [`Title: ${tpl.title}`, `Slug: ${tpl.slug}`],
-      data.content || data.html,
+      data.content,
     );
     await shell.askAgentWithPrompt(prompt);
   } catch (e) {

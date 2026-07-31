@@ -18,7 +18,7 @@ import {
   siteBaseUrl,
   type PortalDocument,
 } from '../../../../lib/contactApi';
-import { getTemplate, fillTemplate } from '../../../../lib/documentTemplates';
+import { getTemplate, fillAndRenderTemplate } from '../../../../lib/documentTemplates';
 import { getCompanyConfig, poweredByLabel } from '../../../../lib/companyConfig';
 import { sendEmail, isEmailSendConfigured } from '../../../../lib/outbound';
 import { brandedEmailHtml } from '../../../../lib/emailTemplates';
@@ -188,7 +188,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   const company = await getCompanyConfig(request);
 
   // ── Fill template + hash ───────────────────────────────────────────────────
-  const filledHtml  = fillTemplate(tmpl.html, contactRes.data, company);
+  const filledHtml  = await fillAndRenderTemplate(tmpl.markdown, contactRes.data, company);
   const contentHash = createHash('sha256').update(filledHtml, 'utf8').digest('hex');
 
   // ── Bake in signature block + audit table ──────────────────────────────────
