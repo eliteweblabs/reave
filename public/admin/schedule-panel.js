@@ -422,7 +422,7 @@ function renderScheduleGuestChips(container, guests, opts = {}) {
         label.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          navigateToClient(match.uid);
+          navigateToClient(match.uid, { fromScheduleUid: scheduleState.activeUid });
         });
       });
     }

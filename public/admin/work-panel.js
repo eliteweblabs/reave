@@ -1522,7 +1522,9 @@ function mountWorkClientPicker(parent, initial, onChange, opts = {}) {
       label: 'Open profile',
       className: 'ios-icon-btn wk-client-action-btn',
       onClick: () => {
-        if (selected?.uid) shell.navigateToClient(selected.uid);
+        if (selected?.uid) {
+          shell.navigateToClient(selected.uid, { fromWorkSlug: workState.activeSlug });
+        }
       },
     });
     actions.appendChild(profileLink);

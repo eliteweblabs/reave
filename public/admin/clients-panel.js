@@ -69,6 +69,8 @@ let clientState = {
   detailTab: 'profile',
   dirty: false,
   draft: null,
+  returnToWorkSlug: null,
+  returnToScheduleUid: null,
 };
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
@@ -276,6 +278,8 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
         clientState.activeUid = null;
         clientState.draft = null;
         clientState.autosaveGetPayload = null;
+        clientState.returnToWorkSlug = null;
+        clientState.returnToScheduleUid = null;
         getClientsEditor()?.classList.remove('de-pane-active');
       }
       renderClientsEditor();
@@ -310,6 +314,10 @@ async function loadClientsTab(opts = {}) {
   }
   const deepUid = opts.clientUid || pendingClientDeepLinkUid || parseClientDeepLinkFromUrl();
   pendingClientDeepLinkUid = null;
+  if (!deepUid) {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+  }
   clientState.activeUid = deepUid || null;
   clientState.dirty = false;
   clientState.draft = null;
@@ -916,13 +924,8 @@ function renderNewClientForm(pane) {
       back: inDrawer
         ? null
         : {
-            label: 'Back to clients',
-            onClick: () => {
-              clientState.activeUid = null;
-              clientState.draft = null;
-              getClientsEditor()?.classList.remove('de-pane-active');
-              renderClientsEditor();
-            },
+            label: clientBackLabel(),
+            onClick: () => closeClientEditor(false),
           },
       titleNode: titleWrap,
     }).header,
@@ -1079,16 +1082,8 @@ function renderEditClientForm(pane) {
 
       const { header } = createPaneSubheader({
         back: {
-          label: 'Back to clients',
-          onClick: async () => {
-            await flushClientAutosave();
-            if (clientState.dirty && !(await confirmDiscardChanges())) return;
-            clientState.activeUid = null;
-            clientState.draft = null;
-            clientState.autosaveGetPayload = null;
-            getClientsEditor()?.classList.remove('de-pane-active');
-            renderClientsEditor();
-          },
+          label: clientBackLabel(),
+          onClick: () => closeClientEditor(),
         },
         titleNode: titleWrap,
         icons: [
@@ -1297,9 +1292,39 @@ function renderEditClientForm(pane) {
     });
 }
 
+function clientBackLabel() {
+  if (clientState.returnToWorkSlug) return 'Back to project';
+  if (clientState.returnToScheduleUid) return 'Back to schedule';
+  return 'Back to clients';
+}
+
+async function closeClientEditor(checkDirty = true) {
+  await flushClientAutosave();
+  if (checkDirty && clientState.dirty && !(await confirmDiscardChanges())) return;
+  const returnWorkSlug = clientState.returnToWorkSlug;
+  const returnScheduleUid = clientState.returnToScheduleUid;
+  clientState.activeUid = null;
+  clientState.draft = null;
+  clientState.autosaveGetPayload = null;
+  clientState.returnToWorkSlug = null;
+  clientState.returnToScheduleUid = null;
+  getClientsEditor()?.classList.remove('de-pane-active');
+  if (returnWorkSlug) {
+    navigateToWork(returnWorkSlug);
+    return;
+  }
+  if (returnScheduleUid) {
+    shell.setActiveMap('schedule', { force: true, scheduleUid: returnScheduleUid });
+    return;
+  }
+  renderClientsEditor();
+}
+
 async function openClient(uid) {
   await flushClientAutosave();
   if (clientState.dirty && clientState.activeUid && !(await confirmDiscardChanges())) return;
+  clientState.returnToWorkSlug = null;
+  clientState.returnToScheduleUid = null;
   clientState.activeUid = uid;
   clientState.detailTab = 'profile';
   clientState.dirty = false;
@@ -1562,8 +1587,18 @@ function parseClientDeepLinkFromUrl() {
   }
 }
 
-function navigateToClient(uid) {
+function navigateToClient(uid, opts = {}) {
   if (!uid) return;
+  if (opts.fromWorkSlug) {
+    clientState.returnToWorkSlug = opts.fromWorkSlug;
+    clientState.returnToScheduleUid = null;
+  } else if (opts.fromScheduleUid) {
+    clientState.returnToScheduleUid = opts.fromScheduleUid;
+    clientState.returnToWorkSlug = null;
+  } else {
+    clientState.returnToWorkSlug = null;
+    clientState.returnToScheduleUid = null;
+  }
   pendingClientDeepLinkUid = uid;
   shell.setActiveMap('clients', { force: true, clientUid: uid });
 }
