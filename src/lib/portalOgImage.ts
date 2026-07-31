@@ -19,6 +19,8 @@ export const PORTAL_OG_HEIGHT = 630;
 
 const LOGO_FETCH_TIMEOUT_MS = 8_000;
 const OG_BG = { r: 10, g: 10, b: 10 };
+/** Inset on each edge so wide wordmarks aren't cropped in 1200×630 OG cards. */
+const OG_LOGO_INSET = 0.15;
 
 export type PortalShareMeta = {
   uid: string;
@@ -163,12 +165,31 @@ export async function loadLogoBuffer(source: string): Promise<Buffer | null> {
 
 async function composeLogoPng(logoBuf: Buffer): Promise<Buffer | null> {
   try {
-    return sharp(logoBuf)
-      .resize(PORTAL_OG_WIDTH, PORTAL_OG_HEIGHT, {
-        fit: 'cover',
-        position: 'centre',
+    const innerW = Math.round(PORTAL_OG_WIDTH * (1 - OG_LOGO_INSET * 2));
+    const innerH = Math.round(PORTAL_OG_HEIGHT * (1 - OG_LOGO_INSET * 2));
+
+    const logo = await sharp(logoBuf)
+      .rotate()
+      .resize(innerW, innerH, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       })
-      .flatten({ background: OG_BG })
+      .png()
+      .toBuffer();
+
+    const { width = innerW, height = innerH } = await sharp(logo).metadata();
+    const left = Math.round((PORTAL_OG_WIDTH - width) / 2);
+    const top = Math.round((PORTAL_OG_HEIGHT - height) / 2);
+
+    return sharp({
+      create: {
+        width: PORTAL_OG_WIDTH,
+        height: PORTAL_OG_HEIGHT,
+        channels: 3,
+        background: OG_BG,
+      },
+    })
+      .composite([{ input: logo, left, top }])
       .png()
       .toBuffer();
   } catch {
