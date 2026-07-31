@@ -67,6 +67,30 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+function stringifyNotificationDebugValue(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+/** Temporary debug format: `$varname : value` per line (remove when alert sources are fixed). */
+export function formatNotificationDebugHtml(record) {
+  const lines = [];
+  for (const [key, value] of Object.entries(record || {})) {
+    const str = stringifyNotificationDebugValue(value);
+    if (str == null) continue;
+    lines.push(`${escHtml(key)} : ${escHtml(str)}`);
+  }
+  return lines.join('<br>');
+}
+
 const LINKIFY_TRAILING_PUNCT = /[.,;:!?)]+$/;
 
 /** Turn plain-text URLs into safe anchor tags (used by work, documents, email panels). */

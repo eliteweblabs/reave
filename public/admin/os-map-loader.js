@@ -93,7 +93,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, formatNotificationDebugHtml } from './shared.js?v=20260731b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -3511,13 +3511,7 @@ function buildReviewAlertBanner(item) {
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
-  const when = formatReviewAlertWhen(item.receivedAt);
-  const titleLine = when
-    ? `${escHtml(when)} - ${escHtml(item.title)}`
-    : escHtml(item.title);
-  copy.innerHTML =
-    `<strong>${titleLine}</strong>` +
-    `<p>${escHtml(item.detail)}</p>`;
+  copy.innerHTML = `<p>${formatNotificationDebugHtml(item)}</p>`;
   copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');
@@ -3538,10 +3532,6 @@ function buildReviewAlertBanner(item) {
 
   if (emailAwaitingTriage) {
     alert.classList.add('admin-setup-alert--triage');
-    copy.querySelector('p')?.insertAdjacentText(
-      'afterbegin',
-      'Awaiting your triage · ',
-    );
   }
 
   if (isPushAlert) {
@@ -3588,10 +3578,6 @@ function buildReviewAlertBanner(item) {
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
-    copy.querySelector('p')?.insertAdjacentText(
-      'afterbegin',
-      'Client sent a branded acknowledgment · ',
-    );
   } else if (isMeetingFollowup) {
     appendReviewAlertAction(actions, {
       label: 'View email',
