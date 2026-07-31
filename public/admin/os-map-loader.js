@@ -7109,7 +7109,13 @@ function deleteKeyboardShortcutAvailable() {
     return !!chatState.activeId;
   }
   if (activeKey === 'email') {
-    if (emailState.composing || emailState.inboxFilter === 'sent') return false;
+    if (
+      emailState.composing ||
+      emailState.inboxFilter === 'sent' ||
+      emailState.inboxFilter === 'draft'
+    ) {
+      return false;
+    }
     return !!emailState.activeId;
   }
   return false;
@@ -7645,13 +7651,268 @@ function inboxTabCounts() {
     routed: all.filter(isEmailRouted).length,
     receipt: all.filter((e) => e.category === 'receipt' && !isEmailRouted(e)).length,
     junk: all.filter((e) => e.category === 'junk').length,
+    draft: 0,
     sent: (emailState.sentEvents || []).length,
   };
+}
+
+const EMAIL_INBOX_CATEGORIES = [
+  { id: 'all', label: 'All' },
+  { id: 'alert', label: 'Alerts' },
+  { id: 'review', label: 'Review' },
+  { id: 'book', label: 'Book' },
+  { id: 'project', label: 'Projects' },
+  { id: 'routed', label: 'Archive' },
+  { id: 'receipt', label: 'Receipts' },
+  { id: 'junk', label: 'Junk' },
+];
+
+function emailMailViewValue() {
+  if (emailState.inboxFilter === 'sent') return 'sent';
+  if (emailState.inboxFilter === 'draft') return 'draft';
+  return 'inbox';
+}
+
+function emailInboxCategoryValue() {
+  const f = emailState.inboxFilter;
+  if (f === 'sent' || f === 'draft') return 'all';
+  return f;
+}
+
+function setEmailMailView(view) {
+  emailState.activeId = null;
+  emailState.composing = false;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  closeEmailCategoryDropdown();
+  if (view === 'sent') {
+    emailState.inboxFilter = 'sent';
+    void loadEmailSentEvents(true).then(() => renderEmailPanel());
+    return;
+  }
+  if (view === 'draft') {
+    emailState.inboxFilter = 'draft';
+    renderEmailPanel();
+    return;
+  }
+  emailState.inboxFilter = 'all';
+  renderEmailPanel();
+}
+
+function setEmailInboxCategory(categoryId) {
+  if (emailState.inboxFilter === categoryId) return;
+  emailState.inboxFilter = categoryId;
+  emailState.activeId = null;
+  emailState.composing = false;
+  getEmailPanel()?.classList.remove('em-pane-active');
+  closeEmailCategoryDropdown();
+  renderEmailPanel();
+}
+
+let openEmailCategoryDropdown = null;
+let emailCategoryDropdownGlobalBound = false;
+
+function closeEmailCategoryDropdown() {
+  if (!openEmailCategoryDropdown) return;
+  const entry = openEmailCategoryDropdown;
+  openEmailCategoryDropdown = null;
+  entry.root.classList.remove('open');
+  entry.menu.hidden = true;
+  entry.trigger.setAttribute('aria-expanded', 'false');
+}
+
+function positionEmailCategoryDropdownMenu(entry) {
+  const menu = entry.menu;
+  const rect = entry.trigger.getBoundingClientRect();
+  menu.style.visibility = 'hidden';
+  menu.hidden = false;
+  const mw = menu.offsetWidth;
+  const mh = menu.offsetHeight;
+  const gap = 6;
+  let top = rect.bottom + gap;
+  if (top + mh > window.innerHeight - 8 && rect.top - gap - mh > 8) {
+    top = rect.top - gap - mh;
+  }
+  let left = rect.left;
+  left = Math.max(8, Math.min(left, window.innerWidth - mw - 8));
+  menu.style.top = `${Math.round(top)}px`;
+  menu.style.left = `${Math.round(left)}px`;
+  menu.style.minWidth = `${Math.round(rect.width)}px`;
+  menu.style.visibility = '';
+}
+
+function openEmailCategoryDropdownFor(entry) {
+  if (openEmailCategoryDropdown && openEmailCategoryDropdown !== entry) closeEmailCategoryDropdown();
+  openEmailCategoryDropdown = entry;
+  entry.root.classList.add('open');
+  entry.menu.hidden = false;
+  entry.trigger.setAttribute('aria-expanded', 'true');
+  positionEmailCategoryDropdownMenu(entry);
+  const selected =
+    entry.menu.querySelector('.model-dd-option[aria-selected="true"]') ||
+    entry.menu.querySelector('.model-dd-option');
+  selected?.focus();
+}
+
+function toggleEmailCategoryDropdown(entry) {
+  if (openEmailCategoryDropdown === entry) closeEmailCategoryDropdown();
+  else openEmailCategoryDropdownFor(entry);
+}
+
+function bindEmailCategoryDropdownGlobals() {
+  if (emailCategoryDropdownGlobalBound) return;
+  emailCategoryDropdownGlobalBound = true;
+  document.addEventListener('click', (e) => {
+    if (openEmailCategoryDropdown && !openEmailCategoryDropdown.root.contains(e.target)) {
+      closeEmailCategoryDropdown();
+    }
+  });
+  window.addEventListener('resize', closeEmailCategoryDropdown);
+  window.addEventListener('scroll', closeEmailCategoryDropdown, true);
+}
+
+function onEmailCategoryDropdownKeydown(entry, e) {
+  if (e.key === 'Escape') {
+    if (openEmailCategoryDropdown !== entry) return;
+    e.preventDefault();
+    closeEmailCategoryDropdown();
+    entry.trigger.focus();
+    return;
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+    e.preventDefault();
+    if (openEmailCategoryDropdown !== entry) {
+      openEmailCategoryDropdownFor(entry);
+      return;
+    }
+    const items = Array.from(entry.menu.querySelectorAll('.model-dd-option'));
+    if (!items.length) return;
+    const idx = items.indexOf(document.activeElement);
+    let next = idx;
+    if (e.key === 'ArrowDown') next = idx < 0 ? 0 : Math.min(items.length - 1, idx + 1);
+    else if (e.key === 'ArrowUp') next = idx < 0 ? items.length - 1 : Math.max(0, idx - 1);
+    else if (e.key === 'Home') next = 0;
+    else next = items.length - 1;
+    items[next]?.focus();
+    return;
+  }
+  const active = document.activeElement;
+  if ((e.key === 'Enter' || e.key === ' ') && active?.classList.contains('model-dd-option')) {
+    e.preventDefault();
+    closeEmailCategoryDropdown();
+    entry.trigger.focus();
+    entry.onChoose(active.dataset.value);
+  }
+}
+
+function renderEmailCategoryDropdown(entry) {
+  const { value, counts, onChoose } = entry;
+  const selectedCat = EMAIL_INBOX_CATEGORIES.find((c) => c.id === value) || EMAIL_INBOX_CATEGORIES[0];
+  const selectedCount = counts[selectedCat.id] ?? 0;
+  entry.label.textContent =
+    value === 'all'
+      ? 'All categories'
+      : `${selectedCat.label} ${selectedCount}`;
+
+  entry.menu.innerHTML = '';
+  for (const cat of EMAIL_INBOX_CATEGORIES) {
+    const count = counts[cat.id] ?? 0;
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'model-dd-option';
+    item.setAttribute('role', 'option');
+    item.dataset.value = cat.id;
+    const selected = cat.id === value;
+    item.setAttribute('aria-selected', selected ? 'true' : 'false');
+
+    const check = document.createElement('span');
+    check.className = 'model-dd-check';
+    check.innerHTML = selected ? MODEL_DD_CHECK : '';
+
+    const text = document.createElement('span');
+    text.className = 'model-dd-option-label';
+    text.textContent = cat.label;
+
+    const countEl = document.createElement('span');
+    countEl.className = 'model-dd-option-bal';
+    countEl.textContent = String(count);
+
+    item.append(check, text, countEl);
+    item.addEventListener('click', () => {
+      closeEmailCategoryDropdown();
+      entry.trigger.focus();
+      onChoose(cat.id);
+    });
+    entry.menu.appendChild(item);
+  }
+  if (openEmailCategoryDropdown === entry) positionEmailCategoryDropdownMenu(entry);
+}
+
+function createEmailCategoryDropSelect(opts = {}) {
+  bindEmailCategoryDropdownGlobals();
+  const root = document.createElement('div');
+  root.className = 'model-dd em-mail-category-dd';
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'model-dd-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', 'Inbox category');
+
+  const label = document.createElement('span');
+  label.className = 'model-dd-label';
+
+  const caret = document.createElement('span');
+  caret.className = 'model-dd-caret';
+  caret.innerHTML = MODEL_DD_CHEVRON;
+
+  trigger.append(label, caret);
+
+  const menu = document.createElement('div');
+  menu.className = 'model-dd-menu';
+  menu.setAttribute('role', 'listbox');
+  menu.hidden = true;
+
+  root.append(trigger, menu);
+
+  const entry = {
+    root,
+    trigger,
+    label,
+    menu,
+    value: opts.value ?? 'all',
+    counts: opts.counts ?? {},
+    onChoose: typeof opts.onChange === 'function' ? opts.onChange : () => {},
+  };
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleEmailCategoryDropdown(entry);
+  });
+  trigger.addEventListener('keydown', (e) => onEmailCategoryDropdownKeydown(entry, e));
+  menu.addEventListener('keydown', (e) => onEmailCategoryDropdownKeydown(entry, e));
+
+  renderEmailCategoryDropdown(entry);
+  return { root, entry };
+}
+
+function emailCountForActiveFilter(counts) {
+  const f = emailState.inboxFilter;
+  if (f === 'sent') return counts.sent;
+  if (f === 'draft') return counts.draft;
+  if (f === 'junk') return counts.junk;
+  if (f === 'receipt') return counts.receipt;
+  if (f === 'alert') return counts.alert;
+  if (f === 'review') return counts.review;
+  if (f === 'book') return counts.book;
+  if (f === 'project') return counts.project;
+  if (f === 'routed') return counts.routed;
+  return counts.all;
 }
 
 function inboxEventsForFilter() {
   const all = emailState.allEvents;
   const f = emailState.inboxFilter;
+  if (f === 'draft') return [];
   if (f === 'junk') return all.filter((e) => e.category === 'junk');
   if (f === 'receipt') return all.filter((e) => e.category === 'receipt' && !isEmailRouted(e));
   if (f === 'alert') return all.filter((e) => e.category === 'alert' && !isEmailRouted(e));
@@ -9682,115 +9943,64 @@ async function loadEmailTab(quiet) {
   syncInboxAppBadge(emailState.allEvents);
 }
 
-function renderEmailFilterTabs(savedScrollLeft = 0) {
+function renderEmailMailNav() {
   const counts = inboxTabCounts();
   const wrap = document.createElement('div');
-  wrap.className = 'em-filter-tabs-wrap';
+  wrap.className = 'em-mail-nav';
 
-  const scrollNav = document.createElement('div');
-  scrollNav.className = 'em-filter-tabs em-filter-tabs--scroll';
-  scrollNav.setAttribute('role', 'tablist');
-  scrollNav.setAttribute('aria-label', 'Inbox filters');
+  const pillWrap = document.createElement('div');
+  pillWrap.className = 'em-mail-nav-pill';
+  const mailView = emailMailViewValue();
+  const pill = createSlidingPillSelect({
+    value: mailView,
+    options: [
+      { value: 'inbox', label: `All ${counts.all}` },
+      { value: 'draft', label: `Draft ${counts.draft}` },
+      { value: 'sent', label: `Sent ${counts.sent}` },
+    ],
+    ariaLabel: 'Mail folders',
+    onChange: (next) => setEmailMailView(next),
+  });
+  pillWrap.appendChild(pill.el);
+  wrap.appendChild(pillWrap);
 
-  const tabs = [
-    { id: 'all', label: 'All', count: counts.all },
-    { id: 'alert', label: 'Alerts', count: counts.alert },
-    { id: 'review', label: 'Review', count: counts.review },
-    { id: 'book', label: 'Book', count: counts.book },
-    { id: 'project', label: 'Projects', count: counts.project },
-    { id: 'routed', label: 'Archive', count: counts.routed },
-    { id: 'receipt', label: 'Receipts', count: counts.receipt },
-    { id: 'junk', label: 'Junk', count: counts.junk },
-  ];
+  if (mailView === 'inbox') {
+    const catRow = document.createElement('div');
+    catRow.className = 'em-mail-nav-category';
+    const category = emailInboxCategoryValue();
+    const { root: catRoot } = createEmailCategoryDropSelect({
+      value: category,
+      counts,
+      onChange: setEmailInboxCategory,
+    });
+    catRow.appendChild(catRoot);
 
-  for (const tab of tabs) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    const isActive = emailState.inboxFilter === tab.id;
-    const canBulkDelete = isActive && tab.id !== 'all' && tab.count > 0;
-    btn.className =
-      'em-filter-tab' +
-      (isActive ? ' active' : '') +
-      (canBulkDelete ? ' em-filter-tab--purge' : '');
-    btn.setAttribute('role', 'tab');
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-
-    if (canBulkDelete) {
-      btn.innerHTML =
-        `<span class="em-filter-tab-label">${escHtml(tab.label)}</span>` +
-        `<span class="em-filter-purge-icon">${IOS_ICONS.trash}</span>`;
-      btn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
-      btn.title = `Delete all ${tab.label.toLowerCase()} messages`;
-      btn.addEventListener('click', () => bulkDeleteInboxCategory(tab));
-    } else {
-      btn.innerHTML = `${escHtml(tab.label)} <span class="em-filter-count">${tab.count}</span>`;
-      btn.addEventListener('click', () => {
-        if (emailState.inboxFilter === tab.id) return;
-        emailState.inboxFilter = tab.id;
-        emailState.activeId = null;
-        emailState.composing = false;
-        getEmailPanel()?.classList.remove('em-pane-active');
-        renderEmailPanel();
-      });
+    if (category !== 'all') {
+      const tab = EMAIL_INBOX_CATEGORIES.find((c) => c.id === category);
+      const catCount = counts[category] ?? 0;
+      if (tab && catCount > 0) {
+        const purgeBtn = document.createElement('button');
+        purgeBtn.type = 'button';
+        purgeBtn.className = 'em-mail-nav-purge ios-icon-btn';
+        purgeBtn.innerHTML = IOS_ICONS.trash;
+        purgeBtn.setAttribute('aria-label', `Delete all ${tab.label.toLowerCase()} messages`);
+        purgeBtn.title = `Delete all ${tab.label.toLowerCase()}`;
+        purgeBtn.addEventListener('click', () => bulkDeleteInboxCategory(tab));
+        catRow.appendChild(purgeBtn);
+      }
     }
-
-    scrollNav.appendChild(btn);
+    wrap.appendChild(catRow);
   }
 
-  const fixedNav = document.createElement('div');
-  fixedNav.className = 'em-filter-tabs-fixed';
-  fixedNav.setAttribute('role', 'tablist');
-  fixedNav.setAttribute('aria-label', 'Sent mail');
-
-  const sentTab = { id: 'sent', label: 'Sent', count: counts.sent };
-  const sentBtn = document.createElement('button');
-  sentBtn.type = 'button';
-  const sentActive = emailState.inboxFilter === sentTab.id;
-  sentBtn.className =
-    'em-filter-tab em-filter-tab--sent' + (sentActive ? ' active' : '');
-  sentBtn.setAttribute('role', 'tab');
-  sentBtn.setAttribute('aria-selected', sentActive ? 'true' : 'false');
-  sentBtn.innerHTML = `${escHtml(sentTab.label)} <span class="em-filter-count">${sentTab.count}</span>`;
-  sentBtn.addEventListener('click', () => {
-    if (emailState.inboxFilter === sentTab.id) return;
-    emailState.inboxFilter = sentTab.id;
-    emailState.activeId = null;
-    emailState.composing = false;
-    getEmailPanel()?.classList.remove('em-pane-active');
-    void loadEmailSentEvents(true).then(() => renderEmailPanel());
-  });
-  fixedNav.appendChild(sentBtn);
-
-  wrap.appendChild(scrollNav);
-  wrap.appendChild(fixedNav);
-  mountFilterTabsScroll(scrollNav, savedScrollLeft);
-  syncEmailFilterFixedTabWidth(wrap);
   return wrap;
 }
 
-function renderEmailSidebar(savedFilterScroll = 0) {
+function renderEmailSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'ch-sidebar';
 
   const counts = inboxTabCounts();
-  const countForTab =
-    emailState.inboxFilter === 'sent'
-      ? counts.sent
-      : emailState.inboxFilter === 'junk'
-      ? counts.junk
-      : emailState.inboxFilter === 'receipt'
-        ? counts.receipt
-        : emailState.inboxFilter === 'alert'
-        ? counts.alert
-        : emailState.inboxFilter === 'review'
-          ? counts.review
-          : emailState.inboxFilter === 'book'
-            ? counts.book
-            : emailState.inboxFilter === 'project'
-              ? counts.project
-            : emailState.inboxFilter === 'routed'
-              ? counts.routed
-              : counts.all;
+  const countForTab = emailCountForActiveFilter(counts);
   const subheader = listSearchSubheader({
     itemCount: countForTab,
     search: {
@@ -9810,13 +10020,10 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     },
     below:
       emailState.inboxFilter === 'receipt' || emailState.inboxFilter === 'review'
-        ? [renderEmailFilterTabs(savedFilterScroll), renderFindMissingReceiptsBar()]
-        : renderEmailFilterTabs(savedFilterScroll),
+        ? [renderEmailMailNav(), renderFindMissingReceiptsBar()]
+        : renderEmailMailNav(),
   });
-  if (subheader) {
-    sidebar.appendChild(subheader.el);
-    syncEmailFilterFixedTabWidth(subheader.el.querySelector('.em-filter-tabs-wrap'));
-  }
+  if (subheader) sidebar.appendChild(subheader.el);
 
   const isSent = emailState.inboxFilter === 'sent';
   const events = isSent ? filteredSentEvents() : filteredInboxEvents();
@@ -9833,6 +10040,9 @@ function renderEmailSidebar(savedFilterScroll = 0) {
     } else if (emailState.inboxFilter === 'sent') {
       emptyBody =
         'No outbound emails logged yet.<br><span class="em-hint">Messages you send from Compose or Reply appear here with a delivery reference.</span>';
+    } else if (emailState.inboxFilter === 'draft') {
+      emptyBody =
+        'No drafts yet.<br><span class="em-hint">Unsent compose messages will appear here.</span>';
     } else if (emailState.inboxFilter === 'junk') {
       emptyBody = 'No junk messages.';
     } else if (emailState.inboxFilter === 'alert') {
@@ -10497,9 +10707,8 @@ function renderEmailPanel() {
   const root = getEmailPanel();
   if (!root) return;
   const savedSidebarScroll = captureSidebarListScroll(root);
-  const savedFilterScroll = captureFilterTabsScroll(root);
   root.innerHTML = '';
-  root.appendChild(renderEmailSidebar(savedFilterScroll));
+  root.appendChild(renderEmailSidebar());
 
   const pane = document.createElement('div');
   pane.className = 'ch-pane';

@@ -22,6 +22,48 @@
   min-width: 0;
   max-width: 100%;
 }
+.em-mail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0 0.7rem 0.35rem;
+  flex: 0 0 auto;
+  width: calc(100% - 1.4rem);
+  max-width: calc(100% - 1.4rem);
+  min-width: 0;
+}
+.em-mail-nav-pill .sliding-pill-select {
+  width: 100%;
+}
+.em-mail-nav-category {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.em-mail-nav-category .em-mail-category-dd {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.em-mail-nav-category .model-dd-trigger {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  padding: 0.38rem 0.55rem;
+}
+.em-mail-nav-purge {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  color: #f87171;
+}
+.em-mail-nav-purge:hover {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.12);
+}
 .em-filter-tabs-wrap {
   position: relative;
   display: flex;
