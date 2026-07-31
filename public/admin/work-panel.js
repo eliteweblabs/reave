@@ -3313,14 +3313,12 @@ function mountWorkRelatedSection(container, related, sourceChatId) {
 async function askAgentAboutWork(job) {
   try {
     const lines = [
-      'Help me with this project.',
-      '',
       `Title: ${job.title}`,
       `Slug: ${job.slug}`,
     ];
     if (job.contact_name || job.client) lines.push(`Client: ${job.contact_name || job.client}`);
     if (job.status) lines.push(`Status: ${workStatusLabel(job.status)}`);
-    lines.push('', 'Use read_work on the slug above if you need the full project notes.');
+    lines.push('', 'Please wait for instructions on how to work on this project.');
     await shell.askAgentWithPrompt(lines.join('\n'), { sourceJobSlug: job.slug });
   } catch (e) {
     shell.osAlert({ title: 'Could not open agent', bodyHtml: escHtml(e.message) });

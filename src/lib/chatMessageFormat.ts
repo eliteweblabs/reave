@@ -56,6 +56,9 @@ export function storedChatPlainText(content: string): string {
 export const INBOX_EMAIL_WAIT_INSTRUCTION =
   'Please wait for instructions on how to deal with this email.';
 
+export const PROJECT_WAIT_INSTRUCTION =
+  'Please wait for instructions on how to work on this project.';
+
 /** Max chars of email body shown in the inbox → agent chat handoff bubble. */
 export const INBOX_EMAIL_CHAT_EXCERPT_MAX = 500;
 
@@ -64,6 +67,20 @@ export function isInboxEmailOpenPrompt(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed.includes(INBOX_EMAIL_WAIT_INSTRUCTION)) return false;
   return /^From:\s/m.test(trimmed) && /^Subject:\s/m.test(trimmed);
+}
+
+/** True for the auto-sent stub when opening agent from the admin Work tab. */
+export function isProjectOpenPrompt(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.includes(PROJECT_WAIT_INSTRUCTION)) return false;
+  return /^Title:\s/m.test(trimmed) && /^Slug:\s/m.test(trimmed);
+}
+
+/** Legacy Work → agent handoff before the wait stub (still auto-sent from Work tab). */
+export function isLegacyProjectOpenPrompt(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('Help me with this project.')) return false;
+  return /^Slug:\s/m.test(trimmed);
 }
 
 function truncateInboxEmailExcerpt(text: string, max = INBOX_EMAIL_CHAT_EXCERPT_MAX): string {
@@ -104,6 +121,26 @@ export function collapseInboxEmailOpenPrompt(text: string): string {
   return lines.join('\n');
 }
 
+/** Normalize Work handoff messages for chat display — metadata only, no read_work hint. */
+export function collapseProjectOpenPrompt(text: string): string {
+  if (!isProjectOpenPrompt(text) && !isLegacyProjectOpenPrompt(text)) return text;
+
+  const title = text.match(/^Title:\s*(.+)$/m)?.[1]?.trim();
+  const slug = text.match(/^Slug:\s*(.+)$/m)?.[1]?.trim();
+  const client = text.match(/^Client:\s*(.+)$/m)?.[1]?.trim();
+  const status = text.match(/^Status:\s*(.+)$/m)?.[1]?.trim();
+
+  const lines: string[] = [];
+  if (title) lines.push(`Title: ${title}`);
+  if (slug) lines.push(`Slug: ${slug}`);
+  if (client) lines.push(`Client: ${client}`);
+  if (status) lines.push(`Status: ${status}`);
+  if (!lines.length) return text;
+
+  lines.push('', PROJECT_WAIT_INSTRUCTION);
+  return lines.join('\n');
+}
+
 /** Collapse legacy verbose email dumps to a short reference for chat display. */
 export function userMessageDisplayText(text: string): string {
   const trimmed = text.trim();
@@ -111,6 +148,9 @@ export function userMessageDisplayText(text: string): string {
 
   const inboxHandoff = collapseInboxEmailOpenPrompt(trimmed);
   if (inboxHandoff !== trimmed) return inboxHandoff;
+
+  const projectHandoff = collapseProjectOpenPrompt(trimmed);
+  if (projectHandoff !== trimmed) return projectHandoff;
 
   const verboseEmail =
     trimmed.includes('[Email triage]') ||

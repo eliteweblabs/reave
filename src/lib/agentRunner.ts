@@ -46,6 +46,9 @@ import {
 import { labelForAgentTool } from './agentToolLabels';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailForAgent } from './emailAgentContext';
+import { listJobsForItem } from './projectLinks';
+import { storeReadWork } from './workStore';
+import { formatWorkForAgent } from './workAgentContext';
 
 type AnthropicContentBlock =
   | { type: 'text'; text: string }
@@ -434,6 +437,35 @@ async function linkedEmailContextLine(emailId: string): Promise<string | null> {
   return lines.join('\n\n');
 }
 
+async function linkedProjectContextLine(threadId: string): Promise<string | null> {
+  const jobs = await listJobsForItem('chat', threadId.trim());
+  if (!jobs.length) return null;
+
+  const primary = jobs[0];
+  const doc = await storeReadWork(primary.slug);
+
+  const lines = [
+    'This chat was opened from the admin Work tab and is linked to the project below. The user did not type or paste the project notes — the app attached them for your context only.',
+    'If the latest user message is only the project handoff stub ("Please wait for instructions…"), reply in one short sentence naming the project title only — no notes recap, no issue lists, no audit summaries, no bullet lists from the notes. Ask: "Do you have changes or anything to add to this project?" Do not call read_work for this handoff; the notes are already below.',
+    'When the user asks for something specific (update notes, send email, invoice, audit follow-up, etc.), execute with work tools — do not wait again.',
+  ];
+
+  if (jobs.length > 1) {
+    lines.push(
+      `Linked projects: ${jobs.map((j) => `${j.title} (${j.slug})`).join(', ')}`,
+      `Primary project notes below are for ${primary.title} (${primary.slug}).`,
+    );
+  } else {
+    lines.push(`Linked project: ${primary.title} (${primary.slug})`);
+  }
+
+  if (doc) {
+    lines.push(formatWorkForAgent(doc));
+  }
+
+  return lines.join('\n\n');
+}
+
 /**
  * Minimal agent loop (Anthropic Messages API): the model may call
  * list_knowledge / read_knowledge / resolve_contact / create_invoice / etc.;
@@ -731,6 +763,12 @@ async function runKnowledgeAgentInner(
   const linkedEmailId = getAgentContext().emailId?.trim();
   if (linkedEmailId) {
     const linked = await linkedEmailContextLine(linkedEmailId);
+    if (linked) sysParts.push(linked);
+  }
+
+  const linkedThreadId = getAgentContext().threadId?.trim();
+  if (linkedThreadId) {
+    const linked = await linkedProjectContextLine(linkedThreadId);
     if (linked) sysParts.push(linked);
   }
 
