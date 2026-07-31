@@ -11112,7 +11112,7 @@ function renderEmailPanel() {
   }
   const bodyHtmlSource = (ev.bodyHtml || '').trim();
   const plainBody = ev.bodyText || ev.bodySnippet || '';
-  const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summary;
+  const showPlainBody = !bodyHtmlSource && plainBody && plainBody !== summaryText;
   if (bodyHtmlSource) {
     detailHtml +=
       // Links are rewritten server-side (resolveEmailHtmlForDisplay) to target="_blank", so
