@@ -53,19 +53,23 @@ self.addEventListener('push', (event) => {
   const badgeCount =
     data.badgeCount != null ? Math.max(0, Number(data.badgeCount) || 0) : null;
   const alertId = data.alertId ? String(data.alertId) : '';
+  const tag = data.tag || 'inbox';
+  const isAuditAlert = String(tag).toLowerCase().startsWith('siri-proposal-');
 
   const tasks = [
     self.registration.showNotification(data.title, {
       body: data.body,
-      tag: data.tag || 'inbox',
+      tag,
       icon: '/api/branding/icon?size=192',
       badge: '/api/branding/icon?size=192',
       data: { url: data.url || '/admin?tab=email', alertId },
       actions: alertId
-        ? [
-            { action: 'archive', title: 'Archive' },
-            { action: 'open', title: 'View' },
-          ]
+        ? isAuditAlert
+          ? [{ action: 'open', title: 'View' }]
+          : [
+              { action: 'archive', title: 'Archive' },
+              { action: 'open', title: 'View' },
+            ]
         : [],
     }),
     notifyClientsInboxPush(),

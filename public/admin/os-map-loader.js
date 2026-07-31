@@ -3409,6 +3409,13 @@ function rescheduleScheduledMeeting(item) {
   }
 }
 
+function isAuditPushAlert(item) {
+  if (item?.type !== 'push_alert') return false;
+  const tag = String(item.tag || '').toLowerCase();
+  if (tag.startsWith('siri-proposal-')) return true;
+  return /^(full )?audit ready:/i.test(String(item.title || '').trim());
+}
+
 function reviewAlertVariant(type) {
   if (type === 'push_alert') return 'confirm';
   if (type === 'meeting_conflict') return 'confirm';
@@ -3540,10 +3547,12 @@ function buildReviewAlertBanner(item) {
       primary: true,
       onClick: () => openReviewNotificationTarget(item),
     });
-    appendReviewAlertAction(actions, {
-      label: 'Archive',
-      onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
-    });
+    if (!isAuditPushAlert(item)) {
+      appendReviewAlertAction(actions, {
+        label: 'Archive',
+        onClick: (actionBtn) => void dismissReviewNotification(item, actionBtn),
+      });
+    }
   } else if (isProjectComment || isShareOpen || isContactForm) {
     appendReviewAlertAction(actions, {
       label: 'View project',
@@ -3628,10 +3637,12 @@ function buildReviewAlertBanner(item) {
     });
   }
 
-  appendReviewAlertAction(actions, {
-    label: 'Triage',
-    onClick: () => void openNotificationTriageDialog(item),
-  });
+  if (isEmailAutomationReview(item)) {
+    appendReviewAlertAction(actions, {
+      label: 'Triage',
+      onClick: () => void openNotificationTriageDialog(item),
+    });
+  }
 
   const dismissBtn = document.createElement('button');
   dismissBtn.type = 'button';
