@@ -2,10 +2,10 @@
  * contactPortalEnrich.ts
  *
  * When a new contact is added, fire a background job that:
- *  1. Searches the web for the business (name + website / company)
+ *  1. Searches the web for the business (name + company)
  *  2. Fetches the business website for structured content
  *  3. Builds a rich Overview: headline, bio body, and labeled fields
- *     (hours, owner/contact, phone/email, address, years in business, etc.)
+ *     (website, address, phone/email, hours, owner, years in business)
  *  4. Calls setContactPortal so the portal Overview tab is populated
  *
  * Runs non-blocking (void) — never throws into the caller.
@@ -29,19 +29,15 @@ function clean(s: unknown): string {
   return typeof s === 'string' ? s.trim() : '';
 }
 
-/** Extract the first plausible domain/URL from a contact's data. */
-function guessWebsite(contact: ContactRecord): string | null {
+/** Extract the first plausible URL from a contact's notes field. */
+function websiteFromNotes(contact: ContactRecord): string | null {
   const notesText = clean(contact.notes);
-  // Look for a URL in notes
   const urlMatch = notesText.match(/https?:\/\/[^\s,)]+/i);
   if (urlMatch) return urlMatch[0]!.replace(/[.,;)]+$/, '');
-  // Check the website field if present
-  const w = clean((contact as unknown as Record<string, unknown>).website);
-  if (w) return w.startsWith('http') ? w : `https://${w}`;
   return null;
 }
 
-/** Very lightweight year-built guesser from text snippets. */
+/** Very lightweight year-founded extractor from free text. */
 function extractYearFounded(text: string): string | null {
   const m =
     text.match(/(?:founded|established|est\.?|since|serving.*since|in business since)[^\d]*(\d{4})/i) ??
@@ -62,18 +58,12 @@ function extractHours(text: string): string | null {
 
 /** Pull an owner / contact name from text. */
 function extractOwner(text: string, companyName: string): string | null {
-  // "owner: John Smith" / "president: Jane Doe" / "contact: Bob"
-  const patterns = [
+  const m = text.match(
     /(?:owner|president|ceo|founder|principal|contact|proprietor)[:\s]+([A-Z][a-z]+(?: [A-Z][a-z]+)+)/,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) {
-      // Make sure it isn't just the company name repeated
-      if (!m[1]!.toLowerCase().includes(companyName.toLowerCase().split(' ')[0]!)) {
-        return m[1]!.trim();
-      }
-    }
+  );
+  if (m) {
+    const firstName = companyName.toLowerCase().split(' ')[0] ?? '';
+    if (!m[1]!.toLowerCase().includes(firstName)) return m[1]!.trim();
   }
   return null;
 }
@@ -110,46 +100,43 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     // ── 1. Brave web search ────────────────────────────────────────────────
     const query = company !== name ? `${company} ${name}` : name;
     let searchSnippets = '';
+    let resolvedWebsite: string | null = websiteFromNotes(contact);
+
     try {
-      const searchResult = await braveSearch({ query: `${query} business hours owner` });
-      if (searchResult.ok && Array.isArray(searchResult.results)) {
+      const searchResult = await braveSearch(`${query} business hours owner`, 5);
+      if (searchResult.ok && searchResult.results.length > 0) {
         searchSnippets = searchResult.results
-          .slice(0, 5)
-          .map((r: { title?: string; description?: string; url?: string }) =>
-            [r.title, r.description].filter(Boolean).join(' '),
-          )
+          .map((r) => [r.title, r.description].filter(Boolean).join(' '))
           .join(' ');
+
+        // Grab a website from the top result if we don't have one yet
+        if (!resolvedWebsite) {
+          const top = searchResult.results[0];
+          if (
+            top?.url &&
+            !top.url.includes('yelp.com') &&
+            !top.url.includes('facebook.com') &&
+            !top.url.includes('yellowpages') &&
+            !top.url.includes('bbb.org')
+          ) {
+            resolvedWebsite = top.url;
+          }
+        }
       }
     } catch {
       // search failed — continue with whatever we have
     }
 
-    // ── 2. Fetch the business website if we have one ───────────────────────
+    // ── 2. Fetch the business website ──────────────────────────────────────
     let siteText = '';
     let siteTitle = '';
-    let resolvedWebsite: string | null = guessWebsite(contact);
-
-    // If search returned a website we didn't already have, capture it
-    if (!resolvedWebsite) {
-      try {
-        const searchResult2 = await braveSearch({ query: `${query} official website` });
-        if (searchResult2.ok && Array.isArray(searchResult2.results) && searchResult2.results.length > 0) {
-          const top = searchResult2.results[0];
-          if (top && top.url && !top.url.includes('yelp.com') && !top.url.includes('facebook.com')) {
-            resolvedWebsite = top.url;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
 
     if (resolvedWebsite) {
       try {
-        const fetched = await fetchUrl({ url: resolvedWebsite });
+        const fetched = await fetchUrl(resolvedWebsite);
         if (fetched.ok) {
-          siteText = (fetched.text ?? '').slice(0, 4000);
-          siteTitle = fetched.title ?? '';
+          siteText = (fetched.data.content ?? '').slice(0, 4000);
+          siteTitle = fetched.data.title ?? '';
         }
       } catch {
         // site fetch failed — proceed with search data only
@@ -165,7 +152,8 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
       : null;
     const hours = extractHours(combinedText);
     const owner = extractOwner(combinedText, company);
-    const address = extractAddress(combinedText) ?? extractAddress(clean(contact.notes));
+    const address =
+      extractAddress(combinedText) ?? extractAddress(clean(contact.notes));
 
     // ── 4. Build the Overview fields ───────────────────────────────────────
     const fields: ClientPortalField[] = [];
@@ -190,15 +178,14 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     }
     if (yearFounded) {
       const label = yearsInBusiness
-        ? `Est. ${yearFounded} (${yearsInBusiness} yrs)`
+        ? `Est. ${yearFounded} (${yearsInBusiness} yrs in business)`
         : `Est. ${yearFounded}`;
       fields.push({ label: 'In Business', value: label });
     }
 
-    // Build the body paragraph from search snippets
+    // Build bio from search snippet sentences
     let bodyParagraph = '';
     if (searchSnippets.length > 60) {
-      // Use the first meaty sentence from search snippets as a bio
       const sentences = searchSnippets
         .split(/[.!?]/)
         .map((s) => s.trim())
@@ -210,20 +197,21 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     }
 
     if (fields.length === 0 && !bodyParagraph) {
-      // Nothing useful found — skip writing a portal to avoid overwriting manually set data
+      // Nothing useful found — skip to avoid overwriting manually set data
       return;
     }
 
-    // ── 5. Merge with any existing portal (don't wipe manual changes) ──────
+    // ── 5. Merge with any existing portal (preserve manual changes) ────────
     const fresh = await getContact(uid);
     const existing = fresh.ok ? extractPortal(fresh.data) : null;
 
-    // Only auto-populate fields that are not already set
     const portalHeadline =
-      existing?.headline || (company !== name ? company : siteTitle || company);
+      existing?.headline ||
+      (company !== name ? company : siteTitle || company);
+
     const portalBody = existing?.body || bodyParagraph || undefined;
 
-    // Merge fields: keep existing manual fields, append new discovered ones
+    // Merge fields: keep existing, append newly discovered ones (no dupes)
     const existingLabels = new Set(
       (existing?.fields ?? []).map((f) => f.label.toLowerCase()),
     );
@@ -232,21 +220,19 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
       ...fields.filter((f) => !existingLabels.has(f.label.toLowerCase())),
     ];
 
-    // Also carry over website on the portal itself
-    const portalWebsite =
-      existing?.website || (resolvedWebsite ?? undefined);
-
     await setContactPortal(uid, {
       ...(existing ?? {}),
-      enabled: existing?.enabled !== false, // keep revoked state
+      enabled: existing?.enabled !== false,
       headline: portalHeadline,
       body: portalBody,
       fields: mergedFields.length > 0 ? mergedFields : undefined,
-      website: portalWebsite,
+      website: existing?.website || resolvedWebsite || undefined,
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    // Non-blocking — silently log, never crash the caller
-    console.warn('[contactPortalEnrich] enrichment failed', e instanceof Error ? e.message : e);
+    console.warn(
+      '[contactPortalEnrich] enrichment failed',
+      e instanceof Error ? e.message : e,
+    );
   }
 }
