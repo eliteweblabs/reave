@@ -30,6 +30,9 @@ RUN apt-get update && apt-get install -y \
 ENV PLAYWRIGHT_BROWSERS_PATH=0
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
+# Astro/Vite build can OOM on small Railway builder instances (~512MB heap).
+ENV NODE_OPTIONS=--max-old-space-size=768
+
 # Copy package files
 COPY package*.json ./
 
