@@ -23,7 +23,7 @@ const SYSTEM_NODES = [
   { id: 'sms_caller', title: 'SMS / caller', sub: 'Telnyx number', icon: '☎️', hue: 175, group: 'clients', x: 60, y: 260 },
   { id: 'dev', title: 'Admin / dashboard', sub: '/admin/ · Clerk · PWA push · agent chats', icon: '🧑‍💻', brand: 'cursor', hue: 325, group: 'clients', x: 60, y: 390 },
   { id: 'focus_chat', title: 'Focus chat skin', sub: '/focus · speed-dial FAB · project-first new chats (chatFocusSkin)', icon: '💬', hue: 300, status: true, group: 'clients', x: 60, y: 780 },
-  { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · browser SDK', icon: '🎙️', hue: 310, status: true, group: 'clients', x: 60, y: 520 },
+  { id: 'vapi', title: 'Vapi', sub: 'homepage voice widget · disabled on this install', icon: '🎙️', hue: 310, status: false, ghost: true, group: 'clients', x: 60, y: 520 },
   { id: 'siri', title: 'Siri / iOS Shortcuts', sub: '/api/siri · Apple Shortcuts · voice commands', icon: '🍎', brand: 'apple', hue: 270, status: true, group: 'clients', x: 60, y: 650 },
 
   // App hub (Railway / hosting)
@@ -60,7 +60,7 @@ const SYSTEM_NODES = [
 
 const SYSTEM_EDGES = [
   { from: 'web', to: 'astro', label: '/deck · /go · forms' },
-  { from: 'web', to: 'vapi', label: 'voice widget', dashed: true },
+  { from: 'web', to: 'vapi', label: 'voice widget', dashed: true, ghost: true },
   { from: 'web', to: 'portal', label: 'share link', dashed: true },
   { from: 'portal', to: 'engagement', label: 'vault · comments', dashed: true },
   { from: 'astro', to: 'engagement', label: 'deck · share opens · contact form' },

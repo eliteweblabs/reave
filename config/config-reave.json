@@ -9,7 +9,6 @@
     "uptime_monitoring",
     "documents",
     "voice",
-    "vapi",
     "carddav",
     "scheduling",
     "dev_infra",
@@ -42,9 +41,8 @@
     "profile",
     "company",
     "socials",
-    "industries",
-    "vapi"
+    "industries"
   ],
-  "homepageVoice": true,
+  "homepageVoice": false,
   "chatFocusSkin": true
 }
