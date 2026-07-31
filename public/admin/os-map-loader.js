@@ -10183,6 +10183,29 @@ function isValidEmailAddress(value) {
 
 let emailToSearchTimer = null;
 
+/** Prevent double-fire from pointerdown + click; select before input blur on touch. */
+function bindEmailComposeToOption(btn, handler) {
+  let picked = false;
+  const run = () => {
+    if (picked) return;
+    picked = true;
+    handler();
+    setTimeout(() => {
+      picked = false;
+    }, 300);
+  };
+  btn.addEventListener('pointerdown', (ev) => {
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    ev.preventDefault();
+    run();
+  });
+  btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+  btn.addEventListener('click', (ev) => {
+    ev.preventDefault();
+    run();
+  });
+}
+
 /**
  * Multi-recipient To field: client autocomplete + removable chips.
  * Returns { getRecipients, focus }.
@@ -10220,6 +10243,19 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   wrap.appendChild(chipsEl);
   wrap.appendChild(dropdown);
   parent.appendChild(wrap);
+
+  let toHintEl = null;
+  let dropdownPointerDown = false;
+
+  dropdown.addEventListener('pointerdown', () => {
+    dropdownPointerDown = true;
+  });
+  dropdown.addEventListener('pointerup', () => {
+    dropdownPointerDown = false;
+  });
+  dropdown.addEventListener('pointercancel', () => {
+    dropdownPointerDown = false;
+  });
 
   function syncPlaceholder() {
     input.placeholder = recipients.length ? 'Add Another…' : 'Search Clients Or Type An Email…';
@@ -10281,13 +10317,37 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
 
   function setDropdownOpen(open) {
     dropdown.style.display = open ? 'block' : 'none';
+    wrap.classList.toggle('em-compose-to-wrap--open', open);
     input.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) highlightIdx = -1;
   }
 
+  function showToHint(message, warn = false) {
+    if (!message) {
+      toHintEl?.remove();
+      toHintEl = null;
+      return;
+    }
+    if (!toHintEl) {
+      toHintEl = document.createElement('p');
+      toHintEl.className = 'em-compose-to-hint';
+      wrap.insertAdjacentElement('afterend', toHintEl);
+    }
+    toHintEl.classList.toggle('em-compose-to-hint--warn', warn);
+    toHintEl.textContent = message;
+  }
+
   function pickClient(client) {
     const email = String(client?.email || '').trim().toLowerCase();
-    if (!email) return;
+    if (!email) {
+      showToHint(
+        `${client?.name || 'This client'} has no email on file. Add one in Contacts, or type an address.`,
+        true,
+      );
+      input.focus();
+      return;
+    }
+    showToHint('');
     addRecipient({
       email,
       name: client.name || '',
@@ -10300,6 +10360,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   }
 
   function renderDropdown(clients, query) {
+    showToHint('');
     dropdown.innerHTML = '';
     highlightIdx = -1;
     const q = query.trim();
@@ -10317,10 +10378,10 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
         addBtn.type = 'button';
         addBtn.className = 'em-compose-to-option em-compose-to-option-add';
         addBtn.textContent = `Use ${q}`;
-        addBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
-        addBtn.addEventListener('click', () => {
+        bindEmailComposeToOption(addBtn, () => {
           addRecipient({ email: q.toLowerCase(), name: '', uid: null });
           input.value = '';
+          showToHint('');
           setDropdownOpen(false);
           dropdown.innerHTML = '';
           input.focus();
@@ -10336,18 +10397,21 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
       btn.type = 'button';
       btn.className = 'em-compose-to-option';
       btn.dataset.idx = String(idx);
+      const subline = email
+        ? workClientSubline(c)
+        : `${workClientSubline(c) || 'No contact details'} · No email on file`;
       btn.innerHTML =
         `${escHtml(c.name || 'Client')}` +
-        `<span class="sub">${escHtml(workClientSubline(c))}</span>`;
+        `<span class="sub">${escHtml(subline)}</span>`;
       if (!email) {
-        btn.disabled = true;
-        btn.classList.add('em-compose-to-option--disabled');
+        btn.classList.add('em-compose-to-option--no-email');
+        bindEmailComposeToOption(btn, () => pickClient(c));
       } else if (hasRecipient(email)) {
         btn.disabled = true;
         btn.classList.add('em-compose-to-option--disabled');
+      } else {
+        bindEmailComposeToOption(btn, () => pickClient(c));
       }
-      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
-      btn.addEventListener('click', () => pickClient(c));
       dropdown.appendChild(btn);
     });
     if (isValidEmailAddress(q) && !hasRecipient(q)) {
@@ -10355,10 +10419,10 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
       addBtn.type = 'button';
       addBtn.className = 'em-compose-to-option em-compose-to-option-add';
       addBtn.textContent = `Use ${q}`;
-      addBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
-      addBtn.addEventListener('click', () => {
+      bindEmailComposeToOption(addBtn, () => {
         addRecipient({ email: q.toLowerCase(), name: '', uid: null });
         input.value = '';
+        showToHint('');
         setDropdownOpen(false);
         dropdown.innerHTML = '';
         input.focus();
@@ -10430,6 +10494,7 @@ function mountEmailToRecipientsPicker(parent, initial, onChange, opts = {}) {
   input.addEventListener('input', () => scheduleSearch());
   input.addEventListener('blur', () => {
     setTimeout(() => {
+      if (dropdownPointerDown) return;
       if (!wrap.contains(document.activeElement)) setDropdownOpen(false);
     }, 150);
   });

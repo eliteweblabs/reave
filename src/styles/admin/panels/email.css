@@ -496,6 +496,18 @@
   position: relative;
   min-width: 0;
 }
+.em-compose-to-wrap--open {
+  z-index: 50;
+}
+.em-compose-to-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.em-compose-to-hint--warn {
+  color: #f59e0b;
+}
 .em-compose-to-chips {
   display: flex;
   flex-wrap: wrap;
@@ -585,6 +597,7 @@
   color: var(--fg);
   font-size: 0.82rem;
   cursor: pointer;
+  touch-action: manipulation;
 }
 .em-compose-to-option:hover,
 .em-compose-to-option.active {
@@ -593,6 +606,9 @@
 .em-compose-to-option--disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+.em-compose-to-option--no-email {
+  opacity: 0.9;
 }
 .em-compose-to-option .sub {
   display: block;
