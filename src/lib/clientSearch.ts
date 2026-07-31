@@ -7,6 +7,8 @@ import {
   attachPortalLinksForList,
   contactIsPersonal,
   getContact,
+  getClientKind,
+  hasExplicitClientKind,
   listContacts,
   resolveContact,
   type ContactRecord,
@@ -156,6 +158,8 @@ export function formatClientCandidate(
     email: c.email ?? null,
     phone: c.phone ?? null,
     company: c.company ?? null,
+    kind: getClientKind(c),
+    kindExplicit: hasExplicitClientKind(c),
     score: c._score ?? c.score ?? null,
     matchReason: c._matchReason ?? null,
   };

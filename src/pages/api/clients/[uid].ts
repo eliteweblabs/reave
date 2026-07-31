@@ -4,9 +4,11 @@ import {
   contactSummary,
   contactIsPersonal,
   extractPortal,
+  getClientKind,
   getContact,
   isContactApiConfigured,
-  setContactPersonal,
+  parseClientKindInput,
+  setContactKind,
   setContactPortal,
   updateContact,
   type ClientDataEntry,
@@ -123,8 +125,12 @@ async function saveClientPortalFields(
   body: Record<string, unknown>,
   contactData: ContactRecord,
 ) {
-  if (typeof body.personal === 'boolean') {
-    const saved = await setContactPersonal(uid, body.personal);
+  if (typeof body.kind === 'string' || typeof body.personal === 'boolean') {
+    const kind = parseClientKindInput(
+      body.kind,
+      typeof body.personal === 'boolean' ? body.personal : undefined,
+    );
+    const saved = await setContactKind(uid, kind);
     if (!saved.ok) return { ok: false as const, error: saved.error };
   }
 
@@ -217,6 +223,7 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     lastName: contactStringField(contact.lastName),
     notes: contact.notes ?? '',
     personal: contactIsPersonal(contact),
+    kind: getClientKind(contact),
     website,
     address: contactStringField(portal?.address) || '',
     geo: portal?.geo ?? null,
@@ -264,15 +271,16 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   const branding = await clientPortalBranding(uid);
   const refreshed = await getContact(uid);
   const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
+  const savedContact = refreshed.ok ? refreshed.data : contact;
 
   return json({
     ok: true,
-    ...contactSummary(contact),
+    ...contactSummary(savedContact),
     firstName: contactStringField(contact.firstName),
     lastName: contactStringField(contact.lastName),
     notes: contact.notes ?? '',
-    personal:
-      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(contact),
+    personal: contactIsPersonal(savedContact),
+    kind: getClientKind(savedContact),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,
@@ -320,15 +328,16 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   const branding = await clientPortalBranding(uid);
   const refreshed = await getContact(uid);
   const portal = refreshed.ok ? extractPortal(refreshed.data) : null;
+  const savedContact = refreshed.ok ? refreshed.data : contact;
 
   return json({
     ok: true,
-    ...contactSummary(contact),
+    ...contactSummary(savedContact),
     firstName: contactStringField(contact.firstName),
     lastName: contactStringField(contact.lastName),
     notes: contact.notes ?? '',
-    personal:
-      typeof body.personal === 'boolean' ? body.personal : contactIsPersonal(contact),
+    personal: contactIsPersonal(savedContact),
+    kind: getClientKind(savedContact),
     website: portalSaved.website,
     address: portalSaved.address,
     geo: portalSaved.geo,

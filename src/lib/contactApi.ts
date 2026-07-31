@@ -283,16 +283,58 @@ export type ClientPortal = {
   documents?: PortalDocument[];
   /** ChangeDetection.io watch metadata (when site_monitoring feature is enabled). */
   siteMonitoring?: SiteMonitoringMeta;
-  /** Life/service contact — not a client you build projects for. */
+  /** Client relationship: professional (default), personal (non-project), or proposed (audit/prospect). */
+  clientKind?: ClientKind;
+  /** @deprecated Legacy flag — kept in sync when clientKind is personal. */
   personal?: boolean;
   updatedAt?: string;
 };
 
 const PORTAL_SYSTEM = 'portal';
 
+export const CLIENT_KINDS = ['professional', 'personal', 'proposed'] as const;
+export type ClientKind = (typeof CLIENT_KINDS)[number];
+
+export function normalizeClientKind(raw: unknown): ClientKind | null {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (v === 'professional' || v === 'personal' || v === 'proposed') return v;
+  return null;
+}
+
+/** Parse kind from API input, with optional legacy `personal` boolean fallback. */
+export function parseClientKindInput(
+  kindRaw: unknown,
+  legacyPersonal?: boolean,
+): ClientKind {
+  const parsed = normalizeClientKind(kindRaw);
+  if (parsed) return parsed;
+  if (legacyPersonal === true) return 'personal';
+  return 'professional';
+}
+
+function clientKindFromPortal(portal: ClientPortal | null | undefined): ClientKind {
+  if (!portal) return 'professional';
+  const explicit = normalizeClientKind(portal.clientKind);
+  if (explicit) return explicit;
+  if (portal.personal === true) return 'personal';
+  return 'professional';
+}
+
+/** True when the contact has an explicit kind stored (not inferred from legacy defaults). */
+export function hasExplicitClientKind(contact: ContactRecord): boolean {
+  const portal = extractPortal(contact);
+  if (!portal) return false;
+  if (normalizeClientKind(portal.clientKind)) return true;
+  return portal.personal === true;
+}
+
+export function getClientKind(contact: ContactRecord): ClientKind {
+  return clientKindFromPortal(extractPortal(contact));
+}
+
 /** True when marked personal (services, friends, etc. — not project clients). */
 export function contactIsPersonal(contact: ContactRecord): boolean {
-  return extractPortal(contact)?.personal === true;
+  return getClientKind(contact) === 'personal';
 }
 
 /** Summary shape for list views — no notes or full metadata. */
@@ -304,6 +346,7 @@ export function contactSummary(c: ContactRecord) {
     phone: contactStringField(c.phone),
     company: contactStringField(c.company),
     archived: !!c.archived,
+    kind: getClientKind(c),
     personal: contactIsPersonal(c),
     updatedAt: c.updatedAt ?? c.createdAt ?? '',
     ...(hasFeature('client_portal') && !contactIsPersonal(c)
@@ -312,21 +355,32 @@ export function contactSummary(c: ContactRecord) {
   };
 }
 
-/** Persist the personal/work flag on portal metadata (no contact-api schema change). */
-export async function setContactPersonal(
+/** Persist client kind on portal metadata (no contact-api schema change). */
+export async function setContactKind(
   uid: string,
-  personal: boolean,
-): Promise<{ ok: true; personal: boolean } | { ok: false; error: string }> {
+  kind: ClientKind,
+): Promise<{ ok: true; kind: ClientKind } | { ok: false; error: string }> {
   const res = await getContact(uid);
   if (!res.ok) return { ok: false, error: res.error };
 
   const portal = extractPortal(res.data) ?? {};
   const saved = await setContactPortal(uid, {
     ...portal,
-    personal,
+    clientKind: kind,
+    personal: kind === 'personal',
     updatedAt: new Date().toISOString(),
   });
   if (!saved.ok) return { ok: false, error: saved.error };
+  return { ok: true, kind };
+}
+
+/** @deprecated Use setContactKind — kept for legacy callers. */
+export async function setContactPersonal(
+  uid: string,
+  personal: boolean,
+): Promise<{ ok: true; personal: boolean } | { ok: false; error: string }> {
+  const saved = await setContactKind(uid, personal ? 'personal' : 'professional');
+  if (!saved.ok) return saved;
   return { ok: true, personal };
 }
 
@@ -576,6 +630,8 @@ export function slimPortalMetadataForList(
   if (!metadata || typeof metadata !== 'object') return null;
   const m = metadata as Record<string, unknown>;
   const out: Record<string, unknown> = {};
+  const kind = normalizeClientKind(m.clientKind);
+  if (kind && kind !== 'professional') out.clientKind = kind;
   if (m.personal === true) out.personal = true;
   const logoSource = contactStringField(m.logoSource);
   const iconSource = contactStringField(m.iconSource);

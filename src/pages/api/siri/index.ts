@@ -587,8 +587,9 @@ async function runProposalResearch(input: {
       'to identify the correct business and find its website; use any location hints in the description to ' +
       'disambiguate common names. If no website can be found, say so in the audit and continue with whatever ' +
       'public info you can find.',
-    '2. resolve_contact for the client; create_contact if there is no match — use the business name as the ' +
-      'contact name when no personal name is known, and save whatever phone/email/company was given.',
+    '2. resolve_contact for the client. If there is no match, create_contact with kind "proposed". If a match ' +
+      'exists but kindExplicit is false (never classified), update_contact with kind "proposed". Use the business ' +
+      'name as the contact name when no personal name is known, and save whatever phone/email/company was given.',
     auditToolsStep,
     '4. create_work with status "inquiry", contact_uid set, title "Website Redesign — {Business Name}" (best ' +
       'known name), and a complete markdown audit body following the required section structure — 1,200+ ' +

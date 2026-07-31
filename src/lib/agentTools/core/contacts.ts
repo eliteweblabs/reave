@@ -50,6 +50,8 @@ import {
   updateContact,
   getContact,
   setContactPortal,
+  setContactKind,
+  parseClientKindInput,
   extractPortal,
   clientPortalUrl,
   type ClientPortal,
@@ -257,11 +259,18 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
   if (!result.ok) return JSON.stringify({ error: result.error, status: result.status });
 
   const uid = result.data.uid;
+  const kind = parseClientKindInput(args.kind);
 
-  // If a website was provided, persist it in portal metadata.
+  if (kind !== 'professional') {
+    const saved = await setContactKind(uid, kind);
+    if (!saved.ok) return JSON.stringify({ error: saved.error });
+  }
+
   const website = typeof args.website === 'string' ? args.website.trim() : '';
   if (website) {
-    const existing = extractPortal(result.data) ?? {};
+    const current = await getContact(uid);
+    if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+    const existing = extractPortal(current.data) ?? {};
     await setContactPortal(uid, { ...existing, website });
   }
 
@@ -272,6 +281,7 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
     email: result.data.email ?? null,
     phone: result.data.phone ?? null,
     website: website || null,
+    kind,
     portal_url: clientPortalUrl(uid),
   });
 }
@@ -289,6 +299,7 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
   if (!target.ok) return target.payload;
 
   const website = typeof args.website === 'string' ? args.website.trim() : '';
+  const kindRaw = typeof args.kind === 'string' ? args.kind.trim() : '';
 
   const patch: {
     name?: string;
@@ -304,9 +315,9 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
   if (typeof args.notes === 'string') patch.notes = args.notes;
 
   const hasCoreFields = Object.keys(patch).length > 0;
-  if (!hasCoreFields && !website) {
+  if (!hasCoreFields && !website && !kindRaw) {
     return JSON.stringify({
-      error: 'Provide at least one field to update (new_name, email, phone, company, notes, website).',
+      error: 'Provide at least one field to update (new_name, email, phone, company, notes, website, kind).',
     });
   }
 
@@ -340,6 +351,20 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     if (!updatedContact) updatedContact = current.data;
   }
 
+  let savedKind: string | undefined;
+  if (kindRaw) {
+    const kind = parseClientKindInput(kindRaw);
+    const kindSave = await setContactKind(target.uid, kind);
+    if (!kindSave.ok) return JSON.stringify({ error: kindSave.error });
+    savedKind = kind;
+  }
+
+  if (!updatedContact) {
+    const current = await getContact(target.uid);
+    if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+    updatedContact = current.data;
+  }
+
   return JSON.stringify({
     success: true,
     uid: updatedContact!.uid,
@@ -349,6 +374,7 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
     company: updatedContact!.company ?? null,
     notes: updatedContact!.notes ?? null,
     website: website || null,
+    kind: savedKind ?? null,
     portal_url: clientPortalUrl(updatedContact!.uid),
     crater_synced: hasCoreFields ? true : undefined,
   });
@@ -455,7 +481,7 @@ export const contactsModule: AgentToolModule = {
               function: {
                 name: 'create_contact',
                 description:
-                  'Add a new contact/client to the master contact-api. Use when the user wants to add a client or create a test client. Returns the new contact uid and its portal_url.',
+                  'Add a new contact/client to the master contact-api. Use when the user wants to add a client or create a test client. For inquiry/audit prospects use kind "proposed". Returns the new contact uid and its portal_url.',
                 parameters: {
                   type: 'object',
                   properties: {
@@ -465,6 +491,12 @@ export const contactsModule: AgentToolModule = {
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes (never shown on the client portal)' },
                     website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
+                    kind: {
+                      type: 'string',
+                      enum: ['professional', 'personal', 'proposed'],
+                      description:
+                        'Client type: professional (default project client), personal (non-project contact), or proposed (audit/prospect).',
+                    },
                   },
                   required: ['name'],
                   additionalProperties: false,
@@ -488,6 +520,11 @@ export const contactsModule: AgentToolModule = {
                     company: { type: 'string' },
                     notes: { type: 'string', description: 'Private internal notes' },
                     website: { type: 'string', description: 'Client website URL, e.g. https://example.com' },
+                    kind: {
+                      type: 'string',
+                      enum: ['professional', 'personal', 'proposed'],
+                      description: 'Client type: professional, personal, or proposed (audit/prospect).',
+                    },
                   },
                   additionalProperties: false,
                 },

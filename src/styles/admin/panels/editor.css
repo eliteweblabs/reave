@@ -1654,6 +1654,23 @@ button.de-placeholder-action:active {
   color: #8b97a8;
   background: rgba(139, 151, 168, 0.12);
 }
+.cl-kind-tag {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.08rem 0.35rem;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.cl-kind-tag--personal {
+  color: #c4b5fd;
+  background: rgba(196, 181, 253, 0.12);
+}
+.cl-kind-tag--proposed {
+  color: #7dd3fc;
+  background: rgba(125, 211, 252, 0.12);
+}
 .cl-personal-tag {
   font-size: 0.62rem;
   font-weight: 600;

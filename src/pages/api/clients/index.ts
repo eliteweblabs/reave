@@ -19,7 +19,8 @@ import {
   extractPortal,
   isContactApiConfigured,
   listContacts,
-  setContactPersonal,
+  parseClientKindInput,
+  setContactKind,
   type ContactRecord,
 } from '../../../lib/contactApi';
 
@@ -117,13 +118,14 @@ export async function POST(context: APIContext): Promise<Response> {
 
   if (!result.ok) return json({ ok: false, error: result.error }, result.status ?? 502);
 
-  if (body.personal === true) {
-    const flagged = await setContactPersonal(result.data.uid, true);
+  const kind = parseClientKindInput(body.kind, body.personal === true ? true : undefined);
+  if (kind !== 'professional') {
+    const flagged = await setContactKind(result.data.uid, kind);
     if (!flagged.ok) return json({ ok: false, error: flagged.error }, 502);
   }
 
-  // Fire the welcome/follow-up automations (non-blocking; skip personal contacts).
-  if (body.personal !== true) {
+  // Fire the welcome/follow-up automations (non-blocking; skip personal/proposed contacts).
+  if (kind === 'professional') {
     void import('../../../lib/newsletterEngine')
       .then((m) => m.onContactCreated(result.data))
       .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
@@ -133,7 +135,8 @@ export async function POST(context: APIContext): Promise<Response> {
     {
       ok: true,
       ...contactSummary(result.data),
-      personal: body.personal === true,
+      kind,
+      personal: kind === 'personal',
       notes: result.data.notes ?? '',
     },
     201,

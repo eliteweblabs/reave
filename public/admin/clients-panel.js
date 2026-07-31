@@ -74,6 +74,32 @@ let clientState = {
 };
 const CLIENT_LAST_ACTIVE_KEY = 'clients:lastActiveUid-v1';
 
+const CLIENT_KINDS = ['professional', 'personal', 'proposed'];
+const CLIENT_KIND_LABELS = {
+  professional: 'Professional',
+  personal: 'Personal',
+  proposed: 'Proposed',
+};
+
+function normalizeClientKind(raw) {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (CLIENT_KINDS.includes(v)) return v;
+  return 'professional';
+}
+
+function clientKindFromRecord(c) {
+  if (c?.kind) return normalizeClientKind(c.kind);
+  if (c?.personal) return 'personal';
+  return 'professional';
+}
+
+function clientKindTagHtml(c) {
+  const kind = clientKindFromRecord(c);
+  if (kind === 'personal') return '<span class="cl-kind-tag cl-kind-tag--personal">Personal</span>';
+  if (kind === 'proposed') return '<span class="cl-kind-tag cl-kind-tag--proposed">Proposed</span>';
+  return '';
+}
+
 let clientSearchTimer = null;
 let clientAutosaveTimer = null;
 let clientFieldRegistry = [];
@@ -240,14 +266,14 @@ function clientListAvatarHtml(c) {
 
 function filterClientsForSidebar(clients) {
   const f = clientState.contactFilter;
-  if (f === 'personal') return clients.filter((c) => c.personal);
-  if (f === 'work') return clients.filter((c) => !c.personal);
+  if (f === 'personal') return clients.filter((c) => clientKindFromRecord(c) === 'personal');
+  if (f === 'work') return clients.filter((c) => clientKindFromRecord(c) !== 'personal');
   return clients;
 }
 
 function clientFilterCounts(clients) {
-  const work = clients.filter((c) => !c.personal).length;
-  const personal = clients.filter((c) => c.personal).length;
+  const work = clients.filter((c) => clientKindFromRecord(c) !== 'personal').length;
+  const personal = clients.filter((c) => clientKindFromRecord(c) === 'personal').length;
   return { all: clients.length, work, personal };
 }
 
@@ -496,6 +522,7 @@ function startNewClient() {
     website: '',
     notes: '',
     personal: false,
+    kind: 'professional',
   };
   renderClientsEditor();
 }
@@ -605,34 +632,16 @@ function appendClientField(parent, label, input) {
   parent.appendChild(wrap);
 }
 
-function mountClientPersonalToggle(parent, initial, onChange) {
-  const row = document.createElement('div');
-  row.className = 'cl-personal-row';
-  const switchLabel = document.createElement('label');
-  switchLabel.className = 'nl-switch cl-personal-switch';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.checked = !!initial;
-  input.setAttribute('aria-label', 'Personal contact');
-  const track = document.createElement('span');
-  track.className = 'nl-switch-track';
-  switchLabel.appendChild(input);
-  switchLabel.appendChild(track);
-  const text = document.createElement('div');
-  text.className = 'cl-personal-text';
-  const title = document.createElement('div');
-  title.className = 'cl-personal-title';
-  title.textContent = 'Personal contact';
-  const desc = document.createElement('div');
-  desc.className = 'cl-personal-desc';
-  desc.textContent = 'Services and people you won\u2019t create projects for.';
-  text.appendChild(title);
-  text.appendChild(desc);
-  row.appendChild(switchLabel);
-  row.appendChild(text);
-  parent.appendChild(row);
-  input.addEventListener('change', () => onChange(input.checked));
-  return input;
+function mountClientKindPill(parent, initialKind, onChange) {
+  const pill = createSlidingPillSelect({
+    label: 'Type',
+    value: normalizeClientKind(initialKind),
+    options: CLIENT_KINDS.map((value) => ({ value, label: CLIENT_KIND_LABELS[value] })),
+    ariaLabel: 'Client type',
+    onChange,
+  });
+  parent.appendChild(pill.el);
+  return pill;
 }
 
 async function geocodeClientAddressPreview(address) {
@@ -1063,8 +1072,8 @@ function renderNewClientForm(pane) {
   const websiteInput = mountClientWebsiteField(fields, clientState.draft?.website || '');
   registerClientField(websiteInput, () => true);
 
-  let personalInput = null;
-  personalInput = mountClientPersonalToggle(fields, clientState.draft?.personal, () => {});
+  let kindPill = null;
+  kindPill = mountClientKindPill(fields, clientState.draft?.kind, () => {});
 
   mountClientBrandingSection(fields, null, clientState.draft, { disabled: true });
 
@@ -1095,7 +1104,7 @@ function renderNewClientForm(pane) {
       company: companyInput.value.trim(),
       website: websiteInput.value.trim(),
       notes: notesTa.value.trim(),
-      personal: personalInput.checked,
+      kind: kindPill.getValue(),
     });
   });
   if (!inDrawer) getClientsEditor()?.classList.add('de-pane-active');
@@ -1124,6 +1133,7 @@ function renderEditClientForm(pane) {
         address: data.address || '',
         geo: data.geo || null,
         notes: contact.notes || '',
+        kind: clientKindFromRecord({ kind: data.kind, personal: data.personal ?? contact.personal }),
         personal: !!(data.personal ?? contact.personal),
         logoUrl: data.logoUrl || '',
         iconUrl: data.iconUrl || '',
@@ -1161,7 +1171,7 @@ function renderEditClientForm(pane) {
       syncClTitleInputWidth(companyInput);
       companyInput.addEventListener('input', () => syncClTitleInputWidth(companyInput));
 
-      const shareBtn = clientState.draft.personal
+      const shareBtn = clientKindFromRecord(clientState.draft) === 'personal'
         ? null
         : createPortalShareBtn(uid, {
         title: `${clientDisplayLabel(clientState.draft)} — portal`,
@@ -1234,11 +1244,10 @@ function renderEditClientForm(pane) {
       const websiteInput = mountClientWebsiteField(profileFields, clientState.draft.website || '');
       registerClientField(websiteInput, () => true);
 
-      const personalInput = mountClientPersonalToggle(
-        profileFields,
-        clientState.draft.personal,
-        () => {},
-      );
+      const kindPill = mountClientKindPill(profileFields, clientState.draft.kind, () => {
+        queueAutosaveRef();
+      });
+      let queueAutosaveRef = () => {};
 
       const addressInput = mountClientAddressField(profileFields, clientState.draft.address || '');
       registerClientField(addressInput, () => true);
@@ -1320,7 +1329,7 @@ function renderEditClientForm(pane) {
           website: websiteInput.value.trim(),
           address: addressInput.value.trim(),
           notes: notesTa.value.trim(),
-          personal: personalInput.checked,
+          kind: kindPill.getValue(),
         };
         if (clientPendingGeo) payload.geo = clientPendingGeo;
         return payload;
@@ -1337,13 +1346,13 @@ function renderEditClientForm(pane) {
           websiteInput.value !== clientState.draft.website ||
           addressInput.value !== clientState.draft.address ||
           notesTa.value !== clientState.draft.notes ||
-          personalInput.checked !== !!clientState.draft.personal;
+          kindPill.getValue() !== normalizeClientKind(clientState.draft.kind);
       };
       const queueAutosave = () => {
         markDirty();
         scheduleClientAutosave(uid, getPayload);
       };
-      personalInput.addEventListener('change', queueAutosave);
+      queueAutosaveRef = queueAutosave;
       const saveNow = async () => {
         markDirty();
         await autosaveClient(uid, getPayload());
@@ -1494,7 +1503,7 @@ async function autosaveClient(uid, payload) {
   }
   const draft = clientState.draft;
   if (!draft) return false;
-  const wasPersonal = !!draft.personal;
+  const wasKind = normalizeClientKind(draft.kind);
   const unchanged =
     payload.name === draft.name &&
     payload.email === draft.email &&
@@ -1503,7 +1512,7 @@ async function autosaveClient(uid, payload) {
     payload.website === draft.website &&
     payload.address === draft.address &&
     payload.notes === draft.notes &&
-    !!payload.personal === !!draft.personal;
+    normalizeClientKind(payload.kind) === wasKind;
   if (unchanged) {
     clientState.dirty = false;
     return true;
@@ -1537,7 +1546,8 @@ async function autosaveClient(uid, payload) {
       address: data.address ?? payload.address,
       geo: data.geo ?? clientPendingGeo ?? clientState.draft.geo,
       notes: payload.notes,
-      personal: !!payload.personal,
+      kind: normalizeClientKind(payload.kind),
+      personal: normalizeClientKind(payload.kind) === 'personal',
       logoUrl: data.logoUrl || clientState.draft.logoUrl || '',
       iconUrl: data.iconUrl || clientState.draft.iconUrl || '',
       logoSource: data.logoSource ?? clientState.draft.logoSource,
@@ -1569,12 +1579,13 @@ async function autosaveClient(uid, payload) {
       c.email = payload.email;
       c.phone = payload.phone;
       c.company = payload.company;
-      c.personal = !!payload.personal;
+      c.kind = normalizeClientKind(payload.kind);
+      c.personal = c.kind === 'personal';
       c.logoUrl = clientState.draft.logoUrl || c.logoUrl || '';
       c.iconUrl = clientState.draft.iconUrl || c.iconUrl || '';
     }
     syncClientListRow(uid);
-    if (wasPersonal !== !!payload.personal) {
+    if (wasKind !== normalizeClientKind(payload.kind)) {
       refreshClientsSidebarList();
       const root = getClientsEditor();
       const tabs = root?.querySelector('.em-filter-tabs');
@@ -1658,7 +1669,7 @@ function createClientListItem(c) {
     `<span class="ch-item-title">${escHtml(clientListTitle(c))}</span>` +
     `<span class="wk-meta-row">` +
     `<span class="wk-contact">${escHtml(clientListSubline(c))}</span>` +
-    (c.personal ? '<span class="cl-personal-tag">Personal</span>' : '') +
+    (clientKindTagHtml(c) || '') +
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
     `</span></span></span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
