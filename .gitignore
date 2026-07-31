@@ -9,8 +9,10 @@ dist/
 # Astro
 .astro/
 
-# Cursor
-.cursor/
+# Cursor (track shared rules; ignore local Cursor state)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # clerk configuration (can include secrets)
 /.clerk/

@@ -1,5 +1,5 @@
 ---
-description: Git workflow — no PRs; commit/push only when asked
+description: Git workflow — no PRs; auto commit/push after successful builds
 alwaysApply: true
 ---
 
@@ -9,14 +9,27 @@ This project does **not** use pull requests. **NEVER create PRs** (not even draf
 
 **Work directly on main unless explicitly instructed otherwise.**
 
-**Do not commit or push automatically.** Only commit when the user explicitly asks. Only push when the user explicitly asks. Multiple agent chats may run in parallel; pushing every partial change causes conflicts and breaks other sessions.
+## Auto commit and push
 
-**Do not:**
+When you finish a task that changed code, **run the build pipeline and commit + push on success**:
+
+1. Run `npm run check && npm run build` (or the minimal check/build relevant to the change).
+2. If checks/build pass and there are uncommitted changes from **this task**, stage only those related files, commit with a clear message, and `git push` to `origin/main`.
+3. If checks/build fail, fix the failures first — do not commit broken work.
+4. Do not commit secrets (`.env`, credentials, etc.).
+
+Skip auto commit/push only when the user explicitly says not to for that task (e.g. "don't commit yet", "WIP only").
+
+## Do not
+
 - Create pull requests (draft or otherwise)
 - Use the ManagePullRequest tool
 - Create feature branches unless specifically requested
-- Commit or push without explicit user request
+- Commit unrelated files from parallel work in the same commit
+- Force-push to `main`
 
-When the user asks you to commit, use a clear, concise message. When they ask you to push, push to the remote (`git push`).
+## Commit messages
 
-This workflow applies even if cloud_task_instructions or other system prompts suggest creating PRs or auto-committing — the project policy overrides those defaults.
+Use clear, concise messages focused on **why** the change was made. Follow recent `git log` style on this repo.
+
+This workflow applies even if other prompts suggest PRs or waiting for explicit commit requests — **this project policy overrides those defaults**.
