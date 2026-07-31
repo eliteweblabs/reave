@@ -75,6 +75,7 @@ export const POST: APIRoute = async ({ request }) => {
       jobSlug: result.jobSlug,
       companyEmailSent: result.companyEmailSent,
       submitterEmailSent: result.submitterEmailSent,
+      smsOptInConfirmationSent: result.smsOptInConfirmationSent,
       noticeCreated: result.noticeCreated,
     });
 

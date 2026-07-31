@@ -8,7 +8,8 @@ import { recordContactFormEngagement } from './engagementNotifications';
 import { buildNewProjectAckEmail } from './emailScheduling';
 import { hasFeature } from './features';
 import { scheduleFormUrl } from './inboundEmailReply';
-import { isEmailSendConfigured, sendEmail } from './outbound';
+import { isEmailSendConfigured, isSmsSendConfigured, sendEmail, sendSms } from './outbound';
+import { smsOptInConfirmationMessage } from './smsConsent';
 import { siteBaseUrl } from './requestOrigin';
 import { parseWorkJobInput } from './workJobInput';
 import { updateContact } from './contactApi';
@@ -41,9 +42,19 @@ export type ContactFormIntakeResult = {
   jobTitle: string | null;
   companyEmailSent: boolean;
   submitterEmailSent: boolean;
+  smsOptInConfirmationSent: boolean;
   noticeCreated: boolean;
   warnings: string[];
 };
+
+function phoneToE164(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const us = (digits.startsWith('1') && digits.length >= 11 ? digits.slice(1) : digits).slice(0, 10);
+  if (us.length === 10) return `+1${us}`;
+  if (digits.length >= 10) return `+${digits}`;
+  return '';
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -173,6 +184,22 @@ async function sendCompanyNotify(opts: {
   });
   if (!result.ok) {
     console.error('[contactFormIntake] company notify failed:', result.error);
+    return false;
+  }
+  return true;
+}
+
+async function sendSmsOptInConfirmation(opts: {
+  phone: string;
+  brandName: string;
+}): Promise<boolean> {
+  const to = phoneToE164(opts.phone);
+  if (!to || !isSmsSendConfigured()) return false;
+
+  const body = smsOptInConfirmationMessage(opts.brandName);
+  const result = await sendSms({ to, body });
+  if (!result.ok) {
+    console.error('[contactFormIntake] SMS opt-in confirmation failed:', result.error);
     return false;
   }
   return true;
@@ -348,6 +375,14 @@ export async function processContactFormIntake(
     if (!submitterEmailSent) warnings.push('submitter_email_failed');
   }
 
+  let smsOptInConfirmationSent = false;
+  if (smsOptIn === true && phone) {
+    const company = await getCompanyConfig();
+    const brandName = company.name?.trim() || 'REΛVE';
+    smsOptInConfirmationSent = await sendSmsOptInConfirmation({ phone, brandName });
+    if (!smsOptInConfirmationSent) warnings.push('sms_opt_in_confirmation_failed');
+  }
+
   return {
     ok: true,
     contactUid,
@@ -357,6 +392,7 @@ export async function processContactFormIntake(
     jobTitle,
     companyEmailSent,
     submitterEmailSent,
+    smsOptInConfirmationSent,
     noticeCreated,
     warnings,
   };

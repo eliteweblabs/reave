@@ -9,3 +9,8 @@ export function smsConsentCheckboxLabel(brandName: string): string {
 export function smsConsentDisclaimer(brandName: string): string {
   return `By providing your phone number, you agree to receive SMS ${SMS_USE_CASES} from ${brandName}. Message frequency may vary. Standard Message and Data Rates may apply. Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for promotional or marketing purposes.`;
 }
+
+/** One-time SMS sent immediately after a contact form SMS opt-in. */
+export function smsOptInConfirmationMessage(brandName: string): string {
+  return `${brandName}: You're subscribed to SMS ${SMS_USE_CASES}. Msg frequency varies. Msg&data rates may apply. Reply STOP to cancel, HELP for help.`;
+}
