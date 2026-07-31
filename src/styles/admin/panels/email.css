@@ -58,6 +58,7 @@
   /* Reserve space so the last scroll tab clears the pinned Sent tab */
   padding-right: calc(var(--em-filter-fixed-tab-width, 4.75rem) + 0.35rem);
   box-sizing: border-box;
+  scroll-behavior: smooth;
 }
 .em-filter-tabs-fixed {
   position: absolute;

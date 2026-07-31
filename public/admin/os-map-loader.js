@@ -451,6 +451,50 @@ function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
   }
 }
 
+const EMAIL_FILTER_SCROLL_TAB_IDS = [
+  'all',
+  'alert',
+  'review',
+  'book',
+  'project',
+  'routed',
+  'receipt',
+  'junk',
+];
+const EMAIL_FILTER_CENTER_FROM_ID = 'receipt';
+
+function emailFilterShouldCenter(filterId) {
+  const cutoff = EMAIL_FILTER_SCROLL_TAB_IDS.indexOf(EMAIL_FILTER_CENTER_FROM_ID);
+  const idx = EMAIL_FILTER_SCROLL_TAB_IDS.indexOf(filterId);
+  return cutoff !== -1 && idx !== -1 && idx >= cutoff;
+}
+
+/** Center a scroll-tab in the strip, ignoring pinned Draft/Sent on the right. */
+function centerFilterTabInScrollNav(nav, tabEl, { smooth = true } = {}) {
+  if (!nav || !tabEl) return;
+  const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth);
+  const target = tabEl.offsetLeft + tabEl.offsetWidth / 2 - nav.clientWidth / 2;
+  const left = Math.max(0, Math.min(target, maxScroll));
+  nav.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+}
+
+function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId = 'all') {
+  if (!wrap) return;
+  const nav = wrap.querySelector('.em-filter-tabs--scroll');
+  if (!nav) return;
+  const run = () => {
+    syncEmailFilterFixedTabWidth(wrap);
+    const activeTab = nav.querySelector('.em-filter-tab.active');
+    if (emailFilterShouldCenter(filterId)) {
+      centerFilterTabInScrollNav(nav, activeTab, { smooth: true });
+      return;
+    }
+    nav.scrollLeft = savedScrollLeft;
+    scrollFilterTabIntoViewIfNeeded(nav, activeTab);
+  };
+  requestAnimationFrame(() => requestAnimationFrame(run));
+}
+
 function captureFilterTabsScroll(root) {
   return (
     root?.querySelector('.em-filter-tabs--scroll')?.scrollLeft ??
@@ -9854,8 +9898,6 @@ function renderEmailFilterTabs(savedScrollLeft = 0) {
 
   wrap.appendChild(scrollNav);
   wrap.appendChild(fixedNav);
-  mountFilterTabsScroll(scrollNav, savedScrollLeft);
-  syncEmailFilterFixedTabWidth(wrap);
   return wrap;
 }
 
@@ -9920,7 +9962,11 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   bindSwipeListScroll(list);
   if (subheader) {
     list.appendChild(subheader.el);
-    syncEmailFilterFixedTabWidth(subheader.el.querySelector('.em-filter-tabs-wrap'));
+    applyEmailFilterTabsScroll(
+      subheader.el.querySelector('.em-filter-tabs-wrap'),
+      savedFilterScroll,
+      emailState.inboxFilter,
+    );
   }
   for (const ev of events) {
     list.appendChild(
