@@ -6,6 +6,7 @@ Features and improvements in rough priority order.
 - [ ] Client portal: add file upload tab (hosting credentials, contracts, assets)
 - [ ] Client portal: email/SMS notification when operator adds new data
 - [ ] Admin UI: send a DocuSign or PDF signing link to a contact
+- [ ] **Vapi upsell plugin:** extract to external repo (`@reave/plugin-vapi`) — move VoiceChatButton, admin API, sync script, and os-map Vapi tab out of core; register via npm/submodule only when purchased
 - [ ] Build a Vapi webhook listener to log voice transcripts from the homepage widget
 - [ ] Add admin UI or Siri Shortcut to broadcast SMS to all contacts at once
 - [ ] Crater: recurring invoices dashboard + admin alerts for upcoming due dates

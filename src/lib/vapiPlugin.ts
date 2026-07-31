@@ -1,9 +1,8 @@
 /**
- * Admin Vapi plugin — assistant sync & credentials for the Business OS admin.
+ * Vapi upsell plugin — assistant sync, admin settings, and optional homepage voice widget.
  *
- * Separate from:
- * - `voice` plugin (Telnyx inbound phone agent)
- * - Homepage voice widget (`PUBLIC_INSTALL_HOMEPAGE_VOICE` / installation front-end)
+ * Gated by the `vapi` feature in install config. Not part of the default Reave install;
+ * enable only when the customer purchases the Vapi add-on.
  */
 import { getInstallConfigSync } from './installConfig';
 import { getCompanyConfig, type CompanyConfig } from './companyConfig';
@@ -49,10 +48,12 @@ export function isVapiAdminConfigured(company?: Pick<CompanyConfig, 'vapiAssista
 }
 
 /**
- * Installation-specific homepage voice widget (Vapi web SDK).
- * Not gated on the admin `vapi` plugin — each deploy opts in explicitly or via legacy Vapi env.
+ * Homepage voice widget (Vapi web SDK). Requires the `vapi` upsell plugin.
+ * Set `homepageVoice: true` in install config when the customer opts in.
  */
 export function isHomepageVoiceWidgetEnabled(company?: Pick<CompanyConfig, 'vapiAssistantId'>): boolean {
+  if (!isVapiAdminPluginEnabled()) return false;
+
   const installVoice = getInstallConfigSync().homepageVoice;
   if (installVoice === false) return false;
   if (installVoice === true) {

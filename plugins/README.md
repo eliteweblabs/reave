@@ -32,7 +32,7 @@ plugins/{id}/
 | `fleet/` | `fleet_tracking` | `fleet-tracking.md` | yes |
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
-| `vapi/` | `vapi` | — | yes |
+| `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
 | `svg-operations/` | *(utility)* | — | — |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.

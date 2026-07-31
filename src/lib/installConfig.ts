@@ -222,7 +222,6 @@ export function defaultFooterNav(): FooterNavKey[] {
     'company',
     'socials',
     'industries',
-    'vapi',
     'finance',
   ];
 }

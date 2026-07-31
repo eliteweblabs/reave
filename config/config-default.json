@@ -18,14 +18,12 @@
     "company",
     "socials",
     "industries",
-    "vapi",
     "finance"
   ],
   "profileMenu": [
     "profile",
     "company",
     "socials",
-    "industries",
-    "vapi"
+    "industries"
   ]
 }

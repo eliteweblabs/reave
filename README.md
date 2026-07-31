@@ -120,13 +120,13 @@ Example:
 
 The `Dockerfile` runs `npm run build` **before** your hosting platform injects environment variables into the running container. Values read only from `import.meta.env` can end up empty in production even when Railway variables are set correctly.
 
-`VoiceChatButton` therefore reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these two variables are defined on the **running service** in Railway (or your host). They must use the `PUBLIC_` prefix so they are intended for client-side use; the server injects them into the page when it renders.
+### Vapi (optional upsell plugin)
 
-If the toggle still shows **VAPI NOT CONFIGURED**, the server process does not see those variables—double-check the variable names and redeploy.
+Vapi is **not part of the default Reave install**. Enable the `vapi` feature in `config/config-{slug}.json` only when a customer purchases the add-on. See [`plugins/vapi/README.md`](plugins/vapi/README.md).
 
-**Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` first when the **`vapi` admin plugin** is enabled. It PATCHes your Vapi assistant’s name, `firstMessage`, and system prompt from **admin → Profile → Company details**. Requires `VAPI_API_KEY` on the build service. Set `VAPI_SYNC_SKIP=1` locally if you do not have Vapi credentials.
+When enabled, `VoiceChatButton` reads `PUBLIC_VAPI_PUBLIC_KEY` and `PUBLIC_VAPI_ASSISTANT_ID` from **`process.env` at request time** (with `import.meta.env` as a fallback for local dev). Ensure these variables are on the **running service**. Set `"homepageVoice": true` in install config for the public site widget.
 
-**Admin plugin vs homepage:** Enable **Vapi** under Admin → Plugins for assistant sync (`/api/admin/vapi`, `/vapi-sync`, build prebuild). The **public homepage voice widget** is a separate installation flag (`PUBLIC_INSTALL_HOMEPAGE_VOICE`) so each deploy can customize or omit the marketing site without affecting the Business OS admin.
+**Build-time sync:** `npm run build` runs `scripts/sync-vapi-assistant.ts` only when the **`vapi` feature** is enabled in install config. Requires `VAPI_API_KEY` on the build service. Set `VAPI_SYNC_SKIP=1` to skip sync locally.
 
 ## 📱 SMS Integration (Twilio)
 
