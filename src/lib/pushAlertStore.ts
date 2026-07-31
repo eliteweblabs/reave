@@ -378,6 +378,12 @@ export async function storeAckPushAlert(
         [trimmed, now],
       );
       if ((rowCount ?? 0) > 0) return { ok: true, id: trimmed };
+
+      const { rows } = await pool.query<{ id: string }>(
+        `SELECT id FROM admin_push_alerts WHERE id = $1 LIMIT 1`,
+        [trimmed],
+      );
+      if (rows[0]) return { ok: true, id: trimmed };
     }
   } catch (e) {
     console.warn('[push-alerts] postgres ack failed', e);

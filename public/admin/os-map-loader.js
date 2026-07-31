@@ -93,7 +93,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260731a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -2819,7 +2819,7 @@ async function dismissReviewNotification(item, btn) {
       if (prevLabel) btn.textContent = 'Archiving…';
     }
     try {
-      await dismissPushAlertById(item.alertId);
+      await dismissPushAlertById(item.alertId, item.tag);
     } catch (e) {
       await osAlert({ title: 'Could not archive', bodyHtml: escHtml(e.message || String(e)) });
     } finally {
@@ -3693,17 +3693,46 @@ function bindReviewAlertSwipe(alert, item) {
   );
 }
 
-async function dismissPushAlertById(alertId) {
+async function dismissPushAlertById(alertId, tag) {
   const id = String(alertId || '').trim();
+  const tagStr = String(tag || '').trim();
   if (!id) return;
-  const res = await fetch(`/api/admin/alerts/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  const data = await readApiJson(res);
-  if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+  const qs = tagStr ? `?tag=${encodeURIComponent(tagStr)}` : '';
+  const url = `/api/admin/alerts/${encodeURIComponent(id)}${qs}`;
+
+  async function ack(method) {
+    const res = await adminFetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) {
+      if (res.status === 404) return { missing: true };
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    if (!data.ok) {
+      throw new Error(data.error || `Unexpected response (HTTP ${res.status})`);
+    }
+    return data;
+  }
+
+  try {
+    await ack('PATCH');
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg.includes('Unexpected response') || msg.includes('Empty response')) {
+      await ack('POST');
+    } else if (msg.includes('Alert not found') || msg.includes('HTTP 404')) {
+      /* Stale banner — remove locally below. */
+    } else {
+      throw e;
+    }
+  }
+
   removeReviewAlertBanner(null, null, null, id);
   syncReviewBadge(Math.max(0, reviewsPendingCount - 1));
+  if (MAP.type === 'home') await loadHomeDashboard();
 }
 
 const EMAIL_AUTOMATION_REVIEW_TYPES = new Set([

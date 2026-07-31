@@ -3,7 +3,7 @@
  */
 
 import type { APIContext } from 'astro';
-import { storeAckPushAlert } from '../../../../lib/pushAlertStore';
+import { storeAckPushAlert, storeAckPushAlertByTag } from '../../../../lib/pushAlertStore';
 import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -15,15 +15,30 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function PATCH(context: APIContext): Promise<Response> {
+async function ackAlert(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   const id = context.params.id?.trim() ?? '';
   if (!id) return json({ ok: false, error: 'Invalid alert id' }, 400);
 
-  const result = await storeAckPushAlert(id);
+  let result = await storeAckPushAlert(id);
+  if (!result.ok) {
+    const tag = context.url.searchParams.get('tag')?.trim();
+    if (tag) {
+      const acked = await storeAckPushAlertByTag(tag);
+      if (acked > 0) return json({ ok: true, alertId: id });
+    }
+  }
   if (!result.ok) return json({ ok: false, error: result.error }, 404);
   return json({ ok: true, alertId: result.id });
+}
+
+export async function PATCH(context: APIContext): Promise<Response> {
+  return ackAlert(context);
+}
+
+/** POST alias — some mobile/PWA stacks handle POST more reliably than PATCH. */
+export async function POST(context: APIContext): Promise<Response> {
+  return ackAlert(context);
 }

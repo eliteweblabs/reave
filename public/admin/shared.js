@@ -44,6 +44,9 @@ export async function readAdminJson(res, label = 'response') {
 
 export async function readApiJson(res) {
   const text = await res.text();
+  if (res.ok && !text.trim()) {
+    throw new Error(`Empty response (HTTP ${res.status})`);
+  }
   let data = {};
   if (text) {
     try {

@@ -139,6 +139,8 @@ self.addEventListener('activate', (event) => {
 /* Network-first fetch handler — required for reliable Chromium install prompts. */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const { pathname } = new URL(event.request.url);
+  if (pathname.startsWith('/api/')) return;
   event.respondWith(
     fetch(event.request).catch(async () => {
       const cached = await caches.match(event.request);
