@@ -182,6 +182,7 @@ import {
   renderShareSendLog,
   sharePortalLink,
   queueChatDeepLink,
+  parseChatDeepLinkFromUrl,
   startNewChat,
   getChatPanel,
   clearChatLastActiveId,
@@ -446,11 +447,13 @@ function scrollFilterTabIntoViewIfNeeded(nav, tabEl) {
   const navRect = nav.getBoundingClientRect();
   const tabRect = tabEl.getBoundingClientRect();
   if (tabRect.left >= navRect.left && tabRect.right <= navRect.right) return;
+  let delta = 0;
   if (tabRect.left < navRect.left) {
-    nav.scrollLeft += tabRect.left - navRect.left;
+    delta = tabRect.left - navRect.left;
   } else if (tabRect.right > navRect.right) {
-    nav.scrollLeft += tabRect.right - navRect.right;
+    delta = tabRect.right - navRect.right;
   }
+  if (delta) setFilterNavScrollLeft(nav, nav.scrollLeft + delta, { smooth: false });
 }
 
 const EMAIL_FILTER_SCROLL_TAB_IDS = [
@@ -471,13 +474,34 @@ function emailFilterShouldCenter(filterId) {
   return cutoff !== -1 && idx !== -1 && idx >= cutoff;
 }
 
-/** Center a scroll-tab in the strip, ignoring pinned Draft/Sent on the right. */
-function centerFilterTabInScrollNav(nav, tabEl, { smooth = true } = {}) {
+function getEmailFilterFixedTabWidth(wrap) {
+  if (!wrap) return 0;
+  const fixedNav = wrap.querySelector('.em-filter-tabs-fixed');
+  const measured = fixedNav?.offsetWidth ?? 0;
+  if (measured > 0) return measured;
+  const cssVar = parseFloat(getComputedStyle(wrap).getPropertyValue('--em-filter-fixed-tab-width'));
+  return Number.isFinite(cssVar) ? cssVar : 0;
+}
+
+/** Instant scroll — CSS scroll-behavior:smooth would animate every panel re-render otherwise. */
+function setFilterNavScrollLeft(nav, left, { smooth = false } = {}) {
+  if (!nav) return;
+  nav.scrollTo({ left, behavior: smooth ? 'smooth' : 'instant' });
+}
+
+/** Center a scroll-tab in the strip left of pinned Draft/Sent. */
+function centerFilterTabInScrollNav(nav, tabEl, wrap, { smooth = true } = {}) {
   if (!nav || !tabEl) return;
+  const fixedWidth = getEmailFilterFixedTabWidth(wrap);
+  const visibleWidth = Math.max(0, nav.clientWidth - fixedWidth);
   const maxScroll = Math.max(0, nav.scrollWidth - nav.clientWidth);
-  const target = tabEl.offsetLeft + tabEl.offsetWidth / 2 - nav.clientWidth / 2;
+  const target = tabEl.offsetLeft + tabEl.offsetWidth / 2 - visibleWidth / 2;
   const left = Math.max(0, Math.min(target, maxScroll));
-  nav.scrollTo({ left, behavior: smooth ? 'smooth' : 'auto' });
+  if (Math.abs(nav.scrollLeft - left) < 1) {
+    setFilterNavScrollLeft(nav, left, { smooth: false });
+    return;
+  }
+  setFilterNavScrollLeft(nav, left, { smooth });
 }
 
 function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId = 'all') {
@@ -487,11 +511,14 @@ function applyEmailFilterTabsScroll(wrap, savedScrollLeft = 0, filterId = 'all')
   const run = () => {
     syncEmailFilterFixedTabWidth(wrap);
     const activeTab = nav.querySelector('.em-filter-tab.active');
-    if (emailFilterShouldCenter(filterId)) {
-      centerFilterTabInScrollNav(nav, activeTab, { smooth: true });
+    const shouldCenter = emailFilterShouldCenter(filterId) && emailState.centerInboxFilterTab;
+    if (shouldCenter && activeTab) {
+      centerFilterTabInScrollNav(nav, activeTab, wrap, { smooth: true });
+      emailState.centerInboxFilterTab = false;
       return;
     }
-    nav.scrollLeft = savedScrollLeft;
+    emailState.centerInboxFilterTab = false;
+    setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
     scrollFilterTabIntoViewIfNeeded(nav, activeTab);
   };
   requestAnimationFrame(() => requestAnimationFrame(run));
@@ -508,7 +535,7 @@ function captureFilterTabsScroll(root) {
 function mountFilterTabsScroll(nav, savedScrollLeft = 0) {
   if (!nav) return;
   requestAnimationFrame(() => {
-    nav.scrollLeft = savedScrollLeft;
+    setFilterNavScrollLeft(nav, savedScrollLeft, { smooth: false });
     scrollFilterTabIntoViewIfNeeded(nav, nav.querySelector('.em-filter-tab.active'));
   });
 }
@@ -750,6 +777,7 @@ function setActiveMap(key, opts = {}) {
       );
     }
   }
+  syncAdminTabUrl(key, opts);
   void refreshInboxBadgeQuiet();
 }
 
@@ -7680,6 +7708,14 @@ function parseEmailDeepLinkFromUrl() {
   }
 }
 
+function parseWorkDeepLinkFromUrl() {
+  try {
+    return new URLSearchParams(window.location.search).get('slug')?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function applyEmailInboxFilterForEvent(ev) {
   if (!ev) return;
   if (ev.category === 'junk') emailState.inboxFilter = 'junk';
@@ -7726,6 +7762,54 @@ function syncAdminDeepLinkUrl(url) {
   } catch {}
 }
 
+/** Keep the address bar aligned with the active admin tab — clears stale deep-link params. */
+function syncAdminTabUrl(key, opts = {}) {
+  if (!MAPS[key]) return;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', key);
+
+    if (key === 'email') {
+      const emailId =
+        opts.emailId ||
+        emailState.activeId ||
+        pendingEmailDeepLinkId ||
+        parseEmailDeepLinkFromUrl() ||
+        null;
+      if (emailId) url.searchParams.set('email', emailId);
+      else url.searchParams.delete('email');
+    } else {
+      url.searchParams.delete('email');
+    }
+
+    if (key === 'clients') {
+      const clientUid = opts.clientUid || parseClientDeepLinkFromUrl() || clientState.activeUid || null;
+      if (clientUid && clientUid !== '__new__') url.searchParams.set('client', clientUid);
+      else url.searchParams.delete('client');
+    } else {
+      url.searchParams.delete('client');
+    }
+
+    if (key === 'work') {
+      const workSlug = opts.workSlug || workState.activeSlug || parseWorkDeepLinkFromUrl() || null;
+      if (workSlug) url.searchParams.set('slug', workSlug);
+      else url.searchParams.delete('slug');
+    } else {
+      url.searchParams.delete('slug');
+    }
+
+    if (key === 'chats') {
+      const chatId = opts.chatId || parseChatDeepLinkFromUrl() || chatState.activeId || null;
+      if (chatId) url.searchParams.set('chat', chatId);
+      else url.searchParams.delete('chat');
+    } else {
+      url.searchParams.delete('chat');
+    }
+
+    history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch {}
+}
+
 /** Mobile inbox is list-only until em-pane-active — ensure detail opens after deep links. */
 function ensureEmailMobilePaneOpen() {
   if (!isMobileTabs() || !emailState.activeId) return;
@@ -7752,6 +7836,7 @@ function resumeEmailDeepLinkFromUrl() {
   }
   if (emailState.activeId === emailId) {
     ensureEmailMobilePaneOpen();
+    syncAdminTabUrl('email', { emailId });
     return;
   }
   if (emailState.allEvents.length) void openEmailFromDeepLink(emailId);
@@ -7762,7 +7847,6 @@ function handleNotificationOpen(url) {
   if (!url) return;
   try {
     const u = new URL(url, window.location.origin);
-    syncAdminDeepLinkUrl(u.href);
     const tab = u.searchParams.get('tab');
     const emailId = u.searchParams.get('email')?.trim();
     if (tab === 'email' && emailId) {
@@ -8207,6 +8291,7 @@ function closeEmailDetail() {
   emailState.composing = false;
   getEmailPanel()?.classList.remove('em-pane-active');
   renderEmailPanel();
+  if (MAP?.type === 'email') syncAdminTabUrl('email');
 }
 
 function emailDetailSummaryText(ev) {
@@ -9854,6 +9939,7 @@ async function switchEmailInboxFilter(nextFilter) {
   await leaveEmailCompose();
   if (emailState.inboxFilter === nextFilter) return;
   emailState.inboxFilter = nextFilter;
+  emailState.centerInboxFilterTab = emailFilterShouldCenter(nextFilter);
   emailState.activeId = null;
   getEmailPanel()?.classList.remove('em-pane-active');
   if (nextFilter === 'sent') await loadEmailSentEvents(true);
@@ -10944,6 +11030,7 @@ function openEmailEvent(id) {
   emailState.replyToId = null;
   renderEmailPanel();
   ensureEmailMobilePaneOpen();
+  if (MAP?.type === 'email') syncAdminTabUrl('email', { emailId: id });
 }
 
 function renderEmailPanel() {
@@ -11279,8 +11366,10 @@ function loadPositions() {
 function loadActiveKey() {
   try {
     const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab && MAPS[tab]) return tab;
+    if (params.get('email')?.trim()) return 'email';
+    if (params.get('client')?.trim()) return 'clients';
+    if (params.get('chat')?.trim()) return 'chats';
+    if (params.get('slug')?.trim()) return 'work';
   } catch {}
   let key;
   try {
@@ -11288,7 +11377,12 @@ function loadActiveKey() {
   } catch {
     key = null;
   }
-  return MAPS[key] ? key : 'home';
+  if (MAPS[key]) return key;
+  try {
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab && MAPS[tab]) return tab;
+  } catch {}
+  return 'home';
 }
 function saveActiveKey() {
   try {
@@ -11337,6 +11431,7 @@ async function boot() {
   initModelSelector();
   syncCanvasVisibility();
   activateMapPanel();
+  syncAdminTabUrl(activeKey);
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();

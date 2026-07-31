@@ -1,0 +1,11 @@
+{
+  "name": "kap-railway",
+  "version": "1.0.0",
+  "description": "Kap plugin — upload screen recordings to Reave (tokenized URLs)",
+  "main": "index.js",
+  "license": "MIT",
+  "keywords": ["kap-plugin", "kap", "screen-recorder", "railway", "reave"],
+  "dependencies": {
+    "form-data": "^4.0.2"
+  }
+}

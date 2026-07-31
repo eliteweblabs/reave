@@ -33,3 +33,9 @@ Railway setup:
 5. Enable `"fleet_tracking"` in install config
 
 See `bootstrap/fleet-api/README.md` and `src/knowledge/fleet-api-reference.md`.
+
+## kap-railway
+
+Kap plugin for uploading screen recordings to Reave (`POST /api/kap/upload` → `/r/{token}`).
+
+See `bootstrap/kap-railway/README.md`.
