@@ -1,0 +1,65 @@
+import { distanceMiles, isWithinRadiusMiles } from '../geo/haversine.js';
+import { scoreLeadForTrades } from '../leads/score.js';
+import { normalizeTradeSlugs } from '../trades.js';
+/** Deterministic mock candidates around a center for dev/demo scans. */
+function mockCandidatesNear(centerLat, centerLng) {
+    const offsets = [
+        { dLat: 0.01, dLng: 0.008, address: '45 Oak Avenue', yearBuilt: 1962, owner: 'SMITH JOHN & MARY' },
+        { dLat: -0.012, dLng: 0.005, address: '88 Pine Road', yearBuilt: 1938, owner: 'PINE HOLDINGS LLC' },
+        { dLat: 0.006, dLng: -0.015, address: '210 Elm Street', yearBuilt: 2004, owner: 'ELM FAMILY TRUST' },
+        { dLat: -0.008, dLng: -0.01, address: '123 Main Street', yearBuilt: 1924, owner: 'EXAMPLE HOLDINGS LLC' },
+        { dLat: 0.018, dLng: 0.002, address: '5 River Lane', yearBuilt: 1971, owner: 'RIVER VIEW PROPERTIES' },
+    ];
+    return offsets.map((o, i) => ({
+        id: `mock-scan-${i}`,
+        fullAddress: `${o.address}, Springfield, IL 62701`,
+        street: o.address,
+        city: 'Springfield',
+        state: 'IL',
+        zip: '62701',
+        yearBuilt: o.yearBuilt,
+        sqft: 1800 + i * 400,
+        stories: o.yearBuilt < 1960 ? 2 : 1,
+        ownerName: o.owner,
+        floodZone: i === 4 ? 'AE' : 'X',
+        provider: 'mock',
+        lat: centerLat + o.dLat,
+        lng: centerLng + o.dLng,
+    }));
+}
+export function runRadiusScan(config) {
+    const trades = normalizeTradeSlugs(config.trades);
+    const max = config.maxResults ?? 25;
+    const raw = mockCandidatesNear(config.centerLat, config.centerLng);
+    const candidates = [];
+    for (const row of raw) {
+        const dist = distanceMiles(config.centerLat, config.centerLng, row.lat, row.lng);
+        if (!isWithinRadiusMiles(config.centerLat, config.centerLng, row.lat, row.lng, config.radiusMiles)) {
+            continue;
+        }
+        const lead = scoreLeadForTrades(row, trades, {
+            hasSeptic: row.landUseCategory?.toLowerCase().includes('rural'),
+            recentStorm: false,
+        });
+        if (lead.score <= 0 && trades.length > 0)
+            continue;
+        candidates.push({
+            ...row,
+            distanceMiles: Math.round(dist * 10) / 10,
+            leadScore: lead.score,
+            leadReasons: lead.reasons,
+            matchedTrades: lead.matchedTrades,
+        });
+    }
+    candidates.sort((a, b) => b.leadScore - a.leadScore || a.distanceMiles - b.distanceMiles);
+    return {
+        ok: true,
+        scannedAt: new Date().toISOString(),
+        center: { lat: config.centerLat, lng: config.centerLng },
+        radiusMiles: config.radiusMiles,
+        trades,
+        candidatesFound: candidates.length,
+        candidates: candidates.slice(0, max),
+    };
+}
+//# sourceMappingURL=engine.js.map
