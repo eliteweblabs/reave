@@ -500,18 +500,26 @@ const items: PortfolioItem[] = [
     }
   }
 
-  /* Mobile: denser 3-column grid — at least five tiles visible in the viewport */
+  /* Mobile: 2-column bento — full-width heroes, paired squares, tall half-width tiles */
   @media (max-width: 640px) {
     .portfolio-masonry {
-      --masonry-cols: 3;
-      --brick-ratio: 1;
-      --brick-max: min(108px, calc((100svh - 160px) / 5.5));
+      --masonry-cols: 2;
+      --brick-ratio: 0.85;
+      --brick-max: min(120px, calc((100svh - 160px) / 5.5));
     }
 
     .masonry-item--3x2,
     .masonry-item--2x2,
     .masonry-item--2x1 {
       grid-column: span 2;
+    }
+
+    .masonry-item--3x2,
+    .masonry-item--2x2 {
+      grid-row: span 2;
+    }
+
+    .masonry-item--2x1 {
       grid-row: span 1;
     }
 
