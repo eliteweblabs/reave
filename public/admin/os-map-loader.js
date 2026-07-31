@@ -149,6 +149,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260728l';
+import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260731a';
 import {
   initClientsPanel,
   clientState,
@@ -268,10 +269,11 @@ const MAP_ICON_KEYS = {
   socials: 'link-2',
   industries: 'target',
   vapi: 'mic',
+  'lead-scanner': 'radar',
 };
 
 /** Admin settings pages — one map tab per section. */
-const SETTINGS_MAP_TYPES = new Set(['profile', 'company', 'socials', 'industries', 'vapi']);
+const SETTINGS_MAP_TYPES = new Set(['profile', 'company', 'socials', 'industries', 'vapi', 'lead-scanner']);
 
 function installFooterNav() {
   const nav = window.__installConfig?.footerNav;
@@ -784,6 +786,12 @@ function activateMapPanel(opts = {}) {
     loadIndustriesTab();
   } else if (MAP.type === 'vapi') {
     loadVapiTab();
+  } else if (MAP.type === 'lead-scanner') {
+    loadLeadScannerTab({
+      settingsPanelRoot,
+      prependSettingsBackHeader,
+      escHtml,
+    });
   } else if (MAP.type === 'documents') {
     loadDocumentsTab();
   } else if (MAP.type === 'knowledge') {

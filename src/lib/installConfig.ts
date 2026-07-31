@@ -31,13 +31,12 @@ const FEATURE_IDS_LIST = [
   'namecom_dns',
   'time_tracking',
   'demo',
+  'real_estate_data',
 ] as const;
-
-export type InstallFeatureId = (typeof FEATURE_IDS_LIST)[number];
 
 const FEATURE_SET = new Set<string>(FEATURE_IDS_LIST);
 
-export const PROFILE_MENU_KEYS = ['profile', 'company', 'socials', 'industries', 'vapi'] as const;
+export const PROFILE_MENU_KEYS = ['profile', 'company', 'socials', 'industries', 'vapi', 'lead-scanner'] as const;
 export type ProfileMenuKey = (typeof PROFILE_MENU_KEYS)[number];
 
 export const FOOTER_NAV_SLOT_KEYS = ['__system__', '__chat__'] as const;
@@ -63,6 +62,7 @@ export const FOOTER_NAV_MAP_KEYS = [
   'socials',
   'industries',
   'vapi',
+  'lead-scanner',
   'fleet',
 ] as const;
 
@@ -93,6 +93,7 @@ export const PROFILE_MENU_LABELS: Record<ProfileMenuKey, string> = {
   socials: 'Socials',
   industries: 'Industries',
   vapi: 'Vapi',
+  'lead-scanner': 'Lead Scanner',
 };
 
 const PROFILE_MENU_SET = new Set<string>(PROFILE_MENU_KEYS);
