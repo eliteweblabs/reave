@@ -26,7 +26,7 @@ import type { AgentToolModule } from './types';
  * Pexels stock photo search is feature-gated by PEXELS_API_KEY presence —
  * the tool is omitted from definitions when the key is not configured.
  */
-export const AGENT_TOOL_MODULES: AgentToolModule[] = [
+const CORE_AGENT_TOOL_MODULES: AgentToolModule[] = [
   knowledgeModule,
   workModule,
   emailInboxModule,
@@ -36,5 +36,14 @@ export const AGENT_TOOL_MODULES: AgentToolModule[] = [
   techStackModule,
   playwrightAuditModule,
   pexelsModule,
-  ...activeAgentToolModules(),
 ];
+
+/** Lazy — plugin manifests import localKnowledge, which imports pluginRegistry (TDZ if eager). */
+let cachedAgentToolModules: AgentToolModule[] | null = null;
+
+export function getAgentToolModules(): AgentToolModule[] {
+  if (!cachedAgentToolModules) {
+    cachedAgentToolModules = [...CORE_AGENT_TOOL_MODULES, ...activeAgentToolModules()];
+  }
+  return cachedAgentToolModules;
+}

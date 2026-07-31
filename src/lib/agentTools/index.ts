@@ -1,14 +1,14 @@
 /** Admin agent tools — core + feature-gated plugins. */
 import { defaultBrandContext, getCompanyBrandContext, type CompanyBrandContext } from '../companyConfig';
 import { agentToolTimeoutMs, guardToolCall } from '../agentWatchdog';
-import { AGENT_TOOL_MODULES } from './registry';
+import { getAgentToolModules } from './registry';
 import type { AgentToolDef, ToolContext } from './types';
 
 export type { AgentToolDef } from './types';
 
 export function buildTools(brand: CompanyBrandContext = defaultBrandContext()): AgentToolDef[] {
   const ctx: ToolContext = { brand };
-  return AGENT_TOOL_MODULES.filter((m) => m.enabled(ctx)).flatMap((m) => m.definitions(ctx));
+  return getAgentToolModules().filter((m) => m.enabled(ctx)).flatMap((m) => m.definitions(ctx));
 }
 
 export function exportToolConfigJson(): string {
@@ -48,7 +48,7 @@ async function invokeTool(name: string, argsJson: string): Promise<string> {
     const msg = e instanceof Error ? e.message : String(e);
     return JSON.stringify({ error: `invalid tool arguments: ${msg}`, tool: name });
   }
-  for (const mod of AGENT_TOOL_MODULES) {
+  for (const mod of getAgentToolModules()) {
     if (!mod.enabled(ctx)) continue;
     const handler = mod.handlers[name];
     // Awaited (not returned) so a rejecting handler is caught by runTool's
