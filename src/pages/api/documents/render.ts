@@ -8,7 +8,7 @@ import { renderDocumentMarkdown } from '../../../lib/renderDocumentMarkdown';
 export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   let body: { content?: unknown };

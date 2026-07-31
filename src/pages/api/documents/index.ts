@@ -32,7 +32,7 @@ function docsDir(): string {
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const dir = docsDir();
@@ -61,7 +61,7 @@ export const GET: APIRoute = async (context) => {
 };
 
 export const POST: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   let body: { slug?: unknown; content?: unknown; html?: unknown };

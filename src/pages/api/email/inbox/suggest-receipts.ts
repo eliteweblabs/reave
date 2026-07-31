@@ -10,6 +10,7 @@ import {
   storeUpdateEmailInbox,
 } from '../../../../lib/emailInboxStore';
 import { suggestReceiptCandidate, formatUsdAmount, extractMonetaryAmountFromEmail } from '../../../../lib/emailMoney';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -27,8 +28,8 @@ function parseDays(raw: string | null): number {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const days = parseDays(context.url.searchParams.get('days'));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -75,8 +76,8 @@ export async function GET(context: APIContext): Promise<Response> {
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   let body: unknown;
   try {

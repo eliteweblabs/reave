@@ -47,6 +47,7 @@ import { agentAlertUserId, notifyAdminAgentOfSiriProposalComplete } from '../../
 import { createLogger } from '../../../lib/logger';
 import { cachedCompanyBrandName } from '../../../lib/companyConfig';
 import { secretMatches } from '../../../lib/secretCompare';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 const log = createLogger('siri-proposal');
 
@@ -80,24 +81,22 @@ function textResponse(text: string, status = 200): Response {
 }
 
 /**
- * Check authentication: Clerk session token or X-Siri-Key header.
+ * Check authentication: deployment owner session or X-Siri-Key header.
  */
-function isAuthenticated(context: APIContext): boolean {
-  const { userId } = context.locals.auth();
-  if (userId) return true;
-
+async function isAuthenticated(context: APIContext): Promise<boolean> {
   const siriKey = serverEnv('SIRI_API_KEY')?.trim();
   if (siriKey) {
     const providedKey = context.request.headers.get('X-Siri-Key');
     if (secretMatches(providedKey, siriKey)) return true;
   }
 
-  return false;
+  const auth = await requireDashboardUser(context);
+  return !(auth instanceof Response);
 }
 
 export async function POST(context: APIContext): Promise<Response> {
-  if (!isAuthenticated(context)) {
-    return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or use Clerk session.' }, 401);
+  if (!(await isAuthenticated(context))) {
+    return json({ ok: false, error: 'Unauthorized. Set X-Siri-Key header or sign in as deployment owner.' }, 401);
   }
 
   let body: Record<string, unknown>;

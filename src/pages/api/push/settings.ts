@@ -11,6 +11,7 @@ import {
   normalizeHm,
   savePushQuietHoursSettings,
 } from '../../../lib/pushQuietHours';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -21,7 +22,10 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export async function GET(_context: APIContext): Promise<Response> {
+export async function GET(context: APIContext): Promise<Response> {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
+
   const settings = await getPushQuietHoursSettings();
   const active = settings.sleepModeEnabled && isWithinQuietWindow(settings);
   return json({
@@ -33,8 +37,8 @@ export async function GET(_context: APIContext): Promise<Response> {
 }
 
 export async function PATCH(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   let body: unknown;
   try {

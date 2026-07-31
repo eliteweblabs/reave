@@ -28,10 +28,9 @@ function schedulingEnabled(): boolean {
   return hasFeature('scheduling');
 }
 
-export const GET: APIRoute = async ({ params, locals }) => {
+export const GET: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!schedulingEnabled()) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
@@ -40,7 +39,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
     return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   const result = await bookingGet(uid);
@@ -54,10 +53,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ params, request, locals }) => {
+export const DELETE: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!schedulingEnabled()) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
@@ -66,12 +64,12 @@ export const DELETE: APIRoute = async ({ params, request, locals }) => {
     return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown> = {};
   try {
-    const text = await request.text();
+    const text = await context.request.text();
     if (text) body = JSON.parse(text);
   } catch {
     // Empty body is fine, use default reason
@@ -88,10 +86,9 @@ export const DELETE: APIRoute = async ({ params, request, locals }) => {
   return json({ ok: true, cancelled: true, uid });
 };
 
-export const PATCH: APIRoute = async ({ params, request, locals }) => {
+export const PATCH: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
 
   if (!schedulingEnabled()) {
     return json({ ok: false, error: 'Scheduling module not enabled (FEATURES)' }, 404);
@@ -100,12 +97,12 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     return json({ ok: false, error: 'BOOKING_API_URL is not set' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }

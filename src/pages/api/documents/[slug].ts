@@ -29,7 +29,7 @@ function docsDir(): string {
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const { slug } = context.params;
@@ -50,7 +50,7 @@ export const GET: APIRoute = async (context) => {
 };
 
 export const PUT: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const { slug } = context.params;
@@ -80,7 +80,7 @@ export const PUT: APIRoute = async (context) => {
 };
 
 export const DELETE: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const { slug } = context.params;

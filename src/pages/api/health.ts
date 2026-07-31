@@ -110,7 +110,7 @@ async function githubProbe(token: string, userAgent: string): Promise<Probe> {
 
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const brand = await getCompanyBrandContext();

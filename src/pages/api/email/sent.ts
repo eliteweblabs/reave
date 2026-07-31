@@ -4,6 +4,7 @@
 
 import type { APIContext } from 'astro';
 import { listOutboundEmails } from '../../../lib/projectOutboundEmail';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -15,8 +16,8 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(context: APIContext): Promise<Response> {
-  const { userId } = context.locals.auth();
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   const limitRaw = context.url.searchParams.get('limit');
   const limit = Math.min(Math.max(Number(limitRaw) || 200, 1), 500);

@@ -26,6 +26,7 @@ import {
 } from '../../../lib/clientBranding';
 import { getContactDeleteBlockers, executeContactDelete, blockersToJson } from '../../../lib/contactDeleteGuard';
 import { syncContactToCrater } from '../../../lib/contactCraterSync';
+import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -168,17 +169,17 @@ async function clientPortalBranding(uid: string) {
   };
 }
 
-export const GET: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const GET: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
-  if (url.searchParams.get('preview') === 'delete') {
+  if (context.url.searchParams.get('preview') === 'delete') {
     const blockers = await getContactDeleteBlockers(uid);
     if (!blockers.ok) return json({ ok: false, error: blockers.error }, 404);
     return json({ ok: true, ...blockersToJson(blockers.data) });
@@ -230,19 +231,19 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
   });
 };
 
-export const PATCH: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const PATCH: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
@@ -286,19 +287,19 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   });
 };
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const PUT: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     return json({ ok: false, error: 'Invalid JSON' }, 400);
   }
@@ -342,17 +343,17 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
   });
 };
 
-export const DELETE: APIRoute = async ({ params, locals, url }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const DELETE: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
-  const force = url.searchParams.get('force') === 'true';
+  const force = context.url.searchParams.get('force') === 'true';
   const result = await executeContactDelete(uid, { force, permanent: force });
   if (!result.ok) {
     const body: Record<string, unknown> = { ok: false, error: result.error };

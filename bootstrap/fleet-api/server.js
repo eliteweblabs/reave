@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('./db');
+const { safeCompare } = require('../lib/safeCompare');
 
 const app = express();
 app.use(express.json({ limit: '256kb' }));
@@ -9,6 +10,11 @@ const HOST = process.env.HOST || '0.0.0.0';
 const API_KEY = process.env.API_KEY || '';
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS || '*';
 const APP_NAME = process.env.APP_NAME || 'fleet-api';
+
+if (!API_KEY) {
+  console.error('[fleet-api] FATAL: API_KEY is required. Refusing to start without authentication.');
+  process.exit(1);
+}
 
 app.use((req, res, next) => {
   const origin = req.headers.origin || '';
@@ -26,10 +32,11 @@ app.use((req, res, next) => {
 });
 
 app.use((req, res, next) => {
-  if (!API_KEY) return next();
   if (req.path === '/health' || req.method === 'OPTIONS') return next();
-  const provided = req.headers['x-api-key'] || req.query.apiKey;
-  if (provided !== API_KEY) return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+  const provided = String(req.headers['x-api-key'] || req.query.apiKey || '');
+  if (!safeCompare(provided, API_KEY)) {
+    return res.status(401).json({ ok: false, error: 'Invalid or missing API key' });
+  }
   next();
 });
 

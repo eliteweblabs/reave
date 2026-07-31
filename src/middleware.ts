@@ -4,6 +4,17 @@ import { hasFeature } from "./lib/features";
 import { isChatFocusSkinEnabled } from "./lib/chatFocusSkin";
 import { applySecurityHeaders } from "./lib/securityHeaders";
 import { serverEnv } from "./lib/serverEnv";
+import { pruneRateLimitStore } from "./lib/inMemoryRateLimit";
+
+const RATE_LIMIT_PRUNE_MS = 5 * 60 * 1000;
+let lastRateLimitPrune = 0;
+
+function maybePruneRateLimitStore(): void {
+  const now = Date.now();
+  if (now - lastRateLimitPrune < RATE_LIMIT_PRUNE_MS) return;
+  lastRateLimitPrune = now;
+  pruneRateLimitStore(10 * 60 * 1000);
+}
 
 /** Railway liveness probe — must not depend on Clerk keys (see health/live.ts). */
 function isHealthLiveProbe(pathname: string): boolean {
@@ -55,6 +66,7 @@ const HOME_SECTION_REDIRECTS: Record<string, string> = {
 };
 
 const appMiddleware = clerkMiddleware(async (auth, context, next) => {
+  maybePruneRateLimitStore();
   const url = new URL(context.request.url);
   const { pathname } = url;
 
