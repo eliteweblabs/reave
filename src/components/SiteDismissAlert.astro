@@ -1,0 +1,121 @@
+---
+/** Dismissible site banner — dismissal persisted in localStorage (per browser). */
+export interface Props {
+  /** Stable id for the localStorage dismiss key. */
+  alertId: string;
+}
+
+const { alertId } = Astro.props;
+const storageKey = `reave-site-alert-dismiss:${alertId}`;
+---
+
+<div
+  class="site-dismiss-alert"
+  id={`site-dismiss-alert-${alertId}`}
+  role="status"
+  hidden
+  data-storage-key={storageKey}
+>
+  <p class="site-dismiss-alert-copy">
+    <slot />
+  </p>
+  <button
+    type="button"
+    class="site-dismiss-alert-dismiss"
+    aria-label="Dismiss alert"
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M18 6 6 18"></path>
+      <path d="m6 6 12 12"></path>
+    </svg>
+  </button>
+</div>
+
+<script>
+  function initSiteDismissAlert(root: HTMLElement) {
+    if (root.dataset.initialized === "1") return;
+    root.dataset.initialized = "1";
+
+    const key = root.dataset.storageKey;
+    if (!key) return;
+
+    try {
+      if (localStorage.getItem(key) === "1") return;
+    } catch {
+      /* private browsing — still show */
+    }
+
+    root.hidden = false;
+
+    const dismissBtn = root.querySelector<HTMLButtonElement>(".site-dismiss-alert-dismiss");
+    dismissBtn?.addEventListener("click", () => {
+      try {
+        localStorage.setItem(key, "1");
+      } catch {
+        /* ignore */
+      }
+      root.hidden = true;
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>(".site-dismiss-alert[data-storage-key]").forEach(initSiteDismissAlert);
+</script>
+
+<style>
+  .site-dismiss-alert {
+    position: fixed;
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+    z-index: 900;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 0.85rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(12, 12, 14, 0.94);
+    backdrop-filter: blur(14px) saturate(1.1);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+    color: rgba(255, 255, 255, 0.88);
+    font-family: var(--font-content);
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .site-dismiss-alert[hidden] {
+    display: none !important;
+  }
+
+  .site-dismiss-alert-copy {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .site-dismiss-alert-dismiss {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.15rem -0.1rem 0 0;
+    padding: 0;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.55);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+
+  .site-dismiss-alert-dismiss:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.08);
+  }
+</style>
