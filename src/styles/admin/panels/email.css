@@ -687,6 +687,9 @@
   background: var(--brand-gradient);
   border-color: transparent;
 }
+.em-agent-btn--triage {
+  animation: admin-setup-alert-triage-pulse 0.8s ease 2;
+}
 .de-new-btn.em-agent-btn.em-header-action-btn {
   width: 2.25rem;
   height: 2.25rem;

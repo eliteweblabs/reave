@@ -8153,6 +8153,56 @@ function isPendingReviewNotification(ev) {
   return false;
 }
 
+function isEmailAwaitingTriage(ev) {
+  return isPendingReviewNotification(ev) && !ev.automationTriageAt && !ev.automationAckAt;
+}
+
+/** Map an inbox row to the dashboard review notification type (for triage). */
+function reviewNotificationTypeFromEmail(ev) {
+  if (!isPendingReviewNotification(ev)) return null;
+  const action = String(ev.action || '').toLowerCase();
+  if (action === 'booked' && ev.bookingUid && ev.automationKind !== 'meeting_followup') return 'meeting';
+  if (ev.automationKind === 'meeting_followup' && ev.bookingUid) return 'meeting_followup';
+  if (
+    (ev.automationKind === 'meeting_request' || ev.automationKind === 'meeting_conflict') &&
+    !ev.bookingUid
+  ) {
+    return ev.automationKind === 'meeting_conflict' ? 'meeting_conflict' : 'meeting_request';
+  }
+  if (!ev.bookingUid && !ev.automationKind && ev.category !== 'junk') {
+    const blob = [ev.summary, ev.subject, ev.schedulingNote, ev.bodySnippet].join(' ').toLowerCase();
+    const mentionsMeeting = /\b(meet(ing)?|schedule|appointment|call|get together)\b/.test(blob);
+    const mentionsTime =
+      ev.proposedMeetingStart ||
+      ev.schedulingNote ||
+      /\b(\d{1,2}(:\d{2})?\s*(am|pm|a\.m|p\.m)|monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(
+        blob,
+      );
+    if (mentionsMeeting && mentionsTime) return 'meeting_request';
+  }
+  if (ev.automationKind === 'project_created' && ev.jobSlug) return 'project';
+  if (isProjectMatchSuggested(ev)) return 'project_match';
+  return null;
+}
+
+function reviewNotificationItemFromEmail(ev) {
+  const type = reviewNotificationTypeFromEmail(ev);
+  if (!type || !EMAIL_AUTOMATION_REVIEW_TYPES.has(type)) return null;
+  return {
+    type,
+    emailId: ev.id,
+    awaitingTriage: isEmailAwaitingTriage(ev),
+    title: ev.subject || '(no subject)',
+    detail: ev.summary || ev.bodySnippet || ev.jobTitle || '',
+    subject: ev.subject || '(no subject)',
+    from: ev.from || '',
+    jobSlug: ev.jobSlug || null,
+    jobTitle: ev.jobTitle || ev.jobSlug || null,
+    contactName: ev.contactName || null,
+    proposedMeetingStart: ev.proposedMeetingStart || null,
+  };
+}
+
 function pendingReviewCount(events) {
   const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
   return (events || []).filter((ev) => {
@@ -9403,6 +9453,11 @@ async function fetchFullEmailRecord(ev) {
 
 async function askAgentAboutEmail(ev) {
   const full = await fetchFullEmailRecord(ev);
+  const triageItem = reviewNotificationItemFromEmail(full);
+  if (triageItem?.awaitingTriage) {
+    await openNotificationTriageDialog(triageItem);
+    return;
+  }
   await askAgentWithPrompt(buildEmailAgentPrompt(full), {
     sourceEmailId: full.id || ev.id,
     sourceJobSlug: full.jobSlug || ev.jobSlug || null,
@@ -11227,10 +11282,17 @@ function renderEmailPanel() {
     return;
   }
 
+  const emailAwaitingTriage = isEmailAwaitingTriage(ev) && reviewNotificationTypeFromEmail(ev);
   const agentBtn = document.createElement('button');
   agentBtn.type = 'button';
-  agentBtn.setAttribute('aria-label', 'Agent');
-  agentBtn.title = 'Agent';
+  if (emailAwaitingTriage) {
+    agentBtn.setAttribute('aria-label', 'Triage');
+    agentBtn.title = 'Triage — teach the agent how to handle similar cases';
+    agentBtn.classList.add('em-agent-btn--triage');
+  } else {
+    agentBtn.setAttribute('aria-label', 'Agent');
+    agentBtn.title = 'Agent';
+  }
   agentBtn.innerHTML = navIcon('agent', 16);
   agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
 
