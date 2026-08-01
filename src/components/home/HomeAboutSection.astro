@@ -1,68 +1,28 @@
 ---
 import ClientLogos from "../ClientLogos.astro";
-import TestimonialsCarousel from "../TestimonialsCarousel.astro";
 ---
 
 <section
   id="about"
-  class="home-section home-section--photo"
+  class="home-client-logos"
   data-home-section="about"
-  aria-labelledby="about-title"
+  aria-label="Client logos"
 >
-  <div class="marketing-bg" aria-hidden="true">
-    <div class="sketch-draw-reveal marketing-bg-photo" data-sketch-draw>
-      <img
-        class="sketch-draw-reveal__fallback"
-        src="/images/about-office.png"
-        alt=""
-        width="1024"
-        height="768"
-        loading="lazy"
-        decoding="async"
-        fetchpriority="low"
-      />
-      <canvas class="sketch-draw-reveal__canvas" hidden aria-hidden="true"></canvas>
-    </div>
-    <div class="marketing-bg-grain"></div>
-    <div class="marketing-bg-scrim"></div>
-  </div>
-
-  <div class="home-section-inner">
-    <header class="home-section-hero">
-      <h2 id="about-title">Automation Expertise</h2>
-      <p class="marketing-lead">
-        Over 20 years designing logos &amp; graphics to building websites, developing plugins &amp;
-        apps.
-      </p>
-      <a href="/about" class="home-about-more">Our story</a>
-    </header>
-
-    <section class="section--full-bleed">
-      <ClientLogos />
-    </section>
-
-    <TestimonialsCarousel />
-  </div>
+  <ClientLogos />
 </section>
 
-<script>
-  import "../../lib/sketchDrawReveal.ts";
-</script>
-
 <style>
-  .home-about-more {
-    display: inline-flex;
-    align-self: flex-start;
-    margin-top: 4px;
-    font-family: var(--font-secondary);
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.72);
-    text-decoration: none;
+  .home-client-logos {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: 48px 0 56px;
+    overflow: hidden;
   }
 
-  .home-about-more:hover {
-    color: #fff;
-    text-decoration: underline;
+  @media (min-width: 768px) {
+    .home-client-logos {
+      padding: 56px 0 72px;
+    }
   }
 </style>
