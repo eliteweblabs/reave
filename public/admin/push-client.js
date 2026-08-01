@@ -11,6 +11,8 @@ import {
 
 const DISMISS_PREFIX = 'reave-setup-alert-dismiss:';
 const DISMISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** Set when the admin PWA has run in standalone (Dock / home screen). */
+const PWA_INSTALLED_KEY = 'reave-pwa-installed';
 
 let setupAlertResizeObs = null;
 /** Stashed Chromium install event from `beforeinstallprompt`. */
@@ -123,17 +125,59 @@ function isDesktopSafari() {
   return /Safari/i.test(ua) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(ua) && !isIos();
 }
 
+function markAdminPwaInstalled() {
+  try {
+    localStorage.setItem(PWA_INSTALLED_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function hasAdminPwaInstalledMarker() {
+  try {
+    return localStorage.getItem(PWA_INSTALLED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** True when the admin PWA is installed but this page is in a browser tab. */
+async function isAdminPwaInstalledElsewhere() {
+  if (isStandalonePwa()) return false;
+  if (hasAdminPwaInstalledMarker()) return true;
+  if (typeof navigator.getInstalledRelatedApps !== 'function') return false;
+  try {
+    const apps = await navigator.getInstalledRelatedApps();
+    if (apps.length > 0) {
+      markAdminPwaInstalled();
+      return true;
+    }
+  } catch {
+    /* unsupported or blocked */
+  }
+  return false;
+}
+
 export function needsPwaInstall() {
   if (isStandalonePwa()) return false;
   if (!isAdminSpa()) return false;
+  if (hasAdminPwaInstalledMarker()) return false;
   // iOS requires home-screen install for push; mobile + Chromium desktop
   // (install prompt) too — though on Android this doesn't block push itself,
   // see canEnablePushWithoutInstall().
   if (isIos() || isMobileViewport()) return true;
   if (deferredInstallPrompt) return true;
-  // Safari macOS: File → Add to Dock (no beforeinstallprompt).
-  if (isDesktopSafari()) return true;
+  // Safari macOS: open/install nudge is handled by needsPwaOpen() instead.
   return false;
+}
+
+export async function needsPwaOpen() {
+  if (isStandalonePwa()) return false;
+  if (!isAdminSpa()) return false;
+  if (await isAdminPwaInstalledElsewhere()) return true;
+  // Safari can't expose install state; nudge "open" (Safari shows its own Open
+  // banner when the app is already in the Dock).
+  return isDesktopSafari();
 }
 
 function isDismissed(key) {
@@ -192,13 +236,20 @@ function pwaInstallHint() {
   if (isIos()) {
     return 'Tap Share, then Add to Home Screen. Open the app from your home screen for push alerts and icon badges.';
   }
-  if (isDesktopSafari()) {
-    return 'Choose File → Add to Dock to install this app on your Mac. It will open in its own window like a native app.';
-  }
   if (deferredInstallPrompt) {
     return 'Install to your Dock or taskbar for a standalone window, push alerts, and icon badges.';
   }
   return 'Install this app from the address-bar install icon, or your browser menu → Install app / Add to Home screen.';
+}
+
+function pwaOpenHint(installedOnly) {
+  if (isDesktopSafari()) {
+    if (installedOnly) {
+      return 'Use the Open button in Safari\u2019s banner above, or launch the app from your Dock for push alerts and a standalone window.';
+    }
+    return 'If this app is in your Dock, use the Open button in Safari\u2019s banner above. To install, choose File \u2192 Add to Dock for a standalone window and push alerts.';
+  }
+  return 'Open the installed app from your Dock or taskbar for push alerts and a standalone window.';
 }
 
 async function promptPwaInstall() {
@@ -216,7 +267,7 @@ async function promptPwaInstall() {
   return true;
 }
 
-function renderSetupAlert(kind) {
+function renderSetupAlert(kind, opts = {}) {
   const root = document.getElementById('admin-setup-alerts');
   if (!root) return null;
 
@@ -224,13 +275,17 @@ function renderSetupAlert(kind) {
   root.replaceChildren();
 
   const alert = document.createElement('div');
-  alert.className = `admin-setup-alert admin-setup-alert--${kind}`;
+  alert.className = `admin-setup-alert admin-setup-alert--${kind === 'pwa-open' ? 'pwa' : kind}`;
   alert.setAttribute('role', 'status');
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
 
-  if (kind === 'pwa') {
+  if (kind === 'pwa-open') {
+    copy.innerHTML =
+      '<strong>Open in the admin app</strong>' +
+      `<p>${pwaOpenHint(!!opts.installedOnly)}</p>`;
+  } else if (kind === 'pwa') {
     copy.innerHTML =
       '<strong>Install the admin app</strong>' +
       `<p>${pwaInstallHint()}</p>`;
@@ -285,7 +340,7 @@ function renderSetupAlert(kind) {
   dismissBtn.innerHTML =
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
   dismissBtn.addEventListener('click', () => {
-    dismissAlert(kind);
+    dismissAlert(kind === 'pwa-open' ? 'pwa-open' : kind);
     syncAdminSetupAlerts();
     syncAdminPushButton();
   });
@@ -317,6 +372,12 @@ export async function syncAdminSetupAlerts() {
   // the push-enable offer even while an unrelated install nag is pending —
   // installing isn't a prerequisite there like it is on iOS.
   const pushCanLeadInstall = canEnablePushWithoutInstall();
+  const installedElsewhere = await isAdminPwaInstalledElsewhere();
+
+  if ((await needsPwaOpen()) && !isDismissed('pwa-open')) {
+    renderSetupAlert('pwa-open', { installedOnly: installedElsewhere });
+    return 'pwa-open';
+  }
 
   if (!pushCanLeadInstall && needsPwaInstall() && !isDismissed('pwa')) {
     renderSetupAlert('pwa');
@@ -445,10 +506,10 @@ export async function syncAdminPushButton(buttonId = 'push-enable-btn') {
     if (enabled) ensureTestPushMenuItem();
     else removeTestPushMenuItem();
     // Keep the compact bell as a fallback when the inline alert was dismissed.
-    btn.hidden = enabled || activeAlert === 'push' || activeAlert === 'pwa';
+    btn.hidden = enabled || activeAlert === 'push' || activeAlert === 'pwa' || activeAlert === 'pwa-open';
   } catch {
     removeTestPushMenuItem();
-    btn.hidden = activeAlert === 'push' || activeAlert === 'pwa';
+    btn.hidden = activeAlert === 'push' || activeAlert === 'pwa' || activeAlert === 'pwa-open';
   }
 }
 
@@ -725,6 +786,7 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
+  if (isStandalonePwa()) markAdminPwaInstalled();
   installPwaNavGuard();
   void registerAdminServiceWorker();
 
@@ -737,6 +799,7 @@ if (typeof document !== 'undefined') {
 
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
+    markAdminPwaInstalled();
     dismissAlert('pwa');
     void syncAdminSetupAlerts();
     void syncAdminPushButton();

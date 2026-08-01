@@ -30,6 +30,13 @@ export const GET: APIRoute = async ({ request }) => {
       { src: favicons.png192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
       { src: favicons.png512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
+    related_applications: [
+      {
+        platform: 'webapp',
+        url: '/admin/manifest.webmanifest',
+        id: '/admin',
+      },
+    ],
   };
 
   return new Response(JSON.stringify(manifest), {
