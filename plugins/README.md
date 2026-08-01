@@ -33,7 +33,6 @@ plugins/{id}/
 | `paulino-wizard/` | `dealership_wizard` | `paulino-wizard.md` | yes |
 | `demo/` | `demo` | `demo-setup.md` | yes |
 | `vapi/` | `vapi` | — (see `plugins/vapi/README.md`) | yes — **upsell; off by default** |
-| `svg-operations/` | *(utility)* | — | — |
 
 Enable a plugin in `config/config-{slug}.json` → `"features": ["billing", ...]`.
 
@@ -75,7 +74,3 @@ For plugins maintained in separate git repos (e.g. Crater service docs living wi
 - Register the manifest in `pluginRegistry.ts`
 
 The deployed HTTP client (`src/lib/craterClient.ts`) can move into `plugins/billing/` in a follow-up; the Crater **service** remains a separate Railway deployment.
-
-## Utility plugins
-
-`svg-operations/` is a standalone npm package (no feature gate). Wire it through a manifest when integrated into the admin agent or API.

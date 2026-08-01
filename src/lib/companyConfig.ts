@@ -287,10 +287,10 @@ export function homepageHeroMask(company: CompanyConfig): string | null {
   if (company.logoSource === 'admin') {
     return companyLogoUrl(company.logoPath, company.logoVersion);
   }
-  return '/logo-mask.svg';
+  return '/reave-logo-mask.png';
 }
 
-/** Static logo image for the quantum intro resolve (default /logo.png). */
+/** Static logo image for the quantum intro resolve (default /reave-logo.png). */
 export function homepageHeroLogo(company: CompanyConfig): string | null {
   if (company.logoSource === 'hidden') return null;
   return companyLogoUrl(company.logoPath, company.logoVersion) || SITE.logoPath;

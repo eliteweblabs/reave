@@ -17,3 +17,7 @@ dist/
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Ephemeral file-based chat threads (Postgres is production backend)
+src/knowledge/chats/*.md
+!src/knowledge/chats/.gitkeep
