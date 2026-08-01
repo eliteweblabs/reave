@@ -174,119 +174,58 @@
   }
 
   var dockMobileMq = window.matchMedia('(max-width: 639px)');
-  var dockLayoutTicking = false;
 
-  function headerPinTop() {
-    var root = document.documentElement;
-    var headerH = parseFloat(getComputedStyle(root).getPropertyValue('--app-header-h')) || 52;
-    return headerH + 6;
-  }
-
-  function dockSafeBottom() {
-    return Math.max(10, 0);
-  }
-
-  function activeSceneEl() {
-    if (activeSceneId) {
-      var byId = $('#scene-' + activeSceneId);
-      if (byId) return byId;
-    }
-    return $('.deck-scene.is-active') || $('[data-deck-scene]');
-  }
-
-  function dockSceneEl() {
-    if (scrollingTo) {
-      var scrolling = $('#scene-' + scrollingTo);
-      if (scrolling) return scrolling;
-    }
-
+  function bindDockMode() {
+    var dock = $('#dock');
     var track = $('#scroll-track');
-    var scenes = $$('[data-deck-scene]');
-    if (!track || !scenes.length) return activeSceneEl();
+    var quote = $('#scene-quote');
+    var quoteSlot = $('#dock-quote-slot');
+    if (!dock || !track || !quote || !quoteSlot) return;
 
-    var best = null;
-    var bestRatio = 0;
-    scenes.forEach(function (scene) {
-      var rect = scene.getBoundingClientRect();
-      var visible = Math.max(
-        0,
-        Math.min(rect.bottom, track.clientHeight) - Math.max(rect.top, 0),
-      );
-      var ratio = visible / (rect.height || 1);
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        best = scene;
+    var dockHome = { parent: dock.parentNode, next: dock.nextSibling };
+    var inFlow = dock.classList.contains('dock--in-flow');
+    var dockLayoutTicking = false;
+
+    function setFixed() {
+      if (!inFlow) return;
+      if (dockHome.parent) {
+        dockHome.parent.insertBefore(dock, dockHome.next);
       }
-    });
-    return best || activeSceneEl();
-  }
-
-  function resetDockDesktop() {
-    var dock = $('#dock');
-    if (!dock) return;
-    dock.classList.remove('dock--riding', 'dock--at-top');
-    dock.style.removeProperty('top');
-    dock.style.removeProperty('bottom');
-  }
-
-  function updateDockPosition() {
-    var dock = $('#dock');
-    if (!dock) return;
-
-    if (!dockMobileMq.matches) {
-      resetDockDesktop();
-      return;
+      dock.classList.add('dock--fixed');
+      dock.classList.remove('dock--in-flow');
+      inFlow = false;
     }
 
-    var scene = dockSceneEl();
-    var sentinel = scene && scene.querySelector('.deck-dock-sentinel');
-    if (!sentinel) {
-      dock.classList.remove('dock--riding', 'dock--at-top');
-      dock.style.removeProperty('top');
-      dock.style.bottom = dockSafeBottom() + 'px';
-      return;
+    function setInFlow() {
+      if (inFlow) return;
+      quoteSlot.appendChild(dock);
+      dock.classList.remove('dock--fixed');
+      dock.classList.add('dock--in-flow');
+      inFlow = true;
     }
 
-    var track = $('#scroll-track');
-    var sceneRect = scene.getBoundingClientRect();
-    var trackH = track ? track.clientHeight : window.innerHeight;
-    var isSnapped =
-      Math.abs(sceneRect.top) < 8 &&
-      sceneRect.height >= trackH * 0.95 &&
-      !scene.classList.contains('deck-scene--quote');
+    function updateDockMode() {
+      if (!dockMobileMq.matches) {
+        setFixed();
+        dock.classList.remove('dock--in-flow');
+        return;
+      }
 
-    var dockH = dock.offsetHeight || 40;
-    var gap = 8;
-    var pinTop = headerPinTop();
-    var bottomRest = dockSafeBottom();
-    var bottomY = window.innerHeight - dockH - bottomRest;
-    var rideY = sentinel.getBoundingClientRect().top + gap;
+      var quoteTop = quote.offsetTop;
+      var scrollTop = track.scrollTop;
+      var trackH = track.clientHeight;
+      var quoteOverflow = quote.offsetHeight > trackH + 16;
+      var shouldFlow = quoteOverflow && scrollTop > quoteTop + 56;
 
-    dock.classList.remove('dock--riding', 'dock--at-top');
-    dock.style.removeProperty('top');
-    dock.style.removeProperty('bottom');
-
-    if (isSnapped) {
-      dock.style.bottom = bottomRest + 'px';
-    } else if (rideY >= bottomY) {
-      dock.style.bottom = bottomRest + 'px';
-    } else if (rideY <= pinTop) {
-      dock.classList.add('dock--at-top');
-    } else {
-      dock.classList.add('dock--riding');
-      dock.style.top = rideY + 'px';
+      if (shouldFlow) setInFlow();
+      else setFixed();
     }
-  }
-
-  function bindDockSticky() {
-    var track = $('#scroll-track');
-    if (!track) return;
 
     function onDockLayout() {
       if (dockLayoutTicking) return;
       dockLayoutTicking = true;
       window.requestAnimationFrame(function () {
-        updateDockPosition();
+        updateDockMode();
         dockLayoutTicking = false;
       });
     }
@@ -294,7 +233,7 @@
     track.addEventListener('scroll', onDockLayout, { passive: true });
     window.addEventListener('resize', onDockLayout);
     dockMobileMq.addEventListener('change', onDockLayout);
-    updateDockPosition();
+    updateDockMode();
   }
 
   function activateScene(id, opts) {
@@ -303,7 +242,6 @@
     activeSceneId = id;
     setSceneActive(id);
     setNavActive(id);
-    updateDockPosition();
   }
 
   function scrollToScene(id) {
@@ -320,7 +258,6 @@
     } else {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    updateDockPosition();
     window.setTimeout(function () {
       if (scrollingTo === id) scrollingTo = null;
     }, 900);
@@ -637,7 +574,7 @@
   function startDeck() {
     bindVideoStage();
     bindScrollEngagement();
-    bindDockSticky();
+    bindDockMode();
     bindOptionalToggles();
     applyDeclinedUi();
     var first = sections[0] && sections[0].id;
