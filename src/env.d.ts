@@ -173,6 +173,12 @@ interface ImportMetaEnv {
   CALCOM_WEBAPP_URL?: string;
   /** Public Cal.com URL for attendee-facing links when CALCOM_WEBAPP_URL is internal. */
   PUBLIC_CALCOM_WEBAPP_URL?: string;
+  /** Live demo install base URL for /demo sandbox link (e.g. https://demo.reave.app). */
+  PUBLIC_DEMO_URL?: string;
+  /** Optional full client portal URL on the demo install. */
+  PUBLIC_DEMO_PORTAL_URL?: string;
+  /** Optional contact slug on PUBLIC_DEMO_URL for /c/{slug} portal preview. */
+  PUBLIC_DEMO_PORTAL_SLUG?: string;
   /** Legacy alias for CALCOM_WEBAPP_URL. */
   CALCOM_API_URL?: string;
   /** Cal.com username slug (default reave). */

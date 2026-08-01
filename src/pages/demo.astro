@@ -1,0 +1,312 @@
+---
+/**
+ * /demo — public demo hub. Walkthrough is always available; live sandbox when
+ * PUBLIC_DEMO_URL is configured on the marketing install.
+ */
+import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { getPublicDemoOptions } from "../lib/publicDemo";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+import {
+  ArrowRight,
+  ExternalLink,
+  Monitor,
+  Smartphone,
+  Video,
+} from "lucide-astro";
+
+const company = await getCompanyConfig(Astro.request);
+const demo = getPublicDemoOptions();
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const quoteHref = supportMail ? `mailto:${supportMail}` : demo.scheduleHref;
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+
+type DemoCard = {
+  icon: typeof Video;
+  title: string;
+  body: string;
+  href: string;
+  cta: string;
+  external?: boolean;
+};
+
+const cards: DemoCard[] = [
+  {
+    icon: Video,
+    title: "Interactive walkthrough",
+    body: "Scroll through the full platform — inbox, CRM, billing, scheduling, voice, and client portal — with short clips from a real install. No login required.",
+    href: demo.walkthroughHref,
+    cta: "Start walkthrough",
+  },
+];
+
+if (demo.adminUrl) {
+  cards.push({
+    icon: Monitor,
+    title: "Live admin sandbox",
+    body: "Open a seeded demo dashboard on its own install. Sign in with the shared demo account to click around CRM, projects, inbox, and the AI agent.",
+    href: demo.adminUrl,
+    cta: "Open sandbox",
+    external: true,
+  });
+}
+
+if (demo.portalUrl) {
+  cards.push({
+    icon: Smartphone,
+    title: "Client portal preview",
+    body: "See what your customers see — projects, documents, billing, and messages on a phone-friendly portal.",
+    href: demo.portalUrl,
+    cta: "Open portal",
+    external: true,
+  });
+}
+
+if (!demo.adminUrl) {
+  cards.push({
+    icon: Monitor,
+    title: "Live admin sandbox",
+    body: "We run a full seeded install for hands-on demos. Book a call and we'll send credentials, or email us for early access.",
+    href: quoteHref,
+    cta: "Request access",
+  });
+}
+---
+
+<Layout
+  title="Demo"
+  description={`Try ${company.name} — interactive walkthrough of the Business OS, plus a live sandbox when available.`}
+>
+  <div class="demo-page">
+    <header class="demo-hero">
+      <p class="demo-kicker">See it in action</p>
+      <h1 class="demo-h1">Don't take our word for it.</h1>
+      <p class="demo-lead">
+        Walk through the platform at your own pace, or open the live sandbox and
+        click around a real install with sample clients, projects, and inbox
+        threads.
+      </p>
+      <a class="demo-btn demo-btn--primary" href={demo.walkthroughHref}>
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+    </header>
+
+    <div class="demo-grid" role="list">
+      {
+        cards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <a
+              class="demo-card"
+              href={card.href}
+              target={card.external ? "_blank" : undefined}
+              rel={card.external ? "noopener noreferrer" : undefined}
+              role="listitem"
+            >
+              <span class="demo-card-icon" aria-hidden="true">
+                <Icon size={22} strokeWidth={1.75} />
+              </span>
+              <h2 class="demo-card-title">{card.title}</h2>
+              <p class="demo-card-body">{card.body}</p>
+              <span class="demo-card-cta">
+                {card.cta}
+                {card.external ? (
+                  <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+                ) : (
+                  <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
+                )}
+              </span>
+            </a>
+          );
+        })
+      }
+    </div>
+
+    <footer class="demo-footer">
+      <p>
+        Want someone to walk you through it live?
+        <a href={demo.scheduleHref}>Book a call</a>
+        {supportMail ? <> or <a href={quoteHref}>email {supportMail}</a></> : null}.
+      </p>
+    </footer>
+  </div>
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
+</Layout>
+
+<style>
+  .demo-page {
+    min-height: 100vh;
+    padding: calc(var(--app-header-h, 3.25rem) + 48px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .demo-hero,
+  .demo-grid,
+  .demo-footer {
+    width: 100%;
+    max-width: 920px;
+  }
+
+  .demo-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .demo-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 14px;
+  }
+
+  .demo-h1 {
+    margin: 0 0 16px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.85rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .demo-lead {
+    margin: 0 auto 28px;
+    max-width: 560px;
+    font-family: var(--font-content);
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .demo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.78rem 1.4rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+
+  .demo-btn--primary {
+    color: #0b0512;
+    background: var(--brand-gradient);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .demo-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .demo-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 720px) {
+    .demo-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .demo-grid .demo-card:first-child {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .demo-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 24px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    text-decoration: none;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  a.demo-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+  .demo-card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    color: #f472b6;
+    background: rgba(244, 114, 182, 0.12);
+  }
+
+  .demo-card-title {
+    margin: 0;
+    font-family: var(--font-primary);
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .demo-card-body {
+    margin: 0;
+    flex: 1;
+    font-family: var(--font-content);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .demo-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    font-family: var(--font-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+  }
+
+  .demo-footer {
+    margin-top: 48px;
+    text-align: center;
+    font-family: var(--font-content);
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .demo-footer a {
+    color: rgba(255, 255, 255, 0.88);
+  }
+</style>
