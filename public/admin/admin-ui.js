@@ -1122,6 +1122,7 @@ function prefersReducedMotion() {
 }
 
 function maybeScheduleSwipeHint(row, api) {
+  if (!usesSoftwareKeyboard()) return;
   if (prefersReducedMotion()) return;
   const list = row.closest('.ch-list, .de-list, .em-list');
   if (!list) return;
