@@ -1881,9 +1881,16 @@ function workMarkdownToHtml(markdown) {
     const trimmed = line.trim();
     const m = trimmed.match(imgRe);
     if (m) {
+      const src = m[2].trim();
+      const safeSrc =
+        /^https?:\/\//i.test(src) || (src.startsWith('/') && !src.startsWith('//'));
+      if (!safeSrc) {
+        parts.push(`<div class="wk-md-line">${escHtml(trimmed)}</div>`);
+        continue;
+      }
       parts.push(
         `<figure class="wk-md-figure" contenteditable="false">` +
-          `<img class="wk-md-img" src="${escHtml(m[2])}" alt="${escHtml(m[1])}" loading="lazy" />` +
+          `<img class="wk-md-img" src="${escHtml(src)}" alt="${escHtml(m[1])}" loading="lazy" />` +
           `</figure>`,
       );
     } else if (trimmed === '') {

@@ -5,7 +5,7 @@
 
 import type { APIRoute } from 'astro';
 import { loadPortalJob } from '../../../../../../../lib/portalWorkAuth';
-import { storeGetProjectFile } from '../../../../../../../lib/projectFiles';
+import { storeGetProjectFile, projectFileResponseHeaders } from '../../../../../../../lib/projectFiles';
 
 export const prerender = false;
 
@@ -24,17 +24,9 @@ export const GET: APIRoute = async ({ params }) => {
   if (!file) return new Response('Not found', { status: 404 });
 
   const buffer = Buffer.from(file.dataBase64, 'base64');
-  const disposition = file.mediaType.startsWith('image/')
-    ? 'inline'
-    : `inline; filename="${file.filename.replace(/"/g, '')}"`;
 
   return new Response(buffer, {
     status: 200,
-    headers: {
-      'Content-Type': file.mediaType,
-      'Content-Disposition': disposition,
-      'Cache-Control': 'private, max-age=3600',
-      'Content-Length': String(buffer.length),
-    },
+    headers: projectFileResponseHeaders(file.mediaType, file.filename, buffer.length),
   });
 };
