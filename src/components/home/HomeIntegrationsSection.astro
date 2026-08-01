@@ -5,10 +5,8 @@
  * hero particle cloud and /features logo wall).
  */
 import { ArrowRight } from "lucide-astro";
-import { getCompanyConfig } from "../../lib/companyConfig";
 import { listBrandLogos, type BrandLogo } from "../../lib/brandLogos";
 
-const company = await getCompanyConfig(Astro.request);
 const logos = listBrandLogos("replaced-apps");
 
 const midpoint = Math.ceil(logos.length / 2);
@@ -37,8 +35,8 @@ const bottomLoop = loopRow(bottomRow);
           <p class="home-integrations-eyebrow">Replace your stack</p>
           <h2 id="integrations-title">One platform instead of dozens</h2>
           <p class="home-integrations-lead">
-            {company.name} consolidates the SaaS tools your business runs on — email,
-            CRM, scheduling, billing, documents, and more — into one tailored system.
+            REΛVE ΛPP — email, CRM, scheduling, billing, documents, and more — into
+            one tailored system.
           </p>
           <a href="/features" class="home-integrations-cta">
             Explore the platform
