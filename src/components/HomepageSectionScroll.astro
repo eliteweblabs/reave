@@ -1,0 +1,86 @@
+---
+/** Homepage-only smooth scrolling for in-page and /#section links. */
+---
+
+<script>
+  import {
+    isHomepageSectionId,
+    smoothScrollToHomepageSection,
+    type HomepageSectionId,
+  } from "../lib/homepageSmoothScroll";
+
+  function isHomepage() {
+    const path = location.pathname.replace(/\/$/, "") || "/";
+    return path === "/" || path === "/index.html";
+  }
+
+  function sectionIdFromHref(href: string | null): HomepageSectionId | null {
+    if (!href) return null;
+    if (href.startsWith("#")) {
+      const id = href.slice(1);
+      return isHomepageSectionId(id) ? id : null;
+    }
+    if (href.startsWith("/#")) {
+      const id = href.slice(2);
+      return isHomepageSectionId(id) ? id : null;
+    }
+    return null;
+  }
+
+  function scrollToSection(id: HomepageSectionId) {
+    if (!smoothScrollToHomepageSection(id)) return false;
+
+    const next = id === "home" ? "/" : `/#${id}`;
+    const path = location.pathname.replace(/\/$/, "") || "/";
+    if (path === "/" && `${location.pathname}${location.hash}` !== next) {
+      history.replaceState(null, "", next === "/" ? "/" : `#${id}`);
+    }
+    return true;
+  }
+
+  function wireHomepageSectionLinks() {
+    if (document.documentElement.dataset.homeSectionScroll === "1") return;
+    document.documentElement.dataset.homeSectionScroll = "1";
+
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (!isHomepage()) return;
+
+        const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href]");
+        if (!link) return;
+
+        const id = sectionIdFromHref(link.getAttribute("href"));
+        if (!id || !document.getElementById(id)) return;
+        if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+
+        event.preventDefault();
+        scrollToSection(id);
+      },
+      { capture: true },
+    );
+  }
+
+  function bootHomepageDeepLinks() {
+    if (!isHomepage()) return;
+
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get("section");
+    const fromHash = location.hash.replace(/^#/, "");
+    const target = (fromQuery || fromHash) as HomepageSectionId;
+    if (!isHomepageSectionId(target)) return;
+
+    requestAnimationFrame(() => {
+      scrollToSection(target);
+      if (fromQuery) {
+        history.replaceState(null, "", target === "home" ? "/" : `/#${target}`);
+      }
+    });
+  }
+
+  wireHomepageSectionLinks();
+  bootHomepageDeepLinks();
+  document.addEventListener("astro:page-load", bootHomepageDeepLinks);
+</script>

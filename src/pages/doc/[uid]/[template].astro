@@ -11,7 +11,6 @@ import { getContact, extractPortal } from '../../../lib/contactApi';
 import { getCompanyConfig, poweredByLabel } from '../../../lib/companyConfig';
 import { getTemplate, fillAndRenderTemplate } from '../../../lib/documentTemplates';
 import Header from '../../../components/Header.astro';
-import SiteFooterNav from '../../../components/SiteFooterNav.astro';
 import FootBostonTag from '../../../components/FootBostonTag.astro';
 import Favicon from '../../../components/Favicon.astro';
 import '../../../styles/brand.css';
@@ -157,8 +156,6 @@ const siteBase = Astro.url.origin;
       </main>
     )}
 
-    <SiteFooterNav />
-
     <script define:vars={{ signEndpoint, templateSlug }}>
       const nameInput    = document.getElementById('signer-name');
       const consentCheck = document.getElementById('consent-check');
@@ -246,7 +243,7 @@ const siteBase = Astro.url.origin;
         padding:
           calc(var(--app-header-h, 3.25rem) + 24px)
           32px
-          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
+          calc(48px + env(safe-area-inset-bottom, 0px));
       }
 
       /* ── Header ── */
@@ -466,7 +463,7 @@ const siteBase = Astro.url.origin;
         padding:
           calc(var(--app-header-h, 3.25rem) + 48px)
           20px
-          calc(var(--site-footer-nav-offset, 3.35rem) + 48px);
+          calc(48px + env(safe-area-inset-bottom, 0px));
       }
       .error-wrap h1 { font-size: 22px; margin: 0 0 10px; }
       .error-wrap p { color: #666; }
@@ -485,7 +482,7 @@ const siteBase = Astro.url.origin;
           padding:
             calc(var(--app-header-h, 3.25rem) + 16px)
             20px
-            calc(var(--site-footer-nav-offset, 3.35rem) + 40px);
+            calc(40px + env(safe-area-inset-bottom, 0px));
         }
         .doc-header { flex-direction: column; align-items: flex-start; gap: 8px; }
         .doc-foot { justify-content: center; text-align: center; }

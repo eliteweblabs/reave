@@ -21,8 +21,6 @@ export interface Props {
   variant?: 'site' | 'portal';
   /** Slide the FAB in on first scroll (marketing site). */
   revealFabOnScroll?: boolean;
-  /** Lift the FAB above the homepage footer nav pill. */
-  offsetFooterNav?: boolean;
 }
 
 const {
@@ -38,7 +36,6 @@ const {
   supportEmail = '',
   variant = 'site',
   revealFabOnScroll = false,
-  offsetFooterNav = false,
 } = Astro.props;
 
 const sheetId = `aw-sheet-${instanceId}`;
@@ -57,7 +54,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
   data-storage-key={storageKey}
   data-sheet-id={sheetId}
   data-reveal-fab={revealFabOnScroll ? 'true' : undefined}
-  data-offset-footer-nav={offsetFooterNav ? 'true' : undefined}
 >
   <button
     class="aw-fab"
@@ -156,10 +152,6 @@ const footerNote = footerPrefix && contactBits.length ? `${footerPrefix} ${conta
     border: 1px solid var(--portal-brand-fill-border, transparent);
     box-shadow: 0 8px 24px rgba(var(--portal-primary-rgb, 168, 85, 247), 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
     transition: transform 0.18s ease;
-  }
-
-  .aw-root[data-offset-footer-nav='true'] .aw-fab {
-    bottom: calc(var(--site-footer-nav-offset, 3.35rem) + env(safe-area-inset-bottom) + 20px);
   }
 
   .aw-root--site .aw-fab.is-visible {

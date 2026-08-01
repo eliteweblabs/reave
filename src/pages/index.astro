@@ -1,7 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
-import SiteFooterNav from "../components/SiteFooterNav.astro";
 import SiteLegalLinks from "../components/SiteLegalLinks.astro";
 import HomeHeroSection from "../components/home/HomeHeroSection.astro";
 import HomeAboutSection from "../components/home/HomeAboutSection.astro";
@@ -31,15 +30,12 @@ const showSiteAssistant =
     <SiteLegalLinks />
   </div>
 
-  <SiteFooterNav active="home" />
-
   {
     showSiteAssistant && (
       <SiteAssistantWidget
         brandTitle={company.name}
         supportPhone={company.supportPhone}
         supportEmail={company.supportEmail}
-        offsetFooterNav={true}
       />
     )
   }
@@ -54,6 +50,6 @@ const showSiteAssistant =
   .home-scroll {
     position: relative;
     z-index: 1;
-    padding-bottom: calc(var(--site-footer-nav-offset, 3.35rem) + 24px);
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   }
 </style>

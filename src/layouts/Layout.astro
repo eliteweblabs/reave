@@ -1,5 +1,7 @@
 ---
 import Header from "../components/Header.astro";
+import HomepageSectionScroll from "../components/HomepageSectionScroll.astro";
+import SiteVoiceWidget from "../components/SiteVoiceWidget.astro";
 import Favicon from "../components/Favicon.astro";
 import BrandFontHead from "../components/BrandFontHead.astro";
 import { SITE } from "../config/site";
@@ -109,6 +111,8 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname);
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />
 		</main>
+		{isIndexPage && <HomepageSectionScroll />}
+		{marketingNav && <SiteVoiceWidget />}
 	</body>
 </html>
 

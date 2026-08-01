@@ -2,7 +2,7 @@
 
 html {
   scroll-padding-top: calc(var(--app-header-h, 3.25rem) + 8px);
-  scroll-padding-bottom: calc(var(--site-footer-nav-offset, 3.35rem) + 16px);
+  scroll-padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 }
 
 .marketing-bg {

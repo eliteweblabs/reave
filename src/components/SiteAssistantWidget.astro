@@ -6,15 +6,14 @@ export interface Props {
   brandTitle: string;
   supportPhone?: string;
   supportEmail?: string;
-  /** Lift the FAB above the homepage footer nav pill. */
-  offsetFooterNav?: boolean;
+  /** Slide the FAB in on first scroll (marketing site). */
+  revealFabOnScroll?: boolean;
 }
 
 const {
   brandTitle,
   supportPhone = '',
   supportEmail = '',
-  offsetFooterNav = false,
 } = Astro.props;
 ---
 
@@ -31,5 +30,4 @@ const {
   supportEmail={supportEmail}
   variant="site"
   revealFabOnScroll={true}
-  offsetFooterNav={offsetFooterNav}
 />
