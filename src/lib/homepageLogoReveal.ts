@@ -32,16 +32,27 @@ export function initHomepageLogoReveal() {
     logo.setAttribute("tabindex", "-1");
   };
 
-  // Hero is first on the page — any pixel still below the top edge means stay
-  // hidden. Only rect.bottom is consulted so mobile URL-bar resize/orientation
-  // cannot flip visibility without an actual scroll (innerHeight and
-  // visualViewport.height both change when the bar collapses).
-  const heroInViewport = () => hero.getBoundingClientRect().bottom > 0;
+  /** Reveal once this much of the hero has left the viewport (34% may still show). */
+  const HERO_REVEAL_VISIBLE_MAX = 1 - 0.66;
 
-  // Single source of truth: hidden while any part of the hero is on screen,
-  // shown once the hero has left. Every trigger below remeasures through here
-  // rather than tracking its own idea of where the hero is, so none of them can
-  // leave the logo out of sync with the scroll position.
+  const heroVisibleFraction = () => {
+    const rect = hero.getBoundingClientRect();
+    const height = rect.height;
+    if (height <= 0) return 0;
+    const visibleHeight = Math.max(
+      0,
+      Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0),
+    );
+    return visibleHeight / height;
+  };
+
+  // Hide while more than ~34% of the hero is still on screen; reveal once 66% is out.
+  const heroInViewport = () => heroVisibleFraction() > HERO_REVEAL_VISIBLE_MAX;
+
+  // Single source of truth: hidden while the hero still fills the viewport,
+  // shown once ~66% of it has scrolled out. Every trigger below remeasures
+  // through here rather than tracking its own idea of where the hero is, so
+  // none of them can leave the logo out of sync with the scroll position.
   const sync = () => setVisible(!heroInViewport());
 
   let scrollTick = 0;
