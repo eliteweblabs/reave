@@ -31,320 +31,235 @@ const testimonials: Testimonial[] = [
     title: "President — Aster Group",
   },
 ];
+
+const LOOP_COPIES = 2;
+const marqueeTestimonials = Array.from({ length: LOOP_COPIES }, () => testimonials).flat();
 ---
 
-<section class="testimonials-carousel section--full-bleed" aria-label="Client testimonials">
+<section class="testimonials-section section--full-bleed" aria-label="Client testimonials">
+  <!-- Desktop: infinite scroll, no pointer interaction -->
   <div
-    class="testimonials-viewport"
-    data-testimonials-carousel
+    class="testimonials-marquee"
+    aria-label="Client testimonials"
+    role="region"
+    style={`--loop-copies: ${LOOP_COPIES}`}
+  >
+    <div class="testimonials-marquee-track">
+      {
+        marqueeTestimonials.map((testimonial, index) => (
+          <article
+            class="testimonial-card"
+            aria-hidden={index >= testimonials.length ? "true" : undefined}
+          >
+            <header class="testimonial-card-header">
+              <div class="testimonial-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" />
+                  <circle cx="12" cy="9" r="3.5" fill="currentColor" />
+                  <path
+                    d="M5.5 19.5c1.4-3 3.8-4.5 6.5-4.5s5.1 1.5 6.5 4.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="testimonial-card-meta">
+                <p class="testimonial-name">{testimonial.name}</p>
+                <p class="testimonial-title">{testimonial.title}</p>
+              </div>
+            </header>
+            <p class="testimonial-quote">{testimonial.quote}</p>
+          </article>
+        ))
+      }
+    </div>
+  </div>
+
+  <!-- Mobile: centered peek carousel, swipeable + autoplay -->
+  <div
+    class="testimonials-mobile"
+    data-testimonials-mobile
     tabindex="0"
     role="region"
     aria-roledescription="carousel"
-    aria-label="Client testimonials. Swipe or tap to change."
+    aria-label="Client testimonials. Swipe to change."
   >
-    {
-      testimonials.map((testimonial, index) => (
-        <article
-          class:list={["testimonial-slide", index === 0 && "is-active"]}
-          data-testimonial-slide
-          aria-hidden={index === 0 ? "false" : "true"}
-        >
-          <blockquote>&ldquo;{testimonial.quote}&rdquo;</blockquote>
-          <p>
-            <strong>{testimonial.name}</strong>, {testimonial.title}
-          </p>
-        </article>
-      ))
-    }
+    <div class="testimonials-mobile-track" data-testimonials-mobile-track>
+      {
+        testimonials.map((testimonial, index) => (
+          <article
+            class="testimonial-card"
+            data-testimonial-slide
+            aria-hidden={index === 0 ? "false" : "true"}
+          >
+            <header class="testimonial-card-header">
+              <div class="testimonial-avatar" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" />
+                  <circle cx="12" cy="9" r="3.5" fill="currentColor" />
+                  <path
+                    d="M5.5 19.5c1.4-3 3.8-4.5 6.5-4.5s5.1 1.5 6.5 4.5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="testimonial-card-meta">
+                <p class="testimonial-name">{testimonial.name}</p>
+                <p class="testimonial-title">{testimonial.title}</p>
+              </div>
+            </header>
+            <p class="testimonial-quote">{testimonial.quote}</p>
+          </article>
+        ))
+      }
+    </div>
   </div>
 </section>
 
 <style>
-  .testimonials-carousel {
+  .testimonials-section {
     margin-bottom: 40px;
   }
 
-  .testimonials-viewport {
-    display: grid;
-    width: 100%;
-    padding: 28px 24px;
+  .testimonial-card {
     box-sizing: border-box;
-    text-align: center;
-    cursor: pointer;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    text-align: left;
+  }
+
+  .testimonial-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .testimonial-avatar {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .testimonial-avatar svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .testimonial-card-meta {
+    min-width: 0;
+  }
+
+  .testimonial-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .testimonial-title {
+    margin: 2px 0 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .testimonial-quote {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  /* --- Desktop marquee --- */
+  .testimonials-marquee {
+    display: none;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .testimonials-marquee-track {
+    display: flex;
+    gap: 16px;
+    width: max-content;
+    padding: 4px 0;
+    animation: testimonials-marquee-scroll 70s linear infinite;
+    will-change: transform;
+  }
+
+  @keyframes testimonials-marquee-scroll {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(calc(-100% / var(--loop-copies, 2)), 0, 0);
+    }
+  }
+
+  .testimonials-marquee .testimonial-card {
+    flex: 0 0 min(340px, 78vw);
+  }
+
+  /* --- Mobile carousel --- */
+  .testimonials-mobile {
+    --card-width: 72vw;
+    --card-gap: 12px;
+    overflow: hidden;
     touch-action: pan-y;
     user-select: none;
     -webkit-user-select: none;
     outline: none;
   }
 
-  .testimonials-viewport:focus-visible {
+  .testimonials-mobile:focus-visible {
     outline: 2px solid rgba(168, 85, 247, 0.65);
     outline-offset: 6px;
     border-radius: 12px;
   }
 
-  .testimonial-slide {
-    grid-area: 1 / 1;
+  .testimonials-mobile-track {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.45s ease;
-    pointer-events: none;
+    gap: var(--card-gap);
+    width: max-content;
+    padding-inline: calc((100% - var(--card-width)) / 2);
+    will-change: transform;
   }
 
-  .testimonial-slide.is-active {
-    opacity: 1;
+  .testimonials-mobile .testimonial-card {
+    flex: 0 0 var(--card-width);
+    max-width: 340px;
   }
 
-  .testimonials-viewport.is-fast .testimonial-slide {
-    transition-duration: 0.18s;
-  }
+  @media (min-width: 768px) {
+    .testimonials-marquee {
+      display: block;
+    }
 
-  .testimonial-slide blockquote {
-    max-width: 52ch;
-    margin: 0 0 16px;
-    font-size: clamp(15px, 2.4vw, 18px);
-    line-height: 1.7;
-    color: rgba(255, 255, 255, 0.82);
-  }
-
-  .testimonial-slide p {
-    max-width: 52ch;
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-    color: rgba(255, 255, 255, 0.72);
-  }
-
-  .testimonial-slide strong {
-    color: rgba(255, 255, 255, 0.92);
-    font-weight: 600;
+    .testimonials-mobile {
+      display: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .testimonial-slide,
-    .testimonials-viewport.is-fast .testimonial-slide {
-      transition: none;
+    .testimonials-marquee-track {
+      animation: none;
     }
   }
 </style>
 
 <script>
-  const DISPLAY_MS = 5000;
-  const SWIPE_THRESHOLD_PX = 48;
-  const SCROLL_IDLE_MS = 180;
+  import { bootTestimonialsMobileCarousels } from "../lib/testimonialsMobileCarousel";
 
-  function clamp(value: number, min: number, max: number) {
-    return Math.min(max, Math.max(min, value));
-  }
-
-  function initTestimonialsCarousel(viewport: HTMLElement) {
-    if (viewport.dataset.testimonialsInit === "true") return;
-    viewport.dataset.testimonialsInit = "true";
-
-    const slides = Array.from(
-      viewport.querySelectorAll<HTMLElement>("[data-testimonial-slide]"),
-    );
-    const count = slides.length;
-    if (count <= 1) return;
-
-    const aboutSection =
-      viewport.closest<HTMLElement>("#about") ||
-      document.getElementById("about");
-
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    let activeIndex = slides.findIndex((slide) => slide.classList.contains("is-active"));
-    if (activeIndex < 0) activeIndex = 0;
-
-    let timerId = 0;
-    let visible = false;
-    let scrolling = false;
-    let scrollIdleTimer = 0;
-    let lastScrollY = window.scrollY;
-    let lastScrollTime = performance.now();
-    let suppressClick = false;
-
-    function showSlide(nextIndex: number, fast = false) {
-      const index = ((nextIndex % count) + count) % count;
-      viewport.classList.toggle("is-fast", fast);
-      slides.forEach((slide, i) => {
-        const isActive = i === index;
-        slide.classList.toggle("is-active", isActive);
-        slide.setAttribute("aria-hidden", isActive ? "false" : "true");
-      });
-      activeIndex = index;
-      viewport.setAttribute(
-        "aria-label",
-        `Client testimonial ${index + 1} of ${count}. Swipe or tap to change.`,
-      );
-    }
-
-    function scheduleNext() {
-      window.clearTimeout(timerId);
-      if (!visible || prefersReducedMotion || scrolling) return;
-      timerId = window.setTimeout(() => {
-        if (!visible || scrolling) return;
-        showSlide(activeIndex + 1, false);
-        scheduleNext();
-      }, DISPLAY_MS);
-    }
-
-    function pauseAutoplayBriefly() {
-      window.clearTimeout(timerId);
-      scheduleNext();
-    }
-
-    /** Map about-section travel through the viewport → 0..1. */
-    function aboutScrollProgress(): number | null {
-      if (!aboutSection) return null;
-      const rect = aboutSection.getBoundingClientRect();
-      const travel = rect.height + window.innerHeight;
-      if (travel <= 0) return null;
-      return clamp((window.innerHeight - rect.top) / travel, 0, 1);
-    }
-
-    function syncFromScroll(fast: boolean) {
-      const progress = aboutScrollProgress();
-      if (progress == null) return;
-      const nextIndex = clamp(Math.floor(progress * count), 0, count - 1);
-      if (nextIndex !== activeIndex) {
-        showSlide(nextIndex, fast);
-      }
-    }
-
-    function onScroll() {
-      const now = performance.now();
-      const dt = Math.max(now - lastScrollTime, 1);
-      const velocity = Math.abs(window.scrollY - lastScrollY) / dt;
-      lastScrollY = window.scrollY;
-      lastScrollTime = now;
-
-      scrolling = true;
-      window.clearTimeout(timerId);
-      syncFromScroll(velocity > 0.35);
-
-      window.clearTimeout(scrollIdleTimer);
-      scrollIdleTimer = window.setTimeout(() => {
-        scrolling = false;
-        viewport.classList.remove("is-fast");
-        scheduleNext();
-      }, SCROLL_IDLE_MS);
-    }
-
-    // --- pointer swipe (horizontal) + tap ---
-    let pointerId: number | null = null;
-    let startX = 0;
-    let startY = 0;
-    let dragging = false;
-    let swiped = false;
-
-    function onPointerDown(event: PointerEvent) {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      pointerId = event.pointerId;
-      startX = event.clientX;
-      startY = event.clientY;
-      dragging = true;
-      swiped = false;
-      try {
-        viewport.setPointerCapture(event.pointerId);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    function onPointerMove(event: PointerEvent) {
-      if (!dragging || event.pointerId !== pointerId) return;
-      const dx = event.clientX - startX;
-      const dy = event.clientY - startY;
-      if (!swiped && Math.abs(dx) >= SWIPE_THRESHOLD_PX && Math.abs(dx) > Math.abs(dy) * 1.15) {
-        swiped = true;
-        suppressClick = true;
-        showSlide(activeIndex + (dx < 0 ? 1 : -1), true);
-        pauseAutoplayBriefly();
-      }
-    }
-
-    function onPointerUp(event: PointerEvent) {
-      if (event.pointerId !== pointerId) return;
-      dragging = false;
-      pointerId = null;
-      if (viewport.hasPointerCapture(event.pointerId)) {
-        viewport.releasePointerCapture(event.pointerId);
-      }
-      window.setTimeout(() => {
-        suppressClick = false;
-      }, 0);
-    }
-
-    function onClick() {
-      if (suppressClick || swiped) {
-        swiped = false;
-        return;
-      }
-      showSlide(activeIndex + 1, false);
-      pauseAutoplayBriefly();
-    }
-
-    viewport.addEventListener("pointerdown", onPointerDown);
-    viewport.addEventListener("pointermove", onPointerMove);
-    viewport.addEventListener("pointerup", onPointerUp);
-    viewport.addEventListener("pointercancel", onPointerUp);
-    viewport.addEventListener("click", onClick);
-
-    viewport.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " " || event.key === "ArrowRight") {
-        event.preventDefault();
-        showSlide(activeIndex + 1, false);
-        pauseAutoplayBriefly();
-      } else if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        showSlide(activeIndex - 1, false);
-        pauseAutoplayBriefly();
-      }
-    });
-
-    const visibilityObs =
-      "IntersectionObserver" in window
-        ? new IntersectionObserver(
-            (entries) => {
-              visible = entries.some((entry) => entry.isIntersecting && entry.intersectionRatio > 0.15);
-              if (visible) scheduleNext();
-              else window.clearTimeout(timerId);
-            },
-            { root: null, threshold: [0, 0.15, 0.4] },
-          )
-        : null;
-    visibilityObs?.observe(viewport);
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-
-    // Seed from current scroll position, then start autoplay if already visible.
-    syncFromScroll(false);
-    const rect = viewport.getBoundingClientRect();
-    visible = rect.top < window.innerHeight && rect.bottom > 0;
-    if (visible && !prefersReducedMotion) scheduleNext();
-
-    return () => {
-      window.clearTimeout(timerId);
-      window.clearTimeout(scrollIdleTimer);
-      visibilityObs?.disconnect();
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }
-
-  function initAllTestimonialsCarousels() {
-    document.querySelectorAll<HTMLElement>("[data-testimonials-carousel]").forEach((viewport) => {
-      initTestimonialsCarousel(viewport);
-    });
-  }
-
-  initAllTestimonialsCarousels();
-  document.addEventListener("astro:page-load", initAllTestimonialsCarousels);
+  bootTestimonialsMobileCarousels();
+  document.addEventListener("astro:page-load", () => bootTestimonialsMobileCarousels());
 </script>
