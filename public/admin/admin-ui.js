@@ -1094,8 +1094,49 @@ const SWIPE_HORIZONTAL_RATIO = 3;
 const SWIPE_VERTICAL_RATIO = 1.1;
 const SWIPE_CLOSE_HORIZONTAL_MIN = 14;
 const SWIPE_CLOSE_HORIZONTAL_RATIO = 2;
+const SWIPE_HINT_DELAY_MS = 450;
+const SWIPE_HINT_OPEN_MS = 250;
+const SWIPE_HINT_UNLOCK_MS = 230;
 
 let openSwipeRow = null;
+const swipeHintPlayedScopes = new WeakSet();
+
+function getSwipeHintScope(list) {
+  return (
+    list.closest('[id$="-panel"], [id$="-editor"], #home-dashboard') ||
+    list.closest('.dash-events') ||
+    list
+  );
+}
+
+function isSwipeListVisible(list) {
+  const scope = getSwipeHintScope(list);
+  if (!scope?.isConnected) return false;
+  if (scope === list) return list.offsetParent !== null;
+  const style = window.getComputedStyle(scope);
+  return style.display !== 'none' && style.visibility !== 'hidden' && scope.offsetParent !== null;
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
+function maybeScheduleSwipeHint(row, api) {
+  if (prefersReducedMotion()) return;
+  const list = row.closest('.ch-list, .de-list, .em-list');
+  if (!list) return;
+  if (list.querySelector(':scope > .swipe-row') !== row) return;
+
+  const scope = getSwipeHintScope(list);
+  if (swipeHintPlayedScopes.has(scope)) return;
+  swipeHintPlayedScopes.add(scope);
+
+  window.setTimeout(() => {
+    if (!row.isConnected || !isSwipeListVisible(list)) return;
+    if (list.querySelector(':scope > .swipe-row') !== row) return;
+    api.playHint();
+  }, SWIPE_HINT_DELAY_MS);
+}
 
 export function closeOpenSwipeRow() {
   if (openSwipeRow) {
@@ -1232,6 +1273,9 @@ function attachSwipeRow(row, contentEl, revealPx) {
   let dragging = false;
   let moved = false;
   let open = false;
+  let hintLock = false;
+  let hintCloseTimer = null;
+  let hintUnlockTimer = null;
   /** @type {'horizontal' | 'vertical' | null} */
   let axis = null;
 
@@ -1276,7 +1320,34 @@ function attachSwipeRow(row, contentEl, revealPx) {
     return { min: SWIPE_HORIZONTAL_MIN, ratio: SWIPE_HORIZONTAL_RATIO };
   }
 
+  function endHintLock() {
+    hintLock = false;
+    row.classList.remove('swipe-hint-lock');
+    row.style.pointerEvents = '';
+  }
+
+  function playHint() {
+    if (hintLock || !row.isConnected) return;
+    hintLock = true;
+    row.classList.add('swipe-hint-lock');
+    row.style.pointerEvents = 'none';
+    snap(true);
+    hintCloseTimer = window.setTimeout(() => {
+      hintCloseTimer = null;
+      if (!row.isConnected) {
+        endHintLock();
+        return;
+      }
+      snap(false);
+      hintUnlockTimer = window.setTimeout(() => {
+        hintUnlockTimer = null;
+        endHintLock();
+      }, SWIPE_HINT_UNLOCK_MS);
+    }, SWIPE_HINT_OPEN_MS);
+  }
+
   function onStart(clientX, clientY) {
+    if (hintLock) return;
     if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
     startX = clientX;
     swipeStartY = clientY;
@@ -1395,7 +1466,13 @@ function attachSwipeRow(row, contentEl, revealPx) {
     true,
   );
 
-  const api = { snap, row, moved: () => moved };
+  const api = {
+    snap,
+    row,
+    moved: () => moved,
+    playHint,
+    isHinting: () => hintLock,
+  };
   return api;
 }
 
@@ -1442,7 +1519,8 @@ export function createSwipeRow(contentEl, actions) {
 
   requestAnimationFrame(() => {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
-    attachSwipeRow(row, content, revealPx);
+    const api = attachSwipeRow(row, content, revealPx);
+    maybeScheduleSwipeHint(row, api);
   });
   return row;
 }
@@ -1504,6 +1582,7 @@ if (typeof document !== 'undefined' && !document.documentElement.dataset.swipeDi
   document.documentElement.dataset.swipeDismissBound = '1';
   document.addEventListener('click', (e) => {
     if (!openSwipeRow) return;
+    if (openSwipeRow.isHinting?.()) return;
     if (openSwipeRow.row.contains(e.target)) return;
     closeOpenSwipeRow();
   });
