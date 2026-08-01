@@ -2,6 +2,8 @@ import type { APIRoute } from 'astro';
 import { createContact, isContactApiConfigured } from '../../../lib/contactApi';
 import { serverEnv } from '../../../lib/serverEnv';
 import { secretMatches } from '../../../lib/secretCompare';
+import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
+import { clientIp } from '../../../lib/clientIp';
 
 export const prerender = false;
 
@@ -12,6 +14,23 @@ function isDashboardAuthed(request: Request): boolean {
   return secretMatches(auth, expected);
 }
 
+function rateLimited(request: Request): Response | null {
+  const rate = checkInMemoryRateLimit(`contacts:${clientIp(request)}`, {
+    windowMs: 10 * 60 * 1000,
+    maxPerWindow: 30,
+  });
+  if (!rate.ok) {
+    return new Response(JSON.stringify({ ok: false, error: 'Too many requests. Please try again later.' }), {
+      status: 429,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': String(rate.retryAfterSeconds),
+      },
+    });
+  }
+  return null;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   const json = (body: object, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -19,6 +38,9 @@ export const POST: APIRoute = async ({ request }) => {
   if (!isDashboardAuthed(request)) {
     return json({ ok: false, error: 'Unauthorized' }, 401);
   }
+
+  const limited = rateLimited(request);
+  if (limited) return limited;
 
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
