@@ -32,20 +32,19 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
-  const { userId } = auth;
   if (!isContactApiConfigured()) {
     return json({ ok: false, error: 'CONTACT_API_BASE_URL is not configured' }, 503);
   }
 
-  const uid = (params.uid ?? '').trim();
+  const uid = (context.params.uid ?? '').trim();
   if (!uid) return json({ ok: false, error: 'Not found' }, 404);
 
   let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     // optional body
   }

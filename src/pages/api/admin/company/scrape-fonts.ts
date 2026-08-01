@@ -9,6 +9,7 @@ import { getCompanyConfig } from '../../../../lib/companyConfig';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../../lib/companyConfigStore';
 import { normalizePublicUrl } from '../../../../lib/publicUrl';
 import { detectWebsiteFonts } from '../../../../lib/websiteFonts';
+import { requireDashboardUser } from '../../../../lib/dashboardAuth';
 
 export const prerender = false;
 
@@ -26,18 +27,18 @@ function websiteFromDomain(domain: string): string | null {
   return url?.origin ?? null;
 }
 
-export const POST: APIRoute = async ({ request, locals }) => {
-  const { userId } = locals.auth?.() ?? {};
-  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+export const POST: APIRoute = async (context) => {
+  const auth = await requireDashboardUser(context);
+  if (auth instanceof Response) return auth;
 
   let body: Record<string, unknown> = {};
   try {
-    body = await request.json();
+    body = await context.request.json();
   } catch {
     // optional body
   }
 
-  const company = await getCompanyConfig(request);
+  const company = await getCompanyConfig(context.request);
   const websiteInput = typeof body.website === 'string' ? body.website.trim() : '';
   const website =
     websiteInput ||
@@ -81,7 +82,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return json({ ok: false, error: 'Fonts detected but failed to save company settings.' }, 500);
   }
 
-  const updated = await getCompanyConfig(request);
+  const updated = await getCompanyConfig(context.request);
   const imported = [
     detected.sources.primary && `Primary: ${detected.sources.primary}`,
     detected.sources.secondary && `Secondary: ${detected.sources.secondary}`,

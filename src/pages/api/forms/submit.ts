@@ -1,12 +1,7 @@
 import type { APIRoute } from 'astro';
 import { processContactFormIntake } from '../../../lib/contactFormIntake';
 import { checkInMemoryRateLimit } from '../../../lib/inMemoryRateLimit';
-
-function clientIp(request: Request): string {
-  const fwd = request.headers.get('x-forwarded-for');
-  if (fwd) return fwd.split(',')[0]?.trim() || 'unknown';
-  return request.headers.get('x-real-ip')?.trim() || 'unknown';
-}
+import { clientIp } from '../../../lib/clientIp';
 
 export const POST: APIRoute = async ({ request }) => {
   const rate = checkInMemoryRateLimit(`form:${clientIp(request)}`, {

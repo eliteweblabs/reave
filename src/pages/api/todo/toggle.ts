@@ -36,7 +36,7 @@ const ITEM_RE = /^- \[([ xX])\] /;
 const SAFE_SLUG_RE = /^[a-z0-9_-]+$/i;
 
 export const POST: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   let body: { slug?: unknown; lineIndex?: unknown; checked?: unknown };

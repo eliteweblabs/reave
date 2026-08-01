@@ -29,7 +29,7 @@ function camelToWords(s: string): string {
 }
 
 export const GET: APIRoute = async (context) => {
-  const auth = requireDashboardUser(context);
+  const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
 
   const shortcodes: Shortcode[] = [...SHORTCODES];
