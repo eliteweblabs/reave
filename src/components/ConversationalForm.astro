@@ -422,7 +422,11 @@ const rootClass = embedded
     area.scrollTop = area.scrollHeight;
   }
 
-  function placeholderForField(field) {
+  // Placeholders clip with an ellipsis, so only short prompts move into the input.
+  const MAX_PLACEHOLDER_LENGTH = 48;
+
+  function placeholderForField(field, prompt) {
+    if (prompt && prompt.length <= MAX_PLACEHOLDER_LENGTH) return prompt;
     switch (field.type) {
       case "email":
         return "you@example.com";
@@ -690,7 +694,7 @@ const rootClass = embedded
     if (field.name === "email" && formData.name) {
       const firstName = firstNameFrom(formData.name);
       questionText = firstName
-        ? `Nice to meet you, ${firstName}! What's your email address?`
+        ? `Nice to meet you, ${firstName}!&&What's your email address?`
         : "What's your email address?";
     }
     const parts = questionText.split("&&").map((s) => s.trim());
@@ -718,19 +722,24 @@ const rootClass = embedded
         setTimeout(showQuestion, 500);
       });
     } else {
-      const introLines = parts.slice(0, -1);
       const promptLine = parts[parts.length - 1];
-      for (let i = 0; i < introLines.length; i++) {
+      const placeholder = placeholderForField(field, promptLine);
+      const spokenLines =
+        placeholder === promptLine ? parts.slice(0, -1) : parts;
+      for (let i = 0; i < spokenLines.length; i++) {
         if (i > 0) await delay(500);
-        appendMessage(introLines[i], "robot");
+        if (i === spokenLines.length - 1) {
+          await appendTypewriter(spokenLines[i]);
+        } else {
+          appendMessage(spokenLines[i], "robot");
+        }
       }
-      if (introLines.length > 0) await delay(300);
-      await appendTypewriter(promptLine);
       await delay(200);
       setInputVisible(true);
       inputModeForField(field);
       if (userInput()) {
-        userInput().placeholder = placeholderForField(field);
+        userInput().placeholder = placeholder;
+        userInput().setAttribute("aria-label", promptLine);
         userInput().value = "";
         userInput().focus({ preventScroll: true });
       }
