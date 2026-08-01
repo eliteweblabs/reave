@@ -11,12 +11,17 @@ This project does **not** use pull requests. **NEVER create PRs** (not even draf
 
 ## Auto commit and push
 
-When you finish a task successfully, **run the build pipeline, then commit and push everything**:
+Commit and push after **every** successful change — do not batch work up and push once at the end. For each change:
 
-1. Run `npm run check && npm run build` (or the minimal check/build relevant to the change).
-2. If checks/build pass, stage **all** uncommitted changes from the task (and any related in-progress work the user asked to include), commit with a clear message, and `git push` to `origin/main`.
-3. If checks/build fail, fix the failures first — do not commit broken work.
-4. Do not commit secrets (`.env`, credentials, etc.).
+1. Run `npm run build` (or the minimal build relevant to the change). It must pass — `main` deploys to Railway on push.
+2. Run `npx astro check` and compare against the count before your change. It does **not** pass on a clean `main` (there is a standing backlog of pre-existing errors), so the bar is *no new errors*, not zero.
+3. If the build fails or you added errors, fix them first — do not commit broken work.
+4. Stage everything belonging to that change, commit with a clear message, and `git push` to `origin/main`.
+5. Move on to the next change and repeat.
+
+Do not commit secrets (`.env`, credentials, etc.).
+
+If the push is rejected because `main` moved, `git fetch origin main` and `git merge --no-edit origin/main` (merge, not rebase — this history has merge commits), rebuild, then push again.
 
 Skip auto commit/push only when the user explicitly says not to for that task (e.g. "don't commit yet", "WIP only").
 
