@@ -34,6 +34,7 @@ import TestimonialsCarousel from "../TestimonialsCarousel.astro";
         Over 20 years designing logos &amp; graphics to building websites, developing plugins &amp;
         apps.
       </p>
+      <a href="/about" class="home-about-more">Our story</a>
     </header>
 
     <section class="section--full-bleed">
@@ -47,3 +48,21 @@ import TestimonialsCarousel from "../TestimonialsCarousel.astro";
 <script>
   import "../../lib/sketchDrawReveal.ts";
 </script>
+
+<style>
+  .home-about-more {
+    display: inline-flex;
+    align-self: flex-start;
+    margin-top: 4px;
+    font-family: var(--font-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none;
+  }
+
+  .home-about-more:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+</style>

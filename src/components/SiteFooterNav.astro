@@ -24,6 +24,7 @@ const isHomePage = pathNorm === "/" || pathNorm === "/index.html";
 
 function resolveActive(): SiteNavId {
   if (active) return active;
+  if (pathNorm === "/about") return "about";
   if (isHomePage) return "home";
   return "home";
 }
@@ -37,7 +38,7 @@ const items: Array<{
   Icon: typeof Home;
 }> = [
   { id: "home", href: "/#home", label: "Home", Icon: Home },
-  { id: "about", href: "/#about", label: "About", Icon: Info },
+  { id: "about", href: "/about", label: "About", Icon: Info },
   { id: "services", href: "/#services", label: "Services", Icon: Briefcase },
   { id: "portfolio", href: "/#portfolio", label: "Portfolio", Icon: LayoutGrid },
   { id: "contact", href: "/#contact", label: "Contact", Icon: Mail },

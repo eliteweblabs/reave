@@ -4,6 +4,7 @@ import type { PortalBrandColors } from "../lib/portalBrandColors";
 import { PROFILE_MENU_LABELS, type ProfileMenuKey } from "../lib/installConfig";
 import SignInSheet from "./SignInSheet.astro";
 import HeaderLogoAnimated from "./HeaderLogoAnimated.astro";
+import MarketingMenu from "./MarketingMenu.astro";
 import {
   Shield,
   LayoutDashboard,
@@ -14,6 +15,8 @@ interface Props {
   adminShell?: boolean;
   /** Homepage — hide header logo on hero, cascade in after first section */
   homepageLogoReveal?: boolean;
+  /** Vercel-style inline nav + hamburger on public marketing pages */
+  marketingNav?: boolean;
   /** Homepage — single user icon links to admin instead of tools/profile menus */
   homeAdminEntry?: boolean;
   /** Client portal (or similar) — signed-in staff see an obvious Admin indicator */
@@ -29,6 +32,7 @@ interface Props {
 const {
   adminShell = false,
   homepageLogoReveal = false,
+  marketingNav = false,
   homeAdminEntry = false,
   staffPreview = false,
   profileMenu = [],
@@ -56,6 +60,10 @@ const signInRedirect =
         ? "/admin/"
         : Astro.url.pathname + Astro.url.search;
 const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") === "sign-in" || path === "/sign-in";
+const showMarketingNav = marketingNav && !adminShell;
+const showHomeAdminEntry = homeAdminEntry && !showMarketingNav;
+const showHeaderSignIn = !userId && !adminShell && !showMarketingNav;
+const showHeaderProfile = userId && !showMarketingNav;
 ---
 
 <header
@@ -88,7 +96,11 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
   <div id="topbar-panel-context" class="topbar-panel-context" hidden></div>
 
-  {!userId && (
+  {showMarketingNav && (
+    <MarketingMenu pathname={path} signedIn={Boolean(userId)} />
+  )}
+
+  {showHeaderSignIn && (
     <button
       type="button"
       class="app-header-signin"
@@ -100,7 +112,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     </button>
   )}
 
-  {userId && (
+  {showHeaderProfile && (
     <div class="app-header-end topbar-end">
       {adminShell ? (
         <>
@@ -161,7 +173,7 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
             </div>
           </div>
         </>
-      ) : homeAdminEntry ? (
+      ) : showHomeAdminEntry ? (
         <div class="topbar-profile-hit">
           <a
             href="/admin/"
@@ -243,8 +255,8 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   )}
 </header>
 
-{!userId && (
-  <SignInSheet fallbackRedirectUrl={signInRedirect} autoOpen={signInAutoOpen} />
+{(!userId || showMarketingNav) && !adminShell && (
+  <SignInSheet fallbackRedirectUrl={signInRedirect} autoOpen={signInAutoOpen && !showMarketingNav} />
 )}
 
 {userId && (

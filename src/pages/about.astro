@@ -1,0 +1,272 @@
+---
+import Layout from "../layouts/Layout.astro";
+import SiteAssistantWidget from "../components/SiteAssistantWidget.astro";
+import ClientLogos from "../components/ClientLogos.astro";
+import TestimonialsCarousel from "../components/TestimonialsCarousel.astro";
+import { getCompanyConfig } from "../lib/companyConfig";
+import { hasFeature } from "../lib/features";
+import { isSiteAssistantConfigured } from "../lib/siteAssistant";
+import { ArrowRight } from "lucide-astro";
+
+const company = await getCompanyConfig(Astro.request);
+const supportMail = company.supportEmail || (company.domain ? `hello@${company.domain}` : "");
+const contactHref = supportMail ? `mailto:${supportMail}` : "/#contact";
+const showSiteAssistant =
+  hasFeature("portal_assistant") && isSiteAssistantConfigured();
+---
+
+<Layout
+  title="About"
+  description={`About ${company.name} — the team behind the Business OS and two decades of client work across branding, development, and automation.`}
+>
+  <div class="about-page">
+    <header class="about-hero">
+      <p class="about-kicker">About</p>
+      <h1 class="about-h1">Built by operators, for operators.</h1>
+      <p class="about-lead">
+        {company.name} started as a design and development studio — logos, sites,
+        plugins, and custom apps for clients who needed more than a template. That
+        work turned into a platform when we kept rebuilding the same CRM, inbox,
+        billing, and portal stack from scratch.
+      </p>
+    </header>
+
+    <section class="about-photo" aria-hidden="true">
+      <img
+        src="/images/about-office.png"
+        alt=""
+        width="1024"
+        height="768"
+        loading="eager"
+        decoding="async"
+      />
+      <div class="about-photo-scrim"></div>
+    </section>
+
+    <section class="about-block" aria-labelledby="about-story-title">
+      <h2 id="about-story-title">What we do today</h2>
+      <p>
+        We still take on bespoke projects — branding, WordPress, managed hosting,
+        training — but the core product is the Business OS: one login that replaces
+        the SaaS pile most small businesses pay for every month.
+      </p>
+      <p>
+        Every install is white-labeled to your company. Your clients see your portal
+        on their phone; you get CRM, projects, inbox, scheduling, billing, and an
+        always-on AI agent behind one dashboard.
+      </p>
+      <div class="about-cta-row">
+        <a class="about-btn about-btn--primary" href="/demo">
+          Demo now
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </a>
+        <a class="about-btn about-btn--ghost" href="/features">Explore the platform</a>
+      </div>
+    </section>
+
+    <section class="about-block about-block--bleed" aria-label="Clients we've worked with">
+      <p class="about-label">Selected clients</p>
+      <ClientLogos />
+    </section>
+
+    <section class="about-block" aria-label="Client testimonials">
+      <TestimonialsCarousel />
+    </section>
+
+    <section class="about-block about-closing" aria-labelledby="about-contact-title">
+      <h2 id="about-contact-title">Work with us</h2>
+      <p>
+        Need the full platform, a custom integration, or help migrating off the tools
+        you're paying for separately? Tell us what you're running today and we'll map
+        the shortest path.
+      </p>
+      <div class="about-cta-row">
+        <a class="about-btn about-btn--primary" href="/schedule">Book a call</a>
+        <a class="about-btn about-btn--ghost" href={contactHref}>Get in touch</a>
+      </div>
+    </section>
+  </div>
+
+  {
+    showSiteAssistant && (
+      <SiteAssistantWidget
+        brandTitle={company.name}
+        supportPhone={company.supportPhone}
+        supportEmail={company.supportEmail}
+      />
+    )
+  }
+</Layout>
+
+<style>
+  .about-page {
+    min-height: 100vh;
+    padding: calc(var(--app-header-h, 3.25rem) + 40px) 20px 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .about-hero,
+  .about-block,
+  .about-photo {
+    width: 100%;
+    max-width: 760px;
+  }
+
+  .about-hero {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .about-kicker {
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #a855f7;
+    margin: 0 0 14px;
+  }
+
+  .about-h1 {
+    margin: 0 0 16px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.85rem, 5vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    color: #fff;
+  }
+
+  .about-lead {
+    margin: 0 auto;
+    max-width: 580px;
+    font-family: var(--font-content);
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .about-photo {
+    position: relative;
+    margin-bottom: 48px;
+    border-radius: 14px;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .about-photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    filter: grayscale(100%) contrast(1.05) brightness(0.78);
+  }
+
+  .about-photo-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(5, 5, 5, 0.08) 0%,
+      rgba(5, 5, 5, 0.55) 100%
+    );
+  }
+
+  .about-block {
+    margin-bottom: 56px;
+  }
+
+  .about-block--bleed {
+    max-width: none;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding: 0 20px;
+  }
+
+  .about-block h2 {
+    margin: 0 0 14px;
+    font-family: var(--font-primary);
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .about-block p {
+    margin: 0 0 14px;
+    font-family: var(--font-content);
+    font-size: 1rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .about-label {
+    margin: 0 0 20px;
+    text-align: center;
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .about-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .about-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.35rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease;
+  }
+
+  .about-btn--primary {
+    color: #0b0512;
+    background: var(--brand-gradient);
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.35);
+  }
+
+  .about-btn--primary:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .about-btn--ghost {
+    color: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .about-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .about-closing {
+    text-align: center;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .about-closing .about-cta-row {
+    justify-content: center;
+  }
+</style>

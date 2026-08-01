@@ -6,6 +6,7 @@ import { SITE } from "../config/site";
 import { LOGO_ICON_OG_PATH } from "../lib/companyLogo";
 import { getCompanyConfig } from "../lib/companyConfig";
 import { brandFontCssVars } from "../lib/brandFonts";
+import { isMarketingPagePath } from "../lib/marketingNav";
 import { requestOrigin } from "../lib/requestOrigin";
 import "../styles/brand.css";
 
@@ -67,6 +68,7 @@ const ogImageSafe = /\.gif(?:\?|$)/i.test(ogImageAbsolute)
 
 const pathNorm = Astro.url.pathname.replace(/\/$/, "") || "/";
 const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
+const marketingNav = isMarketingPagePath(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -102,7 +104,11 @@ const isIndexPage = pathNorm === "/" || pathNorm === "/index.html";
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body>
-		<Header homepageLogoReveal={isIndexPage} homeAdminEntry={isIndexPage} />
+		<Header
+			homepageLogoReveal={isIndexPage}
+			marketingNav={marketingNav}
+			homeAdminEntry={isIndexPage}
+		/>
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />

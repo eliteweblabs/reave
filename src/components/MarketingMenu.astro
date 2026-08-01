@@ -1,0 +1,458 @@
+---
+/**
+ * Vercel-style marketing navigation — desktop inline links + hamburger overlay.
+ */
+import { ArrowRight, Menu, X } from "lucide-astro";
+import {
+  MARKETING_NAV_GROUPS,
+  MARKETING_NAV_INLINE,
+  marketingNavActivePath,
+} from "../lib/marketingNav";
+
+interface Props {
+  pathname: string;
+  signedIn: boolean;
+}
+
+const { pathname, signedIn } = Astro.props;
+---
+
+<div class="marketing-nav" data-marketing-nav>
+  <nav class="marketing-nav-inline" aria-label="Primary">
+    {
+      MARKETING_NAV_INLINE.map((link) => (
+        <a
+          href={link.href}
+          class:list={["marketing-nav-link", marketingNavActivePath(pathname, link.href) && "is-active"]}
+        >
+          {link.label}
+        </a>
+      ))
+    }
+  </nav>
+
+  <a class="marketing-nav-cta" href="/demo">
+    Demo now
+    <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+  </a>
+
+  <button
+    type="button"
+    class="marketing-nav-toggle"
+    data-marketing-menu-toggle
+    aria-label="Open menu"
+    aria-expanded="false"
+    aria-controls="marketing-menu-panel"
+  >
+    <Menu class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open" size={20} strokeWidth={1.75} aria-hidden="true" />
+    <X class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close" size={20} strokeWidth={1.75} aria-hidden="true" />
+  </button>
+</div>
+
+<div class="marketing-menu" data-marketing-menu hidden>
+  <div class="marketing-menu-backdrop" data-marketing-menu-backdrop aria-hidden="true"></div>
+  <div
+    id="marketing-menu-panel"
+    class="marketing-menu-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Site menu"
+  >
+    <div class="marketing-menu-scroll">
+      {
+        MARKETING_NAV_GROUPS.map((group) => (
+          <section class="marketing-menu-group" aria-labelledby={`menu-${group.id}`}>
+            <h2 id={`menu-${group.id}`} class="marketing-menu-group-label">
+              {group.label}
+            </h2>
+            <ul class="marketing-menu-list">
+              {group.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    class:list={[
+                      "marketing-menu-link",
+                      link.primary && "marketing-menu-link--primary",
+                      marketingNavActivePath(pathname, link.href) && "is-active",
+                    ]}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
+                    data-marketing-menu-link
+                  >
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      }
+
+      <section class="marketing-menu-group" aria-labelledby="menu-account">
+        <h2 id="menu-account" class="marketing-menu-group-label">Account</h2>
+        <ul class="marketing-menu-list">
+          {
+            signedIn ? (
+              <>
+                <li>
+                  <a href="/admin/" class="marketing-menu-link" data-marketing-menu-link>
+                    Administration
+                  </a>
+                </li>
+                <li>
+                  <button type="button" class="marketing-menu-link marketing-menu-link--button" data-marketing-sign-out>
+                    Sign out
+                  </button>
+                </li>
+              </>
+            ) : (
+              <li>
+                <button
+                  type="button"
+                  class="marketing-menu-link marketing-menu-link--button"
+                  data-ios-sheet-open="sign-in-sheet"
+                  data-marketing-menu-link
+                >
+                  Sign in
+                </button>
+              </li>
+            )
+          }
+        </ul>
+      </section>
+    </div>
+
+    <footer class="marketing-menu-footer">
+      <a class="marketing-menu-footer-cta" href="/demo" data-marketing-menu-link>
+        Demo now
+        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+      </a>
+    </footer>
+  </div>
+</div>
+
+<script>
+  function setMarketingMenuOpen(open: boolean) {
+    const root = document.querySelector("[data-marketing-menu]");
+    const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
+    if (!root || !toggle) return;
+
+    root.hidden = !open;
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    toggle.classList.toggle("is-open", open);
+    document.documentElement.classList.toggle("marketing-menu-open", open);
+  }
+
+  function bindMarketingMenu() {
+    const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
+    const backdrop = document.querySelector("[data-marketing-menu-backdrop]");
+    if (!toggle || toggle.dataset.bound === "1") return;
+    toggle.dataset.bound = "1";
+
+    toggle.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true";
+      setMarketingMenuOpen(open);
+    });
+
+    backdrop?.addEventListener("click", () => setMarketingMenuOpen(false));
+
+    document.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
+      el.addEventListener("click", () => setMarketingMenuOpen(false));
+    });
+
+    document.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
+      ev.preventDefault();
+      setMarketingMenuOpen(false);
+      const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
+      if (Clerk) {
+        await Clerk.signOut();
+        window.location.href = "/";
+      } else {
+        window.location.href = "/sign-out";
+      }
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") setMarketingMenuOpen(false);
+    });
+  }
+
+  bindMarketingMenu();
+  document.addEventListener("astro:page-load", bindMarketingMenu);
+</script>
+
+<style>
+  .marketing-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .marketing-nav-inline {
+    display: none;
+    align-items: center;
+    gap: 0.15rem;
+    margin-right: 0.35rem;
+  }
+
+  .marketing-nav-link {
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-family: var(--font-secondary);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: rgba(255, 255, 255, 0.62);
+    text-decoration: none;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .marketing-nav-link:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+  }
+
+  .marketing-nav-link.is-active {
+    color: #fff;
+  }
+
+  .marketing-nav-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #0b0512;
+    background: var(--brand-gradient);
+    text-decoration: none;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(192, 38, 211, 0.28);
+    transition: filter 0.15s ease, transform 0.15s ease;
+  }
+
+  .marketing-nav-cta:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+
+  .marketing-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: calc(36px * var(--app-header-chrome-scale, 1));
+    height: calc(36px * var(--app-header-chrome-scale, 1));
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.88);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .marketing-nav-toggle:hover {
+    border-color: rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  .marketing-nav-toggle-icon {
+    display: block;
+  }
+
+  .marketing-nav-toggle-icon--close {
+    display: none;
+  }
+
+  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
+    display: none;
+  }
+
+  .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
+    display: block;
+  }
+
+  @media (min-width: 900px) {
+    .marketing-nav-inline {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .marketing-nav-cta {
+      padding: 0.38rem 0.72rem;
+      font-size: 0.76rem;
+    }
+  }
+
+  /* ---------- Overlay menu ---------- */
+
+  .marketing-menu[hidden] {
+    display: none !important;
+  }
+
+  .marketing-menu:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 2100;
+  }
+
+  .marketing-menu-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: marketing-menu-fade-in 0.2s ease;
+  }
+
+  .marketing-menu-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: min(420px, 100vw);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: rgba(8, 8, 10, 0.96);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
+    animation: marketing-menu-slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes marketing-menu-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes marketing-menu-slide-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  .marketing-menu-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding:
+      calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 20px)
+      28px
+      24px;
+  }
+
+  .marketing-menu-group + .marketing-menu-group {
+    margin-top: 28px;
+  }
+
+  .marketing-menu-group-label {
+    margin: 0 0 10px;
+    font-family: var(--font-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .marketing-menu-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .marketing-menu-link {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.72rem 0.2rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    font-family: var(--font-primary);
+    font-size: clamp(1.35rem, 4vw, 1.65rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: rgba(255, 255, 255, 0.92);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+  }
+
+  .marketing-menu-link:hover,
+  .marketing-menu-link.is-active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.04);
+    text-decoration: none;
+  }
+
+  .marketing-menu-link--primary {
+    color: #f472b6;
+  }
+
+  .marketing-menu-link--button {
+    font: inherit;
+  }
+
+  .marketing-menu-footer {
+    flex-shrink: 0;
+    padding:
+      16px 28px
+      calc(16px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .marketing-menu-footer-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 1.2rem;
+    border-radius: 999px;
+    font-family: var(--font-primary);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #0b0512;
+    background: var(--brand-gradient);
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(192, 38, 211, 0.32);
+  }
+
+  .marketing-menu-footer-cta:hover {
+    filter: brightness(1.06);
+    text-decoration: none;
+  }
+
+  :global(html.marketing-menu-open) {
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .marketing-menu-backdrop,
+    .marketing-menu-panel {
+      animation: none;
+    }
+  }
+</style>
