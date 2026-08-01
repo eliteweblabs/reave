@@ -34,10 +34,6 @@ html {
 .marketing-bg-photo {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
   opacity: 0.5;
   filter: grayscale(100%) contrast(1.08) brightness(0.82);
 }
@@ -49,10 +45,12 @@ html {
 .sketch-draw-reveal__fallback,
 .sketch-draw-reveal__canvas {
   position: absolute;
-  inset: 0;
-  width: 100%;
+  top: 0;
+  left: 50%;
   height: 100%;
-  object-fit: cover;
+  width: auto;
+  max-width: none;
+  transform: translateX(-50%);
   object-position: top center;
 }
 

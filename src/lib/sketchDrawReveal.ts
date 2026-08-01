@@ -20,17 +20,12 @@ const SAMPLE_WIDTH = 360;
 const MIN_RUN = 2;
 const ROW_STEP = 1;
 
-function getCoverRect(iw: number, ih: number, cw: number, ch: number): CoverRect {
-  const scale = Math.max(cw / iw, ch / ih);
+/** Scale to 100% container height; width follows image aspect ratio (may overflow horizontally). */
+function getHeightFitRect(iw: number, ih: number, ch: number): CoverRect {
+  const scale = ch / ih;
   const dw = iw * scale;
-  const dh = ih * scale;
-  const sw = cw / scale;
-  const sh = ch / scale;
-  const sx = (iw - sw) / 2;
-  const sy = 0;
-  const dx = (cw - dw) / 2;
-  const dy = 0;
-  return { sx, sy, sw, sh, dx, dy, dw, dh };
+  const dh = ch;
+  return { sx: 0, sy: 0, sw: iw, sh: ih, dx: 0, dy: 0, dw, dh };
 }
 
 function extractSegments(
@@ -141,11 +136,11 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
     fallback.hidden = false;
   };
 
-  const layoutCanvas = () => {
+  const layoutCanvas = (iw: number, ih: number) => {
     const rect = root.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, Math.round(rect.width));
     const height = Math.max(1, Math.round(rect.height));
+    const width = Math.max(1, Math.round((iw / ih) * height));
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     canvas.style.width = `${width}px`;
@@ -158,7 +153,9 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
       const image = await loadImage(src);
       if (disposed) return;
 
-      const { width, height, dpr } = layoutCanvas();
+      const iw = image.naturalWidth;
+      const ih = image.naturalHeight;
+      const { width, height, dpr } = layoutCanvas(iw, ih);
       const ctx = canvas.getContext("2d", { alpha: true });
       if (!ctx) {
         showFallback();
@@ -171,8 +168,8 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
       ctx.lineJoin = "round";
       ctx.strokeStyle = "rgba(0, 0, 0, 0.92)";
 
-      const cover = getCoverRect(image.naturalWidth, image.naturalHeight, width, height);
-      const sampleH = Math.max(1, Math.round((cover.sh / cover.sw) * SAMPLE_WIDTH));
+      const cover = getHeightFitRect(iw, ih, height);
+      const sampleH = Math.max(1, Math.round((ih / iw) * SAMPLE_WIDTH));
       const sampleCanvas = document.createElement("canvas");
       sampleCanvas.width = SAMPLE_WIDTH;
       sampleCanvas.height = sampleH;
@@ -213,10 +210,10 @@ export function initSketchDrawReveal(root: HTMLElement): () => void {
       root.dataset.sketchDrawReady = "1";
 
       const drawCompletedImage = () => {
-        const nextLayout = layoutCanvas();
+        const nextLayout = layoutCanvas(iw, ih);
         const completedCtx = canvas.getContext("2d");
         if (!completedCtx) return;
-        const nextCover = getCoverRect(image.naturalWidth, image.naturalHeight, nextLayout.width, nextLayout.height);
+        const nextCover = getHeightFitRect(iw, ih, nextLayout.height);
         completedCtx.setTransform(nextLayout.dpr, 0, 0, nextLayout.dpr, 0, 0);
         completedCtx.clearRect(0, 0, nextLayout.width, nextLayout.height);
         completedCtx.drawImage(
