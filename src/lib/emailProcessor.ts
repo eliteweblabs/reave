@@ -910,14 +910,6 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       body: 'Open and tap the code to copy, then paste in Safari',
       tag: `otp-${inboxRecord.id}`,
       emailId: inboxRecord.id,
-      debug: {
-        from,
-        senderEmail,
-        subject: email.subject ?? '',
-        category,
-        verificationCode,
-        emailId: inboxRecord.id,
-      },
     }).catch((e) => console.warn('[email] otp push failed', e));
   } else if (inboxRecord && notify && !agentWillAlert) {
     const pushTitle = isProjectReply
@@ -958,17 +950,6 @@ export async function processInboundEmail(email: InboundEmail): Promise<Processe
       tag: inboxRecord.id,
       emailId: inboxRecord.id,
       urgent: isProjectReply,
-      debug: {
-        from,
-        senderEmail,
-        subject: email.subject ?? '',
-        category,
-        automationKind: automationKind ?? '',
-        contactName: contactName ?? '',
-        jobSlug: jobSlug ?? '',
-        jobTitle: jobTitle ?? '',
-        emailId: inboxRecord.id,
-      },
     }).catch((e) => console.warn('[email] push failed', e));
   }
 

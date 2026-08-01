@@ -3,12 +3,16 @@
  */
 
 import { agentAlertUserId, postToSystemAlertsThread } from './systemAlertsThread';
+import {
+  bestWorkDisplayName,
+  formatAuditReadyNotification,
+} from './notificationFormat';
 import { sendPushNotification } from './webPush';
 import { storeGetEmailInbox } from './emailInboxStore';
 import { formatEmailChatReferenceWithBody } from './emailAgentContext';
 import { hasFeature } from './features';
 import { createLogger } from './logger';
-import { isSafeWorkSlug, storeListWork } from './workStore';
+import { isSafeWorkSlug, storeListWork, storeReadWork } from './workStore';
 
 const log = createLogger('admin-agent');
 
@@ -117,11 +121,17 @@ export async function notifyAdminAgentOfSiriProposalComplete(opts: {
   });
   const deepLinkUrl = slug ? `/admin?tab=work&slug=${encodeURIComponent(slug)}` : '/admin?tab=work';
   const summary = extractProposalSummary(opts.reply, slug);
-  const titlePrefix = opts.tier === 'full' ? 'Full audit ready' : 'Audit ready';
+  const job = slug ? await storeReadWork(slug).catch(() => null) : null;
+  const displayName = bestWorkDisplayName(job, opts.label);
+  const { title, detail } = formatAuditReadyNotification({
+    tier: opts.tier,
+    displayName,
+    excerpt: summary,
+  });
 
   await sendPushNotification({
-    title: `${titlePrefix}: ${opts.label}`,
-    body: summary.slice(0, 150) || `Project ready${slug ? `: ${slug}` : ''}`,
+    title,
+    body: detail,
     tag: `siri-proposal-${slug ?? opts.label}`,
     url: deepLinkUrl,
   }).catch((e) => log.warn('push failed', e));

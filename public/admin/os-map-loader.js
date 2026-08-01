@@ -93,7 +93,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260728i';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, formatNotificationDebugHtml } from './shared.js?v=20260731b';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260731c';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -3449,7 +3449,7 @@ function isAuditPushAlert(item) {
   if (item?.type !== 'push_alert') return false;
   const tag = String(item.tag || '').toLowerCase();
   if (tag.startsWith('siri-proposal-')) return true;
-  return /^(full )?audit ready:/i.test(String(item.title || '').trim());
+  return /^(?:Full )?audit ready(?:\s*>:|\s*:)/i.test(String(item.title || '').trim());
 }
 
 function reviewAlertVariant(type) {
@@ -3532,9 +3532,10 @@ function workSlugFromSiriProposalTag(tag) {
 }
 
 function auditLabelFromPushAlertTitle(title) {
-  const match = String(title || '')
-    .trim()
-    .match(/^(?:Full )?audit ready:\s*(.+)$/i);
+  const trimmed = String(title || '').trim();
+  const arrow = trimmed.match(/^(?:Full )?audit ready\s*>\s*(.+)$/i);
+  if (arrow?.[1]?.trim()) return arrow[1].trim();
+  const match = trimmed.match(/^(?:Full )?audit ready:\s*(.+)$/i);
   return match?.[1]?.trim() || null;
 }
 
@@ -3639,15 +3640,31 @@ function buildReviewAlertBanner(item) {
   if (item.alertId) alert.setAttribute('data-review-alert-id', item.alertId);
   if (item.tag) alert.setAttribute('data-review-alert-tag', item.tag);
 
-  const iconWrap = document.createElement('div');
-  iconWrap.className = 'admin-setup-alert-icon';
-  iconWrap.dataset.type = item.type;
-  iconWrap.setAttribute('aria-hidden', 'true');
-  iconWrap.innerHTML = navIcon(reviewAlertIconName(item.type), 18);
+  const iconsCol = document.createElement('div');
+  iconsCol.className = 'admin-setup-alert-icons';
+
+  const brandIcon = document.createElement('img');
+  brandIcon.className = 'admin-setup-alert-icon admin-setup-alert-icon--brand';
+  brandIcon.src = window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  brandIcon.alt = '';
+  brandIcon.setAttribute('aria-hidden', 'true');
+
+  const typeIcon = document.createElement('div');
+  typeIcon.className = 'admin-setup-alert-icon';
+  typeIcon.dataset.type = item.type;
+  typeIcon.setAttribute('aria-hidden', 'true');
+  typeIcon.innerHTML = navIcon(reviewAlertIconName(item.type), 18);
+
+  iconsCol.appendChild(brandIcon);
+  iconsCol.appendChild(typeIcon);
 
   const copy = document.createElement('div');
   copy.className = 'admin-setup-alert-copy';
-  copy.innerHTML = `<p>${formatNotificationDebugHtml(item)}</p>`;
+  const when = formatReviewAlertWhen(item.receivedAt);
+  const titleLine = when
+    ? `${escHtml(when)} · ${escHtml(item.title)}`
+    : escHtml(item.title);
+  copy.innerHTML = `<strong>${titleLine}</strong><p>${escHtml(item.detail)}</p>`;
   copy.addEventListener('click', () => openReviewNotificationTarget(item));
 
   const actions = document.createElement('div');
@@ -3792,7 +3809,7 @@ function buildReviewAlertBanner(item) {
   });
   actions.appendChild(dismissBtn);
 
-  alert.append(iconWrap, copy, actions);
+  alert.append(iconsCol, copy, actions);
   bindReviewAlertSwipe(alert, item);
   return alert;
 }

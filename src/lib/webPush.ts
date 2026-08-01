@@ -5,8 +5,8 @@
 import webpush from 'web-push';
 import { defaultVapidSubjectFromCompany, getCompanyConfig } from './companyConfig';
 import { getReviewsPendingCount } from './reviewsPendingCount';
+import { formatNotificationPayload } from './notificationFormat';
 import { inferPushAlertKind, storeCreatePushAlert } from './pushAlertStore';
-import { splitNotificationDebugForPush } from './notificationDebugFormat';
 import { serverEnv } from './serverEnv';
 import { listPushSubscriptions, removePushSubscription } from './pushSubscriptionStore';
 import { isPushQuietHoursActive } from './pushQuietHours';
@@ -51,23 +51,12 @@ export async function sendPushNotification(payload: {
   bypassQuietHours?: boolean;
   /** Client reply and other high-priority alerts — may still deliver if allowUrgentDuringSleep. */
   urgent?: boolean;
-  /** Extra fields included in temporary debug notification formatting. */
-  debug?: Record<string, string | null | undefined>;
 }): Promise<void> {
   const tag = payload.tag ?? 'inbox';
   const url = payload.url ?? '/admin?tab=email';
-  const debugRecord: Record<string, unknown> = {
-    title: payload.title,
-    body: payload.body,
-    tag,
-    url,
-    kind: inferPushAlertKind(tag, url),
-    ...(payload.debug ?? {}),
-  };
-  if (payload.urgent) debugRecord.urgent = true;
-  const debugPush = splitNotificationDebugForPush(debugRecord);
-  const pushTitle = debugPush.title.slice(0, 120);
-  const pushBody = (debugPush.body || debugPush.full).slice(0, 240);
+  const formatted = formatNotificationPayload(payload.title, payload.body);
+  const pushTitle = formatted.title;
+  const pushBody = formatted.detail;
 
   const quiet = await isPushQuietHoursActive({
     bypassQuietHours: payload.bypassQuietHours,
@@ -80,7 +69,7 @@ export async function sendPushNotification(payload: {
       tag,
       kind: inferPushAlertKind(tag, url),
       title: pushTitle,
-      detail: debugPush.full.slice(0, 240),
+      detail: pushBody,
       url,
     }).catch(() => null);
     alertId = alert?.id;
@@ -136,7 +125,6 @@ export async function sendInboxPushNotification(payload: {
   /** Inbox record id — opens that message when the notification is tapped. */
   emailId?: string;
   urgent?: boolean;
-  debug?: Record<string, string | null | undefined>;
 }): Promise<void> {
   const url = payload.emailId
     ? `/admin?tab=email&email=${encodeURIComponent(payload.emailId)}`
