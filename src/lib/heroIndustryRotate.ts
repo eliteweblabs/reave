@@ -1,6 +1,7 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
  * Text layers stay fixed; only the background mask moves.
+ * Viewport width is always the widest label so nothing gets clipped.
  */
 
 const WIPE_MS = 520;
@@ -10,8 +11,20 @@ function easeInOutCubic(t: number): number {
 }
 
 function measureText(layer: HTMLElement, text: string): number {
+  const wasHidden = layer.hidden;
+  if (wasHidden) layer.hidden = false;
   layer.textContent = text;
-  return layer.offsetWidth;
+  const width = layer.offsetWidth;
+  if (wasHidden) layer.hidden = true;
+  return width;
+}
+
+function widestLabelWidth(layer: HTMLElement, labels: string[]): number {
+  let max = 0;
+  for (const label of labels) {
+    max = Math.max(max, measureText(layer, label));
+  }
+  return max;
 }
 
 function animateTranslate(
@@ -59,6 +72,9 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const intervalMs = Number(root.dataset.intervalMs) || 2500;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  const slotWidth = widestLabelWidth(current, industries);
+  viewport.style.width = `${slotWidth}px`;
+
   const initial = current.textContent?.trim() ?? '';
   const found = industries.indexOf(initial);
   let index = found >= 0 ? found : Math.floor(Math.random() * industries.length);
@@ -66,8 +82,8 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let swapping = false;
 
-  const setViewportWidth = (px: number) => {
-    viewport.style.width = `${px}px`;
+  const parkWipe = () => {
+    wipe.style.transform = `translate3d(${-slotWidth}px, 0, 0)`;
   };
 
   const resetLayers = (label: string) => {
@@ -75,9 +91,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.hidden = false;
     next.textContent = '';
     next.hidden = true;
-    const width = measureText(current, label);
-    setViewportWidth(width);
-    wipe.style.transform = `translate3d(${-width}px, 0, 0)`;
+    parkWipe();
     root.dataset.heroIndustryLabel = label;
   };
 
@@ -100,25 +114,22 @@ export function initHeroIndustryRotate(root: HTMLElement) {
       return;
     }
 
-    const outWidth = measureText(current, outgoing);
-    setViewportWidth(outWidth);
+    current.textContent = outgoing;
     current.hidden = false;
+    next.textContent = incoming;
     next.hidden = true;
-    next.textContent = '';
 
-    // Step 1 — wipe out: mask slides left → right until the word is fully gone.
-    wipe.style.transform = `translate3d(${-outWidth}px, 0, 0)`;
-    await animateTranslate(wipe, -outWidth, 0, WIPE_MS);
+    // Step 1 — wipe out across the full slot (widest word width).
+    wipe.style.transform = `translate3d(${-slotWidth}px, 0, 0)`;
+    await animateTranslate(wipe, -slotWidth, 0, WIPE_MS);
 
     current.textContent = '';
     current.hidden = true;
 
-    // Step 2 — wipe reveal: same mask slides off left → right, exposing the next word.
-    const inWidth = measureText(next, incoming);
-    setViewportWidth(inWidth);
+    // Step 2 — wipe reveal: mask exits left → right over the same slot width.
     next.hidden = false;
     wipe.style.transform = 'translate3d(0px, 0, 0)';
-    await animateTranslate(wipe, 0, inWidth, WIPE_MS);
+    await animateTranslate(wipe, 0, slotWidth, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming);
