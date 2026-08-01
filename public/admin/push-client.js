@@ -53,6 +53,43 @@ export function isAdminSpa() {
   return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 }
 
+const PWA_NAV_GUARD_KEY = 'reave-pwa-nav-guard';
+
+/**
+ * Block OS/browser back-forward gestures in an installed PWA (trackpad swipe,
+ * mouse back button, etc.) so navigation stays inside the admin app shell.
+ * No-op in a normal browser tab.
+ */
+export function installPwaNavGuard() {
+  if (typeof window === 'undefined' || !isStandalonePwa() || !isAdminSpa()) return () => {};
+
+  document.documentElement.style.overscrollBehaviorX = 'none';
+
+  const pushTrap = () => {
+    try {
+      history.pushState({ [PWA_NAV_GUARD_KEY]: Date.now() }, '', location.href);
+    } catch {
+      /* ignore quota / security errors */
+    }
+  };
+
+  const onPopState = () => pushTrap();
+  pushTrap();
+  window.addEventListener('popstate', onPopState);
+
+  const nav = window.navigation;
+  const onNavigate = (event) => {
+    if (event.navigationType !== 'traverse' || !event.canIntercept) return;
+    event.intercept({ handler() {} });
+  };
+  nav?.addEventListener?.('navigate', onNavigate);
+
+  return () => {
+    window.removeEventListener('popstate', onPopState);
+    nav?.removeEventListener?.('navigate', onNavigate);
+  };
+}
+
 function isIos() {
   if (typeof navigator === 'undefined') return false;
   return (
@@ -688,6 +725,7 @@ export function initAdminPushButton(buttonId = 'push-enable-btn') {
 
 // Auto-init when loaded as module from admin page
 if (typeof document !== 'undefined') {
+  installPwaNavGuard();
   void registerAdminServiceWorker();
 
   window.addEventListener('beforeinstallprompt', (event) => {
