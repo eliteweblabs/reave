@@ -393,19 +393,38 @@
   padding: 0.85rem 1.2rem var(--footer-scroll-pad);
   overflow-y: auto;
 }
-.em-reply-mode-pill {
-  align-self: flex-start;
-  max-width: 100%;
-}
-.em-reply-mode-pill .sliding-pill-btn {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.82rem;
-}
 .em-compose-field {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
+}
+.em-compose-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.em-reply-mode-toggle {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  background: var(--surface-hover-strong);
+  color: #3b82f6;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.em-reply-mode-toggle:hover {
+  background: var(--card);
+  border-color: #3b82f6;
 }
 .em-compose-label {
   font-size: 0.72rem;

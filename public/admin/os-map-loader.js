@@ -8454,12 +8454,6 @@ function buildEmailDetailHeaderIcons(ev) {
       className: 'ios-icon-btn em-reply-btn',
       onClick: () => void startReplyEmail(ev, 'reply'),
     }),
-    createIosIconBtn({
-      iconKey: 'reply-all',
-      label: 'Reply all',
-      className: 'ios-icon-btn em-reply-all-btn',
-      onClick: () => void startReplyEmail(ev, 'reply-all'),
-    }),
   ];
   if (ev.unsubscribe?.available) {
     icons.push(
@@ -11151,28 +11145,35 @@ function renderEmailComposePane(pane) {
   const form = document.createElement('div');
   form.className = 'em-compose';
 
+  const toField = document.createElement('div');
+  toField.className = 'em-compose-field';
+  const toHead = document.createElement('div');
+  toHead.className = 'em-compose-field-head';
+  const toLabel = document.createElement('label');
+  toLabel.className = 'em-compose-label';
+  toLabel.setAttribute('for', 'em-compose-to');
+  toLabel.textContent = 'To';
+  toHead.appendChild(toLabel);
   if (
     emailState.replyToId &&
     emailState.replySourceFull &&
     emailHasReplyAllTargets(emailState.replySourceFull)
   ) {
-    form.appendChild(
-      createSlidingPillSelect({
-        ariaLabel: 'Reply mode',
-        value: emailState.replyMode || 'reply',
-        options: [
-          { value: 'reply', label: 'Reply' },
-          { value: 'reply-all', label: 'Reply all' },
-        ],
-        className: 'em-reply-mode-pill',
-        onChange: (mode) => setEmailReplyMode(mode),
-      }),
+    const isReplyAll = emailState.replyMode === 'reply-all';
+    const modeToggle = document.createElement('button');
+    modeToggle.type = 'button';
+    modeToggle.className = 'em-reply-mode-toggle';
+    modeToggle.textContent = isReplyAll ? 'Reply all' : 'Reply';
+    modeToggle.setAttribute(
+      'aria-label',
+      isReplyAll ? 'Switch to reply' : 'Switch to reply all',
     );
+    modeToggle.addEventListener('click', () => {
+      setEmailReplyMode(emailState.replyMode === 'reply-all' ? 'reply' : 'reply-all');
+    });
+    toHead.appendChild(modeToggle);
   }
-
-  const toField = document.createElement('div');
-  toField.className = 'em-compose-field';
-  toField.innerHTML = '<label class="em-compose-label" for="em-compose-to">To</label>';
+  toField.appendChild(toHead);
   mountEmailToRecipientsPicker(
     toField,
     emailState.compose.to,
