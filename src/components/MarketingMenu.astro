@@ -2,7 +2,7 @@
 /**
  * Vercel-style marketing navigation — desktop inline links + hamburger overlay.
  */
-import { ArrowRight, Menu, X } from "lucide-astro";
+import { ArrowRight, X } from "lucide-astro";
 import {
   MARKETING_NAV_GROUPS,
   MARKETING_NAV_INLINE,
@@ -44,7 +44,22 @@ const { pathname, signedIn } = Astro.props;
     aria-expanded="false"
     aria-controls="marketing-menu-panel"
   >
-    <Menu class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open" size={20} strokeWidth={1.75} aria-hidden="true" />
+    <svg
+      class="marketing-nav-toggle-icon marketing-nav-toggle-icon--open"
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="4" x2="20" y1="8" y2="8" />
+      <line x1="4" x2="20" y1="16" y2="16" />
+    </svg>
     <X class="marketing-nav-toggle-icon marketing-nav-toggle-icon--close" size={20} strokeWidth={1.75} aria-hidden="true" />
   </button>
 </div>
