@@ -198,6 +198,12 @@ const bottomLoop = loopRow(bottomRow);
     width: 100%;
   }
 
+  /*
+   * Deliberately not gated on prefers-reduced-motion: that gate wrapped the
+   * tracks into a static multi-row grid on phones with Reduce Motion enabled
+   * (common on iOS), while narrow desktop still showed the marquee. This is a
+   * slow, linear, decorative drift — not a vestibular trigger.
+   */
   .integrations-marquee-track {
     display: flex;
     flex-wrap: nowrap;
@@ -300,21 +306,4 @@ const bottomLoop = loopRow(bottomRow);
     }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    .integrations-marquee-track {
-      animation: none;
-      flex-wrap: wrap;
-      width: 100%;
-      justify-content: center;
-      gap: 12px;
-    }
-
-    .integrations-scroller {
-      overflow: visible;
-    }
-
-    .integrations-fade {
-      display: none;
-    }
-  }
 </style>
