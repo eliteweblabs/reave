@@ -11160,16 +11160,17 @@ function renderEmailComposePane(pane) {
     emailHasReplyAllTargets(emailState.replySourceFull)
   ) {
     const isReplyAll = emailState.replyMode === 'reply-all';
+    const nextMode = isReplyAll ? 'reply' : 'reply-all';
+    const nextLabel = isReplyAll ? 'Reply' : 'Reply all';
     const modeToggle = document.createElement('button');
     modeToggle.type = 'button';
-    modeToggle.className = 'em-reply-mode-toggle';
-    modeToggle.textContent = isReplyAll ? 'Reply all' : 'Reply';
-    modeToggle.setAttribute(
-      'aria-label',
-      isReplyAll ? 'Switch to reply' : 'Switch to reply all',
-    );
+    modeToggle.className = 'em-reply-mode-pill';
+    modeToggle.setAttribute('aria-label', `Switch to ${nextLabel.toLowerCase()}`);
+    modeToggle.innerHTML = `<span class="em-reply-mode-pill-icon" aria-hidden="true">${
+      IOS_ICONS[nextMode === 'reply-all' ? 'reply-all' : 'reply'] || ''
+    }</span><span class="em-reply-mode-pill-label">${nextLabel}</span>`;
     modeToggle.addEventListener('click', () => {
-      setEmailReplyMode(emailState.replyMode === 'reply-all' ? 'reply' : 'reply-all');
+      setEmailReplyMode(nextMode);
     });
     toHead.appendChild(modeToggle);
   }

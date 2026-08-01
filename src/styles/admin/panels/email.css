@@ -406,25 +406,43 @@
   gap: 0.5rem;
   min-width: 0;
 }
-.em-reply-mode-toggle {
+.em-reply-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   flex-shrink: 0;
   margin: 0;
-  padding: 0.2rem 0.55rem;
+  padding: 0.28rem 0.65rem 0.28rem 0.55rem;
   border: 1px solid var(--panel-border);
   border-radius: 999px;
-  background: var(--surface-hover-strong);
-  color: #3b82f6;
+  background: var(--card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: var(--fg);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
 }
-.em-reply-mode-toggle:hover {
-  background: var(--card);
+.em-reply-mode-pill:hover {
   border-color: #3b82f6;
+  color: #3b82f6;
+}
+.em-reply-mode-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+.em-reply-mode-pill-icon svg {
+  display: block;
+  width: 0.95rem;
+  height: 0.95rem;
+}
+.em-reply-mode-pill-label {
+  line-height: 1;
 }
 .em-compose-label {
   font-size: 0.72rem;
