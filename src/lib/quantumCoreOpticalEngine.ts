@@ -80,7 +80,7 @@ const HERO_CONTENT_LIFT_FRAC = 0.2;
 const PARTICLE_SPIN_CRUISE = 0.17;
 const PARTICLE_SPIN_MAX = 1.35;
 /** Screen pixels → radians while dragging the cloud (trackball). */
-const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
+const PARTICLE_TRACKBALL_RAD_PER_PX = 0.0035;
 
 /**
  * Non-touch "follow the cursor" trackball: a mouse (fine pointer) moving
@@ -88,7 +88,7 @@ const PARTICLE_TRACKBALL_RAD_PER_PX = 0.005;
  * swipe. Dampened vs. an explicit click-drag so ambient mouse movement
  * doesn't overpower deliberate control.
  */
-const PARTICLE_HOVER_RAD_PER_PX = PARTICLE_TRACKBALL_RAD_PER_PX * 0.6;
+const PARTICLE_HOVER_RAD_PER_PX = PARTICLE_TRACKBALL_RAD_PER_PX * 0.35;
 /** Hover "stop" detection: no new pointermove within this window hands off
  *  to the normal coast-to-cruise-in-last-direction logic below. */
 const PARTICLE_HOVER_IDLE_MS = 120;
@@ -700,7 +700,7 @@ export function attachQuantumCoreOpticalEngine(
     prevHoverY = e.clientY;
     prevHoverT = now;
     if (dtMs <= 0 || dtMs > 90) return;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
 
     cloudDirected = true;
     hoverDragging = true;
@@ -714,8 +714,8 @@ export function attachQuantumCoreOpticalEngine(
     const velFromPx = (1000 / Math.max(dtMs, 8)) * PARTICLE_HOVER_RAD_PER_PX;
     const nextX = dy * velFromPx;
     const nextY = dx * velFromPx;
-    spinVel.x = THREE.MathUtils.lerp(spinVel.x, nextX, 0.45);
-    spinVel.y = THREE.MathUtils.lerp(spinVel.y, nextY, 0.45);
+    spinVel.x = THREE.MathUtils.lerp(spinVel.x, nextX, 0.28);
+    spinVel.y = THREE.MathUtils.lerp(spinVel.y, nextY, 0.28);
     const mag = spinVel.length();
     if (mag > PARTICLE_SPIN_MAX) {
       spinVel.multiplyScalar(PARTICLE_SPIN_MAX / mag);
