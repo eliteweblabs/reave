@@ -38,7 +38,7 @@ export async function GET(context: APIContext): Promise<Response> {
     return json(
       {
         ok: false,
-        error: 'Chat recovery requires the Postgres backend (set DATABASE_URL).',
+        error: 'Session recovery requires the Postgres backend (set DATABASE_URL).',
         storage: backend,
       },
       400,
@@ -47,7 +47,7 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const owners = await storeListChatThreadOwners();
   if (owners == null) {
-    return json({ ok: false, error: 'Failed to read chat threads.' }, 500);
+    return json({ ok: false, error: 'Failed to read session threads.' }, 500);
   }
 
   const currentUserId = auth.userId;
@@ -74,7 +74,7 @@ export async function POST(context: APIContext): Promise<Response> {
     return json(
       {
         ok: false,
-        error: 'Chat recovery requires the Postgres backend (set DATABASE_URL).',
+        error: 'Session recovery requires the Postgres backend (set DATABASE_URL).',
         storage: backend,
       },
       400,
@@ -104,7 +104,7 @@ export async function POST(context: APIContext): Promise<Response> {
 
   const moved = await storeReassignChatThreads(from, to);
   if (moved == null) {
-    return json({ ok: false, error: 'Failed to reassign chat threads.' }, 500);
+    return json({ ok: false, error: 'Failed to reassign session threads.' }, 500);
   }
 
   return json({ ok: true, moved, from, to });

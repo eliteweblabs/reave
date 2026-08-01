@@ -210,6 +210,10 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
     }
   }
 
+  void import('../../../lib/contactPortalEnrich')
+    .then((m) => m.triggerContactPortalEnrich(uid))
+    .catch(() => {});
+
   const website =
     portal?.website?.trim() ||
     portalSiteUrl(portal) ||

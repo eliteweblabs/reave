@@ -42,6 +42,7 @@ import {
 } from '../../todoStore';
 import { getContactDeleteBlockers, executeContactDelete } from '../../contactDeleteGuard';
 import { syncContactToCrater } from '../../contactCraterSync';
+import { setClientPortalWebsite } from '../../clientBrand';
 import {
   isContactApiConfigured,
   resolveContact,
@@ -268,10 +269,12 @@ async function handle_create_contact(args: Record<string, unknown>, _ctx: ToolCo
 
   const website = typeof args.website === 'string' ? args.website.trim() : '';
   if (website) {
-    const current = await getContact(uid);
-    if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
-    const existing = extractPortal(current.data) ?? {};
-    await setContactPortal(uid, { ...existing, website });
+    const saved = await setClientPortalWebsite(uid, website);
+    if (!saved.ok) return JSON.stringify({ error: saved.error });
+  } else if (kind === 'professional') {
+    void import('../../contactPortalEnrich')
+      .then((m) => m.triggerContactPortalEnrich(uid))
+      .catch(() => {});
   }
 
   return JSON.stringify({
@@ -342,13 +345,15 @@ async function handle_update_contact(args: Record<string, unknown>, _ctx: ToolCo
 
   // Update website in portal metadata if provided.
   if (website) {
-    const current = await getContact(target.uid);
-    if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
-    const existing = extractPortal(current.data) ?? {};
-    const portalSave = await setContactPortal(target.uid, { ...existing, website });
-    if (!portalSave.ok) return JSON.stringify({ error: `Core fields updated but website save failed: ${portalSave.error}` });
-    // Use the freshly-fetched contact if we didn't do a core update.
-    if (!updatedContact) updatedContact = current.data;
+    const saved = await setClientPortalWebsite(target.uid, website);
+    if (!saved.ok) {
+      return JSON.stringify({ error: `Core fields updated but website save failed: ${saved.error}` });
+    }
+    if (!updatedContact) {
+      const current = await getContact(target.uid);
+      if (!current.ok) return JSON.stringify({ error: current.error, status: current.status });
+      updatedContact = current.data;
+    }
   }
 
   let savedKind: string | undefined;

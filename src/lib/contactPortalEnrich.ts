@@ -12,11 +12,15 @@
  */
 
 import { braveSearch } from './braveClient';
+import { guessClientWebsite } from './clientBrand';
 import { fetchUrl } from './fetchUrlClient';
 import {
+  contactStringField,
   extractPortal,
+  getClientKind,
   getContact,
   setContactPortal,
+  type ClientPortal,
   type ClientPortalField,
   type ContactRecord,
 } from './contactApi';
@@ -76,6 +80,82 @@ function extractAddress(text: string): string | null {
   return m ? m[0]!.trim() : null;
 }
 
+const ENRICHMENT_FIELD_LABELS = new Set([
+  'hours',
+  'owner / contact',
+  'in business',
+  'address',
+]);
+
+/** True when Overview already has enrichment content (manual or prior run). */
+function overviewAlreadyPopulated(portal: ClientPortal | null): boolean {
+  if (!portal) return false;
+  if (contactStringField(portal.body).length > 20) return true;
+  return (portal.fields ?? []).some((f) =>
+    ENRICHMENT_FIELD_LABELS.has(f.label.trim().toLowerCase()),
+  );
+}
+
+function buildBioParagraph(
+  searchSnippets: string,
+  metaDescription: string,
+  siteText: string,
+): string {
+  const meta = metaDescription.trim();
+  if (meta.length > 40 && meta.length < 600) return meta.endsWith('.') ? meta : `${meta}.`;
+
+  if (searchSnippets.length > 60) {
+    const sentences = searchSnippets
+      .split(/[.!?]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 40 && s.length < 300);
+    if (sentences.length > 0) {
+      let body = sentences.slice(0, 3).join('. ').trim();
+      if (!body.endsWith('.')) body += '.';
+      return body;
+    }
+  }
+
+  if (siteText.length > 80) {
+    const sentences = siteText
+      .split(/[.!?]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 40 && s.length < 300);
+    if (sentences.length > 0) {
+      let body = sentences.slice(0, 2).join('. ').trim();
+      if (!body.endsWith('.')) body += '.';
+      return body;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Load a contact and populate its portal Overview tab when appropriate.
+ * Safe to call non-blocking: `void triggerContactPortalEnrich(uid).catch(() => {})`
+ */
+export async function triggerContactPortalEnrich(uid: string): Promise<void> {
+  try {
+    const trimmed = uid.trim();
+    if (!trimmed) return;
+
+    const res = await getContact(trimmed);
+    if (!res.ok || res.data.archived) return;
+    if (getClientKind(res.data) !== 'professional') return;
+
+    const portal = extractPortal(res.data);
+    if (overviewAlreadyPopulated(portal)) return;
+
+    await enrichContactPortal(res.data);
+  } catch (e) {
+    console.warn(
+      '[contactPortalEnrich] trigger failed',
+      e instanceof Error ? e.message : e,
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main export
 // ─────────────────────────────────────────────────────────────────────────────
@@ -97,10 +177,17 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
 
     if (!uid || !name) return;
 
+    const fresh = await getContact(uid);
+    const existing = fresh.ok ? extractPortal(fresh.data) : null;
+    if (overviewAlreadyPopulated(existing)) return;
+
+    const contactForLookup = fresh.ok ? fresh.data : contact;
+
     // ── 1. Brave web search ────────────────────────────────────────────────
     const query = company !== name ? `${company} ${name}` : name;
     let searchSnippets = '';
-    let resolvedWebsite: string | null = websiteFromNotes(contact);
+    let resolvedWebsite =
+      guessClientWebsite(contactForLookup, existing) ?? websiteFromNotes(contact);
 
     try {
       const searchResult = await braveSearch(`${query} business hours owner`, 5);
@@ -130,6 +217,7 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     // ── 2. Fetch the business website ──────────────────────────────────────
     let siteText = '';
     let siteTitle = '';
+    let metaDescription = '';
 
     if (resolvedWebsite) {
       try {
@@ -137,6 +225,7 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
         if (fetched.ok) {
           siteText = (fetched.data.content ?? '').slice(0, 4000);
           siteTitle = fetched.data.title ?? '';
+          metaDescription = fetched.data.meta_description ?? '';
         }
       } catch {
         // site fetch failed — proceed with search data only
@@ -183,18 +272,7 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
       fields.push({ label: 'In Business', value: label });
     }
 
-    // Build bio from search snippet sentences
-    let bodyParagraph = '';
-    if (searchSnippets.length > 60) {
-      const sentences = searchSnippets
-        .split(/[.!?]/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 40 && s.length < 300);
-      if (sentences.length > 0) {
-        bodyParagraph = sentences.slice(0, 3).join('. ').trim();
-        if (!bodyParagraph.endsWith('.')) bodyParagraph += '.';
-      }
-    }
+    const bodyParagraph = buildBioParagraph(searchSnippets, metaDescription, siteText);
 
     if (fields.length === 0 && !bodyParagraph) {
       // Nothing useful found — skip to avoid overwriting manually set data
@@ -202,9 +280,6 @@ export async function enrichContactPortal(contact: ContactRecord): Promise<void>
     }
 
     // ── 5. Merge with any existing portal (preserve manual changes) ────────
-    const fresh = await getContact(uid);
-    const existing = fresh.ok ? extractPortal(fresh.data) : null;
-
     const portalHeadline =
       existing?.headline ||
       (company !== name ? company : siteTitle || company);

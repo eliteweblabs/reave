@@ -72,6 +72,9 @@ if (uid) {
           portal = extractPortal(refreshed.data) ?? portal;
         }
       }
+      void import('../../lib/contactPortalEnrich')
+        .then((m) => m.triggerContactPortalEnrich(uid))
+        .catch(() => {});
     }
   }
 }

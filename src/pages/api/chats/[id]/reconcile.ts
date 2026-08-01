@@ -46,7 +46,7 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
 
   const last = thread.messages[thread.messages.length - 1];
   if (!last || last.role !== 'user') {

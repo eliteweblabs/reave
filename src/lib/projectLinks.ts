@@ -269,7 +269,7 @@ export async function listRelatedForJob(jobSlug: string): Promise<{
       for (const row of chatRows) {
         chats.push({
           id: row.id,
-          title: row.title || 'Chat',
+          title: row.title || 'Session',
           updatedAt: row.updated_at,
         });
       }
@@ -285,13 +285,13 @@ export async function listRelatedForJob(jobSlug: string): Promise<{
     if (summary) {
       chats.unshift({
         id: sourceChatId,
-        title: summary.title || 'Chat',
+        title: summary.title || 'Session',
         updatedAt: summary.updatedAt || doc?.updated || doc?.created || '',
       });
     } else {
       chats.unshift({
         id: sourceChatId,
-        title: 'Chat deleted',
+        title: 'Session deleted',
         updatedAt: '',
         deleted: true,
       });

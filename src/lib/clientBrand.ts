@@ -327,7 +327,12 @@ export async function setClientPortalWebsite(
   });
   if (!saved.ok) return { ok: false, error: saved.error };
 
-  if (website) await enrichClientPortalBrand(uid, { force: true });
+  if (website) {
+    await enrichClientPortalBrand(uid, { force: true });
+    void import('./contactPortalEnrich')
+      .then((m) => m.triggerContactPortalEnrich(uid))
+      .catch((e) => console.warn('[contactPortalEnrich] trigger failed', e));
+  }
 
   return { ok: true, website };
 }

@@ -53,6 +53,9 @@ export const POST: APIRoute = async ({ request }) => {
   void import('../../../lib/newsletterEngine')
     .then((m) => m.onContactCreated(result.data))
     .catch((e) => console.warn('[newsletter] onContactCreated failed', e));
+  void import('../../../lib/contactPortalEnrich')
+    .then((m) => m.triggerContactPortalEnrich(result.data.uid))
+    .catch((e) => console.warn('[contactPortalEnrich] trigger failed', e));
 
   return json({ ok: true, contact: result.data }, 201);
 };
