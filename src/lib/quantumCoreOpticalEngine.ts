@@ -642,6 +642,8 @@ export function attachQuantumCoreOpticalEngine(
   let cloudDirected = false;
   /** True while a cloud drag is actively applying trackball deltas. */
   let cloudDragging = false;
+  /** After the intro splash, spin magnitude stays at cruise — pointer steers axis only. */
+  let introPhaseComplete = introDurationSec <= 0;
 
   function syncParticleSpin(): void {
     spinMat4.makeRotationFromQuaternion(particleGroup.quaternion);
@@ -659,6 +661,41 @@ export function attachQuantumCoreOpticalEngine(
     trackballQuat.setFromAxisAngle(trackballAxis, dist * radPerPx);
     particleGroup.quaternion.premultiply(trackballQuat);
     particleGroup.quaternion.normalize();
+  }
+
+  /**
+   * Post-intro: pointer movement steers spin axis only — magnitude stays at cruise.
+   * During intro, callers use variable-speed trackball + velocity instead.
+   */
+  function steerSpinFromPointerDelta(
+    dx: number,
+    dy: number,
+    directionLerp: number,
+  ): void {
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) return;
+    cloudDirected = true;
+    const cruise = PARTICLE_SPIN_CRUISE;
+    const targetUX = dy / dist;
+    const targetUY = dx / dist;
+    const curMag = spinVel.length();
+    if (curMag < 1e-6 || directionLerp >= 1) {
+      spinVel.set(targetUX * cruise, targetUY * cruise);
+      return;
+    }
+    const curUX = spinVel.x / curMag;
+    const curUY = spinVel.y / curMag;
+    let lx = THREE.MathUtils.lerp(curUX, targetUX, directionLerp);
+    let ly = THREE.MathUtils.lerp(curUY, targetUY, directionLerp);
+    const lMag = Math.hypot(lx, ly);
+    if (lMag > 1e-6) {
+      lx /= lMag;
+      ly /= lMag;
+    } else {
+      lx = targetUX;
+      ly = targetUY;
+    }
+    spinVel.set(lx * cruise, ly * cruise);
   }
 
   /**
@@ -701,6 +738,11 @@ export function attachQuantumCoreOpticalEngine(
     prevHoverT = now;
     if (dtMs <= 0 || dtMs > 90) return;
     if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+    if (introPhaseComplete) {
+      steerSpinFromPointerDelta(dx, dy, 0.28);
+      return;
+    }
 
     cloudDirected = true;
     hoverDragging = true;
@@ -968,6 +1010,12 @@ export function attachQuantumCoreOpticalEngine(
     prevPointerT = now;
     if (dtMs <= 0 || dtMs > 90) return;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+
+    if (introPhaseComplete) {
+      cloudDragging = true;
+      steerSpinFromPointerDelta(dx, dy, 0.55);
+      return;
+    }
 
     const coarse = isCoarsePointer() || isTouch;
     const radPerPx =
@@ -1268,9 +1316,11 @@ export function attachQuantumCoreOpticalEngine(
     const voiceSwell = 1 + mic * 0.032 + burst * 0.02 + wild * 0.015;
 
     const inIntro = introDurationSec > 0 && rawT < introDurationSec;
+    if (!inIntro) introPhaseComplete = true;
     /*
      * Trackball spin: auto Y-orbit until first swipe, then coast in the swipe
      * direction at cruise speed (full 360° on any axis).
+     * Post-intro: magnitude is always cruise — pointer only steers direction.
      */
     const spinDt =
       lastSpinSceneT === 0
@@ -1281,20 +1331,34 @@ export function attachQuantumCoreOpticalEngine(
       ? PARTICLE_SPIN_CRUISE * 0.1
       : PARTICLE_SPIN_CRUISE;
     const spinSettle = inIntro ? 0.04 : 0.02;
-    if (!cloudDragging && !hoverDragging) {
-      if (!cloudDirected) {
-        spinVel.set(0, -spinCruise);
-      } else {
-        const mag = spinVel.length();
-        if (mag > 1e-5) {
-          const tx = (spinVel.x / mag) * spinCruise;
-          const ty = (spinVel.y / mag) * spinCruise;
-          spinVel.x += (tx - spinVel.x) * spinSettle;
-          spinVel.y += (ty - spinVel.y) * spinSettle;
-        } else {
+    if (inIntro) {
+      if (!cloudDragging && !hoverDragging) {
+        if (!cloudDirected) {
           spinVel.set(0, -spinCruise);
+        } else {
+          const mag = spinVel.length();
+          if (mag > 1e-5) {
+            const tx = (spinVel.x / mag) * spinCruise;
+            const ty = (spinVel.y / mag) * spinCruise;
+            spinVel.x += (tx - spinVel.x) * spinSettle;
+            spinVel.y += (ty - spinVel.y) * spinSettle;
+          } else {
+            spinVel.set(0, -spinCruise);
+          }
         }
       }
+    } else if (!cloudDirected) {
+      spinVel.set(0, -spinCruise);
+    } else {
+      const mag = spinVel.length();
+      if (mag > 1e-5) {
+        spinVel.multiplyScalar(spinCruise / mag);
+      } else {
+        spinVel.set(0, -spinCruise);
+      }
+    }
+    const shouldAutoSpin = inIntro ? !cloudDragging && !hoverDragging : true;
+    if (shouldAutoSpin) {
       const speed = spinVel.length();
       if (spinDt > 0 && speed > 1e-6) {
         trackballAxis.set(spinVel.x, spinVel.y, 0).multiplyScalar(1 / speed);
