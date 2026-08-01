@@ -18,7 +18,11 @@ const industryLabels =
     ? enabled.map((i) => i.label.trim()).filter(Boolean)
     : DEFAULT_DECK_INDUSTRIES.map((i) => i.label);
 
-const firstIndustry = industryLabels[0] ?? "your business";
+const startIndex =
+  industryLabels.length > 0
+    ? Math.floor(Math.random() * industryLabels.length)
+    : 0;
+const firstIndustry = industryLabels[startIndex] ?? "your business";
 const heroIconSrc =
   company.iconSource === "admin"
     ? brandIconUrl(BRAND_ICON_SIZES.png512, company.iconVersion)
@@ -54,12 +58,21 @@ const heroIconSrc =
           class="home-hero-industry"
           data-hero-industry
           data-industries={JSON.stringify(industryLabels)}
-          data-interval-ms="2800"
+          data-interval-ms="2500"
         >
-          <span class="home-hero-industry-slot" aria-live="polite">
-            <span class="home-hero-industry-text" data-hero-industry-text>
+          <span class="home-hero-industry-viewport" data-hero-industry-viewport aria-live="polite">
+            <span
+              class="home-hero-industry-layer home-hero-industry-next"
+              data-hero-industry-next
+              aria-hidden="true"
+            ></span>
+            <span
+              class="home-hero-industry-layer home-hero-industry-current"
+              data-hero-industry-current
+            >
               {firstIndustry}
             </span>
+            <span class="home-hero-industry-wipe" data-hero-industry-wipe aria-hidden="true"></span>
           </span>
         </span>
       </p>
@@ -173,36 +186,51 @@ const heroIconSrc =
   .home-hero-industry {
     display: inline-block;
     vertical-align: baseline;
-    min-width: 6ch;
     text-align: left;
   }
 
-  .home-hero-industry-slot {
-    display: inline-block;
+  .home-hero-industry-viewport {
     position: relative;
-    overflow: hidden;
+    display: inline-block;
     vertical-align: bottom;
-    min-height: 1.35em;
+    height: 1.35em;
+    overflow: hidden;
   }
 
-  .home-hero-industry-text {
-    display: inline-block;
+  .home-hero-industry-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    white-space: nowrap;
     font-family: var(--font-primary);
     font-weight: 600;
     letter-spacing: -0.02em;
+    line-height: 1.35;
     color: #fff;
     background: var(--brand-gradient);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    transition:
-      transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.32s ease;
   }
 
-  .home-hero-industry.is-swapping .home-hero-industry-text {
-    transform: translateY(-110%);
-    opacity: 0;
+  .home-hero-industry-next {
+    z-index: 1;
+  }
+
+  .home-hero-industry-current {
+    z-index: 2;
+  }
+
+  .home-hero-industry-wipe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    background: #050505;
+    will-change: transform;
+    pointer-events: none;
   }
 
   .home-hero-cta {
@@ -261,8 +289,8 @@ const heroIconSrc =
       will-change: auto;
     }
 
-    .home-hero-industry-text {
-      transition: none;
+    .home-hero-industry-wipe {
+      display: none;
     }
   }
 </style>
