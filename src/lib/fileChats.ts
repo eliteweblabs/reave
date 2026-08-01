@@ -54,7 +54,7 @@ interface ParsedThread {
 
 function parseThreadFile(content: string): ParsedThread | null {
   const lines = content.split('\n');
-  let title = 'New chat';
+  let title = 'New session';
   const meta: Record<string, string> = {};
   const messages: ChatMessage[] = [];
   let i = 0;
@@ -172,8 +172,8 @@ export function fileCreateChatThread(userId: string): ChatThreadSummary {
   const id = randomUUID();
   const now = new Date().toISOString();
   const meta = { id, user: userId, created: now, updated: now };
-  writeFileSync(threadPath(id), serializeThread(meta, 'New chat', []), 'utf8');
-  return { id, title: 'New chat', created_at: now, updated_at: now, archived: false };
+  writeFileSync(threadPath(id), serializeThread(meta, 'New session', []), 'utf8');
+  return { id, title: 'New session', created_at: now, updated_at: now, archived: false };
 }
 
 export function fileGetChatSummaryById(

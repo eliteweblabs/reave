@@ -19,6 +19,8 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
+  exitListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -35,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons } from './shared.js?v=20260731a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   navigateToWork,
@@ -329,6 +331,7 @@ async function fetchClientsList() {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   clientState.clients = data.clients || [];
+  registerContactAuthorIcons(clientState.clients);
   clientState.total = data.total ?? clientState.clients.length;
 }
 
@@ -462,6 +465,7 @@ function scheduleClientSearch() {
 }
 
 function fillClientsSidebarList(list) {
+  exitListMultiSelect(list);
   const { clients } = clientState;
   const visible = filterClientsForSidebar(clients);
   list.innerHTML = '';
@@ -557,6 +561,7 @@ function renderClientsEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteClients });
   fillClientsSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
@@ -1636,6 +1641,28 @@ async function performClientDelete(uid, force) {
   });
   const data = await res.json();
   return { res, data };
+}
+
+async function bulkDeleteClients(uids) {
+  if (!uids.length) return;
+  closeOpenSwipeRow();
+  const uidSet = new Set(uids);
+  for (const uid of uids) {
+    try {
+      const { res } = await performClientDelete(uid, true);
+      if (!res.ok) continue;
+    } catch {
+      /* continue */
+    }
+  }
+  if (clientState.activeUid && uidSet.has(clientState.activeUid)) {
+    clearClientLastActiveUid();
+    syncClientDeepLinkUrl(null);
+    clientState.activeUid = null;
+    clientState.dirty = false;
+    clientState.draft = null;
+  }
+  await loadClientsTab();
 }
 
 async function deleteClient(uid) {

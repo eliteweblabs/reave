@@ -46,6 +46,33 @@
   /** @type {'new'|'existing'|null} */
   let pendingProjectKind = null;
 
+  function companyStaffAvatarUrl() {
+    return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+  }
+
+  function focusAuthorIconUrl(thread) {
+    const direct = (thread?.author_icon_url || '').trim();
+    if (direct) return direct;
+    return companyStaffAvatarUrl();
+  }
+
+  function escAttr(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function focusAuthorIconHtml(thread) {
+    const url = focusAuthorIconUrl(thread);
+    return (
+      `<span class="focus-recent-author-icon" aria-hidden="true">` +
+      `<img src="${escAttr(url)}" alt="" loading="lazy" decoding="async" />` +
+      `</span>`
+    );
+  }
+
   async function readApiJson(res) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
@@ -174,7 +201,7 @@
         state.threads.unshift(threadMeta);
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not open chat');
+      alert(e instanceof Error ? e.message : 'Could not open session');
       return;
     }
 
@@ -217,7 +244,7 @@
     if (!items.length) {
       const empty = document.createElement('p');
       empty.className = 'focus-recent-empty';
-      empty.textContent = 'No chats yet — tap + to start one.';
+      empty.textContent = 'No sessions yet — tap + to start one.';
       els.recentList.appendChild(empty);
       return;
     }
@@ -226,19 +253,18 @@
       btn.type = 'button';
       btn.className = 'focus-recent-item';
       if (t.id === state.activeId) btn.classList.add('active');
-      const title = document.createElement('span');
-      title.className = 'focus-recent-title';
-      title.textContent = t.title?.trim() || 'New chat';
-      btn.appendChild(title);
-      if (t.linked_jobs?.length) {
-        const sub = document.createElement('span');
-        sub.className = 'focus-recent-sub';
-        sub.textContent =
-          t.linked_jobs.length === 1
-            ? t.linked_jobs[0].title || t.linked_jobs[0].slug
-            : `${t.linked_jobs.length} projects`;
-        btn.appendChild(sub);
-      }
+      btn.innerHTML =
+        focusAuthorIconHtml(t) +
+        `<span class="focus-recent-copy">` +
+        `<span class="focus-recent-title">${escAttr(t.title?.trim() === 'New chat' || !t.title?.trim() ? 'New session' : t.title.trim())}</span>` +
+        (t.linked_jobs?.length
+          ? `<span class="focus-recent-sub">${escAttr(
+              t.linked_jobs.length === 1
+                ? t.linked_jobs[0].title || t.linked_jobs[0].slug
+                : `${t.linked_jobs.length} projects`,
+            )}</span>`
+          : '') +
+        `</span>`;
       btn.addEventListener('click', () => {
         hideOverlay(els.recentSheet);
         void openChat(t.id, t);
@@ -271,7 +297,7 @@
       const thread = await createThread(slug || undefined);
       await openChat(thread.id, thread);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Could not create chat');
+      alert(e instanceof Error ? e.message : 'Could not create session');
     }
   }
 

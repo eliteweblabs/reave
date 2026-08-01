@@ -43,6 +43,7 @@ import { createChatAgentSseResponse } from '../../../lib/chatAgentSse';
 import { pumpAgentStream } from '../../../lib/chatAgentPump';
 import type { ChatTurn } from '../../../lib/chatTypes';
 import { listJobsForItem, linkProjectItem } from '../../../lib/projectLinks';
+import { enrichChatThreadsWithAuthors } from '../../../lib/chatThreadAuthors';
 import { serverEnv } from '../../../lib/serverEnv';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import {
@@ -223,9 +224,10 @@ export async function GET(context: APIContext): Promise<Response> {
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
   const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
   const linked_jobs = await listJobsForItem('chat', id);
-  return json({ ok: true, thread: { ...thread, linked_jobs } });
+  const [withAuthor] = await enrichChatThreadsWithAuthors([{ ...thread, linked_jobs }]);
+  return json({ ok: true, thread: withAuthor });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -253,7 +255,7 @@ export async function POST(context: APIContext): Promise<Response> {
     body.model == null || body.model === '' ? undefined : String(body.model);
 
   const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
 
   const isFirstMessage = thread.messages.length === 0;
   const userContent = serializeChatMessageContent(message, images, docs);
@@ -505,7 +507,7 @@ export async function PATCH(context: APIContext): Promise<Response> {
   }
 
   const thread = await storeGetChatThread(userId, id);
-  if (!thread) return json({ ok: false, error: 'Chat not found' }, 404);
+  if (!thread) return json({ ok: false, error: 'Session not found' }, 404);
 
   if (linkJobSlug) {
     const linked = await linkProjectItem(linkJobSlug, 'chat', id);
@@ -545,6 +547,6 @@ export async function DELETE(context: APIContext): Promise<Response> {
   if (!id) return json({ ok: false, error: 'Missing thread id' }, 400);
 
   const deleted = await storeDeleteChatThread(userId, id);
-  if (!deleted) return json({ ok: false, error: 'Chat not found' }, 404);
+  if (!deleted) return json({ ok: false, error: 'Session not found' }, 404);
   return json({ ok: true, id });
 }

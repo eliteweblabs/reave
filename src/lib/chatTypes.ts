@@ -69,6 +69,10 @@ export interface ChatThreadSummary {
   archived?: boolean;
   source_email_id?: string | null;
   linked_jobs?: LinkedJobRef[];
+  /** Client referenced via linked project or source email, when known. */
+  contact_uid?: string | null;
+  /** Client portal icon URL for sidebar display; null when no contact is linked. */
+  author_icon_url?: string | null;
   /** Role of the most recent message, if any — drives the sidebar "unread" dot. */
   last_role?: ChatTurn['role'] | null;
   /**
@@ -161,10 +165,12 @@ export function chatMessagePlainText(content: string): string {
   return `${text}\n[${summary} attached]`;
 }
 
-export const DEFAULT_CHAT_TITLE = 'New chat';
+export const DEFAULT_CHAT_TITLE = 'New session';
+const LEGACY_DEFAULT_CHAT_TITLE = 'New chat';
 
 export function isDefaultChatTitle(title: string): boolean {
-  return title.trim() === DEFAULT_CHAT_TITLE;
+  const t = title.trim();
+  return t === DEFAULT_CHAT_TITLE || t === LEGACY_DEFAULT_CHAT_TITLE;
 }
 
 export function titleFromMessage(text: string, imageCount = 0, docCount = 0): string {

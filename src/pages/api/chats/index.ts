@@ -5,6 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { chatStorageBackend, storeCreateChatThread, storeListChatThreads, storeUpdateChatTitle } from '../../../lib/chatStore';
+import { enrichChatThreadsWithAuthors } from '../../../lib/chatThreadAuthors';
 import { storeGetSidebarOrder, sortBySidebarOrder } from '../../../lib/sidebarOrderStore';
 import { assignEmailToJob, linkProjectItem, listJobsForItems } from '../../../lib/projectLinks';
 import { storeGetEmailInbox } from '../../../lib/emailInboxStore';
@@ -47,7 +48,8 @@ export async function GET(context: APIContext): Promise<Response> {
     (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
   );
   const enriched = await enrichThreadsWithLinks(sorted);
-  return json({ ok: true, threads: enriched, storage: chatStorageBackend() });
+  const withAuthors = await enrichChatThreadsWithAuthors(enriched);
+  return json({ ok: true, threads: withAuthors, storage: chatStorageBackend() });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -89,5 +91,6 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const [enriched] = await enrichThreadsWithLinks([thread]);
-  return json({ ok: true, thread: enriched, storage: chatStorageBackend() });
+  const [withAuthor] = await enrichChatThreadsWithAuthors([enriched]);
+  return json({ ok: true, thread: withAuthor, storage: chatStorageBackend() });
 }

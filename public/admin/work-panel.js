@@ -17,6 +17,8 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
+  exitListMultiSelect,
   swipeAgentAction,
   swipeArchiveAction,
   swipeDeleteAction,
@@ -26,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons } from './shared.js?v=20260731a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initWorkPanel(). */
@@ -1175,6 +1177,7 @@ function slugifyTitle(title) {
 async function loadWorkTab(opts = {}) {
   const root = getWorkEditor();
   if (!root) return;
+  void prefetchContactAuthorIcons();
   const deepSlug = opts.workSlug || pendingWorkDeepLinkSlug || parseWorkDeepLinkFromUrl();
   const preserveNew =
     workState.activeSlug === '__new__' &&
@@ -1269,6 +1272,7 @@ function startNewProject() {
 }
 
 function fillWorkSidebarList(list) {
+  exitListMultiSelect(list);
   const { search } = workState;
   const filtered = filterWorkJobs(workState.jobs, search);
   const visibleJobs = sortWorkJobsForDisplay(filtered);
@@ -1327,6 +1331,10 @@ function renderWorkEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, {
+    onBulkArchive: bulkArchiveWork,
+    onBulkDelete: bulkDeleteWork,
+  });
   fillWorkSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
@@ -2649,6 +2657,83 @@ async function saveWork(slug, payload) {
   }
 }
 
+async function bulkDeleteWork(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  const slugSet = new Set(slugs);
+  for (const slug of slugs) {
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) continue;
+    } catch {
+      /* continue */
+    }
+  }
+  if (workState.activeSlug && slugSet.has(workState.activeSlug)) {
+    workState.activeSlug = null;
+    workState.dirty = false;
+    workState.draft = null;
+  }
+  await loadWorkTab();
+}
+
+async function bulkArchiveWork(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  await flushWorkAutosave();
+  for (const slug of slugs) {
+    const job = workState.jobs.find((j) => j.slug === slug);
+    if (!job || job.status === 'archived') continue;
+    try {
+      const res = await fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+      const data = await readApiJson(res);
+      if (!res.ok) continue;
+      const payload = {
+        title: data.title,
+        contact_uid: data.contact_uid,
+        contact_name: data.contact_name || data.client,
+        status: 'archived',
+        priority: data.priority || 'normal',
+        due_date: data.due_date || '',
+        value: data.value ?? '',
+        tags: data.tags || [],
+        source: data.source || '',
+        body: data.body || '',
+      };
+      const putRes = await fetch(`/api/work/${encodeURIComponent(slug)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const putData = await readApiJson(putRes);
+      if (!putRes.ok) continue;
+      const idx = workState.jobs.findIndex((j) => j.slug === slug);
+      if (idx !== -1) {
+        workState.jobs[idx] = {
+          ...workState.jobs[idx],
+          status: 'archived',
+          title: putData.title || payload.title,
+          updated: putData.updated || new Date().toISOString(),
+        };
+      }
+      if (workState.activeSlug === slug) {
+        workState.activeSlug = null;
+        workState.draft = null;
+        workState.dirty = false;
+        getWorkEditor()?.classList.remove('de-pane-active');
+      }
+    } catch {
+      /* continue */
+    }
+  }
+  workState.jobs = sortWorkJobsForDisplay(workState.jobs);
+  renderWorkEditor();
+}
+
 async function deleteWork(slug) {
   closeOpenSwipeRow();
   try {
@@ -2888,7 +2973,7 @@ function workRelatedChats(related, sourceChatId) {
   const chats = [...(related?.chats || [])];
   const sourceId = sourceChatId?.trim?.() || '';
   if (sourceId && !chats.some((c) => c.id === sourceId)) {
-    chats.unshift({ id: sourceId, title: 'Chat deleted', updatedAt: '', deleted: true });
+    chats.unshift({ id: sourceId, title: 'Session deleted', updatedAt: '', deleted: true });
   }
   return chats;
 }
@@ -3298,8 +3383,8 @@ function mountWorkRelatedSection(container, related, sourceChatId) {
     if (!deleted) row.type = 'button';
     row.className = deleted ? 'wk-related-item wk-related-item--deleted' : 'wk-related-item';
     row.innerHTML =
-      `<span class="wk-related-kind">Chat</span>` +
-      `<span class="wk-related-label">${escHtml(deleted ? 'Chat deleted' : (chat.title || 'Chat'))}</span>` +
+      `<span class="wk-related-kind">Session</span>` +
+      `<span class="wk-related-label">${escHtml(deleted ? 'Session deleted' : (chat.title || 'Session'))}</span>` +
       `<span class="wk-related-meta">${deleted ? '' : escHtml(shell.formatChatDate(chat.updatedAt))}</span>`;
     if (!deleted) row.addEventListener('click', () => shell.navigateToChat(chat.id));
     list.appendChild(row);
@@ -3335,6 +3420,7 @@ function createWorkListItem(job) {
     (isWorkArchivedStatus(job.status) ? ' ch-list-item--archived' : '');
   item.dataset.slug = job.slug;
   item.innerHTML =
+    sidebarAuthorIconHtml({ contactUid: job.contact_uid }) +
     `<span class="ch-list-content">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(job.title)}</span>` +
     `<span class="ch-item-date">${escHtml(shell.formatChatDate(workJobLastEdited(job)))}</span></span>` +

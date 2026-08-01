@@ -19,6 +19,8 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
+  exitListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -35,17 +37,30 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons } from './shared.js?v=20260731a';
 import { navigateToWork, refreshWorkLinkTrackStatus, workClientSubline } from './work-panel.js?v=20260728l';
 import { scheduleShareBookingUrl, formatScheduleRange } from './schedule-panel.js?v=20260728l';
 import { formatPhoneInput } from './clients-panel.js?v=20260728p';
-import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260728l';
+// Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
+// import { attachSidebarListReorder, persistChatOrder } from './todo-panel.js?v=20260728l';
 
 /** Injected by os-map-loader via initChatPanel(). */
 let shell = {};
 
 export function initChatPanel(deps) {
   shell = deps;
+}
+
+export const DEFAULT_SESSION_TITLE = 'New session';
+const LEGACY_DEFAULT_SESSION_TITLE = 'New chat';
+
+export function isDefaultSessionTitle(title) {
+  const t = (title || '').trim();
+  return !t || t === DEFAULT_SESSION_TITLE || t === LEGACY_DEFAULT_SESSION_TITLE;
+}
+
+export function displaySessionTitle(title) {
+  return isDefaultSessionTitle(title) ? DEFAULT_SESSION_TITLE : (title || '').trim();
 }
 
 // ---- extracted from os-map-loader.js:14745-16533 ----
@@ -191,7 +206,7 @@ async function copyChatText(text, btn) {
 async function shareChatText(text, role, btn) {
   const brandName = window.__companyBrand?.name || 'Assistant';
   const label = role === 'user' ? 'You' : 'Assistant';
-  const payload = { text, title: `${label} — ${brandName} chat` };
+  const payload = { text, title: `${label} — ${brandName} session` };
   if (navigator.share) {
     try {
       await navigator.share(payload);
@@ -1039,7 +1054,7 @@ function isDisposableChat(id) {
     chatState.activeId === id
       ? chatState.title
       : chatState.threads.find((t) => t.id === id)?.title;
-  return !title || title.trim() === 'New chat';
+  return isDefaultSessionTitle(title);
 }
 
 async function abandonDisposableChat(id) {
@@ -1105,6 +1120,7 @@ function formatChatDate(iso) {
 async function loadChatsTab(opts = {}) {
   const root = getChatPanel();
   if (!root) return;
+  void prefetchContactAuthorIcons();
 
   // Fix #1: when returning to the Chats tab and the live React chat tree is
   // already mounted for the current thread, keep it instead of tearing it down.
@@ -1137,7 +1153,7 @@ async function loadChatsTab(opts = {}) {
   const savedAutoSend = keepSession ? chatState.pendingAutoSend : false;
   const wasSending = chatState.sending;
 
-  root.innerHTML = '<div class="de-loading">Loading chats…</div>';
+  root.innerHTML = '<div class="de-loading">Loading sessions…</div>';
   try {
     chatState.threads = await fetchChatThreads();
   } catch (e) {
@@ -1147,7 +1163,7 @@ async function loadChatsTab(opts = {}) {
 
   if (savedActiveId) {
     if (!chatState.threads.some((t) => t.id === savedActiveId)) {
-      chatState.threads.unshift({ id: savedActiveId, title: savedTitle || 'Chat' });
+      chatState.threads.unshift({ id: savedActiveId, title: savedTitle || 'Session' });
     }
     chatState.pendingDraft = savedDraft;
     chatState.pendingAutoSend = savedAutoSend;
@@ -1244,7 +1260,7 @@ async function saveChatTitle(threadId, title) {
 }
 
 function applyFinalizedChatTitle(threadId, title) {
-  if (!threadId || !title || title.trim() === 'New chat') return;
+  if (!threadId || !title || isDefaultSessionTitle(title)) return;
   if (chatState.activeId === threadId) chatState.title = title;
   const thread = chatState.threads.find((t) => t.id === threadId);
   if (thread) thread.title = title;
@@ -1253,14 +1269,14 @@ function applyFinalizedChatTitle(threadId, title) {
   if (chatState.disposableChatId === threadId) chatState.disposableChatId = null;
 }
 
-/** Auto-title chats still named "New chat" from their first message (best effort). */
+/** Auto-title sessions still named "New session" from their first message (best effort). */
 async function finalizeChatTitleIfNeeded(threadId) {
   if (!threadId) return;
   const title =
     chatState.activeId === threadId
       ? chatState.title
       : chatState.threads.find((t) => t.id === threadId)?.title;
-  if (title?.trim() && title.trim() !== 'New chat') return;
+  if (title?.trim() && !isDefaultSessionTitle(title)) return;
   if (chatState.activeId === threadId && !chatState.messages.length) return;
   try {
     const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, {
@@ -1278,7 +1294,7 @@ async function finalizeChatTitleIfNeeded(threadId) {
 function startChatTitleEdit(titleEl, threadId, originalTitle) {
   if (!titleEl || titleEl.dataset.editing === '1') return;
   const wrap = titleEl.closest('.de-header-title-field');
-  const prior = (originalTitle || titleEl.textContent || 'New chat').trim() || 'New chat';
+  const prior = displaySessionTitle(originalTitle || titleEl.textContent);
   titleEl.dataset.editing = '1';
   if (wrap) wrap.classList.add('de-header-title-field--editing');
 
@@ -1286,7 +1302,7 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
   input.type = 'text';
   input.className = 'de-doc-name de-header-title-input ch-header-title-input';
   input.value = prior;
-  input.setAttribute('aria-label', 'Chat title');
+  input.setAttribute('aria-label', 'Session title');
 
   const finish = async (save) => {
     titleEl.dataset.editing = '0';
@@ -1328,20 +1344,20 @@ function startChatTitleEdit(titleEl, threadId, originalTitle) {
 function createHeaderChatTitle(threadId, title) {
   const titleEl = document.createElement('span');
   titleEl.className = 'de-doc-name ch-header-title';
-  titleEl.textContent = (title || '').trim() || 'New chat';
+  titleEl.textContent = displaySessionTitle(title);
   const start = () => startChatTitleEdit(titleEl, threadId, titleEl.textContent);
   return wrapEditableHeaderTitle(titleEl, {
     clickable: true,
     onActivate: start,
     hint: 'Click to rename',
-    ariaLabel: 'Rename chat',
+    ariaLabel: 'Rename session',
   });
 }
 
 function syncChatPaneHeaderTitle(title) {
   const titleEl = getChatPanel()?.querySelector('.ch-pane-header .ch-header-title');
   if (!(titleEl instanceof HTMLElement) || titleEl.dataset.editing === '1') return;
-  titleEl.textContent = (title || '').trim() || 'New chat';
+  titleEl.textContent = displaySessionTitle(title);
 }
 
 function syncChatSidebarActiveState(opts = {}) {
@@ -1397,12 +1413,12 @@ function createChatListItem(t) {
       `<span class="ch-item-status-dot"></span>` +
     `</span>`;
   item.innerHTML =
-    shell.SIDEBAR_LIST_GRIP +
+    sidebarAuthorIconHtml({ contactUid: t.contact_uid, iconUrl: t.author_icon_url }) +
     statusIndicator +
     `<span class="ch-list-content">` +
       `<span class="ch-item-row">` +
         archivedIcon +
-        `<span class="ch-item-title">${escHtml(t.title || 'New chat')}</span>` +
+        `<span class="ch-item-title">${escHtml(displaySessionTitle(t.title))}</span>` +
       `</span>` +
       subLine +
       `<span class="ch-item-date ch-item-date--bottom">${escHtml(formatChatDate(t.updated_at))}</span>` +
@@ -1446,6 +1462,7 @@ function visibleChatThreads() {
 }
 
 function fillChatSidebarList(list) {
+  exitListMultiSelect(list);
   const target = pullRefreshContentRoot(list);
   const visibleThreads = visibleChatThreads();
   target.innerHTML = '';
@@ -1455,11 +1472,13 @@ function fillChatSidebarList(list) {
   if (visibleThreads.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'de-empty';
-    empty.textContent = chatState.search.trim() ? 'No matches.' : 'No chats yet.';
+    empty.textContent = chatState.search.trim() ? 'No matches.' : 'No sessions yet.';
     target.appendChild(empty);
-  } else if (!chatState.search.trim()) {
-    attachSidebarListReorder(list, visibleThreads.map((t) => t.id), persistChatOrder);
   }
+  // Drag-to-reorder disabled — re-enable via attachSidebarListReorder in todo-panel.js.
+  // else if (!chatState.search.trim()) {
+  //   attachSidebarListReorder(list, visibleThreads.map((t) => t.id), persistChatOrder);
+  // }
 }
 
 async function refreshChatsListQuiet() {
@@ -1524,7 +1543,7 @@ function refreshChatSidebarList() {
   const searchInput = root.querySelector('.panel-list-search');
   if (searchInput) {
     const count = chatState.threads.length;
-    searchInput.placeholder = `Search ${count} ${count === 1 ? 'Chat' : 'Chats'}`;
+    searchInput.placeholder = `Search ${count} ${count === 1 ? 'Session' : 'Sessions'}`;
   }
   fillChatSidebarList(list);
 }
@@ -1537,7 +1556,7 @@ function renderChatSidebar() {
     itemCount: chatState.threads.length,
     search: {
       value: chatState.search,
-      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'Chat' : 'Chats'}`,
+      placeholder: `Search ${chatState.threads.length} ${chatState.threads.length === 1 ? 'Session' : 'Sessions'}`,
       onInput: (value) => {
         chatState.search = value;
         refreshChatSidebarList();
@@ -1549,6 +1568,10 @@ function renderChatSidebar() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, {
+    onBulkArchive: bulkArchiveChats,
+    onBulkDelete: bulkDeleteChats,
+  });
   fillChatSidebarList(list);
   attachIosPullToRefresh(list, () => {
     if (shell.MAP.type !== 'chats') return;
@@ -1657,7 +1680,7 @@ function mountChatThreadRoot(threadHost) {
   const chatApi = window.__reaveAgentChat;
   if (!chatApi) {
     threadHost.innerHTML =
-      '<div class="de-loading de-error">Chat UI failed to load. Hard-refresh the page.</div>';
+      '<div class="de-loading de-error">Session UI failed to load. Hard-refresh the page.</div>';
     return;
   }
   const pendingDraft = chatState.pendingDraft;
@@ -1706,7 +1729,7 @@ function mountChatThreadRoot(threadHost) {
       if (thread) thread.title = title;
       syncSidebarChatTitle(chatState.activeId, title);
       syncChatPaneHeaderTitle(title);
-      if (title.trim() && title.trim() !== 'New chat') {
+      if (title.trim() && !isDefaultSessionTitle(title)) {
         chatState.disposableChatId = null;
       }
     },
@@ -1756,8 +1779,8 @@ function renderChatPanel() {
     shell.appendEmptyDetailPane(pane, {
       mapKey: 'chats',
       iconName: 'agent',
-      bodyHtml: '<p>Select a chat or start a new one.</p>',
-      btnLabel: 'Start New Chat',
+      bodyHtml: '<p>Select a session or start a new one.</p>',
+      btnLabel: 'Start New Session',
       onCreate: () => void startNewChat(),
     });
     root.appendChild(pane);
@@ -1807,7 +1830,7 @@ async function startNewChat(opts = {}) {
     rememberChatActiveId(thread.id);
     renderChatPanel();
   } catch (e) {
-    alert(`Could not create chat: ${e.message}`);
+    alert(`Could not create session: ${e.message}`);
   }
 }
 
@@ -1840,8 +1863,69 @@ async function openChat(id, opts = {}) {
     }
     renderChatPanel();
   } catch (e) {
-    alert(`Could not load chat: ${e.message}`);
+    alert(`Could not load session: ${e.message}`);
   }
+}
+
+async function bulkDeleteChats(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const idSet = new Set(ids);
+  for (const id of ids) {
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (res.status !== 404) await readApiJson(res);
+    } catch {
+      /* continue with remaining */
+    }
+  }
+  chatState.threads = chatState.threads.filter((t) => !idSet.has(t.id));
+  if (chatState.activeId && idSet.has(chatState.activeId)) {
+    chatState.activeId = null;
+    chatState.messages = [];
+    chatState.title = '';
+    if (chatState.disposableChatId && idSet.has(chatState.disposableChatId)) {
+      chatState.disposableChatId = null;
+    }
+    clearChatLastActiveId();
+    getChatPanel()?.classList.remove('ch-pane-active');
+  }
+  renderChatPanel();
+}
+
+async function bulkArchiveChats(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  for (const id of ids) {
+    const t = chatState.threads.find((e) => e.id === id);
+    if (!t || t.archived) continue;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true, finalizeTitle: true }),
+      });
+      const data = await readApiJson(res);
+      if (data.title) applyFinalizedChatTitle(id, data.title);
+      const idx = chatState.threads.findIndex((e) => e.id === id);
+      if (idx !== -1) chatState.threads[idx] = { ...chatState.threads[idx], archived: true };
+    } catch {
+      /* continue with remaining */
+    }
+  }
+  chatState.threads = sortChatThreads(chatState.threads);
+  if (chatState.activeId && ids.includes(chatState.activeId)) {
+    chatState.activeId = null;
+    chatState.messages = [];
+    chatState.title = '';
+    clearChatLastActiveId();
+    getChatPanel()?.classList.remove('ch-pane-active');
+  }
+  renderChatPanel();
 }
 
 async function deleteChat(id) {
@@ -1894,7 +1978,7 @@ async function archiveChat(t) {
     renderChatPanel();
   } catch (e) {
     shell.osAlert({
-      title: unarchive ? 'Could not restore chat' : 'Could not archive chat',
+      title: unarchive ? 'Could not restore session' : 'Could not archive session',
       bodyHtml: escHtml(e.message),
     });
   }

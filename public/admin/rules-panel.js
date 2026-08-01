@@ -26,6 +26,7 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -242,6 +243,7 @@ function renderRulesEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteRules });
   for (const rule of ordered) {
     list.appendChild(createRuleSwipeRow(rule, activeId));
   }
@@ -649,6 +651,30 @@ async function saveRule(id, inputs) {
     }
     alert(`Save failed: ${e.message}`);
   }
+}
+
+async function bulkDeleteRules(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const idSet = new Set(ids.map(String));
+  for (const id of ids) {
+    try {
+      const res = await fetch(`/api/email/rules/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) continue;
+    } catch {
+      /* continue */
+    }
+  }
+  if (ruleState.activeId != null && idSet.has(String(ruleState.activeId))) {
+    ruleState.dirty = false;
+    ruleState.activeId = null;
+    getRuleEditor()?.classList.remove('de-pane-active');
+  }
+  await loadRulesTab();
 }
 
 async function deleteRule(id) {

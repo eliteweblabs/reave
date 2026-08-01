@@ -67,6 +67,61 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** Company icon used in the account menu (same fallback chain as Header.astro). */
+export function companyStaffAvatarUrl() {
+  return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';
+}
+
+const contactAuthorIconByUid = new Map();
+let contactAuthorIconPrefetchPromise = null;
+
+function brandingPreviewUrl(url) {
+  return (url || '').trim();
+}
+
+/** Cache client icon/logo URLs for sidebar author icons (work, todo, etc.). */
+export function registerContactAuthorIcons(clients) {
+  for (const client of clients || []) {
+    if (!client?.uid) continue;
+    const iconUrl =
+      brandingPreviewUrl(client.iconUrl) || brandingPreviewUrl(client.logoUrl);
+    contactAuthorIconByUid.set(client.uid, iconUrl);
+  }
+}
+
+/** Best-effort client list fetch so work/todo rows can show contact icons. */
+export function prefetchContactAuthorIcons() {
+  if (contactAuthorIconPrefetchPromise) return contactAuthorIconPrefetchPromise;
+  contactAuthorIconPrefetchPromise = adminFetch('/api/clients')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data?.clients) registerContactAuthorIcons(data.clients);
+    })
+    .catch(() => undefined);
+  return contactAuthorIconPrefetchPromise;
+}
+
+export function resolveContactAuthorIconUrl(contactUid, explicitIconUrl) {
+  const direct = brandingPreviewUrl(explicitIconUrl);
+  if (direct) return direct;
+  const uid = (contactUid || '').trim();
+  if (uid) {
+    const cached = contactAuthorIconByUid.get(uid);
+    if (cached) return cached;
+  }
+  return companyStaffAvatarUrl();
+}
+
+/** Sidebar list row avatar — client when linked, otherwise company icon. */
+export function sidebarAuthorIconHtml(opts = {}) {
+  const url = resolveContactAuthorIconUrl(opts.contactUid, opts.iconUrl);
+  return (
+    `<span class="sidebar-list-author-icon" aria-hidden="true">` +
+    `<img class="sidebar-list-author-icon-img" src="${escHtml(url)}" alt="" loading="lazy" decoding="async" />` +
+    `</span>`
+  );
+}
+
 function stringifyNotificationDebugValue(value) {
   if (value == null || value === '') return null;
   if (typeof value === 'boolean') return String(value);

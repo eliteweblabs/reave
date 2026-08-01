@@ -77,6 +77,7 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -190,6 +191,9 @@ import {
   shareChatText,
   archiveChat,
   openChat,
+  isDefaultSessionTitle,
+  displaySessionTitle,
+  DEFAULT_SESSION_TITLE,
 } from './chat-panel.js?v=20260730c';
 import {
   initCreateDrawer,
@@ -230,8 +234,10 @@ const COMPACT_TABS_MQ = window.matchMedia('(max-width: 1280px)');
 export const userId = document.body?.dataset?.userId?.trim() || '';
 const isDeploymentOwnerClient = document.body?.dataset?.isOwner === '1';
 const KNOWLEDGE_API = '/api/admin/knowledge';
-const SIDEBAR_LIST_GRIP =
-  '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>';
+// Drag-to-reorder grip — disabled; restore when re-enabling attachSidebarListReorder.
+// const SIDEBAR_LIST_GRIP =
+//   '<span class="td-list-grip" aria-hidden="true" title="Drag to reorder">⋮⋮</span>';
+const SIDEBAR_LIST_GRIP = '';
 const SVGNS = 'http://www.w3.org/2000/svg';
 
 function titleFromKnowledgeMarkdown(content, slug) {
@@ -2064,7 +2070,7 @@ function buildChatDropdownTab() {
   trigger.type = 'button';
   trigger.className = 'tab-dropdown-trigger';
   trigger.innerHTML = `${tabInnerHtml('chats', MAPS.chats)}<span class="tab-caret" aria-hidden="true">▾</span>`;
-  trigger.title = 'Chats — tap to open; hold for Chats & Knowledge menu';
+  trigger.title = 'Sessions — tap to open; hold for Sessions & Knowledge menu';
 
   const menu = document.createElement('div');
   menu.className = 'tab-dropdown-menu';
@@ -4385,7 +4391,7 @@ function renderHomeDashboard(data) {
 
   statsEl.appendChild(buildDashStat({
     value: stats.chats ?? 0,
-    label: 'Chats',
+    label: 'Sessions',
     hint: 'agent threads',
     onClick: () => setActiveMap('chats', { force: activeKey === 'chats' }),
   }));
@@ -6456,8 +6462,8 @@ function syncFooterChatNav() {
   applyFooterNavBtnMode(btn, iconEl, {
     create,
     icon: 'agent',
-    label: 'Chats',
-    title: 'New chat',
+    label: 'Sessions',
+    title: DEFAULT_SESSION_TITLE,
   });
 }
 
@@ -7394,7 +7400,7 @@ function footerNavShowsCountTooltip(btn) {
 
 function syncFooterNavCountTooltips() {
   const defs = [
-    { id: 'footer-nav-chat', key: 'chats', singular: 'chat', plural: 'chats' },
+    { id: 'footer-nav-chat', key: 'chats', singular: 'session', plural: 'sessions' },
     { id: 'footer-nav-inbox', key: 'emails', singular: 'email', plural: 'emails' },
     { id: 'footer-nav-schedule', key: 'meetings', singular: 'meeting', plural: 'meetings' },
     { id: 'footer-nav-work', key: 'projects', singular: 'project', plural: 'projects' },
@@ -8022,7 +8028,7 @@ export function clearTopbarPanelContext() {
 
 function shouldShowChatTopbarTitle(title) {
   const t = (title || '').trim();
-  return t.length > 0 && t !== 'New chat';
+  return t.length > 0 && !isDefaultSessionTitle(t);
 }
 
 function closeActiveChat() {
@@ -8052,14 +8058,14 @@ function activeChatThread() {
   if (!id) return null;
   const found = chatState.threads.find((t) => t.id === id);
   if (found) return found;
-  return { id, title: chatState.title || 'Chat', archived: false };
+  return { id, title: displaySessionTitle(chatState.title) || 'Session', archived: false };
 }
 
 function buildChatPaneNavHeader() {
   const header = document.createElement('div');
   header.className = 'de-header ch-pane-header ch-pane-header--nav-only';
   header.appendChild(createPanelBackBtn({
-    label: 'Back to chats',
+    label: 'Back to sessions',
     onClick: () => closeActiveChat(),
   }));
   return header;
@@ -8076,7 +8082,7 @@ export function buildChatPaneHeader() {
 
   return createPaneSubheader({
     className: 'ch-pane-header',
-    back: { label: 'Back to chats', onClick: () => closeActiveChat() },
+    back: { label: 'Back to sessions', onClick: () => closeActiveChat() },
     titleNode: main,
     icons: [
       createIosIconBtn({
@@ -8091,7 +8097,7 @@ export function buildChatPaneHeader() {
       }),
       createIosIconBtn({
         iconKey: 'archive',
-        label: isArchived ? 'Unarchive chat' : 'Archive chat',
+        label: isArchived ? 'Unarchive session' : 'Archive session',
         className: 'ios-icon-btn ch-archive-chat-btn',
         onClick: () => {
           const t = activeChatThread();
@@ -8099,7 +8105,7 @@ export function buildChatPaneHeader() {
         },
       }),
       paneDeleteIcon({
-        label: 'Delete chat',
+        label: 'Delete session',
         onClick: () => deleteChat(chatState.activeId),
       }),
     ],
@@ -9418,6 +9424,63 @@ async function markEmailJunk(ev) {
   }
 }
 
+async function bulkDeleteEmails(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const idSet = new Set(ids);
+  try {
+    const res = await fetch('/api/email/inbox/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await readApiJson(res);
+    emailState.allEvents = emailState.allEvents.filter((e) => !idSet.has(e.id));
+    for (const id of ids) removeEmailRelatedAlertBanners(id);
+    if (emailState.activeId && idSet.has(emailState.activeId)) emailState.activeId = null;
+    renderEmailPanel();
+    syncInboxAppBadge(emailState.allEvents);
+    if (data.deleted < ids.length) {
+      osAlert({
+        title: 'Partial delete',
+        bodyHtml: `<p>Removed ${data.deleted} of ${ids.length} messages. Reload to sync.</p>`,
+      });
+    }
+  } catch (e) {
+    osAlert({ title: 'Delete failed', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function bulkArchiveEmails(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  for (const id of ids) {
+    const ev = emailState.allEvents.find((e) => e.id === id);
+    if (!ev || isEmailRouted(ev)) continue;
+    try {
+      const patch = { action: 'filed', status: 'FILED' };
+      if (ev.category === 'review') patch.category = 'internal';
+      const res = await fetch(`/api/email/inbox/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const data = await readApiJson(res);
+      if (data.event) {
+        const idx = emailState.allEvents.findIndex((e) => e.id === id);
+        if (idx !== -1) emailState.allEvents[idx] = data.event;
+      }
+    } catch {
+      /* continue */
+    }
+  }
+  if (emailState.activeId && !filteredInboxEvents().some((e) => e.id === emailState.activeId)) {
+    emailState.activeId = null;
+  }
+  renderEmailPanel();
+  syncInboxAppBadge(emailState.allEvents);
+}
+
 async function archiveEmail(ev) {
   closeOpenSwipeRow();
   try {
@@ -10170,6 +10233,12 @@ function renderEmailSidebar(savedFilterScroll = 0) {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  if (!isSent && !isDraft) {
+    bindListMultiSelect(list, {
+      onBulkArchive: bulkArchiveEmails,
+      onBulkDelete: bulkDeleteEmails,
+    });
+  }
   for (const ev of events) {
     list.appendChild(
       isSent ? createSentListItem(ev) : isDraft ? createDraftListItem(ev) : createEmailSwipeRow(ev),

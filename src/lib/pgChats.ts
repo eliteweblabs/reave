@@ -15,7 +15,7 @@ const TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS chat_threads (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     TEXT NOT NULL,
-  title       TEXT NOT NULL DEFAULT 'New chat',
+  title       TEXT NOT NULL DEFAULT 'New session',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -117,7 +117,7 @@ export async function pgCreateChatThread(
     const sourceEmailId = opts?.sourceEmailId?.trim() || null;
     const { rows } = await pool.query<ThreadRow>(
       `INSERT INTO chat_threads (user_id, title, source_email_id)
-       VALUES ($1, 'New chat', $2)
+       VALUES ($1, 'New session', $2)
        RETURNING id, title, updated_at, created_at, archived, source_email_id`,
       [userId, sourceEmailId],
     );
@@ -169,7 +169,7 @@ export async function pgGetChatSummaryById(
     );
     const row = rows[0];
     if (!row) return null;
-    return { id: row.id, title: row.title || 'Chat', updatedAt: row.updated_at };
+    return { id: row.id, title: row.title || 'Session', updatedAt: row.updated_at };
   } catch (e) {
     console.error('[chats:pg] summary by id error:', e);
     return null;

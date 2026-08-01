@@ -19,6 +19,7 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -251,6 +252,7 @@ function renderDocEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteDocuments });
   for (const tpl of visibleTemplates) {
     list.appendChild(createDocumentSwipeRow(tpl));
   }
@@ -602,6 +604,36 @@ async function createDocument(slug, content) {
   } catch (e) {
     alert(`Failed to create: ${e.message}`);
   }
+}
+
+async function bulkDeleteDocuments(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  if (docAutosaveTimer) {
+    clearTimeout(docAutosaveTimer);
+    docAutosaveTimer = null;
+  }
+  const slugSet = new Set(slugs);
+  for (const slug of slugs) {
+    try {
+      const res = await fetch(`/api/documents/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) continue;
+    } catch {
+      /* continue */
+    }
+  }
+  if (docState.activeSlug && slugSet.has(docState.activeSlug)) {
+    docState.activeSlug = null;
+    docState.dirty = false;
+    docState.savedContent = '';
+    docState.autosaveGetHtml = null;
+    getDocEditor()?.classList.remove('de-pane-active');
+  }
+  await loadDocumentsTab();
 }
 
 async function deleteDocument(slug) {

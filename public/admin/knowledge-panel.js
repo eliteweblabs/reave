@@ -19,6 +19,8 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
+  exitListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -35,8 +37,9 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText } from './shared.js?v=20260728m';
-import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml } from './shared.js?v=20260731a';
+// Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
+// import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initKnowledgePanel(). */
@@ -163,6 +166,7 @@ function visibleKnowledgeEntries() {
 }
 
 function fillKnowledgeSidebarList(list) {
+  exitListMultiSelect(list);
   const visibleEntries = visibleKnowledgeEntries();
   list.innerHTML = '';
   for (const entry of visibleEntries) {
@@ -173,9 +177,11 @@ function fillKnowledgeSidebarList(list) {
     empty.className = 'de-empty';
     empty.textContent = knowledgeState.search.trim() ? 'No matches.' : 'No knowledge files yet.';
     list.appendChild(empty);
-  } else if (!knowledgeState.search.trim()) {
-    attachSidebarListReorder(list, visibleEntries.map((e) => e.slug), persistKnowledgeOrder);
   }
+  // Drag-to-reorder disabled — re-enable via attachSidebarListReorder in todo-panel.js.
+  // else if (!knowledgeState.search.trim()) {
+  //   attachSidebarListReorder(list, visibleEntries.map((e) => e.slug), persistKnowledgeOrder);
+  // }
 }
 
 function refreshKnowledgeSidebarList() {
@@ -331,6 +337,7 @@ function renderKnowledgeEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteKnowledge });
   fillKnowledgeSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
@@ -540,6 +547,29 @@ async function saveKnowledge(slug, content) {
   }
 }
 
+async function bulkDeleteKnowledge(slugs) {
+  if (!slugs.length) return;
+  closeOpenSwipeRow();
+  const slugSet = new Set(slugs);
+  for (const slug of slugs) {
+    try {
+      const res = await adminFetch(`${shell.KNOWLEDGE_API}/${encodeURIComponent(slug)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) continue;
+    } catch {
+      /* continue */
+    }
+  }
+  if (knowledgeState.activeSlug && slugSet.has(knowledgeState.activeSlug)) {
+    knowledgeState.activeSlug = null;
+    knowledgeState.dirty = false;
+  }
+  await loadKnowledgeTab();
+}
+
 async function deleteKnowledge(slug) {
   closeOpenSwipeRow();
   try {
@@ -588,7 +618,7 @@ function createKnowledgeListItem(entry) {
     ? '<span class="ch-item-badge" title="Live database entry">DB</span>'
     : '';
   item.innerHTML =
-    shell.SIDEBAR_LIST_GRIP +
+    sidebarAuthorIconHtml() +
     `<span class="ch-list-content">` +
     `<span class="ch-item-row"><span class="ch-item-title">${escHtml(entry.title)}</span>${typeBadge}${sourceBadge}</span>` +
     `<span class="ch-item-sub ch-item-slug">${escHtml(entry.slug)}</span>` +

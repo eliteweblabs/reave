@@ -1040,6 +1040,258 @@ export function initSidebarLayout() {
   scanPanelSidebars();
 }
 
+// ---- Touch list multi-select (long-press on coarse pointers) ----
+
+const LIST_LONG_PRESS_MS = 500;
+const LIST_LONG_PRESS_SLOP = 10;
+
+/** @type {WeakMap<HTMLElement, object>} */
+const listSelectionControllers = new WeakMap();
+
+function getSwipeRowItemId(row) {
+  return row.dataset.id || row.dataset.slug || '';
+}
+
+function createListSelectionController(listEl, opts) {
+  let active = false;
+  /** @type {Set<string>} */
+  const selected = new Set();
+  /** @type {HTMLElement | null} */
+  let toolbar = null;
+  /** @type {HTMLElement | null} */
+  let countEl = null;
+  /** @type {HTMLButtonElement | null} */
+  let archiveBtn = null;
+  /** @type {HTMLButtonElement | null} */
+  let deleteBtn = null;
+  const boundRows = new WeakSet();
+
+  function sidebarEl() {
+    return listEl.closest('.ch-sidebar') || listEl.parentElement;
+  }
+
+  function subheaderEl() {
+    return sidebarEl()?.querySelector('.panel-list-subheader') ?? null;
+  }
+
+  function ensureToolbar() {
+    if (toolbar?.isConnected) return;
+    const subheader = subheaderEl();
+
+    toolbar = document.createElement('div');
+    toolbar.className = 'list-selection-bar';
+    toolbar.hidden = true;
+    toolbar.setAttribute('role', 'toolbar');
+    toolbar.setAttribute('aria-label', 'Selection actions');
+
+    const closeBtn = createIosIconBtn({
+      iconKey: 'x',
+      label: 'Cancel selection',
+      className: 'list-selection-bar-btn list-selection-bar-btn--close',
+      onClick: () => exit(),
+    });
+
+    countEl = document.createElement('span');
+    countEl.className = 'list-selection-count';
+
+    const actions = document.createElement('div');
+    actions.className = 'list-selection-actions';
+
+    if (typeof opts.onBulkArchive === 'function') {
+      archiveBtn = createIosIconBtn({
+        iconKey: 'archive',
+        label: opts.archiveLabel || 'Archive',
+        className: 'list-selection-bar-btn list-selection-bar-btn--archive',
+        onClick: () => void runBulkArchive(),
+      });
+      actions.appendChild(archiveBtn);
+    }
+
+    if (typeof opts.onBulkDelete === 'function') {
+      deleteBtn = createIosIconBtn({
+        iconKey: 'trash',
+        label: 'Delete',
+        className: 'list-selection-bar-btn list-selection-bar-btn--delete',
+        confirmDelete: true,
+        onClick: () => void runBulkDelete(),
+      });
+      actions.appendChild(deleteBtn);
+    }
+
+    toolbar.appendChild(closeBtn);
+    toolbar.appendChild(countEl);
+    toolbar.appendChild(actions);
+
+    if (subheader) subheader.insertAdjacentElement('afterend', toolbar);
+    else listEl.insertAdjacentElement('beforebegin', toolbar);
+  }
+
+  function syncRowSelectedClasses() {
+    listEl.querySelectorAll('.swipe-row').forEach((row) => {
+      const id = getSwipeRowItemId(row);
+      const item = row.querySelector('.ch-list-item, .em-list-item');
+      if (!item) return;
+      const on = selected.has(id);
+      item.classList.toggle('ch-list-item--selected', on);
+      item.classList.toggle('em-list-item--selected', on);
+      item.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  }
+
+  function updateUI() {
+    ensureToolbar();
+    const n = selected.size;
+    if (countEl) countEl.textContent = n === 1 ? '1 selected' : `${n} selected`;
+    if (archiveBtn) archiveBtn.disabled = n === 0;
+    if (deleteBtn) deleteBtn.disabled = n === 0;
+    syncRowSelectedClasses();
+  }
+
+  function enter(initialId) {
+    if (!usesSoftwareKeyboard()) return;
+    closeOpenSwipeRow();
+    if (!active) {
+      active = true;
+      listEl.classList.add('list-selection-mode');
+      const subheader = subheaderEl();
+      if (subheader) subheader.hidden = true;
+      ensureToolbar();
+      if (toolbar) toolbar.hidden = false;
+    }
+    if (initialId) selected.add(initialId);
+    if (selected.size === 0) {
+      exit();
+      return;
+    }
+    updateUI();
+    opts.onSelectionChange?.(selected, active);
+  }
+
+  function exit() {
+    if (!active) return;
+    active = false;
+    selected.clear();
+    listEl.classList.remove('list-selection-mode');
+    if (toolbar) toolbar.hidden = true;
+    const subheader = subheaderEl();
+    if (subheader) subheader.hidden = false;
+    syncRowSelectedClasses();
+    opts.onSelectionChange?.(selected, active);
+  }
+
+  function toggle(id) {
+    if (!active || !id) return;
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+    if (selected.size === 0) exit();
+    else updateUI();
+  }
+
+  async function runBulkArchive() {
+    const ids = [...selected];
+    if (!ids.length || typeof opts.onBulkArchive !== 'function') return;
+    await opts.onBulkArchive(ids);
+    exit();
+  }
+
+  async function runBulkDelete() {
+    const ids = [...selected];
+    if (!ids.length || typeof opts.onBulkDelete !== 'function') return;
+    await opts.onBulkDelete(ids);
+    exit();
+  }
+
+  function bindRow(row, contentWrap, itemEl) {
+    if (boundRows.has(row)) return;
+    boundRows.add(row);
+
+    let longPressTimer = null;
+    let longPressFired = false;
+    let pressX = 0;
+    let pressY = 0;
+
+    function cancelLongPress() {
+      if (longPressTimer != null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    contentWrap.addEventListener('pointerdown', (ev) => {
+      if (!usesSoftwareKeyboard()) return;
+      if (active) return;
+      if (ev.target.closest('.td-list-grip')) return;
+      longPressFired = false;
+      pressX = ev.clientX;
+      pressY = ev.clientY;
+      cancelLongPress();
+      longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
+        longPressFired = true;
+        enter(getSwipeRowItemId(row));
+        try {
+          navigator.vibrate?.(12);
+        } catch {
+          /* ignore */
+        }
+      }, LIST_LONG_PRESS_MS);
+    });
+
+    contentWrap.addEventListener('pointermove', (ev) => {
+      if (longPressTimer == null) return;
+      const dx = ev.clientX - pressX;
+      const dy = ev.clientY - pressY;
+      if (Math.abs(dx) > LIST_LONG_PRESS_SLOP || Math.abs(dy) > LIST_LONG_PRESS_SLOP) {
+        cancelLongPress();
+      }
+    });
+
+    const cancelPress = () => cancelLongPress();
+    contentWrap.addEventListener('pointerup', cancelPress);
+    contentWrap.addEventListener('pointerleave', cancelPress);
+    contentWrap.addEventListener('pointercancel', cancelPress);
+
+    itemEl.addEventListener(
+      'click',
+      (ev) => {
+        if (longPressFired) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          longPressFired = false;
+          return;
+        }
+        if (!active) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        toggle(getSwipeRowItemId(row));
+      },
+      true,
+    );
+  }
+
+  return { enter, exit, toggle, bindRow, isActive: () => active, getSelected: () => selected };
+}
+
+/** Enable long-press multi-select on touch lists. Call once per list element. */
+export function bindListMultiSelect(listEl, opts = {}) {
+  if (!listEl) return null;
+  if (listEl.dataset.listMultiSelectBound === '1') {
+    return listSelectionControllers.get(listEl) ?? null;
+  }
+  listEl.dataset.listMultiSelectBound = '1';
+  const ctrl = createListSelectionController(listEl, opts);
+  listSelectionControllers.set(listEl, ctrl);
+  return ctrl;
+}
+
+export function exitListMultiSelect(listEl) {
+  listSelectionControllers.get(listEl)?.exit();
+}
+
+export function isListInSelectionMode(listEl) {
+  return listSelectionControllers.get(listEl)?.isActive() ?? false;
+}
+
 // ---- Swipe row actions (shared across inbox, chats, docs, etc.) ----
 
 const SWIPE_ACTIONS = {
@@ -1349,6 +1601,8 @@ function attachSwipeRow(row, contentEl, revealPx) {
 
   function onStart(clientX, clientY) {
     if (hintLock) return;
+    const listEl = row.closest('.ch-list, .de-list, .em-list');
+    if (listEl && isListInSelectionMode(listEl)) return;
     if (openSwipeRow && openSwipeRow !== api) closeOpenSwipeRow();
     startX = clientX;
     swipeStartY = clientY;
@@ -1522,6 +1776,9 @@ export function createSwipeRow(contentEl, actions) {
     const revealPx = actionsEl.offsetWidth || Math.max(72 * actions.length, 72);
     const api = attachSwipeRow(row, content, revealPx);
     maybeScheduleSwipeHint(row, api);
+    const list = row.closest('.ch-list, .de-list, .em-list');
+    const ctrl = list ? listSelectionControllers.get(list) : null;
+    if (ctrl) ctrl.bindRow(row, content, contentEl);
   });
   return row;
 }

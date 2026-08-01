@@ -19,6 +19,8 @@ import {
   createSwipeRow,
   closeOpenSwipeRow,
   bindSwipeListScroll,
+  bindListMultiSelect,
+  exitListMultiSelect,
   showContextMenu,
   swipeAgentAction,
   swipeArchiveAction,
@@ -35,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, prefetchContactAuthorIcons } from './shared.js?v=20260731a';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260730c';
@@ -191,6 +193,7 @@ function filterTodoItems(todos) {
 async function loadTodoTab(opts = {}) {
   const root = getTodoEditor();
   if (!root) return;
+  void prefetchContactAuthorIcons();
   const preserveNew =
     todoState.activeId === '__new__' &&
     todoState.draft &&
@@ -316,6 +319,7 @@ function startNewTodo(opts = {}) {
 }
 
 function fillTodoSidebarList(list) {
+  exitListMultiSelect(list);
   const visible = filterTodoItems(todoState.todos);
   list.innerHTML = '';
   for (const todo of visible) {
@@ -330,9 +334,11 @@ function fillTodoSidebarList(list) {
         ? 'No completed to‑dos yet.'
         : 'No open to‑dos yet.';
     list.appendChild(empty);
-  } else if (todoState.filter === 'open' && !todoState.search.trim()) {
-    attachTodoListReorder(list, visible.map((t) => t.id));
   }
+  // Drag-to-reorder disabled — re-enable via attachSidebarListReorder below.
+  // else if (todoState.filter === 'open' && !todoState.search.trim()) {
+  //   attachTodoListReorder(list, visible.map((t) => t.id));
+  // }
 }
 
 function refreshTodoSidebarList() {
@@ -397,6 +403,7 @@ function renderTodoEditor() {
   const list = document.createElement('div');
   list.className = 'ch-list';
   bindSwipeListScroll(list);
+  bindListMultiSelect(list, { onBulkDelete: bulkDeleteTodos });
   fillTodoSidebarList(list);
   sidebar.appendChild(list);
   root.appendChild(sidebar);
@@ -421,6 +428,12 @@ function renderTodoEditor() {
   shell.finishSidebarListScroll(root, savedSidebarScroll);
 }
 
+function todoAuthorContactUid(todo) {
+  const slug = todo.job_slug?.trim();
+  if (!slug) return '';
+  return todoState.jobs.find((j) => j.slug === slug)?.contact_uid || '';
+}
+
 function createTodoListItem(todo) {
   const item = document.createElement('button');
   item.type = 'button';
@@ -429,12 +442,8 @@ function createTodoListItem(todo) {
     (todo.id === todoState.activeId ? ' active' : '') +
     (todo.status === 'done' ? ' ch-list-item--done' : '');
   item.dataset.id = String(todo.id);
-  const grip =
-    todo.status === 'open'
-      ? shell.SIDEBAR_LIST_GRIP
-      : '';
   item.innerHTML =
-    grip +
+    sidebarAuthorIconHtml({ contactUid: todoAuthorContactUid(todo) }) +
     `<span class="ch-list-content">` +
     `<span class="td-list-row">` +
     `<span class="${todoPriorityDotClass(todo.priority)}" aria-hidden="true"></span>` +
@@ -1001,6 +1010,9 @@ function repositionSidebarRowByPointer(list, dragEl, pointerY) {
 }
 
 function attachSidebarListReorder(list, orderedKeys, persistFn) {
+  // Drag-to-reorder disabled — uncomment the block below to restore manual sidebar ordering.
+  return;
+  /*
   let dragEl = null;
   let dragStartKeys = null;
   let moved = false;
@@ -1046,6 +1058,7 @@ function attachSidebarListReorder(list, orderedKeys, persistFn) {
       document.addEventListener('pointerup', onUp);
     });
   });
+  */
 }
 
 function attachTodoListReorder(list, orderedIds) {
@@ -1136,6 +1149,29 @@ async function reopenTodo(id) {
   } catch (e) {
     shell.osAlert({ title: 'Could not reopen', bodyHtml: escHtml(e.message) });
   }
+}
+
+async function bulkDeleteTodos(ids) {
+  if (!ids.length) return;
+  closeOpenSwipeRow();
+  const idSet = new Set(ids.map(String));
+  for (const id of ids) {
+    try {
+      const res = await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+      await readApiJson(res);
+    } catch {
+      /* continue */
+    }
+  }
+  todoState.todos = todoState.todos.filter((t) => !idSet.has(String(t.id)));
+  if (todoState.activeId != null && idSet.has(String(todoState.activeId))) {
+    todoState.activeId = null;
+    todoState.draft = null;
+    todoState.linkedJob = null;
+    getTodoEditor()?.classList.remove('de-pane-active');
+  }
+  renderTodoEditor();
+  shell.syncFooterNav();
 }
 
 async function deleteTodo(id) {

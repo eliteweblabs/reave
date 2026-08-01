@@ -513,7 +513,7 @@ const RECOVERY_POLL_MS = 1_500;
 
 const CONNECTION_LOST_NOTE =
   'The connection to the server dropped and I could not recover this reply. The work may ' +
-  'have finished server-side — reopen this chat to check, or send the message again.';
+  'have finished server-side — reopen this session to check, or send the message again.';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
