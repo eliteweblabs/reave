@@ -32,8 +32,8 @@ export function initHomepageLogoReveal() {
     logo.setAttribute("tabindex", "-1");
   };
 
-  /** Reveal once this much of the hero has left the viewport (34% may still show). */
-  const HERO_REVEAL_VISIBLE_MAX = 1 - 0.66;
+  /** Reveal once this much of the hero has left the viewport (50% may still show). */
+  const HERO_REVEAL_VISIBLE_MAX = 1 - 0.5;
 
   const heroVisibleFraction = () => {
     const rect = hero.getBoundingClientRect();
@@ -46,11 +46,11 @@ export function initHomepageLogoReveal() {
     return visibleHeight / height;
   };
 
-  // Hide while more than ~34% of the hero is still on screen; reveal once 66% is out.
+  // Hide while more than half the hero is still on screen; reveal once 50% is out.
   const heroInViewport = () => heroVisibleFraction() > HERO_REVEAL_VISIBLE_MAX;
 
   // Single source of truth: hidden while the hero still fills the viewport,
-  // shown once ~66% of it has scrolled out. Every trigger below remeasures
+  // shown once half of it has scrolled out. Every trigger below remeasures
   // through here rather than tracking its own idea of where the hero is, so
   // none of them can leave the logo out of sync with the scroll position.
   const sync = () => setVisible(!heroInViewport());
