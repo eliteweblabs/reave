@@ -7,10 +7,14 @@ export function initHomepageLogoReveal() {
   if (header.dataset.logoRevealBound === "1") return true;
   header.dataset.logoRevealBound = "1";
 
-  let logoVisible = false;
+  // `null`, not `false`, so the first sync always applies the measured state: a
+  // seeded value that disagrees with the real scroll position would never be
+  // corrected, since matching updates are skipped as no-ops.
+  let logoVisible: boolean | null = null;
 
   const setVisible = (visible: boolean) => {
     if (visible === logoVisible) return;
+    logoVisible = visible;
 
     header.classList.toggle("app-header--logo-visible", visible);
     logo.setAttribute("aria-hidden", visible ? "false" : "true");
@@ -19,61 +23,52 @@ export function initHomepageLogoReveal() {
     } else {
       logo.setAttribute("tabindex", "-1");
     }
-    logoVisible = visible;
-  };
-
-  // Default to hidden until the observer reports; avoids a flash on first paint.
-  let heroInView = true;
-
-  const applyHeroInView = (next: boolean) => {
-    if (next === heroInView) return;
-    heroInView = next;
-    setVisible(!heroInView);
   };
 
   // Layout viewport only — matches IntersectionObserver (root: null). Comparing
   // getBoundingClientRect to visualViewport.height flips when the mobile URL bar
   // collapses and retriggers the logo cascade even though scroll didn't change.
-  const measureHeroInView = () => {
+  const heroInViewport = () => {
     const rect = hero.getBoundingClientRect();
     return rect.bottom > 0 && rect.top < window.innerHeight;
   };
 
+  // Single source of truth: hidden while any part of the hero is on screen,
+  // shown once the hero has left. Every trigger below remeasures through here
+  // rather than tracking its own idea of where the hero is, so none of them can
+  // leave the logo out of sync with the scroll position.
+  const sync = () => setVisible(!heroInViewport());
+
   let scrollTick = 0;
-  const scheduleScrollSync = () => {
+  const scheduleSync = () => {
     if (scrollTick) return;
     scrollTick = window.requestAnimationFrame(() => {
       scrollTick = 0;
-      applyHeroInView(measureHeroInView());
+      sync();
     });
   };
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (entry.target !== hero) continue;
-        applyHeroInView(entry.isIntersecting);
-      }
-    },
-    {
-      root: null,
-      threshold: 0,
-    },
-  );
-
+  // Covers position changes that arrive without a scroll event: anchor jumps,
+  // deep links, bfcache restores, and browser scroll restoration on reload.
+  const observer = new IntersectionObserver(scheduleSync, {
+    root: null,
+    threshold: 0,
+  });
   observer.observe(hero);
 
-  // iOS can lag IntersectionObserver during momentum scroll; remeasure on scroll only.
-  window.addEventListener("scroll", scheduleScrollSync, { passive: true });
+  // iOS can lag IntersectionObserver during momentum scroll; remeasure on scroll too.
+  window.addEventListener("scroll", scheduleSync, { passive: true });
+  window.addEventListener("resize", scheduleSync, { passive: true });
+  window.addEventListener("orientationchange", scheduleSync, { passive: true });
+  window.addEventListener("hashchange", scheduleSync);
+  window.addEventListener("pageshow", scheduleSync);
 
-  // Deep links: `/#about` or `/?section=about`
-  const params = new URLSearchParams(location.search);
-  const deepLink = (params.get("section") || location.hash.replace(/^#/, "") || "").trim();
-  if (deepLink && deepLink !== "home") {
-    setVisible(true);
-  } else {
-    applyHeroInView(measureHeroInView());
-  }
+  // Deep links (`/#about`, `/?section=about`) and the hash the footer nav's
+  // scroll spy writes need no special case — they scroll the page, and that
+  // scroll syncs the logo. Forcing the logo visible for them instead strands it
+  // visible over the hero once the user scrolls back up.
+  sync();
+
   return true;
 }
 
