@@ -447,6 +447,8 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
     transform: translateZ(0);
     contain: paint;
     isolation: isolate;
+    clip-path: inset(0);
+    -webkit-clip-path: inset(0);
   }
 
   .app-header-logo-svg--animated {
@@ -459,63 +461,94 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   }
 
   /*
-   * Per-letter cascade on SVG <g> parts. transform-box: view-box keeps
-   * translateY() in CSS pixels (fill-box maps px into tiny path bbox units —
-   * ~10px travel on screen). Keyframe animations + translate3d are more
-   * reliable than transitions on mobile WebKit.
+   * Desktop: per-letter yo-yo cascade inside the clip slot.
+   * transform-box: view-box keeps translateY() in CSS pixels.
    */
-  .app-header--homepage-logo-reveal .app-header-logo-part {
-    transform-box: view-box;
-    transform-origin: center top;
-    transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
-    will-change: transform;
+  @media (hover: hover) and (pointer: fine) {
+    .app-header--homepage-logo-reveal .app-header-logo-part {
+      transform-box: view-box;
+      transform-origin: center top;
+      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
+      transition-property: transform;
+      transition-duration: var(--app-header-logo-part-duration);
+      transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+      transition-delay: calc(
+        (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
+          var(--app-header-logo-part-stagger)
+      );
+      will-change: transform;
+    }
+
+    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
+      transform: translate3d(0, 0, 0);
+      transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
+    }
   }
 
-  @keyframes app-header-logo-part-in {
-    from {
-      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
+  /*
+   * Touch (iOS): slide the whole wordmark inside a fixed clip — per-letter
+   * transforms with a 300px drop escape WebKit paint containment and smear
+   * gradient letters over the page (see app-header-logo-h, not --drop).
+   */
+  @media (pointer: coarse) {
+    .app-header--homepage-logo-reveal .app-header-logo-part {
+      transform: none;
+      transition: none;
+      will-change: auto;
     }
-    to {
+
+    .app-header--homepage-logo-reveal .app-header-logo-svg--animated {
+      transform: translate3d(0, calc(-1 * var(--app-header-logo-h)), 0);
+      transition-property: transform;
+      transition-duration: var(--app-header-logo-part-duration);
+      transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-svg--animated {
       transform: translate3d(0, 0, 0);
     }
-  }
 
-  @keyframes app-header-logo-part-out {
-    from {
-      transform: translate3d(0, 0, 0);
+    .app-header--homepage-logo-reveal.app-header--logo-visible::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(
+        180deg,
+        rgba(5, 5, 5, 0.94) 0%,
+        rgba(5, 5, 5, 0.82) 72%,
+        rgba(5, 5, 5, 0) 100%
+      );
     }
-    to {
-      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
-    }
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-    animation: app-header-logo-part-in var(--app-header-logo-part-duration)
-      cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    animation-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
-  }
-
-  .app-header--homepage-logo-reveal.app-header--logo-hiding .app-header-logo-part {
-    animation: app-header-logo-part-out var(--app-header-logo-part-duration)
-      cubic-bezier(0.22, 1, 0.36, 1) forwards;
-    animation-delay: calc(
-      (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
-        var(--app-header-logo-part-stagger)
-    );
   }
 
   @media (prefers-reduced-motion: reduce) {
     .app-header--homepage-logo-reveal .app-header-logo-part {
-      animation: none;
+      transition-property: opacity;
+      transition-duration: 0.2s;
+      transition-timing-function: ease;
+      transition-delay: 0ms;
       transform: translate3d(0, 0, 0);
-    }
-
-    .app-header--homepage-logo-reveal:not(.app-header--logo-visible) .app-header-logo-part {
       opacity: 0;
     }
 
     .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
       opacity: 1;
+    }
+
+    @media (pointer: coarse) {
+      .app-header--homepage-logo-reveal .app-header-logo-svg--animated {
+        transition-property: opacity;
+        transition-duration: 0.2s;
+        transform: translate3d(0, 0, 0);
+        opacity: 0;
+      }
+
+      .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-svg--animated {
+        opacity: 1;
+      }
     }
   }
 

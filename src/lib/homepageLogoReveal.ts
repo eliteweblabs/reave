@@ -7,77 +7,64 @@ export function initHomepageLogoReveal() {
   if (header.dataset.logoRevealBound === "1") return true;
   header.dataset.logoRevealBound = "1";
 
-  const partCount = header.querySelectorAll(".app-header-logo-part").length;
-  const animMs = 550 + Math.max(0, partCount - 1) * 100;
-  let hideTimer: ReturnType<typeof setTimeout> | null = null;
   let logoVisible = false;
 
   const setVisible = (visible: boolean) => {
     if (visible === logoVisible) return;
 
-    if (hideTimer) {
-      clearTimeout(hideTimer);
-      hideTimer = null;
-    }
-
+    header.classList.toggle("app-header--logo-visible", visible);
+    logo.setAttribute("aria-hidden", visible ? "false" : "true");
     if (visible) {
-      header.classList.remove("app-header--logo-hiding");
-      // Force keyframe animations to re-run when scrolling back down.
-      header.classList.remove("app-header--logo-visible");
-      void header.offsetWidth;
-      header.classList.add("app-header--logo-visible");
-      logo.setAttribute("aria-hidden", "false");
       logo.removeAttribute("tabindex");
-      logoVisible = true;
-      return;
+    } else {
+      logo.setAttribute("tabindex", "-1");
     }
-
-    header.classList.remove("app-header--logo-visible");
-    header.classList.add("app-header--logo-hiding");
-    logo.setAttribute("aria-hidden", "true");
-    logo.setAttribute("tabindex", "-1");
-    logoVisible = false;
-    hideTimer = setTimeout(() => {
-      header.classList.remove("app-header--logo-hiding");
-    }, animMs);
+    logoVisible = visible;
   };
 
   // Default to hidden until the observer reports; avoids a flash on first paint.
   let heroInView = true;
 
-  const measureHeroInView = () => {
-    const rect = hero.getBoundingClientRect();
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    return rect.bottom > 0 && rect.top < viewportHeight;
-  };
-
-  const syncHeroInView = () => {
-    const next = measureHeroInView();
+  const applyHeroInView = (next: boolean) => {
     if (next === heroInView) return;
     heroInView = next;
     setVisible(!heroInView);
   };
 
+  // Layout viewport only — matches IntersectionObserver (root: null). Comparing
+  // getBoundingClientRect to visualViewport.height flips when the mobile URL bar
+  // collapses and retriggers the logo cascade even though scroll didn't change.
+  const measureHeroInView = () => {
+    const rect = hero.getBoundingClientRect();
+    return rect.bottom > 0 && rect.top < window.innerHeight;
+  };
+
   let scrollTick = 0;
-  const scheduleSync = () => {
+  const scheduleScrollSync = () => {
     if (scrollTick) return;
     scrollTick = window.requestAnimationFrame(() => {
       scrollTick = 0;
-      syncHeroInView();
+      applyHeroInView(measureHeroInView());
     });
   };
 
-  const observer = new IntersectionObserver(() => scheduleSync(), {
-    root: null,
-    threshold: 0,
-  });
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (entry.target !== hero) continue;
+        applyHeroInView(entry.isIntersecting);
+      }
+    },
+    {
+      root: null,
+      threshold: 0,
+    },
+  );
 
   observer.observe(hero);
 
-  // visualViewport scroll/resize tracks the mobile URL bar; IO alone can lag on iOS.
-  window.addEventListener("scroll", scheduleSync, { passive: true });
-  window.visualViewport?.addEventListener("scroll", scheduleSync, { passive: true });
-  window.visualViewport?.addEventListener("resize", scheduleSync, { passive: true });
+  // iOS can lag IntersectionObserver during momentum scroll; remeasure on scroll only.
+  window.addEventListener("scroll", scheduleScrollSync, { passive: true });
 
   // Deep links: `/#about` or `/?section=about`
   const params = new URLSearchParams(location.search);
@@ -85,7 +72,7 @@ export function initHomepageLogoReveal() {
   if (deepLink && deepLink !== "home") {
     setVisible(true);
   } else {
-    syncHeroInView();
+    applyHeroInView(measureHeroInView());
   }
   return true;
 }

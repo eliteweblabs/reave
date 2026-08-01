@@ -174,18 +174,61 @@ const items: Array<{
     );
   }
 
+  /** Mirrors IO rootMargin `-18% 0px -42% 0px` — upper/mid band above the footer pill. */
+  function focusBand() {
+    const vh = window.innerHeight;
+    return { top: vh * 0.18, bottom: vh * 0.58 };
+  }
+
+  function bandOverlap(rect: DOMRect, top: number, bottom: number) {
+    return Math.max(0, Math.min(rect.bottom, bottom) - Math.max(rect.top, top));
+  }
+
+  function activeSectionFromLayout(sections: HTMLElement[]): NavId | null {
+    const band = focusBand();
+    let bestId: NavId | null = null;
+    let bestOverlap = 0;
+
+    for (const section of sections) {
+      const overlap = bandOverlap(section.getBoundingClientRect(), band.top, band.bottom);
+      if (overlap > bestOverlap) {
+        bestOverlap = overlap;
+        const id = section.id as NavId;
+        if (SECTION_IDS.includes(id)) bestId = id;
+      }
+    }
+
+    if (bestId) return bestId;
+
+    const mid = (band.top + band.bottom) / 2;
+    let bestDist = Infinity;
+    for (const section of sections) {
+      const rect = section.getBoundingClientRect();
+      const center = rect.top + rect.height / 2;
+      const dist = Math.abs(center - mid);
+      if (dist < bestDist) {
+        bestDist = dist;
+        const id = section.id as NavId;
+        if (SECTION_IDS.includes(id)) bestId = id;
+      }
+    }
+    return bestId;
+  }
+
+  const scrollSpyCleanups = new WeakMap<HTMLElement, () => void>();
+
   function wireScrollSpy() {
     const nav = document.getElementById("site-footer-nav");
     if (!nav || nav.dataset.homeNav !== "true") return;
-    if (nav.dataset.spyWired === "1") return;
-    nav.dataset.spyWired = "1";
+
+    scrollSpyCleanups.get(nav)?.();
+    scrollSpyCleanups.delete(nav);
 
     const sections = SECTION_IDS.map((id) => document.getElementById(id)).filter(
       (el): el is HTMLElement => !!el,
     );
     if (!sections.length) return;
 
-    const ratios = new Map<Element, number>();
     let scrollingTo: NavId | null = null;
     let scrollTimer = 0;
     // Don't rewrite the URL from scroll-spy until the user actually scrolls —
@@ -195,66 +238,68 @@ const items: Array<{
     const enableHashFromSpy = () => {
       hashFromSpyEnabled = true;
     };
-    window.addEventListener("wheel", enableHashFromSpy, { once: true, passive: true });
-    window.addEventListener("touchmove", enableHashFromSpy, { once: true, passive: true });
-    window.addEventListener(
-      "keydown",
-      (event) => {
-        const scrollKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
-        if (scrollKeys.includes(event.key)) enableHashFromSpy();
-      },
-      { once: true },
-    );
+    const onWheel = () => enableHashFromSpy();
+    const onTouchMove = () => enableHashFromSpy();
+    const onKeyDown = (event: KeyboardEvent) => {
+      const scrollKeys = ["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "];
+      if (scrollKeys.includes(event.key)) enableHashFromSpy();
+    };
+    window.addEventListener("wheel", onWheel, { once: true, passive: true });
+    window.addEventListener("touchmove", onTouchMove, { once: true, passive: true });
+    window.addEventListener("keydown", onKeyDown, { once: true });
 
-    const activateBest = () => {
+    const activateFromLayout = () => {
       if (scrollingTo) {
         setActiveNav(scrollingTo);
         return;
       }
-      let bestId: NavId | null = null;
-      let bestRatio = 0;
-      for (const section of sections) {
-        const r = ratios.get(section) || 0;
-        if (r > bestRatio) {
-          bestRatio = r;
-          const id = section.id as NavId;
-          if (SECTION_IDS.includes(id)) bestId = id;
-        }
-      }
-      if (bestId && bestRatio > 0.15) {
+      const bestId = activeSectionFromLayout(sections);
+      if (bestId) {
         setActiveNav(bestId, { updateHash: hashFromSpyEnabled });
       }
     };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          ratios.set(entry.target, entry.intersectionRatio);
-        });
-        activateBest();
-      },
-      {
-        root: null,
-        // Bias toward the section occupying the upper/mid viewport (above the footer pill).
-        rootMargin: "-18% 0px -42% 0px",
-        threshold: [0, 0.2, 0.4, 0.6, 0.8, 1],
-      },
-    );
-
-    sections.forEach((section) => observer.observe(section));
-
-    // While a nav click smooth-scroll is in flight, pin the active item.
-    nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]").forEach((link) => {
-      link.addEventListener("click", () => {
-        const id = link.dataset.nav as NavId | undefined;
-        if (!id || !isHomepageSectionId(id)) return;
-        scrollingTo = id;
-        window.clearTimeout(scrollTimer);
-        scrollTimer = window.setTimeout(() => {
-          scrollingTo = null;
-          activateBest();
-        }, 1400);
+    let scrollTick = 0;
+    const scheduleScrollSync = () => {
+      if (scrollTick) return;
+      scrollTick = window.requestAnimationFrame(() => {
+        scrollTick = 0;
+        activateFromLayout();
       });
+    };
+
+    const onScroll = () => scheduleScrollSync();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", scheduleScrollSync, { passive: true });
+
+    const navLinks = Array.from(
+      nav.querySelectorAll<HTMLAnchorElement>("a.footer-nav-btn[data-nav]"),
+    );
+    const onNavLinkClick = (event: Event) => {
+      const link = event.currentTarget as HTMLAnchorElement;
+      const id = link.dataset.nav as NavId | undefined;
+      if (!id || !isHomepageSectionId(id)) return;
+      scrollingTo = id;
+      window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(() => {
+        scrollingTo = null;
+        activateFromLayout();
+      }, 1400);
+    };
+    navLinks.forEach((link) => link.addEventListener("click", onNavLinkClick));
+
+    scrollSpyCleanups.set(nav, () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", scheduleScrollSync);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKeyDown);
+      navLinks.forEach((link) => link.removeEventListener("click", onNavLinkClick));
+      window.clearTimeout(scrollTimer);
+      if (scrollTick) {
+        cancelAnimationFrame(scrollTick);
+        scrollTick = 0;
+      }
     });
 
     // Deep links: `/#about` or `/?section=about`
@@ -270,6 +315,8 @@ const items: Array<{
           history.replaceState(null, "", target === "home" ? "/" : `/#${target}`);
         }
       });
+    } else {
+      activateFromLayout();
     }
   }
 
