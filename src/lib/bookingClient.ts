@@ -138,11 +138,25 @@ export async function bookingAddressForCreate(raw?: unknown): Promise<string | u
   return bookingDefaultAddress();
 }
 
+export type BookingPrefill = { name?: string | null; email?: string | null };
+
+function appendBookingPrefill(url: URL, prefill?: BookingPrefill): void {
+  const name = prefill?.name?.trim();
+  const email = prefill?.email?.trim();
+  if (name) url.searchParams.set('name', name);
+  if (email) url.searchParams.set('email', email);
+}
+
 /** Public Cal.com booking page for the default event type slug. */
-export function publicBookingPageUrl(eventSlug = '30min'): string | null {
+export function publicBookingPageUrl(
+  eventSlug = '30min',
+  prefill?: BookingPrefill,
+): string | null {
   const web = calcomWebappUrl();
-  if (web) return `${web}/${calcomUsername()}/${eventSlug}`;
-  return null;
+  if (!web) return null;
+  const url = new URL(`${web.replace(/\/$/, '')}/${calcomUsername()}/${eventSlug}`);
+  appendBookingPrefill(url, prefill);
+  return url.toString();
 }
 
 /**
