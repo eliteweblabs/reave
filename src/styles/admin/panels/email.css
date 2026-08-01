@@ -393,6 +393,14 @@
   padding: 0.85rem 1.2rem var(--footer-scroll-pad);
   overflow-y: auto;
 }
+.em-reply-mode-pill {
+  align-self: flex-start;
+  max-width: 100%;
+}
+.em-reply-mode-pill .sliding-pill-btn {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+}
 .em-compose-field {
   display: flex;
   flex-direction: column;
