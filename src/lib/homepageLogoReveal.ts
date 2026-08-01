@@ -16,22 +16,27 @@ export function initHomepageLogoReveal() {
     if (visible === logoVisible) return;
     logoVisible = visible;
 
-    header.classList.toggle("app-header--logo-visible", visible);
-    logo.setAttribute("aria-hidden", visible ? "false" : "true");
     if (visible) {
+      // Force transitions to restart when the hero leaves again — toggling the
+      // class alone is a no-op on iOS WebKit if the parts never left transform(0).
+      header.classList.remove("app-header--logo-visible");
+      void header.offsetWidth;
+      header.classList.add("app-header--logo-visible");
+      logo.setAttribute("aria-hidden", "false");
       logo.removeAttribute("tabindex");
-    } else {
-      logo.setAttribute("tabindex", "-1");
+      return;
     }
+
+    header.classList.remove("app-header--logo-visible");
+    logo.setAttribute("aria-hidden", "true");
+    logo.setAttribute("tabindex", "-1");
   };
 
-  // Layout viewport only — matches IntersectionObserver (root: null). Comparing
-  // getBoundingClientRect to visualViewport.height flips when the mobile URL bar
-  // collapses and retriggers the logo cascade even though scroll didn't change.
-  const heroInViewport = () => {
-    const rect = hero.getBoundingClientRect();
-    return rect.bottom > 0 && rect.top < window.innerHeight;
-  };
+  // Hero is first on the page — any pixel still below the top edge means stay
+  // hidden. Only rect.bottom is consulted so mobile URL-bar resize/orientation
+  // cannot flip visibility without an actual scroll (innerHeight and
+  // visualViewport.height both change when the bar collapses).
+  const heroInViewport = () => hero.getBoundingClientRect().bottom > 0;
 
   // Single source of truth: hidden while any part of the hero is on screen,
   // shown once the hero has left. Every trigger below remeasures through here
@@ -58,7 +63,7 @@ export function initHomepageLogoReveal() {
 
   // iOS can lag IntersectionObserver during momentum scroll; remeasure on scroll too.
   window.addEventListener("scroll", scheduleSync, { passive: true });
-  window.addEventListener("resize", scheduleSync, { passive: true });
+  window.visualViewport?.addEventListener("scroll", scheduleSync, { passive: true });
   window.addEventListener("orientationchange", scheduleSync, { passive: true });
   window.addEventListener("hashchange", scheduleSync);
   window.addEventListener("pageshow", scheduleSync);
