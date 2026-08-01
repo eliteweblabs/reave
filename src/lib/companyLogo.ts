@@ -21,3 +21,17 @@ export const LOGO_UPLOAD_MEDIA_TYPES = new Set([
 export function isLogoUploadMediaType(type: string): boolean {
   return LOGO_UPLOAD_MEDIA_TYPES.has(type.trim().toLowerCase());
 }
+
+/** Static logo paths removed from /public but still stored in company config. */
+const LEGACY_PUBLIC_LOGO_PATHS: Record<string, string> = {
+  '/logo.png': '/reave-logo.png',
+  '/reave-logo-1.png': '/reave-logo.png',
+};
+
+/** Map stale admin logo paths to current public assets (path only, no query). */
+export function normalizePublicLogoPath(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return trimmed;
+  const base = trimmed.split('?')[0] ?? trimmed;
+  return LEGACY_PUBLIC_LOGO_PATHS[base] ?? trimmed;
+}

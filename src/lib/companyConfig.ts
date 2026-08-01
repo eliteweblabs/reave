@@ -4,7 +4,12 @@
  */
 import { SITE } from '../config/site';
 import { requestOrigin, siteBaseUrl, siteOriginFallback } from './requestOrigin';
-import { BRANDING_LOGO_PATH, BRANDING_ICON_PATH, LOGO_ICON_AVATAR_PATH } from './companyLogo';
+import {
+  BRANDING_LOGO_PATH,
+  BRANDING_ICON_PATH,
+  LOGO_ICON_AVATAR_PATH,
+  normalizePublicLogoPath,
+} from './companyLogo';
 import { BRAND_ICON_SIZES } from './brandIconRaster';
 import { getStoredCompanyConfig, type StoredCompanyConfig } from './companyConfigStore';
 import { normalizeBrandFontInput, resolveBrandFonts, type ResolvedBrandFonts } from './brandFonts';
@@ -216,7 +221,11 @@ function resolveLogo(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'l
     return { logoPath: '', logoSource: 'hidden', logoVersion: version };
   }
   if (storedLogo) {
-    return { logoPath: storedLogo, logoSource: 'admin', logoVersion: version };
+    return {
+      logoPath: normalizePublicLogoPath(storedLogo),
+      logoSource: 'admin',
+      logoVersion: version,
+    };
   }
   return {
     logoPath: pick(serverEnv('COMPANY_LOGO_PATH'), SITE.logoPath),
@@ -243,7 +252,7 @@ function resolveIcon(stored: StoredCompanyConfig | null): Pick<CompanyConfig, 'i
 
 /** Cache-safe logo URL for img/mask tags. */
 export function companyLogoUrl(path: string, version?: string | null): string {
-  const p = trim(path);
+  const p = normalizePublicLogoPath(trim(path));
   if (!p) return '';
   if (/^https?:\/\//i.test(p)) return p;
   const v = trim(version);
