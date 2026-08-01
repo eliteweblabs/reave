@@ -461,54 +461,35 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
   }
 
   /*
-   * Desktop: per-letter yo-yo cascade inside the clip slot.
+   * Per-letter yo-yo cascade inside the clip slot, on every pointer type.
    * transform-box: view-box keeps translateY() in CSS pixels.
+   *
+   * The per-letter stagger is what makes the drop readable: the easing covers
+   * roughly three quarters of the ~30px travel in the first frame, so letters
+   * moving in unison land together and read as a pop instead of a slide. Do not
+   * collapse this onto the whole wordmark. (The clip wrapper's paint
+   * containment keeps the transformed letters inside the slot on iOS.)
    */
-  @media (hover: hover) and (pointer: fine) {
-    .app-header--homepage-logo-reveal .app-header-logo-part {
-      transform-box: view-box;
-      transform-origin: center top;
-      transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
-      transition-property: transform;
-      transition-duration: var(--app-header-logo-part-duration);
-      transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-      transition-delay: calc(
-        (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
-          var(--app-header-logo-part-stagger)
-      );
-      will-change: transform;
-    }
-
-    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
-      transform: translate3d(0, 0, 0);
-      transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
-    }
+  .app-header--homepage-logo-reveal .app-header-logo-part {
+    transform-box: view-box;
+    transform-origin: center top;
+    transform: translate3d(0, calc(-1 * var(--app-header-logo-drop)), 0);
+    transition-property: transform;
+    transition-duration: var(--app-header-logo-part-duration);
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: calc(
+      (var(--logo-part-last-index, 6) - var(--logo-part-index, 0)) *
+        var(--app-header-logo-part-stagger)
+    );
+    will-change: transform;
   }
 
-  /*
-   * Touch (iOS): slide the whole wordmark inside a fixed clip — per-letter
-   * transforms with a 300px drop escape WebKit paint containment and smear
-   * gradient letters over the page (see app-header-logo-h, not --drop).
-   */
+  .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
+    transform: translate3d(0, 0, 0);
+    transition-delay: calc(var(--logo-part-index, 0) * var(--app-header-logo-part-stagger));
+  }
+
   @media (pointer: coarse) {
-    .app-header--homepage-logo-reveal .app-header-logo-part {
-      transform: none;
-      transition: none;
-      will-change: auto;
-    }
-
-    .app-header--homepage-logo-reveal .app-header-logo-svg--animated {
-      transform: translate3d(0, calc(-1 * var(--app-header-logo-h)), 0);
-      transition-property: transform;
-      transition-duration: var(--app-header-logo-part-duration);
-      transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-      will-change: transform;
-    }
-
-    .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-svg--animated {
-      transform: translate3d(0, 0, 0);
-    }
-
     .app-header--homepage-logo-reveal.app-header--logo-visible::before {
       content: "";
       position: absolute;
@@ -536,19 +517,6 @@ const signInAutoOpen = signInAutoOpenProp || Astro.url.searchParams.get("auth") 
 
     .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-part {
       opacity: 1;
-    }
-
-    @media (pointer: coarse) {
-      .app-header--homepage-logo-reveal .app-header-logo-svg--animated {
-        transition-property: opacity;
-        transition-duration: 0.2s;
-        transform: translate3d(0, 0, 0);
-        opacity: 0;
-      }
-
-      .app-header--homepage-logo-reveal.app-header--logo-visible .app-header-logo-svg--animated {
-        opacity: 1;
-      }
     }
   }
 
