@@ -64,7 +64,7 @@ const heroIconSrc =
             <span
               class="home-hero-industry-layer home-hero-industry-next"
               data-hero-industry-next
-              aria-hidden="true"
+              hidden
             ></span>
             <span
               class="home-hero-industry-layer home-hero-industry-current"
@@ -213,12 +213,17 @@ const heroIconSrc =
     -webkit-text-fill-color: transparent;
   }
 
-  .home-hero-industry-next {
+  .home-hero-industry-current {
     z-index: 1;
   }
 
-  .home-hero-industry-current {
+  .home-hero-industry-next {
     z-index: 2;
+  }
+
+  .home-hero-industry-next[hidden],
+  .home-hero-industry-current[hidden] {
+    display: none;
   }
 
   .home-hero-industry-wipe {

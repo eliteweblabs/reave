@@ -1,80 +1,35 @@
 /**
- * Hero industry tagline — random start, then a left-to-right background wipe
- * reveals the next label (mask block width matches the outgoing word).
+ * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
+ * Text layers stay fixed; only the background mask moves.
  */
 
-const WIPE_MS = 650;
+const WIPE_MS = 520;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-function measureLayer(el: HTMLElement, text: string): number {
-  el.textContent = text;
-  return el.offsetWidth;
+function measureText(layer: HTMLElement, text: string): number {
+  layer.textContent = text;
+  return layer.offsetWidth;
 }
 
-function applyWipe(opts: {
-  x: number;
-  width: number;
-  current: HTMLElement;
-  next: HTMLElement;
-  wipe: HTMLElement;
-}) {
-  const { x, width, current, next, wipe } = opts;
-  if (width <= 0) return;
-
-  const revealPx = Math.max(0, Math.min(x, width));
-  const currentLeftPx = Math.max(0, Math.min(x + width, width));
-
-  next.style.clipPath = `inset(0 ${100 - (revealPx / width) * 100}% 0 0)`;
-  current.style.clipPath = `inset(0 0 0 ${(currentLeftPx / width) * 100}%)`;
-  wipe.style.transform = `translate3d(${x}px, 0, 0)`;
-}
-
-function runWipe(
-  viewport: HTMLElement,
-  current: HTMLElement,
-  next: HTMLElement,
-  wipe: HTMLElement,
-  outgoing: string,
-  incoming: string,
+function animateTranslate(
+  el: HTMLElement,
+  fromX: number,
+  toX: number,
+  durationMs: number,
 ): Promise<void> {
-  current.textContent = outgoing;
-  next.textContent = incoming;
-
-  const width = measureLayer(current, outgoing);
-  viewport.style.width = `${width}px`;
-  next.style.width = `${width}px`;
-  current.style.width = `${width}px`;
-
-  applyWipe({ x: -width, width, current, next, wipe });
-
   return new Promise((resolve) => {
-    const startX = -width;
-    const endX = width;
     const t0 = performance.now();
 
     const frame = (now: number) => {
-      const t = Math.min(1, (now - t0) / WIPE_MS);
-      const x = startX + (endX - startX) * easeInOutCubic(t);
-      applyWipe({ x, width, current, next, wipe });
+      const t = Math.min(1, (now - t0) / durationMs);
+      const x = fromX + (toX - fromX) * easeInOutCubic(t);
+      el.style.transform = `translate3d(${x}px, 0, 0)`;
 
-      if (t < 1) {
-        requestAnimationFrame(frame);
-        return;
-      }
-
-      const nextWidth = measureLayer(current, incoming);
-      viewport.style.width = `${nextWidth}px`;
-      next.style.width = `${nextWidth}px`;
-      current.style.width = `${nextWidth}px`;
-      current.textContent = incoming;
-      next.textContent = '';
-      next.style.clipPath = '';
-      current.style.clipPath = '';
-      wipe.style.transform = `translate3d(${-nextWidth}px, 0, 0)`;
-      resolve();
+      if (t < 1) requestAnimationFrame(frame);
+      else resolve();
     };
 
     requestAnimationFrame(frame);
@@ -104,47 +59,69 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const intervalMs = Number(root.dataset.intervalMs) || 2500;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  let index = 0;
   const initial = current.textContent?.trim() ?? '';
   const found = industries.indexOf(initial);
-  index = found >= 0 ? found : Math.floor(Math.random() * industries.length);
+  let index = found >= 0 ? found : Math.floor(Math.random() * industries.length);
+
   let timer: ReturnType<typeof setTimeout> | null = null;
   let swapping = false;
 
-  const setInitial = () => {
-    const label = industries[index]!;
+  const setViewportWidth = (px: number) => {
+    viewport.style.width = `${px}px`;
+  };
+
+  const resetLayers = (label: string) => {
     current.textContent = label;
+    current.hidden = false;
     next.textContent = '';
-    const width = measureLayer(current, label);
-    viewport.style.width = `${width}px`;
+    next.hidden = true;
+    const width = measureText(current, label);
+    setViewportWidth(width);
     wipe.style.transform = `translate3d(${-width}px, 0, 0)`;
     root.dataset.heroIndustryLabel = label;
   };
 
-  setInitial();
+  resetLayers(industries[index]!);
 
   if (industries.length <= 1) return;
 
-  const swap = async () => {
+  const cycle = async () => {
     if (swapping) return;
     swapping = true;
 
     const outgoing = industries[index]!;
-    index = (index + 1) % industries.length;
-    const incoming = industries[index]!;
+    const incoming = industries[(index + 1) % industries.length]!;
 
     if (reducedMotion) {
-      current.textContent = incoming;
-      const width = measureLayer(current, incoming);
-      viewport.style.width = `${width}px`;
-      root.dataset.heroIndustryLabel = incoming;
+      index = (index + 1) % industries.length;
+      resetLayers(incoming);
       swapping = false;
       schedule();
       return;
     }
 
-    await runWipe(viewport, current, next, wipe, outgoing, incoming);
-    root.dataset.heroIndustryLabel = incoming;
+    const outWidth = measureText(current, outgoing);
+    setViewportWidth(outWidth);
+    current.hidden = false;
+    next.hidden = true;
+    next.textContent = '';
+
+    // Step 1 — wipe out: mask slides left → right until the word is fully gone.
+    wipe.style.transform = `translate3d(${-outWidth}px, 0, 0)`;
+    await animateTranslate(wipe, -outWidth, 0, WIPE_MS);
+
+    current.textContent = '';
+    current.hidden = true;
+
+    // Step 2 — wipe reveal: same mask slides off left → right, exposing the next word.
+    const inWidth = measureText(next, incoming);
+    setViewportWidth(inWidth);
+    next.hidden = false;
+    wipe.style.transform = 'translate3d(0px, 0, 0)';
+    await animateTranslate(wipe, 0, inWidth, WIPE_MS);
+
+    index = (index + 1) % industries.length;
+    resetLayers(incoming);
     swapping = false;
     schedule();
   };
@@ -153,7 +130,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = null;
-      void swap();
+      void cycle();
     }, intervalMs);
   };
 
