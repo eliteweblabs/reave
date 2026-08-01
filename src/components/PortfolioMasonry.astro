@@ -1,11 +1,36 @@
 ---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+import mdotWorldFeatured from "../assets/images/portfolio/mdot-world-featured.jpg";
+import moheganSunFeatured from "../assets/images/portfolio/mohegan-sun-featured.jpg";
+import porscheMiamiFeatured from "../assets/images/portfolio/porsche-miami-art-week-featured.jpg";
+import vipPerksFeatured from "../assets/images/portfolio/vip-perks-marker-security-featured.jpg";
+import luxeMedsFeatured from "../assets/images/portfolio/luxe-meds-featured.jpg";
+import creedFeatured from "../assets/images/portfolio/creed-featured.jpg";
+import arFeatured from "../assets/images/portfolio/ar-featured.jpg";
+import kingdomFeatured from "../assets/images/portfolio/kingdom-featured.jpg";
+import featuredSfh from "../assets/images/portfolio/featured-sfh.jpg";
+import vasodynFeatured from "../assets/images/portfolio/vasodyn-featured.jpg";
+import blackwaterFeatured from "../assets/images/portfolio/blackwater-featured.jpg";
+import boxCapitalLogo from "../assets/images/portfolio/box-captital-logo-dark.jpg";
+import icfpLogo from "../assets/images/portfolio/icfp-logo.jpg";
+import lotusGlassFeatured from "../assets/images/portfolio/lotus-glass-featured.jpg";
+import anglerFishFeatured from "../assets/images/portfolio/angler-fish-aquatics-featured.jpg";
+import paradigmLandscape from "../assets/images/portfolio/paradigm-landscape.jpg";
+import ucHastingsLogo from "../assets/images/portfolio/uc-hastings-science-tech-logo.jpg";
+import eliteWebLabsStickers from "../assets/images/portfolio/elite-web-labs-stickers.jpg";
+import dpmConstructionFeatured from "../assets/images/portfolio/dpm-construction-featured.jpg";
+import middleburyConcert from "../assets/images/portfolio/background-03-1024x685.jpg";
+import carePlusMark from "../assets/images/portfolio/care-plus-mark.jpg";
+
 type TileSize = "1x1" | "2x1" | "1x2" | "2x2" | "3x2";
 
 interface PortfolioItem {
   title: string;
   description: string;
   tags: string[];
-  image: string;
+  image: ImageMetadata;
   imageAlt: string;
   size: TileSize;
   button?: { label: string; href: string };
@@ -17,7 +42,7 @@ const items: PortfolioItem[] = [
     description:
       "Boston hip-hop artist hub — fullscreen album slideshow, bottom dock nav, and swipe-up drawers linking Spotify, Bandcamp, tour dates, and socials.",
     tags: ["Web Design", "Music", "Artist Site"],
-    image: "/images/portfolio/mdot-world-featured.png",
+    image: mdotWorldFeatured,
     imageAlt: "M-Dot portrait splash page with bottom music and social dock on black",
     size: "2x1",
     button: { label: "View site", href: "https://mdot.world" },
@@ -27,7 +52,7 @@ const items: PortfolioItem[] = [
     description:
       "Casino-floor exotic car display — scissor-door Lamborghini staging, directional signage, and polished event production for a major resort partner.",
     tags: ["Events", "Marketing", "Experiential"],
-    image: "/images/portfolio/mohegan-sun-featured.jpg",
+    image: moheganSunFeatured,
     imageAlt:
       "Orange Lamborghini Murciélago with scissor door open on a polished casino floor at Mohegan Sun",
     size: "2x2",
@@ -37,7 +62,7 @@ const items: PortfolioItem[] = [
     description:
       "Mission E concept VIP preview — parquet platform staging, gallery lighting, and “Tribute to tomorrow” experiential branding.",
     tags: ["Events", "Automotive", "VIP"],
-    image: "/images/portfolio/porsche-miami-art-week-featured.jpg",
+    image: porscheMiamiFeatured,
     imageAlt:
       "White Porsche Mission E concept on a parquet platform with Tribute to tomorrow branding at Miami Art Week",
     size: "2x1",
@@ -47,7 +72,7 @@ const items: PortfolioItem[] = [
     description:
       "Punk in Drublic festival production — stage lighting, branded vertical banners, crowd barricades, and on-site security coordination.",
     tags: ["Events", "Music", "Production"],
-    image: "/images/portfolio/vip-perks-marker-security-featured.jpg",
+    image: vipPerksFeatured,
     imageAlt:
       "Punk in Drublic craft beer and music festival stage with security staff and crowd barricades at night",
     size: "2x1",
@@ -57,7 +82,7 @@ const items: PortfolioItem[] = [
     description:
       "Luxury wellness e-commerce with concierge chat, product hero, and a gold-accent brand system.",
     tags: ["Web Design", "E-commerce", "Wellness"],
-    image: "/images/portfolio/luxe-meds-featured.png",
+    image: luxeMedsFeatured,
     imageAlt: "LUXEMEDS homepage with product vial hero and chat concierge",
     size: "1x2",
     button: { label: "View project", href: "/#contact" },
@@ -67,7 +92,7 @@ const items: PortfolioItem[] = [
     description:
       "Nightlife venue marketing with neon signage photography, social hooks, and event-hour callouts.",
     tags: ["Venue", "Marketing", "Photography"],
-    image: "/images/portfolio/creed-featured.png",
+    image: creedFeatured,
     imageAlt: "CREED hookah lounge sign against a glass skyscraper at dusk",
     size: "2x2",
   },
@@ -76,7 +101,7 @@ const items: PortfolioItem[] = [
     description:
       "Race-day livery and event graphics — ornate linework over aviation photography for a national air series.",
     tags: ["Branding", "Events", "Aviation"],
-    image: "/images/portfolio/ar-featured.jpg",
+    image: arFeatured,
     imageAlt: "Red racing jet with Air Race 21 decorative graphic overlay",
     size: "2x1",
   },
@@ -85,7 +110,7 @@ const items: PortfolioItem[] = [
     description:
       "Trail-network identity with crown motif, forest photography, and bold outdoor typography.",
     tags: ["Branding", "Outdoor", "Print"],
-    image: "/images/portfolio/kingdom-featured.jpg",
+    image: kingdomFeatured,
     imageAlt: "Kingdom Trails crown logo over mountain bikers in a pine forest",
     size: "2x1",
   },
@@ -94,7 +119,7 @@ const items: PortfolioItem[] = [
     description:
       "Nonprofit campaign identity — palm-tree mark, bilingual typography, and mission photography.",
     tags: ["Nonprofit", "Branding", "Campaign"],
-    image: "/images/portfolio/featured-sfh.png",
+    image: featuredSfh,
     imageAlt: "Students for Haiti logo over volunteer and children in Haiti",
     size: "2x2",
     button: { label: "Learn more", href: "/#contact" },
@@ -104,7 +129,7 @@ const items: PortfolioItem[] = [
     description:
       "Medical-device brand visuals — clinical green lighting and anatomical model photography.",
     tags: ["Medical", "Branding", "Photography"],
-    image: "/images/portfolio/vasodyn-featured.jpg",
+    image: vasodynFeatured,
     imageAlt: "Glass aortic arch model lit in emerald green for Vasodyn",
     size: "1x2",
   },
@@ -113,7 +138,7 @@ const items: PortfolioItem[] = [
     description:
       "Gritty wordmark integrated into weathered stone — high-contrast industrial brand treatment.",
     tags: ["Branding", "Identity", "Environmental"],
-    image: "/images/portfolio/blackwater-featured.jpg",
+    image: blackwaterFeatured,
     imageAlt: "blackWater logo stenciled onto a textured stone wall",
     size: "2x1",
   },
@@ -121,7 +146,7 @@ const items: PortfolioItem[] = [
     title: "Box Capital",
     description: "Isometric mark and wordmark for a finance brand — green gradient on dark field.",
     tags: ["Logo", "Finance", "Identity"],
-    image: "/images/portfolio/box-captital-logo-dark.png",
+    image: boxCapitalLogo,
     imageAlt: "Box Capital isometric green logo on black",
     size: "1x1",
   },
@@ -130,7 +155,7 @@ const items: PortfolioItem[] = [
     description:
       "Flame icon with city-grid motif — warm gradient mark and industrial sans typography.",
     tags: ["Logo", "Safety", "Identity"],
-    image: "/images/portfolio/icfp-logo.jpg",
+    image: icfpLogo,
     imageAlt: "Innercity Fire Protection flame logo with city grid pattern",
     size: "1x1",
   },
@@ -139,7 +164,7 @@ const items: PortfolioItem[] = [
     description:
       "Artisan glass brand — layered lotus mark, outlined wordmark, and soft bokeh backdrop.",
     tags: ["Branding", "Craft", "Logo"],
-    image: "/images/portfolio/lotus-glass-featured.jpg",
+    image: lotusGlassFeatured,
     imageAlt: "Lotus Glass logo with blue-green lotus flower and outlined text",
     size: "1x1",
   },
@@ -148,7 +173,7 @@ const items: PortfolioItem[] = [
     description:
       "Illustrative wordmark — ANGLERFISH letterforms shape the fish silhouette, lure, and teeth with script Aquatics beneath.",
     tags: ["Logo", "Branding", "Aquatics"],
-    image: "/images/portfolio/angler-fish-aquatics-featured.jpg",
+    image: anglerFishFeatured,
     imageAlt:
       "Angler Fish Aquatics logo with ANGLERFISH typography forming an anglerfish and Aquatics in script",
     size: "2x1",
@@ -158,7 +183,7 @@ const items: PortfolioItem[] = [
     description:
       "Backyard concept rendering — circular stone fire pit, terraced garden beds, and hand-drawn landscape plan for a residential client.",
     tags: ["Landscape", "Design", "Rendering"],
-    image: "/images/portfolio/paradigm-landscape.jpg",
+    image: paradigmLandscape,
     imageAlt: "Hand-rendered backyard landscape design with stone fire pit and terraced gardens",
     size: "2x1",
   },
@@ -167,7 +192,7 @@ const items: PortfolioItem[] = [
     description:
       "Academic department identity — swoosh icon mark with light and dark lockups for science and technology programs.",
     tags: ["Logo", "Education", "Identity"],
-    image: "/images/portfolio/uc-hastings-science-tech-logo.jpg",
+    image: ucHastingsLogo,
     imageAlt: "UC Hastings science and tech logo on black and white backgrounds",
     size: "1x1",
   },
@@ -176,7 +201,7 @@ const items: PortfolioItem[] = [
     description:
       "Studio sticker sheet and atom mark swag — black, white, and green brand applications for merch and promo.",
     tags: ["Branding", "Print", "Identity"],
-    image: "/images/portfolio/elite-web-labs-stickers.jpg",
+    image: eliteWebLabsStickers,
     imageAlt: "Elite Web Labs promotional stickers with atom logo and wordmark",
     size: "2x1",
   },
@@ -185,7 +210,7 @@ const items: PortfolioItem[] = [
     description:
       "Commercial interiors showcase — bold red accent walls, lounge seating, and tech bar staging.",
     tags: ["Construction", "Interiors", "Photography"],
-    image: "/images/portfolio/dpm-construction-featured.jpg",
+    image: dpmConstructionFeatured,
     imageAlt: "Modern office lounge and computer bar with red accent walls",
     size: "2x1",
   },
@@ -194,7 +219,7 @@ const items: PortfolioItem[] = [
     description:
       "Arena-scale concert photography from stage — crowd energy, lighting, and venue branding.",
     tags: ["Events", "Photography", "Live Music"],
-    image: "/images/portfolio/background-03-1024x685.jpg",
+    image: middleburyConcert,
     imageAlt: "Stage view of a packed Middlebury College arena concert",
     size: "3x2",
   },
@@ -203,7 +228,7 @@ const items: PortfolioItem[] = [
     description:
       "Minimal connected icon system — heart, plus, and circle forms for a wellness identity suite.",
     tags: ["Logo", "Healthcare", "Identity"],
-    image: "/images/portfolio/care-plus-mark.png",
+    image: carePlusMark,
     imageAlt: "Black line-art logo combining a heart, plus sign, and circle",
     size: "1x1",
   },
@@ -220,11 +245,11 @@ const items: PortfolioItem[] = [
           aria-label={`${item.title} — ${item.description}`}
           data-masonry-card
         >
-          <img
+          <Image
             src={item.image}
             alt={item.imageAlt}
-            width="800"
-            height="800"
+            widths={[400, 800, 1200]}
+            sizes="(max-width: 640px) 50vw, (max-width: 960px) 25vw, 20vw"
             loading="lazy"
             decoding="async"
             class="masonry-image"
