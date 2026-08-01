@@ -45,24 +45,10 @@ const showSiteAssistant =
   }
 </Layout>
 
-<script>
-  import "../lib/homepageLogoReveal.ts";
-</script>
-
 <style>
   :global(html),
   :global(body) {
     min-height: 100%;
-  }
-
-  /*
-   * Default page scroll is vertical; the hero overrides with pan-up so only
-   * upward pans scroll — down/left/right drive the particle cloud.
-   */
-  :global(html.quantum-page-touch),
-  :global(html.quantum-page-touch body) {
-    touch-action: pan-y;
-    overscroll-behavior-y: none;
   }
 
   .home-scroll {

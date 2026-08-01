@@ -104,11 +104,7 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname);
 		<meta name="twitter:image" content={ogImageSafe} />
 	</head>
 	<body>
-		<Header
-			homepageLogoReveal={isIndexPage}
-			marketingNav={marketingNav}
-			homeAdminEntry={isIndexPage}
-		/>
+		<Header marketingNav={marketingNav} homeAdminEntry={isIndexPage} />
 		<main id="main-content">
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />
