@@ -136,10 +136,7 @@ const filesEndpointBase = commentEndpointBase;
               )}
 
               <div class="work-files" data-files-root>
-                <span class="work-files-label">Files</span>
-                {files.length === 0 ? (
-                  <p class="work-files-empty">No files yet — upload images or PDFs below.</p>
-                ) : (
+                {files.length > 0 && (
                   <div class="work-files-grid">
                     {files.map((file) => {
                       const isImage = file.mediaType.startsWith('image/');
@@ -176,7 +173,6 @@ const filesEndpointBase = commentEndpointBase;
                     multiple
                   />
                   <button class="work-files-upload-btn" type="button">Upload files</button>
-                  <p class="work-files-hint">Images and PDFs up to 10 MB. Shared with our team instantly.</p>
                 </div>
               </div>
 
@@ -269,19 +265,9 @@ const filesEndpointBase = commentEndpointBase;
   }
 
   function renderFilesGrid(filesRoot, files) {
-    const empty = filesRoot.querySelector('.work-files-empty');
-    if (empty) empty.remove();
-
     let grid = filesRoot.querySelector('.work-files-grid');
     if (!files.length) {
       if (grid) grid.remove();
-      if (!filesRoot.querySelector('.work-files-empty')) {
-        const p = document.createElement('p');
-        p.className = 'work-files-empty';
-        p.textContent = 'No files yet — upload images or PDFs below.';
-        const uploadWrap = filesRoot.querySelector('.work-files-upload');
-        filesRoot.insertBefore(p, uploadWrap);
-      }
       return;
     }
 
@@ -621,24 +607,8 @@ const filesEndpointBase = commentEndpointBase;
     color: rgba(255, 255, 255, 0.45);
   }
 
-  .work-files-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: rgba(255, 255, 255, 0.4);
-    margin-bottom: 10px;
-  }
-
   .work-files {
     margin: 0 0 16px;
-  }
-
-  .work-files-empty {
-    margin: 0 0 12px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.45);
   }
 
   .work-files-grid {
@@ -738,13 +708,6 @@ const filesEndpointBase = commentEndpointBase;
 
   .work-files-upload-btn:active:not(:disabled) {
     transform: scale(0.98);
-  }
-
-  .work-files-hint {
-    margin: 0;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.38);
-    line-height: 1.4;
   }
 
   .work-comments-label {
