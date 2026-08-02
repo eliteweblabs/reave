@@ -147,6 +147,31 @@ const { pathname, signedIn } = Astro.props;
 </div>
 
 <script>
+  let scrollLockY = 0;
+
+  /** Lock scroll without toggling html overflow — that drops the scrollbar and retriggers resize observers / WebGL remeasure across the page. */
+  function lockMarketingMenuScroll() {
+    if (document.body.dataset.marketingScrollLocked === "1") return;
+    scrollLockY = window.scrollY;
+    document.body.dataset.marketingScrollLocked = "1";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollLockY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+  }
+
+  function unlockMarketingMenuScroll() {
+    if (document.body.dataset.marketingScrollLocked !== "1") return;
+    document.body.dataset.marketingScrollLocked = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    window.scrollTo(0, scrollLockY);
+  }
+
   function setMarketingMenuOpen(open: boolean) {
     const root = document.querySelector("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
@@ -157,26 +182,35 @@ const { pathname, signedIn } = Astro.props;
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     toggle.classList.toggle("is-open", open);
     document.documentElement.classList.toggle("marketing-menu-open", open);
+
+    if (open) {
+      lockMarketingMenuScroll();
+    } else {
+      unlockMarketingMenuScroll();
+    }
   }
 
   function bindMarketingMenu() {
+    const root = document.querySelector("[data-marketing-menu]");
     const toggle = document.querySelector<HTMLButtonElement>("[data-marketing-menu-toggle]");
     const backdrop = document.querySelector("[data-marketing-menu-backdrop]");
-    if (!toggle || toggle.dataset.bound === "1") return;
-    toggle.dataset.bound = "1";
+    if (!root || !toggle) return;
+    if (document.documentElement.dataset.marketingMenuBound === "1") return;
+    document.documentElement.dataset.marketingMenuBound = "1";
 
-    toggle.addEventListener("click", () => {
+    toggle.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       const open = toggle.getAttribute("aria-expanded") !== "true";
       setMarketingMenuOpen(open);
     });
 
     backdrop?.addEventListener("click", () => setMarketingMenuOpen(false));
 
-    document.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
+    root.querySelectorAll("[data-marketing-menu-link]").forEach((el) => {
       el.addEventListener("click", () => setMarketingMenuOpen(false));
     });
 
-    document.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
+    root.querySelector("[data-marketing-sign-out]")?.addEventListener("click", async (ev) => {
       ev.preventDefault();
       setMarketingMenuOpen(false);
       const { Clerk } = window as Window & { Clerk?: { signOut: () => Promise<void> } };
@@ -322,6 +356,7 @@ const { pathname, signedIn } = Astro.props;
     position: fixed;
     inset: 0;
     z-index: 2100;
+    touch-action: none;
   }
 
   .marketing-menu-backdrop {
@@ -368,6 +403,9 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu-scroll {
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
     padding:
       calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 20px)
       28px
@@ -458,10 +496,6 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu-footer-cta:hover {
     filter: brightness(1.06);
     text-decoration: none;
-  }
-
-  :global(html.marketing-menu-open) {
-    overflow: hidden;
   }
 
   @media (prefers-reduced-motion: reduce) {
