@@ -1,8 +1,7 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
  * Text layers stay fixed; only the background mask moves.
- * Viewport stays put for wipe-out; any widen happens under the mask, then CSS
- * transitions width back so the block-centered line recenters after reveal.
+ * Viewport width is always the widest label so nothing gets clipped.
  */
 
 const WIPE_MS = 520;
@@ -18,6 +17,14 @@ function measureText(layer: HTMLElement, text: string): number {
   const width = layer.offsetWidth;
   if (wasHidden) layer.hidden = true;
   return width;
+}
+
+function widestLabelWidth(layer: HTMLElement, labels: string[]): number {
+  let max = 0;
+  for (const label of labels) {
+    max = Math.max(max, measureText(layer, label));
+  }
+  return max;
 }
 
 function animateTranslate(
@@ -40,18 +47,6 @@ function animateTranslate(
 
     requestAnimationFrame(frame);
   });
-}
-
-function setViewportWidth(viewport: HTMLElement, widthPx: number, instant = false) {
-  if (instant) viewport.classList.add('is-wiping');
-  viewport.style.width = `${widthPx}px`;
-  if (instant) void viewport.offsetWidth;
-}
-
-function recenterViewport(viewport: HTMLElement, widthPx: number) {
-  viewport.classList.remove('is-wiping');
-  void viewport.offsetWidth;
-  viewport.style.width = `${widthPx}px`;
 }
 
 export function initHeroIndustryRotate(root: HTMLElement) {
@@ -77,7 +72,8 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const intervalMs = Number(root.dataset.intervalMs) || 2500;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const labelWidth = (label: string) => measureText(current, label);
+  const slotWidth = widestLabelWidth(current, industries);
+  viewport.style.width = `${slotWidth}px`;
 
   const initial = current.textContent?.trim() ?? '';
   const found = industries.indexOf(initial);
@@ -87,7 +83,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   let swapping = false;
 
   const parkWipe = () => {
-    wipe.style.transform = `translate3d(${-viewport.offsetWidth}px, 0, 0)`;
+    wipe.style.transform = `translate3d(${-slotWidth}px, 0, 0)`;
   };
 
   const resetLayers = (label: string) => {
@@ -99,9 +95,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     root.dataset.heroIndustryLabel = label;
   };
 
-  setViewportWidth(viewport, labelWidth(industries[index]!), true);
   resetLayers(industries[index]!);
-  viewport.classList.remove('is-wiping');
 
   if (industries.length <= 1) return;
 
@@ -115,7 +109,6 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     if (reducedMotion) {
       index = (index + 1) % industries.length;
       resetLayers(incoming);
-      setViewportWidth(viewport, labelWidth(incoming), true);
       swapping = false;
       schedule();
       return;
@@ -126,38 +119,20 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     next.textContent = incoming;
     next.hidden = true;
 
-    const outgoingWidth = viewport.offsetWidth;
-    const incomingWidth = labelWidth(incoming);
-    const revealWidth = Math.max(outgoingWidth, incomingWidth);
-
-    parkWipe();
-
-    // Step 1 — wipe out at the current word width (no recenter yet).
-    wipe.style.transform = `translate3d(${-outgoingWidth}px, 0, 0)`;
-    await animateTranslate(wipe, -outgoingWidth, 0, WIPE_MS);
+    // Step 1 — wipe out across the full slot (widest word width).
+    wipe.style.transform = `translate3d(${-slotWidth}px, 0, 0)`;
+    await animateTranslate(wipe, -slotWidth, 0, WIPE_MS);
 
     current.textContent = '';
     current.hidden = true;
 
-    // Widen under the mask if the incoming word is longer (invisible to the user).
-    if (revealWidth > outgoingWidth) {
-      setViewportWidth(viewport, revealWidth, true);
-      parkWipe();
-    }
-
-    // Step 2 — wipe reveal.
+    // Step 2 — wipe reveal: mask exits left → right over the same slot width.
     next.hidden = false;
     wipe.style.transform = 'translate3d(0px, 0, 0)';
-    await animateTranslate(wipe, 0, revealWidth, WIPE_MS);
+    await animateTranslate(wipe, 0, slotWidth, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming);
-
-    // Ease back to the word's natural width so the line recenters after reveal.
-    if (revealWidth > incomingWidth) {
-      recenterViewport(viewport, incomingWidth);
-    }
-
     swapping = false;
     schedule();
   };
