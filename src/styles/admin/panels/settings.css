@@ -598,6 +598,84 @@
   padding-left: 1.25rem;
   font-size: 0.92rem;
 }
+.prof-run-list button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent, #3b82f6);
+  cursor: pointer;
+  text-align: left;
+}
+.prof-run-list button:hover {
+  text-decoration: underline;
+}
+.ls-results {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.ls-results-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.ls-results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.ls-results-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-input);
+}
+.ls-results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.ls-results-table th,
+.ls-results-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--card-border);
+  text-align: left;
+  vertical-align: top;
+}
+.ls-results-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--panel);
+}
+.ls-results-table tr:last-child td {
+  border-bottom: none;
+}
+.ls-results-table tr.is-imported td {
+  opacity: 0.72;
+}
+.ls-score {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ls-reasons {
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin-top: 0.2rem;
+}
+.ls-imported-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
 .prof-section-title {
   font-size: 1rem;
   font-weight: 700;

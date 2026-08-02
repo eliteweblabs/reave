@@ -16,14 +16,38 @@ export type LeadScannerConfig = {
   updatedAt: string | null;
 };
 
+export type StoredScanCandidate = {
+  id: string;
+  fullAddress: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  yearBuilt?: number | null;
+  ownerName?: string | null;
+  lat: number;
+  lng: number;
+  distanceMiles: number;
+  leadScore: number;
+  leadReasons: string[];
+  matchedTrades: string[];
+};
+
 export type LeadScannerRun = {
   id: string;
   ranAt: string;
   source: 'cron' | 'manual' | 'admin';
   candidatesFound: number;
-  newLeads: number;
-  skipped: number;
+  /** Projects created from this run after explicit review/import. */
+  importedCount: number;
   errors: string[];
+  candidates?: StoredScanCandidate[];
+};
+
+export type ImportedLeadRecord = {
+  propertyId: string;
+  jobSlug?: string | null;
+  contactUid?: string | null;
 };
 
 const DEFAULT_TRADES = ['plumbing', 'roofing', 'general_contractor', 'electrical', 'hvac'];
@@ -50,7 +74,8 @@ CREATE TABLE IF NOT EXISTS lead_scanner_runs (
   candidates_found INT NOT NULL DEFAULT 0,
   new_leads        INT NOT NULL DEFAULT 0,
   skipped          INT NOT NULL DEFAULT 0,
-  errors           JSONB NOT NULL DEFAULT '[]'::jsonb
+  errors           JSONB NOT NULL DEFAULT '[]'::jsonb,
+  candidates       JSONB NOT NULL DEFAULT '[]'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS lead_scanner_seen (
@@ -80,6 +105,7 @@ async function ensureSchema(): Promise<pg.Pool | null> {
       });
   }
   await _schemaReady;
+  await pool.query(`ALTER TABLE lead_scanner_runs ADD COLUMN IF NOT EXISTS candidates JSONB NOT NULL DEFAULT '[]'::jsonb`);
   return pool;
 }
 
@@ -178,17 +204,93 @@ export async function saveLeadScannerConfig(
   return getLeadScannerConfig();
 }
 
-export async function markLeadScannerRun(input: Omit<LeadScannerRun, 'id' | 'ranAt'>): Promise<string> {
+export async function markLeadScannerRun(input: {
+  source: LeadScannerRun['source'];
+  candidatesFound: number;
+  importedCount?: number;
+  errors?: string[];
+  candidates?: StoredScanCandidate[];
+}): Promise<string> {
   const pool = await ensureSchema();
   if (!pool) return '';
   const id = crypto.randomUUID();
   await pool.query(
-    `INSERT INTO lead_scanner_runs (id, source, candidates_found, new_leads, skipped, errors)
-     VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-    [id, input.source, input.candidatesFound, input.newLeads, input.skipped, JSON.stringify(input.errors)],
+    `INSERT INTO lead_scanner_runs (id, source, candidates_found, new_leads, skipped, errors, candidates)
+     VALUES ($1, $2, $3, $4, 0, $5::jsonb, $6::jsonb)`,
+    [
+      id,
+      input.source,
+      input.candidatesFound,
+      input.importedCount ?? 0,
+      JSON.stringify(input.errors ?? []),
+      JSON.stringify(input.candidates ?? []),
+    ],
   );
   await pool.query(`UPDATE lead_scanner_config SET last_run_at = now(), updated_at = now() WHERE id = 1`);
   return id;
+}
+
+function rowToRun(row: Record<string, unknown>, includeCandidates = false): LeadScannerRun {
+  let candidates: StoredScanCandidate[] | undefined;
+  if (includeCandidates) {
+    const raw = row.candidates;
+    if (Array.isArray(raw)) candidates = raw as StoredScanCandidate[];
+    else if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (Array.isArray(parsed)) candidates = parsed as StoredScanCandidate[];
+      } catch {
+        candidates = [];
+      }
+    } else {
+      candidates = [];
+    }
+  }
+
+  return {
+    id: String(row.id),
+    ranAt: String(row.ran_at),
+    source: row.source as LeadScannerRun['source'],
+    candidatesFound: Number(row.candidates_found),
+    importedCount: Number(row.new_leads ?? 0),
+    errors: Array.isArray(row.errors) ? row.errors.map(String) : [],
+    candidates,
+  };
+}
+
+export async function getLeadScannerRun(
+  runId: string,
+  includeCandidates = true,
+): Promise<LeadScannerRun | null> {
+  const pool = await ensureSchema();
+  if (!pool) return null;
+  const res = await pool.query(
+    `SELECT id, ran_at, source, candidates_found, new_leads, skipped, errors, candidates
+     FROM lead_scanner_runs WHERE id = $1 LIMIT 1`,
+    [runId],
+  );
+  if (!res.rows[0]) return null;
+  return rowToRun(res.rows[0], includeCandidates);
+}
+
+export async function getLatestLeadScannerRun(includeCandidates = true): Promise<LeadScannerRun | null> {
+  const pool = await ensureSchema();
+  if (!pool) return null;
+  const res = await pool.query(
+    `SELECT id, ran_at, source, candidates_found, new_leads, skipped, errors, candidates
+     FROM lead_scanner_runs ORDER BY ran_at DESC LIMIT 1`,
+  );
+  if (!res.rows[0]) return null;
+  return rowToRun(res.rows[0], includeCandidates);
+}
+
+export async function incrementRunImportedCount(runId: string, delta: number): Promise<void> {
+  const pool = await ensureSchema();
+  if (!pool || delta <= 0) return;
+  await pool.query(
+    `UPDATE lead_scanner_runs SET new_leads = COALESCE(new_leads, 0) + $2 WHERE id = $1`,
+    [runId, delta],
+  );
 }
 
 export async function isLeadSeen(propertyId: string): Promise<boolean> {
@@ -225,14 +327,22 @@ export async function listRecentLeadScannerRuns(limit = 10): Promise<LeadScanner
      FROM lead_scanner_runs ORDER BY ran_at DESC LIMIT $1`,
     [limit],
   );
+  return res.rows.map((row) => rowToRun(row, false));
+}
+
+export async function listImportedLeads(propertyIds: string[]): Promise<ImportedLeadRecord[]> {
+  const pool = await ensureSchema();
+  if (!pool || propertyIds.length === 0) return [];
+  const res = await pool.query(
+    `SELECT property_id, job_slug, contact_uid
+     FROM lead_scanner_seen
+     WHERE property_id = ANY($1::text[])`,
+    [propertyIds],
+  );
   return res.rows.map((row) => ({
-    id: String(row.id),
-    ranAt: String(row.ran_at),
-    source: row.source as LeadScannerRun['source'],
-    candidatesFound: Number(row.candidates_found),
-    newLeads: Number(row.new_leads),
-    skipped: Number(row.skipped),
-    errors: Array.isArray(row.errors) ? row.errors.map(String) : [],
+    propertyId: String(row.property_id),
+    jobSlug: row.job_slug ? String(row.job_slug) : null,
+    contactUid: row.contact_uid ? String(row.contact_uid) : null,
   }));
 }
 

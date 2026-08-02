@@ -2,11 +2,18 @@ import type { APIContext } from 'astro';
 import { TRADES, loadConfig } from '@reave/plugin-real-estate-data';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
-import { resolveScanCenter, runLeadScanner } from '../../../lib/leadScannerEngine';
+import {
+  importLeadScannerCandidates,
+  resolveScanCenter,
+  runLeadScanner,
+} from '../../../lib/leadScannerEngine';
 import { getCompanyConfig } from '../../../lib/companyConfig';
 import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
 import {
+  getLatestLeadScannerRun,
   getLeadScannerConfig,
+  getLeadScannerRun,
+  listImportedLeads,
   listRecentLeadScannerRuns,
   saveLeadScannerConfig,
 } from '../../../lib/leadScannerStore';
@@ -21,12 +28,24 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+async function runWithImports(runId: string | null) {
+  if (!runId) return null;
+  const run = await getLeadScannerRun(runId, true);
+  if (!run) return null;
+  const propertyIds = (run.candidates ?? []).map((c) => c.id);
+  const imported = propertyIds.length ? await listImportedLeads(propertyIds) : [];
+  const importedById = Object.fromEntries(imported.map((row) => [row.propertyId, row]));
+  return { ...run, importedById };
+}
+
 export async function GET(context: APIContext): Promise<Response> {
   const auth = await requireDashboardUser(context);
   if (auth instanceof Response) return auth;
   if (!hasFeature('real_estate_data')) {
     return json({ error: 'real_estate_data not enabled' }, 404);
   }
+
+  const runId = context.url.searchParams.get('runId')?.trim() || null;
 
   const [config, runs, status, company, timezone] = await Promise.all([
     getLeadScannerConfig(),
@@ -36,6 +55,9 @@ export async function GET(context: APIContext): Promise<Response> {
     getDeploymentOwnerTimezone(context),
   ]);
   const resolvedCenter = await resolveScanCenter(config);
+  const activeRun = runId
+    ? await runWithImports(runId)
+    : await runWithImports((await getLatestLeadScannerRun(false))?.id ?? null);
 
   return json({
     ok: true,
@@ -48,6 +70,7 @@ export async function GET(context: APIContext): Promise<Response> {
     companyAddress: company.address ?? '',
     dataProvider: loadConfig().provider,
     tradesCatalog: TRADES.map((t) => ({ slug: t.slug, label: t.label })),
+    activeRun,
   });
 }
 
@@ -61,6 +84,23 @@ export async function POST(context: APIContext): Promise<Response> {
   const action = context.url.searchParams.get('action')?.trim();
   if (action === 'scan') {
     const result = await runLeadScanner({ source: 'admin', force: true, ignoreWindow: true });
+    return json({ ok: result.ok, result });
+  }
+
+  if (action === 'import') {
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await context.request.json()) as Record<string, unknown>;
+    } catch {
+      return json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    const runId = String(body.runId ?? '').trim();
+    const propertyIds = Array.isArray(body.propertyIds) ? body.propertyIds.map(String) : [];
+    if (!runId) return json({ error: 'runId is required' }, 400);
+    if (!propertyIds.length) return json({ error: 'propertyIds is required' }, 400);
+
+    const result = await importLeadScannerCandidates({ runId, propertyIds });
     return json({ ok: result.ok, result });
   }
 
