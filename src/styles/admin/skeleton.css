@@ -1,0 +1,193 @@
+/**
+ * ── Skeleton / shimmer loading system ──
+ * Two classes used at runtime:
+ *   .de-loading  — sidebar list panels & editor panes (work, chat, clients, inbox, etc.)
+ *   .dash-loading — full-page dashboards (home, profile, social, analytics, fleet, etc.)
+ *
+ * Both replace plain "Loading…" text with contextual shimmer skeletons.
+ * Pure CSS — no JS changes needed.
+ */
+
+/* ─────────────────────────────────────────
+   Shimmer keyframe (light & dark aware)
+───────────────────────────────────────── */
+@keyframes sk-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+/* Shared bone utility */
+.sk-bone {
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--sk-base)   0%,
+    var(--sk-shine)  50%,
+    var(--sk-base)  100%
+  );
+  background-size: 800px 100%;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+}
+
+/* ── light-mode tokens ── */
+:root {
+  --sk-base:  rgba(0, 0, 0, 0.07);
+  --sk-shine: rgba(0, 0, 0, 0.03);
+}
+
+/* ── dark-mode tokens ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sk-base:  rgba(255, 255, 255, 0.06);
+    --sk-shine: rgba(255, 255, 255, 0.11);
+  }
+}
+
+/* ─────────────────────────────────────────
+   .de-loading  — list / editor panel skeleton
+   Renders: a sidebar-like list of ~6 rows
+   (avatar circle + two text lines each)
+───────────────────────────────────────── */
+.de-loading {
+  /* override the old "margin: auto; color: var(--muted)" */
+  margin: 0 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  width: 100%;
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Hide any leftover text node */
+.de-loading::before { content: none; }
+
+/* Generate 6 skeleton list rows */
+.de-loading::after {
+  /* We can't generate 6 separate rows with a single ::after, so we use
+     a repeating block-shadow trick on a tall element instead. */
+  content: '';
+  display: block;
+  width: 100%;
+  height: calc(6 * 3.1rem);       /* 6 rows × row height */
+  /* Stack 6 "rows" using box-shadow (each row = circle + 2 lines via bg layers) */
+  background:
+    /* row 1 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      0.2rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 0.1rem  / 45% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 1rem    / 30% 0.55rem no-repeat,
+    /* row 2 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      3.3rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 3.2rem  / 55% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 4.1rem  / 35% 0.55rem no-repeat,
+    /* row 3 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      6.4rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 6.3rem  / 50% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 7.2rem  / 28% 0.55rem no-repeat,
+    /* row 4 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      9.5rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 9.4rem  / 60% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 10.3rem / 40% 0.55rem no-repeat,
+    /* row 5 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      12.6rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 12.5rem / 48% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 13.4rem / 32% 0.55rem no-repeat,
+    /* row 6 */
+    radial-gradient(circle, var(--sk-base) 70%, transparent 71%) 0      15.7rem / 2rem 2rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 15.6rem / 53% 0.72rem no-repeat,
+    linear-gradient(var(--sk-base), var(--sk-base))               2.65rem 16.5rem / 36% 0.55rem no-repeat;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+  background-size:
+    2rem 2rem, 45% 0.72rem, 30% 0.55rem,
+    2rem 2rem, 55% 0.72rem, 35% 0.55rem,
+    2rem 2rem, 50% 0.72rem, 28% 0.55rem,
+    2rem 2rem, 60% 0.72rem, 40% 0.55rem,
+    2rem 2rem, 48% 0.72rem, 32% 0.55rem,
+    2rem 2rem, 53% 0.72rem, 36% 0.55rem;
+}
+
+/* ─────────────────────────────────────────
+   .dash-loading — dashboard / scroll-panel skeleton
+   Renders stat boxes grid + panel rows
+   (matches home dashboard, profile, social, etc.)
+───────────────────────────────────────── */
+.dash-loading {
+  /* override old text-only styling */
+  padding: 0 !important;
+  text-align: unset !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  /* pull into the scroll container so it has room */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.dash-loading::before,
+.dash-loading::after { content: none; }
+
+/* Inject skeleton via a generated structure in JS — but since we can't add
+   child nodes via CSS, we use the element itself as a multi-layer canvas. */
+.dash-loading {
+  min-height: 28rem;
+  /* Layer 1: stat grid (2 × 2 boxes) */
+  /* Layer 2: a wide panel card */
+  /* Layer 3: another wide panel card */
+  background:
+    /* ── Stat boxes row (4 boxes on a 2-col grid, sm) ── */
+    /* box 1 */
+    linear-gradient(var(--sk-base), var(--sk-base))  0                   0 / calc(50% - 0.3rem) 5.2rem no-repeat,
+    /* box 2 */
+    linear-gradient(var(--sk-base), var(--sk-base))  calc(50% + 0.3rem)  0 / calc(50% - 0.3rem) 5.2rem no-repeat,
+    /* box 3 */
+    linear-gradient(var(--sk-base), var(--sk-base))  0                   5.75rem / calc(50% - 0.3rem) 5.2rem no-repeat,
+    /* box 4 */
+    linear-gradient(var(--sk-base), var(--sk-base))  calc(50% + 0.3rem)  5.75rem / calc(50% - 0.3rem) 5.2rem no-repeat,
+    /* ── Panel card 1 (tall, below stats) ── */
+    linear-gradient(var(--sk-base), var(--sk-base))  0 12.3rem / 100% 7rem no-repeat,
+    /* ── Panel card 2 ── */
+    linear-gradient(var(--sk-base), var(--sk-base))  0 20.65rem / 100% 6rem no-repeat,
+    /* ── Panel card 3 ── */
+    linear-gradient(var(--sk-base), var(--sk-base))  0 27.95rem / 75% 2.5rem no-repeat;
+
+  background-size:
+    calc(50% - 0.3rem) 5.2rem,
+    calc(50% - 0.3rem) 5.2rem,
+    calc(50% - 0.3rem) 5.2rem,
+    calc(50% - 0.3rem) 5.2rem,
+    100% 7rem,
+    100% 6rem,
+    75% 2.5rem;
+
+  border-radius: 14px 14px 0 0; /* top boxes only */
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Make each stat box visually rounded */
+.dash-loading {
+  /* use clip-path on individual layer not possible in CSS bg;
+     instead we apply border-radius to child pseudo — but that
+     won't work on bg layers. Simpler: let the whole element
+     be the shimmer canvas, no rounding on individual layers.
+     The overall container shape is fine. */
+}
+
+/* Wrap .dash-loading in a padding shell matching .home-dashboard-scroll */
+.home-dashboard-scroll > .dash-loading,
+.profile-panel-scroll > .dash-loading,
+.social-scroll > .dash-loading {
+  padding: 0.65rem 0 0 !important;
+}
+
+/* ─────────────────────────────────────────
+   Accessibility — reduce motion
+───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .de-loading::after,
+  .dash-loading,
+  .sk-bone {
+    animation: none !important;
+  }
+}
