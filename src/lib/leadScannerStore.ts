@@ -3,7 +3,6 @@
  */
 import pg from 'pg';
 import { getPgPool } from './pgPool';
-import { serverEnv } from './serverEnv';
 
 export type LeadScannerConfig = {
   enabled: boolean;
@@ -13,7 +12,6 @@ export type LeadScannerConfig = {
   trades: string[];
   useCompanyOffice: boolean;
   scanHourLocal: number;
-  timezone: string;
   lastRunAt: string | null;
   updatedAt: string | null;
 };
@@ -94,7 +92,6 @@ function defaultConfig(): LeadScannerConfig {
     trades: [...DEFAULT_TRADES],
     useCompanyOffice: true,
     scanHourLocal: 6,
-    timezone: serverEnv('TZ')?.trim() || 'America/New_York',
     lastRunAt: null,
     updatedAt: null,
   };
@@ -121,7 +118,6 @@ function rowToConfig(row: Record<string, unknown>): LeadScannerConfig {
     trades,
     useCompanyOffice: row.use_company_office !== false,
     scanHourLocal: Number(row.scan_hour_local ?? 6),
-    timezone: String(row.timezone ?? 'America/New_York'),
     lastRunAt: row.last_run_at ? String(row.last_run_at) : null,
     updatedAt: row.updated_at ? String(row.updated_at) : null,
   };
@@ -157,8 +153,8 @@ export async function saveLeadScannerConfig(
   await pool.query(
     `INSERT INTO lead_scanner_config (
       id, enabled, center_lat, center_lng, radius_miles, trades,
-      use_company_office, scan_hour_local, timezone, updated_at
-    ) VALUES (1, $1, $2, $3, $4, $5::jsonb, $6, $7, $8, now())
+      use_company_office, scan_hour_local, updated_at
+    ) VALUES (1, $1, $2, $3, $4, $5::jsonb, $6, $7, now())
     ON CONFLICT (id) DO UPDATE SET
       enabled = EXCLUDED.enabled,
       center_lat = EXCLUDED.center_lat,
@@ -167,7 +163,6 @@ export async function saveLeadScannerConfig(
       trades = EXCLUDED.trades,
       use_company_office = EXCLUDED.use_company_office,
       scan_hour_local = EXCLUDED.scan_hour_local,
-      timezone = EXCLUDED.timezone,
       updated_at = now()`,
     [
       next.enabled,
@@ -177,7 +172,6 @@ export async function saveLeadScannerConfig(
       JSON.stringify(next.trades),
       next.useCompanyOffice,
       next.scanHourLocal,
-      next.timezone,
     ],
   );
 

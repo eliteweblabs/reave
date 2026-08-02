@@ -3,6 +3,7 @@
  */
 import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate } from '@reave/plugin-real-estate-data';
 import { getCompanyConfig } from './companyConfig';
+import { getDeploymentOwnerTimezone } from './deploymentOwner';
 import { recordContactFormEngagement } from './engagementNotifications';
 import { hasFeature } from './features';
 import {
@@ -43,11 +44,16 @@ export async function resolveScanCenter(
   return null;
 }
 
-function isScanWindow(config: LeadScannerConfig, now = new Date(), ignoreWindow = false): boolean {
+function isScanWindow(
+  config: LeadScannerConfig,
+  timezone: string,
+  now = new Date(),
+  ignoreWindow = false,
+): boolean {
   if (ignoreWindow) return true;
   try {
     const fmt = new Intl.DateTimeFormat('en-US', {
-      timeZone: config.timezone,
+      timeZone: timezone,
       hour: 'numeric',
       hour12: false,
     });
@@ -135,8 +141,9 @@ export async function runLeadScanner(options?: {
     return { ok: false, skipped: 'Lead scanner disabled in admin settings' };
   }
 
-  if (!isScanWindow(config, new Date(), options?.ignoreWindow || options?.force)) {
-    return { ok: false, skipped: `Outside scan window (hour ${config.scanHourLocal} ${config.timezone})` };
+  const timezone = await getDeploymentOwnerTimezone();
+  if (!isScanWindow(config, timezone, new Date(), options?.ignoreWindow || options?.force)) {
+    return { ok: false, skipped: `Outside scan window (hour ${config.scanHourLocal} ${timezone})` };
   }
 
   const center = await resolveScanCenter(config);

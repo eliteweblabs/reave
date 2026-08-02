@@ -22,6 +22,7 @@ function tradeCheckbox(id, label, checked) {
 
 export function renderLeadScannerPanel(data) {
   const cfg = data.config || {};
+  const timezone = data.timezone || 'America/New_York';
   const runs = data.runs || [];
   const catalog = data.tradesCatalog || [];
   const selected = new Set(Array.isArray(cfg.trades) ? cfg.trades : []);
@@ -55,7 +56,7 @@ export function renderLeadScannerPanel(data) {
     `<input id="lead-scanner-enabled" name="enabled" type="checkbox"${cfg.enabled ? ' checked' : ''} />` +
     `<span>Enable daily lead scanner</span>` +
     `</label>` +
-    `<span class="prof-hint prof-hint--block">Cron hits <code>/api/lead-scanner/poll</code> — default scan hour below (local timezone).</span>` +
+    `<span class="prof-hint prof-hint--block">Cron hits <code>/api/lead-scanner/poll</code> — scan hour uses your Profile time zone (<code>${escHtml(timezone)}</code>).</span>` +
     `</div>` +
     `<div class="prof-field">` +
     `<label class="prof-check-row">` +
@@ -73,7 +74,6 @@ export function renderLeadScannerPanel(data) {
     `<div class="prof-field"><label for="lead-scanner-radius">Travel radius (miles)</label>` +
     `<input id="lead-scanner-radius" name="radiusMiles" type="number" min="1" max="100" step="1" value="${cfg.radiusMiles ?? 15}" />` +
     `<span class="prof-hint">Properties within this radius of center are scanned.</span></div>` +
-    `<div class="prof-field-row">` +
     `<div class="prof-field"><label for="lead-scanner-hour">Daily scan hour (local)</label>` +
     `<select id="lead-scanner-hour" name="scanHourLocal">` +
     Array.from({ length: 24 }, (_, h) => {
@@ -81,10 +81,8 @@ export function renderLeadScannerPanel(data) {
       const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
       return `<option value="${h}"${sel}>${label}</option>`;
     }).join('') +
-    `</select></div>` +
-    `<div class="prof-field"><label for="lead-scanner-tz">Timezone</label>` +
-    `<input id="lead-scanner-tz" name="timezone" type="text" value="${escHtml(cfg.timezone || 'America/New_York')}" /></div>` +
-    `</div>` +
+    `</select>` +
+    `<span class="prof-hint">Local to your Profile time zone (${escHtml(timezone)}).</span></div>` +
     `<div class="prof-field"><label>Target trades</label>` +
     `<div class="prof-check-grid">${tradeHtml}</div></div>` +
     `<div class="prof-form-actions">` +
@@ -122,7 +120,6 @@ function collectPayload(form) {
       : null,
     radiusMiles: Number(form.querySelector('#lead-scanner-radius')?.value || 15),
     scanHourLocal: Number(form.querySelector('#lead-scanner-hour')?.value || 6),
-    timezone: form.querySelector('#lead-scanner-tz')?.value?.trim() || 'America/New_York',
     trades,
   };
 }
