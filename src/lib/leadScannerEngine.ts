@@ -104,6 +104,14 @@ export function serializeScanCandidate(candidate: ScanCandidate): StoredScanCand
     leadScore: candidate.leadScore,
     leadReasons: candidate.leadReasons,
     matchedTrades: candidate.matchedTrades,
+    sqft: candidate.sqft ?? candidate.livingAreaSqft ?? null,
+    bedrooms: candidate.bedrooms ?? null,
+    bathrooms: candidate.bathrooms ?? null,
+    marketValue: candidate.marketValue ?? null,
+    assessedValue: candidate.assessedValue ?? null,
+    lastSalePrice: candidate.lastSalePrice ?? null,
+    propertyType: candidate.propertyType ?? candidate.landUseCategory ?? null,
+    floodZone: candidate.floodZone ?? null,
   };
 }
 

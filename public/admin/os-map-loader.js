@@ -152,7 +152,7 @@ import {
   openScheduleCreateDialog,
   mountAddressAutocomplete,
 } from './schedule-panel.js?v=20260728l';
-import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802d';
+import { loadLeadScannerTab } from './lead-scanner-panel.js?v=20260802e';
 import {
   initClientsPanel,
   clientState,

@@ -31,6 +31,14 @@ export type StoredScanCandidate = {
   leadScore: number;
   leadReasons: string[];
   matchedTrades: string[];
+  sqft?: number | null;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  marketValue?: number | null;
+  assessedValue?: number | null;
+  lastSalePrice?: number | null;
+  propertyType?: string | null;
+  floodZone?: string | null;
 };
 
 export type LeadScannerRun = {

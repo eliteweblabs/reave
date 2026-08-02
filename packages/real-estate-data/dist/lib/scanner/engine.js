@@ -13,6 +13,13 @@ function mockCandidatesNear(centerLat, centerLng, location) {
         { dLat: -0.008, dLng: -0.01, address: '123 Main Street', yearBuilt: 1924, owner: 'EXAMPLE HOLDINGS LLC' },
         { dLat: 0.018, dLng: 0.002, address: '5 River Lane', yearBuilt: 1971, owner: 'RIVER VIEW PROPERTIES' },
     ];
+    const specs = [
+        { marketValue: 485000, assessedValue: 412000, bedrooms: 3, bathrooms: 2, lastSalePrice: 318000, propertyType: 'Single family' },
+        { marketValue: 625000, assessedValue: 540000, bedrooms: 4, bathrooms: 2.5, lastSalePrice: 89000, propertyType: 'Multi-family' },
+        { marketValue: 720000, assessedValue: 655000, bedrooms: 4, bathrooms: 3, lastSalePrice: 510000, propertyType: 'Single family' },
+        { marketValue: 395000, assessedValue: 348000, bedrooms: 3, bathrooms: 1.5, lastSalePrice: 145000, propertyType: 'Single family' },
+        { marketValue: 540000, assessedValue: 478000, bedrooms: 3, bathrooms: 2, lastSalePrice: 275000, propertyType: 'Waterfront' },
+    ];
     return offsets.map((o, i) => ({
         id: `mock-scan-${Math.round(centerLat * 1000)}-${Math.round(centerLng * 1000)}-${i}`,
         fullAddress: zip ? `${o.address}, ${city}, ${state} ${zip}` : `${o.address}, ${city}, ${state}`,
@@ -22,6 +29,14 @@ function mockCandidatesNear(centerLat, centerLng, location) {
         zip,
         yearBuilt: o.yearBuilt,
         sqft: 1800 + i * 400,
+        livingAreaSqft: 1800 + i * 400,
+        bedrooms: specs[i].bedrooms,
+        bathrooms: specs[i].bathrooms,
+        marketValue: specs[i].marketValue,
+        assessedValue: specs[i].assessedValue,
+        lastSalePrice: specs[i].lastSalePrice,
+        propertyType: specs[i].propertyType,
+        landUseCategory: specs[i].propertyType,
         stories: o.yearBuilt < 1960 ? 2 : 1,
         ownerName: o.owner,
         floodZone: i === 4 ? 'AE' : 'X',
