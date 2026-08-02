@@ -115,6 +115,18 @@
 }
 
 /* ── Home dashboard — mirrors dash-today, dash-stats, uptime, inbox ── */
+#home-dashboard:has(.sk-home) {
+  padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.65rem);
+  box-sizing: border-box;
+}
+
+#home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+  padding-top: 0;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: var(--footer-scroll-pad);
+}
+
 .sk-home {
   display: flex;
   flex-direction: column;
@@ -273,6 +285,15 @@
 }
 
 @media (max-width: 639px) {
+  #home-dashboard:has(.sk-home) {
+    padding-top: calc(var(--topbar-h) + var(--setup-alert-h, 0px) + 0.5rem);
+  }
+
+  #home-dashboard:has(.sk-home) > .home-dashboard-scroll {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
   .sk-home-today {
     margin-bottom: 0.85rem;
   }
