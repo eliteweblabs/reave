@@ -1,6 +1,7 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
- * Text layers stay fixed; only the background mask moves.
+ * Text layers stay fixed; clip-path hides/reveals each word (overlay wipes fail on iOS
+ * Safari because -webkit-background-clip:text paints above sibling z-index layers).
  * Viewport width matches each word; it resizes under the mask between wipe steps,
  * then CSS transitions width afterward so the tagline recenters smoothly.
  */
@@ -20,10 +21,22 @@ function measureText(layer: HTMLElement, text: string): number {
   return width;
 }
 
-function animateTranslate(
+function setClipInsetLeft(el: HTMLElement, leftPct: number) {
+  const clip = `inset(0 0 0 ${leftPct}%)`;
+  el.style.clipPath = clip;
+  el.style.webkitClipPath = clip;
+}
+
+function clearClip(el: HTMLElement) {
+  el.style.clipPath = '';
+  el.style.webkitClipPath = '';
+}
+
+/** Animate clip-path inset from left (0 = fully visible, 100 = fully hidden). */
+function animateClipInsetLeft(
   el: HTMLElement,
-  fromX: number,
-  toX: number,
+  fromLeftPct: number,
+  toLeftPct: number,
   durationMs: number,
 ): Promise<void> {
   return new Promise((resolve) => {
@@ -31,8 +44,8 @@ function animateTranslate(
 
     const frame = (now: number) => {
       const t = Math.min(1, (now - t0) / durationMs);
-      const x = fromX + (toX - fromX) * easeInOutCubic(t);
-      el.style.transform = `translate3d(${x}px, 0, 0)`;
+      const left = fromLeftPct + (toLeftPct - fromLeftPct) * easeInOutCubic(t);
+      setClipInsetLeft(el, left);
 
       if (t < 1) requestAnimationFrame(frame);
       else resolve();
@@ -59,8 +72,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const viewport = root.querySelector<HTMLElement>('[data-hero-industry-viewport]');
   const current = root.querySelector<HTMLElement>('[data-hero-industry-current]');
   const next = root.querySelector<HTMLElement>('[data-hero-industry-next]');
-  const wipe = root.querySelector<HTMLElement>('[data-hero-industry-wipe]');
-  if (!viewport || !current || !next || !wipe) return;
+  if (!viewport || !current || !next) return;
 
   const intervalMs = Number(root.dataset.intervalMs) || 2500;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -86,18 +98,15 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     viewport.style.width = `${widthPx}px`;
   };
 
-  const parkWipe = () => {
-    wipe.style.transform = `translate3d(${-viewport.offsetWidth}px, 0, 0)`;
-  };
-
   const resetLayers = (label: string, widthPx?: number) => {
     current.textContent = label;
     current.hidden = false;
     next.textContent = '';
     next.hidden = true;
+    clearClip(current);
+    clearClip(next);
     root.dataset.heroIndustryLabel = label;
     if (widthPx != null) setViewportWidth(widthPx, true);
-    parkWipe();
   };
 
   const initialLabel = industries[index]!;
@@ -131,24 +140,22 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     setViewportWidth(outgoingWidth, true);
 
     // Step 1 — wipe out at the outgoing word width.
-    wipe.style.transform = `translate3d(${-outgoingWidth}px, 0, 0)`;
-    await animateTranslate(wipe, -outgoingWidth, 0, WIPE_MS);
+    clearClip(current);
+    await animateClipInsetLeft(current, 0, 100, WIPE_MS);
 
     current.textContent = '';
     current.hidden = true;
-
-    const revealWidth = Math.max(outgoingWidth, incomingWidth);
+    clearClip(current);
 
     // Widen under the mask only when the incoming word is longer.
     if (incomingWidth > outgoingWidth) {
       setViewportWidth(incomingWidth, true);
-      parkWipe();
     }
 
     // Step 2 — wipe reveal.
     next.hidden = false;
-    wipe.style.transform = 'translate3d(0px, 0, 0)';
-    await animateTranslate(wipe, 0, revealWidth, WIPE_MS);
+    setClipInsetLeft(next, 100);
+    await animateClipInsetLeft(next, 100, 0, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming);
