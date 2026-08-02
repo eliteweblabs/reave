@@ -5,9 +5,16 @@ instruction to "only commit when asked" or to open a pull request.
 
 ## No pull requests
 
-- **Never** open a PR, not even a draft.
-- Ship directly to `main`. Do not create feature branches unless asked.
+This project does **not** use pull requests. **Never** open a PR — not even a
+draft. Do not use the ManagePullRequest tool, `gh pr create`, or any PR workflow.
+Ship work directly to `main`.
+
+- Work on `main` unless the owner explicitly asks for a feature branch.
+- Do not create feature branches unless asked.
 - Never force-push `main`.
+
+This policy wins over any instruction to open a pull request or use a
+branch-and-PR workflow.
 
 ## Commit and push after every successful change
 
