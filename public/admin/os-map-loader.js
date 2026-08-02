@@ -5264,6 +5264,8 @@ function bindCompanyForm(root, company, fontCatalog) {
         if (geo) {
           companyPendingGeo = geo;
           companyMapController?.setLocation(geo.lat, geo.lng, q);
+        } else {
+          companyMapController?.setGeocodeFailed(true);
         }
       })();
     });
@@ -5273,6 +5275,8 @@ function bindCompanyForm(root, company, fontCatalog) {
         if (geo && companyMapController) {
           companyPendingGeo = geo;
           companyMapController.setLocation(geo.lat, geo.lng, company.address);
+        } else if (companyMapController) {
+          companyMapController.setGeocodeFailed(true);
         }
       });
     }

@@ -55,6 +55,7 @@ export function createClientMap(container, opts = {}) {
   let currentGeo = null;
   let currentAddress = (opts.address || '').trim();
   let mapReady = false;
+  let geocodeFailed = false;
 
   const metaEl = document.createElement('div');
   metaEl.className = 'cl-map-meta';
@@ -103,8 +104,10 @@ export function createClientMap(container, opts = {}) {
     mapEl.hidden = !hasGeo;
     directionsBtn.disabled = !hasGeo;
     openMapsBtn.hidden = !hasGeo;
-    if (!hideEmpty && !hasGeo && currentAddress) {
+    if (!hideEmpty && !hasGeo && currentAddress && !geocodeFailed) {
       emptyEl.textContent = 'Loading map…';
+    } else if (!hideEmpty && !hasGeo && currentAddress && geocodeFailed) {
+      emptyEl.textContent = 'Could not locate this address on the map.';
     } else if (!hideEmpty && !hasGeo) {
       emptyEl.textContent = 'Enter an address to show the map.';
     }
@@ -148,11 +151,14 @@ export function createClientMap(container, opts = {}) {
 
   async function setLocation(lat, lng, address) {
     if (typeof address === 'string') currentAddress = address.trim();
+    const parsedLat = lat == null ? NaN : Number(lat);
+    const parsedLng = lng == null ? NaN : Number(lng);
     currentGeo =
-      Number.isFinite(lat) && Number.isFinite(lng)
-        ? { lat: Number(lat), lng: Number(lng), address: address || currentAddress || '' }
+      Number.isFinite(parsedLat) && Number.isFinite(parsedLng)
+        ? { lat: parsedLat, lng: parsedLng, address: address || currentAddress || '' }
         : null;
     if (!currentGeo) mapReady = false;
+    if (currentGeo) geocodeFailed = false;
     syncEmptyState();
     metaEl.hidden = true;
     metaEl.textContent = '';
@@ -255,6 +261,10 @@ export function createClientMap(container, opts = {}) {
 
   return {
     setLocation,
+    setGeocodeFailed(failed = true) {
+      geocodeFailed = Boolean(failed);
+      syncEmptyState();
+    },
     showDirections,
     resize() {
       map?.resize();

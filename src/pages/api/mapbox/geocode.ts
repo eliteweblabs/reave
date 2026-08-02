@@ -31,7 +31,7 @@ export const GET: APIRoute = async (context) => {
     );
   }
 
-  const address = url.searchParams.get('address')?.trim() || '';
+  const address = context.url.searchParams.get('address')?.trim() || '';
   if (!address) return json({ ok: false, error: 'address is required' }, 400);
 
   const geo = await geocodeAddress(address);
