@@ -4763,7 +4763,7 @@ async function loadHomeDashboard(opts = {}) {
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
   homeDashboardLoadPromise = (async () => {
-    mountPanelSkeleton(root, 'dashboard', 'Loading dashboard…', {
+    mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
       quiet,
       contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
     });

@@ -2,7 +2,8 @@
  * ── Skeleton / shimmer loading system ──
  * Markup from skeletonHtml() in public/admin/shared.js:
  *   .sk-list       — sidebar list panels (work, chat, clients, inbox, etc.)
- *   .sk-dashboard  — stat grid + cards (home, profile, social, analytics, etc.)
+ *   .sk-home        — home dashboard (alerts, today, stats, uptime, inbox)
+ *   .sk-dashboard  — generic stat grid + cards (profile, social, analytics, etc.)
  */
 
 @keyframes sk-shimmer {
@@ -84,7 +85,7 @@
   height: 0.52rem;
 }
 
-/* ── Dashboard (2×2 stat grid + two cards) ── */
+/* ── Dashboard (2×2 stat grid + two cards) — profile / insights tabs ── */
 .sk-dashboard {
   position: relative;
   width: 100%;
@@ -111,6 +112,177 @@
 .sk-card--short {
   height: 6rem;
   margin-bottom: 0;
+}
+
+/* ── Home dashboard — mirrors dash-today, dash-stats, uptime, inbox ── */
+.sk-home {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100%;
+  width: 100%;
+  gap: 0;
+}
+
+.sk-home-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.sk-home-alert {
+  height: 3.35rem;
+  border-radius: 12px;
+}
+
+.sk-home-section {
+  min-width: 0;
+}
+
+.sk-home-today {
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-today-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.sk-home-pills {
+  width: 9.5rem;
+  height: 2.15rem;
+  border-radius: 999px;
+}
+
+.sk-home-schedule-btn {
+  width: 6.75rem;
+  height: 2rem;
+  border-radius: 999px;
+}
+
+.sk-home-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sk-home-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.55rem 0.5rem;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.sk-home-event-time {
+  width: 4.2rem;
+  height: 0.72rem;
+  flex: 0 0 4.2rem;
+  border-radius: 4px;
+}
+
+.sk-home-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.05rem;
+}
+
+.sk-home-event-line {
+  height: 0.72rem;
+  border-radius: 4px;
+}
+.sk-home-event-line--short {
+  width: 62%;
+  height: 0.58rem;
+}
+
+.sk-home-stats {
+  display: grid;
+  grid-template-columns: repeat(var(--dash-stat-cols), minmax(0, 1fr));
+  gap: var(--dash-stat-gap);
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-stat {
+  min-height: var(--dash-stat-min-h);
+  border-radius: 14px;
+}
+
+.sk-home-uptime {
+  display: grid;
+  grid-template-columns: repeat(var(--dash-uptime-cols), minmax(0, 1fr));
+  gap: var(--dash-uptime-gap);
+  margin-bottom: 1.35rem;
+}
+
+.sk-home-uptime-tile {
+  min-height: var(--dash-uptime-add-min-h);
+  border-radius: 10px;
+}
+
+.sk-home-inbox {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: min(36vh, 16rem);
+  margin-bottom: 0.35rem;
+}
+
+.sk-home-panel-title {
+  width: 6.5rem;
+  height: 0.88rem;
+  margin-bottom: 0.75rem;
+  border-radius: 4px;
+}
+
+.sk-home-inbox-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.55rem;
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.sk-home-inbox-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.45rem 0.35rem;
+}
+
+.sk-home-inbox-subject {
+  height: 0.82rem;
+  width: 88%;
+  border-radius: 4px;
+}
+
+.sk-home-inbox-meta {
+  height: 0.68rem;
+  width: 52%;
+  border-radius: 4px;
+}
+
+@media (max-width: 639px) {
+  .sk-home-today {
+    margin-bottom: 0.85rem;
+  }
+  .sk-home-stats,
+  .sk-home-uptime {
+    margin-bottom: 0.85rem;
+  }
+  .sk-home-inbox {
+    min-height: min(42vh, 18rem);
+  }
 }
 
 /* Legacy class names — keep error text readable */

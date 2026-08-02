@@ -67,7 +67,7 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-/** Shimmer skeleton — `kind`: 'list' (sidebar rows) or 'dashboard' (stat grid + cards). */
+/** Shimmer skeleton — `kind`: 'list' | 'home' | 'dashboard'. */
 const SK_LIST_WIDTHS = [
   [45, 30],
   [55, 38],
@@ -79,6 +79,51 @@ const SK_LIST_WIDTHS = [
 
 export function skeletonHtml(kind = 'list', label = 'Loading…') {
   const safeLabel = escHtml(label);
+  if (kind === 'home') {
+    const alerts = `<div class="sk-bone sk-home-alert"></div>`.repeat(2);
+    const events = Array(3)
+      .fill(
+        `<div class="sk-home-event">` +
+          `<div class="sk-bone sk-home-event-time"></div>` +
+          `<div class="sk-home-event-body">` +
+            `<div class="sk-bone sk-home-event-line"></div>` +
+            `<div class="sk-bone sk-home-event-line sk-home-event-line--short"></div>` +
+          `</div>` +
+        `</div>`,
+      )
+      .join('');
+    const stats = `<div class="sk-bone sk-home-stat"></div>`.repeat(8);
+    const uptime = `<div class="sk-bone sk-home-uptime-tile"></div>`.repeat(14);
+    const inboxRows = Array(5)
+      .fill(
+        `<div class="sk-home-inbox-row">` +
+          `<div class="sk-bone sk-home-inbox-subject"></div>` +
+          `<div class="sk-bone sk-home-inbox-meta"></div>` +
+        `</div>`,
+      )
+      .join('');
+    return (
+      `<div class="home-dashboard-scroll">` +
+        `<div class="sk-home" role="status" aria-live="polite" aria-busy="true">` +
+          `<span class="sk-sr">${safeLabel}</span>` +
+          `<div class="sk-home-alerts">${alerts}</div>` +
+          `<section class="sk-home-section sk-home-today">` +
+            `<div class="sk-home-today-head">` +
+              `<div class="sk-bone sk-home-pills"></div>` +
+              `<div class="sk-bone sk-home-schedule-btn"></div>` +
+            `</div>` +
+            `<div class="sk-home-events">${events}</div>` +
+          `</section>` +
+          `<div class="sk-home-stats">${stats}</div>` +
+          `<div class="sk-home-uptime">${uptime}</div>` +
+          `<section class="sk-home-section sk-home-inbox">` +
+            `<div class="sk-bone sk-home-panel-title"></div>` +
+            `<div class="sk-home-inbox-body">${inboxRows}</div>` +
+          `</section>` +
+        `</div>` +
+      `</div>`
+    );
+  }
   if (kind === 'dashboard') {
     return (
       `<div class="sk-dashboard" role="status" aria-live="polite" aria-busy="true">` +
@@ -111,7 +156,7 @@ export function skeletonHtml(kind = 'list', label = 'Loading…') {
 /** True when the panel is empty or already showing a skeleton (safe to swap in a new one). */
 export function panelNeedsSkeleton(root, contentSelector) {
   if (!root) return false;
-  if (root.querySelector('.sk-list, .sk-dashboard')) return false;
+  if (root.querySelector('.sk-list, .sk-dashboard, .sk-home')) return false;
   if (contentSelector && root.querySelector(contentSelector)) return false;
   return true;
 }
