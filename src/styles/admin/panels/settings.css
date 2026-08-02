@@ -551,6 +551,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0.5rem 1rem;
+  margin-top: 0.25rem;
 }
 .prof-check-row {
   display: flex;
@@ -558,6 +559,31 @@
   gap: 0.5rem;
   font-size: 0.95rem;
   cursor: pointer;
+  min-width: 0;
+}
+.prof-field label.prof-check-row {
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fg);
+}
+.prof-field .prof-check-row input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: inherit;
+  flex-shrink: 0;
+  accent-color: var(--accent, #3b82f6);
+}
+.prof-field .prof-check-row input[type="checkbox"]:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 .prof-run-list {
   margin: 0.5rem 0 0;
