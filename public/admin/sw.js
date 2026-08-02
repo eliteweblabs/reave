@@ -140,9 +140,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(Promise.all([self.clients.claim(), restoreBadgeFromCache()]));
 });
 
-/* Network-first fetch handler — required for reliable Chromium install prompts. */
+/* Network-first fetch handler — required for reliable Chromium install prompts.
+   Leave document navigations to the browser; intercepting them caused reload loops
+   in installed PWAs when the shell URL changed (tab params, auth, etc.). */
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  if (event.request.mode === 'navigate') return;
   const { pathname } = new URL(event.request.url);
   if (pathname.startsWith('/api/')) return;
   event.respondWith(
