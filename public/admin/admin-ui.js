@@ -1819,6 +1819,69 @@ export function updateDeBtnLabel(btn, label) {
   else btn.textContent = label;
 }
 
+const BRANDING_EXT_BY_TYPE = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/svg+xml': 'svg',
+};
+
+function brandingExtFromUrl(url) {
+  const m = String(url || '')
+    .split('?')[0]
+    .match(/\.(png|jpe?g|webp|svg)$/i);
+  if (!m) return '';
+  const ext = m[1].toLowerCase();
+  return ext === 'jpeg' ? 'jpg' : ext;
+}
+
+function triggerBlobDownload(blob, filename) {
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+/** Fetch (same-origin) or link-download (external) a branding image. */
+export async function downloadBrandingImage(url, baseName) {
+  const src = String(url || '').trim();
+  const name = String(baseName || 'image').trim() || 'image';
+  if (!src) return;
+
+  let sameOrigin = false;
+  try {
+    sameOrigin = new URL(src, window.location.origin).origin === window.location.origin;
+  } catch {
+    sameOrigin = src.startsWith('/');
+  }
+
+  if (sameOrigin) {
+    try {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error('Fetch failed');
+      const blob = await res.blob();
+      const ext = BRANDING_EXT_BY_TYPE[blob.type] || brandingExtFromUrl(src) || 'png';
+      triggerBlobDownload(blob, `${name}.${ext}`);
+      return;
+    } catch {
+      /* fall through to anchor download */
+    }
+  }
+
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = name;
+  a.rel = 'noopener';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 export function paneDeleteIcon({ label, onClick, confirmDelete = true }) {
   return createIosIconBtn({
     iconKey: 'trash',

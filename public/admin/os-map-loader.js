@@ -92,9 +92,10 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
   deBtnIconSvg,
+  downloadBrandingImage,
   paneDeleteIcon,
   paneShareIcon,
-} from './admin-ui.js?v=20260801a';
+} from './admin-ui.js?v=20260802a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802a';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
@@ -163,7 +164,7 @@ import {
   geocodeClientAddressPreview,
   startNewClient,
   confirmDiscardChanges,
-} from './clients-panel.js?v=20260730a';
+} from './clients-panel.js?v=20260802a';
 import {
   initChatPanel,
   chatState,
@@ -5126,12 +5127,30 @@ function hasCustomCompanyIcon(company) {
   return company?.iconSource === 'admin' && !!companyIconPreviewUrl(company);
 }
 
+function companyIconDownloadUrl(company) {
+  const url = companyIconPreviewUrl(company);
+  if (!url) return '';
+  if (url.includes('/api/branding/icon')) {
+    try {
+      const parsed = new URL(url, window.location.origin);
+      parsed.searchParams.set('size', '512');
+      return `${parsed.pathname}${parsed.search}`;
+    } catch {
+      return url.includes('?') ? `${url}&size=512` : `${url}?size=512`;
+    }
+  }
+  return url;
+}
+
 function bindCompanyLogoUpload(root, companyAlert) {
   const fileInput = root.querySelector('#company-logo-file');
   const fileWrap = root.querySelector('#company-logo-file-wrap');
   const previewWrap = root.querySelector('#company-logo-preview-wrap');
   const preview = root.querySelector('#company-logo-preview');
   const removeBtn = root.querySelector('#company-logo-remove');
+  const downloadBtn = root.querySelector('#company-logo-download');
+
+  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
 
   const refreshPreview = (company) => {
     const hasLogo = hasCustomCompanyLogo(company);
@@ -5146,7 +5165,21 @@ function bindCompanyLogoUpload(root, companyAlert) {
     if (fileWrap instanceof HTMLElement) {
       fileWrap.hidden = hasLogo;
     }
+    downloadBtn?.toggleAttribute('hidden', !hasLogo);
   };
+
+  downloadBtn?.addEventListener('click', async () => {
+    const url = preview instanceof HTMLImageElement ? preview.src : '';
+    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
+    downloadBtn.disabled = true;
+    try {
+      await downloadBrandingImage(url, 'company-logo');
+    } catch {
+      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5199,8 +5232,13 @@ function bindCompanyIconUpload(root, companyAlert) {
   const previewWrap = root.querySelector('#company-icon-preview-wrap');
   const preview = root.querySelector('#company-icon-preview');
   const removeBtn = root.querySelector('#company-icon-remove');
+  const downloadBtn = root.querySelector('#company-icon-download');
+  let iconCompany = null;
+
+  if (downloadBtn instanceof HTMLButtonElement) setDeBtnLabel(downloadBtn, 'Download', 'download');
 
   const refreshPreview = (company) => {
+    iconCompany = company || null;
     const hasIcon = hasCustomCompanyIcon(company);
     const url = hasIcon ? companyIconPreviewUrl(company) : '';
 
@@ -5213,8 +5251,22 @@ function bindCompanyIconUpload(root, companyAlert) {
     if (fileWrap instanceof HTMLElement) {
       fileWrap.hidden = hasIcon;
     }
+    downloadBtn?.toggleAttribute('hidden', !hasIcon);
     window.__companyStaffAvatarUrl = companyStaffAvatarPreviewUrl(company);
   };
+
+  downloadBtn?.addEventListener('click', async () => {
+    const url = companyIconDownloadUrl(iconCompany) || (preview instanceof HTMLImageElement ? preview.src : '');
+    if (!url || !(downloadBtn instanceof HTMLButtonElement)) return;
+    downloadBtn.disabled = true;
+    try {
+      await downloadBrandingImage(url, 'company-icon');
+    } catch {
+      showProfileAlert(companyAlert, 'Download failed — please try again.', 'error');
+    } finally {
+      downloadBtn.disabled = false;
+    }
+  });
 
   fileInput?.addEventListener('change', async () => {
     if (!(fileInput instanceof HTMLInputElement) || !fileInput.files?.length) return;
@@ -5913,6 +5965,7 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-logo-preview" class="prof-logo-preview" src="${escHtml(logoUrl)}" alt="" />` +
                   `<button type="button" id="company-logo-remove" class="prof-logo-remove" aria-label="Remove logo">×</button>` +
                 `</div>` +
+                `<button type="button" id="company-logo-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasLogo ? '' : ' hidden'}></button>` +
                 `<div id="company-logo-file-wrap" class="prof-logo-file-wrap"${hasLogo ? ' hidden' : ''}>` +
                   `<input id="company-logo-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
@@ -5925,6 +5978,7 @@ function renderCompanyPanel(company, fontCatalog) {
                   `<img id="company-icon-preview" class="prof-icon-preview" src="${escHtml(iconUrl)}" alt="" />` +
                   `<button type="button" id="company-icon-remove" class="prof-logo-remove" aria-label="Remove icon">×</button>` +
                 `</div>` +
+                `<button type="button" id="company-icon-download" class="de-btn de-btn-secondary de-btn-with-icon prof-branding-download"${hasIcon ? '' : ' hidden'}></button>` +
                 `<div id="company-icon-file-wrap" class="prof-logo-file-wrap"${hasIcon ? ' hidden' : ''}>` +
                   `<input id="company-icon-file" type="file" accept="image/png,image/jpeg,image/webp" />` +
                 `</div>` +
