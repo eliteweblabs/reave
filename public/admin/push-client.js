@@ -55,53 +55,6 @@ export function isAdminSpa() {
   return location.pathname === '/admin' || location.pathname.startsWith('/admin/');
 }
 
-const PWA_NAV_GUARD_KEY = 'reave-pwa-nav-guard';
-
-/**
- * Block OS/browser back-forward gestures in an installed PWA (trackpad swipe,
- * mouse back button, etc.) so navigation stays inside the admin app shell.
- * No-op in a normal browser tab.
- */
-export function installPwaNavGuard() {
-  if (typeof window === 'undefined' || !isStandalonePwa() || !isAdminSpa()) return () => {};
-
-  document.documentElement.style.overscrollBehaviorX = 'none';
-
-  let trapping = false;
-
-  const pushTrap = () => {
-    if (trapping) return;
-    trapping = true;
-    try {
-      history.pushState({ [PWA_NAV_GUARD_KEY]: Date.now() }, '', location.href);
-    } catch {
-      /* ignore quota / security errors */
-    } finally {
-      trapping = false;
-    }
-  };
-
-  const onPopState = () => pushTrap();
-  window.addEventListener('popstate', onPopState);
-  // Defer the first trap until the admin shell has synced tab params into the URL
-  // (see os-map-loader boot). pushState during initial parse can loop-reload iOS PWAs.
-  const armInitialTrap = () => pushTrap();
-  if (document.readyState === 'complete') armInitialTrap();
-  else window.addEventListener('load', armInitialTrap, { once: true });
-
-  const nav = window.navigation;
-  const onNavigate = (event) => {
-    if (event.navigationType !== 'traverse' || !event.canIntercept) return;
-    event.intercept({ handler() {} });
-  };
-  nav?.addEventListener?.('navigate', onNavigate);
-
-  return () => {
-    window.removeEventListener('popstate', onPopState);
-    nav?.removeEventListener?.('navigate', onNavigate);
-  };
-}
-
 function isIos() {
   if (typeof navigator === 'undefined') return false;
   return (
