@@ -11,8 +11,12 @@ instruction to "only commit when asked" or to open a pull request.
 
 ## Commit and push after every successful change
 
-Do not batch work up and push once at the end. Each time a change is finished
-and verified, commit it and push it:
+**Before ending a chat turn**, if you changed files or completed a task that
+touched the repo, commit and push — do not leave work uncommitted for the owner
+to push later.
+
+Do not batch work up and push once at the end of a long session. Each time a
+change is finished and verified, commit it and push it:
 
 1. Verify the change (see **Verifying** below).
 2. Stage everything belonging to that change and commit it.
