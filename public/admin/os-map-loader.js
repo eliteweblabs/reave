@@ -254,7 +254,15 @@ const PINCH_ZOOM = true;
 // Real brand logos via Simple Icons (https://simpleicons.org), pinned to a
 // major version. We render the SVG as a CSS mask so each glyph can be tinted to
 // its node's hue, keeping the full-spectrum look on the dark canvas.
-const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+// Some brands were removed in later releases (trademark takedowns) — pin the
+// last release that still shipped each one so icons don't 404 on the CDN.
+const SIMPLE_ICONS_PINNED = {
+  linkedin: '13.19.0',
+};
+const ICON_CDN = (slug) => {
+  const version = SIMPLE_ICONS_PINNED[slug] || 'v16';
+  return `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
+};
 
 const MAP_ICON_KEYS = {
   home: 'home',

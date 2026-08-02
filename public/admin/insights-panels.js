@@ -86,7 +86,14 @@ const SOCIAL_PLATFORM_UI = {
   googlebusiness: { slug: 'google', color: '#4285f4' },
 };
 
-const ICON_CDN = (slug) => `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+// LinkedIn was removed from Simple Icons v14 — pin the last release that had it.
+const SIMPLE_ICONS_PINNED = {
+  linkedin: '13.19.0',
+};
+const ICON_CDN = (slug) => {
+  const version = SIMPLE_ICONS_PINNED[slug] || 'v16';
+  return `https://cdn.jsdelivr.net/npm/simple-icons@${version}/icons/${slug}.svg`;
+};
 
 const SOCIAL_RANGE_LABEL = { 7: 'last 7 days', 30: 'last 30 days', 90: 'last 90 days' };
 
