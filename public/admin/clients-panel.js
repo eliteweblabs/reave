@@ -255,6 +255,18 @@ const CLIENT_LIST_AVATAR_PLACEHOLDER =
   '<circle cx="12" cy="7" r="4"/>' +
   '</svg></span>';
 
+function bindClientAvatarFallback(img) {
+  if (!(img instanceof HTMLImageElement)) return;
+  img.addEventListener(
+    'error',
+    () => {
+      const host = img.closest('.cl-list-avatar-wrap') || img.closest('.cl-list-avatar');
+      if (host) host.innerHTML = CLIENT_LIST_AVATAR_PLACEHOLDER;
+    },
+    { once: true },
+  );
+}
+
 function clientListAvatarHtml(c) {
   const url =
     clientBrandingPreviewUrl(c.iconUrl) || clientBrandingPreviewUrl(c.logoUrl);
@@ -266,6 +278,10 @@ function clientListAvatarHtml(c) {
     );
   }
   return CLIENT_LIST_AVATAR_PLACEHOLDER;
+}
+
+function mountClientListAvatar(root) {
+  root?.querySelectorAll('.cl-list-avatar-img').forEach(bindClientAvatarFallback);
 }
 
 function filterClientsForSidebar(clients) {
@@ -643,6 +659,7 @@ function syncClientListAvatar(uid, patch = {}) {
   const host = item.querySelector('.cl-list-avatar-wrap');
   if (!host) return;
   host.innerHTML = clientListAvatarHtml(c || { uid, ...patch });
+  mountClientListAvatar(host);
 }
 
 function appendClientField(parent, label, input) {
@@ -1495,7 +1512,10 @@ function syncClientListRow(uid) {
   const avatarWrap = item.querySelector('.cl-list-avatar-wrap');
   if (titleEl) titleEl.textContent = clientListTitle(c);
   if (subEl) subEl.textContent = clientListSubline(c);
-  if (avatarWrap) avatarWrap.innerHTML = clientListAvatarHtml(c);
+  if (avatarWrap) {
+    avatarWrap.innerHTML = clientListAvatarHtml(c);
+    mountClientListAvatar(avatarWrap);
+  }
 }
 
 function scheduleClientAutosave(uid, getPayload) {
@@ -1716,6 +1736,7 @@ function createClientListItem(c) {
     (c.archived ? '<span class="cl-archived">Archived</span>' : '') +
     `</span></span></span></span>`;
   item.addEventListener('click', () => openClient(c.uid));
+  mountClientListAvatar(item);
   return item;
 }
 

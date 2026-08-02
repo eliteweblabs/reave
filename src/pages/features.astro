@@ -875,10 +875,20 @@ const customPrompts: PromptExample[] = [
           builtWithStack.map((tech) => (
             <li class="fx-built-item">
               <span
-                class="fx-built-logo"
-                style={`--brand-color: ${tech.color}; --brand-icon: url(${SIMPLE_ICONS_CDN(tech.slug)})`}
+                class="fx-built-logo fx-built-logo--pending"
+                data-initial={tech.name.charAt(0)}
+                style={`--brand-color: ${tech.color}`}
                 aria-hidden="true"
-              />
+              >
+                <img
+                  class="fx-built-logo-probe"
+                  src={SIMPLE_ICONS_CDN(tech.slug)}
+                  alt=""
+                  decoding="async"
+                  onload="const el=this.parentElement;if(!el)return;el.classList.remove('fx-built-logo--pending');el.style.setProperty('--brand-icon','url('+JSON.stringify(this.src)+')')"
+                  onerror="this.parentElement?.classList.add('fx-built-logo--fallback')"
+                />
+              </span>
               <span class="fx-built-name">{tech.name}</span>
               <span class="fx-built-role">{tech.role}</span>
             </li>
@@ -1912,11 +1922,40 @@ const customPrompts: PromptExample[] = [
   }
 
   .fx-built-logo {
+    position: relative;
     width: 26px;
     height: 26px;
     background-color: var(--brand-color);
-    mask: var(--brand-icon) center / contain no-repeat;
-    -webkit-mask: var(--brand-icon) center / contain no-repeat;
+    mask: var(--brand-icon, none) center / contain no-repeat;
+    -webkit-mask: var(--brand-icon, none) center / contain no-repeat;
+  }
+
+  .fx-built-logo-probe {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .fx-built-logo--pending,
+  .fx-built-logo--fallback {
+    mask: none;
+    -webkit-mask: none;
+    background-color: color-mix(in srgb, var(--brand-color) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--brand-color) 42%, transparent);
+    border-radius: 6px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--brand-color);
+    display: grid;
+    place-items: center;
+  }
+
+  .fx-built-logo--pending::before,
+  .fx-built-logo--fallback::before {
+    content: attr(data-initial);
   }
 
   .fx-built-name {
