@@ -53,26 +53,28 @@ const heroIconSrc =
     <div class="home-hero-copy">
       <h1 id="home-hero-title" class="home-hero-title">Take Your Time Back</h1>
       <p class="home-hero-tagline">
-        An OS for
-        <span
-          class="home-hero-industry"
-          data-hero-industry
-          data-industries={JSON.stringify(industryLabels)}
-          data-interval-ms="2500"
-        >
-          <span class="home-hero-industry-viewport" data-hero-industry-viewport aria-live="polite">
-            <span
-              class="home-hero-industry-layer home-hero-industry-next"
-              data-hero-industry-next
-              hidden
-            ></span>
-            <span
-              class="home-hero-industry-layer home-hero-industry-current"
-              data-hero-industry-current
-            >
-              {firstIndustry}
+        <span class="home-hero-tagline-inner">
+          An OS for
+          <span
+            class="home-hero-industry"
+            data-hero-industry
+            data-industries={JSON.stringify(industryLabels)}
+            data-interval-ms="2500"
+          >
+            <span class="home-hero-industry-viewport" data-hero-industry-viewport aria-live="polite">
+              <span
+                class="home-hero-industry-layer home-hero-industry-next"
+                data-hero-industry-next
+                hidden
+              ></span>
+              <span
+                class="home-hero-industry-layer home-hero-industry-current"
+                data-hero-industry-current
+              >
+                {firstIndustry}
+              </span>
+              <span class="home-hero-industry-wipe" data-hero-industry-wipe aria-hidden="true"></span>
             </span>
-            <span class="home-hero-industry-wipe" data-hero-industry-wipe aria-hidden="true"></span>
           </span>
         </span>
       </p>
@@ -172,19 +174,22 @@ const heroIconSrc =
 
   .home-hero-tagline {
     margin: 0;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: center;
-    gap: 0.35em;
+    display: block;
+    text-align: center;
     font-family: var(--font-content);
     font-size: clamp(1.05rem, 2.8vw, 1.35rem);
     line-height: 1.4;
     color: rgba(255, 255, 255, 0.68);
   }
 
+  .home-hero-tagline-inner {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
   .home-hero-industry {
     display: inline-block;
+    margin-left: 0.35em;
     vertical-align: baseline;
     text-align: left;
   }
@@ -195,6 +200,11 @@ const heroIconSrc =
     vertical-align: bottom;
     height: 1.35em;
     overflow: hidden;
+    transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .home-hero-industry-viewport.is-wiping {
+    transition: none;
   }
 
   .home-hero-industry-layer {
@@ -292,6 +302,10 @@ const heroIconSrc =
   @media (prefers-reduced-motion: reduce) {
     .home-hero-icon-wrap {
       will-change: auto;
+    }
+
+    .home-hero-industry-viewport {
+      transition: none;
     }
 
     .home-hero-industry-wipe {

@@ -1,12 +1,11 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
  * Text layers stay fixed; only the background mask moves.
- * Viewport expands to the widest label during the wipe, then eases back so the
- * full tagline stays centered under the headline.
+ * Viewport width snaps to the widest slot during the wipe; CSS transitions it back
+ * so the block-centered tagline line recenters smoothly.
  */
 
 const WIPE_MS = 520;
-const RECENTER_MS = 420;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -51,31 +50,16 @@ function animateTranslate(
   });
 }
 
-function animateWidth(
-  el: HTMLElement,
-  fromWidth: number,
-  toWidth: number,
-  durationMs: number,
-): Promise<void> {
-  if (fromWidth === toWidth || durationMs <= 0) {
-    el.style.width = `${toWidth}px`;
-    return Promise.resolve();
-  }
+function setViewportWidth(viewport: HTMLElement, widthPx: number, instant = false) {
+  if (instant) viewport.classList.add('is-wiping');
+  viewport.style.width = `${widthPx}px`;
+  if (instant) void viewport.offsetWidth;
+}
 
-  return new Promise((resolve) => {
-    const t0 = performance.now();
-
-    const frame = (now: number) => {
-      const t = Math.min(1, (now - t0) / durationMs);
-      const w = fromWidth + (toWidth - fromWidth) * easeInOutCubic(t);
-      el.style.width = `${w}px`;
-
-      if (t < 1) requestAnimationFrame(frame);
-      else resolve();
-    };
-
-    requestAnimationFrame(frame);
-  });
+function recenterViewport(viewport: HTMLElement, widthPx: number) {
+  viewport.classList.remove('is-wiping');
+  void viewport.offsetWidth;
+  viewport.style.width = `${widthPx}px`;
 }
 
 export function initHeroIndustryRotate(root: HTMLElement) {
@@ -102,14 +86,11 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const slotWidth = widestLabelWidth(current, industries);
+  const labelWidth = (label: string) => measureText(current, label);
 
   const initial = current.textContent?.trim() ?? '';
   const found = industries.indexOf(initial);
   let index = found >= 0 ? found : Math.floor(Math.random() * industries.length);
-
-  const labelWidth = (label: string) => measureText(current, label);
-  const initialWidth = labelWidth(industries[index]!);
-  viewport.style.width = `${initialWidth}px`;
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   let swapping = false;
@@ -127,7 +108,9 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     root.dataset.heroIndustryLabel = label;
   };
 
+  setViewportWidth(viewport, labelWidth(industries[index]!), true);
   resetLayers(industries[index]!);
+  viewport.classList.remove('is-wiping');
 
   if (industries.length <= 1) return;
 
@@ -141,7 +124,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     if (reducedMotion) {
       index = (index + 1) % industries.length;
       resetLayers(incoming);
-      viewport.style.width = `${labelWidth(incoming)}px`;
+      setViewportWidth(viewport, labelWidth(incoming), true);
       swapping = false;
       schedule();
       return;
@@ -152,31 +135,22 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     next.textContent = incoming;
     next.hidden = true;
 
-    const incomingWidth = labelWidth(incoming);
-    const fromWidth = viewport.offsetWidth;
-
-    // Expand to the widest slot so the wipe never clips.
-    await animateWidth(viewport, fromWidth, slotWidth, RECENTER_MS);
+    setViewportWidth(viewport, slotWidth, true);
     parkWipe();
 
-    // Step 1 — wipe out across the full slot (widest word width).
     wipe.style.transform = `translate3d(${-slotWidth}px, 0, 0)`;
     await animateTranslate(wipe, -slotWidth, 0, WIPE_MS);
 
     current.textContent = '';
     current.hidden = true;
 
-    // Step 2 — wipe reveal: mask exits left → right over the same slot width.
     next.hidden = false;
     wipe.style.transform = 'translate3d(0px, 0, 0)';
     await animateTranslate(wipe, 0, slotWidth, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming);
-
-    // Ease the viewport back to the word's natural width so the tagline recenters.
-    await animateWidth(viewport, slotWidth, incomingWidth, RECENTER_MS);
-    parkWipe();
+    recenterViewport(viewport, labelWidth(incoming));
 
     swapping = false;
     schedule();
