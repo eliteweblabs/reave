@@ -57,9 +57,8 @@ function isFeatureBlockedPath(pathname: string): boolean {
   return false;
 }
 
-/** Old marketing routes → single-scroll homepage sections. */
+/** Old marketing routes → single-scroll homepage sections (/about has its own page). */
 const HOME_SECTION_REDIRECTS: Record<string, string> = {
-  "/about": "about",
   "/services": "services",
   "/portfolio": "portfolio",
   "/contact": "contact",

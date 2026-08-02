@@ -355,7 +355,6 @@ const { pathname, signedIn } = Astro.props;
     position: fixed;
     inset: 0;
     z-index: 2050;
-    touch-action: none;
   }
 
   .marketing-menu-backdrop {
@@ -365,6 +364,7 @@ const { pathname, signedIn } = Astro.props;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     animation: marketing-menu-fade-in 0.28s ease-out;
+    touch-action: none;
   }
 
   /* Blur over a scrolling page forces full repaints every frame — skip on phone/PWA. */
@@ -449,6 +449,7 @@ const { pathname, signedIn } = Astro.props;
     display: flex;
     align-items: center;
     width: 100%;
+    touch-action: manipulation;
     padding: 0.72rem 0.2rem;
     border: none;
     border-radius: 8px;

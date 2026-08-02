@@ -111,7 +111,7 @@ const marketingNav = isMarketingPagePath(Astro.url.pathname);
 			<h1 class="sr-only">{company.name}</h1>
 			<slot />
 		</main>
-		{isIndexPage && <HomepageSectionScroll />}
+		{marketingNav && <HomepageSectionScroll />}
 		{marketingNav && <SiteVoiceWidget />}
 	</body>
 </html>
