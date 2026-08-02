@@ -1,6 +1,5 @@
 @import './tokens.css';
 @import './shell.css';
-@import './skeleton.css';
 @import './panels/editor.css';
 @import './panels/chat.css';
 @import './panels/email.css';
@@ -10,3 +9,5 @@
 @import './panels/social-analytics-fleet.css';
 @import './panels/settings.css';
 @import './panels/search.css';
+/* Skeleton shimmer — imported last so it wins over panel loading stubs */
+@import './skeleton.css';
