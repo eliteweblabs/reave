@@ -5,7 +5,7 @@
 
 import type { APIContext } from 'astro';
 import { getGoogleMapsApiKey } from '../../../lib/googleMapsApiKey';
-import { resolvePlacesLocationBias } from '../../../lib/placesLocationBias';
+import { resolvePlacesLocationBias, resolvePlacesRegionCodes } from '../../../lib/placesLocationBias';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 
 export const prerender = false;
@@ -62,10 +62,7 @@ export async function GET(context: APIContext): Promise<Response> {
       input,
     };
 
-    if (components && components.includes('country:')) {
-      const countryCode = components.split(':')[1];
-      requestBody.includedRegionCodes = [countryCode];
-    }
+    requestBody.includedRegionCodes = resolvePlacesRegionCodes(components);
 
     // `address` is the admin address-field default: include businesses and
     // street addresses so typing a company/POI name returns a place with an

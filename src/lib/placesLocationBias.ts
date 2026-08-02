@@ -1,4 +1,5 @@
 import { getOfficeCoordinates } from './mapbox';
+import { serverEnv } from './serverEnv';
 
 /** Boston, MA — fallback when BOOKING_DEFAULT_ADDRESS is unset or cannot geocode. */
 const BOSTON_MA = { lat: 42.3601, lng: -71.0589 } as const;
@@ -36,4 +37,28 @@ export async function resolvePlacesLocationBias(
   if (office) return { lat: office.lat, lng: office.lng };
 
   return { ...BOSTON_MA };
+}
+
+function parseCountryCode(raw: string | undefined | null): string | null {
+  const code = raw?.trim().toLowerCase() ?? '';
+  return /^[a-z]{2}$/.test(code) ? code : null;
+}
+
+/**
+ * ISO 3166-1 alpha-2 region filter for Google Places autocomplete.
+ * Priority: explicit `components=country:xx` → PLACES_DEFAULT_COUNTRY → US.
+ *
+ * Location bias alone still returns global matches (e.g. Finland) for partial
+ * street queries; includedRegionCodes keeps suggestions in-country.
+ */
+export function resolvePlacesRegionCodes(components?: string | null): string[] {
+  if (components?.includes('country:')) {
+    const code = parseCountryCode(components.split(':').pop());
+    if (code) return [code];
+  }
+
+  const fromEnv = parseCountryCode(serverEnv('PLACES_DEFAULT_COUNTRY'));
+  if (fromEnv) return [fromEnv];
+
+  return ['us'];
 }
