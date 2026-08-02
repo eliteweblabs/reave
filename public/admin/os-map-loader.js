@@ -53,7 +53,7 @@ function applyCompanyBrandingToMaps() {
 }
 
 applyCompanyBrandingToMaps();
-import { installPwaNavGuard } from '/admin/push-client.js?v=20260802a';
+import { installPwaNavGuard } from '/admin/push-client.js?v=20260802b';
 import {
   IOS_ICONS,
   createIosIconBtn,
