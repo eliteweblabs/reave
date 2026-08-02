@@ -320,28 +320,22 @@ const { pathname, signedIn } = Astro.props;
 
   .marketing-nav-toggle-icon {
     position: absolute;
-    display: block;
-    transition: opacity 0.18s ease, transform 0.18s ease;
-  }
-
-  .marketing-nav-toggle-icon--open {
-    opacity: 1;
-    transform: scale(1);
+    inset: 0;
+    width: 20px;
+    height: 20px;
+    margin: auto;
   }
 
   .marketing-nav-toggle-icon--close {
-    opacity: 0;
-    transform: scale(0.85);
+    display: none;
   }
 
   .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
-    opacity: 0;
-    transform: scale(0.85);
+    display: none;
   }
 
   .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
-    opacity: 1;
-    transform: scale(1);
+    display: block;
   }
 
   @media (min-width: 900px) {
@@ -366,7 +360,7 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu:not([hidden]) {
     position: fixed;
     inset: 0;
-    z-index: 2100;
+    z-index: 2050;
     touch-action: none;
   }
 
@@ -509,6 +503,11 @@ const { pathname, signedIn } = Astro.props;
   .marketing-menu-footer-cta:hover {
     filter: brightness(1.06);
     text-decoration: none;
+  }
+
+  /* Keep the header (and hamburger → X toggle) above the dimmed backdrop. */
+  :global(html.marketing-menu-open) .app-header {
+    z-index: 2200;
   }
 
   @media (prefers-reduced-motion: reduce) {
