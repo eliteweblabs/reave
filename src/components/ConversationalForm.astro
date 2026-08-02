@@ -388,10 +388,9 @@ const rootClass = embedded
   }
 </style>
 
-<script define:vars={{ bookingApiUrl, slug, recipientEmail, brandName }}>
+<script define:vars={{ bookingApiUrl, slug, brandName }}>
   const BOOKING_API = bookingApiUrl;
   const FORM_SLUG = slug;
-  const RECIPIENT_EMAIL = recipientEmail;
   const BRAND_NAME = brandName;
   const SMS_USE_CASES = "inquiry updates and appointment reminders";
 
@@ -801,7 +800,6 @@ const rootClass = embedded
 
   function buildSubmitPayload() {
     const payload = { ...formData };
-    if (RECIPIENT_EMAIL) payload.to = RECIPIENT_EMAIL;
     payload.subject =
       formDef.submitSubject ||
       (formDef.title ? `New ${formDef.title} submission` : "New form submission");

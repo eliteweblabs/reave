@@ -26,32 +26,17 @@ import { postToSystemAlertsThread } from '../../../../lib/adminAgentAlert';
 import { serverEnv } from '../../../../lib/serverEnv';
 import { checkInMemoryRateLimit } from '../../../../lib/inMemoryRateLimit';
 import { clientIp } from '../../../../lib/clientIp';
+import { escHtml } from '../../../../lib/escHtml';
 
 export const prerender = false;
 
 // ── helpers ────────────────────────────────────────────────────────────────
-
-function getIp(req: Request): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    req.headers.get('x-real-ip')?.trim() ||
-    'unknown'
-  );
-}
 
 function fmtDateLong(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime())
     ? iso
     : d.toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'UTC' }) + ' UTC';
-}
-
-function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 /** Build the inline-styled signature block + audit table that gets permanently baked
@@ -190,7 +175,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   }
 
   // ── Capture audit metadata ─────────────────────────────────────────────────
-  const ip        = getIp(request);
+  const ip        = clientIp(request);
   const userAgent = request.headers.get('user-agent')?.trim() ?? 'unknown';
   const signedAt  = new Date().toISOString();
   const consentAt = signedAt; // consent was recorded in the same request

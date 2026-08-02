@@ -222,7 +222,7 @@ const disclaimer = smsConsentDisclaimer(brandName);
   }
 </style>
 
-<script define:vars={{ recipientEmail, compact }}>
+<script define:vars={{ compact }}>
   const form = document.getElementById("sms-opt-in-form");
   const statusEl = document.getElementById("sms-form-status");
 
@@ -251,8 +251,6 @@ const disclaimer = smsConsentDisclaimer(brandName);
       sms_opt_in: data.get("sms_opt_in") === "yes" ? "yes" : "no",
       subject: "New contact form message",
     };
-
-    if (recipientEmail) payload.to = recipientEmail;
 
     if (!compact && (!payload.name || !payload.email || !payload.message)) {
       setStatus("Please fill in all required fields.", "error");
