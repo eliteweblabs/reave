@@ -109,7 +109,7 @@ const heroIconSrc =
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: calc(var(--app-header-h, 3.25rem) + 24px) 20px 64px;
+    padding: calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 24px) 20px 64px;
     scroll-margin-top: 0;
     overflow: hidden;
   }

@@ -266,6 +266,8 @@ const showHeaderProfile = userId && !showMarketingNav;
 <style is:global>
   :root {
     --app-header-h: 3.25rem;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --app-header-offset: calc(var(--app-header-h) + var(--safe-top));
     --app-header-chrome-scale: 1.333;
     --app-header-logo-h: calc(24px * var(--app-header-chrome-scale));
     /* Cascade distance — 300px or 3× logo height, whichever is larger. */
@@ -317,14 +319,10 @@ const showHeaderProfile = userId && !showMarketingNav;
     right: 0;
     z-index: 2000;
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: var(--app-header-h);
-    padding:
-      env(safe-area-inset-top, 0px)
-      max(0.5rem, env(safe-area-inset-right, 0px))
-      0
-      max(0.5rem, env(safe-area-inset-left, 0px));
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding: 0;
     pointer-events: none;
     -webkit-user-select: none;
     user-select: none;
@@ -333,25 +331,28 @@ const showHeaderProfile = userId && !showMarketingNav;
 
   .app-header--admin {
     z-index: 20;
-    flex-direction: column;
-    align-items: stretch;
-    min-height: 0;
-    padding: 0;
     background: transparent;
     border-bottom: none;
   }
 
-  .app-header-row--admin {
+  /*
+   * Safe-area padding lives on the row, not the outer shell — iOS Safari can
+   * ignore inset padding on fixed headers when an inner wrapper uses
+   * display:contents (the old marketing layout).
+   */
+  .app-header-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     width: 100%;
-    min-height: calc(var(--app-header-h) + env(safe-area-inset-top, 0px));
+    min-height: var(--app-header-offset);
     padding:
-      env(safe-area-inset-top, 0px)
+      var(--safe-top)
       max(0.5rem, env(safe-area-inset-right, 0px))
       0
       max(0.5rem, env(safe-area-inset-left, 0px));
+    position: relative;
+    overflow: visible;
   }
 
   .app-header--admin::before {
@@ -425,10 +426,6 @@ const showHeaderProfile = userId && !showMarketingNav;
   .app-header > *,
   .app-header-row > * {
     pointer-events: auto;
-  }
-
-  .app-header:not(.app-header--admin) .app-header-row {
-    display: contents;
   }
 
   .app-header-logo {
@@ -586,13 +583,8 @@ const showHeaderProfile = userId && !showMarketingNav;
   .app-header--admin:not(.topbar-has-panel-context):not(:has(.app-header-row .topbar-end .topbar-icon-btn:not([hidden]))) .topbar-dash-date:not([hidden]) {
     position: absolute;
     right: max(0.65rem, env(safe-area-inset-right, 0px));
-    top: calc(env(safe-area-inset-top, 0px) + var(--app-header-h) / 2);
+    top: calc(var(--safe-top) + var(--app-header-h) / 2);
     transform: translateY(-50%);
-  }
-
-  .app-header-row--admin {
-    position: relative;
-    overflow: visible;
   }
 
   .topbar-dash-date[hidden] {
