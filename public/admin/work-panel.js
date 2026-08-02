@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, skeletonHtml } from './shared.js?v=20260731a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initWorkPanel(). */
@@ -536,7 +536,7 @@ function mountWorkTimeSection(pane, slug, opts = {}) {
 
   const wrap = document.createElement('div');
   wrap.className = 'wk-time-section';
-  wrap.innerHTML = '<div class="de-loading">Loading time…</div>';
+  wrap.innerHTML = skeletonHtml('list', 'Loading time…');
   pane.appendChild(wrap);
 
   let entries = [];
@@ -1151,7 +1151,7 @@ function renderClientWorkSection(jobsWrap, jobs) {
 function mountClientWorkSection(pane, uid) {
   const jobsWrap = document.createElement('div');
   jobsWrap.className = 'cl-jobs-section';
-  jobsWrap.innerHTML = '<div class="de-loading">Loading projects…</div>';
+  jobsWrap.innerHTML = skeletonHtml('list', 'Loading projects…');
   pane.appendChild(jobsWrap);
   fetch(`/api/work?contact_uid=${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json())
@@ -1184,7 +1184,7 @@ async function loadWorkTab(opts = {}) {
     workState.draft &&
     (opts.workSlug === '__new__' || pendingWorkDeepLinkSlug === '__new__');
   if (!preserveNew) {
-    root.innerHTML = '<div class="de-loading">Loading work…</div>';
+    root.innerHTML = skeletonHtml('list', 'Loading work…');
   }
   try {
     const res = await adminFetch('/api/work');
@@ -2270,7 +2270,7 @@ function workCommentAvatarHtml(author, clientIconUrl) {
 function mountWorkCommentsSection(pane, slug, contactUid) {
   const wrap = document.createElement('div');
   wrap.className = 'wk-comments-section';
-  wrap.innerHTML = '<div class="de-loading">Loading comments…</div>';
+  wrap.innerHTML = skeletonHtml('list', 'Loading comments…');
   pane.appendChild(wrap);
 
   const clientIconPromise = contactUid
@@ -2378,7 +2378,7 @@ function mountWorkCommentsSection(pane, slug, contactUid) {
 
 function renderEditWorkForm(pane) {
   const slug = workState.activeSlug;
-  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+  pane.innerHTML = skeletonHtml('list', 'Loading…');
 
   fetch(`/api/work/${encodeURIComponent(slug)}`, { cache: 'no-store' })
     .then((r) => readApiJson(r))
@@ -3210,7 +3210,7 @@ function mountWorkTodosSection(container, jobSlug) {
 
   const list = document.createElement('div');
   list.className = 'wk-todos-list';
-  list.innerHTML = '<div class="de-loading">Loading…</div>';
+  list.innerHTML = skeletonHtml('list', 'Loading…');
   section.appendChild(list);
 
   const linkWrap = document.createElement('div');
@@ -3222,7 +3222,7 @@ function mountWorkTodosSection(container, jobSlug) {
 }
 
 async function refreshWorkTodosSection(section, listEl, linkWrap, jobSlug) {
-  listEl.innerHTML = '<div class="de-loading">Loading…</div>';
+  listEl.innerHTML = skeletonHtml('list', 'Loading…');
   try {
     const res = await fetch(`/api/todos?job_slug=${encodeURIComponent(jobSlug)}`, { cache: 'no-store' });
     const data = await readApiJson(res);

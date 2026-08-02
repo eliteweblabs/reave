@@ -67,6 +67,47 @@ export function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/** Shimmer skeleton — `kind`: 'list' (sidebar rows) or 'dashboard' (stat grid + cards). */
+const SK_LIST_WIDTHS = [
+  [45, 30],
+  [55, 38],
+  [50, 28],
+  [60, 40],
+  [48, 33],
+  [52, 35],
+];
+
+export function skeletonHtml(kind = 'list', label = 'Loading…') {
+  const safeLabel = escHtml(label);
+  if (kind === 'dashboard') {
+    return (
+      `<div class="sk-dashboard" role="status" aria-live="polite" aria-busy="true">` +
+      `<span class="sk-sr">${safeLabel}</span>` +
+      `<div class="sk-stat-grid">` +
+      `<div class="sk-bone sk-stat"></div>`.repeat(4) +
+      `</div>` +
+      `<div class="sk-bone sk-card"></div>` +
+      `<div class="sk-bone sk-card sk-card--short"></div>` +
+      `</div>`
+    );
+  }
+  const rows = SK_LIST_WIDTHS.map(
+    ([w1, w2]) =>
+      `<div class="sk-row">` +
+      `<div class="sk-bone sk-avatar"></div>` +
+      `<div class="sk-lines">` +
+      `<div class="sk-bone sk-line" style="width:${w1}%"></div>` +
+      `<div class="sk-bone sk-line sk-line--short" style="width:${w2}%"></div>` +
+      `</div></div>`,
+  ).join('');
+  return (
+    `<div class="sk-list" role="status" aria-live="polite" aria-busy="true">` +
+    `<span class="sk-sr">${safeLabel}</span>` +
+    rows +
+    `</div>`
+  );
+}
+
 /** Company icon used in the account menu (same fallback chain as Header.astro). */
 export function companyStaffAvatarUrl() {
   return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';

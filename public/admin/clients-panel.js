@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, skeletonHtml } from './shared.js?v=20260731a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   navigateToWork,
@@ -410,7 +410,7 @@ async function loadClientsTab(opts = {}) {
     return;
   }
 
-  root.innerHTML = '<div class="de-loading">Loading clients…</div>';
+  root.innerHTML = skeletonHtml('list', 'Loading clients…');
   try {
     await fetchClientsList();
   } catch (e) {
@@ -1119,7 +1119,7 @@ function renderEditClientForm(pane) {
   clearClientFieldRegistry();
   const uid = clientState.activeUid;
   clientState.vaultGetData = null;
-  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+  pane.innerHTML = skeletonHtml('list', 'Loading…');
 
   fetch(`/api/clients/${encodeURIComponent(uid)}`, { cache: 'no-store' })
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))

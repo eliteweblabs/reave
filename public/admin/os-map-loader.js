@@ -96,7 +96,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260801a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS } from './shared.js?v=20260731c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, skeletonHtml } from './shared.js?v=20260731c';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -4762,7 +4762,7 @@ async function loadHomeDashboard() {
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
   homeDashboardLoadPromise = (async () => {
-    root.innerHTML = '<div class="home-dashboard-scroll"><div class="dash-loading">Loading dashboard…</div></div>';
+    root.innerHTML = `<div class="home-dashboard-scroll">${skeletonHtml('dashboard', 'Loading dashboard…')}</div>`;
 
     try {
       const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
@@ -6206,7 +6206,7 @@ async function loadProfileTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading profile…</div></div>';
+  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading profile…')}</div>`;
   prependSettingsBackHeader(root);
 
   try {
@@ -6231,7 +6231,7 @@ async function loadCompanyTab() {
   destroyCompanyMap();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading company…</div></div>';
+  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading company…')}</div>`;
   prependSettingsBackHeader(root);
 
   try {
@@ -6255,7 +6255,7 @@ async function loadSocialsTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading socials…</div></div>';
+  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading socials…')}</div>`;
   prependSettingsBackHeader(root);
 
   try {
@@ -6304,7 +6304,7 @@ async function loadIndustriesTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading industries…</div></div>';
+  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading industries…')}</div>`;
   prependSettingsBackHeader(root);
 
   try {
@@ -6372,7 +6372,7 @@ async function loadVapiTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = '<div class="profile-panel-scroll"><div class="dash-loading">Loading Vapi…</div></div>';
+  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading Vapi…')}</div>`;
   prependSettingsBackHeader(root);
 
   try {
@@ -10360,7 +10360,7 @@ async function switchEmailInboxFilter(nextFilter) {
 async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
-  if (!quiet) root.innerHTML = '<div class="de-loading">Loading inbox…</div>';
+  if (!quiet) root.innerHTML = skeletonHtml('list', 'Loading inbox…');
   try {
     const [inboxRes] = await Promise.all([
       adminFetch('/api/email/inbox?junk=1'),

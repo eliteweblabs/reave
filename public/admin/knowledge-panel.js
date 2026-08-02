@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, skeletonHtml } from './shared.js?v=20260731a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
@@ -139,7 +139,7 @@ async function loadKnowledgeTab() {
     root.innerHTML = '<div class="de-loading de-error">Sign in required to view knowledge.</div>';
     return;
   }
-  root.innerHTML = '<div class="de-loading">Loading knowledge…</div>';
+  root.innerHTML = skeletonHtml('list', 'Loading knowledge…');
   try {
     const res = await adminFetch(shell.KNOWLEDGE_API);
     const data = await res.json();
@@ -415,7 +415,7 @@ function renderNewKnowledgeForm(pane) {
 function renderEditKnowledgeForm(pane) {
   const slug = knowledgeState.activeSlug;
   const entry = knowledgeState.entries.find((e) => e.slug === slug);
-  pane.innerHTML = '<div class="de-loading">Loading…</div>';
+  pane.innerHTML = skeletonHtml('list', 'Loading…');
 
   adminFetch(`${shell.KNOWLEDGE_API}/${encodeURIComponent(slug)}`)
     .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
