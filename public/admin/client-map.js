@@ -1,27 +1,38 @@
 /**
- * Mapbox map for the admin client detail pane — marker + driving directions overlay.
+ * Admin map — Mapbox when configured, otherwise OpenStreetMap (Leaflet).
  */
 
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.9.0/mapbox-gl.css';
-const MAPBOX_JS = 'https://esm.sh/mapbox-gl@3.9.0';
+const MAPBOX_JS = 'https://cdn.jsdelivr.net/npm/mapbox-gl@3.9.0/+esm';
+const LEAFLET_CSS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+const LEAFLET_JS = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/+esm';
 
 let mapboxLoadPromise = null;
+let leafletLoadPromise = null;
 
-function ensureMapboxCss() {
-  if (document.querySelector('link[data-cl-mapbox-css]')) return;
+function ensureStylesheet(href, attr) {
+  if (document.querySelector(`link[${attr}]`)) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = MAPBOX_CSS;
-  link.setAttribute('data-cl-mapbox-css', '1');
+  link.href = href;
+  link.setAttribute(attr, '1');
   document.head.appendChild(link);
 }
 
 async function loadMapboxGl() {
-  ensureMapboxCss();
+  ensureStylesheet(MAPBOX_CSS, 'data-cl-mapbox-css');
   if (!mapboxLoadPromise) {
     mapboxLoadPromise = import(/* @vite-ignore */ MAPBOX_JS).then((mod) => mod.default || mod);
   }
   return mapboxLoadPromise;
+}
+
+async function loadLeaflet() {
+  ensureStylesheet(LEAFLET_CSS, 'data-cl-leaflet-css');
+  if (!leafletLoadPromise) {
+    leafletLoadPromise = import(/* @vite-ignore */ LEAFLET_JS).then((mod) => mod.default || mod);
+  }
+  return leafletLoadPromise;
 }
 
 function formatDistance(meters) {
@@ -45,11 +56,13 @@ function formatDuration(seconds) {
  * @param {{ token?: string, lat?: number|null, lng?: number|null, address?: string, emptyHint?: string, showDirections?: boolean }} opts
  */
 export function createClientMap(container, opts = {}) {
-  /** @type {import('mapbox-gl').Map | null} */
+  /** @type {import('mapbox-gl').Map | import('leaflet').Map | null} */
   let map = null;
-  /** @type {import('mapbox-gl').Marker | null} */
+  /** @type {import('mapbox-gl').Marker | import('leaflet').Marker | null} */
   let marker = null;
   let destroyed = false;
+  /** @type {'mapbox' | 'leaflet' | null} */
+  let mapEngine = null;
   const routeSourceId = 'cl-route';
   const routeLayerId = 'cl-route-line';
   let currentGeo = null;
@@ -59,6 +72,7 @@ export function createClientMap(container, opts = {}) {
   let mapReady = false;
   let geocodeFailed = false;
   let mapLoadFailed = false;
+  let mapLoadError = '';
 
   const metaEl = document.createElement('div');
   metaEl.className = 'cl-map-meta';
@@ -103,14 +117,14 @@ export function createClientMap(container, opts = {}) {
     const hasGeo = currentGeo && Number.isFinite(currentGeo.lat) && Number.isFinite(currentGeo.lng);
     const mapWorking = hasGeo && mapReady;
     mapEl.hidden = !hasGeo || mapLoadFailed;
-    directionsBtn.disabled = !hasGeo;
+    directionsBtn.disabled = !hasGeo || mapEngine !== 'mapbox';
     openMapsBtn.hidden = !hasGeo;
 
     if (mapWorking || (hasGeo && !mapLoadFailed)) {
       emptyEl.hidden = true;
     } else if (hasGeo && mapLoadFailed) {
       emptyEl.hidden = false;
-      emptyEl.textContent = 'Could not load map.';
+      emptyEl.textContent = mapLoadError || 'Could not load map.';
     } else if (currentAddress && !geocodeFailed) {
       emptyEl.hidden = false;
       emptyEl.textContent = 'Loading map…';
@@ -129,15 +143,35 @@ export function createClientMap(container, opts = {}) {
     }
   }
 
-  async function ensureMap() {
-    const token = opts.token || window.__mapboxAccessToken;
-    if (!token) {
+  async function ensureLeafletMap() {
+    try {
+      const L = await loadLeaflet();
+      if (destroyed) return null;
+
+      if (!map) {
+        map = L.map(mapEl, { zoomControl: true, attributionControl: true });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19,
+        }).addTo(map);
+        mapEngine = 'leaflet';
+        metaEl.hidden = false;
+        metaEl.textContent =
+          'OpenStreetMap preview — set MAPBOX_ACCESS_TOKEN for Mapbox tiles and driving directions.';
+      }
+
+      mapLoadFailed = false;
+      mapLoadError = '';
+      return { map, L, engine: 'leaflet' };
+    } catch {
       mapLoadFailed = true;
+      mapLoadError = 'Could not load map.';
       syncEmptyState();
-      emptyEl.textContent = 'Mapbox token not configured.';
       return null;
     }
+  }
 
+  async function ensureMapboxMap(token) {
     try {
       const mapboxgl = await loadMapboxGl();
       if (destroyed) return null;
@@ -156,15 +190,29 @@ export function createClientMap(container, opts = {}) {
           if (map.isStyleLoaded()) resolve();
           else map.once('load', resolve);
         });
+        mapEngine = 'mapbox';
+        metaEl.hidden = true;
+        metaEl.textContent = '';
       }
 
       mapLoadFailed = false;
-      return { map, mapboxgl };
+      mapLoadError = '';
+      return { map, mapboxgl, engine: 'mapbox' };
     } catch {
       mapLoadFailed = true;
+      mapLoadError = 'Could not load Mapbox map.';
       syncEmptyState();
       return null;
     }
+  }
+
+  async function ensureMap() {
+    const token = (opts.token || window.__mapboxAccessToken || '').trim();
+    if (token) {
+      const ready = await ensureMapboxMap(token);
+      if (ready) return ready;
+    }
+    return ensureLeafletMap();
   }
 
   async function setLocation(lat, lng, address) {
@@ -178,45 +226,64 @@ export function createClientMap(container, opts = {}) {
     if (!currentGeo) {
       mapReady = false;
       mapLoadFailed = false;
+      mapLoadError = '';
     }
     if (currentGeo) {
       geocodeFailed = false;
       mapLoadFailed = false;
+      mapLoadError = '';
     }
     syncEmptyState();
-    metaEl.hidden = true;
-    metaEl.textContent = '';
+    if (!currentGeo) {
+      metaEl.hidden = true;
+      metaEl.textContent = '';
+    }
     clearRoute();
 
     if (!currentGeo) return;
 
     const ready = await ensureMap();
     if (!ready || destroyed) return;
-    const { map: liveMap, mapboxgl } = ready;
 
-    liveMap.setCenter([currentGeo.lng, currentGeo.lat]);
-    liveMap.setZoom(14);
-
-    if (!marker) {
-      marker = new mapboxgl.Marker({ color: '#0a84ff' })
-        .setLngLat([currentGeo.lng, currentGeo.lat])
-        .addTo(liveMap);
+    if (ready.engine === 'leaflet') {
+      const { map: liveMap, L } = ready;
+      liveMap.setView([currentGeo.lat, currentGeo.lng], 14);
+      if (!marker) {
+        marker = L.marker([currentGeo.lat, currentGeo.lng]).addTo(liveMap);
+      } else {
+        marker.setLatLng([currentGeo.lat, currentGeo.lng]);
+      }
     } else {
-      marker.setLngLat([currentGeo.lng, currentGeo.lat]);
+      const { map: liveMap, mapboxgl } = ready;
+      liveMap.setCenter([currentGeo.lng, currentGeo.lat]);
+      liveMap.setZoom(14);
+      if (!marker) {
+        marker = new mapboxgl.Marker({ color: '#0a84ff' })
+          .setLngLat([currentGeo.lng, currentGeo.lat])
+          .addTo(liveMap);
+      } else {
+        marker.setLngLat([currentGeo.lng, currentGeo.lat]);
+      }
     }
 
     mapReady = true;
     syncEmptyState();
+    requestAnimationFrame(() => map?.invalidateSize?.() || map?.resize?.());
   }
 
   function clearRoute() {
-    if (!map) return;
+    if (!map || mapEngine !== 'mapbox') return;
     if (map.getLayer(routeLayerId)) map.removeLayer(routeLayerId);
     if (map.getSource(routeSourceId)) map.removeSource(routeSourceId);
   }
 
   async function showDirections() {
     if (!currentGeo) return;
+    if (mapEngine !== 'mapbox') {
+      metaEl.hidden = false;
+      metaEl.textContent = 'Driving directions require MAPBOX_ACCESS_TOKEN.';
+      return;
+    }
     metaEl.hidden = false;
     metaEl.textContent = 'Loading route…';
     directionsBtn.disabled = true;
@@ -233,7 +300,7 @@ export function createClientMap(container, opts = {}) {
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
       const ready = await ensureMap();
-      if (!ready || destroyed) return;
+      if (!ready || destroyed || ready.engine !== 'mapbox') return;
       const { map: liveMap } = ready;
       clearRoute();
 
@@ -269,7 +336,7 @@ export function createClientMap(container, opts = {}) {
     } catch (e) {
       metaEl.textContent = e.message || 'Could not load directions';
     } finally {
-      directionsBtn.disabled = !currentGeo;
+      directionsBtn.disabled = !currentGeo || mapEngine !== 'mapbox';
     }
   }
 
@@ -291,16 +358,18 @@ export function createClientMap(container, opts = {}) {
     },
     showDirections,
     resize() {
-      map?.resize();
+      map?.resize?.();
+      map?.invalidateSize?.();
     },
     destroy() {
       destroyed = true;
       mapReady = false;
       clearRoute();
-      marker?.remove();
+      marker?.remove?.();
       marker = null;
-      map?.remove();
+      map?.remove?.();
       map = null;
+      mapEngine = null;
       container.replaceChildren();
       container.classList.remove('cl-map-wrap');
     },

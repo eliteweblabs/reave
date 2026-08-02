@@ -48,11 +48,11 @@ export async function resolveScanLocation(
   center: { lat: number; lng: number },
 ): Promise<ScanCenterLocation> {
   const company = await getCompanyConfig();
-  const { parseUsAddressLocation, reverseGeocode } = await import('./mapbox');
+  const { parseUsAddressLocation, reverseGeocodeCoordinates } = await import('./mapbox');
   const parsed = parseUsAddressLocation(company.address);
   if (parsed) return parsed;
 
-  const reversed = await reverseGeocode(center.lat, center.lng);
+  const reversed = await reverseGeocodeCoordinates(center.lat, center.lng);
   if (reversed) return reversed;
 
   return { city: 'Local Area', state: '', zip: '' };

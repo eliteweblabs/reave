@@ -417,7 +417,7 @@ const { pathname, signedIn } = Astro.props;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     padding:
-      calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px) + 20px)
+      calc(var(--app-header-offset, calc(var(--app-header-h, 3.25rem) + env(safe-area-inset-top, 0px))) + 20px)
       28px
       24px;
   }

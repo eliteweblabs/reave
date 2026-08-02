@@ -88,7 +88,19 @@ export async function reverseGeocode(
   return { city, state, zip };
 }
 
-/** Geocode a street address via Mapbox Geocoding API. */
+/** Reverse geocode coordinates — Mapbox when configured, otherwise Nominatim. */
+export async function reverseGeocodeCoordinates(
+  lat: number,
+  lng: number,
+): Promise<{ city: string; state: string; zip: string } | null> {
+  const viaMapbox = await reverseGeocode(lat, lng);
+  if (viaMapbox) return viaMapbox;
+  return reverseGeocodeNominatim(lat, lng);
+}
+
+/**
+ * Geocode a street address via Mapbox Geocoding API.
+ */
 export async function geocodeAddress(query: string): Promise<GeocodeResult | null> {
   const token = getMapboxAccessToken();
   const q = cleanAddress(query);
@@ -128,6 +140,88 @@ export async function geocodeAddress(query: string): Promise<GeocodeResult | nul
   };
 }
 
+/** Free geocoder fallback — OpenStreetMap Nominatim (no API key). */
+export async function geocodeAddressNominatim(query: string): Promise<GeocodeResult | null> {
+  const q = cleanAddress(query);
+  if (!q) return null;
+
+  const url = new URL('https://nominatim.openstreetmap.org/search');
+  url.searchParams.set('q', q);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('limit', '1');
+  url.searchParams.set('addressdetails', '0');
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'REAVE/1.0 (address geocoding)',
+      },
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as Array<{ lat?: string; lon?: string; display_name?: string }>;
+  const hit = data[0];
+  const lat = Number(hit?.lat);
+  const lng = Number(hit?.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return {
+    lat,
+    lng,
+    resolved: cleanAddress(hit.display_name) || q,
+    geocodedAt: new Date().toISOString(),
+  };
+}
+
+/** Reverse geocode via Nominatim when Mapbox is unavailable. */
+export async function reverseGeocodeNominatim(
+  lat: number,
+  lng: number,
+): Promise<{ city: string; state: string; zip: string } | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const url = new URL('https://nominatim.openstreetmap.org/reverse');
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lng));
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('addressdetails', '1');
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'REAVE/1.0 (reverse geocoding)',
+      },
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    address?: {
+      city?: string;
+      town?: string;
+      village?: string;
+      state?: string;
+      postcode?: string;
+    };
+  };
+  const addr = data.address;
+  if (!addr) return null;
+  const city = (addr.city || addr.town || addr.village || '').trim();
+  const state = (addr.state || '').trim();
+  const zip = (addr.postcode || '').trim();
+  if (!city && !state) return null;
+  return { city: city || 'Local Area', state, zip };
+}
+
 /**
  * Geocode a street address, preferring Mapbox and falling back to Google when
  * Mapbox is unconfigured or returns no match. Lets deployments that only set a
@@ -138,7 +232,10 @@ export async function resolveAddressCoordinates(query: string): Promise<GeocodeR
   if (viaMapbox) return viaMapbox;
 
   const { geocodeAddressGoogle } = await import('./googleGeocode');
-  return geocodeAddressGoogle(query);
+  const viaGoogle = await geocodeAddressGoogle(query);
+  if (viaGoogle) return viaGoogle;
+
+  return geocodeAddressNominatim(query);
 }
 
 /** Office / job-site origin for driving directions (company address, then BOOKING_DEFAULT_ADDRESS). */

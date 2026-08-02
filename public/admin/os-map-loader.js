@@ -1,5 +1,5 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
-import { createClientMap } from '/admin/client-map.js';
+import { createClientMap } from '/admin/client-map.js?v=20260802c';
 import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 
 function companyBrand() {
@@ -5690,6 +5690,47 @@ function collectIndustriesFromDom(root) {
     .filter((r) => r.label);
 }
 
+function industriesBaselineFromList(industries) {
+  return JSON.stringify(
+    (industries || []).map((item, i) => ({
+      label: item.label || '',
+      slug: item.slug || '',
+      enabled: item.enabled !== false,
+      sortOrder: i,
+    })),
+  );
+}
+
+/** Apply server-normalized values without re-rendering (keeps focus + save flash). */
+function syncIndustriesListFromServer(listEl, industries) {
+  const active = document.activeElement;
+  const selStart = active instanceof HTMLInputElement ? active.selectionStart : null;
+  const selEnd = active instanceof HTMLInputElement ? active.selectionEnd : null;
+  const rows = listEl.querySelectorAll('.ind-row');
+  (industries || []).forEach((item, i) => {
+    const row = rows[i];
+    if (!row) return;
+    const labelInput = row.querySelector('.ind-label');
+    const slugInput = row.querySelector('.ind-slug');
+    const cb = row.querySelector('.ind-enabled-cb');
+    if (labelInput) labelInput.value = item.label || '';
+    if (slugInput) slugInput.value = item.slug || '';
+    if (cb) cb.checked = item.enabled !== false;
+  });
+  if (active instanceof HTMLInputElement && listEl.contains(active)) {
+    active.focus();
+    try {
+      const len = active.value.length;
+      active.setSelectionRange(
+        Math.min(selStart ?? len, len),
+        Math.min(selEnd ?? len, len),
+      );
+    } catch {
+      /* ignore non-text inputs */
+    }
+  }
+}
+
 function bindIndustriesEditor(root) {
   const listEl = root.querySelector('#industries-list');
   const alertEl = root.querySelector('#industries-alert');
@@ -5728,8 +5769,8 @@ function bindIndustriesEditor(root) {
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.ok) {
-        listEl.innerHTML = industriesRowsHtml(json.industries);
-        baseline = JSON.stringify(json.industries || []);
+        syncIndustriesListFromServer(listEl, json.industries);
+        baseline = industriesBaselineFromList(json.industries);
         if (activeEl) flashFormFieldSaved(activeEl);
       } else {
         if (activeEl) setFormFieldState(activeEl, 'invalid');

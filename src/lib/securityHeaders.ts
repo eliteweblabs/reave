@@ -8,10 +8,10 @@ import { serverEnv } from './serverEnv';
 const CSP_VALUE = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com https://cdn.jsdelivr.net",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com",
+  "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://cdn.jsdelivr.net https://api.vapi.ai https://*.vapi.ai wss://*.vapi.ai https://*.daily.co wss://*.daily.co https://cloudflareinsights.com https://api.mapbox.com https://*.tiles.mapbox.com https://events.mapbox.com https://*.openstreetmap.org https://nominatim.openstreetmap.org",
   "media-src 'self' blob: https:",
   "worker-src 'self' blob:",
   "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
