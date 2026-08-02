@@ -1,7 +1,8 @@
 /**
  * Hero industry tagline — two-step wipe: erase left→right, then reveal next left→right.
  * Text layers stay fixed; only the background mask moves.
- * Viewport width matches each word; it resizes under the mask between wipe steps.
+ * Viewport width matches each word; it resizes under the mask between wipe steps,
+ * then CSS transitions width afterward so the tagline recenters smoothly.
  */
 
 const WIPE_MS = 520;
@@ -73,7 +74,15 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   let swapping = false;
 
-  const setViewportWidth = (widthPx: number) => {
+  const setViewportWidth = (widthPx: number, instant = false) => {
+    if (instant) viewport.classList.add('is-wiping');
+    viewport.style.width = `${widthPx}px`;
+    if (instant) void viewport.offsetWidth;
+  };
+
+  const recenterViewport = (widthPx: number) => {
+    viewport.classList.remove('is-wiping');
+    void viewport.offsetWidth;
     viewport.style.width = `${widthPx}px`;
   };
 
@@ -91,7 +100,8 @@ export function initHeroIndustryRotate(root: HTMLElement) {
   };
 
   resetLayers(industries[index]!);
-  setViewportWidth(labelWidth(industries[index]!));
+  setViewportWidth(labelWidth(industries[index]!), true);
+  viewport.classList.remove('is-wiping');
 
   if (industries.length <= 1) return;
 
@@ -107,7 +117,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     if (reducedMotion) {
       index = (index + 1) % industries.length;
       resetLayers(incoming);
-      setViewportWidth(incomingWidth);
+      setViewportWidth(incomingWidth, true);
       swapping = false;
       schedule();
       return;
@@ -117,7 +127,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.hidden = false;
     next.textContent = incoming;
     next.hidden = true;
-    setViewportWidth(outgoingWidth);
+    setViewportWidth(outgoingWidth, true);
 
     // Step 1 — wipe out at the outgoing word width.
     wipe.style.transform = `translate3d(${-outgoingWidth}px, 0, 0)`;
@@ -126,17 +136,28 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     current.textContent = '';
     current.hidden = true;
 
-    // Resize for the incoming word while fully masked.
-    setViewportWidth(incomingWidth);
-    parkWipe();
+    const revealWidth = Math.max(outgoingWidth, incomingWidth);
 
-    // Step 2 — wipe reveal at the incoming word width.
+    // Widen under the mask only when the incoming word is longer.
+    if (incomingWidth > outgoingWidth) {
+      setViewportWidth(incomingWidth, true);
+      parkWipe();
+    }
+
+    // Step 2 — wipe reveal.
     next.hidden = false;
     wipe.style.transform = 'translate3d(0px, 0, 0)';
-    await animateTranslate(wipe, 0, incomingWidth, WIPE_MS);
+    await animateTranslate(wipe, 0, revealWidth, WIPE_MS);
 
     index = (index + 1) % industries.length;
     resetLayers(incoming);
+
+    // Ease to the incoming word width so the tagline recenters after reveal.
+    if (incomingWidth < outgoingWidth) {
+      recenterViewport(incomingWidth);
+    } else {
+      viewport.classList.remove('is-wiping');
+    }
     swapping = false;
     schedule();
   };
