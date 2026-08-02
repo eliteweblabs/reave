@@ -8,11 +8,14 @@ import { runRadiusScan } from './lib/scanner/engine.js';
 import { normalizeTradeSlugs, TRADES } from './lib/trades.js';
 import type { AgentToolDef, AgentToolModule, HasFeature, ToolContext } from './lib/types.js';
 import { DEFAULT_FEATURE_ID } from './lib/types.js';
-import { lookupViolations } from './lib/violations/index.js';
+import { lookupViolations, describeViolationServiceArea } from './lib/violations/index.js';
+import type { ServiceAreaConfig } from './lib/violations/places.js';
 
 /** Inject from Reave core when bundled; defaults to env-based check for standalone use. */
 export type RealEstateDataModuleOptions = {
   hasFeature?: HasFeature;
+  /** Resolve service area from company office (admin address geo). */
+  getViolationServiceArea?: () => Promise<ServiceAreaConfig | null>;
 };
 
 function createHasFeature(opt?: RealEstateDataModuleOptions): HasFeature {
@@ -143,14 +146,26 @@ async function handle_get_property_hazard_profile(args: Record<string, unknown>,
   return JSON.stringify({ ok: true, address: property.fullAddress, hazards });
 }
 
-async function handle_lookup_code_violations(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+async function handle_lookup_code_violations(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+  getServiceArea?: () => Promise<ServiceAreaConfig | null>,
+): Promise<string> {
   const addr = addressArgs(args);
   if (!addr.address?.trim()) return JSON.stringify({ error: 'address is required', code: 'INVALID_INPUT' });
-  const result = await lookupViolations({ ...addr, address: addr.address });
+  const serviceArea = getServiceArea ? await getServiceArea() : null;
+  const result = await lookupViolations(
+    { ...addr, address: addr.address },
+    serviceArea ? { serviceArea } : {},
+  );
   return JSON.stringify(result);
 }
 
-async function handle_assess_property_liability(args: Record<string, unknown>, _ctx: ToolContext): Promise<string> {
+async function handle_assess_property_liability(
+  args: Record<string, unknown>,
+  _ctx: ToolContext,
+  getServiceArea?: () => Promise<ServiceAreaConfig | null>,
+): Promise<string> {
   const lookup = await lookupProperty(addressArgs(args));
   if (!lookup.ok) return JSON.stringify({ error: lookup.error, code: lookup.code });
   const property = lookup.properties[0];
@@ -158,9 +173,11 @@ async function handle_assess_property_liability(args: Record<string, unknown>, _
   const trades = normalizeTradeSlugs(
     Array.isArray(args.trades) ? args.trades.map(String) : args.trade ? [String(args.trade)] : ['general_contractor'],
   );
+  const serviceArea = getServiceArea ? await getServiceArea() : null;
   const report = await buildLiabilityRadarReport(property, trades, {
     hasSeptic: args.has_septic === true,
     isRental: args.is_rental === true,
+    serviceArea: serviceArea ?? undefined,
   });
   return JSON.stringify({ ok: true, report });
 }
@@ -203,6 +220,7 @@ async function handle_real_estate_data_status(_args: Record<string, unknown>, _c
 
 export function createRealEstateDataModule(options?: RealEstateDataModuleOptions): AgentToolModule {
   const hasFeature = createHasFeature(options);
+  const getServiceArea = options?.getViolationServiceArea;
 
   return {
     id: 'real-estate-data',
@@ -412,8 +430,8 @@ export function createRealEstateDataModule(options?: RealEstateDataModuleOptions
       search_property_comps: handle_search_property_comps,
       get_property_compliance_timeline: handle_get_property_compliance_timeline,
       get_property_hazard_profile: handle_get_property_hazard_profile,
-      lookup_code_violations: handle_lookup_code_violations,
-      assess_property_liability: handle_assess_property_liability,
+      lookup_code_violations: (args, ctx) => handle_lookup_code_violations(args, ctx, getServiceArea),
+      assess_property_liability: (args, ctx) => handle_assess_property_liability(args, ctx, getServiceArea),
       run_lead_scan: handle_run_lead_scan,
       real_estate_data_status: handle_real_estate_data_status,
     },

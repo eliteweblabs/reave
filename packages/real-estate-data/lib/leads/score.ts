@@ -4,7 +4,8 @@ import { buildHazardProfile } from '../hazards/profile.js';
 import type { HazardProfile } from '../hazards/profile.js';
 import type { PropertyRecord } from '../providers/types.js';
 import { TRADE_BY_SLUG, type TradeSlug } from '../trades.js';
-import { lookupViolations } from '../violations/index.js';
+import type { ServiceAreaConfig } from '../violations/places.js';
+import { lookupViolations, type ViolationLookupOptions } from '../violations/index.js';
 
 export type LiabilityRadarReport = {
   property: PropertyRecord;
@@ -99,7 +100,7 @@ export function scoreLeadForTrades(
 export async function buildLiabilityRadarReport(
   property: PropertyRecord,
   trades: TradeSlug[],
-  opts?: { hasSeptic?: boolean; isRental?: boolean },
+  opts?: { hasSeptic?: boolean; isRental?: boolean; serviceArea?: ServiceAreaConfig },
 ): Promise<LiabilityRadarReport> {
   const compliance = buildComplianceTimeline({
     yearBuilt: property.yearBuilt ?? null,
@@ -108,12 +109,16 @@ export async function buildLiabilityRadarReport(
     isRental: opts?.isRental,
   });
   const hazards = buildHazardProfile(property);
-  const violations = await lookupViolations({
-    address: property.street ?? property.fullAddress,
-    city: property.city,
-    state: property.state,
-    zip: property.zip,
-  });
+  const violationOpts: ViolationLookupOptions = opts?.serviceArea ? { serviceArea: opts.serviceArea } : {};
+  const violations = await lookupViolations(
+    {
+      address: property.street ?? property.fullAddress,
+      city: property.city,
+      state: property.state,
+      zip: property.zip,
+    },
+    violationOpts,
+  );
 
   const tradeMatches = trades.map((trade) => {
     const lead = scoreLeadForTrades(property, [trade], opts);

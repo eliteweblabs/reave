@@ -7,5 +7,5 @@ export { buildLiabilityRadarReport, scoreLeadForTrades } from './lib/leads/score
 export { runRadiusScan } from './lib/scanner/engine.js';
 export { TRADES, normalizeTradeSlugs } from './lib/trades.js';
 export { distanceMiles, isWithinRadiusMiles } from './lib/geo/index.js';
-export { lookupViolations } from './lib/violations/index.js';
+export { lookupViolations, describeViolationServiceArea, } from './lib/violations/index.js';
 //# sourceMappingURL=index.js.map

@@ -7,7 +7,8 @@ export { buildLiabilityRadarReport, scoreLeadForTrades } from './lib/leads/score
 export { runRadiusScan } from './lib/scanner/engine.js';
 export { TRADES, normalizeTradeSlugs } from './lib/trades.js';
 export { distanceMiles, isWithinRadiusMiles } from './lib/geo/index.js';
-export { lookupViolations } from './lib/violations/index.js';
+export { lookupViolations, describeViolationServiceArea, type ViolationLookupOptions, type ViolationServiceAreaSummary, } from './lib/violations/index.js';
+export type { ServiceAreaConfig, ServiceAreaMunicipality } from './lib/violations/places.js';
 export type { PropertyRecord } from './lib/providers/types.js';
 export type { TradeSlug } from './lib/trades.js';
 export type { ScanCandidate, ScanResult, ScanCenterLocation } from './lib/scanner/engine.js';

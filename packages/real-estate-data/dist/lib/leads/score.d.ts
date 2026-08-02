@@ -3,6 +3,7 @@ import type { ComplianceItem } from '../compliance/types.js';
 import type { HazardProfile } from '../hazards/profile.js';
 import type { PropertyRecord } from '../providers/types.js';
 import { type TradeSlug } from '../trades.js';
+import type { ServiceAreaConfig } from '../violations/places.js';
 import { lookupViolations } from '../violations/index.js';
 export type LiabilityRadarReport = {
     property: PropertyRecord;
@@ -30,5 +31,6 @@ export declare function scoreLeadForTrades(property: Partial<PropertyRecord>, tr
 export declare function buildLiabilityRadarReport(property: PropertyRecord, trades: TradeSlug[], opts?: {
     hasSeptic?: boolean;
     isRental?: boolean;
+    serviceArea?: ServiceAreaConfig;
 }): Promise<LiabilityRadarReport>;
 //# sourceMappingURL=score.d.ts.map

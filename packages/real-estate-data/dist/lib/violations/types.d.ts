@@ -10,6 +10,13 @@ export type ViolationLookupResult = {
     ok: true;
     violations: CodeViolation[];
     source: string;
+    meta?: {
+        reason?: string;
+        feedCityKey?: string;
+        inServiceArea?: boolean;
+        queriedFeeds?: number;
+        errors?: string[];
+    };
 } | {
     ok: false;
     error: string;

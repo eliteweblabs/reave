@@ -25,8 +25,9 @@
     "prepare": "npm run build",
     "dev": "tsc --watch",
     "build": "tsc",
+    "build:places": "node scripts/build-us-places.mjs",
     "check": "tsc --noEmit",
-    "test": "npm run build && node --experimental-strip-types test/smoke.test.ts && node --experimental-strip-types test/compliance.test.ts"
+    "test": "npm run build && node --experimental-strip-types test/smoke.test.ts && node --experimental-strip-types test/compliance.test.ts && node --experimental-strip-types test/violations-service-area.test.ts"
   },
   "keywords": [
     "reave",

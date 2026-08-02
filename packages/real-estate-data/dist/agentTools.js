@@ -124,14 +124,15 @@ async function handle_get_property_hazard_profile(args, _ctx) {
     const hazards = buildHazardProfile(property);
     return JSON.stringify({ ok: true, address: property.fullAddress, hazards });
 }
-async function handle_lookup_code_violations(args, _ctx) {
+async function handle_lookup_code_violations(args, _ctx, getServiceArea) {
     const addr = addressArgs(args);
     if (!addr.address?.trim())
         return JSON.stringify({ error: 'address is required', code: 'INVALID_INPUT' });
-    const result = await lookupViolations({ ...addr, address: addr.address });
+    const serviceArea = getServiceArea ? await getServiceArea() : null;
+    const result = await lookupViolations({ ...addr, address: addr.address }, serviceArea ? { serviceArea } : {});
     return JSON.stringify(result);
 }
-async function handle_assess_property_liability(args, _ctx) {
+async function handle_assess_property_liability(args, _ctx, getServiceArea) {
     const lookup = await lookupProperty(addressArgs(args));
     if (!lookup.ok)
         return JSON.stringify({ error: lookup.error, code: lookup.code });
@@ -139,9 +140,11 @@ async function handle_assess_property_liability(args, _ctx) {
     if (!property)
         return JSON.stringify({ error: 'No property matched', code: 'NOT_FOUND' });
     const trades = normalizeTradeSlugs(Array.isArray(args.trades) ? args.trades.map(String) : args.trade ? [String(args.trade)] : ['general_contractor']);
+    const serviceArea = getServiceArea ? await getServiceArea() : null;
     const report = await buildLiabilityRadarReport(property, trades, {
         hasSeptic: args.has_septic === true,
         isRental: args.is_rental === true,
+        serviceArea: serviceArea ?? undefined,
     });
     return JSON.stringify({ ok: true, report });
 }
@@ -179,6 +182,7 @@ async function handle_real_estate_data_status(_args, _ctx) {
 }
 export function createRealEstateDataModule(options) {
     const hasFeature = createHasFeature(options);
+    const getServiceArea = options?.getViolationServiceArea;
     return {
         id: 'real-estate-data',
         enabled: () => hasFeature(DEFAULT_FEATURE_ID) && isRealEstateDataConfigured(),
@@ -380,8 +384,8 @@ export function createRealEstateDataModule(options) {
             search_property_comps: handle_search_property_comps,
             get_property_compliance_timeline: handle_get_property_compliance_timeline,
             get_property_hazard_profile: handle_get_property_hazard_profile,
-            lookup_code_violations: handle_lookup_code_violations,
-            assess_property_liability: handle_assess_property_liability,
+            lookup_code_violations: (args, ctx) => handle_lookup_code_violations(args, ctx, getServiceArea),
+            assess_property_liability: (args, ctx) => handle_assess_property_liability(args, ctx, getServiceArea),
             run_lead_scan: handle_run_lead_scan,
             real_estate_data_status: handle_real_estate_data_status,
         },

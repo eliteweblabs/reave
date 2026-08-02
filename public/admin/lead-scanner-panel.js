@@ -39,6 +39,13 @@ export function renderLeadScannerPanel(data) {
       ? `<p class="prof-hint prof-hint--block">Data provider: <code>mock</code> — demo street names near your map center. Set <code>REAL_ESTATE_DATA_PROVIDER=propdata</code> for live assessor data.</p>`
       : `<p class="prof-hint prof-hint--block">Data provider: <code>${escHtml(provider)}</code>.</p>`;
 
+  const vArea = data.violationServiceArea;
+  const violationHint = vArea
+    ? `<p class="prof-hint prof-hint--block">Municipal violations: <strong>${vArea.feedCount}</strong> of ` +
+      `<strong>${vArea.municipalityCount}</strong> service-area municipalities (top 50% by population within ` +
+      `${vArea.radiusMiles} mi of <code>${escHtml(data.companyAddress || 'company office')}</code>) have public feeds wired.</p>`
+    : `<p class="prof-hint prof-hint--block">Set your company address in admin settings to auto-resolve the municipal violation service area.</p>`;
+
   const tradeHtml = catalog
     .map((t) => tradeCheckbox(t.slug, t.label, selected.has(t.slug)))
     .join('');
@@ -75,6 +82,7 @@ export function renderLeadScannerPanel(data) {
     `<h1 class="prof-title">Lead Scanner</h1>` +
     `<p class="prof-subtitle">Scan your service radius, watch the agent log properties as they're found, then cherry-pick leads to import as projects.</p>` +
     providerHint +
+    violationHint +
     `<div id="lead-scanner-alert" class="prof-alert" hidden></div>` +
     `<form id="lead-scanner-form" class="prof-form">` +
     `<div class="prof-field">` +

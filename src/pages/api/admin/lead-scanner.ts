@@ -8,6 +8,7 @@ import {
   runLeadScanner,
 } from '../../../lib/leadScannerEngine';
 import { getCompanyConfig } from '../../../lib/companyConfig';
+import { getViolationServiceAreaSummary } from '../../../lib/violationsContext';
 import { getDeploymentOwnerTimezone } from '../../../lib/deploymentOwner';
 import {
   getLatestLeadScannerRun,
@@ -47,12 +48,13 @@ export async function GET(context: APIContext): Promise<Response> {
 
   const runId = context.url.searchParams.get('runId')?.trim() || null;
 
-  const [config, runs, status, company, timezone] = await Promise.all([
+  const [config, runs, status, company, timezone, violationServiceArea] = await Promise.all([
     getLeadScannerConfig(),
     listRecentLeadScannerRuns(8),
     leadScannerStatusSummary(),
     getCompanyConfig(),
     getDeploymentOwnerTimezone(context),
+    getViolationServiceAreaSummary(),
   ]);
   const resolvedCenter = await resolveScanCenter(config);
   const activeRun = runId
@@ -68,6 +70,7 @@ export async function GET(context: APIContext): Promise<Response> {
     timezone,
     companyGeo: company.geo ?? null,
     companyAddress: company.address ?? '',
+    violationServiceArea,
     dataProvider: loadConfig().provider,
     tradesCatalog: TRADES.map((t) => ({ slug: t.slug, label: t.label })),
     activeRun,

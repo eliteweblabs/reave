@@ -75,12 +75,13 @@ export async function buildLiabilityRadarReport(property, trades, opts) {
         isRental: opts?.isRental,
     });
     const hazards = buildHazardProfile(property);
+    const violationOpts = opts?.serviceArea ? { serviceArea: opts.serviceArea } : {};
     const violations = await lookupViolations({
         address: property.street ?? property.fullAddress,
         city: property.city,
         state: property.state,
         zip: property.zip,
-    });
+    }, violationOpts);
     const tradeMatches = trades.map((trade) => {
         const lead = scoreLeadForTrades(property, [trade], opts);
         return { trade, reasons: lead.reasons, score: lead.score };
