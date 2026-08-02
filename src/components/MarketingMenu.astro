@@ -464,6 +464,11 @@ const { pathname, signedIn } = Astro.props;
     overflow: hidden;
   }
 
+  /* Keep hamburger → X toggle above the menu overlay (header is z-index 2000). */
+  :global(html.marketing-menu-open) .app-header {
+    z-index: 2200;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .marketing-menu-backdrop,
     .marketing-menu-panel {
