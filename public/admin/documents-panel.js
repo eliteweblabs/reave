@@ -36,7 +36,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton, skeletonHtml } from './shared.js?v=20260728m';
 import { openDocumentShareSheet } from './chat-panel.js?v=20260730c';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 
