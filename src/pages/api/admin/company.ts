@@ -5,7 +5,7 @@ import {
   resolveCompanyAddressGeo,
   type CompanyConfigInput,
 } from '../../../lib/companyConfig';
-import { brandFontCatalogForAdmin } from '../../../lib/brandFonts';
+import { brandFontCatalogForAdminAsync, mergeFontGoogleSpecs } from '../../../lib/googleFontsCatalog';
 import { getStoredCompanyConfig, setStoredCompanyConfig } from '../../../lib/companyConfigStore';
 import { invalidateOfficeCoordsCache } from '../../../lib/mapbox';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
@@ -25,7 +25,8 @@ export async function GET(context: APIContext): Promise<Response> {
   const { userId } = auth;
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company, fontCatalog: brandFontCatalogForAdmin() });
+  const fontCatalog = await brandFontCatalogForAdminAsync();
+  return json({ ok: true, company, fontCatalog });
 }
 
 export async function POST(context: APIContext): Promise<Response> {
@@ -41,8 +42,8 @@ export async function POST(context: APIContext): Promise<Response> {
   }
 
   const stored = normalizeCompanyInput(body);
+  const existing = await getStoredCompanyConfig();
   if (body.address !== undefined || body.geo !== undefined) {
-    const existing = await getStoredCompanyConfig();
     if (body.address !== undefined) {
       stored.address = (body.address ?? '').trim() || null;
       stored.geo = stored.address
@@ -60,11 +61,21 @@ export async function POST(context: APIContext): Promise<Response> {
     }
   }
 
+  const fontGoogleSpecs = await mergeFontGoogleSpecs(existing?.fontGoogleSpecs, [
+    stored.fontPrimary,
+    stored.fontSecondary,
+    stored.fontContent,
+  ]);
+  if (Object.keys(fontGoogleSpecs).length) {
+    stored.fontGoogleSpecs = fontGoogleSpecs;
+  }
+
   const ok = await setStoredCompanyConfig(stored);
   if (!ok) return json({ error: 'Failed to save company details' }, 500);
 
   invalidateOfficeCoordsCache();
 
   const company = await getCompanyConfig(context.request);
-  return json({ ok: true, company, fontCatalog: brandFontCatalogForAdmin() });
+  const fontCatalog = await brandFontCatalogForAdminAsync();
+  return json({ ok: true, company, fontCatalog });
 }

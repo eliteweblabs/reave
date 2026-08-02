@@ -1,5 +1,6 @@
 import { MAPS, SYSTEM_MAP_KEYS, SYSTEM_TAB_SLOT, CHAT_MAP_KEYS, CHAT_TAB_SLOT } from '/admin/os-map-data.js';
 import { createClientMap } from '/admin/client-map.js';
+import { mountCompanyBrandFontPickers } from '/admin/brand-font-picker.js';
 
 function companyBrand() {
   return (
@@ -5206,6 +5207,7 @@ function bindProfileForm(root) {
 let companyMapController = null;
 let companyPendingGeo = null;
 let destroyCompanyAddressAutocomplete = null;
+let companyFontPickers = null;
 
 function destroyCompanyMap() {
   if (companyMapController) {
@@ -5221,6 +5223,10 @@ function destroyCompanyMap() {
 
 function bindCompanyForm(root, company, fontCatalog) {
   destroyCompanyMap();
+  if (companyFontPickers) {
+    companyFontPickers.destroy();
+    companyFontPickers = null;
+  }
 
   const addressInput = root.querySelector('#company-address');
   const mapHost = root.querySelector('#company-map-host');
@@ -5300,6 +5306,7 @@ function bindCompanyForm(root, company, fontCatalog) {
 
   bindCompanyLogoUpload(root, root.querySelector('#company-alert'));
   bindCompanyIconUpload(root, root.querySelector('#company-alert'));
+  companyFontPickers = mountCompanyBrandFontPickers(root, fontCatalog);
   bindCompanyFontPreview(root, fontCatalog);
   bindCompanyFontScrape(root, fontCatalog, root.querySelector('#company-alert'), company);
 }
@@ -5636,24 +5643,18 @@ function renderProfileOnlyPanel(profile) {
 
 function brandFontsForRole(catalog, role) {
   return (catalog || []).filter(
-    (entry) => Array.isArray(entry.roles) && entry.roles.includes(role),
+    (entry) =>
+      entry.id.startsWith('google:') ||
+      (Array.isArray(entry.roles) && entry.roles.includes(role)),
   );
 }
 
 function renderBrandFontOptions(catalog, role, selectedId) {
-  const options = brandFontsForRole(catalog, role);
-  const fallbacks = {
-    primary: 'space-grotesk',
-    secondary: 'space-grotesk',
-    content: 'mozilla-text',
-  };
-  const selected = selectedId || fallbacks[role] || 'space-grotesk';
-  return options
-    .map(
-      (entry) =>
-        `<option value="${escHtml(entry.id)}"${entry.id === selected ? ' selected' : ''}>${escHtml(entry.label)}</option>`,
-    )
-    .join('');
+  const entry =
+    (catalog || []).find((item) => item.id === selectedId) ||
+    brandFontsForRole(catalog, role)[0];
+  if (!entry) return '';
+  return `<option value="${escHtml(entry.id)}" selected>${escHtml(entry.label)}</option>`;
 }
 
 function buildBrandFontsHref(catalog, primaryId, secondaryId, contentId) {
@@ -5733,6 +5734,7 @@ function rebuildCompanyFontSelects(root, catalog, fonts) {
   primary.value = fonts?.fontPrimaryId || primary.value;
   secondary.value = fonts?.fontSecondaryId || secondary.value;
   content.value = fonts?.fontContentId || content.value;
+  companyFontPickers?.updateCatalog(catalog);
 }
 
 function bindCompanyFontScrape(root, fontCatalog, alertEl, company) {
