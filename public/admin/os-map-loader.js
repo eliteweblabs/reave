@@ -9280,7 +9280,7 @@ async function fetchOpenJobsForEmail(ev) {
 }
 
 async function runEmailProjectAction(ev, payload, errorTitle) {
-  closeEmailProjectMenu();
+  closeEmailHeaderMenus();
   try {
     await postEmailProject(ev, payload);
   } catch (e) {
@@ -9351,7 +9351,7 @@ async function rejectSuggestedProjectMatch(item, btn) {
 }
 
 async function handleEmailProjectAddNew(ev, triggerEl) {
-  closeEmailProjectMenu();
+  closeEmailHeaderMenus();
   if (triggerEl) {
     triggerEl.disabled = true;
     triggerEl.textContent = 'Creating…';
@@ -9453,6 +9453,7 @@ function createEmailProjectDropdown(ev) {
   trigger.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (openEmailProjectMenu && openEmailProjectMenu !== wrap) closeEmailProjectMenu();
+    if (openEmailAgentMenu) closeEmailAgentMenu();
     const opening = !wrap.classList.contains('open');
     if (opening) await populateEmailProjectMenu(ev, menu);
     wrap.classList.toggle('open', opening);
@@ -9465,9 +9466,10 @@ function createEmailProjectDropdown(ev) {
 }
 
 document.addEventListener('click', (e) => {
-  if (!openEmailProjectMenu) return;
-  if (openEmailProjectMenu.contains(e.target)) return;
-  closeEmailProjectMenu();
+  if (!openEmailProjectMenu && !openEmailAgentMenu) return;
+  if (openEmailProjectMenu?.contains(e.target)) return;
+  if (openEmailAgentMenu?.contains(e.target)) return;
+  closeEmailHeaderMenus();
 });
 
 function emailChatExcerpt(ev, max = 500) {
@@ -9511,15 +9513,224 @@ async function fetchFullEmailRecord(ev) {
 
 async function askAgentAboutEmail(ev) {
   const full = await fetchFullEmailRecord(ev);
-  const triageItem = reviewNotificationItemFromEmail(full);
-  if (triageItem?.awaitingTriage) {
-    await openNotificationTriageDialog(triageItem);
-    return;
-  }
   await askAgentWithPrompt(buildEmailAgentPrompt(full), {
     sourceEmailId: full.id || ev.id,
     sourceJobSlug: full.jobSlug || ev.jobSlug || null,
   });
+}
+
+async function createSenderEmailFilterRule(sender, status) {
+  const normalized = sender.trim().toLowerCase();
+  const statusTag = status === 'DELETE' ? 'DELETE' : 'AUTO_ARCHIVED';
+  const verb = statusTag === 'DELETE' ? 'Delete' : 'Archive';
+  const res = await fetch('/api/email/rules', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: `${verb}: ${normalized}`,
+      status: statusTag,
+      description: `Auto-${verb.toLowerCase()} — owner chose from inbox agent menu`,
+      phrases: [normalized],
+      matchMode: 'any',
+      fields: ['from'],
+      notify: false,
+      enabled: true,
+      expiresAt: null,
+    }),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.rule;
+}
+
+async function clearEmailTriageLimboIfNeeded(ev, mode) {
+  const triageItem = reviewNotificationItemFromEmail(ev);
+  if (!triageItem?.awaitingTriage) return ev;
+  const res = await fetch(`/api/email/inbox/${encodeURIComponent(ev.id)}/triage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: mode === 'delete' ? 'ignore' : 'expected' }),
+  });
+  const data = await readApiJson(res);
+  if (!res.ok && !data.alreadyResolved) throw new Error(data.error || `HTTP ${res.status}`);
+  if (data.event) {
+    const idx = emailState.allEvents.findIndex((e) => e.id === ev.id);
+    if (idx !== -1) emailState.allEvents[idx] = data.event;
+    return data.event;
+  }
+  return ev;
+}
+
+async function runEmailAutoArchive(ev) {
+  const sender = parseSenderEmail(ev.from);
+  if (!sender || !sender.includes('@')) {
+    await osAlert({ title: 'No sender', bodyHtml: 'Could not parse a sender address for this message.' });
+    return;
+  }
+  closeEmailAgentMenu();
+  try {
+    await createSenderEmailFilterRule(sender, 'AUTO_ARCHIVED');
+    const current = await clearEmailTriageLimboIfNeeded(ev, 'archive');
+    const res = await fetch(`/api/email/inbox/${encodeURIComponent(current.id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'junk', action: 'junk', status: 'JUNK' }),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    applyEmailPatchResult(current.id, data.event);
+    showChatToast(`Future mail from ${sender} will auto-archive`);
+  } catch (e) {
+    await osAlert({ title: 'Could not auto-archive', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function runEmailAutoDelete(ev) {
+  const sender = parseSenderEmail(ev.from);
+  if (!sender || !sender.includes('@')) {
+    await osAlert({ title: 'No sender', bodyHtml: 'Could not parse a sender address for this message.' });
+    return;
+  }
+  closeEmailAgentMenu();
+  try {
+    await createSenderEmailFilterRule(sender, 'DELETE');
+    await clearEmailTriageLimboIfNeeded(ev, 'delete');
+    await deleteEmail(ev);
+    showChatToast(`Future mail from ${sender} will auto-delete`);
+  } catch (e) {
+    await osAlert({ title: 'Could not auto-delete', bodyHtml: escHtml(e.message) });
+  }
+}
+
+async function runEmailAgentMenuAction(ev, actionId, itemEl) {
+  if (itemEl) itemEl.disabled = true;
+  try {
+    const full = await fetchFullEmailRecord(ev);
+    switch (actionId) {
+      case 'auto_archive':
+        await runEmailAutoArchive(full);
+        break;
+      case 'auto_delete':
+        await runEmailAutoDelete(full);
+        break;
+      case 'unsubscribe':
+        closeEmailAgentMenu();
+        await unsubscribeEmail(full, itemEl);
+        break;
+      case 'explain':
+        closeEmailAgentMenu();
+        await askAgentAboutEmail(full);
+        break;
+      case 'create_project':
+        await handleEmailProjectAddNew(full, itemEl);
+        break;
+      default:
+        break;
+    }
+  } finally {
+    if (itemEl) itemEl.disabled = false;
+  }
+}
+
+let openEmailAgentMenu = null;
+
+function closeEmailAgentMenu() {
+  if (openEmailAgentMenu) {
+    openEmailAgentMenu.classList.remove('open');
+    openEmailAgentMenu = null;
+  }
+}
+
+function closeEmailHeaderMenus() {
+  closeEmailProjectMenu();
+  closeEmailAgentMenu();
+}
+
+async function populateEmailAgentMenu(ev, menu) {
+  menu.innerHTML = '<div class="em-project-menu-empty">Loading…</div>';
+  const full = await fetchFullEmailRecord(ev);
+  const sender = formatEmailCardFrom(full);
+  const senderOk = sender !== '(unknown)' && sender.includes('@');
+
+  menu.innerHTML = '';
+  const entries = [
+    {
+      id: 'auto_archive',
+      label: `Auto Archive messages from ${sender}`,
+      disabled: !senderOk,
+    },
+    {
+      id: 'auto_delete',
+      label: `Auto Delete messages from ${sender}`,
+      disabled: !senderOk,
+    },
+    {
+      id: 'unsubscribe',
+      label: `Attempt unsubscribe from ${sender}`,
+      disabled: !senderOk || !full.unsubscribe?.available,
+      hint: !full.unsubscribe?.available ? 'No List-Unsubscribe header' : '',
+    },
+    { id: 'explain', label: 'Explain to the agent' },
+  ];
+  if (!full.jobSlug) {
+    entries.push({
+      id: 'create_project',
+      label: `Create new project from ${sender}`,
+      disabled: !senderOk,
+    });
+  }
+
+  for (const entry of entries) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'em-project-menu-item em-agent-menu-item';
+    item.setAttribute('role', 'menuitem');
+    item.disabled = Boolean(entry.disabled);
+    item.title = entry.hint || entry.label;
+    item.textContent = entry.label;
+    item.addEventListener('click', () => void runEmailAgentMenuAction(full, entry.id, item));
+    menu.appendChild(item);
+  }
+}
+
+function createEmailAgentDropdown(ev, opts = {}) {
+  const emailAwaitingTriage = isEmailAwaitingTriage(ev) && reviewNotificationTypeFromEmail(ev);
+  const wrap = document.createElement('div');
+  wrap.className = 'em-project-dropdown em-agent-dropdown';
+  if (opts.standalone) wrap.classList.add('em-agent-dropdown--solo');
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = opts.inGroup
+    ? 'em-btn-group-segment em-agent-btn em-agent-trigger'
+    : 'de-new-btn em-agent-btn em-header-action-btn em-agent-trigger';
+  trigger.setAttribute('aria-label', emailAwaitingTriage ? 'Agent triage' : 'Agent');
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.title = emailAwaitingTriage
+    ? 'Agent — triage or explain this message'
+    : 'Agent — triage actions for this sender';
+  if (emailAwaitingTriage) trigger.classList.add('em-agent-btn--triage');
+  trigger.innerHTML =
+    `<span class="em-agent-trigger-icon" aria-hidden="true">${navIcon('agent', 16)}</span>` +
+    '<span class="em-agent-trigger-caret" aria-hidden="true">▾</span>';
+
+  const menu = document.createElement('div');
+  menu.className = 'em-project-menu em-agent-menu';
+  menu.setAttribute('role', 'menu');
+
+  trigger.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (openEmailAgentMenu && openEmailAgentMenu !== wrap) closeEmailAgentMenu();
+    if (openEmailProjectMenu) closeEmailProjectMenu();
+    const opening = !wrap.classList.contains('open');
+    if (opening) await populateEmailAgentMenu(ev, menu);
+    wrap.classList.toggle('open', opening);
+    openEmailAgentMenu = opening ? wrap : null;
+  });
+
+  wrap.appendChild(trigger);
+  wrap.appendChild(menu);
+  return wrap;
 }
 
 async function markEmailJunk(ev) {
@@ -11480,34 +11691,18 @@ function renderEmailPanel() {
     return;
   }
 
-  const emailAwaitingTriage = isEmailAwaitingTriage(ev) && reviewNotificationTypeFromEmail(ev);
-  const agentBtn = document.createElement('button');
-  agentBtn.type = 'button';
-  if (emailAwaitingTriage) {
-    agentBtn.setAttribute('aria-label', 'Triage');
-    agentBtn.title = 'Triage — teach the agent how to handle similar cases';
-    agentBtn.classList.add('em-agent-btn--triage');
-  } else {
-    agentBtn.setAttribute('aria-label', 'Agent');
-    agentBtn.title = 'Agent';
-  }
-  agentBtn.innerHTML = navIcon('agent', 16);
-  agentBtn.addEventListener('click', () => askAgentAboutEmail(ev));
-
   const beforeIcons = [];
   const linkedChat = chatState.threads.find((t) => t.source_email_id === ev.id);
   const alreadyInLinkedChat = linkedChat && chatState.activeId === linkedChat.id;
   if (!isVerificationCodeEmail(ev) && !alreadyInLinkedChat) {
     if (shouldShowEmailProjectActions(ev)) {
-      agentBtn.className = 'em-btn-group-segment em-agent-btn';
       const group = document.createElement('div');
       group.className = 'em-btn-group';
-      group.appendChild(agentBtn);
+      group.appendChild(createEmailAgentDropdown(ev, { inGroup: true }));
       group.appendChild(createEmailProjectDropdown(ev));
       beforeIcons.push(group);
     } else {
-      agentBtn.className = 'de-new-btn em-agent-btn em-header-action-btn';
-      beforeIcons.push(agentBtn);
+      beforeIcons.push(createEmailAgentDropdown(ev, { standalone: true }));
     }
   } else if (shouldShowEmailProjectActions(ev)) {
     beforeIcons.push(createEmailProjectDropdown(ev));
