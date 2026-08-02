@@ -90,17 +90,19 @@ export function initHeroIndustryRotate(root: HTMLElement) {
     wipe.style.transform = `translate3d(${-viewport.offsetWidth}px, 0, 0)`;
   };
 
-  const resetLayers = (label: string) => {
+  const resetLayers = (label: string, widthPx?: number) => {
     current.textContent = label;
     current.hidden = false;
     next.textContent = '';
     next.hidden = true;
-    parkWipe();
     root.dataset.heroIndustryLabel = label;
+    if (widthPx != null) setViewportWidth(widthPx, true);
+    parkWipe();
   };
 
-  resetLayers(industries[index]!);
-  setViewportWidth(labelWidth(industries[index]!), true);
+  const initialLabel = industries[index]!;
+  const initialWidth = labelWidth(initialLabel);
+  resetLayers(initialLabel, initialWidth);
   viewport.classList.remove('is-wiping');
 
   if (industries.length <= 1) return;
@@ -116,8 +118,7 @@ export function initHeroIndustryRotate(root: HTMLElement) {
 
     if (reducedMotion) {
       index = (index + 1) % industries.length;
-      resetLayers(incoming);
-      setViewportWidth(incomingWidth, true);
+      resetLayers(incoming, incomingWidth);
       swapping = false;
       schedule();
       return;

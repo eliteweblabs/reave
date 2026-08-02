@@ -60,7 +60,12 @@ const heroIconSrc =
           data-industries={JSON.stringify(industryLabels)}
           data-interval-ms="2500"
         >
-          <span class="home-hero-industry-viewport" data-hero-industry-viewport aria-live="polite">
+          <span
+            class="home-hero-industry-viewport"
+            data-hero-industry-viewport
+            aria-live="polite"
+            style={`min-width: ${firstIndustry.length}ch`}
+          >
             <span
               class="home-hero-industry-layer home-hero-industry-next"
               data-hero-industry-next
