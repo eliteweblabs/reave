@@ -520,6 +520,7 @@ const { pathname, signedIn } = Astro.props;
   }
 
   /* Menu overlay is a fixed sibling inside the header row — sit above it. */
+  :global(html.marketing-menu-open) .app-header-logo,
   :global(html.marketing-menu-open) .marketing-nav {
     position: relative;
     z-index: 2100;

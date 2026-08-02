@@ -53,7 +53,6 @@ function applyCompanyBrandingToMaps() {
 }
 
 applyCompanyBrandingToMaps();
-import { installPwaNavGuard } from '/admin/push-client.js?v=20260802b';
 import {
   IOS_ICONS,
   createIosIconBtn,
@@ -96,7 +95,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260802a';
-import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
+import { showAdminConfirmBanner } from './push-client.js?v=20260802b';
 import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
@@ -4850,7 +4849,6 @@ async function syncUptimeMonitorsFromApi() {
 }
 
 let homeDashboardLoadPromise = null;
-let homeDashboardRefreshTimer = null;
 
 async function loadHomeDashboard(opts = {}) {
   const quiet = opts.quiet === true;
@@ -4858,11 +4856,20 @@ async function loadHomeDashboard(opts = {}) {
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
+  const hasContent = Boolean(root.querySelector('.home-dashboard-scroll'));
+
   homeDashboardLoadPromise = (async () => {
-    mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
-      quiet,
-      contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
-    });
+    if (!hasContent) {
+      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+        quiet: false,
+        contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      });
+    } else if (!quiet) {
+      mountPanelSkeleton(root, 'home', 'Loading dashboard…', {
+        quiet: true,
+        contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+      });
+    }
 
     try {
       const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
@@ -4886,14 +4893,26 @@ async function loadHomeDashboard(opts = {}) {
   }
 }
 
-function scheduleHomeDashboardRefresh() {
+/** Update home review banners without wiping the dashboard (badge poll / push). */
+async function refreshHomeReviewBannersQuiet() {
   if (MAP?.type !== 'home') return;
-  if (homeDashboardLoadPromise) return;
-  clearTimeout(homeDashboardRefreshTimer);
-  homeDashboardRefreshTimer = window.setTimeout(() => {
-    homeDashboardRefreshTimer = null;
-    void loadHomeDashboard({ quiet: true });
-  }, 400);
+  const root = document.getElementById('home-dashboard');
+  const scroll = root?.querySelector('.home-dashboard-scroll');
+  if (!scroll || scroll.querySelector('.dash-loading, .panel-skeleton')) return;
+
+  try {
+    const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) return;
+    syncDashboardFooterBadges(data.stats);
+
+    scroll.querySelector('.dash-review-alerts')?.remove();
+    const notifications = Array.isArray(data.automationNotifications) ? data.automationNotifications : [];
+    if (notifications.length) {
+      scroll.insertBefore(buildReviewAlertBanners(notifications), scroll.firstChild);
+    }
+    maybeOpenPendingTriageDialog(notifications);
+  } catch {}
 }
 
 
@@ -7388,7 +7407,6 @@ function initFooterNav() {
   }, { passive: true });
   initFooterNavIndicatorDrag();
   if (!isMobileTabs() && footerNavCollapsed) expandFooterNav();
-  void refreshInboxBadgeQuiet();
 }
 
 function openSearchOverlay() {
@@ -8552,11 +8570,9 @@ async function refreshFooterBadgesQuiet() {
 async function refreshInboxBadgeQuiet(forceHome = false) {
   const prevCount = reviewsPendingCount;
   await refreshFooterBadgesQuiet();
-  // Re-render the home review-alert banners when the pending-review count
-  // changes (polling) or when forced by a push, so they update without a tab
-  // switch. Push forces it because a new mail may not always change the count.
-  if (MAP.type === 'home' && (forceHome || reviewsPendingCount !== prevCount)) {
-    scheduleHomeDashboardRefresh();
+  if (MAP.type !== 'home') return;
+  if (forceHome || reviewsPendingCount !== prevCount) {
+    await refreshHomeReviewBannersQuiet();
   }
 }
 
@@ -12104,6 +12120,8 @@ function loadActiveKey() {
     if (params.get('client')?.trim()) return 'clients';
     if (params.get('chat')?.trim()) return 'chats';
     if (params.get('slug')?.trim()) return 'work';
+    const tab = params.get('tab');
+    if (tab && MAPS[tab]) return tab;
   } catch {}
   let key;
   try {
@@ -12112,10 +12130,6 @@ function loadActiveKey() {
     key = null;
   }
   if (MAPS[key]) return key;
-  try {
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab && MAPS[tab]) return tab;
-  } catch {}
   return 'home';
 }
 function saveActiveKey() {
@@ -12142,7 +12156,11 @@ function showBootError(err) {
   document.body?.appendChild(banner);
 }
 
+let adminBootStarted = false;
+
 async function boot() {
+  if (adminBootStarted) return;
+  adminBootStarted = true;
   const tabOrder = await resolveTabOrder();
   cachedTabOrder = tabOrder;
   buildTabs(tabOrder);
@@ -12165,7 +12183,6 @@ async function boot() {
   syncCanvasVisibility();
   activateMapPanel();
   syncAdminTabUrl(activeKey);
-  installPwaNavGuard();
   syncHealthLifecycle();
   syncEmailPoll();
   syncInboxBadgePoll();
