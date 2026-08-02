@@ -99,6 +99,15 @@ const appMiddleware = clerkMiddleware(async (auth, context, next) => {
     );
   }
 
+  if (pathname.replace(/\/$/, "") === "" && url.searchParams.get("section") === "about") {
+    return applySecurityHeaders(
+      new Response(null, {
+        status: 301,
+        headers: { Location: new URL("/about", url.origin).toString() },
+      }),
+    );
+  }
+
   if (isFeatureBlockedPath(pathname)) {
     return featureBlockedResponse();
   }

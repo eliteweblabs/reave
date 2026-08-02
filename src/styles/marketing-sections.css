@@ -104,7 +104,8 @@ html {
   overflow: hidden;
 }
 
-.home-section--photo[data-home-section="about"] {
+.home-section--photo[data-home-section="about"],
+.about-page-main.home-section--photo {
   min-height: 100vh;
   min-height: 100svh;
 }
