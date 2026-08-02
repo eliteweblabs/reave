@@ -296,41 +296,52 @@ const { pathname, signedIn } = Astro.props;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     width: calc(36px * var(--app-header-chrome-scale, 1));
     height: calc(36px * var(--app-header-chrome-scale, 1));
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: none;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.04);
+    background: transparent;
     color: rgba(255, 255, 255, 0.88);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-    transition:
-      border-color 0.15s ease,
-      background 0.15s ease,
-      color 0.15s ease;
+    transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
   }
 
   .marketing-nav-toggle:hover {
-    border-color: rgba(255, 255, 255, 0.28);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
   }
 
+  .marketing-nav-toggle:active {
+    transform: scale(0.94);
+  }
+
   .marketing-nav-toggle-icon {
+    position: absolute;
     display: block;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+
+  .marketing-nav-toggle-icon--open {
+    opacity: 1;
+    transform: scale(1);
   }
 
   .marketing-nav-toggle-icon--close {
-    display: none;
+    opacity: 0;
+    transform: scale(0.85);
   }
 
   .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--open {
-    display: none;
+    opacity: 0;
+    transform: scale(0.85);
   }
 
   .marketing-nav-toggle.is-open .marketing-nav-toggle-icon--close {
-    display: block;
+    opacity: 1;
+    transform: scale(1);
   }
 
   @media (min-width: 900px) {
@@ -365,7 +376,7 @@ const { pathname, signedIn } = Astro.props;
     background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    animation: marketing-menu-fade-in 0.2s ease;
+    animation: marketing-menu-fade-in 0.28s ease-out;
   }
 
   .marketing-menu-panel {
@@ -379,7 +390,7 @@ const { pathname, signedIn } = Astro.props;
     background: rgba(8, 8, 10, 0.96);
     border-left: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: -24px 0 80px rgba(0, 0, 0, 0.45);
-    animation: marketing-menu-slide-in 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: marketing-menu-slide-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @keyframes marketing-menu-fade-in {
@@ -393,9 +404,11 @@ const { pathname, signedIn } = Astro.props;
 
   @keyframes marketing-menu-slide-in {
     from {
-      transform: translateX(100%);
+      opacity: 0.92;
+      transform: translateX(18px);
     }
     to {
+      opacity: 1;
       transform: translateX(0);
     }
   }
