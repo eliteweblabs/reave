@@ -97,7 +97,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260802a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton, resolveReviewAlertIconUrl, companyStaffAvatarUrl } from './shared.js?v=20260802b';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -3549,7 +3549,25 @@ function reviewAlertVariant(type) {
   return 'push';
 }
 
-function reviewAlertIconName(type) {
+function reviewAlertIconName(item) {
+  const type = item?.type;
+  if (type === 'push_alert') {
+    if (isAuditPushAlert(item)) return 'file-text';
+    switch (item.alertKind) {
+      case 'email':
+        return 'mail';
+      case 'uptime':
+        return 'monitor';
+      case 'comment':
+        return 'message-circle';
+      case 'engagement':
+        return 'eye';
+      case 'system':
+        return 'bell';
+      default:
+        return 'bell';
+    }
+  }
   switch (type) {
     case 'meeting_conflict':
       return 'alert-triangle';
@@ -3562,7 +3580,7 @@ function reviewAlertIconName(type) {
     case 'project':
       return 'briefcase';
     case 'project_match':
-      return 'link';
+      return 'external-link';
     case 'project_comment':
       return 'message-circle';
     case 'vault_entry':
@@ -3573,8 +3591,6 @@ function reviewAlertIconName(type) {
       return 'monitor';
     case 'contact_form':
       return 'mail';
-    case 'push_alert':
-      return 'alert-triangle';
     default:
       return 'bell';
   }
@@ -3743,8 +3759,9 @@ function buildReviewAlertBanner(item) {
   const typeIcon = document.createElement('div');
   typeIcon.className = 'admin-setup-alert-icon';
   typeIcon.dataset.type = item.type;
+  if (item.alertKind) typeIcon.dataset.kind = item.alertKind;
   typeIcon.setAttribute('aria-hidden', 'true');
-  typeIcon.innerHTML = navIcon(reviewAlertIconName(item.type), 18);
+  typeIcon.innerHTML = navIcon(reviewAlertIconName(item), 18);
 
   iconsCol.appendChild(brandIcon);
   iconsCol.appendChild(typeIcon);

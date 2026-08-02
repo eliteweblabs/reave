@@ -219,12 +219,59 @@ export function brandDomainFromSenderEmail(from) {
   const match = email.match(/@([^@\s]+)/);
   if (!match) return null;
   const domain = match[1].toLowerCase();
+  if (domain.endsWith('bsky.social') || domain === 'bsky.app') return 'bsky.app';
   if (GENERIC_SENDER_EMAIL_DOMAINS.has(domain)) return null;
   const parts = domain.split('.');
   if (parts.length >= 3 && TRANSACTIONAL_EMAIL_SUBDOMAINS.has(parts[0])) {
     return parts.slice(1).join('.');
   }
   return domain;
+}
+
+const SIMPLE_ICONS_CDN = (slug) =>
+  `https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/${slug}.svg`;
+
+/** Brands inferred from notification copy when sender favicon / CRM icon are unavailable. */
+const NOTIFICATION_CONTENT_BRANDS = [
+  {
+    slug: 'bluesky',
+    faviconDomain: 'bsky.app',
+    matches: (text) => /\bbluesky\b/i.test(text) || /\bbsky\.(?:social|app)\b/i.test(text),
+  },
+  {
+    slug: 'linkedin',
+    faviconDomain: 'linkedin.com',
+    matches: (text) => /\blinkedin\b/i.test(text),
+  },
+  {
+    slug: 'instagram',
+    faviconDomain: 'instagram.com',
+    matches: (text) => /\binstagram\b/i.test(text),
+  },
+  {
+    slug: 'x',
+    faviconDomain: 'x.com',
+    matches: (text) => /\b(?:twitter|x\.com)\b/i.test(text),
+  },
+];
+
+function notificationContentBlob(item) {
+  return [item.title, item.detail, item.subject, item.from].filter(Boolean).join(' ');
+}
+
+function brandFromNotificationContent(item) {
+  const blob = notificationContentBlob(item);
+  if (!blob) return null;
+  return NOTIFICATION_CONTENT_BRANDS.find((brand) => brand.matches(blob)) || null;
+}
+
+function contentBrandIconUrl(item) {
+  const brand = brandFromNotificationContent(item);
+  if (!brand) return null;
+  if (brand.faviconDomain) {
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(brand.faviconDomain)}&sz=64`;
+  }
+  return SIMPLE_ICONS_CDN(brand.slug);
 }
 
 /** Google favicon URL for a sender address — null when no brand domain can be inferred. */
@@ -234,12 +281,14 @@ export function senderFaviconUrl(from, size = 64) {
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`;
 }
 
-/** Best icon for a dashboard notification — CRM contact, sender favicon, or company avatar. */
+/** Best icon for a dashboard notification — CRM contact, sender favicon, content brand, or company avatar. */
 export function resolveReviewAlertIconUrl(item = {}) {
   const contactIcon = brandingPreviewUrl(item.iconUrl);
   if (contactIcon) return contactIcon;
   const senderIcon = item.from ? senderFaviconUrl(item.from) : null;
   if (senderIcon) return senderIcon;
+  const contentIcon = contentBrandIconUrl(item);
+  if (contentIcon) return contentIcon;
   return companyStaffAvatarUrl();
 }
 
