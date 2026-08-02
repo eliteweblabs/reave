@@ -8,12 +8,19 @@ export type ScanCandidate = PropertyRecord & {
     leadReasons: string[];
     matchedTrades: TradeSlug[];
 };
+export type ScanCenterLocation = {
+    city: string;
+    state: string;
+    zip?: string;
+};
 export type ScanConfig = {
     centerLat: number;
     centerLng: number;
     radiusMiles: number;
     trades: TradeSlug[];
     maxResults?: number;
+    /** City/state/zip for mock scan addresses — should match the scan center, not a demo locale. */
+    centerLocation?: ScanCenterLocation;
 };
 export type ScanResult = {
     ok: true;

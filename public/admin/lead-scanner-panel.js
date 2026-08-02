@@ -26,6 +26,11 @@ export function renderLeadScannerPanel(data) {
   const runs = data.runs || [];
   const catalog = data.tradesCatalog || [];
   const selected = new Set(Array.isArray(cfg.trades) ? cfg.trades : []);
+  const provider = data.dataProvider || 'mock';
+  const providerHint =
+    provider === 'mock'
+      ? `<p class="prof-hint prof-hint--block">Data provider: <code>mock</code> — scan results use demo street names near your map center (not live assessor records). Set <code>REAL_ESTATE_DATA_PROVIDER=propdata</code> and <code>PROPDATA_API_KEY</code> for real property data.</p>`
+      : `<p class="prof-hint prof-hint--block">Data provider: <code>${escHtml(provider)}</code>.</p>`;
 
   const tradeHtml = catalog
     .map((t) => tradeCheckbox(t.slug, t.label, selected.has(t.slug)))
@@ -49,6 +54,7 @@ export function renderLeadScannerPanel(data) {
     `<div class="prof-card">` +
     `<h1 class="prof-title">Lead Scanner</h1>` +
     `<p class="prof-subtitle">Daily property scan inside your work radius — compliance gaps, hazards, and trade-matched leads become inquiry projects.</p>` +
+    providerHint +
     `<div id="lead-scanner-alert" class="prof-alert" hidden></div>` +
     `<form id="lead-scanner-form" class="prof-form">` +
     `<div class="prof-field">` +

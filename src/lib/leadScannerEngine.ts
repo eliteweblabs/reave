@@ -1,7 +1,7 @@
 /**
  * Daily property lead scan — radius geofence, trade filter, CRM intake.
  */
-import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate } from '@reave/plugin-real-estate-data';
+import { runRadiusScan, normalizeTradeSlugs, type ScanCandidate, type ScanCenterLocation } from '@reave/plugin-real-estate-data';
 import { getCompanyConfig } from './companyConfig';
 import { getDeploymentOwnerTimezone } from './deploymentOwner';
 import { recordContactFormEngagement } from './engagementNotifications';
@@ -42,6 +42,20 @@ export async function resolveScanCenter(
     }
   }
   return null;
+}
+
+export async function resolveScanLocation(
+  center: { lat: number; lng: number },
+): Promise<ScanCenterLocation> {
+  const company = await getCompanyConfig();
+  const { parseUsAddressLocation, reverseGeocode } = await import('./mapbox');
+  const parsed = parseUsAddressLocation(company.address);
+  if (parsed) return parsed;
+
+  const reversed = await reverseGeocode(center.lat, center.lng);
+  if (reversed) return reversed;
+
+  return { city: 'Local Area', state: '', zip: '' };
 }
 
 function isScanWindow(
@@ -151,6 +165,7 @@ export async function runLeadScanner(options?: {
     return { ok: false, skipped: 'Set scan center on map or enable company office location' };
   }
 
+  const centerLocation = await resolveScanLocation(center);
   const trades = normalizeTradeSlugs(config.trades);
   const scan = runRadiusScan({
     centerLat: center.lat,
@@ -158,6 +173,7 @@ export async function runLeadScanner(options?: {
     radiusMiles: config.radiusMiles,
     trades,
     maxResults: 50,
+    centerLocation,
   });
 
   let newLeads = 0;

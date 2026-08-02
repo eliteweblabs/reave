@@ -1,5 +1,5 @@
 import type { APIContext } from 'astro';
-import { TRADES } from '@reave/plugin-real-estate-data';
+import { TRADES, loadConfig } from '@reave/plugin-real-estate-data';
 import { requireDashboardUser } from '../../../lib/dashboardAuth';
 import { hasFeature } from '../../../lib/features';
 import { resolveScanCenter, runLeadScanner } from '../../../lib/leadScannerEngine';
@@ -46,6 +46,7 @@ export async function GET(context: APIContext): Promise<Response> {
     timezone,
     companyGeo: company.geo ?? null,
     companyAddress: company.address ?? '',
+    dataProvider: loadConfig().provider,
     tradesCatalog: TRADES.map((t) => ({ slug: t.slug, label: t.label })),
   });
 }

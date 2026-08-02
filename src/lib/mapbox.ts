@@ -31,6 +31,63 @@ function cleanAddress(address: string | undefined): string {
   return address.replace(/, USA$/i, '').trim();
 }
 
+/** Parse "City, ST ZIP" from a US mailing address string. */
+export function parseUsAddressLocation(address: string): { city: string; state: string; zip: string } | null {
+  const cleaned = cleanAddress(address);
+  if (!cleaned) return null;
+  const match = cleaned.match(/,\s*([^,]+?),\s*([A-Z]{2})(?:\s+(\d{5}(?:-\d{4})?))?\s*$/i);
+  if (!match) return null;
+  return {
+    city: match[1].trim(),
+    state: match[2].toUpperCase(),
+    zip: match[3]?.trim() || '',
+  };
+}
+
+/** Reverse geocode coordinates to city/state/zip via Mapbox. */
+export async function reverseGeocode(
+  lat: number,
+  lng: number,
+): Promise<{ city: string; state: string; zip: string } | null> {
+  const token = getMapboxAccessToken();
+  if (!token || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
+  url.searchParams.set('access_token', token);
+  url.searchParams.set('types', 'place,locality,postcode,region');
+  url.searchParams.set('limit', '1');
+
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    features?: Array<{
+      text?: string;
+      place_type?: string[];
+      context?: Array<{ id: string; text: string; short_code?: string }>;
+    }>;
+  };
+
+  const feature = data.features?.[0];
+  if (!feature) return null;
+
+  let city = '';
+  let state = '';
+  let zip = '';
+  for (const ctx of feature.context ?? []) {
+    if (!city && (ctx.id.startsWith('place.') || ctx.id.startsWith('locality.'))) city = ctx.text;
+    if (!state && ctx.id.startsWith('region.')) {
+      state = (ctx.short_code ?? ctx.text).replace(/^US-/i, '').toUpperCase();
+    }
+    if (!zip && ctx.id.startsWith('postcode.')) zip = ctx.text;
+  }
+  if (!city && (feature.place_type?.includes('place') || feature.place_type?.includes('locality'))) {
+    city = feature.text ?? '';
+  }
+  if (!city || !state) return null;
+  return { city, state, zip };
+}
+
 /** Geocode a street address via Mapbox Geocoding API. */
 export async function geocodeAddress(query: string): Promise<GeocodeResult | null> {
   const token = getMapboxAccessToken();
