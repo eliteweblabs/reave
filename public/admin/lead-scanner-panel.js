@@ -2,7 +2,7 @@
  * Lead Scanner admin settings — geofence radius, trades, daily scan hour.
  */
 import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
-import { createClientMap } from './client-map.js?v=20260802a';
+import { createClientMap } from './client-map.js?v=20260802c';
 
 let mapController = null;
 
