@@ -147,29 +147,28 @@ const { pathname, signedIn } = Astro.props;
 </div>
 
 <script>
-  let scrollLockY = 0;
+  /** Blocks background scroll on iOS without mutating body position (avoids PWA viewport thrash). */
+  let menuTouchBlocker: ((e: TouchEvent) => void) | null = null;
 
-  /** Lock scroll without toggling html overflow — that drops the scrollbar and retriggers resize observers / WebGL remeasure across the page. */
-  function lockMarketingMenuScroll() {
-    if (document.body.dataset.marketingScrollLocked === "1") return;
-    scrollLockY = window.scrollY;
-    document.body.dataset.marketingScrollLocked = "1";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollLockY}px`;
-    document.body.style.left = "0";
-    document.body.style.right = "0";
-    document.body.style.width = "100%";
-  }
+  function setMarketingMenuScrollBlocked(block: boolean) {
+    const root = document.querySelector("[data-marketing-menu]");
+    const scroll = root?.querySelector(".marketing-menu-scroll");
 
-  function unlockMarketingMenuScroll() {
-    if (document.body.dataset.marketingScrollLocked !== "1") return;
-    document.body.dataset.marketingScrollLocked = "";
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.left = "";
-    document.body.style.right = "";
-    document.body.style.width = "";
-    window.scrollTo(0, scrollLockY);
+    if (block) {
+      if (menuTouchBlocker) return;
+      menuTouchBlocker = (e) => {
+        const target = e.target;
+        if (target instanceof Node && scroll?.contains(target)) return;
+        e.preventDefault();
+      };
+      document.addEventListener("touchmove", menuTouchBlocker, { passive: false });
+      return;
+    }
+
+    if (menuTouchBlocker) {
+      document.removeEventListener("touchmove", menuTouchBlocker);
+      menuTouchBlocker = null;
+    }
   }
 
   function setMarketingMenuOpen(open: boolean) {
@@ -182,12 +181,7 @@ const { pathname, signedIn } = Astro.props;
     toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu");
     toggle.classList.toggle("is-open", open);
     document.documentElement.classList.toggle("marketing-menu-open", open);
-
-    if (open) {
-      lockMarketingMenuScroll();
-    } else {
-      unlockMarketingMenuScroll();
-    }
+    setMarketingMenuScrollBlocked(open);
   }
 
   function bindMarketingMenu() {
@@ -373,6 +367,15 @@ const { pathname, signedIn } = Astro.props;
     animation: marketing-menu-fade-in 0.28s ease-out;
   }
 
+  /* Blur over a scrolling page forces full repaints every frame — skip on phone/PWA. */
+  @media (max-width: 899px), (display-mode: standalone) {
+    .marketing-menu-backdrop {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: rgba(0, 0, 0, 0.78);
+    }
+  }
+
   .marketing-menu-panel {
     position: absolute;
     top: 0;
@@ -506,6 +509,11 @@ const { pathname, signedIn } = Astro.props;
   }
 
   /* Keep the header (and hamburger → X toggle) above the dimmed backdrop. */
+  :global(html.marketing-menu-open) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   :global(html.marketing-menu-open) .app-header {
     z-index: 2200;
   }
