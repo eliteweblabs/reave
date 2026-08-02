@@ -76,9 +76,10 @@ let clientState = {
 };
 const CLIENT_LAST_ACTIVE_KEY = 'clients:lastActiveUid-v1';
 
-const CLIENT_KINDS = ['professional', 'personal', 'proposed'];
+const CLIENT_KINDS = ['professional', 'service', 'personal', 'proposed'];
 const CLIENT_KIND_LABELS = {
-  professional: 'Professional',
+  professional: 'Client',
+  service: 'Service',
   personal: 'Personal',
   proposed: 'Proposed',
 };
@@ -99,6 +100,7 @@ function clientKindTagHtml(c) {
   const kind = clientKindFromRecord(c);
   if (kind === 'personal') return '<span class="cl-kind-tag cl-kind-tag--personal">Personal</span>';
   if (kind === 'proposed') return '<span class="cl-kind-tag cl-kind-tag--proposed">Proposed</span>';
+  if (kind === 'service') return '<span class="cl-kind-tag cl-kind-tag--service">Service</span>';
   return '';
 }
 
@@ -274,15 +276,17 @@ function filterClientsForSidebar(clients) {
 
 function clientFilterCounts(clients) {
   let professional = 0;
+  let service = 0;
   let personal = 0;
   let proposed = 0;
   for (const c of clients) {
     const kind = clientKindFromRecord(c);
     if (kind === 'personal') personal++;
     else if (kind === 'proposed') proposed++;
+    else if (kind === 'service') service++;
     else professional++;
   }
-  return { all: clients.length, professional, proposed, personal };
+  return { all: clients.length, professional, service, proposed, personal };
 }
 
 function renderClientFilterTabs(savedScrollLeft = 0) {
@@ -294,7 +298,8 @@ function renderClientFilterTabs(savedScrollLeft = 0) {
 
   const tabs = [
     { id: 'all', label: 'All', count: counts.all },
-    { id: 'professional', label: 'Professional', count: counts.professional },
+    { id: 'professional', label: 'Client', count: counts.professional },
+    { id: 'service', label: 'Service', count: counts.service },
     { id: 'proposed', label: 'Proposed', count: counts.proposed },
     { id: 'personal', label: 'Personal', count: counts.personal },
   ];
@@ -486,7 +491,9 @@ function fillClientsSidebarList(list) {
       clientState.contactFilter === 'personal'
         ? 'No personal contacts yet.'
         : clientState.contactFilter === 'professional'
-          ? 'No professional clients yet.'
+          ? 'No clients yet.'
+          : clientState.contactFilter === 'service'
+            ? 'No service contacts yet.'
           : clientState.contactFilter === 'proposed'
             ? 'No proposed clients yet.'
             : clientState.search.trim()

@@ -283,7 +283,7 @@ export type ClientPortal = {
   documents?: PortalDocument[];
   /** ChangeDetection.io watch metadata (when site_monitoring feature is enabled). */
   siteMonitoring?: SiteMonitoringMeta;
-  /** Client relationship: professional (default), personal (non-project), or proposed (audit/prospect). */
+  /** Client relationship: professional/client (default), service, personal (non-project), or proposed (audit/prospect). */
   clientKind?: ClientKind;
   /** @deprecated Legacy flag — kept in sync when clientKind is personal. */
   personal?: boolean;
@@ -292,12 +292,12 @@ export type ClientPortal = {
 
 const PORTAL_SYSTEM = 'portal';
 
-export const CLIENT_KINDS = ['professional', 'personal', 'proposed'] as const;
+export const CLIENT_KINDS = ['professional', 'service', 'personal', 'proposed'] as const;
 export type ClientKind = (typeof CLIENT_KINDS)[number];
 
 export function normalizeClientKind(raw: unknown): ClientKind | null {
   const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
-  if (v === 'professional' || v === 'personal' || v === 'proposed') return v;
+  if (v === 'professional' || v === 'service' || v === 'personal' || v === 'proposed') return v;
   return null;
 }
 
