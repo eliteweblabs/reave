@@ -57,7 +57,7 @@ function mockCandidatesNear(
   ];
 
   return offsets.map((o, i) => ({
-    id: `mock-scan-${i}`,
+    id: `mock-scan-${Math.round(centerLat * 1000)}-${Math.round(centerLng * 1000)}-${i}`,
     fullAddress: zip ? `${o.address}, ${city}, ${state} ${zip}` : `${o.address}, ${city}, ${state}`,
     street: o.address,
     city,

@@ -36,17 +36,33 @@ export function renderLeadScannerPanel(data) {
     .map((t) => tradeCheckbox(t.slug, t.label, selected.has(t.slug)))
     .join('');
 
+  const resolved = data.resolvedCenter;
+  const centerLabel =
+    cfg.centerLat != null && cfg.centerLng != null
+      ? `Custom center (${Number(cfg.centerLat).toFixed(4)}, ${Number(cfg.centerLng).toFixed(4)})`
+      : resolved
+        ? `Company office${data.companyAddress ? ` — ${data.companyAddress}` : ''}`
+        : 'Not set — save company address or enter coordinates';
+
   const runsHtml =
     runs.length === 0
       ? '<p class="prof-hint">No scans yet.</p>'
       : runs
-          .map(
-            (r) =>
+          .map((r) => {
+            const skipped = Number(r.skipped ?? 0);
+            const skippedNote =
+              skipped > 0 && r.newLeads === 0
+                ? ` <span class="prof-hint">(all ${skipped} already imported)</span>`
+                : skipped > 0
+                  ? ` <span class="prof-hint">(${skipped} skipped)</span>`
+                  : '';
+            return (
               `<li><strong>${escHtml(new Date(r.ranAt).toLocaleString())}</strong> — ` +
-              `${r.candidatesFound} candidates, ${r.newLeads} new leads` +
+              `${r.candidatesFound} candidates, ${r.newLeads} new leads${skippedNote}` +
               (r.errors?.length ? ` <span class="prof-hint">(${r.errors.length} errors)</span>` : '') +
-              `</li>`,
-          )
+              `</li>`
+            );
+          })
           .join('');
 
   return (
@@ -71,12 +87,14 @@ export function renderLeadScannerPanel(data) {
     `</label>` +
     `</div>` +
     `<div id="lead-scanner-map-host" class="cl-map-section"></div>` +
+    `<p class="prof-hint prof-hint--block">Active scan center: ${escHtml(centerLabel)}</p>` +
     `<div class="prof-field-row">` +
     `<div class="prof-field"><label for="lead-scanner-lat">Center latitude</label>` +
-    `<input id="lead-scanner-lat" name="centerLat" type="number" step="any" value="${cfg.centerLat ?? ''}" placeholder="42.3601" /></div>` +
+    `<input id="lead-scanner-lat" name="centerLat" type="number" step="any" value="${cfg.centerLat ?? ''}" placeholder="${resolved?.lat != null ? resolved.lat : 'Leave blank for company office'}" /></div>` +
     `<div class="prof-field"><label for="lead-scanner-lng">Center longitude</label>` +
-    `<input id="lead-scanner-lng" name="centerLng" type="number" step="any" value="${cfg.centerLng ?? ''}" placeholder="-71.0589" /></div>` +
+    `<input id="lead-scanner-lng" name="centerLng" type="number" step="any" value="${cfg.centerLng ?? ''}" placeholder="${resolved?.lng != null ? resolved.lng : 'Leave blank for company office'}" /></div>` +
     `</div>` +
+    `<span class="prof-hint prof-hint--block">Leave latitude/longitude blank to use your company office. Re-scans skip properties already imported — mock mode returns up to 5 demo properties per center.</span>` +
     `<div class="prof-field"><label for="lead-scanner-radius">Travel radius (miles)</label>` +
     `<input id="lead-scanner-radius" name="radiusMiles" type="number" min="1" max="100" step="1" value="${cfg.radiusMiles ?? 15}" />` +
     `<span class="prof-hint">Properties within this radius of center are scanned.</span></div>` +
@@ -131,22 +149,32 @@ function collectPayload(form) {
 }
 
 function readScanCenter(form, data) {
+  const cfg = data.config || {};
+  const useOffice = form.querySelector('#lead-scanner-use-office')?.checked !== false;
   const latRaw = form.querySelector('#lead-scanner-lat')?.value ?? '';
   const lngRaw = form.querySelector('#lead-scanner-lng')?.value ?? '';
-  const lat = latRaw !== '' ? Number(latRaw) : NaN;
-  const lng = lngRaw !== '' ? Number(lngRaw) : NaN;
-  if (Number.isFinite(lat) && Number.isFinite(lng)) {
-    return { lat, lng, address: '' };
+
+  if (latRaw !== '' && lngRaw !== '') {
+    const lat = Number(latRaw);
+    const lng = Number(lngRaw);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { lat, lng, address: '' };
+    }
   }
 
-  const useOffice = form.querySelector('#lead-scanner-use-office')?.checked !== false;
-  const geo = data.companyGeo;
-  if (useOffice && geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
-    return {
-      lat: geo.lat,
-      lng: geo.lng,
-      address: (data.companyAddress || '').trim() || 'Company office',
-    };
+  if (cfg.centerLat != null && cfg.centerLng != null) {
+    return { lat: Number(cfg.centerLat), lng: Number(cfg.centerLng), address: '' };
+  }
+
+  if (useOffice) {
+    const geo = data.companyGeo || data.resolvedCenter;
+    if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+      return {
+        lat: geo.lat,
+        lng: geo.lng,
+        address: (data.companyAddress || '').trim() || 'Company office',
+      };
+    }
   }
 
   return null;
@@ -214,9 +242,16 @@ export function bindLeadScannerPanel(root, data) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.result?.skipped || json.error || `HTTP ${res.status}`);
       const r = json.result || {};
+      const skipped = Number(r.skippedLeads ?? 0);
+      const skippedNote =
+        skipped > 0 && (r.newLeads ?? 0) === 0
+          ? ` All ${skipped} were already imported on a prior scan.`
+          : skipped > 0
+            ? ` ${skipped} skipped (already imported).`
+            : '';
       showAlert(
         root,
-        `Scan complete — ${r.candidatesFound ?? 0} candidates, ${r.newLeads ?? 0} new leads.`,
+        `Scan complete — ${r.candidatesFound ?? 0} candidates, ${r.newLeads ?? 0} new leads.${skippedNote}`,
         'success',
       );
       setTimeout(() => window.location.reload(), 1200);

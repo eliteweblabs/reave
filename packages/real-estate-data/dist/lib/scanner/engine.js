@@ -14,7 +14,7 @@ function mockCandidatesNear(centerLat, centerLng, location) {
         { dLat: 0.018, dLng: 0.002, address: '5 River Lane', yearBuilt: 1971, owner: 'RIVER VIEW PROPERTIES' },
     ];
     return offsets.map((o, i) => ({
-        id: `mock-scan-${i}`,
+        id: `mock-scan-${Math.round(centerLat * 1000)}-${Math.round(centerLng * 1000)}-${i}`,
         fullAddress: zip ? `${o.address}, ${city}, ${state} ${zip}` : `${o.address}, ${city}, ${state}`,
         street: o.address,
         city,
