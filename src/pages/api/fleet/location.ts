@@ -15,8 +15,9 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-export const POST: APIRoute = async ({ locals, request }) => {
+export const POST: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
+  const { request } = context;
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 

@@ -26,8 +26,9 @@ function featureGate(): Response | null {
   return null;
 }
 
-export const PATCH: APIRoute = async ({ locals, params, request }) => {
+export const PATCH: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
+  const { params, request } = context;
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 
@@ -61,8 +62,9 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
   return json({ ok: true, vehicle: result.data.vehicle });
 };
 
-export const DELETE: APIRoute = async ({ locals, params }) => {
+export const DELETE: APIRoute = async (context) => {
   const auth = await requireDashboardUser(context);
+  const { params } = context;
   if (auth instanceof Response) return auth;
   const { userId } = auth;
 

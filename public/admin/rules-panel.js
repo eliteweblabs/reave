@@ -156,7 +156,7 @@ function createRuleListItem(rule, activeId) {
   btn.innerHTML = `
     <span class="ch-item-row">
       <span class="ch-item-title">${escHtml(rule.title || rule.status)}</span>
-      <span class="ch-item-date">${escHtml(formatChatDate(rule.updatedAt || rule.createdAt))}</span>
+      <span class="ch-item-date">${escHtml(shell.formatChatDate(rule.updatedAt || rule.createdAt))}</span>
     </span>
     <span class="de-item-slug">${escHtml(ruleSubline(rule))}</span>`;
   btn.addEventListener('click', () => openRuleEditor(rule.id));
@@ -497,7 +497,7 @@ function syncRuleListItem(id, payload, savedRule) {
   const dateEl = item.querySelector('.ch-item-date');
   if (dateEl) {
     const when = (savedRule && (savedRule.updatedAt || savedRule.createdAt)) || (rule && (rule.updatedAt || rule.createdAt));
-    dateEl.textContent = formatChatDate(when);
+    dateEl.textContent = shell.formatChatDate(when);
   }
   const subEl = item.querySelector('.de-item-slug');
   if (subEl && rule) subEl.textContent = ruleSubline(rule);

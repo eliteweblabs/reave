@@ -8732,6 +8732,7 @@ initRulesPanel({
   appendEmptyDetailPane,
   isCreateDrawerOpen,
   navIcon,
+  formatChatDate,
   setFormFieldState,
   flashFormFieldSaved,
   FORM_FIELD_SAVED,
