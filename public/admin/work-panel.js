@@ -28,7 +28,7 @@ import {
   getDeBtnLabel,
   updateDeBtnLabel,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, skeletonHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
 import { clientState, clientMapController } from './clients-panel.js?v=20260728p';
 
 /** Injected by os-map-loader via initWorkPanel(). */
@@ -1184,7 +1184,7 @@ async function loadWorkTab(opts = {}) {
     workState.draft &&
     (opts.workSlug === '__new__' || pendingWorkDeepLinkSlug === '__new__');
   if (!preserveNew) {
-    root.innerHTML = skeletonHtml('list', 'Loading work…');
+    mountPanelSkeleton(root, 'list', 'Loading work…', { contentSelector: '.ch-sidebar' });
   }
   try {
     const res = await adminFetch('/api/work');

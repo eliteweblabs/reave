@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, skeletonHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, sidebarAuthorIconHtml, mountPanelSkeleton } from './shared.js?v=20260731a';
 // Drag-to-reorder disabled — see todo-panel.js attachSidebarListReorder.
 // import { attachSidebarListReorder, persistKnowledgeOrder } from './todo-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
@@ -139,7 +139,7 @@ async function loadKnowledgeTab() {
     root.innerHTML = '<div class="de-loading de-error">Sign in required to view knowledge.</div>';
     return;
   }
-  root.innerHTML = skeletonHtml('list', 'Loading knowledge…');
+  mountPanelSkeleton(root, 'list', 'Loading knowledge…', { contentSelector: '.ch-sidebar' });
   try {
     const res = await adminFetch(shell.KNOWLEDGE_API);
     const data = await res.json();

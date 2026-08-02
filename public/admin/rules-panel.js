@@ -41,7 +41,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260728q';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, skeletonHtml } from './shared.js?v=20260728q';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728q';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728q';
 
@@ -128,7 +128,7 @@ function appendRuleField(parent, label, el) {
 async function loadRulesTab() {
   const root = getRuleEditor();
   if (!root) return;
-  root.innerHTML = skeletonHtml('list', 'Loading rules…');
+  mountPanelSkeleton(root, 'list', 'Loading rules…', { contentSelector: '.ch-sidebar' });
   try {
     const res = await fetch('/api/email/rules', { cache: 'no-store' });
     const data = await res.json();

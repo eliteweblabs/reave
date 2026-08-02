@@ -1,7 +1,7 @@
 /**
  * Lead Scanner admin settings — geofence radius, trades, daily scan hour.
  */
-import { escHtml, adminFetch, skeletonHtml } from './shared.js?v=20260728m';
+import { escHtml, adminFetch, mountPanelSkeleton } from './shared.js?v=20260728m';
 import { createClientMap } from './client-map.js?v=20260728m';
 
 let mapController = null;
@@ -189,7 +189,10 @@ export async function loadLeadScannerTab(deps) {
   const { settingsPanelRoot, prependSettingsBackHeader, escHtml: esc } = deps;
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading lead scanner…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading lead scanner…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {

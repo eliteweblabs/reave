@@ -108,6 +108,22 @@ export function skeletonHtml(kind = 'list', label = 'Loading…') {
   );
 }
 
+/** True when the panel is empty or already showing a skeleton (safe to swap in a new one). */
+export function panelNeedsSkeleton(root, contentSelector) {
+  if (!root) return false;
+  if (root.querySelector('.sk-list, .sk-dashboard')) return false;
+  if (contentSelector && root.querySelector(contentSelector)) return false;
+  return true;
+}
+
+/** Insert skeleton markup only for a first-load / empty panel — skips quiet refreshes. */
+export function mountPanelSkeleton(root, kind, label, opts = {}) {
+  if (!root || opts.quiet) return;
+  if (!panelNeedsSkeleton(root, opts.contentSelector)) return;
+  const html = skeletonHtml(kind, label);
+  root.innerHTML = typeof opts.wrapper === 'function' ? opts.wrapper(html) : html;
+}
+
 /** Company icon used in the account menu (same fallback chain as Header.astro). */
 export function companyStaffAvatarUrl() {
   return window.__companyStaffAvatarUrl || '/logo-icon-avatar.png';

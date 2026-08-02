@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, skeletonHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, registerContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
 import { osConfirm } from './os-dialog.js?v=20260728j';
 import {
   navigateToWork,
@@ -410,7 +410,7 @@ async function loadClientsTab(opts = {}) {
     return;
   }
 
-  root.innerHTML = skeletonHtml('list', 'Loading clients…');
+  mountPanelSkeleton(root, 'list', 'Loading clients…', { contentSelector: '.ch-sidebar' });
   try {
     await fetchClientsList();
   } catch (e) {

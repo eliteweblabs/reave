@@ -40,7 +40,7 @@ import {
   paneDeleteIcon,
   paneShareIcon,
 } from './admin-ui.js?v=20260728q';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, skeletonHtml } from './shared.js?v=20260728q';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, mountPanelSkeleton } from './shared.js?v=20260728q';
 import { osAlert, openOsDialogBackdrop, closeOsDialogBackdrop } from './os-dialog.js?v=20260728q';
 import { createFleetMap } from '/admin/fleet-map.js';
 
@@ -312,7 +312,10 @@ function bindSocialControls(root) {
 async function loadSocialTab() {
   const root = document.getElementById('social-panel');
   if (!root) return;
-  root.innerHTML = `<div class="social-scroll">${skeletonHtml('dashboard', 'Loading social dashboard…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading social dashboard…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch(`/api/admin/social?range=${socialRangeDays}`, { cache: 'no-store' });
@@ -528,7 +531,10 @@ function renderAnalyticsDashboard(root, d) {
 async function loadAnalyticsTab() {
   const root = document.getElementById('analytics-panel');
   if (!root) return;
-  root.innerHTML = `<div class="social-scroll">${skeletonHtml('dashboard', 'Loading analytics…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading analytics…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch(`/api/admin/analytics?range=${analyticsRangeDays}`, { cache: 'no-store' });
@@ -790,7 +796,10 @@ async function loadFleetTab() {
   const root = document.getElementById('fleet-panel');
   if (!root) return;
   stopFleetPoll();
-  root.innerHTML = `<div class="social-scroll">${skeletonHtml('dashboard', 'Loading fleet…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading fleet…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="social-scroll">${sk}</div>`,
+  });
 
   try {
     const res = await fetch('/api/fleet/map', { cache: 'no-store' });

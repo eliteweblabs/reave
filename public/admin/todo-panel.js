@@ -37,7 +37,7 @@ import {
   attachIosPullToRefresh,
   pullRefreshContentRoot,
 } from './admin-ui.js?v=20260728i';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, prefetchContactAuthorIcons, skeletonHtml } from './shared.js?v=20260731a';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, sidebarAuthorIconHtml, prefetchContactAuthorIcons, mountPanelSkeleton } from './shared.js?v=20260731a';
 import { navigateToWork, navigateToNewWorkFromTodo } from './work-panel.js?v=20260728l';
 import { confirmDiscardChanges } from './clients-panel.js?v=20260728p';
 import { chatState, createPortalShareBtn, refreshChatSidebarList } from './chat-panel.js?v=20260730c';
@@ -199,7 +199,7 @@ async function loadTodoTab(opts = {}) {
     todoState.draft &&
     (opts.todoId === '__new__' || pendingTodoDeepLinkId === '__new__');
   if (!preserveNew) {
-    root.innerHTML = skeletonHtml('list', 'Loading to‑dos…');
+    mountPanelSkeleton(root, 'list', 'Loading to‑dos…', { contentSelector: '.ch-sidebar' });
   }
   try {
     const todoRes = await adminFetch('/api/todos');

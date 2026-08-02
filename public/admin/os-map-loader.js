@@ -96,7 +96,7 @@ import {
   paneShareIcon,
 } from './admin-ui.js?v=20260801a';
 import { showAdminConfirmBanner } from './push-client.js?v=20250715b';
-import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, skeletonHtml } from './shared.js?v=20260731c';
+import { escHtml, adminFetch, readAdminJson, readApiJson, linkifyPlainText, parseTodoDueInstant, isUtcDateOnlyInstant, formatTodoDueTime, TODO_PRIORITY_LABELS, mountPanelSkeleton } from './shared.js?v=20260731c';
 import { osAlert, osConfirm, openOsDialogBackdrop, closeOsDialogBackdrop, bindOsDialogDismiss, bindOsDialogKeyboardLayout, releaseOsDialogKeyboardLayout, scheduleOsDialogFieldFocus } from './os-dialog.js?v=20260728j';
 import {
   initWorkPanel,
@@ -4756,13 +4756,17 @@ async function syncUptimeMonitorsFromApi() {
 let homeDashboardLoadPromise = null;
 let homeDashboardRefreshTimer = null;
 
-async function loadHomeDashboard() {
+async function loadHomeDashboard(opts = {}) {
+  const quiet = opts.quiet === true;
   const root = document.getElementById('home-dashboard');
   if (!root) return;
   if (homeDashboardLoadPromise) return homeDashboardLoadPromise;
 
   homeDashboardLoadPromise = (async () => {
-    root.innerHTML = `<div class="home-dashboard-scroll">${skeletonHtml('dashboard', 'Loading dashboard…')}</div>`;
+    mountPanelSkeleton(root, 'dashboard', 'Loading dashboard…', {
+      quiet,
+      contentSelector: '.home-dashboard-scroll .dash-today, .home-dashboard-scroll .home-dashboard-grid',
+    });
 
     try {
       const res = await fetch('/api/admin/dashboard', { cache: 'no-store' });
@@ -4788,10 +4792,11 @@ async function loadHomeDashboard() {
 
 function scheduleHomeDashboardRefresh() {
   if (MAP?.type !== 'home') return;
+  if (homeDashboardLoadPromise) return;
   clearTimeout(homeDashboardRefreshTimer);
   homeDashboardRefreshTimer = window.setTimeout(() => {
     homeDashboardRefreshTimer = null;
-    void loadHomeDashboard();
+    void loadHomeDashboard({ quiet: true });
   }, 400);
 }
 
@@ -6206,7 +6211,10 @@ async function loadProfileTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading profile…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading profile…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6231,7 +6239,10 @@ async function loadCompanyTab() {
   destroyCompanyMap();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading company…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading company…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6255,7 +6266,10 @@ async function loadSocialsTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading socials…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading socials…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6304,7 +6318,10 @@ async function loadIndustriesTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading industries…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading industries…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -6372,7 +6389,10 @@ async function loadVapiTab() {
   await flushSettingsAutosave();
   const root = settingsPanelRoot();
   if (!root) return;
-  root.innerHTML = `<div class="profile-panel-scroll">${skeletonHtml('dashboard', 'Loading Vapi…')}</div>`;
+  mountPanelSkeleton(root, 'dashboard', 'Loading Vapi…', {
+    contentSelector: '.prof-card',
+    wrapper: (sk) => `<div class="profile-panel-scroll">${sk}</div>`,
+  });
   prependSettingsBackHeader(root);
 
   try {
@@ -10360,7 +10380,7 @@ async function switchEmailInboxFilter(nextFilter) {
 async function loadEmailTab(quiet) {
   const root = getEmailPanel();
   if (!root) return;
-  if (!quiet) root.innerHTML = skeletonHtml('list', 'Loading inbox…');
+  if (!quiet) mountPanelSkeleton(root, 'list', 'Loading inbox…', { contentSelector: '.em-sidebar' });
   try {
     const [inboxRes] = await Promise.all([
       adminFetch('/api/email/inbox?junk=1'),
